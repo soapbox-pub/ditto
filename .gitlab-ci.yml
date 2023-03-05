@@ -1,0 +1,19 @@
+image: denoland/deno:1.31.1
+
+default:
+  interruptible: true
+
+stages:
+  - test
+
+fmt:
+  stage: test
+  script: deno fmt --check
+
+lint:
+  stage: test
+  script: deno lint
+
+# test:
+#   stage: test
+#   script: deno task test
