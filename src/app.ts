@@ -1,4 +1,4 @@
-import { Hono } from '@/deps.ts';
+import { cors, Hono } from '@/deps.ts';
 
 import { credentialsController } from './api/accounts.ts';
 import { appCredentialsController, createAppController } from './api/apps.ts';
@@ -7,6 +7,8 @@ import instanceController from './api/instance.ts';
 import { createTokenController } from './api/oauth.ts';
 
 const app = new Hono();
+
+app.use('/*', cors());
 
 app.get('/api/v1/instance', instanceController);
 
