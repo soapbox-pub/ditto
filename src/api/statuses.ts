@@ -1,7 +1,8 @@
 import { validator, z } from '@/deps.ts';
 
+import { fetchUser } from '../client.ts';
 import publish from '../publisher.ts';
-import { toStatus } from '../transmute.ts';
+import { toAccount, toStatus } from '../transmute.ts';
 import { getKeys } from '../utils.ts';
 
 import type { Event } from '../event.ts';
@@ -10,7 +11,7 @@ const createStatusSchema = z.object({
   status: z.string(),
 });
 
-const createStatusController = validator('json', (value, c) => {
+const createStatusController = validator('json', async (value, c) => {
   const keys = getKeys(c);
   const result = createStatusSchema.safeParse(value);
 
@@ -27,7 +28,11 @@ const createStatusController = validator('json', (value, c) => {
     };
 
     publish(event, privatekey);
-    return c.json(toStatus(event));
+
+    return c.json({
+      ...toStatus(event),
+      account: toAccount((await fetchUser(pubkey))!),
+    });
   } else {
     return c.json({ error: 'Bad request' }, 400);
   }
