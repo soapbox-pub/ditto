@@ -1,0 +1,32 @@
+{
+  "lock": false,
+  "tasks": {
+    "dev": "deno run --allow-read --allow-env --allow-net --watch src/server.ts",
+    "test": "deno test"
+  },
+  "imports": {
+    "@/": "./src/"
+  },
+  "lint": {
+    "files": {
+      "include": ["src/"]
+    },
+    "rules": {
+      "tags": ["recommended"],
+      "exclude": ["no-explicit-any"]
+    }
+  },
+  "fmt": {
+    "files": {
+      "include": ["src/"]
+    },
+    "options": {
+      "useTabs": false,
+      "lineWidth": 120,
+      "indentWidth": 2,
+      "semiColons": true,
+      "singleQuote": true,
+      "proseWrap": "preserve"
+    }
+  }
+}
