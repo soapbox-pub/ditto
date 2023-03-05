@@ -34,4 +34,4 @@ const fetchFollows = (pubkey: string): Promise<Event<3> | null> => {
   });
 };
 
-export { fetchEvent, fetchFollows, fetchUser };
+export { fetchEvent, fetchFollows, fetchUser, pool };

@@ -1,17 +1,15 @@
-import { getPublicKey } from '@/deps.ts';
-
 import { LOCAL_DOMAIN } from '../config.ts';
 import { fetchUser } from '../client.ts';
 import { MetaContent, metaContentSchema } from '../schema.ts';
+import { getKeys } from '../utils.ts';
 
 import type { Context } from '@/deps.ts';
 
 async function credentialsController(c: Context) {
-  const authHeader = c.req.headers.get('Authorization') || '';
+  const keys = getKeys(c);
 
-  if (authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split('Bearer ')[1];
-    const pubkey = getPublicKey(token);
+  if (keys) {
+    const { pubkey } = keys;
     const event = await fetchUser(pubkey);
     const parsed = metaContentSchema.safeParse(JSON.parse(event?.content || ''));
     const content: MetaContent = parsed.success ? parsed.data : {};
