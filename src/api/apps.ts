@@ -14,8 +14,8 @@ function createAppController(c: Context) {
   return c.json(FAKE_APP);
 }
 
-function appVerifyCredentials(c: Context) {
+function appCredentialsController(c: Context) {
   return c.json(FAKE_APP);
 }
 
-export { appVerifyCredentials, createAppController };
+export { appCredentialsController, createAppController };
