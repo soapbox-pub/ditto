@@ -16,31 +16,43 @@ function parseContent(event: Event<0>): MetaContent {
 
 function toAccount(event: Event<0>) {
   const { pubkey } = event;
-  const content: MetaContent = parseContent(event);
+  const { name, nip05, picture, banner, about }: MetaContent = parseContent(event);
   const { host, origin } = new URL(LOCAL_DOMAIN);
   const npub = nip19.npubEncode(pubkey);
 
   return {
     id: pubkey,
-    acct: content.nip05 || npub,
-    avatar: content.picture || DEFAULT_AVATAR,
-    avatar_static: content.picture || DEFAULT_AVATAR,
+    acct: nip05 || npub,
+    avatar: picture || DEFAULT_AVATAR,
+    avatar_static: picture || DEFAULT_AVATAR,
     bot: false,
     created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
-    display_name: content.name,
+    display_name: name,
     emojis: [],
     fields: [],
     follow_requests_count: 0,
     followers_count: 0,
     following_count: 0,
     statuses_count: 0,
-    header: content.banner,
-    header_static: content.banner,
+    header: banner,
+    header_static: banner,
     locked: false,
-    note: content.about,
-    fqn: content.nip05 || `${npub}@${host}`,
+    note: about,
+    fqn: nip05 || `${npub}@${host}`,
     url: `${origin}/users/${pubkey}`,
-    username: content.nip05 || npub,
+    username: nip05 ? nip05.split('@')[0] : npub,
+  };
+}
+
+async function toMention(tag: string[]) {
+  const profile = await fetchUser(tag[1]);
+  const account = profile ? toAccount(profile) : undefined;
+
+  return {
+    id: account?.id || tag[1],
+    acct: account?.acct || tag[1],
+    username: account?.username || tag[1],
+    url: account?.url,
   };
 }
 
@@ -72,7 +84,7 @@ async function toStatus(event: Event<1>) {
     reblog: null,
     application: null,
     media_attachments: [],
-    mentions: [],
+    mentions: await Promise.all(event.tags.filter((tag) => tag[0] === 'p').map(toMention)),
     tags: [],
     emojis: [],
     card: null,
