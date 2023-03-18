@@ -3,6 +3,7 @@ import { Author, RelayPool } from '@/deps.ts';
 import { poolRelays } from './config.ts';
 
 import type { Event, SignedEvent } from './event.ts';
+import { eventDateComparator } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
@@ -34,23 +35,40 @@ const fetchFollows = (pubkey: string): Promise<SignedEvent<3> | null> => {
   });
 };
 
-/** Fetch 20 events from people the user follows. */
-function fetchFeed(event3: Event<3>): Promise<SignedEvent<1>[]> {
+interface PaginationParams {
+  since?: number;
+  until?: number;
+  limit?: number;
+}
+
+/** Fetch events from people the user follows. */
+function fetchFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
+  const limit = params.limit ?? 20;
   const authors = event3.tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]);
   const results: SignedEvent<1>[] = [];
   authors.push(event3.pubkey); // see own events in feed
 
   return new Promise((resolve) => {
     pool.subscribe(
-      [{ authors, kinds: [1], limit: 20 }],
+      [{
+        authors,
+        kinds: [1],
+        since: params.since,
+        until: params.until,
+        limit,
+      }],
       poolRelays,
       (event: SignedEvent<1> | null) => {
         if (event) {
           results.push(event);
+
+          if (results.length >= limit) {
+            resolve(results.slice(0, limit).sort(eventDateComparator));
+          }
         }
       },
       void 0,
-      () => resolve(results),
+      () => resolve(results.sort(eventDateComparator)),
       { unsubscribeOnEose: true },
     );
   });

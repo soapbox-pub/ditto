@@ -1,5 +1,13 @@
 import { Context, getPublicKey } from '@/deps.ts';
 
+import type { Event } from './event.ts';
+
+/** Get the current time in Nostr format. */
+const nostrNow = () => Math.floor(new Date().getTime() / 1000);
+
+/** Pass to sort() to sort events by date. */
+const eventDateComparator = (a: Event, b: Event) => b.created_at - a.created_at;
+
 function getKeys(c: Context) {
   const auth = c.req.headers.get('Authorization') || '';
 
@@ -14,4 +22,4 @@ function getKeys(c: Context) {
   }
 }
 
-export { getKeys };
+export { eventDateComparator, getKeys, nostrNow };
