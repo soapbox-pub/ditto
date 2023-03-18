@@ -17,7 +17,7 @@ function parseContent(event: Event<0>): MetaContent {
 function toAccount(event: Event<0>) {
   const { pubkey } = event;
   const { name, nip05, picture, banner, about }: MetaContent = parseContent(event);
-  const { host, origin } = new URL(LOCAL_DOMAIN);
+  const { origin } = new URL(LOCAL_DOMAIN);
   const npub = nip19.npubEncode(pubkey);
 
   return {
@@ -38,7 +38,7 @@ function toAccount(event: Event<0>) {
     header_static: banner,
     locked: false,
     note: about,
-    fqn: nip05 || `${npub}@${host}`,
+    fqn: nip05 || npub,
     url: `${origin}/users/${pubkey}`,
     username: nip05 ? nip05.split('@')[0] : npub,
   };
