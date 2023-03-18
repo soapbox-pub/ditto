@@ -1,8 +1,7 @@
 import { validator, z } from '@/deps.ts';
 
-import { fetchUser } from '../client.ts';
 import publish from '../publisher.ts';
-import { toAccount, toStatus } from '../transmute.ts';
+import { toStatus } from '../transmute.ts';
 import { getKeys } from '../utils.ts';
 
 import type { Event } from '../event.ts';
@@ -29,10 +28,7 @@ const createStatusController = validator('json', async (value, c) => {
 
     publish(event, privatekey);
 
-    return c.json({
-      ...toStatus(event),
-      account: toAccount((await fetchUser(pubkey))!),
-    });
+    return c.json(await toStatus(event));
   } else {
     return c.json({ error: 'Bad request' }, 400);
   }

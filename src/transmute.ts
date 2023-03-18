@@ -1,19 +1,27 @@
 import { LOCAL_DOMAIN } from './config.ts';
-import { MetaContent, metaContentSchema } from './schema.ts';
+import { fetchUser } from './client.ts';
+import { jsonSchema, MetaContent, metaContentSchema } from './schema.ts';
 
 import type { Event } from './event.ts';
 
+const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
+
+function parseContent(event: Event<0>): MetaContent {
+  const json = jsonSchema.parse(event.content);
+  const result = metaContentSchema.safeParse(json);
+  return result.success ? result.data : {};
+}
+
 function toAccount(event: Event<0>) {
   const { pubkey } = event;
-  const parsed = metaContentSchema.safeParse(JSON.parse(event?.content || ''));
-  const content: MetaContent = parsed.success ? parsed.data : {};
+  const content: MetaContent = parseContent(event);
   const { host, origin } = new URL(LOCAL_DOMAIN);
 
   return {
     id: pubkey,
-    acct: pubkey,
-    avatar: content.picture,
-    avatar_static: content.picture,
+    acct: content.nip05 || pubkey,
+    avatar: content.picture || DEFAULT_AVATAR,
+    avatar_static: content.picture || DEFAULT_AVATAR,
     bot: false,
     created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
     display_name: content.name,
@@ -27,21 +35,25 @@ function toAccount(event: Event<0>) {
     header_static: content.banner,
     locked: false,
     note: content.about,
-    fqn: `${pubkey}@${host}`,
+    fqn: content.nip05 || `${pubkey}@${host}`,
     url: `${origin}/users/${pubkey}`,
-    username: pubkey,
+    username: content.nip05 || pubkey,
   };
 }
 
-function toStatus(event: Event<1>) {
+async function toStatus(event: Event<1>) {
+  const profile = await fetchUser(event.pubkey);
+  const account = profile ? toAccount(profile) : undefined;
+  if (!account) return;
+
+  const inReplyTo = event.tags.find((tag) => tag[0] === 'e' && tag[3] === 'reply');
+
   return {
     id: event.id,
-    account: {
-      id: event.pubkey,
-    },
+    account,
     content: event.content,
     created_at: new Date(event.created_at * 1000).toISOString(),
-    in_reply_to_id: null,
+    in_reply_to_id: inReplyTo ? inReplyTo[1] : null,
     in_reply_to_account_id: null,
     sensitive: false,
     spoiler_text: '',

@@ -2,7 +2,7 @@ import { fetchFeed, fetchFollows } from '../client.ts';
 import { getKeys } from '../utils.ts';
 
 import type { Context } from '@/deps.ts';
-import type { SignedEvent } from '../event.ts';
+import { toStatus } from '../transmute.ts';
 
 async function homeController(c: Context) {
   const keys = getKeys(c);
@@ -16,33 +16,9 @@ async function homeController(c: Context) {
   }
 
   const events = await fetchFeed(follows);
-  const statuses = events.map(toStatus);
+  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
 
   return c.json(statuses);
-}
-
-interface Account {
-  id: string;
-  acct: string;
-  username: string;
-}
-
-interface Status {
-  id: string;
-  content: string;
-  account: Account;
-}
-
-function toStatus(event: SignedEvent<1>): Status {
-  return {
-    id: event.id,
-    content: event.content,
-    account: {
-      id: event.pubkey,
-      acct: event.pubkey,
-      username: event.pubkey,
-    },
-  };
 }
 
 export default homeController;
