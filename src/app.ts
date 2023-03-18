@@ -3,6 +3,7 @@ import { cors, Hono } from '@/deps.ts';
 import { credentialsController } from './api/accounts.ts';
 import { appCredentialsController, createAppController } from './api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
+import homeController from './api/home.ts';
 import instanceController from './api/instance.ts';
 import { createTokenController } from './api/oauth.ts';
 import { createStatusController } from './api/statuses.ts';
@@ -23,8 +24,9 @@ app.get('/api/v1/accounts/verify_credentials', credentialsController);
 
 app.post('/api/v1/statuses', createStatusController);
 
+app.get('/api/v1/timelines/home', homeController);
+
 // Not (yet) implemented.
-app.get('/api/v1/timelines/*', emptyArrayController);
 app.get('/api/v1/notifications', emptyArrayController);
 app.get('/api/v1/accounts/:id/statuses', emptyArrayController);
 app.get('/api/v1/bookmarks', emptyArrayController);
