@@ -3,7 +3,7 @@ import { Author, RelayPool } from '@/deps.ts';
 import { poolRelays } from './config.ts';
 
 import type { Event, SignedEvent } from './event.ts';
-import { eventDateComparator } from './utils.ts';
+import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
@@ -43,7 +43,7 @@ interface PaginationParams {
 
 /** Fetch events from people the user follows. */
 function fetchFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
-  const limit = params.limit ?? 20;
+  const limit = Math.max(params.limit ?? 20, 40);
   const authors = event3.tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]);
   const results: SignedEvent<1>[] = [];
   authors.push(event3.pubkey); // see own events in feed
@@ -54,7 +54,7 @@ function fetchFeed(event3: Event<3>, params: PaginationParams = {}): Promise<Sig
         authors,
         kinds: [1],
         since: params.since,
-        until: params.until,
+        until: params.until ?? nostrNow(),
         limit,
       }],
       poolRelays,
