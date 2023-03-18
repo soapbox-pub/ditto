@@ -38,6 +38,7 @@ const fetchFollows = (pubkey: string): Promise<SignedEvent<3> | null> => {
 function fetchFeed(event3: Event<3>): Promise<SignedEvent<1>[]> {
   const authors = event3.tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]);
   const results: SignedEvent<1>[] = [];
+  authors.push(event3.pubkey); // see own events in feed
 
   return new Promise((resolve) => {
     pool.subscribe(

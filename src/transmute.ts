@@ -1,3 +1,5 @@
+import { nip19 } from '@/deps.ts';
+
 import { LOCAL_DOMAIN } from './config.ts';
 import { fetchUser } from './client.ts';
 import { jsonSchema, MetaContent, metaContentSchema } from './schema.ts';
@@ -16,10 +18,11 @@ function toAccount(event: Event<0>) {
   const { pubkey } = event;
   const content: MetaContent = parseContent(event);
   const { host, origin } = new URL(LOCAL_DOMAIN);
+  const npub = nip19.npubEncode(pubkey);
 
   return {
     id: pubkey,
-    acct: content.nip05 || pubkey,
+    acct: content.nip05 || npub,
     avatar: content.picture || DEFAULT_AVATAR,
     avatar_static: content.picture || DEFAULT_AVATAR,
     bot: false,
@@ -35,9 +38,9 @@ function toAccount(event: Event<0>) {
     header_static: content.banner,
     locked: false,
     note: content.about,
-    fqn: content.nip05 || `${pubkey}@${host}`,
+    fqn: content.nip05 || `${npub}@${host}`,
     url: `${origin}/users/${pubkey}`,
-    username: content.nip05 || pubkey,
+    username: content.nip05 || npub,
   };
 }
 
