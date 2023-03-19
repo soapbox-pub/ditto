@@ -1,15 +1,13 @@
 import { z } from '@/deps.ts';
 
-const jsonSchema = z.string().refine((value) => {
+const jsonSchema = z.string().transform((value, ctx) => {
   try {
-    // FIXME: this calls JSON.parse twice. Can we make it not do that?
-    // https://github.com/colinhacks/zod/discussions/2215
-    JSON.parse(value);
-    return true;
-  } catch (_) {
-    return false;
+    return JSON.parse(value);
+  } catch (_e) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON' });
+    return z.NEVER;
   }
-}).transform((value) => JSON.parse(value));
+});
 
 const optionalString = z.string().optional().catch(undefined);
 
