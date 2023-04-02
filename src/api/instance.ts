@@ -7,9 +7,9 @@ function instanceController(c: Context) {
 
   return c.json({
     uri: host,
-    title: 'Nostrverse',
-    description: 'An adapter between Mastodon API and Nostr.',
-    short_description: 'An adapter between Mastodon API and Nostr.',
+    title: 'Ditto',
+    description: 'An efficient and flexible social media server.',
+    short_description: 'An efficient and flexible social media server.',
     registrations: false,
     max_toot_chars: POST_CHAR_LIMIT,
     configuration: {
@@ -37,7 +37,7 @@ function instanceController(c: Context) {
     urls: {
       streaming_api: `wss://${host}`,
     },
-    version: '0.0.0 (compatible; Nostrverse 0.0.1)',
+    version: '0.0.0 (compatible; Ditto 0.0.1)',
     rules: [],
   });
 }
