@@ -1,18 +1,11 @@
 import { nip19 } from '@/deps.ts';
+import { type Event } from '@/nostr/event.ts';
+import { type MetaContent, parseContent } from '@/nostr/events/kind-0.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { fetchUser } from './client.ts';
-import { jsonSchema, MetaContent, metaContentSchema } from './schema.ts';
-
-import type { Event } from './event.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
-
-function parseContent(event: Event<0>): MetaContent {
-  const json = jsonSchema.parse(event.content);
-  const result = metaContentSchema.safeParse(json);
-  return result.success ? result.data : {};
-}
 
 function toAccount(event: Event<0>) {
   const { pubkey } = event;

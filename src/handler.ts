@@ -1,8 +1,7 @@
 import { gossipDB } from '@/db.ts';
+import { type Event } from '@/nostr/event.ts';
 
 import { getAuthorRelays } from './gossip.ts';
-
-import type { Event } from './event.ts';
 
 function handleEvent(event: Event): void {
   handleRelays(event);

@@ -1,8 +1,8 @@
 import { Author, RelayPool } from '@/deps.ts';
+import { type Event, type SignedEvent } from '@/nostr/event.ts';
 
 import { poolRelays } from './config.ts';
 
-import type { Event, SignedEvent } from './event.ts';
 import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);

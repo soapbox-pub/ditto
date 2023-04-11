@@ -9,26 +9,13 @@ const jsonSchema = z.string().transform((value, ctx) => {
   }
 });
 
-const optionalString = z.string().optional().catch(undefined);
-
-const metaContentSchema = z.object({
-  name: optionalString,
-  about: optionalString,
-  picture: optionalString,
-  banner: optionalString,
-  nip05: optionalString,
-  lud16: optionalString,
-});
-
-type MetaContent = z.infer<typeof metaContentSchema>;
-
-/** It's like `safeParse` except it returns `T` on success and `undefined` on fail. */
-function parseish<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
+/** Alias for `safeParse`, but instead of returning a success object it returns the value (or undefined on fail). */
+function parseValue<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
   const result = schema.safeParse(value);
   return result.success ? result.data : undefined;
 }
 
-const parseRelay = (relay: string | URL) => parseish(relaySchema, relay);
+const parseRelay = (relay: string | URL) => parseValue(relaySchema, relay);
 
 const relaySchema = z.custom<URL>((relay) => {
   if (typeof relay !== 'string') return false;
@@ -40,5 +27,4 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-export { jsonSchema, metaContentSchema, parseRelay, relaySchema };
-export type { MetaContent };
+export { jsonSchema, parseRelay, relaySchema };

@@ -1,6 +1,6 @@
-import { parseRelay } from './schema.ts';
+import { type Event } from '@/nostr/event.ts';
 
-import type { Event } from './event.ts';
+import { parseRelay } from './schema.ts';
 
 /** Gets relays which pertain to the author from the event. */
 function getAuthorRelays(event: Event): URL[] {

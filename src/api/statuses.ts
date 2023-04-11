@@ -1,10 +1,9 @@
 import { validator, z } from '@/deps.ts';
+import { type Event } from '@/nostr/event.ts';
 
 import publish from '../publisher.ts';
 import { toStatus } from '../transmute.ts';
 import { getKeys } from '../utils.ts';
-
-import type { Event } from '../event.ts';
 
 const createStatusSchema = z.object({
   status: z.string(),

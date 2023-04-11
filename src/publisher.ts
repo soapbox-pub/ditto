@@ -1,9 +1,8 @@
 import { getEventHash, signEvent } from '@/deps.ts';
+import { type Event } from '@/nostr/event.ts';
 
 import { pool } from './client.ts';
 import { publishRelays } from './config.ts';
-
-import type { Event } from './event.ts';
 
 /** Publish an event to the Nostr relay. */
 function publish(event: Event, privatekey: string, relays = publishRelays): void {
