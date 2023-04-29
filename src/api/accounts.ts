@@ -1,8 +1,11 @@
 import { type AppController } from '@/app.ts';
+import { nip05 } from '@/deps.ts';
 
 import { getAuthor } from '../client.ts';
 import { toAccount } from '../transmute.ts';
 import { bech32ToPubkey } from '../utils.ts';
+
+import type { Event } from '../event.ts';
 
 const credentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -33,17 +36,9 @@ const accountLookupController: AppController = async (c) => {
     return c.json({ error: 'Missing `acct` query parameter.' }, 422);
   }
 
-  if (acct.includes('@')) {
-    // TODO: NIP-05 handling
-    return c.json({ error: 'NIP-05 lookups not yet implemented.' }, 422);
-  }
-
-  const pubkey = bech32ToPubkey(acct);
-  if (pubkey) {
-    const event = await getAuthor(pubkey);
-    if (event) {
-      return c.json(toAccount(event));
-    }
+  const event = await lookupAccount(acct);
+  if (event) {
+    return c.json(toAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -56,15 +51,23 @@ const accountSearchController: AppController = async (c) => {
     return c.json({ error: 'Missing `q` query parameter.' }, 422);
   }
 
-  const pubkey = bech32ToPubkey(q);
-  if (pubkey) {
-    const event = await getAuthor(pubkey);
-    if (event) {
-      return c.json([toAccount(event)]);
-    }
+  const event = await lookupAccount(decodeURIComponent(q));
+  if (event) {
+    return c.json([toAccount(event)]);
   }
 
   return c.json([]);
 };
+
+/** Resolve a bech32 or NIP-05 identifier to an account. */
+async function lookupAccount(value: string): Promise<Event<0> | undefined> {
+  console.log(`Looking up ${value}`);
+
+  const pubkey = bech32ToPubkey(value) || (await nip05.queryProfile(value))?.pubkey;
+
+  if (pubkey) {
+    return getAuthor(pubkey);
+  }
+}
 
 export { accountController, accountLookupController, accountSearchController, credentialsController };

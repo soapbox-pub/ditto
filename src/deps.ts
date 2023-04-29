@@ -14,6 +14,7 @@ export {
   type Filter,
   getEventHash,
   getPublicKey,
+  nip05,
   nip19,
   nip21,
   signEvent as getSignature,
