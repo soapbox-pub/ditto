@@ -1,5 +1,5 @@
 import { Author, RelayPool } from '@/deps.ts';
-import { type Event, type SignedEvent } from '@/nostr/event.ts';
+import { type Event, type SignedEvent } from '@/event.ts';
 
 import { poolRelays } from './config.ts';
 

@@ -1,5 +1,5 @@
 import { gossipDB } from '@/db.ts';
-import { type Event } from '@/nostr/event.ts';
+import { type Event } from '@/event.ts';
 
 import { getAuthorRelays } from './gossip.ts';
 

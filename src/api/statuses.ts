@@ -1,6 +1,6 @@
 import { type AppContext } from '@/app.ts';
 import { validator, z } from '@/deps.ts';
-import { type Event } from '@/nostr/event.ts';
+import { type Event } from '@/event.ts';
 
 import publish from '../publisher.ts';
 import { toStatus } from '../transmute.ts';

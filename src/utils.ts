@@ -1,5 +1,5 @@
 import { Context, getPublicKey } from '@/deps.ts';
-import { type Event } from '@/nostr/event.ts';
+import { type Event } from '@/event.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = () => Math.floor(new Date().getTime() / 1000);

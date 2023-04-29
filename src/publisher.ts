@@ -1,5 +1,5 @@
 import { getEventHash, getSignature } from '@/deps.ts';
-import { type Event } from '@/nostr/event.ts';
+import { type Event } from '@/event.ts';
 
 import { pool } from './client.ts';
 import { publishRelays } from './config.ts';

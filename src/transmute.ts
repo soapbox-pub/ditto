@@ -1,6 +1,6 @@
 import { nip19 } from '@/deps.ts';
-import { type Event } from '@/nostr/event.ts';
-import { type MetaContent, parseContent } from '@/nostr/events/kind-0.ts';
+import { type Event } from '@/event.ts';
+import { type MetaContent, parseContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { fetchUser } from './client.ts';
