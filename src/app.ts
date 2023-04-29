@@ -1,6 +1,11 @@
 import { type Context, cors, type Handler, Hono, type HonoEnv, type MiddlewareHandler } from '@/deps.ts';
 
-import { accountController, accountLookupController, accountSearchController, credentialsController } from './api/accounts.ts';
+import {
+  accountController,
+  accountLookupController,
+  accountSearchController,
+  credentialsController,
+} from './api/accounts.ts';
 import { appCredentialsController, createAppController } from './api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
 import homeController from './api/home.ts';
@@ -35,7 +40,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.get('/api/v1/accounts/verify_credentials', requireAuth, credentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
-app.get('/api/v1/accounts/:id', accountController);
+app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
 app.post('/api/v1/statuses', requireAuth, createStatusController);
 

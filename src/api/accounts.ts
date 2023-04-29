@@ -17,11 +17,7 @@ const credentialsController: AppController = async (c) => {
 };
 
 const accountController: AppController = async (c) => {
-  const pubkey = c.req.param('id');
-
-  if (!isNostrId(pubkey)) {
-    return c.json({ error: 'Invalid account ID.' }, 422);
-  }
+  const pubkey = c.req.param('pubkey');
 
   const event = await getAuthor(pubkey);
   if (event) {
@@ -72,4 +68,4 @@ const accountSearchController: AppController = async (c) => {
   return c.json([]);
 };
 
-export { accountController, accountSearchController, accountLookupController, credentialsController };
+export { accountController, accountLookupController, accountSearchController, credentialsController };
