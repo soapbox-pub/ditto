@@ -3,7 +3,7 @@ import { type Event } from '@/event.ts';
 import { type MetaContent, parseContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
-import { fetchUser } from './client.ts';
+import { getAuthor } from './client.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 
@@ -38,7 +38,7 @@ function toAccount(event: Event<0>) {
 }
 
 async function toMention(tag: string[]) {
-  const profile = await fetchUser(tag[1]);
+  const profile = await getAuthor(tag[1]);
   const account = profile ? toAccount(profile) : undefined;
 
   return {
@@ -50,7 +50,7 @@ async function toMention(tag: string[]) {
 }
 
 async function toStatus(event: Event<1>) {
-  const profile = await fetchUser(event.pubkey);
+  const profile = await getAuthor(event.pubkey);
   const account = profile ? toAccount(profile) : undefined;
   if (!account) return;
 

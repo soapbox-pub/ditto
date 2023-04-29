@@ -7,21 +7,21 @@ import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
-/** Fetch a Nostr event by its ID. */
-const fetchEvent = async (id: string): Promise<SignedEvent | null> => {
+/** Get a Nostr event by its ID. */
+const getEvent = async (id: string): Promise<SignedEvent | null> => {
   const event = await (pool.getEventById(id, poolRelays, 0) as Promise<SignedEvent>);
   return event?.id === id ? event : null;
 };
 
-/** Fetch a Nostr `set_medatadata` event for a user's pubkey. */
-const fetchUser = async (pubkey: string): Promise<SignedEvent<0> | null> => {
+/** Get a Nostr `set_medatadata` event for a user's pubkey. */
+const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | null> => {
   const author = new Author(pool, poolRelays, pubkey);
   const event: SignedEvent<0> | null = await new Promise((resolve) => author.metaData(resolve, 0));
   return event?.pubkey === pubkey ? event : null;
 };
 
-/** Fetch users the given pubkey follows. */
-const fetchFollows = (pubkey: string): Promise<SignedEvent<3> | null> => {
+/** Get users the given pubkey follows. */
+const getFollows = (pubkey: string): Promise<SignedEvent<3> | null> => {
   return new Promise((resolve) => {
     pool.subscribe(
       [{ authors: [pubkey], kinds: [3] }],
@@ -41,8 +41,8 @@ interface PaginationParams {
   limit?: number;
 }
 
-/** Fetch events from people the user follows. */
-function fetchFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
+/** Get events from people the user follows. */
+function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
   const limit = Math.max(params.limit ?? 20, 40);
   const authors = event3.tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]);
   const results: SignedEvent<1>[] = [];
@@ -74,4 +74,4 @@ function fetchFeed(event3: Event<3>, params: PaginationParams = {}): Promise<Sig
   });
 }
 
-export { fetchEvent, fetchFeed, fetchFollows, fetchUser, pool };
+export { getAuthor, getEvent, getFeed, getFollows, pool };
