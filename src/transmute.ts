@@ -4,6 +4,7 @@ import { type MetaContent, parseContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { getAuthor } from './client.ts';
+import { type Nip05, parseNip05 } from './utils.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 
@@ -13,9 +14,16 @@ function toAccount(event: Event<0>) {
   const { origin } = new URL(LOCAL_DOMAIN);
   const npub = nip19.npubEncode(pubkey);
 
+  let parsed05: Nip05 | undefined;
+  try {
+    parsed05 = parseNip05(nip05!);
+  } catch (_e) {
+    //
+  }
+
   return {
     id: pubkey,
-    acct: nip05 || npub,
+    acct: parsed05?.handle || npub,
     avatar: picture || DEFAULT_AVATAR,
     avatar_static: picture || DEFAULT_AVATAR,
     bot: false,
@@ -31,9 +39,9 @@ function toAccount(event: Event<0>) {
     header_static: banner,
     locked: false,
     note: about,
-    fqn: nip05 || npub,
+    fqn: parsed05?.handle || npub,
     url: `${origin}/users/${pubkey}`,
-    username: nip05 ? nip05.split('@')[0] : npub,
+    username: parsed05?.nickname || npub,
   };
 }
 

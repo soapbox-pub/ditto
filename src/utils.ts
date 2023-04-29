@@ -47,4 +47,32 @@ function bech32ToPubkey(bech32: string): string | undefined {
   }
 }
 
-export { bech32ToPubkey, eventDateComparator, getKeys, isBech32, isNostrId, nostrNow };
+interface Nip05 {
+  /** Localpart of the nip05, eg `alex` in `alex@alexgleason.me`. */
+  local: string | undefined;
+  /** Domain of the nip05, eg `alexgleason.me` in `alex@alexgleason.me`. */
+  domain: string;
+  /** Value with underscore removed, eg `_@fiatjaf.com` becomes `fiatjaf.com`, but `alex@alexgleason.me` stays the same. */
+  handle: string;
+  /** The localpart, if available and not `_`. Otherwise the domain. */
+  nickname: string;
+}
+
+/**
+ * Parse a NIP-05 identifier and return an object with metadata about it.
+ * Throws if the value is not a valid NIP-05 identifier.
+ */
+function parseNip05(value: string): Nip05 {
+  const match = value.match(/^(?:([\w.+-]+)@)?([\w.-]+)$/i);
+  if (!match) throw new Error(`nip05: failed to parse ${value}`);
+
+  const [_, local, domain] = match;
+  return {
+    local,
+    domain,
+    handle: local === '_' ? domain : value,
+    nickname: (local && local !== '_') ? local : domain,
+  };
+}
+
+export { bech32ToPubkey, eventDateComparator, getKeys, isBech32, isNostrId, type Nip05, nostrNow, parseNip05 };
