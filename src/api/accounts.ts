@@ -54,4 +54,22 @@ const accountLookupController: AppController = async (c) => {
   return c.json({ error: 'Could not find user.' }, 404);
 };
 
-export { accountController, accountLookupController, credentialsController };
+const accountSearchController: AppController = async (c) => {
+  const q = c.req.query('q');
+
+  if (!q) {
+    return c.json({ error: 'Missing `q` query parameter.' }, 422);
+  }
+
+  const pubkey = bech32ToPubkey(q);
+  if (pubkey) {
+    const event = await getAuthor(pubkey);
+    if (event) {
+      return c.json([toAccount(event)]);
+    }
+  }
+
+  return c.json([]);
+};
+
+export { accountController, accountSearchController, accountLookupController, credentialsController };
