@@ -1,9 +1,8 @@
 import { type AppController } from '@/app.ts';
-import { nip19 } from '@/deps.ts';
 
 import { getAuthor } from '../client.ts';
 import { toAccount } from '../transmute.ts';
-import { bech32ToPubkey, isNostrId } from '../utils.ts';
+import { bech32ToPubkey } from '../utils.ts';
 
 const credentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
