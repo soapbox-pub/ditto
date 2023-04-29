@@ -59,6 +59,31 @@ const accountSearchController: AppController = async (c) => {
   return c.json([]);
 };
 
+const relationshipsController: AppController = (c) => {
+  const ids = c.req.queries('id[]');
+
+  if (!ids) {
+    return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
+  }
+
+  const result = ids.map((id) => ({
+    id,
+    following: false,
+    showing_reblogs: false,
+    notifying: false,
+    followed_by: false,
+    blocking: false,
+    blocked_by: false,
+    muting: false,
+    muting_notifications: false,
+    requested: false,
+    domain_blocking: false,
+    endorsed: false,
+  }));
+
+  return c.json(result);
+};
+
 /** Resolve a bech32 or NIP-05 identifier to an account. */
 async function lookupAccount(value: string): Promise<Event<0> | undefined> {
   console.log(`Looking up ${value}`);
@@ -70,4 +95,10 @@ async function lookupAccount(value: string): Promise<Event<0> | undefined> {
   }
 }
 
-export { accountController, accountLookupController, accountSearchController, credentialsController };
+export {
+  accountController,
+  accountLookupController,
+  accountSearchController,
+  credentialsController,
+  relationshipsController,
+};
