@@ -1,21 +1,21 @@
+import { type AppContext } from '@/app.ts';
 import { validator, z } from '@/deps.ts';
 import { type Event } from '@/nostr/event.ts';
 
 import publish from '../publisher.ts';
 import { toStatus } from '../transmute.ts';
-import { getKeys } from '../utils.ts';
 
 const createStatusSchema = z.object({
   status: z.string(),
 });
 
-const createStatusController = validator('json', async (value, c) => {
-  const keys = getKeys(c);
+const createStatusController = validator('json', async (value, c: AppContext) => {
+  const pubkey = c.get('pubkey')!;
+  const seckey = c.get('seckey');
   const result = createStatusSchema.safeParse(value);
 
-  if (result.success && keys) {
+  if (result.success && seckey) {
     const { data } = result;
-    const { pubkey, privatekey } = keys;
 
     const event: Event<1> = {
       kind: 1,
@@ -25,7 +25,7 @@ const createStatusController = validator('json', async (value, c) => {
       created_at: Math.floor(new Date().getTime() / 1000),
     };
 
-    publish(event, privatekey);
+    publish(event, seckey);
 
     return c.json(await toStatus(event));
   } else {

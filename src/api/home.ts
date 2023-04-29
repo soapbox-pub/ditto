@@ -1,22 +1,18 @@
+import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 
 import { fetchFeed, fetchFollows } from '../client.ts';
 import { toStatus } from '../transmute.ts';
-import { getKeys } from '../utils.ts';
 
-import type { Context } from '@/deps.ts';
 import { LOCAL_DOMAIN } from '../config.ts';
 
-async function homeController(c: Context) {
+const homeController: AppController = async (c) => {
   const since = paramSchema.parse(c.req.query('since'));
   const until = paramSchema.parse(c.req.query('until'));
 
-  const keys = getKeys(c);
-  if (!keys) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
+  const pubkey = c.get('pubkey')!;
 
-  const follows = await fetchFollows(keys.pubkey);
+  const follows = await fetchFollows(pubkey);
   if (!follows) {
     return c.json([]);
   }
@@ -30,7 +26,7 @@ async function homeController(c: Context) {
   return c.json(statuses, 200, {
     link: `<${next}>; rel="next", <${prev}>; rel="prev"`,
   });
-}
+};
 
 const paramSchema = z.coerce.number().optional().catch(undefined);
 

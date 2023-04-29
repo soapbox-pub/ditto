@@ -1,21 +1,17 @@
+import { type AppController } from '@/app.ts';
+
 import { fetchUser } from '../client.ts';
 import { toAccount } from '../transmute.ts';
-import { getKeys } from '../utils.ts';
 
-import type { Context } from '@/deps.ts';
+const credentialsController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
 
-async function credentialsController(c: Context) {
-  const keys = getKeys(c);
-
-  if (keys) {
-    const { pubkey } = keys;
-    const event = await fetchUser(pubkey);
-    if (event) {
-      return c.json(toAccount(event));
-    }
+  const event = await fetchUser(pubkey);
+  if (event) {
+    return c.json(toAccount(event));
   }
 
-  return c.json({ error: 'Invalid token' }, 400);
-}
+  return c.json({ error: 'Could not find user.' }, 404);
+};
 
 export { credentialsController };

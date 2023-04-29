@@ -1,4 +1,4 @@
-import { cors, Hono } from '@/deps.ts';
+import { type Context, cors, type Handler, Hono, type HonoEnv, type MiddlewareHandler } from '@/deps.ts';
 
 import { credentialsController } from './api/accounts.ts';
 import { appCredentialsController, createAppController } from './api/apps.ts';
@@ -7,10 +7,22 @@ import homeController from './api/home.ts';
 import instanceController from './api/instance.ts';
 import { createTokenController } from './api/oauth.ts';
 import { createStatusController } from './api/statuses.ts';
+import { requireAuth, setAuth } from './middleware/auth.ts';
 
-const app = new Hono();
+interface AppEnv extends HonoEnv {
+  Variables: {
+    pubkey?: string;
+    seckey?: string;
+  };
+}
 
-app.use('/*', cors());
+type AppContext = Context<AppEnv>;
+type AppMiddleware = MiddlewareHandler<AppEnv>;
+type AppController = Handler<AppEnv>;
+
+const app = new Hono<AppEnv>();
+
+app.use('/*', cors(), setAuth);
 
 app.get('/api/v1/instance', instanceController);
 
@@ -20,11 +32,11 @@ app.post('/api/v1/apps', createAppController);
 app.post('/oauth/token', createTokenController);
 app.post('/oauth/revoke', emptyObjectController);
 
-app.get('/api/v1/accounts/verify_credentials', credentialsController);
+app.get('/api/v1/accounts/verify_credentials', requireAuth, credentialsController);
 
-app.post('/api/v1/statuses', createStatusController);
+app.post('/api/v1/statuses', requireAuth, createStatusController);
 
-app.get('/api/v1/timelines/home', homeController);
+app.get('/api/v1/timelines/home', requireAuth, homeController);
 
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);
@@ -39,3 +51,5 @@ app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 
 export default app;
+
+export type { AppContext, AppController, AppMiddleware };
