@@ -1,7 +1,9 @@
 import { type AppController } from '@/app.ts';
+import { nip19 } from '@/deps.ts';
 
 import { getAuthor } from '../client.ts';
 import { toAccount } from '../transmute.ts';
+import { bech32ToPubkey, isNostrId } from '../utils.ts';
 
 const credentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -14,4 +16,42 @@ const credentialsController: AppController = async (c) => {
   return c.json({ error: 'Could not find user.' }, 404);
 };
 
-export { credentialsController };
+const accountController: AppController = async (c) => {
+  const pubkey = c.req.param('id');
+
+  if (!isNostrId(pubkey)) {
+    return c.json({ error: 'Invalid account ID.' }, 422);
+  }
+
+  const event = await getAuthor(pubkey);
+  if (event) {
+    return c.json(toAccount(event));
+  }
+
+  return c.json({ error: 'Could not find user.' }, 404);
+};
+
+const accountLookupController: AppController = async (c) => {
+  const acct = c.req.query('acct');
+
+  if (!acct) {
+    return c.json({ error: 'Missing `acct` query parameter.' }, 422);
+  }
+
+  if (acct.includes('@')) {
+    // TODO: NIP-05 handling
+    return c.json({ error: 'NIP-05 lookups not yet implemented.' }, 422);
+  }
+
+  const pubkey = bech32ToPubkey(acct);
+  if (pubkey) {
+    const event = await getAuthor(pubkey);
+    if (event) {
+      return c.json(toAccount(event));
+    }
+  }
+
+  return c.json({ error: 'Could not find user.' }, 404);
+};
+
+export { accountController, accountLookupController, credentialsController };
