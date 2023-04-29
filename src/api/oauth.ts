@@ -1,9 +1,7 @@
-import converter from 'npm:bech32-converting';
-
 import { validator, z } from '@/deps.ts';
 
 const createTokenSchema = z.object({
-  password: z.string().transform((v) => v.startsWith('nsec1') ? converter('nsec').toHex(v).slice(2) : v),
+  password: z.string(),
 });
 
 const createTokenController = validator('json', (value, c) => {
