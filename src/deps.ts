@@ -18,4 +18,3 @@ export {
   nip21,
   signEvent as getSignature,
 } from 'npm:nostr-tools@^1.10.1';
-export { default as lmdb } from 'npm:lmdb';
