@@ -1,4 +1,4 @@
-import { type Event } from '@/nostr/event.ts';
+import { type Event } from '@/event.ts';
 
 import { parseRelay } from './schema.ts';
 
