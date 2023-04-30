@@ -1,11 +1,10 @@
 import { type AppContext, AppController } from '@/app.ts';
+import { getAncestors, getDescendants, getEvent } from '@/client.ts';
 import { validator, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
+import publish from '@/publisher.ts';
 import { signEvent } from '@/sign.ts';
-
-import { getAncestors, getDescendants, getEvent } from '../client.ts';
-import publish from '../publisher.ts';
-import { toStatus } from '../transmute.ts';
+import { toStatus } from '@/transmute.ts';
 
 const createStatusSchema = z.object({
   status: z.string(),

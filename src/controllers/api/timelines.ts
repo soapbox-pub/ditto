@@ -1,10 +1,8 @@
 import { type AppController } from '@/app.ts';
+import { getFeed, getFollows } from '@/client.ts';
+import { LOCAL_DOMAIN } from '@/config.ts';
 import { z } from '@/deps.ts';
-
-import { getFeed, getFollows } from '../client.ts';
-import { toStatus } from '../transmute.ts';
-
-import { LOCAL_DOMAIN } from '../config.ts';
+import { toStatus } from '@/transmute.ts';
 
 const homeController: AppController = async (c) => {
   const since = paramSchema.parse(c.req.query('since'));

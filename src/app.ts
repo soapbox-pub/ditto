@@ -6,13 +6,13 @@ import {
   accountSearchController,
   credentialsController,
   relationshipsController,
-} from './api/accounts.ts';
-import { appCredentialsController, createAppController } from './api/apps.ts';
-import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
-import { homeController } from './api/timelines.ts';
-import instanceController from './api/instance.ts';
-import { createTokenController, oauthAuthorizeController, oauthController } from './api/oauth.ts';
-import { contextController, createStatusController, statusController } from './api/statuses.ts';
+} from './controllers/api/accounts.ts';
+import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
+import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
+import { homeController } from './controllers/api/timelines.ts';
+import instanceController from './controllers/api/instance.ts';
+import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
+import { contextController, createStatusController, statusController } from './controllers/api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
 
 interface AppEnv extends HonoEnv {
