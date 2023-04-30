@@ -45,16 +45,27 @@ function toAccount(event: Event<0>) {
   };
 }
 
-async function toMention(tag: string[]) {
-  const profile = await getAuthor(tag[1]);
+async function toMention(pubkey: string) {
+  const profile = await getAuthor(pubkey);
   const account = profile ? toAccount(profile) : undefined;
 
-  return {
-    id: account?.id || tag[1],
-    acct: account?.acct || tag[1],
-    username: account?.username || tag[1],
-    url: account?.url,
-  };
+  if (account) {
+    return {
+      id: account.id,
+      acct: account.acct,
+      username: account.username,
+      url: account.url,
+    };
+  } else {
+    const { origin } = new URL(LOCAL_DOMAIN);
+    const npub = nip19.npubEncode(pubkey);
+    return {
+      id: pubkey,
+      acct: npub,
+      username: npub,
+      url: `${origin}/users/${pubkey}`,
+    };
+  }
 }
 
 async function toStatus(event: Event<1>) {
@@ -64,6 +75,14 @@ async function toStatus(event: Event<1>) {
 
   const inReplyTo = event.tags
     .find((tag) => tag[0] === 'e' && (!tag[3] || tag[3] === 'reply' || tag[3] === 'root'));
+
+  const mentionedPubkeys = [
+    ...new Set(
+      event.tags
+        .filter((tag) => tag[0] === 'p')
+        .map((tag) => tag[1]),
+    ),
+  ];
 
   return {
     id: event.id,
@@ -86,7 +105,7 @@ async function toStatus(event: Event<1>) {
     reblog: null,
     application: null,
     media_attachments: [],
-    mentions: await Promise.all(event.tags.filter((tag) => tag[0] === 'p').map(toMention)),
+    mentions: await Promise.all(mentionedPubkeys.map(toMention)),
     tags: [],
     emojis: [],
     card: null,
