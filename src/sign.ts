@@ -4,6 +4,7 @@ import { getEventHash, getPublicKey, getSignature } from '@/deps.ts';
 import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
 
 /** Sign Nostr event using the app context. */
+// deno-lint-ignore require-await
 async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<SignedEvent<K>> {
   const seckey = c.get('seckey')!;
 
