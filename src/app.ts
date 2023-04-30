@@ -1,4 +1,4 @@
-import { type Context, cors, type Handler, Hono, type HonoEnv, type MiddlewareHandler } from '@/deps.ts';
+import { type Context, cors, type Handler, Hono, type HonoEnv, logger, type MiddlewareHandler } from '@/deps.ts';
 
 import {
   accountController,
@@ -29,7 +29,7 @@ type AppController = Handler<AppEnv>;
 
 const app = new Hono<AppEnv>();
 
-app.use('/*', cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
+app.use('/*', logger(), cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
 
 app.get('/api/v1/instance', instanceController);
 
