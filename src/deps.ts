@@ -22,3 +22,5 @@ export {
 } from 'npm:nostr-tools@^1.10.1';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
+// @deno-types="npm:@types/lodash@4.14.194"
+export { default as lodash } from 'https://esm.sh/lodash@4.17.21';

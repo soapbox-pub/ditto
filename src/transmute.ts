@@ -1,4 +1,4 @@
-import { findReplyTag, nip19 } from '@/deps.ts';
+import { findReplyTag, lodash, nip19 } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { type MetaContent, parseContent } from '@/schema.ts';
 
@@ -38,7 +38,7 @@ function toAccount(event: Event<0>) {
     header: banner,
     header_static: banner,
     locked: false,
-    note: about,
+    note: lodash.escape(about),
     fqn: parsed05?.handle || npub,
     url: `${origin}/users/${pubkey}`,
     username: parsed05?.nickname || npub,
@@ -86,7 +86,7 @@ async function toStatus(event: Event<1>) {
   return {
     id: event.id,
     account,
-    content: event.content,
+    content: lodash.escape(event.content),
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
