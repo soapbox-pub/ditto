@@ -30,4 +30,4 @@ const homeController: AppController = async (c) => {
 
 const paramSchema = z.coerce.number().optional().catch(undefined);
 
-export default homeController;
+export { homeController };

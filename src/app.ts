@@ -9,7 +9,7 @@ import {
 } from './api/accounts.ts';
 import { appCredentialsController, createAppController } from './api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
-import homeController from './api/home.ts';
+import { homeController } from './api/timelines.ts';
 import instanceController from './api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './api/oauth.ts';
 import { contextController, createStatusController, statusController } from './api/statuses.ts';
