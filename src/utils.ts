@@ -1,4 +1,4 @@
-import { Context, getPublicKey, nip19, nip21 } from '@/deps.ts';
+import { Context, getPublicKey, nip19, nip21, parseFormData } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 
 /** Get the current time in Nostr format. */
@@ -75,4 +75,25 @@ function parseNip05(value: string): Nip05 {
   };
 }
 
-export { bech32ToPubkey, eventDateComparator, getKeys, isBech32, isNostrId, type Nip05, nostrNow, parseNip05 };
+/** Parse request body to JSON, depending on the content-type of the request. */
+async function parseBody(req: Request): Promise<unknown> {
+  switch (req.headers.get('content-type')?.split(';')[0]) {
+    case 'multipart/form-data':
+    case 'application/x-www-form-urlencoded':
+      return parseFormData(await req.formData());
+    case 'application/json':
+      return req.json();
+  }
+}
+
+export {
+  bech32ToPubkey,
+  eventDateComparator,
+  getKeys,
+  isBech32,
+  isNostrId,
+  type Nip05,
+  nostrNow,
+  parseBody,
+  parseNip05,
+};
