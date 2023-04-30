@@ -11,7 +11,7 @@ import { appCredentialsController, createAppController } from './api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
 import homeController from './api/home.ts';
 import instanceController from './api/instance.ts';
-import { createTokenController } from './api/oauth.ts';
+import { createTokenController, oauthAuthorizeController, oauthController } from './api/oauth.ts';
 import { contextController, createStatusController, statusController } from './api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
 
@@ -37,6 +37,8 @@ app.post('/api/v1/apps', createAppController);
 
 app.post('/oauth/token', createTokenController);
 app.post('/oauth/revoke', emptyObjectController);
+app.post('/oauth/authorize', oauthAuthorizeController);
+app.get('/oauth/authorize', oauthController);
 
 app.get('/api/v1/accounts/verify_credentials', requireAuth, credentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
