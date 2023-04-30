@@ -1,8 +1,9 @@
 import { type AppContext, AppController } from '@/app.ts';
 import { validator, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import { getAncestors, getDescendants, getEvent } from '../client.ts';
+import { signEvent } from '@/sign.ts';
 
+import { getAncestors, getDescendants, getEvent } from '../client.ts';
 import publish from '../publisher.ts';
 import { toStatus } from '../transmute.ts';
 
@@ -22,22 +23,19 @@ const statusController: AppController = async (c) => {
 };
 
 const createStatusController = validator('json', async (value, c: AppContext) => {
-  const pubkey = c.get('pubkey')!;
-  const seckey = c.get('seckey');
   const result = createStatusSchema.safeParse(value);
 
-  if (result.success && seckey) {
+  if (result.success) {
     const { data } = result;
 
-    const event: Event<1> = {
+    const event = await signEvent<1>({
       kind: 1,
-      pubkey: pubkey,
       content: data.status,
       tags: [],
       created_at: Math.floor(new Date().getTime() / 1000),
-    };
+    }, c);
 
-    publish(event, seckey);
+    publish(event);
 
     return c.json(await toStatus(event));
   } else {

@@ -1,13 +1,22 @@
-interface Event<K extends number = number> {
-  id?: string;
-  sig?: string;
+interface EventTemplate<K extends number = number> {
   kind: K;
   tags: string[][];
-  pubkey: string;
   content: string;
   created_at: number;
 }
 
-type SignedEvent<K extends number = number> = Event<K> & { id: string; sig: string };
+interface UnsignedEvent<K extends number = number> extends EventTemplate<K> {
+  pubkey: string;
+}
 
-export type { Event, SignedEvent };
+interface Event<K extends number = number> extends UnsignedEvent<K> {
+  id?: string;
+  sig?: string;
+}
+
+interface SignedEvent<K extends number = number> extends Event<K> {
+  id: string;
+  sig: string;
+}
+
+export type { Event, EventTemplate, SignedEvent, UnsignedEvent };
