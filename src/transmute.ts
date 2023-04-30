@@ -62,7 +62,8 @@ async function toStatus(event: Event<1>) {
   const account = profile ? toAccount(profile) : undefined;
   if (!account) return;
 
-  const inReplyTo = event.tags.find((tag) => tag[0] === 'e' && (!tag[3] || tag[3] === 'reply'));
+  const inReplyTo = event.tags
+    .find((tag) => tag[0] === 'e' && (!tag[3] || tag[3] === 'reply' || tag[3] === 'root'));
 
   return {
     id: event.id,
