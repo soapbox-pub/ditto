@@ -61,6 +61,7 @@ app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
+app.get('/api/v1/markers', emptyObjectController);
 
 export default app;
 
