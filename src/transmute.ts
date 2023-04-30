@@ -1,4 +1,4 @@
-import { nip19 } from '@/deps.ts';
+import { findReplyTag, nip19 } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { type MetaContent, parseContent } from '@/schema.ts';
 
@@ -73,8 +73,7 @@ async function toStatus(event: Event<1>) {
   const account = profile ? toAccount(profile) : undefined;
   if (!account) return;
 
-  const inReplyTo = event.tags
-    .find((tag) => tag[0] === 'e' && (!tag[3] || tag[3] === 'reply' || tag[3] === 'root'));
+  const replyTag = findReplyTag(event);
 
   const mentionedPubkeys = [
     ...new Set(
@@ -89,7 +88,7 @@ async function toStatus(event: Event<1>) {
     account,
     content: event.content,
     created_at: new Date(event.created_at * 1000).toISOString(),
-    in_reply_to_id: inReplyTo ? inReplyTo[1] : null,
+    in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
     sensitive: false,
     spoiler_text: '',

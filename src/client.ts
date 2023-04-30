@@ -1,4 +1,4 @@
-import { Author, type Filter, matchFilter, RelayPool } from '@/deps.ts';
+import { Author, type Filter, findReplyTag, matchFilter, RelayPool } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
 import { poolRelays } from './config.ts';
@@ -99,9 +99,7 @@ function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<Signe
 
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
   if (result.length < 100) {
-    const replyTag = event.tags
-      .find((t) => t[0] === 'e' && (!t[2] || t[2] === 'reply' || t[2] === 'root'));
-
+    const replyTag = findReplyTag(event);
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
