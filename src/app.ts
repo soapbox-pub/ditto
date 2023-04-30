@@ -28,7 +28,7 @@ type AppController = Handler<AppEnv>;
 
 const app = new Hono<AppEnv>();
 
-app.use('/*', cors(), setAuth);
+app.use('/*', cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
 
 app.get('/api/v1/instance', instanceController);
 
