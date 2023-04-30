@@ -1,4 +1,4 @@
-import { Author, RelayPool } from '@/deps.ts';
+import { Author, type Filter, matchFilter, RelayPool } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
 import { poolRelays } from './config.ts';
@@ -7,10 +7,33 @@ import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
+/** Get events from a NIP-01 filter. */
+function getFilter(filter: Filter): Promise<SignedEvent[]> {
+  return new Promise((resolve) => {
+    const results: SignedEvent[] = [];
+    pool.subscribe(
+      [filter],
+      poolRelays,
+      (event: SignedEvent | null) => {
+        if (event && matchFilter(filter, event)) {
+          results.push(event);
+        }
+      },
+      undefined,
+      () => resolve(results),
+      { unsubscribeOnEose: true },
+    );
+  });
+}
+
 /** Get a Nostr event by its ID. */
-const getEvent = async (id: string): Promise<SignedEvent | undefined> => {
+const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<SignedEvent<K> | undefined> => {
   const event = await (pool.getEventById(id, poolRelays, 0) as Promise<SignedEvent>);
-  return event?.id === id ? event : undefined;
+  if (event) {
+    if (event.id !== id) return undefined;
+    if (kind && event.kind !== kind) return undefined;
+    return event as SignedEvent<K>;
+  }
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
@@ -74,4 +97,28 @@ function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<Signe
   });
 }
 
-export { getAuthor, getEvent, getFeed, getFollows, pool };
+async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
+  if (result.length < 100) {
+    const replyTag = event.tags
+      .find((t) => t[0] === 'e' && (!t[2] || t[2] === 'reply' || t[2] === 'root'));
+
+    const inReplyTo = replyTag ? replyTag[1] : undefined;
+
+    if (inReplyTo) {
+      const parentEvent = await getEvent(inReplyTo, 1);
+
+      if (parentEvent) {
+        result.push(parentEvent);
+        return getAncestors(parentEvent, result);
+      }
+    }
+  }
+
+  return result.reverse();
+}
+
+function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
+  return getFilter({ kinds: [1], '#e': [eventId] }) as Promise<SignedEvent<1>[]>;
+}
+
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, pool };

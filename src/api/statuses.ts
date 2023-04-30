@@ -1,7 +1,7 @@
 import { type AppContext, AppController } from '@/app.ts';
 import { validator, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import { getEvent } from '../client.ts';
+import { getAncestors, getDescendants, getEvent } from '../client.ts';
 
 import publish from '../publisher.ts';
 import { toStatus } from '../transmute.ts';
@@ -13,9 +13,8 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id);
-
-  if (event && event.kind === 1) {
+  const event = await getEvent(id, 1);
+  if (event) {
     return c.json(await toStatus(event as Event<1>));
   }
 
@@ -46,4 +45,22 @@ const createStatusController = validator('json', async (value, c: AppContext) =>
   }
 });
 
-export { createStatusController, statusController };
+const contextController: AppController = async (c) => {
+  const id = c.req.param('id');
+
+  const event = await getEvent(id, 1);
+
+  if (event) {
+    const ancestorEvents = await getAncestors(event);
+    const descendantEvents = await getDescendants(event.id);
+
+    return c.json({
+      ancestors: (await Promise.all((ancestorEvents).map(toStatus))).filter(Boolean),
+      descendants: (await Promise.all((descendantEvents).map(toStatus))).filter(Boolean),
+    });
+  }
+
+  return c.json({ error: 'Event not found.' }, 404);
+};
+
+export { contextController, createStatusController, statusController };

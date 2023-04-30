@@ -12,7 +12,7 @@ import { emptyArrayController, emptyObjectController } from './api/fallback.ts';
 import homeController from './api/home.ts';
 import instanceController from './api/instance.ts';
 import { createTokenController } from './api/oauth.ts';
-import { createStatusController, statusController } from './api/statuses.ts';
+import { contextController, createStatusController, statusController } from './api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
 
 interface AppEnv extends HonoEnv {
@@ -44,6 +44,7 @@ app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
+app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses', requireAuth, createStatusController);
 

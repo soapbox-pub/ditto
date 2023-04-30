@@ -14,6 +14,7 @@ export {
   type Filter,
   getEventHash,
   getPublicKey,
+  matchFilter,
   nip05,
   nip19,
   nip21,
