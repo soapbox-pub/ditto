@@ -14,8 +14,18 @@ const FAKE_APP = {
   vapid_key: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
 };
 
-function createAppController(c: Context) {
-  return c.json(FAKE_APP);
+async function createAppController(c: Context) {
+  // TODO: Handle both formData and json. 422 on parsing error.
+  try {
+    const { redirect_uris } = await c.req.json();
+
+    return c.json({
+      ...FAKE_APP,
+      redirect_uri: redirect_uris || FAKE_APP.redirect_uri,
+    });
+  } catch (_e) {
+    return c.json(FAKE_APP);
+  }
 }
 
 function appCredentialsController(c: Context) {
