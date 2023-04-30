@@ -14,6 +14,7 @@ import instanceController from './controllers/api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
 import { contextController, createStatusController, statusController } from './controllers/api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
+import { indexController } from './controllers/site.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -64,6 +65,8 @@ app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
+
+app.get('/', indexController);
 
 export default app;
 
