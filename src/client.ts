@@ -7,22 +7,43 @@ import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
+interface GetFilterOpts {
+  timeout?: number;
+}
+
 /** Get events from a NIP-01 filter. */
-function getFilter(filter: Filter): Promise<SignedEvent[]> {
+function getFilter(filter: Filter, opts: GetFilterOpts = {}): Promise<SignedEvent[]> {
   return new Promise((resolve) => {
+    let tid: number;
     const results: SignedEvent[] = [];
-    pool.subscribe(
+
+    const unsub = pool.subscribe(
       [filter],
       poolRelays,
       (event: SignedEvent | null) => {
         if (event && matchFilter(filter, event)) {
           results.push(event);
         }
+        if (filter.limit && results.length >= filter.limit) {
+          unsub();
+          clearTimeout(tid);
+          resolve(results);
+        }
       },
       undefined,
-      () => resolve(results),
-      { unsubscribeOnEose: true },
+      () => {
+        unsub();
+        clearTimeout(tid);
+        resolve(results);
+      },
     );
+
+    if (typeof opts.timeout === 'number') {
+      tid = setTimeout(() => {
+        unsub();
+        resolve(results);
+      }, opts.timeout);
+    }
   });
 }
 
@@ -44,18 +65,10 @@ const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> =>
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = (pubkey: string): Promise<SignedEvent<3> | undefined> => {
-  return new Promise((resolve) => {
-    pool.subscribe(
-      [{ authors: [pubkey], kinds: [3] }],
-      poolRelays,
-      (event: SignedEvent<3> | null) => {
-        resolve(event?.pubkey === pubkey ? event : undefined);
-      },
-      undefined,
-      undefined,
-    );
-  });
+const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
+  const filter: Filter = { authors: [pubkey], kinds: [3] };
+  const [event] = await getFilter(filter, { timeout: 1000 });
+  return event as SignedEvent<3> | undefined;
 };
 
 interface PaginationParams {
@@ -65,36 +78,25 @@ interface PaginationParams {
 }
 
 /** Get events from people the user follows. */
-function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
+async function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
   const limit = Math.max(params.limit ?? 20, 40);
-  const authors = event3.tags.filter((tag) => tag[0] === 'p').map((tag) => tag[1]);
-  const results: SignedEvent<1>[] = [];
+
+  const authors = event3.tags
+    .filter((tag) => tag[0] === 'p')
+    .map((tag) => tag[1]);
+
   authors.push(event3.pubkey); // see own events in feed
 
-  return new Promise((resolve) => {
-    pool.subscribe(
-      [{
-        authors,
-        kinds: [1],
-        since: params.since,
-        until: params.until ?? nostrNow(),
-        limit,
-      }],
-      poolRelays,
-      (event: SignedEvent<1> | null) => {
-        if (event) {
-          results.push(event);
+  const filter: Filter = {
+    authors,
+    kinds: [1],
+    since: params.since,
+    until: params.until ?? nostrNow(),
+    limit,
+  };
 
-          if (results.length >= limit) {
-            resolve(results.slice(0, limit).sort(eventDateComparator));
-          }
-        }
-      },
-      void 0,
-      () => resolve(results.sort(eventDateComparator)),
-      { unsubscribeOnEose: true },
-    );
-  });
+  const results = await getFilter(filter, { timeout: 5000 }) as SignedEvent<1>[];
+  return results.sort(eventDateComparator);
 }
 
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
@@ -116,7 +118,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
-  return getFilter({ kinds: [1], '#e': [eventId] }) as Promise<SignedEvent<1>[]>;
+  return getFilter({ kinds: [1], '#e': [eventId], limit: 200 }, { timeout: 2000 }) as Promise<SignedEvent<1>[]>;
 }
 
 export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, pool };
