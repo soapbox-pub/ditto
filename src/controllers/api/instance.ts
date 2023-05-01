@@ -1,4 +1,4 @@
-import { LOCAL_DOMAIN, POST_CHAR_LIMIT } from '@/config.ts';
+import { ADMIN_EMAIL, LOCAL_DOMAIN, POST_CHAR_LIMIT } from '@/config.ts';
 
 import type { Context } from '@/deps.ts';
 
@@ -38,6 +38,7 @@ function instanceController(c: Context) {
       streaming_api: `wss://${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
+    email: ADMIN_EMAIL,
     rules: [],
   });
 }
