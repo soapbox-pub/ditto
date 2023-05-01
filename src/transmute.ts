@@ -7,6 +7,7 @@ import { getAuthor } from './client.ts';
 import { type Nip05, parseNip05 } from './utils.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
+const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
 
 function toAccount(event: Event<0>) {
   const { pubkey } = event;
@@ -35,8 +36,8 @@ function toAccount(event: Event<0>) {
     followers_count: 0,
     following_count: 0,
     statuses_count: 0,
-    header: banner,
-    header_static: banner,
+    header: banner || DEFAULT_BANNER,
+    header_static: banner || DEFAULT_BANNER,
     locked: false,
     note: lodash.escape(about),
     fqn: parsed05?.handle || npub,
