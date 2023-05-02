@@ -11,7 +11,7 @@ const credentialsController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(toAccount(event));
+    return c.json(toAccount(event, { withSource: true }));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);

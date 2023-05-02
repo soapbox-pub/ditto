@@ -9,7 +9,13 @@ import { type Nip05, parseNip05 } from './utils.ts';
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
 
-function toAccount(event: Event<0>) {
+interface ToAccountOpts {
+  withSource?: boolean;
+}
+
+function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
+  const { withSource = false } = opts;
+
   const { pubkey } = event;
   const { name, nip05, picture, banner, about }: MetaContent = parseContent(event);
   const { origin } = new URL(LOCAL_DOMAIN);
@@ -35,6 +41,16 @@ function toAccount(event: Event<0>) {
     follow_requests_count: 0,
     followers_count: 0,
     following_count: 0,
+    source: withSource
+      ? {
+        fields: [],
+        language: '',
+        note: about || '',
+        privacy: 'public',
+        sensitive: false,
+        follow_requests_count: 0,
+      }
+      : undefined,
     statuses_count: 0,
     header: banner || DEFAULT_BANNER,
     header_static: banner || DEFAULT_BANNER,
