@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
-import { nip05 } from '@/deps.ts';
-import { getAuthor } from '@/client.ts';
-import { toAccount } from '@/transmute.ts';
+import { nip05, z } from '@/deps.ts';
+import { getAuthor, getFilter } from '@/client.ts';
+import { toAccount, toStatus } from '@/transmute.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 
 import type { Event } from '@/event.ts';
@@ -83,6 +83,26 @@ const relationshipsController: AppController = (c) => {
   return c.json(result);
 };
 
+const accountStatusesQuerySchema = z.object({
+  pinned: z.coerce.boolean(),
+  limit: z.coerce.number().positive().transform((v) => Math.min(v, 40)).catch(20),
+});
+
+const accountStatusesController: AppController = async (c) => {
+  const pubkey = c.req.param('pubkey');
+  const { pinned, limit } = accountStatusesQuerySchema.parse(c.req.query());
+
+  // Nostr doesn't support pinned statuses.
+  if (pinned) {
+    return c.json([]);
+  }
+
+  const events = await getFilter({ authors: [pubkey], kinds: [1], limit });
+  const statuses = await Promise.all(events.map((event) => toStatus(event)));
+
+  return c.json(statuses);
+};
+
 /** Resolve a bech32 or NIP-05 identifier to an account. */
 async function lookupAccount(value: string): Promise<Event<0> | undefined> {
   console.log(`Looking up ${value}`);
@@ -98,6 +118,7 @@ export {
   accountController,
   accountLookupController,
   accountSearchController,
+  accountStatusesController,
   credentialsController,
   relationshipsController,
 };

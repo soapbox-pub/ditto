@@ -4,6 +4,7 @@ import {
   accountController,
   accountLookupController,
   accountSearchController,
+  accountStatusesController,
   credentialsController,
   relationshipsController,
 } from './controllers/api/accounts.ts';
@@ -45,6 +46,7 @@ app.get('/api/v1/accounts/verify_credentials', requireAuth, credentialsControlle
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
+app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
@@ -55,7 +57,6 @@ app.get('/api/v1/timelines/home', requireAuth, homeController);
 
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);
-app.get('/api/v1/accounts/:id/statuses', emptyArrayController);
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/accounts/search', emptyArrayController);

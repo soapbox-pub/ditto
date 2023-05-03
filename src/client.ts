@@ -1,4 +1,4 @@
-import { Author, type Filter, findReplyTag, matchFilter, RelayPool } from '@/deps.ts';
+import { Author, findReplyTag, matchFilter, RelayPool } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
 import { poolRelays } from './config.ts';
@@ -7,12 +7,23 @@ import { eventDateComparator, nostrNow } from './utils.ts';
 
 const pool = new RelayPool(poolRelays);
 
+type Filter<K extends number = number> = {
+  ids?: string[];
+  kinds?: K[];
+  authors?: string[];
+  since?: number;
+  until?: number;
+  limit?: number;
+  search?: string;
+  [key: `#${string}`]: string[];
+};
+
 interface GetFilterOpts {
   timeout?: number;
 }
 
 /** Get events from a NIP-01 filter. */
-function getFilter(filter: Filter, opts: GetFilterOpts = {}): Promise<SignedEvent[]> {
+function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
   return new Promise((resolve) => {
     let tid: number;
     const results: SignedEvent[] = [];
@@ -27,21 +38,21 @@ function getFilter(filter: Filter, opts: GetFilterOpts = {}): Promise<SignedEven
         if (filter.limit && results.length >= filter.limit) {
           unsub();
           clearTimeout(tid);
-          resolve(results);
+          resolve(results as SignedEvent<K>[]);
         }
       },
       undefined,
       () => {
         unsub();
         clearTimeout(tid);
-        resolve(results);
+        resolve(results as SignedEvent<K>[]);
       },
     );
 
     if (typeof opts.timeout === 'number') {
       tid = setTimeout(() => {
         unsub();
-        resolve(results);
+        resolve(results as SignedEvent<K>[]);
       }, opts.timeout);
     }
   });
@@ -121,4 +132,4 @@ function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
   return getFilter({ kinds: [1], '#e': [eventId], limit: 200 }, { timeout: 2000 }) as Promise<SignedEvent<1>[]>;
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, pool };
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, pool };
