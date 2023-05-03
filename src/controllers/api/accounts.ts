@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { nip05, z } from '@/deps.ts';
 import { getAuthor, getFilter } from '@/client.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
-import { bech32ToPubkey } from '@/utils.ts';
+import { bech32ToPubkey, eventDateComparator } from '@/utils.ts';
 
 import type { Event } from '@/event.ts';
 
@@ -97,7 +97,7 @@ const accountStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await getFilter({ authors: [pubkey], kinds: [1], limit });
+  const events = (await getFilter({ authors: [pubkey], kinds: [1], limit })).sort(eventDateComparator);
   const statuses = await Promise.all(events.map((event) => toStatus(event)));
 
   return c.json(statuses);
