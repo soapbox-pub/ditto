@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { nip05, z } from '@/deps.ts';
-import { getAuthor, getFilter } from '@/client.ts';
+import { getAuthor, getFilter, getFollows } from '@/client.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
 import { bech32ToPubkey, eventDateComparator } from '@/utils.ts';
 
@@ -58,16 +58,19 @@ const accountSearchController: AppController = async (c) => {
   return c.json([]);
 };
 
-const relationshipsController: AppController = (c) => {
-  const ids = c.req.queries('id[]');
+const relationshipsController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const ids = z.array(z.string()).safeParse(c.req.queries('id[]'));
 
-  if (!ids) {
+  if (!ids.success) {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const result = ids.map((id) => ({
+  const follows = await getFollows(pubkey);
+
+  const result = ids.data.map((id) => ({
     id,
-    following: false,
+    following: !!follows?.tags.find((tag) => tag[0] === 'p' && ids.data.includes(tag[1])),
     showing_reblogs: false,
     notifying: false,
     followed_by: false,
