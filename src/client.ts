@@ -5,6 +5,7 @@ import { poolRelays } from './config.ts';
 
 import { eventDateComparator, nostrNow } from './utils.ts';
 
+const db = await Deno.openKv();
 const pool = new RelayPool(poolRelays);
 
 type Filter<K extends number = number> = {
@@ -86,7 +87,15 @@ const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> =>
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
   const [event] = await getFilter({ authors: [pubkey], kinds: [3] }, { timeout: 5000 });
-  return event;
+
+  // TODO: figure out a better, more generic & flexible way to handle event (and timeouts?)
+  // Prewarm cache in GET `/api/v1/accounts/verify_credentials`
+  if (event) {
+    await db.set(['event3', pubkey], event);
+    return event;
+  } else {
+    return (await db.get<SignedEvent<3>>(['event3', pubkey])).value || undefined;
+  }
 };
 
 interface PaginationParams {
