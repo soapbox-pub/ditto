@@ -33,7 +33,15 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
       poolRelays,
       (event: SignedEvent | null) => {
         if (event && matchFilter(filter, event)) {
-          results.push(event);
+          results.push({
+            id: event.id,
+            kind: event.kind,
+            pubkey: event.pubkey,
+            content: event.content,
+            tags: event.tags,
+            created_at: event.created_at,
+            sig: event.sig,
+          });
         }
         if (filter.limit && results.length >= filter.limit) {
           unsub();
