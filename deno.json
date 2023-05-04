@@ -1,4 +1,5 @@
 {
+  "$schema": "https://deno.land/x/deno@v1.32.3/cli/schemas/config-file.v1.json",
   "lock": false,
   "tasks": {
     "dev": "deno run --allow-read --allow-env --allow-net --allow-ffi --unstable --watch src/server.ts",
