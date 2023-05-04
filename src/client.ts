@@ -77,9 +77,8 @@ const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> =>
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
-  const filter: Filter = { authors: [pubkey], kinds: [3] };
-  const [event] = await getFilter(filter, { timeout: 1000 });
-  return event as SignedEvent<3> | undefined;
+  const [event] = await getFilter({ authors: [pubkey], kinds: [3] }, { timeout: 5000 });
+  return event;
 };
 
 interface PaginationParams {
