@@ -1,4 +1,5 @@
 {
   "deno.enable": true,
-  "path-intellisense.extensionOnImport": true
+  "path-intellisense.extensionOnImport": true,
+  "deno.unstable": true
 }
