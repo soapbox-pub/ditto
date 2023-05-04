@@ -17,16 +17,12 @@
     }
   },
   "fmt": {
-    "files": {
-      "include": ["src/"]
-    },
-    "options": {
-      "useTabs": false,
-      "lineWidth": 120,
-      "indentWidth": 2,
-      "semiColons": true,
-      "singleQuote": true,
-      "proseWrap": "preserve"
-    }
+    "include": ["src/"],
+    "useTabs": false,
+    "lineWidth": 120,
+    "indentWidth": 2,
+    "semiColons": true,
+    "singleQuote": true,
+    "proseWrap": "preserve"
   }
 }
