@@ -24,3 +24,8 @@ export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064a
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
+export { default as linkify } from 'npm:linkifyjs@^4.1.0';
+export { default as linkifyStr } from 'npm:linkify-string@^4.1.0';
+import 'npm:linkify-plugin-hashtag@^4.1.0';
+// @deno-types="npm:@types/mime@3.0.0"
+export { default as mime } from 'npm:mime@^3.0.0';

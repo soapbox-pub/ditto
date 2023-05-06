@@ -1,9 +1,10 @@
-import { findReplyTag, lodash, nip19 } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import { type MetaContent, parseContent } from '@/schema.ts';
+import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { getAuthor } from './client.ts';
+import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
 import { type Nip05, parseNip05 } from './utils.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
@@ -17,7 +18,7 @@ function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   const { withSource = false } = opts;
 
   const { pubkey } = event;
-  const { name, nip05, picture, banner, about }: MetaContent = parseContent(event);
+  const { name, nip05, picture, banner, about }: MetaContent = parseMetaContent(event);
   const { origin } = new URL(LOCAL_DOMAIN);
   const npub = nip19.npubEncode(pubkey);
 
@@ -100,10 +101,13 @@ async function toStatus(event: Event<1>) {
     ),
   ];
 
+  const { html, links } = parseNoteContent(event.content);
+  const mediaLinks = getMediaLinks(links);
+
   return {
     id: event.id,
     account,
-    content: lodash.escape(event.content),
+    content: html,
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
@@ -120,7 +124,7 @@ async function toStatus(event: Event<1>) {
     bookmarked: false,
     reblog: null,
     application: null,
-    media_attachments: [],
+    media_attachments: mediaLinks.map(renderAttachment),
     mentions: await Promise.all(mentionedPubkeys.map(toMention)),
     tags: [],
     emojis: [],
@@ -128,6 +132,24 @@ async function toStatus(event: Event<1>) {
     poll: null,
     uri: `${LOCAL_DOMAIN}/posts/${event.id}`,
     url: `${LOCAL_DOMAIN}/posts/${event.id}`,
+  };
+}
+
+const attachmentTypeSchema = z.enum(['image', 'video', 'gifv', 'audio', 'unknown']).catch('unknown');
+
+function renderAttachment({ url, mimeType }: MediaLink) {
+  const [baseType, _subType] = mimeType.split('/');
+  const type = attachmentTypeSchema.parse(baseType);
+
+  return {
+    id: url,
+    type,
+    url,
+    preview_url: url,
+    remote_url: null,
+    meta: {},
+    description: '',
+    blurhash: null,
   };
 }
 

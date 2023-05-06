@@ -29,7 +29,7 @@ type MetaContent = z.infer<typeof metaContentSchema>;
  * Get (and validate) data from a kind 0 event.
  * https://github.com/nostr-protocol/nips/blob/master/01.md
  */
-function parseContent(event: Event<0>): MetaContent {
+function parseMetaContent(event: Event<0>): MetaContent {
   try {
     const json = JSON.parse(event.content);
     return metaContentSchema.parse(json);
@@ -37,8 +37,6 @@ function parseContent(event: Event<0>): MetaContent {
     return {};
   }
 }
-
-export { type MetaContent, metaContentSchema, parseContent };
 
 /** Alias for `safeParse`, but instead of returning a success object it returns the value (or undefined on fail). */
 function parseValue<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
@@ -58,4 +56,4 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-export { jsonSchema, parseRelay, relaySchema };
+export { jsonSchema, type MetaContent, metaContentSchema, parseMetaContent, parseRelay, relaySchema };
