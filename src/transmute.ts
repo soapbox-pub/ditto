@@ -173,7 +173,7 @@ interface PreviewCard {
 async function unfurlCard(url: string): Promise<PreviewCard | null> {
   console.log(`Unfurling ${url}...`);
   try {
-    const result = await unfurl(url, { fetch });
+    const result = await unfurl(url, { fetch, follow: 2, timeout: 1000, size: 1024 * 1024 });
     return {
       type: result.oEmbed?.type || 'link',
       url: result.canonical_url || url,
@@ -187,7 +187,7 @@ async function unfurlCard(url: string): Promise<PreviewCard | null> {
       html: result.oEmbed?.html || '',
       width: result.oEmbed?.width || 0,
       height: result.oEmbed?.height || 0,
-      image: result.oEmbed?.thumbnails?.[0].url || null,
+      image: result.oEmbed?.thumbnails?.[0].url || result.open_graph.images?.[0].url || null,
       embed_url: '',
       blurhash: null,
     };
