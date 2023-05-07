@@ -1,6 +1,6 @@
 import { type AppContext, AppController } from '@/app.ts';
 import { getAncestors, getDescendants, getEvent } from '@/client.ts';
-import { validator, z } from '@/deps.ts';
+import { Kind, validator, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import publish from '@/publisher.ts';
 import { signEvent } from '@/sign.ts';
@@ -27,8 +27,8 @@ const createStatusController = validator('json', async (value, c: AppContext) =>
   if (result.success) {
     const { data } = result;
 
-    const event = await signEvent<1>({
-      kind: 1,
+    const event = await signEvent({
+      kind: Kind.Text,
       content: data.status,
       tags: [],
       created_at: Math.floor(new Date().getTime() / 1000),
@@ -60,4 +60,34 @@ const contextController: AppController = async (c) => {
   return c.json({ error: 'Event not found.' }, 404);
 };
 
-export { contextController, createStatusController, statusController };
+const favouriteController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const target = await getEvent(id, 1);
+
+  if (target) {
+    const event = await signEvent({
+      kind: Kind.Reaction,
+      content: '+',
+      tags: [
+        ['e', target.id],
+        ['p', target.pubkey],
+      ],
+      created_at: Math.floor(new Date().getTime() / 1000),
+    }, c);
+
+    publish(event);
+
+    const status = await toStatus(target);
+
+    if (status) {
+      status.favourited = true;
+      status.favourites_count++;
+    }
+
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
+export { contextController, createStatusController, favouriteController, statusController };

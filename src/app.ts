@@ -13,7 +13,12 @@ import { emptyArrayController, emptyObjectController } from './controllers/api/f
 import { homeController } from './controllers/api/timelines.ts';
 import instanceController from './controllers/api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
-import { contextController, createStatusController, statusController } from './controllers/api/statuses.ts';
+import {
+  contextController,
+  createStatusController,
+  favouriteController,
+  statusController,
+} from './controllers/api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
 import { indexController } from './controllers/site.ts';
 
@@ -51,6 +56,7 @@ app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
 app.post('/api/v1/statuses', requireAuth, createStatusController);
 
 app.get('/api/v1/timelines/home', requireAuth, homeController);
