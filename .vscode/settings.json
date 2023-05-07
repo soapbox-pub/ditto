@@ -1,5 +1,7 @@
 {
   "deno.enable": true,
-  "path-intellisense.extensionOnImport": true,
-  "deno.unstable": true
+  "deno.lint": true,
+  "deno.unstable": true,
+  "editor.defaultFormatter": "denoland.vscode-deno",
+  "path-intellisense.extensionOnImport": true
 }
