@@ -1,4 +1,7 @@
-import { nip19, z } from '@/deps.ts';
+import { TTLCache, z } from '@/deps.ts';
+
+const ONE_HOUR = 60 * 60 * 1000;
+const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: ONE_HOUR, max: 5000 });
 
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w.-]+)$/;
 
@@ -6,12 +9,12 @@ interface LookupOpts {
   timeout?: number;
 }
 
-/** Adapted from nostr-tools. */
-async function lookup(value: string, opts: LookupOpts = {}): Promise<nip19.ProfilePointer | undefined> {
+/** Get pubkey from NIP-05. */
+async function lookup(value: string, opts: LookupOpts = {}): Promise<string | null> {
   const { timeout = 1000 } = opts;
 
   const match = value.match(NIP05_REGEX);
-  if (!match) return;
+  if (!match) return null;
 
   const [_, name = '_', domain] = match;
 
@@ -20,38 +23,42 @@ async function lookup(value: string, opts: LookupOpts = {}): Promise<nip19.Profi
       signal: AbortSignal.timeout(timeout),
     });
 
-    const { names, relays } = nostrJsonSchema.parse(await res.json());
+    const { names } = nostrJsonSchema.parse(await res.json());
 
-    const pubkey = names[name];
-
-    if (pubkey) {
-      return {
-        pubkey,
-        relays: relays?.[pubkey],
-      };
-    }
+    return names[name] || null;
   } catch (_e) {
-    return;
+    return null;
   }
 }
 
+/** nostr.json schema. */
 const nostrJsonSchema = z.object({
   names: z.record(z.string(), z.string()),
   relays: z.record(z.string(), z.array(z.string())).optional().catch(undefined),
 });
 
-async function verify(value: string, pubkey: string): Promise<boolean> {
-  try {
-    const result = await nip05.lookup(value);
-    return result?.pubkey === pubkey;
-  } catch (_e) {
-    return false;
+/**
+ * Lookup the NIP-05 and serve from cache first.
+ * To prevent race conditions we put the promise in the cache instead of the result.
+ */
+function lookupNip05Cached(value: string): Promise<string | null> {
+  const cached = nip05Cache.get(value);
+  if (cached !== undefined) {
+    console.log(`Using cached NIP-05 for ${value}`);
+    return cached;
   }
+
+  console.log(`Looking up NIP-05 for ${value}`);
+  const result = lookup(value);
+  nip05Cache.set(value, result);
+
+  return result;
 }
 
-const nip05 = {
-  lookup,
-  verify,
-};
+/** Verify the NIP-05 matches the pubkey, with cache. */
+async function verifyNip05Cached(value: string, pubkey: string): Promise<boolean> {
+  const result = await lookupNip05Cached(value);
+  return result === pubkey;
+}
 
-export { nip05 };
+export { lookupNip05Cached, verifyNip05Cached };

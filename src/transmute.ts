@@ -4,7 +4,7 @@ import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { getAuthor } from './client.ts';
-import { nip05 } from './nip05.ts';
+import { verifyNip05Cached } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
 import { type Nip05, parseNip05 } from './utils.ts';
 
@@ -64,24 +64,6 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     url: `${origin}/users/${pubkey}`,
     username: parsed05?.nickname || npub,
   };
-}
-
-const ONE_HOUR = 60 * 60 * 1000;
-
-const nip05Cache = new TTLCache<string, Promise<boolean>>({ ttl: ONE_HOUR, max: 5000 });
-
-function verifyNip05Cached(value: string, pubkey: string): Promise<boolean> {
-  const cached = nip05Cache.get(value);
-  if (cached !== undefined) {
-    console.log(`Using cached NIP-05 for ${value}`);
-    return cached;
-  }
-
-  console.log(`Verifying NIP-05 for ${value}`);
-  const result = nip05.verify(value, pubkey);
-  nip05Cache.set(value, result);
-
-  return result;
 }
 
 async function toMention(pubkey: string) {

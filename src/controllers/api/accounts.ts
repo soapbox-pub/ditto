@@ -1,6 +1,7 @@
 import { type AppController } from '@/app.ts';
-import { nip05, z } from '@/deps.ts';
+import { z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows } from '@/client.ts';
+import { lookupNip05Cached } from '@/nip05.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
 import { bech32ToPubkey, eventDateComparator } from '@/utils.ts';
 
@@ -110,7 +111,7 @@ const accountStatusesController: AppController = async (c) => {
 async function lookupAccount(value: string): Promise<Event<0> | undefined> {
   console.log(`Looking up ${value}`);
 
-  const pubkey = bech32ToPubkey(value) || (await nip05.queryProfile(value))?.pubkey;
+  const pubkey = bech32ToPubkey(value) || await lookupNip05Cached(value);
 
   if (pubkey) {
     return getAuthor(pubkey);
