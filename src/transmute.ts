@@ -4,6 +4,7 @@ import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { getAuthor } from './client.ts';
+import { nip05 } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
 import { type Nip05, parseNip05 } from './utils.ts';
 
@@ -14,7 +15,7 @@ interface ToAccountOpts {
   withSource?: boolean;
 }
 
-function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
+async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   const { withSource = false } = opts;
 
   const { pubkey } = event;
@@ -24,7 +25,9 @@ function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
 
   let parsed05: Nip05 | undefined;
   try {
-    parsed05 = parseNip05(nip05!);
+    if (nip05 && await verifyNip05Cached(nip05, pubkey)) {
+      parsed05 = parseNip05(nip05);
+    }
   } catch (_e) {
     //
   }
@@ -63,9 +66,27 @@ function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   };
 }
 
+const ONE_HOUR = 60 * 60 * 1000;
+
+const nip05Cache = new TTLCache<string, Promise<boolean>>({ ttl: ONE_HOUR, max: 5000 });
+
+function verifyNip05Cached(value: string, pubkey: string): Promise<boolean> {
+  const cached = nip05Cache.get(value);
+  if (cached !== undefined) {
+    console.log(`Using cached NIP-05 for ${value}`);
+    return cached;
+  }
+
+  console.log(`Verifying NIP-05 for ${value}`);
+  const result = nip05.verify(value, pubkey);
+  nip05Cache.set(value, result);
+
+  return result;
+}
+
 async function toMention(pubkey: string) {
   const profile = await getAuthor(pubkey);
-  const account = profile ? toAccount(profile) : undefined;
+  const account = profile ? await toAccount(profile) : undefined;
 
   if (account) {
     return {
@@ -88,7 +109,7 @@ async function toMention(pubkey: string) {
 
 async function toStatus(event: Event<1>) {
   const profile = await getAuthor(event.pubkey);
-  const account = profile ? toAccount(profile) : undefined;
+  const account = profile ? await toAccount(profile) : undefined;
   if (!account) return;
 
   const replyTag = findReplyTag(event);
@@ -198,14 +219,14 @@ async function unfurlCard(url: string): Promise<PreviewCard | null> {
 
 const TWELVE_HOURS = 12 * 60 * 60 * 1000;
 
-const previewCardCache = new TTLCache({ ttl: TWELVE_HOURS, max: 500 });
+const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({ ttl: TWELVE_HOURS, max: 500 });
 
 /** Unfurl card from cache if available, otherwise fetch it. */
-async function unfurlCardCached(url: string): Promise<PreviewCard | null> {
-  const cached = previewCardCache.get<PreviewCard | null>(url);
+function unfurlCardCached(url: string): Promise<PreviewCard | null> {
+  const cached = previewCardCache.get(url);
   if (cached !== undefined) return cached;
 
-  const card = await unfurlCard(url);
+  const card = unfurlCard(url);
   previewCardCache.set(url, card);
 
   return card;

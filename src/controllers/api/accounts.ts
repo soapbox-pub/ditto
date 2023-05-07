@@ -11,7 +11,7 @@ const credentialsController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(toAccount(event, { withSource: true }));
+    return c.json(await toAccount(event, { withSource: true }));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -22,7 +22,7 @@ const accountController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(toAccount(event));
+    return c.json(await toAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -37,7 +37,7 @@ const accountLookupController: AppController = async (c) => {
 
   const event = await lookupAccount(acct);
   if (event) {
-    return c.json(toAccount(event));
+    return c.json(await toAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -52,7 +52,7 @@ const accountSearchController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(q));
   if (event) {
-    return c.json([toAccount(event)]);
+    return c.json([await toAccount(event)]);
   }
 
   return c.json([]);
