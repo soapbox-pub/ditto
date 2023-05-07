@@ -1,8 +1,7 @@
 import { type AppContext, AppController } from '@/app.ts';
-import { getAncestors, getDescendants, getEvent } from '@/client.ts';
+import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
 import { Kind, validator, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import publish from '@/publisher.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transmute.ts';
 

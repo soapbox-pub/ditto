@@ -1,12 +1,33 @@
-import { Author, findReplyTag, matchFilter, RelayPool } from '@/deps.ts';
+import { Author, findReplyTag, matchFilter, RelayPool, TTLCache } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
-import { poolRelays } from './config.ts';
+import { poolRelays, publishRelays } from './config.ts';
 
 import { eventDateComparator, nostrNow } from './utils.ts';
 
 const db = await Deno.openKv();
-const pool = new RelayPool(poolRelays);
+
+type Pool = InstanceType<typeof RelayPool>;
+
+/** HACK: Websockets in Deno are finnicky... get a new pool every 30 minutes. */
+const poolCache = new TTLCache<0, Pool>({
+  ttl: 30 * 60 * 1000,
+  max: 2,
+  dispose: (pool) => {
+    console.log('Closing pool.');
+    pool.close();
+  },
+});
+
+function getPool(): Pool {
+  const cached = poolCache.get(0);
+  if (cached !== undefined) return cached;
+
+  console.log('Creating new pool.');
+  const pool = new RelayPool(poolRelays);
+  poolCache.set(0, pool);
+  return pool;
+}
 
 type Filter<K extends number = number> = {
   ids?: string[];
@@ -29,7 +50,7 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
     let tid: number;
     const results: SignedEvent[] = [];
 
-    const unsub = pool.subscribe(
+    const unsub = getPool().subscribe(
       [filter],
       poolRelays,
       (event: SignedEvent | null) => {
@@ -69,7 +90,7 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
 
 /** Get a Nostr event by its ID. */
 const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<SignedEvent<K> | undefined> => {
-  const event = await (pool.getEventById(id, poolRelays, 0) as Promise<SignedEvent>);
+  const event = await (getPool().getEventById(id, poolRelays, 0) as Promise<SignedEvent>);
   if (event) {
     if (event.id !== id) return undefined;
     if (kind && event.kind !== kind) return undefined;
@@ -79,7 +100,7 @@ const getEvent = async <K extends number = number>(id: string, kind?: K): Promis
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> => {
-  const author = new Author(pool, poolRelays, pubkey);
+  const author = new Author(getPool(), poolRelays, pubkey);
   const event: SignedEvent<0> | null = await new Promise((resolve) => author.metaData(resolve, 0));
   return event?.pubkey === pubkey ? event : undefined;
 };
@@ -88,7 +109,7 @@ const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> =>
 const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
   const [event] = await getFilter({ authors: [pubkey], kinds: [3] }, { timeout: 5000 });
 
-  // TODO: figure out a better, more generic & flexible way to handle event (and timeouts?)
+  // TODO: figure out a better, more generic & flexible way to handle event cache (and timeouts?)
   // Prewarm cache in GET `/api/v1/accounts/verify_credentials`
   if (event) {
     await db.set(['event3', pubkey], event);
@@ -148,4 +169,14 @@ function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
   return getFilter({ kinds: [1], '#e': [eventId], limit: 200 }, { timeout: 2000 }) as Promise<SignedEvent<1>[]>;
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, pool };
+/** Publish an event to the Nostr relay. */
+function publish(event: SignedEvent, relays = publishRelays): void {
+  console.log('Publishing event', event);
+  try {
+    getPool().publish(event, relays);
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, publish };
