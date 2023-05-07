@@ -1,4 +1,4 @@
-import { findReplyTag, lodash, nip19, z } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
@@ -101,12 +101,13 @@ async function toStatus(event: Event<1>) {
     ),
   ];
 
-  const { html, links } = parseNoteContent(event.content);
+  const { html, links, firstUrl } = parseNoteContent(event.content);
   const mediaLinks = getMediaLinks(links);
 
   return {
     id: event.id,
     account,
+    card: firstUrl ? await unfurlCard(firstUrl) : null,
     content: html,
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
@@ -128,7 +129,6 @@ async function toStatus(event: Event<1>) {
     mentions: await Promise.all(mentionedPubkeys.map(toMention)),
     tags: [],
     emojis: [],
-    card: null,
     poll: null,
     uri: `${LOCAL_DOMAIN}/posts/${event.id}`,
     url: `${LOCAL_DOMAIN}/posts/${event.id}`,
@@ -151,6 +151,49 @@ function renderAttachment({ url, mimeType }: MediaLink) {
     description: '',
     blurhash: null,
   };
+}
+
+interface PreviewCard {
+  url: string;
+  title: string;
+  description: string;
+  type: 'link' | 'photo' | 'video' | 'rich';
+  author_name: string;
+  author_url: string;
+  provider_name: string;
+  provider_url: string;
+  html: string;
+  width: number;
+  height: number;
+  image: string | null;
+  embed_url: string;
+  blurhash: string | null;
+}
+
+async function unfurlCard(url: string): Promise<PreviewCard | null> {
+  console.log(`Unfurling ${url}...`);
+  try {
+    const result = await unfurl(url, { fetch });
+    return {
+      type: result.oEmbed?.type || 'link',
+      url: result.canonical_url || url,
+      title: result.oEmbed?.title || result.title || '',
+      description: result.open_graph.description || result.description || '',
+      author_name: result.oEmbed?.author_name || '',
+      author_url: result.oEmbed?.author_url || '',
+      provider_name: result.oEmbed?.provider_name || '',
+      provider_url: result.oEmbed?.provider_url || '',
+      // @ts-expect-error `html` does in fact exist on oEmbed.
+      html: result.oEmbed?.html || '',
+      width: result.oEmbed?.width || 0,
+      height: result.oEmbed?.height || 0,
+      image: result.oEmbed?.thumbnails?.[0].url || null,
+      embed_url: '',
+      blurhash: null,
+    };
+  } catch (_e) {
+    return null;
+  }
 }
 
 export { toAccount, toStatus };

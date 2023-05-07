@@ -29,3 +29,4 @@ export { default as linkifyStr } from 'npm:linkify-string@^4.1.0';
 import 'npm:linkify-plugin-hashtag@^4.1.0';
 // @deno-types="npm:@types/mime@3.0.0"
 export { default as mime } from 'npm:mime@^3.0.0';
+export { unfurl } from 'npm:unfurl.js@^6.3.1';
