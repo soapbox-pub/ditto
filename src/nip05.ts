@@ -43,10 +43,7 @@ const nostrJsonSchema = z.object({
  */
 function lookupNip05Cached(value: string): Promise<string | null> {
   const cached = nip05Cache.get(value);
-  if (cached !== undefined) {
-    console.log(`Using cached NIP-05 for ${value}`);
-    return cached;
-  }
+  if (cached !== undefined) return cached;
 
   console.log(`Looking up NIP-05 for ${value}`);
   const result = lookup(value);
