@@ -1,4 +1,4 @@
-import { findReplyTag, lodash, nip19, unfurl, z } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
@@ -107,7 +107,7 @@ async function toStatus(event: Event<1>) {
   return {
     id: event.id,
     account,
-    card: firstUrl ? await unfurlCard(firstUrl) : null,
+    card: firstUrl ? await unfurlCardCached(firstUrl) : null,
     content: html,
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
@@ -194,6 +194,21 @@ async function unfurlCard(url: string): Promise<PreviewCard | null> {
   } catch (_e) {
     return null;
   }
+}
+
+const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+
+const previewCardCache = new TTLCache({ ttl: TWELVE_HOURS, max: 500 });
+
+/** Unfurl card from cache if available, otherwise fetch it. */
+async function unfurlCardCached(url: string): Promise<PreviewCard | null> {
+  const cached = previewCardCache.get<PreviewCard | null>(url);
+  if (cached !== undefined) return cached;
+
+  const card = await unfurlCard(url);
+  previewCardCache.set(url, card);
+
+  return card;
 }
 
 export { toAccount, toStatus };
