@@ -1,4 +1,4 @@
-import { findReplyTag, lodash, nip19, TTLCache, unfurl, z } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, nip21, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { type MetaContent, parseMetaContent } from '@/schema.ts';
 
@@ -107,11 +107,18 @@ async function toStatus(event: Event<1>) {
   const { html, links, firstUrl } = parseNoteContent(event.content);
   const mediaLinks = getMediaLinks(links);
 
+  const [mentions, card] = await Promise.all([
+    Promise.all(mentionedPubkeys.map(toMention)),
+    firstUrl ? await unfurlCardCached(firstUrl) : null,
+  ]);
+
+  const content = buildInlineRecipients(mentions) + html;
+
   return {
     id: event.id,
     account,
-    card: firstUrl ? await unfurlCardCached(firstUrl) : null,
-    content: html,
+    card,
+    content,
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
@@ -129,13 +136,25 @@ async function toStatus(event: Event<1>) {
     reblog: null,
     application: null,
     media_attachments: mediaLinks.map(renderAttachment),
-    mentions: await Promise.all(mentionedPubkeys.map(toMention)),
+    mentions,
     tags: [],
     emojis: [],
     poll: null,
     uri: `${LOCAL_DOMAIN}/posts/${event.id}`,
     url: `${LOCAL_DOMAIN}/posts/${event.id}`,
   };
+}
+
+type Mention = Awaited<ReturnType<typeof toMention>>;
+
+function buildInlineRecipients(mentions: Mention[]): string {
+  const elements = mentions.reduce<string[]>((acc, { url, username }) => {
+    const name = nip21.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
+    acc.push(`<a href="${url}" class="u-url mention" rel="ugc">@<span>${name}</span></a>`);
+    return acc;
+  }, []);
+
+  return `<span class="recipients-inline">${elements.join(' ')} </span>`;
 }
 
 const attachmentTypeSchema = z.enum(['image', 'video', 'gifv', 'audio', 'unknown']).catch('unknown');
