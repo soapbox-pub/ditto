@@ -4,6 +4,17 @@ import type { Event } from './event.ts';
 
 const optionalString = z.string().optional().catch(undefined);
 
+/** Validates individual items in an array, dropping any that aren't valid. */
+function filteredArray<T extends z.ZodTypeAny>(schema: T) {
+  return z.any().array().catch([])
+    .transform((arr) => (
+      arr.map((item) => {
+        const parsed = schema.safeParse(item);
+        return parsed.success ? parsed.data : undefined;
+      }).filter((item): item is z.infer<T> => Boolean(item))
+    ));
+}
+
 const jsonSchema = z.string().transform((value, ctx) => {
   try {
     return JSON.parse(value);
@@ -56,4 +67,15 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-export { jsonSchema, type MetaContent, metaContentSchema, parseMetaContent, parseRelay, relaySchema };
+const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
+
+export {
+  emojiTagSchema,
+  filteredArray,
+  jsonSchema,
+  type MetaContent,
+  metaContentSchema,
+  parseMetaContent,
+  parseRelay,
+  relaySchema,
+};

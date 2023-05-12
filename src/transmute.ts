@@ -1,6 +1,6 @@
 import { findReplyTag, lodash, nip19, nip21, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import { type MetaContent, parseMetaContent } from '@/schema.ts';
+import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
 
 import { LOCAL_DOMAIN } from './config.ts';
 import { getAuthor } from './client.ts';
@@ -32,14 +32,6 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     //
   }
 
-  const emojis = event.tags
-    .filter((tag) => tag[0] === 'emoji')
-    .map((tag) => ({
-      shortcode: tag[1],
-      static_url: tag[2],
-      url: tag[2],
-    }));
-
   return {
     id: pubkey,
     acct: parsed05?.handle || npub,
@@ -48,7 +40,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     bot: false,
     created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
     display_name: name,
-    emojis,
+    emojis: toEmojis(event),
     fields: [],
     follow_requests_count: 0,
     followers_count: 0,
@@ -146,7 +138,7 @@ async function toStatus(event: Event<1>) {
     media_attachments: mediaLinks.map(renderAttachment),
     mentions,
     tags: [],
-    emojis: [],
+    emojis: toEmojis(event),
     poll: null,
     uri: `${LOCAL_DOMAIN}/posts/${event.id}`,
     url: `${LOCAL_DOMAIN}/posts/${event.id}`,
@@ -241,6 +233,17 @@ function unfurlCardCached(url: string): Promise<PreviewCard | null> {
   previewCardCache.set(url, card);
 
   return card;
+}
+
+function toEmojis(event: Event) {
+  const emojiTags = event.tags.filter((tag) => tag[0] === 'emoji');
+
+  return filteredArray(emojiTagSchema).parse(emojiTags)
+    .map((tag) => ({
+      shortcode: tag[1],
+      static_url: tag[2],
+      url: tag[2],
+    }));
 }
 
 export { toAccount, toStatus };
