@@ -46,7 +46,7 @@ const oauthController: AppController = (c) => {
     return c.text('Missing `redirect_uri` query param.', 422);
   }
 
-  const redirectUri = decodeURIComponent(encodedUri);
+  const redirectUri = maybeDecodeUri(encodedUri);
 
   c.res.headers.set(
     'content-security-policy',
@@ -80,6 +80,19 @@ const oauthController: AppController = (c) => {
 </html>
 `);
 };
+
+/**
+ * If it's already a valid URL, keep it as-is. Otherwise decode it from a URI component.
+ * This fixes compatibilty with Elk: https://github.com/elk-zone/elk/issues/2089#issuecomment-1546289725
+ */
+function maybeDecodeUri(uri: string): string {
+  try {
+    new URL(uri);
+    return uri;
+  } catch (_e) {
+    return decodeURIComponent(uri);
+  }
+}
 
 const oauthAuthorizeSchema = z.object({
   pubkey: z.string().regex(/^[0-9a-f]{64}$/).optional().catch(undefined),
