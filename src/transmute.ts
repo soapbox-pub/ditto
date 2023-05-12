@@ -62,7 +62,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     note: lodash.escape(about),
     fqn: parsed05?.handle || npub,
     url: `${origin}/users/${pubkey}`,
-    username: parsed05?.nickname || npub,
+    username: parsed05?.nickname || npub.substring(0, 8),
   };
 }
 
@@ -83,7 +83,7 @@ async function toMention(pubkey: string) {
     return {
       id: pubkey,
       acct: npub,
-      username: npub,
+      username: npub.substring(0, 8),
       url: `${origin}/users/${pubkey}`,
     };
   }
