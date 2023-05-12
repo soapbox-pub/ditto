@@ -148,6 +148,8 @@ async function toStatus(event: Event<1>) {
 type Mention = Awaited<ReturnType<typeof toMention>>;
 
 function buildInlineRecipients(mentions: Mention[]): string {
+  if (!mentions.length) return '';
+
   const elements = mentions.reduce<string[]>((acc, { url, username }) => {
     const name = nip21.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
     acc.push(`<a href="${url}" class="u-url mention" rel="ugc">@<span>${name}</span></a>`);
