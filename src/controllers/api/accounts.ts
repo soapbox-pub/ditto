@@ -36,7 +36,7 @@ const accountLookupController: AppController = async (c) => {
     return c.json({ error: 'Missing `acct` query parameter.' }, 422);
   }
 
-  const event = await lookupAccount(acct);
+  const event = await lookupAccount(decodeURIComponent(acct));
   if (event) {
     return c.json(await toAccount(event));
   }
