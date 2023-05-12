@@ -16,6 +16,10 @@ const homeController: AppController = async (c) => {
   }
 
   const events = await getFeed(follows, { since, until });
+  if (!events.length) {
+    return c.json([]);
+  }
+
   const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
 
   const next = `${LOCAL_DOMAIN}/api/v1/timelines/home?until=${events[events.length - 1].created_at}`;
