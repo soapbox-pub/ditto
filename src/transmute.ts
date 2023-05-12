@@ -32,6 +32,14 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     //
   }
 
+  const emojis = event.tags
+    .filter((tag) => tag[0] === 'emoji')
+    .map((tag) => ({
+      shortcode: tag[1],
+      static_url: tag[2],
+      url: tag[2],
+    }));
+
   return {
     id: pubkey,
     acct: parsed05?.handle || npub,
@@ -40,7 +48,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     bot: false,
     created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
     display_name: name,
-    emojis: [],
+    emojis,
     fields: [],
     follow_requests_count: 0,
     followers_count: 0,
