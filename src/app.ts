@@ -72,6 +72,7 @@ app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
+app.get('/api/v1/timelines/public', emptyArrayController);
 
 app.get('/', indexController);
 
