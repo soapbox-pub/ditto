@@ -14,15 +14,16 @@ import { homeController } from './controllers/api/timelines.ts';
 import instanceController from './controllers/api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
 import { preferencesController } from './controllers/api/preferences.ts';
+import { searchController } from './controllers/api/search.ts';
 import {
   contextController,
   createStatusController,
   favouriteController,
   statusController,
 } from './controllers/api/statuses.ts';
-import { requireAuth, setAuth } from './middleware/auth.ts';
+import { streamingController } from './controllers/api/streaming.ts';
 import { indexController } from './controllers/site.ts';
-import { searchController } from './controllers/api/search.ts';
+import { requireAuth, setAuth } from './middleware/auth.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -37,7 +38,12 @@ type AppController = Handler<AppEnv>;
 
 const app = new Hono<AppEnv>();
 
-app.use('/*', logger(), cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
+app.use('*', logger());
+
+app.get('/api/v1/streaming', streamingController);
+app.get('/api/v1/streaming/', streamingController);
+
+app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
 
 app.get('/api/v1/instance', instanceController);
 

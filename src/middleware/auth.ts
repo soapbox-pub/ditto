@@ -3,7 +3,7 @@ import { getPublicKey, HTTPException, nip19 } from '@/deps.ts';
 
 /** NIP-19 auth middleware. */
 const setAuth: AppMiddleware = async (c, next) => {
-  const authHeader = c.req.headers.get('Authorization');
+  const authHeader = c.req.headers.get('authorization');
 
   if (authHeader?.startsWith('Bearer ')) {
     const bech32 = authHeader.replace(/^Bearer /, '');

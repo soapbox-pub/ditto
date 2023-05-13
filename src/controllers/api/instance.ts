@@ -3,7 +3,7 @@ import { ADMIN_EMAIL, LOCAL_DOMAIN, POST_CHAR_LIMIT } from '@/config.ts';
 import type { Context } from '@/deps.ts';
 
 function instanceController(c: Context) {
-  const { host } = new URL(LOCAL_DOMAIN);
+  const { host, protocol } = new URL(LOCAL_DOMAIN);
 
   return c.json({
     uri: host,
@@ -35,7 +35,7 @@ function instanceController(c: Context) {
       user_count: 0,
     },
     urls: {
-      streaming_api: `wss://${host}`,
+      streaming_api: `${protocol === 'http:' ? 'ws:' : 'wss:'}//${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
     email: ADMIN_EMAIL,
