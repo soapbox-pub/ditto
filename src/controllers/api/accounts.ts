@@ -1,11 +1,8 @@
 import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows } from '@/client.ts';
-import { lookupNip05Cached } from '@/nip05.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
-import { bech32ToPubkey, eventDateComparator } from '@/utils.ts';
-
-import type { Event } from '@/event.ts';
+import { eventDateComparator, lookupAccount } from '@/utils.ts';
 
 const credentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -106,17 +103,6 @@ const accountStatusesController: AppController = async (c) => {
 
   return c.json(statuses);
 };
-
-/** Resolve a bech32 or NIP-05 identifier to an account. */
-async function lookupAccount(value: string): Promise<Event<0> | undefined> {
-  console.log(`Looking up ${value}`);
-
-  const pubkey = bech32ToPubkey(value) || await lookupNip05Cached(value);
-
-  if (pubkey) {
-    return getAuthor(pubkey);
-  }
-}
 
 export {
   accountController,

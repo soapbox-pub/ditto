@@ -1,5 +1,7 @@
+import { getAuthor } from '@/client.ts';
 import { Context, getPublicKey, nip19, nip21, parseFormData } from '@/deps.ts';
 import { type Event } from '@/event.ts';
+import { lookupNip05Cached } from '@/nip05.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = () => Math.floor(new Date().getTime() / 1000);
@@ -75,6 +77,17 @@ function parseNip05(value: string): Nip05 {
   };
 }
 
+/** Resolve a bech32 or NIP-05 identifier to an account. */
+async function lookupAccount(value: string): Promise<Event<0> | undefined> {
+  console.log(`Looking up ${value}`);
+
+  const pubkey = bech32ToPubkey(value) || await lookupNip05Cached(value);
+
+  if (pubkey) {
+    return getAuthor(pubkey);
+  }
+}
+
 /** Parse request body to JSON, depending on the content-type of the request. */
 async function parseBody(req: Request): Promise<unknown> {
   switch (req.headers.get('content-type')?.split(';')[0]) {
@@ -92,6 +105,7 @@ export {
   getKeys,
   isBech32,
   isNostrId,
+  lookupAccount,
   type Nip05,
   nostrNow,
   parseBody,

@@ -22,6 +22,7 @@ import {
 } from './controllers/api/statuses.ts';
 import { requireAuth, setAuth } from './middleware/auth.ts';
 import { indexController } from './controllers/site.ts';
+import { searchController } from './controllers/api/search.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -63,13 +64,14 @@ app.post('/api/v1/statuses', requireAuth, createStatusController);
 app.get('/api/v1/timelines/home', requireAuth, homeController);
 
 app.get('/api/v1/preferences', preferencesController);
+app.get('/api/v1/search', searchController);
+app.get('/api/v2/search', searchController);
 
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/accounts/search', emptyArrayController);
-app.get('/api/v2/search', (c) => c.json({ accounts: [], statuses: [], hashtags: [] }));
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
