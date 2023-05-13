@@ -13,6 +13,7 @@ import { emptyArrayController, emptyObjectController } from './controllers/api/f
 import { homeController } from './controllers/api/timelines.ts';
 import instanceController from './controllers/api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
+import { preferencesController } from './controllers/api/preferences.ts';
 import {
   contextController,
   createStatusController,
@@ -61,6 +62,8 @@ app.post('/api/v1/statuses', requireAuth, createStatusController);
 
 app.get('/api/v1/timelines/home', requireAuth, homeController);
 
+app.get('/api/v1/preferences', preferencesController);
+
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);
 app.get('/api/v1/bookmarks', emptyArrayController);
@@ -73,6 +76,9 @@ app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/timelines/public', emptyArrayController);
+app.get('/api/v1/conversations', emptyArrayController);
+app.get('/api/v1/favourites', emptyArrayController);
+app.get('/api/v1/lists', emptyArrayController);
 
 app.get('/', indexController);
 
