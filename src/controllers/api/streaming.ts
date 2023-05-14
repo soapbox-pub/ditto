@@ -1,5 +1,6 @@
 import { AppController } from '@/app.ts';
 import { nip21 } from '@/deps.ts';
+import { signStreams } from '@/sign.ts';
 
 const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
@@ -22,6 +23,8 @@ const streamingController: AppController = (c) => {
   socket.addEventListener('open', () => console.log('websocket: connection opened'));
   socket.addEventListener('close', () => console.log('websocket: connection closed'));
   socket.addEventListener('message', (e) => console.log('websocket message: ', e.data));
+
+  signStreams.set(token, socket);
 
   return response;
 };
