@@ -34,7 +34,7 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
           }
         });
         stream.send(JSON.stringify({ event: 'nostr.sign', payload: JSON.stringify(event) }));
-        setTimeout(reject, 30000);
+        setTimeout(reject, 60000);
       });
     } catch (_e) {
       throw new HTTPException(504, {

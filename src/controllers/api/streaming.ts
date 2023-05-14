@@ -6,6 +6,9 @@ const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
   const token = c.req.headers.get('sec-websocket-protocol');
 
+  const stream = c.req.query('stream');
+  const nostr = c.req.query('nostr');
+
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
   }
@@ -24,8 +27,9 @@ const streamingController: AppController = (c) => {
   socket.addEventListener('close', () => console.log('websocket: connection closed'));
   socket.addEventListener('message', (e) => console.log('websocket message: ', e.data));
 
-  // FIXME: Only do this for nostr.sign events.
-  signStreams.set(token, socket);
+  if (stream === 'user' && nostr === 'true') {
+    signStreams.set(token, socket);
+  }
 
   return response;
 };
