@@ -28,6 +28,7 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
     try {
       return await new Promise<SignedEvent<K>>((resolve, reject) => {
         stream.addEventListener('message', (e) => {
+          // TODO: parse and validate with zod
           const data = JSON.parse(e.data);
           if (data.event === 'nostr.sign') {
             resolve(JSON.parse(data.payload));
@@ -37,8 +38,8 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
         setTimeout(reject, 60000);
       });
     } catch (_e) {
-      throw new HTTPException(504, {
-        res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }, 504),
+      throw new HTTPException(408, {
+        res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }, 408),
       });
     }
   }
