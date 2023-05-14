@@ -24,6 +24,7 @@ const streamingController: AppController = (c) => {
   socket.addEventListener('close', () => console.log('websocket: connection closed'));
   socket.addEventListener('message', (e) => console.log('websocket message: ', e.data));
 
+  // FIXME: Only do this for nostr.sign events.
   signStreams.set(token, socket);
 
   return response;

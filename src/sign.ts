@@ -4,6 +4,8 @@ import { getEventHash, getPublicKey, getSignature, HTTPException } from '@/deps.
 import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
 
 /** Map of OAuth tokens to WebSocket signing streams. */
+// FIXME: People can eavesdrop on other people's signing streams.
+// TODO: Add a secret to the Authorization header.
 export const signStreams = new Map<string, WebSocket>();
 
 /** Get signing WebSocket from app context. */
@@ -12,12 +14,17 @@ function getSignStream(c: AppContext): WebSocket | undefined {
   return token ? signStreams.get(token) : undefined;
 }
 
-/** Sign Nostr event using the app context. */
+/**
+ * Sign Nostr event using the app context.
+ *
+ * - If a secret key is provided, it will be used to sign the event.
+ * - If a signing WebSocket is provided, it will be used to sign the event.
+ */
 async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<SignedEvent<K>> {
   const seckey = c.get('seckey');
   const stream = getSignStream(c);
 
-  if (stream) {
+  if (!seckey && stream) {
     try {
       return await new Promise<SignedEvent<K>>((resolve, reject) => {
         stream.addEventListener('message', (e) => {
@@ -36,8 +43,6 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
     }
   }
 
-  // Ditto only supports publishing events with a private key (for now).
-  // TODO: Let the client sign events through a websocket.
   if (!seckey) {
     throw new HTTPException(400, {
       res: c.json({ id: 'ditto.private_key', error: 'No private key' }, 400),
