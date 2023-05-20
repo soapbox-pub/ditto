@@ -4,7 +4,7 @@ import { getAuthor, getFilter, getFollows } from '@/client.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
 import { eventDateComparator, lookupAccount } from '@/utils.ts';
 
-const credentialsController: AppController = async (c) => {
+const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
 
   const event = await getAuthor(pubkey);
@@ -109,6 +109,6 @@ export {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
-  credentialsController,
   relationshipsController,
+  verifyCredentialsController,
 };

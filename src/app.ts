@@ -5,8 +5,8 @@ import {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
-  credentialsController,
   relationshipsController,
+  verifyCredentialsController,
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
@@ -57,7 +57,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.get('/api/v1/accounts/verify_credentials', requireAuth, credentialsController);
+app.get('/api/v1/accounts/verify_credentials', requireAuth, verifyCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
