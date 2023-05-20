@@ -1,5 +1,5 @@
 import { getAuthor } from '@/client.ts';
-import { Context, getPublicKey, nip19, nip21, parseFormData } from '@/deps.ts';
+import { Context, getPublicKey, nip19, parseFormData } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 
@@ -25,7 +25,7 @@ function getKeys(c: Context) {
 
 /** Return true if the value is a bech32 string, eg for use with NIP-19. */
 function isBech32(value: unknown): value is string {
-  return typeof value === 'string' && nip21.BECH32_REGEX.test(value);
+  return typeof value === 'string' && nip19.BECH32_REGEX.test(value);
 }
 
 /** Return true if the value is a Nostr pubkey, private key, or event ID. */

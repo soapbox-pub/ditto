@@ -1,4 +1,4 @@
-import { findReplyTag, lodash, nip19, nip21, TTLCache, unfurl, z } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
 
@@ -151,7 +151,7 @@ function buildInlineRecipients(mentions: Mention[]): string {
   if (!mentions.length) return '';
 
   const elements = mentions.reduce<string[]>((acc, { url, username }) => {
-    const name = nip21.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
+    const name = nip19.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
     acc.push(`<a href="${url}" class="u-url mention" rel="ugc">@<span>${name}</span></a>`);
     return acc;
   }, []);

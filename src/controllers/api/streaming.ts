@@ -1,5 +1,5 @@
 import { AppController } from '@/app.ts';
-import { nip21 } from '@/deps.ts';
+import { nip19 } from '@/deps.ts';
 import { signStreams } from '@/sign.ts';
 
 const streamingController: AppController = (c) => {
@@ -17,7 +17,7 @@ const streamingController: AppController = (c) => {
     return c.json({ error: 'Missing access token' }, 401);
   }
 
-  if (!nip21.BECH32_REGEX.test(token)) {
+  if (!nip19.BECH32_REGEX.test(token)) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 

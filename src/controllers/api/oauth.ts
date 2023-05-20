@@ -1,4 +1,4 @@
-import { lodash, nip19, nip21, z } from '@/deps.ts';
+import { lodash, nip19, z } from '@/deps.ts';
 import { AppController } from '@/app.ts';
 import { parseBody } from '@/utils.ts';
 
@@ -96,7 +96,7 @@ function maybeDecodeUri(uri: string): string {
 
 const oauthAuthorizeSchema = z.object({
   pubkey: z.string().regex(/^[0-9a-f]{64}$/).optional().catch(undefined),
-  nip19: z.string().regex(new RegExp(`^${nip21.BECH32_REGEX.source}$`)).optional().catch(undefined),
+  nip19: z.string().regex(new RegExp(`^${nip19.BECH32_REGEX.source}$`)).optional().catch(undefined),
   redirect_uri: z.string().url(),
 }).superRefine((data, ctx) => {
   if (!data.pubkey && !data.nip19) {
