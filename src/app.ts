@@ -27,7 +27,9 @@ import { requireAuth, setAuth } from './middleware/auth.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
+    /** Hex pubkey for the current user. If provided, the user is considered "logged in." */
     pubkey?: string;
+    /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
     seckey?: string;
   };
 }

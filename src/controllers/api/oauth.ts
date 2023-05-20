@@ -1,4 +1,4 @@
-import { lodash, nip19, z } from '@/deps.ts';
+import { lodash, nip19, uuid62, z } from '@/deps.ts';
 import { AppController } from '@/app.ts';
 import { parseBody } from '@/utils.ts';
 
@@ -94,6 +94,7 @@ function maybeDecodeUri(uri: string): string {
   }
 }
 
+/** Schema for FormData POSTed to the OAuthController. */
 const oauthAuthorizeSchema = z.object({
   pubkey: z.string().regex(/^[0-9a-f]{64}$/).optional().catch(undefined),
   nip19: z.string().regex(new RegExp(`^${nip19.BECH32_REGEX.source}$`)).optional().catch(undefined),
@@ -107,21 +108,31 @@ const oauthAuthorizeSchema = z.object({
   }
 });
 
+/** Controller the OAuth form is POSTed to. */
 const oauthAuthorizeController: AppController = async (c) => {
+  /** FormData results in JSON. */
   const result = oauthAuthorizeSchema.safeParse(await parseBody(c.req.raw));
 
   if (!result.success) {
     return c.json(result.error, 422);
   }
 
+  // Parsed FormData values.
   const { pubkey, nip19: nip19id, redirect_uri: redirectUri } = result.data;
+
+  /**
+   * Normally the auth token is just an npub, which is public information.
+   * The sessionId helps us know that Request "B" and Request "A" came from the same person.
+   * Useful for sending websocket events to the correct client.
+   */
+  const sessionId: string = uuid62.v4();
 
   if (pubkey) {
     const encoded = nip19.npubEncode(pubkey!);
-    const url = addCodeToRedirectUri(redirectUri, encoded);
+    const url = addCodeToRedirectUri(redirectUri, `${encoded}_${sessionId}`);
     return c.redirect(url);
   } else if (nip19id) {
-    const url = addCodeToRedirectUri(redirectUri, nip19id);
+    const url = addCodeToRedirectUri(redirectUri, `${nip19id}_${sessionId}`);
     return c.redirect(url);
   }
 

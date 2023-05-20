@@ -32,3 +32,4 @@ import 'npm:linkify-plugin-hashtag@^4.1.0';
 export { default as mime } from 'npm:mime@^3.0.0';
 export { unfurl } from 'npm:unfurl.js@^6.3.2';
 export { default as TTLCache } from 'npm:@isaacs/ttlcache@^1.4.0';
+export { default as uuid62 } from 'npm:uuid62@^1.0.2';

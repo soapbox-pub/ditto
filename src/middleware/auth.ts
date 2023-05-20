@@ -1,12 +1,18 @@
 import { AppMiddleware } from '@/app.ts';
 import { getPublicKey, HTTPException, nip19 } from '@/deps.ts';
 
+/** The token includes a Bech32 Nostr ID (npub, nsec, etc) and an optional session ID. */
+const TOKEN_REGEX = new RegExp(`(${nip19.BECH32_REGEX.source})(?:_(\\w+))?`);
+/** We only accept "Bearer" type. */
+const BEARER_REGEX = new RegExp(`^Bearer (${TOKEN_REGEX.source})$`);
+
 /** NIP-19 auth middleware. */
 const setAuth: AppMiddleware = async (c, next) => {
   const authHeader = c.req.headers.get('authorization');
+  const match = authHeader?.match(BEARER_REGEX);
 
-  if (authHeader?.startsWith('Bearer ')) {
-    const bech32 = authHeader.replace(/^Bearer /, '');
+  if (match) {
+    const [_, _token, bech32, _sessionId] = match;
 
     try {
       const decoded = nip19.decode(bech32!);
@@ -40,4 +46,4 @@ const requireAuth: AppMiddleware = async (c, next) => {
   await next();
 };
 
-export { requireAuth, setAuth };
+export { requireAuth, setAuth, TOKEN_REGEX };
