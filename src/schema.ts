@@ -1,4 +1,4 @@
-import { z } from '@/deps.ts';
+import { verifySignature, z } from '@/deps.ts';
 
 import type { Event } from './event.ts';
 
@@ -67,10 +67,23 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
+const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+
+const eventSchema = z.object({
+  id: nostrIdSchema,
+  kind: z.number(),
+  tags: z.array(z.array(z.string())),
+  content: z.string(),
+  created_at: z.number(),
+  pubkey: nostrIdSchema,
+  sig: z.string(),
+}).refine(verifySignature);
+
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
 export {
   emojiTagSchema,
+  eventSchema,
   filteredArray,
   jsonSchema,
   type MetaContent,

@@ -1,5 +1,6 @@
 import { type AppContext } from '@/app.ts';
-import { getEventHash, getPublicKey, getSignature, HTTPException } from '@/deps.ts';
+import { getEventHash, getPublicKey, getSignature, HTTPException, z } from '@/deps.ts';
+import { eventSchema } from '@/schema.ts';
 import ws from '@/stream.ts';
 
 import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
@@ -15,6 +16,11 @@ function getSignStream(c: AppContext): WebSocket | undefined {
   }
 }
 
+const nostrStreamingEventSchema = z.object({
+  type: z.literal('nostr.sign'),
+  data: eventSchema,
+});
+
 /**
  * Sign Nostr event using the app context.
  *
@@ -29,11 +35,12 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
     try {
       return await new Promise<SignedEvent<K>>((resolve, reject) => {
         const handleMessage = (e: MessageEvent) => {
-          // TODO: parse and validate with zod
-          const data = JSON.parse(e.data);
-          if (data.event === 'nostr.sign') {
+          try {
+            const { data: event } = nostrStreamingEventSchema.parse(JSON.parse(e.data));
             stream.removeEventListener('message', handleMessage);
-            resolve(JSON.parse(data.payload));
+            resolve(event as SignedEvent<K>);
+          } catch (_e) {
+            //
           }
         };
         stream.addEventListener('message', handleMessage);
