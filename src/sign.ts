@@ -9,8 +9,6 @@ function getSignStream(c: AppContext): WebSocket | undefined {
   const pubkey = c.get('pubkey');
   const session = c.get('session');
 
-  console.log(`nostr:${pubkey}:${session}`);
-
   if (pubkey && session) {
     const [socket] = ws.getSockets(`nostr:${pubkey}:${session}`);
     return socket;

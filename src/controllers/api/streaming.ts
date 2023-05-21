@@ -40,7 +40,7 @@ const streamingController: AppController = (c) => {
 
   socket.addEventListener('close', () => {
     console.log('websocket: connection closed');
-    ws.unsubscribe(conn, { name: stream! });
+    ws.unsubscribeAll(socket);
   });
 
   return response;
