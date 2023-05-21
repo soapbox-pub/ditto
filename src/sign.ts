@@ -1,17 +1,20 @@
 import { type AppContext } from '@/app.ts';
 import { getEventHash, getPublicKey, getSignature, HTTPException } from '@/deps.ts';
+import ws from '@/stream.ts';
 
 import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
 
-/** Map of OAuth tokens to WebSocket signing streams. */
-// FIXME: People can eavesdrop on other people's signing streams.
-// TODO: Add a secret to the Authorization header.
-export const signStreams = new Map<string, WebSocket>();
-
 /** Get signing WebSocket from app context. */
 function getSignStream(c: AppContext): WebSocket | undefined {
-  const token = c.req.headers.get('authorization')?.replace(/^Bearer /, '');
-  return token ? signStreams.get(token) : undefined;
+  const pubkey = c.get('pubkey');
+  const session = c.get('session');
+
+  console.log(`nostr:${pubkey}:${session}`);
+
+  if (pubkey && session) {
+    const [socket] = ws.getSockets(`nostr:${pubkey}:${session}`);
+    return socket;
+  }
 }
 
 /**
@@ -27,15 +30,20 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
   if (!seckey && stream) {
     try {
       return await new Promise<SignedEvent<K>>((resolve, reject) => {
-        stream.addEventListener('message', (e) => {
+        const handleMessage = (e: MessageEvent) => {
           // TODO: parse and validate with zod
           const data = JSON.parse(e.data);
           if (data.event === 'nostr.sign') {
+            stream.removeEventListener('message', handleMessage);
             resolve(JSON.parse(data.payload));
           }
-        });
+        };
+        stream.addEventListener('message', handleMessage);
         stream.send(JSON.stringify({ event: 'nostr.sign', payload: JSON.stringify(event) }));
-        setTimeout(reject, 60000);
+        setTimeout(() => {
+          stream.removeEventListener('message', handleMessage);
+          reject();
+        }, 60000);
       });
     } catch (_e) {
       throw new HTTPException(408, {

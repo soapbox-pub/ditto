@@ -12,7 +12,8 @@ const setAuth: AppMiddleware = async (c, next) => {
   const match = authHeader?.match(BEARER_REGEX);
 
   if (match) {
-    const [_, _token, bech32, _sessionId] = match;
+    const [_, _token, bech32, session] = match;
+    c.set('session', session);
 
     try {
       const decoded = nip19.decode(bech32!);

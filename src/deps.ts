@@ -14,12 +14,12 @@ export {
   type Filter,
   getEventHash,
   getPublicKey,
+  getSignature,
   Kind,
   matchFilter,
   nip05,
   nip19,
   nip21,
-  signEvent as getSignature,
 } from 'npm:nostr-tools@^1.11.1';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';

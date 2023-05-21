@@ -31,6 +31,8 @@ interface AppEnv extends HonoEnv {
     pubkey?: string;
     /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
     seckey?: string;
+    /** UUID from the access token. Used for WebSocket event signing. */
+    session?: string;
   };
 }
 
