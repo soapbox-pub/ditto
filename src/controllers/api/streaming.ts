@@ -1,12 +1,12 @@
 import { AppController } from '@/app.ts';
 import { TOKEN_REGEX } from '@/middleware/auth.ts';
-import ws from '@/stream.ts';
+import { streamSchema, ws } from '@/stream.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 
 const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
   const token = c.req.headers.get('sec-websocket-protocol');
-  const stream = c.req.query('stream');
+  const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
@@ -32,7 +32,7 @@ const streamingController: AppController = (c) => {
   socket.addEventListener('open', () => {
     console.log('websocket: connection opened');
     if (stream) {
-      ws.subscribe(conn, { name: stream });
+      ws.subscribe(conn, { stream });
     }
   });
 

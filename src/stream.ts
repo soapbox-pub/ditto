@@ -1,5 +1,23 @@
+import { z } from '@/deps.ts';
+
 /** Internal key for event subscriptions. */
-type Topic = string;
+type Topic =
+  | `nostr:${string}:${string}`
+  | 'public'
+  | 'public:local';
+
+/**
+ * Streaming timelines/categories.
+ * https://docs.joinmastodon.org/methods/streaming/#streams
+ */
+const streamSchema = z.enum([
+  'nostr',
+  'public',
+  'public:local',
+  'user',
+]);
+
+type Stream = z.infer<typeof streamSchema>;
 
 /** Only the necessary metadata needed from the request. */
 interface StreamConn {
@@ -13,9 +31,9 @@ interface StreamConn {
 
 /** Requested streaming channel, eg `user`, `notifications`. Some channels like `hashtag` have additional params. */
 // TODO: Make this a discriminated union (needed for hashtags).
-interface Stream {
+interface StreamSub {
   /** Name of the channel, eg `user`. */
-  name: string;
+  stream: Stream;
   /** Additional query params, eg `tag`. */
   params?: Record<string, string>;
 }
@@ -28,8 +46,8 @@ class WebSocketConnections {
   #topics = new WeakMap<WebSocket, Set<Topic>>();
 
   /** Add the WebSocket to the streaming channel. */
-  subscribe(conn: StreamConn, stream: Stream): void {
-    const topic = getTopic(conn, stream);
+  subscribe(conn: StreamConn, sub: StreamSub): void {
+    const topic = getTopic(conn, sub);
 
     if (topic) {
       this.#addSocket(conn.socket, topic);
@@ -38,8 +56,8 @@ class WebSocketConnections {
   }
 
   /** Remove the WebSocket from the streaming channel. */
-  unsubscribe(conn: StreamConn, stream: Stream): void {
-    const topic = getTopic(conn, stream);
+  unsubscribe(conn: StreamConn, sub: StreamSub): void {
+    const topic = getTopic(conn, sub);
 
     if (topic) {
       this.#removeSocket(conn.socket, topic);
@@ -120,22 +138,21 @@ class WebSocketConnections {
  * Convert the "stream" parameter into a "topic".
  * The stream parameter is part of the public-facing API, while the topic is internal.
  */
-function getTopic(conn: StreamConn, stream: Stream): Topic | undefined {
-  // Global topics will share the same name as the stream.
-  if (stream.name.startsWith('public')) {
-    return stream.name;
-    // Can't subscribe to non-public topics without a pubkey.
-  } else if (!conn.pubkey) {
-    return;
-    // Nostr signing topics contain the session ID for privacy reasons.
-  } else if (stream.name === 'nostr') {
-    return conn.session ? `${stream.name}:${conn.pubkey}:${conn.session}` : undefined;
-    // User topics will be suffixed with the pubkey.
-  } else {
-    return `${stream.name}:${conn.pubkey}`;
+function getTopic(conn: StreamConn, sub: StreamSub): Topic | undefined {
+  switch (sub.stream) {
+    case 'public':
+    case 'public:local':
+      return sub.stream;
+    default:
+      if (!conn.pubkey) {
+        return;
+        // Nostr signing topics contain the session ID for privacy reasons.
+      } else if (sub.stream === 'nostr') {
+        return conn.session ? `nostr:${conn.pubkey}:${conn.session}` : undefined;
+      }
   }
 }
 
 const ws = new WebSocketConnections();
 
-export default ws;
+export { type Stream, streamSchema, ws };
