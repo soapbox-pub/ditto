@@ -39,12 +39,20 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     avatar_static: picture || DEFAULT_AVATAR,
     bot: false,
     created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
+    discoverable: true,
     display_name: name,
     emojis: toEmojis(event),
     fields: [],
     follow_requests_count: 0,
     followers_count: 0,
     following_count: 0,
+    fqn: parsed05?.handle || npub,
+    header: banner || DEFAULT_BANNER,
+    header_static: banner || DEFAULT_BANNER,
+    last_status_at: null,
+    locked: false,
+    note: lodash.escape(about),
+    roles: [],
     source: withSource
       ? {
         fields: [],
@@ -56,11 +64,6 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
       }
       : undefined,
     statuses_count: 0,
-    header: banner || DEFAULT_BANNER,
-    header_static: banner || DEFAULT_BANNER,
-    locked: false,
-    note: lodash.escape(about),
-    fqn: parsed05?.handle || npub,
     url: `${origin}/users/${pubkey}`,
     username: parsed05?.nickname || npub.substring(0, 8),
   };

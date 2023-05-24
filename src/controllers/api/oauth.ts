@@ -12,26 +12,42 @@ const codeGrantSchema = z.object({
   code: z.string(),
 });
 
+const credentialsGrantSchema = z.object({
+  grant_type: z.literal('client_credentials'),
+});
+
 const createTokenSchema = z.discriminatedUnion('grant_type', [
   passwordGrantSchema,
   codeGrantSchema,
+  credentialsGrantSchema,
 ]);
 
 const createTokenController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
-  const data = createTokenSchema.parse(body);
+  const result = createTokenSchema.safeParse(body);
 
-  switch (data.grant_type) {
+  if (!result.success) {
+    return c.json({ error: 'Invalid request', issues: result.error.issues }, 400);
+  }
+
+  switch (result.data.grant_type) {
     case 'password':
       return c.json({
-        access_token: data.password,
+        access_token: result.data.password,
         token_type: 'Bearer',
         scope: 'read write follow push',
         created_at: Math.floor(new Date().getTime() / 1000),
       });
     case 'authorization_code':
       return c.json({
-        access_token: data.code,
+        access_token: result.data.code,
+        token_type: 'Bearer',
+        scope: 'read write follow push',
+        created_at: Math.floor(new Date().getTime() / 1000),
+      });
+    case 'client_credentials':
+      return c.json({
+        access_token: '_',
         token_type: 'Bearer',
         scope: 'read write follow push',
         created_at: Math.floor(new Date().getTime() / 1000),
