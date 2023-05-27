@@ -1,4 +1,4 @@
-import { findReplyTag, lodash, nip19, TTLCache, unfurl, z } from '@/deps.ts';
+import { findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
 
@@ -211,7 +211,12 @@ async function unfurlCard(url: string): Promise<PreviewCard | null> {
       provider_name: result.oEmbed?.provider_name || '',
       provider_url: result.oEmbed?.provider_url || '',
       // @ts-expect-error `html` does in fact exist on oEmbed.
-      html: result.oEmbed?.html || '',
+      html: sanitizeHtml(result.oEmbed?.html || '', {
+        allowedTags: ['iframe'],
+        allowedAttributes: {
+          iframe: ['width', 'height', 'src', 'frameborder', 'allowfullscreen'],
+        },
+      }),
       width: result.oEmbed?.width || 0,
       height: result.oEmbed?.height || 0,
       image: result.oEmbed?.thumbnails?.[0].url || result.open_graph.images?.[0].url || null,
