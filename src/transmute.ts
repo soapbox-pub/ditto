@@ -2,7 +2,7 @@ import { findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '
 import { type Event } from '@/event.ts';
 import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
 
-import { LOCAL_DOMAIN } from './config.ts';
+import { Conf } from './config.ts';
 import { getAuthor } from './client.ts';
 import { verifyNip05Cached } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
@@ -20,7 +20,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
 
   const { pubkey } = event;
   const { name, nip05, picture, banner, about }: MetaContent = parseMetaContent(event);
-  const { origin } = new URL(LOCAL_DOMAIN);
+  const { origin } = new URL(Conf.localDomain);
   const npub = nip19.npubEncode(pubkey);
 
   let parsed05: Nip05 | undefined;
@@ -81,7 +81,7 @@ async function toMention(pubkey: string) {
       url: account.url,
     };
   } else {
-    const { origin } = new URL(LOCAL_DOMAIN);
+    const { origin } = new URL(Conf.localDomain);
     const npub = nip19.npubEncode(pubkey);
     return {
       id: pubkey,
@@ -143,8 +143,8 @@ async function toStatus(event: Event<1>) {
     tags: [],
     emojis: toEmojis(event),
     poll: null,
-    uri: `${LOCAL_DOMAIN}/posts/${event.id}`,
-    url: `${LOCAL_DOMAIN}/posts/${event.id}`,
+    uri: `${Conf.localDomain}/posts/${event.id}`,
+    url: `${Conf.localDomain}/posts/${event.id}`,
   };
 }
 

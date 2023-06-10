@@ -1,10 +1,10 @@
-import { LOCAL_DOMAIN } from '@/config.ts';
+import { Conf } from '@/config.ts';
 import { linkify, linkifyStr, mime, nip19, nip21 } from '@/deps.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
 
-const url = (path: string) => new URL(path, LOCAL_DOMAIN).toString();
+const url = (path: string) => new URL(path, Conf.localDomain).toString();
 
 const linkifyOpts: linkify.Opts = {
   render: {

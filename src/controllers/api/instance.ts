@@ -1,9 +1,9 @@
-import { ADMIN_EMAIL, LOCAL_DOMAIN, POST_CHAR_LIMIT } from '@/config.ts';
+import { Conf } from '@/config.ts';
 
 import type { Context } from '@/deps.ts';
 
 function instanceController(c: Context) {
-  const { host, protocol } = new URL(LOCAL_DOMAIN);
+  const { host, protocol } = new URL(Conf.localDomain);
 
   return c.json({
     uri: host,
@@ -11,7 +11,7 @@ function instanceController(c: Context) {
     description: 'An efficient and flexible social media server.',
     short_description: 'An efficient and flexible social media server.',
     registrations: false,
-    max_toot_chars: POST_CHAR_LIMIT,
+    max_toot_chars: Conf.postCharLimit,
     configuration: {
       media_attachments: {
         image_size_limit: 100000000,
@@ -24,7 +24,7 @@ function instanceController(c: Context) {
         min_expiration: 0,
       },
       statuses: {
-        max_characters: POST_CHAR_LIMIT,
+        max_characters: Conf.postCharLimit,
         max_media_attachments: 20,
       },
     },
@@ -38,7 +38,7 @@ function instanceController(c: Context) {
       streaming_api: `${protocol === 'http:' ? 'ws:' : 'wss:'}//${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
-    email: ADMIN_EMAIL,
+    email: Conf.adminEmail,
     rules: [],
   });
 }

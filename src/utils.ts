@@ -1,5 +1,5 @@
 import { getAuthor } from '@/client.ts';
-import { LOCAL_DOMAIN } from '@/config.ts';
+import { Conf } from '@/config.ts';
 import { nip19, parseFormData, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
@@ -87,8 +87,8 @@ function buildLinkHeader(url: string, events: Event[]): string | undefined {
   const lastEvent = events[events.length - 1];
 
   const { pathname, search } = new URL(url);
-  const next = new URL(pathname + search, LOCAL_DOMAIN);
-  const prev = new URL(pathname + search, LOCAL_DOMAIN);
+  const next = new URL(pathname + search, Conf.localDomain);
+  const prev = new URL(pathname + search, Conf.localDomain);
 
   next.searchParams.set('until', String(lastEvent.created_at));
   prev.searchParams.set('since', String(firstEvent.created_at));

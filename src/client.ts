@@ -1,7 +1,7 @@
 import { Author, findReplyTag, matchFilter, RelayPool, TTLCache } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
-import { poolRelays, publishRelays } from './config.ts';
+import { Conf } from './config.ts';
 
 import { eventDateComparator, nostrNow } from './utils.ts';
 
@@ -24,7 +24,7 @@ function getPool(): Pool {
   if (cached !== undefined) return cached;
 
   console.log('Creating new pool.');
-  const pool = new RelayPool(poolRelays);
+  const pool = new RelayPool(Conf.poolRelays);
   poolCache.set(0, pool);
   return pool;
 }
@@ -52,7 +52,7 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
 
     const unsub = getPool().subscribe(
       [filter],
-      poolRelays,
+      Conf.poolRelays,
       (event: SignedEvent | null) => {
         if (event && matchFilter(filter, event)) {
           results.push({
@@ -90,7 +90,7 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
 
 /** Get a Nostr event by its ID. */
 const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<SignedEvent<K> | undefined> => {
-  const event = await (getPool().getEventById(id, poolRelays, 0) as Promise<SignedEvent>);
+  const event = await (getPool().getEventById(id, Conf.poolRelays, 0) as Promise<SignedEvent>);
   if (event) {
     if (event.id !== id) return undefined;
     if (kind && event.kind !== kind) return undefined;
@@ -100,7 +100,7 @@ const getEvent = async <K extends number = number>(id: string, kind?: K): Promis
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> => {
-  const author = new Author(getPool(), poolRelays, pubkey);
+  const author = new Author(getPool(), Conf.poolRelays, pubkey);
   const event: SignedEvent<0> | null = await new Promise((resolve) => author.metaData(resolve, 0));
   return event?.pubkey === pubkey ? event : undefined;
 };
@@ -170,7 +170,7 @@ function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
 }
 
 /** Publish an event to the Nostr relay. */
-function publish(event: SignedEvent, relays = publishRelays): void {
+function publish(event: SignedEvent, relays = Conf.publishRelays): void {
   console.log('Publishing event', event);
   try {
     getPool().publish(event, relays);

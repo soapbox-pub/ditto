@@ -12,6 +12,7 @@ export { z } from 'https://deno.land/x/zod@v3.20.5/mod.ts';
 export { Author, RelayPool } from 'https://dev.jspm.io/nostr-relaypool@0.5.3';
 export {
   type Filter,
+  finishEvent,
   getEventHash,
   getPublicKey,
   getSignature,
