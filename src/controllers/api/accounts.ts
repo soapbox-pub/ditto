@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows } from '@/client.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
-import { eventDateComparator, lookupAccount } from '@/utils.ts';
+import { buildLinkHeader, eventDateComparator, lookupAccount, paginationSchema } from '@/utils.ts';
 
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -91,6 +91,7 @@ const accountStatusesQuerySchema = z.object({
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
+  const { since, until } = paginationSchema.parse(c.req.query());
   const { pinned, limit } = accountStatusesQuerySchema.parse(c.req.query());
 
   // Nostr doesn't support pinned statuses.
@@ -98,10 +99,11 @@ const accountStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = (await getFilter({ authors: [pubkey], kinds: [1], limit })).sort(eventDateComparator);
+  const events = (await getFilter({ authors: [pubkey], kinds: [1], since, until, limit })).sort(eventDateComparator);
   const statuses = await Promise.all(events.map((event) => toStatus(event)));
 
-  return c.json(statuses);
+  const link = buildLinkHeader(c.req.url, events);
+  return c.json(statuses, 200, link ? { link } : undefined);
 };
 
 export {

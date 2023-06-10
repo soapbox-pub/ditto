@@ -1,5 +1,6 @@
 import { getAuthor } from '@/client.ts';
-import { nip19, parseFormData } from '@/deps.ts';
+import { LOCAL_DOMAIN } from '@/config.ts';
+import { nip19, parseFormData, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 
@@ -75,4 +76,34 @@ async function parseBody(req: Request): Promise<unknown> {
   }
 }
 
-export { bech32ToPubkey, eventDateComparator, lookupAccount, type Nip05, nostrNow, parseBody, parseNip05 };
+const paginationSchema = z.object({
+  since: z.coerce.number().optional().catch(undefined),
+  until: z.coerce.number().optional().catch(undefined),
+});
+
+function buildLinkHeader(url: string, events: Event[]): string | undefined {
+  if (!events.length) return;
+  const firstEvent = events[0];
+  const lastEvent = events[events.length - 1];
+
+  const { pathname, search } = new URL(url);
+  const next = new URL(pathname + search, LOCAL_DOMAIN);
+  const prev = new URL(pathname + search, LOCAL_DOMAIN);
+
+  next.searchParams.set('until', String(lastEvent.created_at));
+  prev.searchParams.set('since', String(firstEvent.created_at));
+
+  return `<${next}>; rel="next", <${prev}>; rel="prev"`;
+}
+
+export {
+  bech32ToPubkey,
+  buildLinkHeader,
+  eventDateComparator,
+  lookupAccount,
+  type Nip05,
+  nostrNow,
+  paginationSchema,
+  parseBody,
+  parseNip05,
+};

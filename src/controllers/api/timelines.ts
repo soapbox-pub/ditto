@@ -1,13 +1,11 @@
-import { type AppController } from '@/app.ts';
 import { getFeed, getFollows } from '@/client.ts';
-import { LOCAL_DOMAIN } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { toStatus } from '@/transmute.ts';
+import { buildLinkHeader, paginationSchema } from '@/utils.ts';
+
+import type { AppController } from '@/app.ts';
 
 const homeController: AppController = async (c) => {
-  const since = paramSchema.parse(c.req.query('since'));
-  const until = paramSchema.parse(c.req.query('until'));
-
+  const { since, until } = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
 
   const follows = await getFollows(pubkey);
@@ -22,14 +20,8 @@ const homeController: AppController = async (c) => {
 
   const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
 
-  const next = `${LOCAL_DOMAIN}/api/v1/timelines/home?until=${events[events.length - 1].created_at}`;
-  const prev = `${LOCAL_DOMAIN}/api/v1/timelines/home?since=${events[0].created_at}`;
-
-  return c.json(statuses, 200, {
-    link: `<${next}>; rel="next", <${prev}>; rel="prev"`,
-  });
+  const link = buildLinkHeader(c.req.url, events);
+  return c.json(statuses, 200, link ? { link } : undefined);
 };
-
-const paramSchema = z.coerce.number().optional().catch(undefined);
 
 export { homeController };
