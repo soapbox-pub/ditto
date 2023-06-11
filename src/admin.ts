@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
 import { finishEvent, nip19 } from '@/deps.ts';
 
-import type { SignedEvent, EventTemplate } from '@/event.ts';
+import type { EventTemplate, SignedEvent } from '@/event.ts';
 
 // deno-lint-ignore require-await
 async function signAdminEvent<K extends number = number>(event: EventTemplate<K>): Promise<SignedEvent<K>> {
