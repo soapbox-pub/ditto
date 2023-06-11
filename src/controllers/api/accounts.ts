@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { findReplyTag, z } from '@/deps.ts';
+import { type Filter, findReplyTag, z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
 import { parseMetaContent } from '@/schema.ts';
 import { signEvent } from '@/sign.ts';
@@ -93,22 +93,26 @@ const accountStatusesQuerySchema = z.object({
   pinned: booleanParamSchema.optional(),
   limit: z.coerce.number().positive().transform((v) => Math.min(v, 40)).catch(20),
   exclude_replies: booleanParamSchema.optional(),
+  tagged: z.string().optional(),
 });
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const { since, until } = paginationSchema.parse(c.req.query());
-  const { pinned, limit, exclude_replies } = accountStatusesQuerySchema.parse(c.req.query());
+  const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
 
   // Nostr doesn't support pinned statuses.
   if (pinned) {
     return c.json([]);
   }
 
-  let events = await getFilter({ authors: [pubkey], kinds: [1], since, until, limit });
-  events.sort(eventDateComparator);
+  const filter: Filter<1> = { authors: [pubkey], kinds: [1], since, until, limit };
+  if (tagged) {
+    filter['#t'] = [tagged];
+  }
 
-  console.log({ exclude_replies });
+  let events = await getFilter(filter);
+  events.sort(eventDateComparator);
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event));
