@@ -43,7 +43,7 @@ type MetaContent = z.infer<typeof metaContentSchema>;
 function parseMetaContent(event: Event<0>): MetaContent {
   try {
     const json = JSON.parse(event.content);
-    return metaContentSchema.parse(json);
+    return metaContentSchema.passthrough().parse(json);
   } catch (_e) {
     return {};
   }

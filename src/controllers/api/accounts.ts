@@ -1,8 +1,10 @@
 import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
-import { getAuthor, getFilter, getFollows } from '@/client.ts';
+import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
+import { parseMetaContent } from '@/schema.ts';
+import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
-import { buildLinkHeader, eventDateComparator, lookupAccount, paginationSchema } from '@/utils.ts';
+import { buildLinkHeader, eventDateComparator, lookupAccount, paginationSchema, parseBody } from '@/utils.ts';
 
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -106,11 +108,55 @@ const accountStatusesController: AppController = async (c) => {
   return c.json(statuses, 200, link ? { link } : undefined);
 };
 
+const fileSchema = z.custom<File>((value) => value instanceof File);
+
+const updateCredentialsSchema = z.object({
+  display_name: z.string().optional(),
+  note: z.string().optional(),
+  avatar: fileSchema.optional(),
+  header: fileSchema.optional(),
+  locked: z.boolean().optional(),
+  bot: z.boolean().optional(),
+  discoverable: z.boolean().optional(),
+});
+
+const updateCredentialsController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const body = await parseBody(c.req.raw);
+  const result = updateCredentialsSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json(result.error, 422);
+  }
+
+  const author = await getAuthor(pubkey);
+  if (!author) {
+    return c.json({ error: 'Could not find user.' }, 404);
+  }
+
+  const meta = parseMetaContent(author);
+  meta.name = result.data.display_name ?? meta.name;
+  meta.about = result.data.note ?? meta.about;
+
+  const event = await signEvent({
+    kind: 0,
+    content: JSON.stringify(meta),
+    tags: [],
+    created_at: Math.floor(new Date().getTime() / 1000),
+  }, c);
+
+  publish(event);
+
+  const account = await toAccount(event);
+  return c.json(account);
+};
+
 export {
   accountController,
   accountLookupController,
   accountSearchController,
   accountStatusesController,
   relationshipsController,
+  updateCredentialsController,
   verifyCredentialsController,
 };

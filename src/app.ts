@@ -6,6 +6,7 @@ import {
   accountSearchController,
   accountStatusesController,
   relationshipsController,
+  updateCredentialsController,
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
@@ -61,6 +62,7 @@ app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
 app.get('/api/v1/accounts/verify_credentials', requireAuth, verifyCredentialsController);
+app.patch('/api/v1/accounts/update_credentials', requireAuth, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
