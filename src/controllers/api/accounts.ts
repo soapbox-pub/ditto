@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { z } from '@/deps.ts';
+import { findReplyTag, z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
 import { parseMetaContent } from '@/schema.ts';
 import { signEvent } from '@/sign.ts';
@@ -86,23 +86,35 @@ const relationshipsController: AppController = async (c) => {
   return c.json(result);
 };
 
+/** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
+const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
+
 const accountStatusesQuerySchema = z.object({
-  pinned: z.coerce.boolean(),
+  pinned: booleanParamSchema.optional(),
   limit: z.coerce.number().positive().transform((v) => Math.min(v, 40)).catch(20),
+  exclude_replies: booleanParamSchema.optional(),
 });
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const { since, until } = paginationSchema.parse(c.req.query());
-  const { pinned, limit } = accountStatusesQuerySchema.parse(c.req.query());
+  const { pinned, limit, exclude_replies } = accountStatusesQuerySchema.parse(c.req.query());
 
   // Nostr doesn't support pinned statuses.
   if (pinned) {
     return c.json([]);
   }
 
-  const events = (await getFilter({ authors: [pubkey], kinds: [1], since, until, limit })).sort(eventDateComparator);
-  const statuses = await Promise.all(events.map((event) => toStatus(event)));
+  let events = await getFilter({ authors: [pubkey], kinds: [1], since, until, limit });
+  events.sort(eventDateComparator);
+
+  console.log({ exclude_replies });
+
+  if (exclude_replies) {
+    events = events.filter((event) => !findReplyTag(event));
+  }
+
+  const statuses = await Promise.all(events.map(toStatus));
 
   const link = buildLinkHeader(c.req.url, events);
   return c.json(statuses, 200, link ? { link } : undefined);
