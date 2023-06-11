@@ -13,6 +13,7 @@ import { emptyArrayController, emptyObjectController } from './controllers/api/f
 import { homeController } from './controllers/api/timelines.ts';
 import instanceController from './controllers/api/instance.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
+import { frontendConfigController } from './controllers/api/pleroma.ts';
 import { preferencesController } from './controllers/api/preferences.ts';
 import { searchController } from './controllers/api/search.ts';
 import {
@@ -76,6 +77,8 @@ app.get('/api/v1/timelines/home', requireAuth, homeController);
 app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
 app.get('/api/v2/search', searchController);
+
+app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);
