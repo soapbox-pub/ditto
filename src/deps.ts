@@ -36,3 +36,4 @@ export { default as TTLCache } from 'npm:@isaacs/ttlcache@^1.4.0';
 export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 // @deno-types="npm:@types/sanitize-html@2.9.0"
 export { default as sanitizeHtml } from 'npm:sanitize-html@^2.10.0';
+export { default as ISO6391 } from 'npm:iso-639-1@2.1.15';

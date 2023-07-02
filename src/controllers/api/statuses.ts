@@ -1,21 +1,30 @@
 import { type AppController } from '@/app.ts';
 import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
-import { Kind, z } from '@/deps.ts';
+import { ISO6391, Kind, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transmute.ts';
 import { parseBody } from '@/utils.ts';
 
 const createStatusSchema = z.object({
-  in_reply_to_id: z.string().optional().catch(undefined),
-  language: z.string().optional().catch(undefined),
-  media_ids: z.array(z.string()).optional().catch(undefined),
-  scheduled_at: z.string().datetime().optional().catch(undefined),
-  sensitive: z.boolean().catch(false),
-  spoiler_text: z.string().optional().catch(undefined),
-  status: z.string(),
-  visibility: z.enum(['public', 'unlisted', 'private', 'direct']).optional().catch(undefined),
-});
+  in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).optional(),
+  language: z.string().refine(ISO6391.validate).optional(),
+  media_ids: z.string().array().optional(),
+  poll: z.object({
+    options: z.string().array(),
+    expires_in: z.number(),
+    multiple: z.boolean().default(false),
+    hide_totals: z.boolean().default(false),
+  }).optional(),
+  scheduled_at: z.string().datetime().optional(),
+  sensitive: z.boolean().optional(),
+  spoiler_text: z.string().optional(),
+  status: z.string().optional(),
+  visibility: z.enum(['public', 'unlisted', 'private', 'direct']).optional(),
+}).refine(
+  (data) => Boolean(data.status || data.media_ids?.length),
+  { message: 'Status must contain text or media.' },
+);
 
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
@@ -39,10 +48,32 @@ const createStatusController: AppController = async (c) => {
       return c.json({ error: 'Only posting publicly is supported.' }, 422);
     }
 
+    if (data.poll) {
+      return c.json({ error: 'Polls are not yet supported.' }, 422);
+    }
+
+    if (data.media_ids?.length) {
+      return c.json({ error: 'Media uploads are not yet supported.' }, 422);
+    }
+
+    const tags: string[][] = [];
+
+    if (data.in_reply_to_id) {
+      tags.push(['e', data.in_reply_to_id, 'reply']);
+    }
+
+    if (data.sensitive && data.spoiler_text) {
+      tags.push(['content-warning', data.spoiler_text]);
+    } else if (data.sensitive) {
+      tags.push(['content-warning']);
+    } else if (data.spoiler_text) {
+      tags.push(['subject', data.spoiler_text]);
+    }
+
     const event = await signEvent({
       kind: Kind.Text,
-      content: data.status,
-      tags: [],
+      content: data.status ?? '',
+      tags,
       created_at: Math.floor(new Date().getTime() / 1000),
     }, c);
 
@@ -50,7 +81,7 @@ const createStatusController: AppController = async (c) => {
 
     return c.json(await toStatus(event));
   } else {
-    return c.json({ error: 'Bad request' }, 400);
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
 };
 
