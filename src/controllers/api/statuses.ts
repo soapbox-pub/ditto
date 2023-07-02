@@ -1,12 +1,20 @@
-import { type AppContext, AppController } from '@/app.ts';
+import { type AppController } from '@/app.ts';
 import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
-import { Kind, validator, z } from '@/deps.ts';
+import { Kind, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transmute.ts';
+import { parseBody } from '@/utils.ts';
 
 const createStatusSchema = z.object({
+  in_reply_to_id: z.string().optional().catch(undefined),
+  language: z.string().optional().catch(undefined),
+  media_ids: z.array(z.string()).optional().catch(undefined),
+  scheduled_at: z.string().datetime().optional().catch(undefined),
+  sensitive: z.boolean().catch(false),
+  spoiler_text: z.string().optional().catch(undefined),
   status: z.string(),
+  visibility: z.enum(['public', 'unlisted', 'private', 'direct']).optional().catch(undefined),
 });
 
 const statusController: AppController = async (c) => {
@@ -20,11 +28,16 @@ const statusController: AppController = async (c) => {
   return c.json({ error: 'Event not found.' }, 404);
 };
 
-const createStatusController = validator('json', async (value, c: AppContext) => {
-  const result = createStatusSchema.safeParse(value);
+const createStatusController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = createStatusSchema.safeParse(body);
 
   if (result.success) {
     const { data } = result;
+
+    if (data.visibility !== 'public') {
+      return c.json({ error: 'Only posting publicly is supported.' }, 422);
+    }
 
     const event = await signEvent({
       kind: Kind.Text,
@@ -39,7 +52,7 @@ const createStatusController = validator('json', async (value, c: AppContext) =>
   } else {
     return c.json({ error: 'Bad request' }, 400);
   }
-});
+};
 
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');

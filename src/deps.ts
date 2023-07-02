@@ -4,7 +4,6 @@ export {
   type Handler,
   Hono,
   type MiddlewareHandler,
-  validator,
 } from 'https://deno.land/x/hono@v3.0.2/mod.ts';
 export { HTTPException } from 'https://deno.land/x/hono@v3.0.2/http-exception.ts';
 export { cors, logger } from 'https://deno.land/x/hono@v3.0.2/middleware.ts';
