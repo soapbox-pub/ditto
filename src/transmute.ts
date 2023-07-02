@@ -130,7 +130,7 @@ async function toStatus(event: Event<1>) {
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
     sensitive: !!cw,
-    spoiler_text: (cw ? cw[1] : subject?.[1]) || null,
+    spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
     replies_count: 0,
