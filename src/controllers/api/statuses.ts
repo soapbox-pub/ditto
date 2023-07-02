@@ -7,20 +7,20 @@ import { toStatus } from '@/transmute.ts';
 import { parseBody } from '@/utils.ts';
 
 const createStatusSchema = z.object({
-  in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).optional(),
-  language: z.string().refine(ISO6391.validate).optional(),
-  media_ids: z.string().array().optional(),
+  in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
+  language: z.string().refine(ISO6391.validate).nullish(),
+  media_ids: z.string().array().nullish(),
   poll: z.object({
     options: z.string().array(),
     expires_in: z.number(),
     multiple: z.boolean().default(false),
     hide_totals: z.boolean().default(false),
-  }).optional(),
-  scheduled_at: z.string().datetime().optional(),
-  sensitive: z.boolean().optional(),
-  spoiler_text: z.string().optional(),
-  status: z.string().optional(),
-  visibility: z.enum(['public', 'unlisted', 'private', 'direct']).optional(),
+  }).nullish(),
+  scheduled_at: z.string().datetime().nullish(),
+  sensitive: z.boolean().nullish(),
+  spoiler_text: z.string().nullish(),
+  status: z.string().nullish(),
+  visibility: z.enum(['public', 'unlisted', 'private', 'direct']).nullish(),
 }).refine(
   (data) => Boolean(data.status || data.media_ids?.length),
   { message: 'Status must contain text or media.' },

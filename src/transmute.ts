@@ -7,6 +7,7 @@ import { getAuthor } from './client.ts';
 import { verifyNip05Cached } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
 import { type Nip05, parseNip05 } from './utils.ts';
+import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
@@ -117,6 +118,9 @@ async function toStatus(event: Event<1>) {
 
   const content = buildInlineRecipients(mentions) + html;
 
+  const cw = event.tags.find(isCWTag);
+  const subject = event.tags.find((tag) => tag[0] === 'subject');
+
   return {
     id: event.id,
     account,
@@ -125,10 +129,10 @@ async function toStatus(event: Event<1>) {
     created_at: new Date(event.created_at * 1000).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
-    sensitive: false,
-    spoiler_text: '',
+    sensitive: !!cw,
+    spoiler_text: (cw ? cw[1] : subject?.[1]) || null,
     visibility: 'public',
-    language: 'en',
+    language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
     replies_count: 0,
     reblogs_count: 0,
     favourites_count: 0,
