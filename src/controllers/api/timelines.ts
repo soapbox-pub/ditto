@@ -26,10 +26,15 @@ const homeController: AppController = async (c) => {
 
 const publicController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
-  const events = await getPublicFeed(params);
-  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
-  const link = buildLinkHeader(c.req.url, events);
 
+  const events = await getPublicFeed(params);
+  if (!events.length) {
+    return c.json([]);
+  }
+
+  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
+
+  const link = buildLinkHeader(c.req.url, events);
   return c.json(statuses, 200, link ? { link } : undefined);
 };
 
