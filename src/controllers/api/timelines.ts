@@ -1,11 +1,11 @@
-import { getFeed, getFollows } from '@/client.ts';
+import { getFeed, getFollows, getPublicFeed } from '@/client.ts';
 import { toStatus } from '@/transmute.ts';
 import { buildLinkHeader, paginationSchema } from '@/utils.ts';
 
 import type { AppController } from '@/app.ts';
 
 const homeController: AppController = async (c) => {
-  const { since, until } = paginationSchema.parse(c.req.query());
+  const params = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
 
   const follows = await getFollows(pubkey);
@@ -13,7 +13,7 @@ const homeController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await getFeed(follows, { since, until });
+  const events = await getFeed(follows, params);
   if (!events.length) {
     return c.json([]);
   }
@@ -24,4 +24,13 @@ const homeController: AppController = async (c) => {
   return c.json(statuses, 200, link ? { link } : undefined);
 };
 
-export { homeController };
+const publicController: AppController = async (c) => {
+  const params = paginationSchema.parse(c.req.query());
+  const events = await getPublicFeed(params);
+  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
+  const link = buildLinkHeader(c.req.url, events);
+
+  return c.json(statuses, 200, link ? { link } : undefined);
+};
+
+export { homeController, publicController };

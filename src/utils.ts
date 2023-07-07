@@ -78,8 +78,11 @@ async function parseBody(req: Request): Promise<unknown> {
 
 const paginationSchema = z.object({
   since: z.coerce.number().optional().catch(undefined),
-  until: z.coerce.number().optional().catch(undefined),
+  until: z.coerce.number().catch(nostrNow()),
+  limit: z.coerce.number().min(0).max(40).catch(20),
 });
+
+type PaginationParams = z.infer<typeof paginationSchema>;
 
 function buildLinkHeader(url: string, events: Event[]): string | undefined {
   if (!events.length) return;
@@ -103,6 +106,7 @@ export {
   lookupAccount,
   type Nip05,
   nostrNow,
+  type PaginationParams,
   paginationSchema,
   parseBody,
   parseNip05,

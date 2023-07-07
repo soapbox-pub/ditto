@@ -3,7 +3,7 @@ import { type Event, type SignedEvent } from '@/event.ts';
 
 import { Conf } from './config.ts';
 
-import { eventDateComparator, nostrNow } from './utils.ts';
+import { eventDateComparator, type PaginationParams } from './utils.ts';
 
 const db = await Deno.openKv();
 
@@ -99,9 +99,14 @@ const getEvent = async <K extends number = number>(id: string, kind?: K): Promis
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
-const getAuthor = async (pubkey: string): Promise<SignedEvent<0> | undefined> => {
+const getAuthor = async (pubkey: string, timeout = 1000): Promise<SignedEvent<0> | undefined> => {
   const author = new Author(getPool(), Conf.poolRelays, pubkey);
-  const event: SignedEvent<0> | null = await new Promise((resolve) => author.metaData(resolve, 0));
+
+  const event: SignedEvent<0> | null = await new Promise((resolve) => {
+    setTimeout(resolve, timeout, null);
+    return author.metaData(resolve, 0);
+  });
+
   return event?.pubkey === pubkey ? event : undefined;
 };
 
@@ -119,16 +124,8 @@ const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> =
   }
 };
 
-interface PaginationParams {
-  since?: number;
-  until?: number;
-  limit?: number;
-}
-
 /** Get events from people the user follows. */
-async function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise<SignedEvent<1>[]> {
-  const limit = Math.max(params.limit ?? 20, 40);
-
+async function getFeed(event3: Event<3>, params: PaginationParams): Promise<SignedEvent<1>[]> {
   const authors = event3.tags
     .filter((tag) => tag[0] === 'p')
     .map((tag) => tag[1]);
@@ -138,12 +135,16 @@ async function getFeed(event3: Event<3>, params: PaginationParams = {}): Promise
   const filter: Filter = {
     authors,
     kinds: [1],
-    since: params.since,
-    until: params.until ?? nostrNow(),
-    limit,
+    ...params,
   };
 
   const results = await getFilter(filter, { timeout: 5000 }) as SignedEvent<1>[];
+  return results.sort(eventDateComparator);
+}
+
+/** Get a feed of all known text notes. */
+async function getPublicFeed(params: PaginationParams): Promise<SignedEvent<1>[]> {
+  const results = await getFilter({ kinds: [1], ...params }, { timeout: 5000 });
   return results.sort(eventDateComparator);
 }
 
@@ -179,4 +180,4 @@ function publish(event: SignedEvent, relays = Conf.publishRelays): void {
   }
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, publish };
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, getPublicFeed, publish };
