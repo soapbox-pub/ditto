@@ -5,6 +5,7 @@ import {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  createAccountController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,
@@ -61,6 +62,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
+app.post('/api/v1/acccounts', createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requireAuth, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requireAuth, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);

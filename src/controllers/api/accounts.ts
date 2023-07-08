@@ -6,6 +6,10 @@ import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
 import { buildLinkHeader, eventDateComparator, lookupAccount, paginationSchema, parseBody } from '@/utils.ts';
 
+const createAccountController: AppController = (c) => {
+  return c.json({ error: 'Please log in with Nostr.' }, 405);
+};
+
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
 
@@ -172,6 +176,7 @@ export {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  createAccountController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,
