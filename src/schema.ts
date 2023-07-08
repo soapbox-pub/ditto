@@ -17,7 +17,7 @@ function filteredArray<T extends z.ZodTypeAny>(schema: T) {
 
 const jsonSchema = z.string().transform((value, ctx) => {
   try {
-    return JSON.parse(value);
+    return JSON.parse(value) as unknown;
   } catch (_e) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON' });
     return z.NEVER;
@@ -77,13 +77,27 @@ const eventSchema = z.object({
   created_at: z.number(),
   pubkey: nostrIdSchema,
   sig: z.string(),
-}).refine(verifySignature);
+});
+
+const signedEventSchema = eventSchema.refine(verifySignature);
 
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
+/** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
+const decode64Schema = z.string().transform((value, ctx) => {
+  try {
+    const binString = atob(value);
+    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
+    return new TextDecoder().decode(bytes);
+  } catch (_e) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid base64' });
+    return z.NEVER;
+  }
+});
+
 export {
+  decode64Schema,
   emojiTagSchema,
-  eventSchema,
   filteredArray,
   jsonSchema,
   type MetaContent,
@@ -91,4 +105,5 @@ export {
   parseMetaContent,
   parseRelay,
   relaySchema,
+  signedEventSchema,
 };

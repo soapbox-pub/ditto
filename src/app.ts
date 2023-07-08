@@ -1,4 +1,5 @@
 import { type Context, cors, type Handler, Hono, type HonoEnv, logger, type MiddlewareHandler } from '@/deps.ts';
+import { type Event } from '@/event.ts';
 
 import {
   accountController,
@@ -26,7 +27,8 @@ import {
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import { indexController } from './controllers/site.ts';
-import { requireAuth, setAuth } from './middleware/auth.ts';
+import { auth19, requireAuth } from './middleware/auth19.ts';
+import { auth98 } from './middleware/auth98.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -36,6 +38,8 @@ interface AppEnv extends HonoEnv {
     seckey?: string;
     /** UUID from the access token. Used for WebSocket event signing. */
     session?: string;
+    /** NIP-98 signed event proving the pubkey is owned by the user. */
+    proof?: Event<27235>;
   };
 }
 
@@ -50,7 +54,7 @@ app.use('*', logger());
 app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 
-app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), setAuth);
+app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
 
 app.get('/api/v1/instance', instanceController);
 

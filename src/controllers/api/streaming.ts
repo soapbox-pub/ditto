@@ -1,5 +1,5 @@
 import { AppController } from '@/app.ts';
-import { TOKEN_REGEX } from '@/middleware/auth.ts';
+import { TOKEN_REGEX } from '@/middleware/auth19.ts';
 import { streamSchema, ws } from '@/stream.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 
