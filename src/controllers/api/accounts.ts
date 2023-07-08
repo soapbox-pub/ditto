@@ -4,7 +4,7 @@ import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
 import { parseMetaContent } from '@/schema.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transmute.ts';
-import { buildLinkHeader, eventDateComparator, lookupAccount, paginationSchema, parseBody } from '@/utils.ts';
+import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
 
 const createAccountController: AppController = (c) => {
   return c.json({ error: 'Please log in with Nostr.' }, 405);
@@ -162,7 +162,7 @@ const updateCredentialsController: AppController = async (c) => {
     kind: 0,
     content: JSON.stringify(meta),
     tags: [],
-    created_at: Math.floor(new Date().getTime() / 1000),
+    created_at: nostrNow(),
   }, c);
 
   publish(event);

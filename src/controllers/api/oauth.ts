@@ -1,6 +1,6 @@
 import { lodash, nip19, uuid62, z } from '@/deps.ts';
 import { AppController } from '@/app.ts';
-import { parseBody } from '@/utils.ts';
+import { nostrNow, parseBody } from '@/utils.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -36,21 +36,21 @@ const createTokenController: AppController = async (c) => {
         access_token: result.data.password,
         token_type: 'Bearer',
         scope: 'read write follow push',
-        created_at: Math.floor(new Date().getTime() / 1000),
+        created_at: nostrNow(),
       });
     case 'authorization_code':
       return c.json({
         access_token: result.data.code,
         token_type: 'Bearer',
         scope: 'read write follow push',
-        created_at: Math.floor(new Date().getTime() / 1000),
+        created_at: nostrNow(),
       });
     case 'client_credentials':
       return c.json({
         access_token: '_',
         token_type: 'Bearer',
         scope: 'read write follow push',
-        created_at: Math.floor(new Date().getTime() / 1000),
+        created_at: nostrNow(),
       });
   }
 };

@@ -6,7 +6,7 @@ import { Conf } from './config.ts';
 import { getAuthor } from './client.ts';
 import { verifyNip05Cached } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
-import { type Nip05, parseNip05 } from './utils.ts';
+import { type Nip05, nostrDate, parseNip05 } from './utils.ts';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
@@ -39,7 +39,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     avatar: picture || DEFAULT_AVATAR,
     avatar_static: picture || DEFAULT_AVATAR,
     bot: false,
-    created_at: event ? new Date(event.created_at * 1000).toISOString() : new Date().toISOString(),
+    created_at: event ? nostrDate(event.created_at).toISOString() : new Date().toISOString(),
     discoverable: true,
     display_name: name,
     emojis: toEmojis(event),
@@ -126,7 +126,7 @@ async function toStatus(event: Event<1>) {
     account,
     card,
     content,
-    created_at: new Date(event.created_at * 1000).toISOString(),
+    created_at: nostrDate(event.created_at).toISOString(),
     in_reply_to_id: replyTag ? replyTag[1] : null,
     in_reply_to_account_id: null,
     sensitive: !!cw,

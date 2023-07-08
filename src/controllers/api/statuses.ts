@@ -4,7 +4,7 @@ import { ISO6391, Kind, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transmute.ts';
-import { parseBody } from '@/utils.ts';
+import { nostrNow, parseBody } from '@/utils.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -74,7 +74,7 @@ const createStatusController: AppController = async (c) => {
       kind: Kind.Text,
       content: data.status ?? '',
       tags,
-      created_at: Math.floor(new Date().getTime() / 1000),
+      created_at: nostrNow(),
     }, c);
 
     publish(event);
@@ -115,7 +115,7 @@ const favouriteController: AppController = async (c) => {
         ['e', target.id],
         ['p', target.pubkey],
       ],
-      created_at: Math.floor(new Date().getTime() / 1000),
+      created_at: nostrNow(),
     }, c);
 
     publish(event);

@@ -6,6 +6,8 @@ import { lookupNip05Cached } from '@/nip05.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = () => Math.floor(new Date().getTime() / 1000);
+/** Convenience function to convert Nostr dates into native Date objects. */
+const nostrDate = (seconds: number) => new Date(seconds * 1000);
 
 /** Pass to sort() to sort events by date. */
 const eventDateComparator = (a: Event, b: Event) => b.created_at - a.created_at;
@@ -105,6 +107,7 @@ export {
   eventDateComparator,
   lookupAccount,
   type Nip05,
+  nostrDate,
   nostrNow,
   type PaginationParams,
   paginationSchema,
