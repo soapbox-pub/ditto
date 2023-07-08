@@ -80,7 +80,7 @@ async function parseBody(req: Request): Promise<unknown> {
 
 const paginationSchema = z.object({
   since: z.coerce.number().optional().catch(undefined),
-  until: z.coerce.number().catch(nostrNow()),
+  until: z.lazy(() => z.coerce.number().catch(nostrNow())),
   limit: z.coerce.number().min(0).max(40).catch(20),
 });
 
