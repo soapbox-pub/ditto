@@ -1,8 +1,8 @@
+import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { z } from '@/deps.ts';
 
 import type { AppController } from '@/app.ts';
-import { Conf } from '../../config.ts';
 
 const nameSchema = z.string().min(1).regex(/^\w+$/);
 

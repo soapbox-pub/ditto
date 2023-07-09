@@ -95,6 +95,20 @@ const decode64Schema = z.string().transform((value, ctx) => {
   }
 });
 
+/** Transforms a string into a `URL` object. */
+const urlTransformSchema = z.string().transform((val, ctx) => {
+  try {
+    return new URL(val);
+  } catch (_e) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid URI',
+      fatal: true,
+    });
+    return z.NEVER;
+  }
+});
+
 export {
   decode64Schema,
   emojiTagSchema,
@@ -106,4 +120,5 @@ export {
   parseRelay,
   relaySchema,
   signedEventSchema,
+  urlTransformSchema,
 };
