@@ -6,7 +6,7 @@ import { Conf } from './config.ts';
 import { getAuthor } from './client.ts';
 import { verifyNip05Cached } from './nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
-import { type Nip05, nostrDate, parseNip05 } from './utils.ts';
+import { type Nip05, nostrDate, parseNip05, Time } from './utils.ts';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
@@ -204,7 +204,7 @@ interface PreviewCard {
 async function unfurlCard(url: string): Promise<PreviewCard | null> {
   console.log(`Unfurling ${url}...`);
   try {
-    const result = await unfurl(url, { fetch, follow: 2, timeout: 1000, size: 1024 * 1024 });
+    const result = await unfurl(url, { fetch, follow: 2, timeout: Time.seconds(1), size: 1024 * 1024 });
     return {
       type: result.oEmbed?.type || 'link',
       url: result.canonical_url || url,
@@ -232,9 +232,7 @@ async function unfurlCard(url: string): Promise<PreviewCard | null> {
   }
 }
 
-const TWELVE_HOURS = 12 * 60 * 60 * 1000;
-
-const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({ ttl: TWELVE_HOURS, max: 500 });
+const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({ ttl: Time.hours(12), max: 500 });
 
 /** Unfurl card from cache if available, otherwise fetch it. */
 function unfurlCardCached(url: string): Promise<PreviewCard | null> {

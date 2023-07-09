@@ -1,7 +1,7 @@
 import { TTLCache, z } from '@/deps.ts';
+import { Time } from '@/utils.ts';
 
-const ONE_HOUR = 60 * 60 * 1000;
-const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: ONE_HOUR, max: 5000 });
+const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: Time.hours(1), max: 5000 });
 
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w.-]+)$/;
 

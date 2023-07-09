@@ -3,7 +3,7 @@ import { type Event, type SignedEvent } from '@/event.ts';
 
 import { Conf } from './config.ts';
 
-import { eventDateComparator, type PaginationParams } from './utils.ts';
+import { eventDateComparator, type PaginationParams, Time } from './utils.ts';
 
 const db = await Deno.openKv();
 
@@ -11,7 +11,7 @@ type Pool = InstanceType<typeof RelayPool>;
 
 /** HACK: Websockets in Deno are finnicky... get a new pool every 30 minutes. */
 const poolCache = new TTLCache<0, Pool>({
-  ttl: 30 * 60 * 1000,
+  ttl: Time.minutes(30),
   max: 2,
   dispose: (pool) => {
     console.log('Closing pool.');
