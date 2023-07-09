@@ -3,18 +3,8 @@ import { db } from '@/db.ts';
 import { nip19, z } from '@/deps.ts';
 import { npubSchema } from '@/schema.ts';
 
-import type { AppController } from '@/app.ts';
+import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
-
-/** Transforms the resource URI into a `[username, domain]` tuple. */
-const acctSchema = z.custom<URL>((value) => value instanceof URL)
-  .transform((uri) => uri.pathname)
-  .pipe(z.string().email('Invalid acct'))
-  .transform((acct) => acct.split('@') as [username: string, host: string])
-  .refine(([_username, host]) => host === new URL(Conf.localDomain).hostname, {
-    message: 'Host must be local',
-    path: ['resource', 'acct'],
-  });
 
 const webfingerQuerySchema = z.object({
   resource: z.string().url(),
@@ -28,69 +18,70 @@ const webfingerController: AppController = (c) => {
 
   const resource = new URL(query.data.resource);
 
-  const handleAcct = async (): Promise<Response> => {
-    try {
-      const [username] = acctSchema.parse(resource);
-      const user = await db.users.findFirst({ where: { username } });
-      c.header('content-type', 'application/jrd+json');
-      return c.body(JSON.stringify(renderWebfinger({ ...user, resource })));
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        return c.json({ error: 'Invalid acct URI', schema: e }, 400);
-      } else {
-        return c.json({ error: 'Not found' }, 404);
-      }
-    }
-  };
-
-  const handleNostr = async (): Promise<Response> => {
-    try {
-      const pubkey = npubSchema.parse(resource.pathname);
-      const user = await db.users.findFirst({ where: { pubkey } });
-      c.header('content-type', 'application/jrd+json');
-      return c.body(JSON.stringify(renderWebfinger({ ...user, resource })));
-    } catch (e) {
-      if (e instanceof z.ZodError) {
-        return c.json({ error: 'Invalid Nostr URI', schema: e }, 400);
-      } else {
-        return c.json({ error: 'Not found' }, 404);
-      }
-    }
-  };
-
   switch (resource.protocol) {
     case 'acct:': {
-      return handleAcct();
+      return handleAcct(c, resource);
     }
     case 'nostr:': {
-      return handleNostr();
+      return handleNostr(c, resource);
     }
     default:
       return c.json({ error: 'Unsupported URI scheme' }, 400);
   }
 };
 
-const hostMetaController: AppController = (c) => {
-  const template = Conf.url('/.well-known/webfinger?resource={uri}');
+/** Transforms the resource URI into a `[username, domain]` tuple. */
+const acctSchema = z.custom<URL>((value) => value instanceof URL)
+  .transform((uri) => uri.pathname)
+  .pipe(z.string().email('Invalid acct'))
+  .transform((acct) => acct.split('@') as [username: string, host: string])
+  .refine(([_username, host]) => host === new URL(Conf.localDomain).hostname, {
+    message: 'Host must be local',
+    path: ['resource', 'acct'],
+  });
 
-  c.header('content-type', 'application/xrd+xml');
-  return c.body(
-    `<?xml version="1.0" encoding="UTF-8"?><XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0"><Link rel="lrdd" template="${template}" type="application/xrd+xml" /></XRD>`,
-  );
-};
+async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
+  try {
+    const [username] = acctSchema.parse(resource);
+    const user = await db.users.findFirst({ where: { username } });
+    c.header('content-type', 'application/jrd+json');
+    return c.body(JSON.stringify(renderWebfinger({ ...user, subject: `acct:${resource.pathname}` })));
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return c.json({ error: 'Invalid acct URI', schema: e }, 400);
+    } else {
+      return c.json({ error: 'Not found' }, 404);
+    }
+  }
+}
+
+async function handleNostr(c: AppContext, resource: URL): Promise<Response> {
+  try {
+    const pubkey = npubSchema.parse(resource.pathname);
+    const user = await db.users.findFirst({ where: { pubkey } });
+    c.header('content-type', 'application/jrd+json');
+    return c.body(JSON.stringify(renderWebfinger({ ...user, subject: `nostr:${resource.pathname}` })));
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      return c.json({ error: 'Invalid Nostr URI', schema: e }, 400);
+    } else {
+      return c.json({ error: 'Not found' }, 404);
+    }
+  }
+}
 
 interface RenderWebfingerOpts {
   pubkey: string;
   username: string;
-  resource: URL;
+  subject: string;
 }
 
 /** Present Nostr user on Webfinger. */
-function renderWebfinger({ pubkey, username, resource }: RenderWebfingerOpts): Webfinger {
+function renderWebfinger({ pubkey, username, subject }: RenderWebfingerOpts): Webfinger {
   const apId = Conf.url(`/users/${username}`);
 
   return {
-    subject: resource.toString(),
+    subject,
     aliases: [apId],
     links: [
       {
@@ -111,5 +102,14 @@ function renderWebfinger({ pubkey, username, resource }: RenderWebfingerOpts): W
     ],
   };
 }
+
+const hostMetaController: AppController = (c) => {
+  const template = Conf.url('/.well-known/webfinger?resource={uri}');
+
+  c.header('content-type', 'application/xrd+xml');
+  return c.body(
+    `<?xml version="1.0" encoding="UTF-8"?><XRD xmlns="http://docs.oasis-open.org/ns/xri/xrd-1.0"><Link rel="lrdd" template="${template}" type="application/xrd+xml" /></XRD>`,
+  );
+};
 
 export { hostMetaController, webfingerController };
