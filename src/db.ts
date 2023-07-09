@@ -1,14 +1,17 @@
-import { Dongoose, z } from '@/deps.ts';
+import { createPentagon, z } from '@/deps.ts';
 
-const db = await Deno.openKv();
+const kv = await Deno.openKv();
 
-const Users = Dongoose({
-  pubkey: z.string(),
-  username: z.string(),
-}, {
-  db,
-  name: 'users',
-  indexes: ['pubkey', 'username'],
+const userSchema = z.object({
+  pubkey: z.string().regex(/^[0-9a-f]{64}$/).describe('primary'),
+  username: z.string().regex(/^[\w_]+$/).describe('unique'),
+  createdAt: z.date(),
 });
 
-export { db, Users };
+const db = createPentagon(kv, {
+  users: {
+    schema: userSchema,
+  },
+});
+
+export { db };
