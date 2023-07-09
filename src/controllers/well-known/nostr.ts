@@ -4,7 +4,7 @@ import { z } from '@/deps.ts';
 import type { AppController } from '@/app.ts';
 import { Conf } from '../../config.ts';
 
-const nameSchema = z.string().min(1).regex(/^[\w_]+$/);
+const nameSchema = z.string().min(1).regex(/^\w+$/);
 
 /**
  * Serves NIP-05's nostr.json.
