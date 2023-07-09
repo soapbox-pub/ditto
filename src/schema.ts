@@ -90,7 +90,7 @@ const decode64Schema = z.string().transform((value, ctx) => {
     const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
     return new TextDecoder().decode(bytes);
   } catch (_e) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid base64' });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid base64', fatal: true });
     return z.NEVER;
   }
 });
