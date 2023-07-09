@@ -8,7 +8,6 @@ import type { Webfinger } from '@/schemas/webfinger.ts';
 
 /** Transforms the resource URI into a `[username, domain]` tuple. */
 const acctSchema = urlTransformSchema
-  .refine((uri) => uri.protocol === 'acct:', { message: 'Protocol must be `acct:`', path: ['resource'] })
   .transform((uri) => uri.pathname)
   .pipe(z.string().email('Invalid acct'))
   .transform((acct) => acct.split('@') as [username: string, host: string])
@@ -34,7 +33,7 @@ const webfingerController: AppController = (c) => {
       const [username] = acctSchema.parse(query.data.resource);
       const user = await db.users.findFirst({ where: { username } });
       c.header('content-type', 'application/jrd+json');
-      return c.body(JSON.stringify(renderWebfinger(user)));
+      return c.body(JSON.stringify(renderWebfinger({ ...user, resource: query.data.resource })));
     } catch (_e) {
       return c.json({ error: 'Not found' }, 404);
     }
@@ -49,7 +48,7 @@ const webfingerController: AppController = (c) => {
           return c.json({ error: 'Not found' }, 404);
         }
         c.header('content-type', 'application/jrd+json');
-        return c.body(JSON.stringify(renderWebfinger(user)));
+        return c.body(JSON.stringify(renderWebfinger({ ...user, resource: query.data.resource })));
       } else {
         return c.json({ error: 'Unsupported Nostr URI' }, 400);
       }
@@ -66,7 +65,7 @@ const webfingerController: AppController = (c) => {
       return handleNostr();
     }
     default:
-      return c.json({ error: 'Not found' }, 404);
+      return c.json({ error: 'Unsupported URI scheme' }, 400);
   }
 };
 
@@ -82,15 +81,15 @@ const hostMetaController: AppController = (c) => {
 interface RenderWebfingerOpts {
   pubkey: string;
   username: string;
+  resource: string;
 }
 
 /** Present Nostr user on Webfinger. */
-function renderWebfinger({ pubkey, username }: RenderWebfingerOpts): Webfinger {
-  const { host } = new URL(Conf.localDomain);
+function renderWebfinger({ pubkey, username, resource }: RenderWebfingerOpts): Webfinger {
   const apId = Conf.url(`/users/${username}`);
 
   return {
-    subject: `acct:${username}@${host}`,
+    subject: resource,
     aliases: [apId],
     links: [
       {
