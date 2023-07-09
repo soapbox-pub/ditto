@@ -27,6 +27,7 @@ import {
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import { indexController } from './controllers/site.ts';
+import { nostrController } from './controllers/well-known/nostr.ts';
 import { auth19, requireAuth } from './middleware/auth19.ts';
 import { auth98 } from './middleware/auth98.ts';
 
@@ -55,6 +56,8 @@ app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 
 app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
+
+app.get('/.well-known/nostr.json', nostrController);
 
 app.get('/api/v1/instance', instanceController);
 

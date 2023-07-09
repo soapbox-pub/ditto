@@ -3,6 +3,9 @@ const Conf = {
   get nsec() {
     return Deno.env.get('DITTO_NSEC');
   },
+  get relay() {
+    return Deno.env.get('DITTO_RELAY');
+  },
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
   },
