@@ -7,7 +7,7 @@ export {
 } from 'https://deno.land/x/hono@v3.0.2/mod.ts';
 export { HTTPException } from 'https://deno.land/x/hono@v3.0.2/http-exception.ts';
 export { cors, logger } from 'https://deno.land/x/hono@v3.0.2/middleware.ts';
-export { z } from 'https://deno.land/x/zod@v3.20.5/mod.ts';
+export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { Author, RelayPool } from 'https://dev.jspm.io/nostr-relaypool@0.5.3';
 export {
   type Filter,
@@ -37,3 +37,4 @@ export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 // @deno-types="npm:@types/sanitize-html@2.9.0"
 export { default as sanitizeHtml } from 'npm:sanitize-html@^2.10.0';
 export { default as ISO6391 } from 'npm:iso-639-1@2.1.15';
+export { Dongoose } from 'https://raw.githubusercontent.com/alexgleason/dongoose/68b7ad9dd7b6ec0615e246a9f1603123c1709793/mod.ts';
