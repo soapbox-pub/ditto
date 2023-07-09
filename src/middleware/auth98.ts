@@ -28,7 +28,7 @@ function auth98(opts: Auth98Opts = {}): AppMiddleware {
       .refine((event) => {
         const url = findTag(event.tags, 'u')?.[1];
         try {
-          return url === localUrl(c.req.url);
+          return url === Conf.url(c.req.url);
         } catch (_e) {
           return false;
         }
@@ -49,11 +49,6 @@ function auth98(opts: Auth98Opts = {}): AppMiddleware {
 
     await next();
   };
-}
-
-function localUrl(url: string): string {
-  const { pathname } = new URL(url);
-  return new URL(pathname, Conf.localDomain).toString();
 }
 
 const requireProof: AppMiddleware = async (c, next) => {

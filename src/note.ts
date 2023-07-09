@@ -4,13 +4,11 @@ import { linkify, linkifyStr, mime, nip19, nip21 } from '@/deps.ts';
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
 
-const url = (path: string) => new URL(path, Conf.localDomain).toString();
-
 const linkifyOpts: linkify.Opts = {
   render: {
     hashtag: ({ content }) => {
       const tag = content.replace(/^#/, '');
-      const href = url(`/tags/${tag}`);
+      const href = Conf.url(`/tags/${tag}`);
       return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
     },
     url: ({ content }) => {
@@ -19,7 +17,7 @@ const linkifyOpts: linkify.Opts = {
         const pubkey = getDecodedPubkey(decoded);
         if (pubkey) {
           const name = pubkey.substring(0, 8);
-          const href = url(`/users/${pubkey}`);
+          const href = Conf.url(`/users/${pubkey}`);
           return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
         } else {
           return '';
