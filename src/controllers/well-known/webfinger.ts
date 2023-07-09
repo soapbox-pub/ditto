@@ -1,7 +1,6 @@
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { nip19, z } from '@/deps.ts';
-import { npubSchema } from '@/schema.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
@@ -22,9 +21,6 @@ const webfingerController: AppController = (c) => {
     case 'acct:': {
       return handleAcct(c, resource);
     }
-    case 'nostr:': {
-      return handleNostr(c, resource);
-    }
     default:
       return c.json({ error: 'Unsupported URI scheme' }, 400);
   }
@@ -42,28 +38,20 @@ const acctSchema = z.custom<URL>((value) => value instanceof URL)
 
 async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
   try {
-    const [username] = acctSchema.parse(resource);
+    const [username, host] = acctSchema.parse(resource);
     const user = await db.users.findFirst({ where: { username } });
+
+    const json = renderWebfinger({
+      pubkey: user.pubkey,
+      username: user.username,
+      subject: `acct:${username}@${host}`,
+    });
+
     c.header('content-type', 'application/jrd+json');
-    return c.body(JSON.stringify(renderWebfinger({ ...user, subject: `acct:${resource.pathname}` })));
+    return c.body(JSON.stringify(json));
   } catch (e) {
     if (e instanceof z.ZodError) {
       return c.json({ error: 'Invalid acct URI', schema: e }, 400);
-    } else {
-      return c.json({ error: 'Not found' }, 404);
-    }
-  }
-}
-
-async function handleNostr(c: AppContext, resource: URL): Promise<Response> {
-  try {
-    const pubkey = npubSchema.parse(resource.pathname);
-    const user = await db.users.findFirst({ where: { pubkey } });
-    c.header('content-type', 'application/jrd+json');
-    return c.body(JSON.stringify(renderWebfinger({ ...user, subject: `nostr:${resource.pathname}` })));
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return c.json({ error: 'Invalid Nostr URI', schema: e }, 400);
     } else {
       return c.json({ error: 'Not found' }, 404);
     }

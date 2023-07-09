@@ -95,24 +95,6 @@ const decode64Schema = z.string().transform((value, ctx) => {
   }
 });
 
-const nip19Schema = z.string().transform((val, ctx) => {
-  try {
-    return nip19.decode(val);
-  } catch (_e) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid NIP-19 identifier', fatal: true });
-    return z.NEVER;
-  }
-});
-
-const npubSchema = nip19Schema.transform((decoded, ctx) => {
-  if (decoded.type === 'npub') {
-    return decoded.data;
-  } else {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Unsupported NIP-19 identifier', fatal: true });
-    return z.NEVER;
-  }
-});
-
 export {
   decode64Schema,
   emojiTagSchema,
@@ -120,8 +102,6 @@ export {
   jsonSchema,
   type MetaContent,
   metaContentSchema,
-  nip19Schema,
-  npubSchema,
   parseMetaContent,
   parseRelay,
   relaySchema,
