@@ -1,4 +1,4 @@
-import { verifySignature, z } from '@/deps.ts';
+import { nip19, verifySignature, z } from '@/deps.ts';
 
 import type { Event } from './event.ts';
 
@@ -95,16 +95,20 @@ const decode64Schema = z.string().transform((value, ctx) => {
   }
 });
 
-/** Transforms a string into a `URL` object. */
-const urlTransformSchema = z.string().transform((val, ctx) => {
+const nip19Schema = z.string().transform((val, ctx) => {
   try {
-    return new URL(val);
+    return nip19.decode(val);
   } catch (_e) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Invalid URI',
-      fatal: true,
-    });
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid NIP-19 identifier', fatal: true });
+    return z.NEVER;
+  }
+});
+
+const npubSchema = nip19Schema.transform((decoded, ctx) => {
+  if (decoded.type === 'npub') {
+    return decoded.data;
+  } else {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Unsupported NIP-19 identifier', fatal: true });
     return z.NEVER;
   }
 });
@@ -116,9 +120,10 @@ export {
   jsonSchema,
   type MetaContent,
   metaContentSchema,
+  nip19Schema,
+  npubSchema,
   parseMetaContent,
   parseRelay,
   relaySchema,
   signedEventSchema,
-  urlTransformSchema,
 };
