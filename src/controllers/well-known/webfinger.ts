@@ -6,27 +6,67 @@ import { urlTransformSchema } from '@/schema.ts';
 import type { AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
 
-const webfingerController: AppController = async (c) => {
-  const { hostname } = new URL(Conf.localDomain);
+/** Transforms the resource URI into a `[username, domain]` tuple. */
+const acctSchema = urlTransformSchema
+  .refine((uri) => uri.protocol === 'acct:', { message: 'Protocol must be `acct:`', path: ['resource'] })
+  .transform((uri) => uri.pathname)
+  .pipe(z.string().email('Invalid acct'))
+  .transform((acct) => acct.split('@') as [username: string, host: string])
+  .refine(([_username, host]) => host === new URL(Conf.localDomain).hostname, {
+    message: 'Host must be local',
+    path: ['resource', 'acct'],
+  });
 
-  /** Transforms the resource URI into a `[username, domain]` tuple. */
-  const acctSchema = urlTransformSchema
-    .refine((uri) => uri.protocol === 'acct:', 'Protocol must be `acct:`')
-    .refine((uri) => z.string().email().safeParse(uri.pathname).success, 'Invalid acct')
-    .transform((uri) => uri.pathname.split('@') as [username: string, host: string])
-    .refine(([_username, host]) => host === hostname, 'Host must be local');
+const webfingerQuerySchema = z.object({
+  resource: z.string().url(),
+});
 
-  const result = acctSchema.safeParse(c.req.query('resource'));
-  if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 400);
+const webfingerController: AppController = (c) => {
+  const query = webfingerQuerySchema.safeParse(c.req.query());
+  if (!query.success) {
+    return c.json({ error: 'Bad request', schema: query.error }, 400);
   }
 
-  try {
-    const user = await db.users.findFirst({ where: { username: result.data[0] } });
-    c.header('content-type', 'application/jrd+json');
-    return c.body(JSON.stringify(renderWebfinger(user)));
-  } catch (_e) {
-    return c.json({ error: 'Not found' }, 404);
+  const resource = new URL(query.data.resource);
+
+  const handleAcct = async (): Promise<Response> => {
+    try {
+      const [username] = acctSchema.parse(query.data.resource);
+      const user = await db.users.findFirst({ where: { username } });
+      c.header('content-type', 'application/jrd+json');
+      return c.body(JSON.stringify(renderWebfinger(user)));
+    } catch (_e) {
+      return c.json({ error: 'Not found' }, 404);
+    }
+  };
+
+  const handleNostr = async (): Promise<Response> => {
+    try {
+      const decoded = nip19.decode(resource.pathname);
+      if (decoded.type === 'npub') {
+        const user = await db.users.findFirst({ where: { pubkey: decoded.data } });
+        if (!user) {
+          return c.json({ error: 'Not found' }, 404);
+        }
+        c.header('content-type', 'application/jrd+json');
+        return c.body(JSON.stringify(renderWebfinger(user)));
+      } else {
+        return c.json({ error: 'Unsupported Nostr URI' }, 400);
+      }
+    } catch (_e) {
+      return c.json({ error: 'Invalid Nostr URI' }, 404);
+    }
+  };
+
+  switch (resource.protocol) {
+    case 'acct:': {
+      return handleAcct();
+    }
+    case 'nostr:': {
+      return handleNostr();
+    }
+    default:
+      return c.json({ error: 'Not found' }, 404);
   }
 };
 
