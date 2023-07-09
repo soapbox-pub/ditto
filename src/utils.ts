@@ -106,17 +106,6 @@ function eventAge(event: Event): number {
   return new Date().getTime() - nostrDate(event.created_at).getTime();
 }
 
-const Time = {
-  milliseconds: (ms: number) => ms,
-  seconds: (s: number) => s * 1000,
-  minutes: (m: number) => m * Time.seconds(60),
-  hours: (h: number) => h * Time.minutes(60),
-  days: (d: number) => d * Time.hours(24),
-  weeks: (w: number) => w * Time.days(7),
-  months: (m: number) => m * Time.days(30),
-  years: (y: number) => y * Time.days(365),
-};
-
 function findTag(tags: string[][], name: string): string[] | undefined {
   return tags.find((tag) => tag[0] === name);
 }
@@ -150,5 +139,6 @@ export {
   parseBody,
   parseNip05,
   sha256,
-  Time,
 };
+
+export { Time } from './utils/time.ts';

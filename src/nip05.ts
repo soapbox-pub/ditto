@@ -1,5 +1,5 @@
 import { TTLCache, z } from '@/deps.ts';
-import { Time } from '@/utils.ts';
+import { Time } from '@/utils/time.ts';
 
 const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: Time.hours(1), max: 5000 });
 
