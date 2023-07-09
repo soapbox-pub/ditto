@@ -8,7 +8,7 @@ const linkifyOpts: linkify.Opts = {
   render: {
     hashtag: ({ content }) => {
       const tag = content.replace(/^#/, '');
-      const href = Conf.url(`/tags/${tag}`);
+      const href = Conf.local(`/tags/${tag}`);
       return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
     },
     url: ({ content }) => {
@@ -17,7 +17,7 @@ const linkifyOpts: linkify.Opts = {
         const pubkey = getDecodedPubkey(decoded);
         if (pubkey) {
           const name = pubkey.substring(0, 8);
-          const href = Conf.url(`/users/${pubkey}`);
+          const href = Conf.local(`/users/${pubkey}`);
           return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
         } else {
           return '';

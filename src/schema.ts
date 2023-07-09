@@ -1,4 +1,4 @@
-import { nip19, verifySignature, z } from '@/deps.ts';
+import { verifySignature, z } from '@/deps.ts';
 
 import type { Event } from './event.ts';
 

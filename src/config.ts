@@ -21,8 +21,11 @@ const Conf = {
   get publishRelays() {
     return ['wss://relay.mostr.pub'];
   },
+  get url() {
+    return new URL(Conf.localDomain);
+  },
   /** Merges the path with the localDomain. */
-  url(path: string): string {
+  local(path: string): string {
     if (path.startsWith('/')) {
       // Path is a path.
       return new URL(path, Conf.localDomain).toString();

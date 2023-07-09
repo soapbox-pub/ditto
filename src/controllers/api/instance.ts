@@ -3,7 +3,7 @@ import { Conf } from '@/config.ts';
 import type { Context } from '@/deps.ts';
 
 function instanceController(c: Context) {
-  const { host, protocol } = new URL(Conf.localDomain);
+  const { host, protocol } = Conf.url;
 
   return c.json({
     uri: host,

@@ -28,7 +28,7 @@ function auth98(opts: Auth98Opts = {}): AppMiddleware {
       .refine((event) => {
         const url = findTag(event.tags, 'u')?.[1];
         try {
-          return url === Conf.url(c.req.url);
+          return url === Conf.local(c.req.url);
         } catch (_e) {
           return false;
         }

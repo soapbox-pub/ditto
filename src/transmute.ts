@@ -21,7 +21,6 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
 
   const { pubkey } = event;
   const { name, nip05, picture, banner, about }: MetaContent = parseMetaContent(event);
-  const { origin } = new URL(Conf.localDomain);
   const npub = nip19.npubEncode(pubkey);
 
   let parsed05: Nip05 | undefined;
@@ -65,7 +64,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
       }
       : undefined,
     statuses_count: 0,
-    url: `${origin}/users/${pubkey}`,
+    url: Conf.local(`/users/${pubkey}`),
     username: parsed05?.nickname || npub.substring(0, 8),
   };
 }
@@ -82,13 +81,12 @@ async function toMention(pubkey: string) {
       url: account.url,
     };
   } else {
-    const { origin } = new URL(Conf.localDomain);
     const npub = nip19.npubEncode(pubkey);
     return {
       id: pubkey,
       acct: npub,
       username: npub.substring(0, 8),
-      url: `${origin}/users/${pubkey}`,
+      url: Conf.local(`/users/${pubkey}`),
     };
   }
 }
@@ -147,8 +145,8 @@ async function toStatus(event: Event<1>) {
     tags: [],
     emojis: toEmojis(event),
     poll: null,
-    uri: `${Conf.localDomain}/posts/${event.id}`,
-    url: `${Conf.localDomain}/posts/${event.id}`,
+    uri: Conf.local(`/posts/${event.id}`),
+    url: Conf.local(`/posts/${event.id}`),
   };
 }
 

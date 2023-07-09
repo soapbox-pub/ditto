@@ -31,7 +31,7 @@ const acctSchema = z.custom<URL>((value) => value instanceof URL)
   .transform((uri) => uri.pathname)
   .pipe(z.string().email('Invalid acct'))
   .transform((acct) => acct.split('@') as [username: string, host: string])
-  .refine(([_username, host]) => host === new URL(Conf.localDomain).hostname, {
+  .refine(([_username, host]) => host === Conf.url.hostname, {
     message: 'Host must be local',
     path: ['resource', 'acct'],
   });
@@ -66,7 +66,7 @@ interface RenderWebfingerOpts {
 
 /** Present Nostr user on Webfinger. */
 function renderWebfinger({ pubkey, username, subject }: RenderWebfingerOpts): Webfinger {
-  const apId = Conf.url(`/users/${username}`);
+  const apId = Conf.local(`/users/${username}`);
 
   return {
     subject,
@@ -92,7 +92,7 @@ function renderWebfinger({ pubkey, username, subject }: RenderWebfingerOpts): We
 }
 
 const hostMetaController: AppController = (c) => {
-  const template = Conf.url('/.well-known/webfinger?resource={uri}');
+  const template = Conf.local('/.well-known/webfinger?resource={uri}');
 
   c.header('content-type', 'application/xrd+xml');
   return c.body(
