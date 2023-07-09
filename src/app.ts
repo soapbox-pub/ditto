@@ -27,8 +27,9 @@ import {
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import { indexController } from './controllers/site.ts';
+import { hostMetaController } from './controllers/well-known/host-meta.ts';
 import { nostrController } from './controllers/well-known/nostr.ts';
-import { hostMetaController, webfingerController } from './controllers/well-known/webfinger.ts';
+import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requireAuth } from './middleware/auth19.ts';
 import { auth98 } from './middleware/auth98.ts';
 
