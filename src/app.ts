@@ -28,6 +28,7 @@ import {
 import { streamingController } from './controllers/api/streaming.ts';
 import { indexController } from './controllers/site.ts';
 import { hostMetaController } from './controllers/well-known/host-meta.ts';
+import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requireAuth } from './middleware/auth19.ts';
@@ -61,7 +62,10 @@ app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
 
 app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
+app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
+
+app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
 app.get('/api/v1/instance', instanceController);
 
