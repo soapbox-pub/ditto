@@ -2,7 +2,7 @@
 
 Ditto is a tiny but powerful social media server for the decentralized web. With Ditto you will be able to interact across protocols and networks, and build your own social media experience.
 
-![Ditto](ditto-banner.png)
+<img width="400" src="ditto-planet.png">
 
 ⚠️ This software is a work in progress.
 
