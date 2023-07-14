@@ -21,7 +21,7 @@ export {
   nip19,
   nip21,
   verifySignature,
-} from 'npm:nostr-tools@^1.11.2';
+} from 'npm:nostr-tools@^1.12.1';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
@@ -39,3 +39,13 @@ export { default as sanitizeHtml } from 'npm:sanitize-html@^2.10.0';
 export { default as ISO6391 } from 'npm:iso-639-1@2.1.15';
 export { Dongoose } from 'https://raw.githubusercontent.com/alexgleason/dongoose/68b7ad9dd7b6ec0615e246a9f1603123c1709793/mod.ts';
 export { createPentagon } from 'https://deno.land/x/pentagon@v0.1.1/mod.ts';
+export {
+  type ParsedSignature,
+  pemToPublicKey,
+  publicKeyToPem,
+  signRequest,
+  verifyRequest,
+} from 'https://gitlab.com/soapbox-pub/fedisign/-/raw/v0.2.1/mod.ts';
+export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
+export * as secp from 'npm:@noble/secp256k1@^1.7.1';
+export { LRUCache } from 'npm:lru-cache@^10.0.0';

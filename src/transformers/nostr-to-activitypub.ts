@@ -1,5 +1,6 @@
 import { Conf } from '@/config.ts';
 import { parseMetaContent } from '@/schema.ts';
+import { getPublicKeyPem } from '@/utils/rsa.ts';
 
 import type { Event } from '@/event.ts';
 import type { Actor } from '@/schemas/activitypub.ts';
@@ -32,6 +33,11 @@ async function toActor(event: Event<0>, username: string): Promise<Actor> {
     summary: content.about ?? '',
     attachment: [],
     tag: [],
+    publicKey: {
+      id: Conf.local(`/users/${username}#main-key`),
+      owner: Conf.local(`/users/${username}`),
+      publicKeyPem: await getPublicKeyPem(event.pubkey),
+    },
     endpoints: {
       sharedInbox: Conf.local('/inbox'),
     },
