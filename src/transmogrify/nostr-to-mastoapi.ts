@@ -1,13 +1,13 @@
+import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
+
+import { getAuthor } from '@/client.ts';
+import { Conf } from '@/config.ts';
 import { findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
+import { verifyNip05Cached } from '@/nip05.ts';
+import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
 import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
-
-import { Conf } from './config.ts';
-import { getAuthor } from './client.ts';
-import { verifyNip05Cached } from './nip05.ts';
-import { getMediaLinks, type MediaLink, parseNoteContent } from './note.ts';
-import { type Nip05, nostrDate, parseNip05, Time } from './utils.ts';
-import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
+import { type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';

@@ -1,5 +1,5 @@
 import { getFeed, getFollows, getPublicFeed } from '@/client.ts';
-import { toStatus } from '@/transmute.ts';
+import { toStatus } from '@/transmogrify/nostr-to-mastoapi.ts';
 import { buildLinkHeader, paginationSchema } from '@/utils.ts';
 
 import type { AppController } from '@/app.ts';
