@@ -2,7 +2,7 @@ import { Conf } from '@/config.ts';
 import { generateSeededRsa, LRUCache, publicKeyToPem, secp } from '@/deps.ts';
 
 const opts = {
-  bits: 1024,
+  bits: 2048,
 };
 
 const rsaCache = new LRUCache<string, Promise<string>>({ max: 1000 });
