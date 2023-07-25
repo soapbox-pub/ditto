@@ -17,15 +17,18 @@ class TrendsDB {
     `);
   }
 
-  getTrendingTags(): string[] {
-    return this.#db.query<string[]>(`
+  getTrendingTags(since: Date, until: Date): string[] {
+    return this.#db.query<string[]>(
+      `
       SELECT tag, COUNT(DISTINCT pubkey8)
         FROM tag_usages
-        WHERE inserted_at >= $1 AND inserted_at < $2
+        WHERE inserted_at >= ? AND inserted_at < ?
         GROUP BY tag
         ORDER BY COUNT(DISTINCT pubkey8)
         DESC LIMIT 10;
-    `).map((row) => row[0]);
+    `,
+      [since, until],
+    ).map((row) => row[0]);
   }
 
   addTagUsage(tag: string, pubkey8: string): void {
@@ -35,10 +38,10 @@ class TrendsDB {
     );
   }
 
-  cleanupTagUsages(): void {
+  cleanupTagUsages(until: Date): void {
     this.#db.query(
       'DELETE FROM tag_usages WHERE inserted_at < ?',
-      [new Date(Date.now() - 1000 * 60 * 60 * 24 * 7)],
+      [until],
     );
   }
 }
