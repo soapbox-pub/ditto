@@ -54,14 +54,13 @@ class TrendsDB {
     }));
   }
 
-  addTagUsages(pubkey: string, hashtags: string[]): void {
+  addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
     const pubkey8 = hexIdSchema.parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
-    const now = new Date();
 
     this.#db.query(
       'INSERT INTO tag_usages (tag, pubkey8, inserted_at) VALUES ' + tags.map(() => '(?, ?, ?)').join(', '),
-      tags.map((tag) => [tag, pubkey8, now]).flat(),
+      tags.map((tag) => [tag, pubkey8, date]).flat(),
     );
   }
 

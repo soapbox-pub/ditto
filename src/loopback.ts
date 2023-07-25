@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
 import { relayInit } from '@/deps.ts';
 import { trends } from '@/trends.ts';
-import { nostrNow } from '@/utils.ts';
+import { nostrDate, nostrNow } from '@/utils.ts';
 
 import type { Event } from '@/event.ts';
 
@@ -23,12 +23,14 @@ function handleEvent(event: Event): void {
 
 /** Track whenever a hashtag is used, for processing trending tags. */
 function trackHashtags(event: Event): void {
+  const date = nostrDate(event.created_at);
+
   const tags = event.tags
     .filter((tag) => tag[0] === 't')
     .map((tag) => tag[1]);
 
   try {
-    trends.addTagUsages(event.pubkey, tags);
+    trends.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
   }
