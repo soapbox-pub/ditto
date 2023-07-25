@@ -25,7 +25,7 @@ class TrendsDB {
     }, Time.days(1));
   }
 
-  getTrendingTags(since: Date, until: Date) {
+  getTrendingTags(since: Date, until: Date, limit = 10) {
     return this.#db.query<string[]>(
       `
       SELECT tag, COUNT(DISTINCT pubkey8), COUNT(*)
@@ -33,9 +33,9 @@ class TrendsDB {
         WHERE inserted_at >= ? AND inserted_at < ?
         GROUP BY tag
         ORDER BY COUNT(DISTINCT pubkey8)
-        DESC LIMIT 10;
+        DESC LIMIT ?;
     `,
-      [since, until],
+      [since, until, limit],
     ).map((row) => ({
       name: row[0],
       accounts: Number(row[1]),
