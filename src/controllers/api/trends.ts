@@ -13,7 +13,11 @@ const trendingTagsController: AppController = (c) => {
   const now = new Date();
   const yesterday = new Date(now.getTime() - Time.days(1));
 
-  const tags = trends.getTrendingTags(yesterday, now, limit);
+  const tags = trends.getTrendingTags({
+    since: yesterday,
+    until: now,
+    limit,
+  });
 
   return c.json(tags.map(({ name, accounts, uses }) => ({
     name,

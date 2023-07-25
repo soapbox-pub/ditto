@@ -2,6 +2,13 @@ import { Sqlite } from '@/deps.ts';
 import { hashtagSchema, hexIdSchema } from '@/schema.ts';
 import { Time } from './utils.ts';
 
+interface GetTrendingTagsOpts {
+  since: Date;
+  until: Date;
+  limit?: number;
+  threshold?: number;
+}
+
 class TrendsDB {
   #db: Sqlite;
 
@@ -28,17 +35,18 @@ class TrendsDB {
     cleanup();
   }
 
-  getTrendingTags(since: Date, until: Date, limit = 10) {
+  getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts) {
     return this.#db.query<string[]>(
       `
       SELECT tag, COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
         WHERE inserted_at >= ? AND inserted_at < ?
         GROUP BY tag
+        HAVING COUNT(DISTINCT pubkey8) >= ?
         ORDER BY COUNT(DISTINCT pubkey8)
         DESC LIMIT ?;
     `,
-      [since, until, limit],
+      [since, until, threshold, limit],
     ).map((row) => ({
       name: row[0],
       accounts: Number(row[1]),
