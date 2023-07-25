@@ -1,5 +1,6 @@
 import { type Context, cors, type Handler, Hono, type HonoEnv, logger, type MiddlewareHandler } from '@/deps.ts';
 import { type Event } from '@/event.ts';
+import '@/loopback.ts';
 
 import {
   accountController,

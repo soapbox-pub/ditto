@@ -1,4 +1,5 @@
 import { Sqlite } from '@/deps.ts';
+import { hashtagSchema, hexIdSchema } from '@/schema.ts';
 
 class TrendsDB {
   #db: Sqlite;
@@ -8,9 +9,9 @@ class TrendsDB {
 
     this.#db.execute(`
       CREATE TABLE IF NOT EXISTS tag_usages (
-        tag TEXT NOT NULL,
+        tag TEXT NOT NULL COLLATE NOCASE,
         pubkey8 TEXT NOT NULL,
-        inserted_at DATETIME NOT NULL,
+        inserted_at DATETIME NOT NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_time_tag ON tag_usages(inserted_at, tag);
@@ -31,10 +32,14 @@ class TrendsDB {
     ).map((row) => row[0]);
   }
 
-  addTagUsage(tag: string, pubkey8: string): void {
+  addTagUsages(pubkey: string, hashtags: string[]): void {
+    const pubkey8 = hexIdSchema.parse(pubkey).substring(0, 8);
+    const tags = hashtagSchema.array().parse(hashtags);
+    const now = new Date();
+
     this.#db.query(
-      'INSERT INTO tag_usages (tag, pubkey8, inserted_at) VALUES (?, ?, ?)',
-      [tag, pubkey8, new Date()],
+      'INSERT INTO tag_usages (tag, pubkey8, inserted_at) VALUES ' + tags.map(() => '(?, ?, ?)').join(', '),
+      tags.map((tag) => [tag, pubkey8, now]).flat(),
     );
   }
 
