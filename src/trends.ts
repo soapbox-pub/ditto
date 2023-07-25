@@ -21,7 +21,7 @@ class TrendsDB {
   getTrendingTags(since: Date, until: Date) {
     return this.#db.query<string[]>(
       `
-      SELECT tag, COUNT(DISTINCT pubkey8)
+      SELECT tag, COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
         WHERE inserted_at >= ? AND inserted_at < ?
         GROUP BY tag
@@ -32,6 +32,7 @@ class TrendsDB {
     ).map((row) => ({
       name: row[0],
       accounts: Number(row[1]),
+      uses: Number(row[2]),
     }));
   }
 
