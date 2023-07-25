@@ -18,11 +18,14 @@ class TrendsDB {
       CREATE INDEX IF NOT EXISTS idx_time_tag ON tag_usages(inserted_at, tag);
     `);
 
-    setInterval(() => {
+    const cleanup = () => {
       console.info('Cleaning up old tag usages...');
       const lastWeek = new Date(new Date().getTime() - Time.days(7));
       this.cleanupTagUsages(lastWeek);
-    }, Time.days(1));
+    };
+
+    setInterval(cleanup, Time.hours(1));
+    cleanup();
   }
 
   getTrendingTags(since: Date, until: Date, limit = 10) {
