@@ -1,5 +1,6 @@
 import { Sqlite } from '@/deps.ts';
 import { hashtagSchema, hexIdSchema } from '@/schema.ts';
+import { Time } from './utils.ts';
 
 class TrendsDB {
   #db: Sqlite;
@@ -16,6 +17,12 @@ class TrendsDB {
 
       CREATE INDEX IF NOT EXISTS idx_time_tag ON tag_usages(inserted_at, tag);
     `);
+
+    setInterval(() => {
+      console.info('Cleaning up old tag usages...');
+      const lastWeek = new Date(new Date().getTime() - Time.days(7));
+      this.cleanupTagUsages(lastWeek);
+    }, Time.days(1));
   }
 
   getTrendingTags(since: Date, until: Date) {
