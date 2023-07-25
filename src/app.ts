@@ -27,6 +27,7 @@ import {
   statusController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
+import { trendingTagsController } from './controllers/api/trends.ts';
 import { indexController } from './controllers/site.ts';
 import { hostMetaController } from './controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
@@ -100,6 +101,9 @@ app.get('/api/v1/search', searchController);
 app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
+
+app.get('/api/v1/trends/tags', trendingTagsController);
+app.get('/api/v1/trends', trendingTagsController);
 
 // Not (yet) implemented.
 app.get('/api/v1/notifications', emptyArrayController);

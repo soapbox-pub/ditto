@@ -18,7 +18,7 @@ class TrendsDB {
     `);
   }
 
-  getTrendingTags(since: Date, until: Date): string[] {
+  getTrendingTags(since: Date, until: Date) {
     return this.#db.query<string[]>(
       `
       SELECT tag, COUNT(DISTINCT pubkey8)
@@ -29,12 +29,15 @@ class TrendsDB {
         DESC LIMIT 10;
     `,
       [since, until],
-    ).map((row) => row[0]);
+    ).map((row) => ({
+      name: row[0],
+      accounts: Number(row[1]),
+    }));
   }
 
   addTagUsages(pubkey: string, hashtags: string[]): void {
     const pubkey8 = hexIdSchema.parse(pubkey).substring(0, 8);
-    const tags = hashtagSchema.array().parse(hashtags);
+    const tags = hashtagSchema.array().min(1).parse(hashtags);
     const now = new Date();
 
     this.#db.query(
@@ -51,4 +54,8 @@ class TrendsDB {
   }
 }
 
-export { TrendsDB };
+const trends = new TrendsDB(
+  new Sqlite('data/trends.sqlite3'),
+);
+
+export { trends, TrendsDB };

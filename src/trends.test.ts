@@ -18,7 +18,13 @@ Deno.test('getTrendingTags', () => {
     new Date('2999-01-01T00:00:00'),
   );
 
-  assertEquals(result, ['ditto', 'hello', 'yolo']);
+  const expected = [
+    { name: 'ditto', accounts: 3 },
+    { name: 'hello', accounts: 2 },
+    { name: 'yolo', accounts: 1 },
+  ];
+
+  assertEquals(result, expected);
 
   trends.cleanupTagUsages(new Date('2999-01-01T00:00:00'));
 });
