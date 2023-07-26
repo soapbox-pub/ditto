@@ -12,6 +12,7 @@ const trendingTagsController: AppController = (c) => {
 
   const now = new Date();
   const yesterday = new Date(now.getTime() - Time.days(1));
+  const lastWeek = new Date(now.getTime() - Time.days(7));
 
   const tags = trends.getTrendingTags({
     since: yesterday,
@@ -19,14 +20,14 @@ const trendingTagsController: AppController = (c) => {
     limit,
   });
 
-  return c.json(tags.map(({ name, accounts, uses }) => ({
+  return c.json(tags.map(({ name }) => ({
     name,
     url: Conf.local(`/tags/${name}`),
-    history: [{
-      day: String(Math.floor(yesterday.getTime() / 1000)),
-      uses: String(uses),
-      accounts: String(accounts),
-    }],
+    history: trends.getTagHistory(name, lastWeek, now).map((history) => ({
+      day: String(Math.floor(history.day.getTime() / 1000)),
+      accounts: String(history.accounts),
+      uses: String(history.uses),
+    })),
   })));
 };
 

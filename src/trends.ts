@@ -54,6 +54,23 @@ class TrendsDB {
     }));
   }
 
+  getTagHistory(tag: string, since: Date, until: Date) {
+    return this.#db.query<string[]>(
+      `
+      SELECT inserted_at, COUNT(DISTINCT pubkey8), COUNT(*)
+        FROM tag_usages
+        WHERE tag = ? AND inserted_at >= ? AND inserted_at < ?
+        GROUP BY date(inserted_at)
+        ORDER BY date(inserted_at);
+    `,
+      [tag, since, until],
+    ).map((row) => ({
+      day: new Date(row[0]),
+      accounts: Number(row[1]),
+      uses: Number(row[2]),
+    }));
+  }
+
   addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
     const pubkey8 = hexIdSchema.parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
