@@ -54,16 +54,17 @@ class TrendsDB {
     }));
   }
 
-  getTagHistory(tag: string, since: Date, until: Date) {
+  getTagHistory(tag: string, since: Date, until: Date, limit = 7) {
     return this.#db.query<string[]>(
       `
       SELECT inserted_at, COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
         WHERE tag = ? AND inserted_at >= ? AND inserted_at < ?
         GROUP BY date(inserted_at)
-        ORDER BY date(inserted_at);
+        ORDER BY date(inserted_at) DESC
+        LIMIT ?;
     `,
-      [tag, since, until],
+      [tag, since, until, limit],
     ).map((row) => ({
       day: new Date(row[0]),
       accounts: Number(row[1]),
