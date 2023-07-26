@@ -20,7 +20,6 @@ export {
   nip05,
   nip19,
   nip21,
-  relayInit,
   verifySignature,
 } from 'npm:nostr-tools@^1.11.2';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';

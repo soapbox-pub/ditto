@@ -1,19 +1,22 @@
 import { Conf } from '@/config.ts';
-import { relayInit } from '@/deps.ts';
+import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
 
 import type { Event } from '@/event.ts';
 
-const relay = relayInit(Conf.relay);
-await relay.connect();
+const relay = new RelayPool([Conf.relay]);
 
 // This file watches all events on your Ditto relay and triggers
 // side-effects based on them. This can be used for things like
 // notifications, trending hashtag tracking, etc.
-relay
-  .sub([{ kinds: [1], since: nostrNow() }])
-  .on('event', handleEvent);
+relay.subscribe(
+  [{ kinds: [1], since: nostrNow() }],
+  [Conf.relay],
+  handleEvent,
+  undefined,
+  undefined,
+);
 
 /** Handle events through the loopback pipeline. */
 function handleEvent(event: Event): void {
