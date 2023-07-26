@@ -3,6 +3,7 @@ import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { Time } from '@/utils.ts';
+import { stripTime } from '@/utils/time.ts';
 
 const limitSchema = z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20));
 
@@ -25,11 +26,11 @@ const trendingTagsController: AppController = (c) => {
     url: Conf.local(`/tags/${name}`),
     history: [
       {
-        day: String(Math.floor(now.getTime() / 1000)),
+        day: String(Math.floor(stripTime(now).getTime() / 1000)),
         accounts: String(accounts),
         uses: String(uses),
       },
-      ...getTagHistoryWithGapsFilled({
+      ...trends.getTagHistory({
         tag: name,
         since: lastWeek,
         until: now,
@@ -43,29 +44,5 @@ const trendingTagsController: AppController = (c) => {
     ],
   })));
 };
-
-function generateDateRange(since: Date, until: Date): Date[] {
-  const dates = [];
-
-  const sinceDate = new Date(Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate() + 1));
-  const untilDate = new Date(Date.UTC(until.getUTCFullYear(), until.getUTCMonth(), until.getUTCDate()));
-
-  while (sinceDate < untilDate) {
-    dates.push(new Date(sinceDate));
-    sinceDate.setUTCDate(sinceDate.getUTCDate() + 1);
-  }
-
-  return dates.reverse();
-}
-
-function getTagHistoryWithGapsFilled(params: Parameters<typeof trends.getTagHistory>[0]) {
-  const history = trends.getTagHistory(params);
-  const dateRange = generateDateRange(params.since, params.until);
-
-  return dateRange.map((day) => {
-    const data = history.find((item) => item.day.getTime() === day.getTime());
-    return data || { day, accounts: 0, uses: 0 };
-  });
-}
 
 export { trendingTagsController };

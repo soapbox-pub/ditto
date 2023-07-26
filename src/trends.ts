@@ -1,6 +1,7 @@
 import { Sqlite } from '@/deps.ts';
 import { hashtagSchema, hexIdSchema } from '@/schema.ts';
-import { Time } from './utils.ts';
+import { Time } from '@/utils.ts';
+import { generateDateRange } from '@/utils/time.ts';
 
 interface GetTrendingTagsOpts {
   since: Date;
@@ -63,7 +64,7 @@ class TrendsDB {
   }
 
   getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
-    return this.#db.query<string[]>(
+    const result = this.#db.query<string[]>(
       `
       SELECT date(inserted_at), COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
@@ -79,6 +80,16 @@ class TrendsDB {
       accounts: Number(row[1]),
       uses: Number(row[2]),
     }));
+
+    const dateRange = generateDateRange(
+      new Date(since.getTime() + Time.days(1)),
+      new Date(until.getTime() - Time.days(offset)),
+    ).reverse();
+
+    return dateRange.map((day) => {
+      const data = result.find((item) => item.day.getTime() === day.getTime());
+      return data || { day, accounts: 0, uses: 0 };
+    });
   }
 
   addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
