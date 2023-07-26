@@ -29,7 +29,10 @@ function trackHashtags(event: Event): void {
     .filter((tag) => tag[0] === 't')
     .map((tag) => tag[1]);
 
+  if (!tags.length) return;
+
   try {
+    console.info('tracking tags:', tags);
     trends.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
