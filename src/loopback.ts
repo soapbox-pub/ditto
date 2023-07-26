@@ -27,7 +27,8 @@ function trackHashtags(event: Event): void {
 
   const tags = event.tags
     .filter((tag) => tag[0] === 't')
-    .map((tag) => tag[1]);
+    .map((tag) => tag[1])
+    .slice(0, 5);
 
   if (!tags.length) return;
 
