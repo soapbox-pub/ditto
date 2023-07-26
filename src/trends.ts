@@ -9,6 +9,14 @@ interface GetTrendingTagsOpts {
   threshold?: number;
 }
 
+interface GetTagHistoryOpts {
+  tag: string;
+  since: Date;
+  until: Date;
+  limit?: number;
+  offset?: number;
+}
+
 class TrendsDB {
   #db: Sqlite;
 
@@ -54,7 +62,7 @@ class TrendsDB {
     }));
   }
 
-  getTagHistory(tag: string, since: Date, until: Date, limit = 7) {
+  getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
     return this.#db.query<string[]>(
       `
       SELECT inserted_at, COUNT(DISTINCT pubkey8), COUNT(*)
@@ -62,9 +70,10 @@ class TrendsDB {
         WHERE tag = ? AND inserted_at >= ? AND inserted_at < ?
         GROUP BY date(inserted_at)
         ORDER BY date(inserted_at) DESC
-        LIMIT ?;
+        LIMIT ?
+        OFFSET ?;
     `,
-      [tag, since, until, limit],
+      [tag, since, until, limit, offset],
     ).map((row) => ({
       day: new Date(row[0]),
       accounts: Number(row[1]),

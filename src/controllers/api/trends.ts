@@ -20,14 +20,27 @@ const trendingTagsController: AppController = (c) => {
     limit,
   });
 
-  return c.json(tags.map(({ name }) => ({
+  return c.json(tags.map(({ name, uses, accounts }) => ({
     name,
     url: Conf.local(`/tags/${name}`),
-    history: trends.getTagHistory(name, lastWeek, now).map((history) => ({
-      day: String(Math.floor(history.day.getTime() / 1000)),
-      accounts: String(history.accounts),
-      uses: String(history.uses),
-    })),
+    history: [
+      {
+        day: String(Math.floor(now.getTime() / 1000)),
+        accounts: String(accounts),
+        uses: String(uses),
+      },
+      ...trends.getTagHistory({
+        tag: name,
+        since: lastWeek,
+        until: now,
+        limit: 6,
+        offset: 1,
+      }).map((history) => ({
+        day: String(Math.floor(history.day.getTime() / 1000)),
+        accounts: String(history.accounts),
+        uses: String(history.uses),
+      })),
+    ],
   })));
 };
 
