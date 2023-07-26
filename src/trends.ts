@@ -44,6 +44,7 @@ class TrendsDB {
     cleanup();
   }
 
+  /** Gets the most used hashtags between the date range. */
   getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts) {
     return this.#db.query<string[]>(
       `
@@ -63,6 +64,10 @@ class TrendsDB {
     }));
   }
 
+  /**
+   * Gets the tag usage count for a specific tag.
+   * It returns an array with counts for each date between the range.
+   */
   getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
     const result = this.#db.query<string[]>(
       `
@@ -81,11 +86,13 @@ class TrendsDB {
       uses: Number(row[2]),
     }));
 
+    /** Full date range between `since` and `until`. */
     const dateRange = generateDateRange(
       new Date(since.getTime() + Time.days(1)),
       new Date(until.getTime() - Time.days(offset)),
     ).reverse();
 
+    // Fill in missing dates with 0 usages.
     return dateRange.map((day) => {
       const data = result.find((item) => item.day.getTime() === day.getTime());
       return data || { day, accounts: 0, uses: 0 };
