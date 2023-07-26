@@ -65,7 +65,7 @@ class TrendsDB {
   getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
     return this.#db.query<string[]>(
       `
-      SELECT inserted_at, COUNT(DISTINCT pubkey8), COUNT(*)
+      SELECT date(inserted_at), COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
         WHERE tag = ? AND inserted_at >= ? AND inserted_at < ?
         GROUP BY date(inserted_at)
