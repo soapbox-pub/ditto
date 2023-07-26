@@ -14,6 +14,6 @@ lint:
   stage: test
   script: deno lint
 
-# test:
-#   stage: test
-#   script: deno task test
+test:
+  stage: test
+  script: deno task test
