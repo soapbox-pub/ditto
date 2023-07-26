@@ -67,15 +67,15 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
 const eventSchema = z.object({
-  id: nostrIdSchema,
+  id: hexIdSchema,
   kind: z.number(),
   tags: z.array(z.array(z.string())),
   content: z.string(),
   created_at: z.number(),
-  pubkey: nostrIdSchema,
+  pubkey: hexIdSchema,
   sig: z.string(),
 });
 
@@ -95,10 +95,14 @@ const decode64Schema = z.string().transform((value, ctx) => {
   }
 });
 
+const hashtagSchema = z.string().regex(/^\w{1,30}$/);
+
 export {
   decode64Schema,
   emojiTagSchema,
   filteredArray,
+  hashtagSchema,
+  hexIdSchema,
   jsonSchema,
   type MetaContent,
   metaContentSchema,

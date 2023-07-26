@@ -39,3 +39,5 @@ export { default as sanitizeHtml } from 'npm:sanitize-html@^2.10.0';
 export { default as ISO6391 } from 'npm:iso-639-1@2.1.15';
 export { Dongoose } from 'https://raw.githubusercontent.com/alexgleason/dongoose/68b7ad9dd7b6ec0615e246a9f1603123c1709793/mod.ts';
 export { createPentagon } from 'https://deno.land/x/pentagon@v0.1.1/mod.ts';
+export { DB as Sqlite } from 'https://deno.land/x/sqlite@v3.7.0/mod.ts';
+export { serve } from 'https://deno.land/std@0.177.0/http/server.ts';

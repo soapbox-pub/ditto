@@ -4,7 +4,11 @@ const Conf = {
     return Deno.env.get('DITTO_NSEC');
   },
   get relay() {
-    return Deno.env.get('DITTO_RELAY');
+    const value = Deno.env.get('DITTO_RELAY');
+    if (!value) {
+      throw new Error('Missing DITTO_RELAY');
+    }
+    return value;
   },
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
