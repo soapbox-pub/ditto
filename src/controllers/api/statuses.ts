@@ -3,7 +3,7 @@ import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
 import { ISO6391, Kind, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { signEvent } from '@/sign.ts';
-import { toStatus } from '@/transmute.ts';
+import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { nostrNow, parseBody } from '@/utils.ts';
 
 const createStatusSchema = z.object({

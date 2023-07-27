@@ -3,7 +3,7 @@ import { type Filter, findReplyTag, z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
 import { parseMetaContent } from '@/schema.ts';
 import { signEvent } from '@/sign.ts';
-import { toAccount, toStatus } from '@/transmute.ts';
+import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
 
 const createAccountController: AppController = (c) => {

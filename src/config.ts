@@ -1,7 +1,32 @@
+import { nip19, secp } from '@/deps.ts';
+
 /** Application-wide configuration. */
 const Conf = {
   get nsec() {
-    return Deno.env.get('DITTO_NSEC');
+    const value = Deno.env.get('DITTO_NSEC');
+    if (!value) {
+      throw new Error('Missing DITTO_NSEC');
+    }
+    if (!value.startsWith('nsec1')) {
+      throw new Error('Invalid DITTO_NSEC');
+    }
+    return value as `nsec1${string}`;
+  },
+  get seckey() {
+    const result = nip19.decode(Conf.nsec);
+    if (result.type !== 'nsec') {
+      throw new Error('Invalid DITTO_NSEC');
+    }
+    return result.data;
+  },
+  get cryptoKey() {
+    return crypto.subtle.importKey(
+      'raw',
+      secp.utils.hexToBytes(Conf.seckey),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign', 'verify'],
+    );
   },
   get relay() {
     const value = Deno.env.get('DITTO_RELAY');

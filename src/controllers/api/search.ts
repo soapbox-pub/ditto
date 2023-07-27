@@ -1,6 +1,6 @@
 import { AppController } from '@/app.ts';
-import { lookupAccount } from '../../utils.ts';
-import { toAccount } from '../../transmute.ts';
+import { lookupAccount } from '@/utils.ts';
+import { toAccount } from '@/transformers/nostr-to-mastoapi.ts';
 
 const searchController: AppController = async (c) => {
   const q = c.req.query('q');
