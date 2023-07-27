@@ -12,7 +12,7 @@ const actorController: AppController = async (c) => {
   const event = await getAuthor(user.pubkey);
   if (!event) return notFound(c);
 
-  const actor = await toActor(event);
+  const actor = await toActor(event, user.username);
   if (!actor) return notFound(c);
 
   return activityJson(c, actor);
