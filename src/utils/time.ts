@@ -9,4 +9,24 @@ const Time = {
   years: (y: number) => y * Time.days(365),
 };
 
-export { Time };
+/** Strips the time off the date, giving 12am UTC. */
+function stripTime(date: Date): Date {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
+/** Strips times off the dates and generates all 24h intervals between them, inclusive of both inputs. */
+function generateDateRange(since: Date, until: Date): Date[] {
+  const dates = [];
+
+  const sinceDate = stripTime(since);
+  const untilDate = stripTime(until);
+
+  while (sinceDate <= untilDate) {
+    dates.push(new Date(sinceDate));
+    sinceDate.setUTCDate(sinceDate.getUTCDate() + 1);
+  }
+
+  return dates;
+}
+
+export { generateDateRange, stripTime, Time };

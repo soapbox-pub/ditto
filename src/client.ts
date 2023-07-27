@@ -172,7 +172,7 @@ function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
 
 /** Publish an event to the Nostr relay. */
 function publish(event: SignedEvent, relays = Conf.publishRelays): void {
-  console.log('Publishing event', event);
+  console.log('Publishing event', event, relays);
   try {
     getPool().publish(event, relays);
   } catch (e) {

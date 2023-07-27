@@ -49,3 +49,5 @@ export {
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export * as secp from 'npm:@noble/secp256k1@^1.7.1';
 export { LRUCache } from 'npm:lru-cache@^10.0.0';
+export { DB as Sqlite } from 'https://deno.land/x/sqlite@v3.7.0/mod.ts';
+export { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
