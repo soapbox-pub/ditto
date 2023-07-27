@@ -1,6 +1,6 @@
 import { getAuthor } from '@/client.ts';
 import { Conf } from '@/config.ts';
-import { nip19, parseFormData, z } from '@/deps.ts';
+import { type Context, nip19, parseFormData, z } from '@/deps.ts';
 import { type Event } from '@/event.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 
@@ -124,7 +124,26 @@ async function sha256(message: string): Promise<string> {
   return hashHex;
 }
 
+/** JSON-LD context. */
+type LDContext = (string | Record<string, string | Record<string, string>>)[];
+
+/** Add a basic JSON-LD context to ActivityStreams object, if it doesn't already exist. */
+function maybeAddContext<T>(object: T): T & { '@context': LDContext } {
+  return {
+    '@context': ['https://www.w3.org/ns/activitystreams'],
+    ...object,
+  };
+}
+
+/** Like hono's `c.json()` except returns JSON-LD. */
+function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
+  const response = c.json(maybeAddContext(object));
+  response.headers.set('content-type', 'application/activity+json; charset=UTF-8');
+  return response;
+}
+
 export {
+  activityJson,
   bech32ToPubkey,
   buildLinkHeader,
   eventAge,
