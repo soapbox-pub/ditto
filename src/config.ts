@@ -29,7 +29,7 @@ const Conf = {
   get cryptoKey() {
     return crypto.subtle.importKey(
       'raw',
-      secp.utils.hexToBytes(Conf.seckey),
+      secp.etc.hexToBytes(Conf.seckey),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign', 'verify'],

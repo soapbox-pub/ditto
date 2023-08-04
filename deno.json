@@ -3,7 +3,8 @@
   "lock": false,
   "tasks": {
     "start": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --watch src/server.ts",
-    "test": "deno test --allow-read --allow-write=data --allow-env --unstable src"
+    "test": "deno test --allow-read --allow-write=data --allow-env --unstable src",
+    "check": "deno check --unstable src/server.ts"
   },
   "imports": {
     "@/": "./src/"
