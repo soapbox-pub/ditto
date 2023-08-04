@@ -11,7 +11,7 @@ async function buildSeed(pubkey: string): Promise<string> {
   const key = await Conf.cryptoKey;
   const data = new TextEncoder().encode(pubkey);
   const signature = await window.crypto.subtle.sign('HMAC', key, data);
-  return secp.utils.bytesToHex(new Uint8Array(signature));
+  return secp.etc.bytesToHex(new Uint8Array(signature));
 }
 
 async function getPublicKeyPem(pubkey: string): Promise<string> {

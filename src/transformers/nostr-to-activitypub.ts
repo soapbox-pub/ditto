@@ -6,12 +6,8 @@ import type { Event } from '@/event.ts';
 import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
-async function toActor(event: Event<0>): Promise<Actor | undefined> {
+async function toActor(event: Event<0>, username: string): Promise<Actor | undefined> {
   const content = parseMetaContent(event);
-
-  if (!content.nip05) return;
-  const [username, hostname] = content.nip05.split('@');
-  if (hostname !== Conf.url.hostname) return;
 
   return {
     type: 'Person',
