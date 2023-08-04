@@ -1,4 +1,11 @@
-import { nip19, secp } from '@/deps.ts';
+import { dotenv, nip19, secp } from '@/deps.ts';
+
+/** Load environment config from `.env` */
+await dotenv.load({
+  export: true,
+  defaultsPath: null,
+  examplePath: null,
+});
 
 /** Application-wide configuration. */
 const Conf = {
