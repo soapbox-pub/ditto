@@ -1,9 +1,10 @@
 import { Conf } from '@/config.ts';
+import { db } from '@/db.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
 
-import type { Event } from '@/event.ts';
+import type { SignedEvent } from '@/event.ts';
 
 const relay = new RelayPool([Conf.relay]);
 
@@ -19,13 +20,14 @@ relay.subscribe(
 );
 
 /** Handle events through the loopback pipeline. */
-function handleEvent(event: Event): void {
+function handleEvent(event: SignedEvent): void {
   console.info('loopback event:', event.id);
+  db.insertEvent(event);
   trackHashtags(event);
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-function trackHashtags(event: Event): void {
+function trackHashtags(event: SignedEvent): void {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags

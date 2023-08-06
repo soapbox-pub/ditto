@@ -1,4 +1,5 @@
 import { Sqlite } from '@/deps.ts';
+import { SignedEvent } from '@/event.ts';
 
 interface User {
   pubkey: string;
@@ -13,7 +14,7 @@ class DittoDB {
     this.#db = db;
 
     this.#db.execute(`
-      CREATE TABLE events (
+      CREATE TABLE IF NOT EXISTS events (
         id TEXT PRIMARY KEY,
         kind INTEGER NOT NULL,
         pubkey TEXT NOT NULL,
@@ -23,10 +24,10 @@ class DittoDB {
         sig TEXT NOT NULL
       );
       
-      CREATE INDEX idx_events_kind ON events(kind);
-      CREATE INDEX idx_events_pubkey ON events(pubkey);
+      CREATE INDEX IF NOT EXISTS idx_events_kind ON events(kind);
+      CREATE INDEX IF NOT EXISTS idx_events_pubkey ON events(pubkey);
       
-      CREATE TABLE tags (
+      CREATE TABLE IF NOT EXISTS tags (
         tag TEXT NOT NULL,
         value_1 TEXT,
         value_2 TEXT,
@@ -35,17 +36,17 @@ class DittoDB {
         FOREIGN KEY(event_id) REFERENCES events(id) ON DELETE CASCADE
       );
       
-      CREATE INDEX idx_tags_tag ON tags(tag);
-      CREATE INDEX idx_tags_value_1 ON tags(value_1);
-      CREATE INDEX idx_tags_event_id ON tags(event_id);
+      CREATE INDEX IF NOT EXISTS idx_tags_tag ON tags(tag);
+      CREATE INDEX IF NOT EXISTS idx_tags_value_1 ON tags(value_1);
+      CREATE INDEX IF NOT EXISTS idx_tags_event_id ON tags(event_id);
       
-      CREATE TABLE users (
+      CREATE TABLE IF NOT EXISTS users (
         pubkey TEXT PRIMARY KEY,
         username TEXT NOT NULL,
         inserted_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL
       );
 
-      CREATE UNIQUE INDEX idx_users_username ON users(username);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username);
     `);
   }
 
@@ -67,6 +68,38 @@ class DittoDB {
       username: result[1],
       inserted_at: result[2],
     };
+  }
+
+  insertEvent(event: SignedEvent): void {
+    this.#db.transaction(() => {
+      this.#db.query(
+        `
+        INSERT INTO events(id, kind, pubkey, content, created_at, tags, sig)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `,
+        [
+          event.id,
+          event.kind,
+          event.pubkey,
+          event.content,
+          event.created_at,
+          JSON.stringify(event.tags),
+          event.sig,
+        ],
+      );
+
+      for (const [tag, value1, value2, value3] of event.tags) {
+        if (['p', 'e', 'q', 'd', 't', 'proxy'].includes(tag)) {
+          this.#db.query(
+            `
+            INSERT INTO tags(event_id, tag, value_1, value_2, value_3)
+            VALUES (?, ?, ?, ?, ?)
+          `,
+            [event.id, tag, value1 || null, value2 || null, value3 || null],
+          );
+        }
+      }
+    });
   }
 }
 
