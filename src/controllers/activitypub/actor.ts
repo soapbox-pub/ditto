@@ -7,7 +7,9 @@ import type { AppContext, AppController } from '@/app.ts';
 
 const actorController: AppController = async (c) => {
   const username = c.req.param('username');
-  const user = await db.users.findFirst({ where: { username } });
+
+  const user = db.getUserByUsername(username);
+  if (!user) return notFound(c);
 
   const event = await getAuthor(user.pubkey);
   if (!event) return notFound(c);
