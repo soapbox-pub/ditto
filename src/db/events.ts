@@ -26,9 +26,11 @@ function insertEvent(event: SignedEvent): Promise<void> {
       return results;
     }, []);
 
-    await trx.insertInto('tags')
-      .values(tags)
-      .execute();
+    await Promise.all(tags.map((tag) => {
+      return trx.insertInto('tags')
+        .values(tag)
+        .execute();
+    }));
   });
 }
 
