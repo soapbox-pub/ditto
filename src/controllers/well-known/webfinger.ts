@@ -1,5 +1,4 @@
 import { Conf } from '@/config.ts';
-import { db } from '@/db.ts';
 import { nip19, z } from '@/deps.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
