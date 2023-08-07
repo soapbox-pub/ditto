@@ -102,7 +102,8 @@ class DittoDB {
     });
   }
 
-  getFilter<K extends number = number>(filter: Filter<K>) {
+  getFilter<K extends number = number>(_filter: Filter<K>) {
+    // TODO
   }
 }
 
