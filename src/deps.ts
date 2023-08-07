@@ -50,4 +50,5 @@ export * as secp from 'npm:@noble/secp256k1@^2.0.0';
 export { LRUCache } from 'npm:lru-cache@^10.0.0';
 export { DB as Sqlite } from 'https://deno.land/x/sqlite@v3.7.3/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.197.0/dotenv/mod.ts';
-export { DummyDriver, Kysely, SqliteAdapter, SqliteIntrospector, SqliteQueryCompiler } from 'npm:kysely@^0.25.0';
+export { Kysely } from 'npm:kysely@^0.25.0';
+export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/76748303a45fac64a889cd2b9265c6c9b8ef2e8b/mod.ts';
