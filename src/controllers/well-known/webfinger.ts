@@ -4,6 +4,7 @@ import { nip19, z } from '@/deps.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
+import { findUser } from '@/db/users.ts';
 
 const webfingerQuerySchema = z.object({
   resource: z.string().url(),
@@ -36,14 +37,14 @@ const acctSchema = z.custom<URL>((value) => value instanceof URL)
     path: ['resource', 'acct'],
   });
 
-function handleAcct(c: AppContext, resource: URL): Response {
+async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
   const result = acctSchema.safeParse(resource);
   if (!result.success) {
     return c.json({ error: 'Invalid acct URI', schema: result.error }, 400);
   }
 
   const [username, host] = result.data;
-  const user = db.getUserByUsername(username);
+  const user = await findUser({ username });
 
   if (!user) {
     return c.json({ error: 'Not found' }, 404);

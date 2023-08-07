@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import { db } from '@/db.ts';
+import { insertEvent } from '@/db/events.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
@@ -22,7 +22,7 @@ relay.subscribe(
 /** Handle events through the loopback pipeline. */
 function handleEvent(event: SignedEvent): void {
   console.info('loopback event:', event.id);
-  db.insertEvent(event);
+  insertEvent(event);
   trackHashtags(event);
 }
 
