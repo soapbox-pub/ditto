@@ -1,4 +1,5 @@
-import { Sqlite } from '@/deps.ts';
+import { builder } from '@/db/builder.ts';
+import { type Filter, Sqlite } from '@/deps.ts';
 import { SignedEvent } from '@/event.ts';
 
 interface User {
@@ -101,9 +102,15 @@ class DittoDB {
       }
     });
   }
+
+  getFilter<K extends number = number>(filter: Filter<K>) {
+  }
 }
 
 const db = new DittoDB(
   new Sqlite('data/db.sqlite3'),
 );
+
+console.log(await builder.selectFrom('events').selectAll().limit(1).execute())
+
 export { db };
