@@ -10,14 +10,14 @@
     "@/": "./src/"
   },
   "lint": {
-    "include": ["src/"],
+    "include": ["src/", "lib/"],
     "rules": {
       "tags": ["recommended"],
       "exclude": ["no-explicit-any"]
     }
   },
   "fmt": {
-    "include": ["src/"],
+    "include": ["src/", "lib/"],
     "useTabs": false,
     "lineWidth": 120,
     "indentWidth": 2,

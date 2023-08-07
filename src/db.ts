@@ -1,4 +1,3 @@
-import { builder } from '@/db/builder.ts';
 import { type Filter, Sqlite } from '@/deps.ts';
 import { SignedEvent } from '@/event.ts';
 
@@ -110,7 +109,5 @@ class DittoDB {
 const db = new DittoDB(
   new Sqlite('data/db.sqlite3'),
 );
-
-console.log(await builder.selectFrom('events').selectAll().limit(1).execute())
 
 export { db };

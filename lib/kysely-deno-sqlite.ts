@@ -28,14 +28,18 @@ class DenoSqliteDatabase implements SqliteDatabase {
   }
 
   prepare(sql: string): SqliteStatement {
+    const query = this.#db.prepareQuery(sql);
     return {
+      // HACK: implement an actual driver to fix this.
       reader: true,
       all: (parameters: ReadonlyArray<unknown>) => {
-        console.log(sql);
-        return this.#db.query(sql, parameters as any);
+        const result = query.allEntries(parameters as any);
+        query.finalize();
+        return result;
       },
       run: (parameters: ReadonlyArray<unknown>) => {
-        this.#db.query(sql, parameters as any);
+        query.execute(parameters as any);
+        query.finalize();
         return {
           changes: this.#db.changes,
           lastInsertRowid: this.#db.lastInsertRowId,
