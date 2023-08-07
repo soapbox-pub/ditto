@@ -1,5 +1,5 @@
 import { Kysely, Sqlite } from '@/deps.ts';
-import { DenoSqliteDialect } from '../../lib/kysely-deno-sqlite.ts';
+import { DenoSqliteDialect } from '../../lib/kysely-deno-sqlite/mod.ts';
 
 interface Tables {
   events: EventsTable;
