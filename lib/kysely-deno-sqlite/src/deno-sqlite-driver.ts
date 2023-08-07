@@ -61,12 +61,10 @@ class DenoSqliteConnection implements DatabaseConnection {
   }
 
   executeQuery<O>({ sql, parameters }: CompiledQuery): Promise<QueryResult<O>> {
-    const query = this.#db.prepareQuery(sql);
+    // @ts-expect-error `parameters` types are incompatible, but they should match in reality.
+    const rows = this.#db.queryEntries(sql, parameters);
 
-    const rows = query.allEntries(parameters as any);
     const { changes, lastInsertRowId } = this.#db;
-
-    query.finalize();
 
     return Promise.resolve({
       rows: rows as O[],
