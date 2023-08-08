@@ -34,8 +34,37 @@ function insertEvent(event: SignedEvent): Promise<void> {
   });
 }
 
-function getFilter<K extends number = number>(_filter: Filter<K>) {
-  // TODO
+async function getFilter<K extends number = number>(filter: Filter<K>): Promise<SignedEvent<K>[]> {
+  let query = db.selectFrom('events').selectAll();
+
+  for (const key of Object.keys(filter)) {
+    switch (key as keyof Filter) {
+      case 'ids':
+        query = query.where('id', 'in', filter.ids!);
+        break;
+      case 'kinds':
+        query = query.where('kind', 'in', filter.kinds!);
+        break;
+      case 'authors':
+        query = query.where('pubkey', 'in', filter.authors!);
+        break;
+      case 'since':
+        query = query.where('created_at', '>=', filter.since!);
+        break;
+      case 'until':
+        query = query.where('created_at', '<=', filter.until!);
+        break;
+      case 'limit':
+        query = query.limit(filter.limit!);
+        break;
+    }
+  }
+
+  const events = await query.execute();
+
+  return events.map((event) => (
+    { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
+  ));
 }
 
 export { getFilter, insertEvent };
