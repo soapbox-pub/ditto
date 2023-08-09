@@ -62,7 +62,7 @@ function getFilterQuery<K extends number = number>(filter: Filter<K>) {
     if (key.startsWith('#')) {
       const tag = key.replace(/^#/, '');
       const value = filter[key as `#${string}`] as string[];
-      query = query
+      return query
         .leftJoin('tags', 'tags.event_id', 'events.id')
         .where('tags.tag', '=', tag)
         .where('tags.value_1', 'in', value);
