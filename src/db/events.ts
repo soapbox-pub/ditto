@@ -1,7 +1,7 @@
 import { type Filter, type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
 
-import { db, type TagRow } from '../db.ts';
+import { db, type TagRow } from '@/db.ts';
 
 function insertEvent(event: SignedEvent): Promise<void> {
   return db.transaction().execute(async (trx) => {
@@ -90,4 +90,12 @@ function getFilter<K extends number = number>(filter: Filter<K>): Promise<Signed
   return getFilters<K>([filter]);
 }
 
-export { getFilter, getFilters, insertEvent };
+async function isFollowed({ pubkey }: SignedEvent): Promise<boolean> {
+  const event = await getFilterQuery({ kinds: [3], '#p': [pubkey], limit: 1 })
+    .innerJoin('users', 'users.pubkey', 'events.pubkey')
+    .executeTakeFirst();
+
+  return !!event;
+}
+
+export { getFilter, getFilters, insertEvent, isFollowed };
