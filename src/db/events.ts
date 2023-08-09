@@ -65,7 +65,7 @@ function getFilterQuery(filter: Filter) {
       return query
         .leftJoin('tags', 'tags.event_id', 'events.id')
         .where('tags.tag', '=', tag)
-        .where('tags.value_1', 'in', value);
+        .where('tags.value_1', 'in', value) as typeof query;
     }
   }
 
