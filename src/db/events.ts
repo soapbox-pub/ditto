@@ -34,7 +34,7 @@ function insertEvent(event: SignedEvent): Promise<void> {
   });
 }
 
-async function getFilter<K extends number = number>(filter: Filter<K>): Promise<SignedEvent<K>[]> {
+function getFilterQuery<K extends number = number>(filter: Filter<K>) {
   let query = db.selectFrom('events').selectAll().orderBy('created_at', 'desc');
 
   for (const key of Object.keys(filter)) {
@@ -69,11 +69,25 @@ async function getFilter<K extends number = number>(filter: Filter<K>): Promise<
     }
   }
 
-  const events = await query.execute();
+  return query;
+}
+
+async function getFilters<K extends number>(filters: [Filter<K>]): Promise<SignedEvent<K>[]>;
+async function getFilters(filters: Filter[]): Promise<SignedEvent[]>;
+async function getFilters(filters: Filter[]) {
+  const queries = filters
+    .map(getFilterQuery)
+    .map((query) => query.execute());
+
+  const events = (await Promise.all(queries)).flat();
 
   return events.map((event) => (
-    { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
+    { ...event, tags: JSON.parse(event.tags) }
   ));
 }
 
-export { getFilter, insertEvent };
+function getFilter<K extends number = number>(filter: Filter<K>): Promise<SignedEvent<K>[]> {
+  return getFilters<K>([filter]);
+}
+
+export { getFilter, getFilters, insertEvent };
