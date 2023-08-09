@@ -1,7 +1,7 @@
-import { type Filter, type Insertable, type SelectQueryBuilder } from '@/deps.ts';
+import { type Filter, type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
 
-import { db, type DittoDB, type EventRow, type TagRow } from '@/db.ts';
+import { db, type TagRow } from '@/db.ts';
 
 function insertEvent(event: SignedEvent): Promise<void> {
   return db.transaction().execute(async (trx) => {
@@ -34,7 +34,7 @@ function insertEvent(event: SignedEvent): Promise<void> {
   });
 }
 
-function getFilterQuery(filter: Filter): SelectQueryBuilder<DittoDB, 'events', EventRow> {
+function getFilterQuery(filter: Filter) {
   let query = db.selectFrom('events').selectAll().orderBy('created_at', 'desc');
 
   for (const key of Object.keys(filter)) {
