@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import { insertEvent } from '@/db/events.ts';
+import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
@@ -20,10 +20,14 @@ relay.subscribe(
 );
 
 /** Handle events through the loopback pipeline. */
-function handleEvent(event: SignedEvent): void {
+async function handleEvent(event: SignedEvent): Promise<void> {
   console.info('loopback event:', event.id);
-  insertEvent(event).catch(console.warn);
+
   trackHashtags(event);
+
+  if (await isLocallyFollowed(event.pubkey)) {
+    insertEvent(event).catch(console.warn);
+  }
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */

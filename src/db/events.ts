@@ -90,7 +90,8 @@ function getFilter<K extends number = number>(filter: Filter<K>): Promise<Signed
   return getFilters<K>([filter]);
 }
 
-async function isFollowed({ pubkey }: SignedEvent): Promise<boolean> {
+/** Returns whether the pubkey is followed by a local user. */
+async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   const event = await getFilterQuery({ kinds: [3], '#p': [pubkey], limit: 1 })
     .innerJoin('users', 'users.pubkey', 'events.pubkey')
     .executeTakeFirst();
@@ -98,4 +99,4 @@ async function isFollowed({ pubkey }: SignedEvent): Promise<boolean> {
   return !!event;
 }
 
-export { getFilter, getFilters, insertEvent, isFollowed };
+export { getFilter, getFilters, insertEvent, isLocallyFollowed };
