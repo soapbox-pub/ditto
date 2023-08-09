@@ -58,6 +58,15 @@ async function getFilter<K extends number = number>(filter: Filter<K>): Promise<
         query = query.limit(filter.limit!);
         break;
     }
+
+    if (key.startsWith('#')) {
+      const tag = key.replace(/^#/, '');
+      const value = filter[key as `#${string}`] as string[];
+      query = query
+        .leftJoin('tags', 'tags.event_id', 'events.id')
+        .where('tags.tag', '=', tag)
+        .where('tags.value_1', 'in', value);
+    }
   }
 
   const events = await query.execute();
