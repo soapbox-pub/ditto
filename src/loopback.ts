@@ -1,5 +1,6 @@
 import { Conf } from '@/config.ts';
 import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
+import { findUser } from '@/db/users.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
@@ -25,7 +26,7 @@ async function handleEvent(event: SignedEvent): Promise<void> {
 
   trackHashtags(event);
 
-  if (await isLocallyFollowed(event.pubkey)) {
+  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
     insertEvent(event).catch(console.warn);
   }
 }
