@@ -49,6 +49,7 @@ const migrator = new Migrator({
 });
 
 console.log('Running migrations...');
-await migrator.migrateToLatest();
+const results = await migrator.migrateToLatest();
+console.log('Migrations finished:', results);
 
 export { db, type EventRow, type TagRow, type UserRow };

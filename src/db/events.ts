@@ -35,7 +35,7 @@ function insertEvent(event: SignedEvent): Promise<void> {
 }
 
 async function getFilter<K extends number = number>(filter: Filter<K>): Promise<SignedEvent<K>[]> {
-  let query = db.selectFrom('events').selectAll();
+  let query = db.selectFrom('events').selectAll().orderBy('created_at', 'desc');
 
   for (const key of Object.keys(filter)) {
     switch (key as keyof Filter) {

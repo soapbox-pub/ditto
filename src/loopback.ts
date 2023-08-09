@@ -22,7 +22,7 @@ relay.subscribe(
 /** Handle events through the loopback pipeline. */
 function handleEvent(event: SignedEvent): void {
   console.info('loopback event:', event.id);
-  insertEvent(event);
+  insertEvent(event).catch(console.warn);
   trackHashtags(event);
 }
 
