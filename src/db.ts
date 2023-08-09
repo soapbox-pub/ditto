@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator, Sqlite } from '@/deps.ts';
 
-interface Tables {
+interface DittoDB {
   events: EventRow;
   tags: TagRow;
   users: UserRow;
@@ -33,7 +33,7 @@ interface UserRow {
   inserted_at: Date;
 }
 
-const db = new Kysely<Tables>({
+const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
     database: new Sqlite('data/db.sqlite3'),
   }),
@@ -52,4 +52,4 @@ console.log('Running migrations...');
 const results = await migrator.migrateToLatest();
 console.log('Migrations finished:', results);
 
-export { db, type EventRow, type TagRow, type UserRow };
+export { db, type DittoDB, type EventRow, type TagRow, type UserRow };

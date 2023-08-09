@@ -56,6 +56,7 @@ export {
   Kysely,
   Migrator,
   type NullableInsertKeys,
+  type SelectQueryBuilder,
   sql,
 } from 'npm:kysely@^0.25.0';
 export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/76748303a45fac64a889cd2b9265c6c9b8ef2e8b/mod.ts';
