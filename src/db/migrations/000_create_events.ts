@@ -18,7 +18,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('value_1', 'text')
     .addColumn('value_2', 'text')
     .addColumn('value_3', 'text')
-    .addColumn('event_id', 'text', (col) => col.notNull().references('events.id'))
+    .addColumn('event_id', 'text', (col) => col.notNull())
     .execute();
 
   await db.schema
