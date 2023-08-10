@@ -9,7 +9,8 @@
     "check": "deno check --unstable src/server.ts"
   },
   "imports": {
-    "@/": "./src/"
+    "@/": "./src/",
+    "~/": "./"
   },
   "lint": {
     "include": ["src/"],

@@ -50,7 +50,10 @@ function insertEvent(event: SignedEvent): Promise<void> {
 }
 
 function getFilterQuery(filter: Filter) {
-  let query = db.selectFrom('events').selectAll().orderBy('created_at', 'desc');
+  let query = db
+    .selectFrom('events')
+    .select(['id', 'kind', 'pubkey', 'content', 'tags', 'created_at', 'sig'])
+    .orderBy('created_at', 'desc');
 
   for (const key of Object.keys(filter)) {
     switch (key as keyof Filter) {
