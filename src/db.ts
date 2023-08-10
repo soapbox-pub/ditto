@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator, Sqlite } from '@/deps.ts';
+import { Conf } from '@/config.ts';
 
 interface DittoDB {
   events: EventRow;
@@ -35,7 +36,7 @@ interface UserRow {
 
 const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
-    database: new Sqlite('data/db.sqlite3'),
+    database: new Sqlite(Conf.dbPath),
   }),
 });
 

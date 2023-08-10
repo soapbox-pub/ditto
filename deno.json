@@ -5,7 +5,7 @@
     "start": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable src/server.ts",
     "dev": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --watch src/server.ts",
     "debug": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --inspect src/server.ts",
-    "test": "deno test --allow-read --allow-write=data --allow-env --unstable src",
+    "test": "DB_PATH=\":memory:\" deno test --allow-read --allow-write=data --allow-env --unstable src",
     "check": "deno check --unstable src/server.ts"
   },
   "imports": {
