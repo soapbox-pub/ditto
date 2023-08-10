@@ -3,6 +3,17 @@ import { type SignedEvent } from '@/event.ts';
 
 import { db, type TagRow } from '@/db.ts';
 
+type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
+
+/** Conditions for when to index certain tags. */
+const tagConditions: Record<string, TagCondition> = {
+  't': ({ count }) => count < 5,
+  'p': ({ event }) => event.kind === 3,
+  'd': ({ event, count }) => 30000 <= event.kind && event.kind < 40000 && count === 0,
+  'q': ({ event, count }) => event.kind === 1 && count === 0,
+  'proxy': ({ count }) => count === 0,
+};
+
 function insertEvent(event: SignedEvent): Promise<void> {
   return db.transaction().execute(async (trx) => {
     await trx.insertInto('events')
@@ -12,11 +23,15 @@ function insertEvent(event: SignedEvent): Promise<void> {
       })
       .executeTakeFirst();
 
+    const tagCounts: Record<string, number> = {};
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
-      if (['p', 'e', 'q', 'd', 't', 'proxy'].includes(tag[0])) {
+      const tagName = tag[0];
+      tagCounts[tagName] = (tagCounts[tagName] || 0) + 1;
+
+      if (tagConditions[tagName]?.({ event, count: tagCounts[tagName] - 1 })) {
         results.push({
           event_id: event.id,
-          tag: tag[0],
+          tag: tagName,
           value_1: tag[1] || null,
           value_2: tag[2] || null,
           value_3: tag[3] || null,
