@@ -7,11 +7,12 @@ type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) =>
 
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
-  't': ({ count }) => count < 5,
-  'p': ({ event }) => event.kind === 3,
   'd': ({ event, count }) => 30000 <= event.kind && event.kind < 40000 && count === 0,
-  'q': ({ event, count }) => event.kind === 1 && count === 0,
+  'e': ({ count }) => count < 15,
+  'p': ({ event, count }) => event.kind === 3 || count < 15,
   'proxy': ({ count }) => count === 0,
+  'q': ({ event, count }) => event.kind === 1 && count === 0,
+  't': ({ count }) => count < 5,
 };
 
 function insertEvent(event: SignedEvent): Promise<void> {
