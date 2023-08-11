@@ -45,6 +45,9 @@ const Conf = {
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
   },
+  get dbPath() {
+    return Deno.env.get('DB_PATH') || 'data/db.sqlite3';
+  },
   get postCharLimit() {
     return Number(Deno.env.get('POST_CHAR_LIMIT') || 5000);
   },

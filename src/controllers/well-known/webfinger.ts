@@ -1,9 +1,9 @@
 import { Conf } from '@/config.ts';
-import { db } from '@/db.ts';
 import { nip19, z } from '@/deps.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
+import { findUser } from '@/db/users.ts';
 
 const webfingerQuerySchema = z.object({
   resource: z.string().url(),
@@ -37,25 +37,26 @@ const acctSchema = z.custom<URL>((value) => value instanceof URL)
   });
 
 async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
-  try {
-    const [username, host] = acctSchema.parse(resource);
-    const user = await db.users.findFirst({ where: { username } });
-
-    const json = renderWebfinger({
-      pubkey: user.pubkey,
-      username: user.username,
-      subject: `acct:${username}@${host}`,
-    });
-
-    c.header('content-type', 'application/jrd+json');
-    return c.body(JSON.stringify(json));
-  } catch (e) {
-    if (e instanceof z.ZodError) {
-      return c.json({ error: 'Invalid acct URI', schema: e }, 400);
-    } else {
-      return c.json({ error: 'Not found' }, 404);
-    }
+  const result = acctSchema.safeParse(resource);
+  if (!result.success) {
+    return c.json({ error: 'Invalid acct URI', schema: result.error }, 400);
   }
+
+  const [username, host] = result.data;
+  const user = await findUser({ username });
+
+  if (!user) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  const json = renderWebfinger({
+    pubkey: user.pubkey,
+    username: user.username,
+    subject: `acct:${username}@${host}`,
+  });
+
+  c.header('content-type', 'application/jrd+json');
+  return c.body(JSON.stringify(json));
 }
 
 interface RenderWebfingerOpts {

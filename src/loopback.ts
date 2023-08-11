@@ -1,9 +1,11 @@
 import { Conf } from '@/config.ts';
+import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
+import { findUser } from '@/db/users.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
 
-import type { Event } from '@/event.ts';
+import type { SignedEvent } from '@/event.ts';
 
 const relay = new RelayPool([Conf.relay]);
 
@@ -19,13 +21,18 @@ relay.subscribe(
 );
 
 /** Handle events through the loopback pipeline. */
-function handleEvent(event: Event): void {
+async function handleEvent(event: SignedEvent): Promise<void> {
   console.info('loopback event:', event.id);
+
   trackHashtags(event);
+
+  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
+    insertEvent(event).catch(console.warn);
+  }
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-function trackHashtags(event: Event): void {
+function trackHashtags(event: SignedEvent): void {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags

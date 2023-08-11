@@ -1,5 +1,5 @@
 import { getAuthor } from '@/client.ts';
-import { db } from '@/db.ts';
+import { findUser } from '@/db/users.ts';
 import { toActor } from '@/transformers/nostr-to-activitypub.ts';
 import { activityJson } from '@/utils.ts';
 
@@ -7,7 +7,9 @@ import type { AppContext, AppController } from '@/app.ts';
 
 const actorController: AppController = async (c) => {
   const username = c.req.param('username');
-  const user = await db.users.findFirst({ where: { username } });
+
+  const user = await findUser({ username });
+  if (!user) return notFound(c);
 
   const event = await getAuthor(user.pubkey);
   if (!event) return notFound(c);

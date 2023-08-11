@@ -95,8 +95,8 @@ const contextController: AppController = async (c) => {
     const descendantEvents = await getDescendants(event.id);
 
     return c.json({
-      ancestors: (await Promise.all((ancestorEvents).map(toStatus))).filter(Boolean),
-      descendants: (await Promise.all((descendantEvents).map(toStatus))).filter(Boolean),
+      ancestors: (await Promise.all(ancestorEvents.map(toStatus))).filter(Boolean),
+      descendants: (await Promise.all(descendantEvents.map(toStatus))).filter(Boolean),
     });
   }
 

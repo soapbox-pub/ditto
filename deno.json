@@ -2,12 +2,15 @@
   "$schema": "https://deno.land/x/deno@v1.32.3/cli/schemas/config-file.v1.json",
   "lock": false,
   "tasks": {
-    "start": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --watch src/server.ts",
-    "test": "deno test --allow-read --allow-write=data --allow-env --unstable src",
+    "start": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable src/server.ts",
+    "dev": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --watch src/server.ts",
+    "debug": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --inspect src/server.ts",
+    "test": "DB_PATH=\":memory:\" deno test --allow-read --allow-write=data --allow-env --unstable src",
     "check": "deno check --unstable src/server.ts"
   },
   "imports": {
-    "@/": "./src/"
+    "@/": "./src/",
+    "~/": "./"
   },
   "lint": {
     "include": ["src/"],
