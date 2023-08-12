@@ -49,11 +49,14 @@ function connectStream(socket: WebSocket) {
   }
 }
 
+/** Enforce the filters with certain criteria. */
 function prepareFilters(filters: ClientREQ[2][]): Filter[] {
   return filters.map((filter) => ({
     ...filter,
+    // Limit the number of events returned per-filter.
     limit: Math.min(filter.limit || FILTER_LIMIT, FILTER_LIMIT),
-    local: true,
+    // Return only local events unless the query is already narrow.
+    local: !filter.ids?.length && !filter.authors?.length,
   }));
 }
 
@@ -65,8 +68,8 @@ const relayController: AppController = (c) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
-
   connectStream(socket);
+
   return response;
 };
 
