@@ -15,6 +15,7 @@ const tagConditions: Record<string, TagCondition> = {
   't': ({ count }) => count < 5,
 };
 
+/** Insert an event (and its tags) into the database. */
 function insertEvent(event: SignedEvent): Promise<void> {
   return db.transaction().execute(async (trx) => {
     await trx.insertInto('events')
@@ -50,10 +51,12 @@ function insertEvent(event: SignedEvent): Promise<void> {
   });
 }
 
+/** Custom filter interface that extends Nostr filters with extra options for Ditto. */
 interface DittoFilter<K extends number = number> extends Filter<K> {
   local?: boolean;
 }
 
+/** Build the query for a filter. */
 function getFilterQuery(filter: DittoFilter) {
   let query = db
     .selectFrom('events')
@@ -107,6 +110,7 @@ function getFilterQuery(filter: DittoFilter) {
   return query;
 }
 
+/** Get events for filters from the database. */
 async function getFilters<K extends number>(filters: [DittoFilter<K>]): Promise<SignedEvent<K>[]>;
 async function getFilters(filters: DittoFilter[]): Promise<SignedEvent[]>;
 async function getFilters(filters: DittoFilter[]) {
@@ -121,6 +125,7 @@ async function getFilters(filters: DittoFilter[]) {
   ));
 }
 
+/** Get events for a filter from the database. */
 function getFilter<K extends number = number>(filter: DittoFilter<K>): Promise<SignedEvent<K>[]> {
   return getFilters<K>([filter]);
 }
