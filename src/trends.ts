@@ -1,6 +1,6 @@
 import { Sqlite } from '@/deps.ts';
 import { hashtagSchema } from '@/schema.ts';
-import { hexIdSchema } from '@/schemas/nostr.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { Time } from '@/utils.ts';
 import { generateDateRange } from '@/utils/time.ts';
 
@@ -101,7 +101,7 @@ class TrendsDB {
   }
 
   addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
-    const pubkey8 = hexIdSchema.parse(pubkey).substring(0, 8);
+    const pubkey8 = nostrIdSchema.parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
     this.#db.query(

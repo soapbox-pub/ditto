@@ -3,16 +3,16 @@ import { verifySignature, z } from '@/deps.ts';
 import { jsonSchema } from '../schema.ts';
 
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
-const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
 /** Nostr event schema. */
 const eventSchema = z.object({
-  id: hexIdSchema,
+  id: nostrIdSchema,
   kind: z.number(),
   tags: z.array(z.array(z.string())),
   content: z.string(),
   created_at: z.number(),
-  pubkey: hexIdSchema,
+  pubkey: nostrIdSchema,
   sig: z.string(),
 });
 
@@ -22,8 +22,8 @@ const signedEventSchema = eventSchema.refine(verifySignature);
 /** Nostr relay filter schema. */
 const filterSchema = z.object({
   kinds: z.number().int().positive().array().optional(),
-  ids: hexIdSchema.array().optional(),
-  authors: hexIdSchema.array().optional(),
+  ids: nostrIdSchema.array().optional(),
+  authors: nostrIdSchema.array().optional(),
   since: z.number().int().positive().optional(),
   until: z.number().int().positive().optional(),
   limit: z.number().int().positive().optional(),
@@ -58,9 +58,9 @@ type MetaContent = z.infer<typeof metaContentSchema>;
 export {
   clientMsgSchema,
   filterSchema,
-  hexIdSchema,
   jsonMetaContentSchema,
   type MetaContent,
   metaContentSchema,
+  nostrIdSchema,
   signedEventSchema,
 };
