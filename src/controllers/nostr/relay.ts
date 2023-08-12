@@ -41,6 +41,7 @@ function prepareFilters(filters: ClientREQ[2][]): Filter[] {
   return filters.map((filter) => ({
     ...filter,
     limit: Math.min(filter.limit || FILTER_LIMIT, FILTER_LIMIT),
+    local: true,
   }));
 }
 
