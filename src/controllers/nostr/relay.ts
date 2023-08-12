@@ -1,6 +1,13 @@
-import { getFilters } from '@/db/events.ts';
+import { getFilters, insertEvent } from '@/db/events.ts';
+import { findUser } from '@/db/users.ts';
 import { jsonSchema } from '@/schema.ts';
-import { type ClientMsg, clientMsgSchema, type ClientREQ } from '@/schemas/nostr.ts';
+import {
+  type ClientCLOSE,
+  type ClientEVENT,
+  type ClientMsg,
+  clientMsgSchema,
+  type ClientREQ,
+} from '@/schemas/nostr.ts';
 
 import type { AppController } from '@/app.ts';
 import type { Filter } from '@/deps.ts';
@@ -12,27 +19,29 @@ const FILTER_LIMIT = 100;
 type RelayMsg =
   | ['EVENT', string, SignedEvent]
   | ['NOTICE', string]
-  | ['EOSE', string];
+  | ['EOSE', string]
+  | ['OK', string, boolean, string];
 
 function connectStream(socket: WebSocket) {
   socket.onmessage = (e) => {
     const result = jsonSchema.pipe(clientMsgSchema).safeParse(e.data);
     if (result.success) {
-      handleClientMsg(result.data);
+      handleMsg(result.data);
     } else {
       send(['NOTICE', 'Invalid message.']);
     }
   };
 
-  function handleClientMsg(msg: ClientMsg) {
+  function handleMsg(msg: ClientMsg) {
     switch (msg[0]) {
       case 'REQ':
         handleReq(msg);
         return;
       case 'EVENT':
-        send(['NOTICE', 'EVENT not yet implemented.']);
+        handleEvent(msg);
         return;
       case 'CLOSE':
+        handleClose(msg);
         return;
     }
   }
@@ -42,6 +51,20 @@ function connectStream(socket: WebSocket) {
       send(['EVENT', sub, event]);
     }
     send(['EOSE', sub]);
+  }
+
+  async function handleEvent([_, event]: ClientEVENT) {
+    if (await findUser({ pubkey: event.pubkey })) {
+      insertEvent(event);
+      send(['OK', event.id, true, '']);
+    } else {
+      send(['OK', event.id, false, 'blocked: only registered users can post']);
+    }
+  }
+
+  function handleClose([_, _sub]: ClientCLOSE) {
+    // TODO: ???
+    return;
   }
 
   function send(msg: RelayMsg) {
