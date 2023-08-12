@@ -6,7 +6,8 @@ import { findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '
 import { type Event } from '@/event.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
-import { emojiTagSchema, filteredArray, type MetaContent, parseMetaContent } from '@/schema.ts';
+import { emojiTagSchema, filteredArray } from '@/schema.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
@@ -20,7 +21,7 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   const { withSource = false } = opts;
 
   const { pubkey } = event;
-  const { name, nip05, picture, banner, about }: MetaContent = parseMetaContent(event);
+  const { name, nip05, picture, banner, about } = jsonMetaContentSchema.parse(event.content);
   const npub = nip19.npubEncode(pubkey);
 
   let parsed05: Nip05 | undefined;

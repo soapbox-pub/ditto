@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import { getAuthor, getFilter, getFollows, publish } from '@/client.ts';
-import { parseMetaContent } from '@/schema.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
@@ -154,7 +154,7 @@ const updateCredentialsController: AppController = async (c) => {
     return c.json({ error: 'Could not find user.' }, 404);
   }
 
-  const meta = parseMetaContent(author);
+  const meta = jsonMetaContentSchema.parse(author.content);
   meta.name = result.data.display_name ?? meta.name;
   meta.about = result.data.note ?? meta.about;
 

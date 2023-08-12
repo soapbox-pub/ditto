@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import { parseMetaContent } from '@/schema.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getPublicKeyPem } from '@/utils/rsa.ts';
 
 import type { Event } from '@/event.ts';
@@ -7,7 +7,7 @@ import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
 async function toActor(event: Event<0>, username: string): Promise<Actor | undefined> {
-  const content = parseMetaContent(event);
+  const content = jsonMetaContentSchema.parse(event.content);
 
   return {
     type: 'Person',

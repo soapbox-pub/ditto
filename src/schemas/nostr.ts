@@ -1,5 +1,7 @@
 import { verifySignature, z } from '@/deps.ts';
 
+import { jsonSchema } from '../schema.ts';
+
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
 const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
@@ -37,4 +39,28 @@ const clientMsgSchema = z.union([
   z.tuple([z.literal('CLOSE'), z.string().min(1)]),
 ]);
 
-export { clientMsgSchema, filterSchema, hexIdSchema, signedEventSchema };
+/** Kind 0 content schema. */
+const metaContentSchema = z.object({
+  name: z.string().optional().catch(undefined),
+  about: z.string().optional().catch(undefined),
+  picture: z.string().optional().catch(undefined),
+  banner: z.string().optional().catch(undefined),
+  nip05: z.string().optional().catch(undefined),
+  lud16: z.string().optional().catch(undefined),
+}).partial().passthrough();
+
+/** Parses kind 0 content from a JSON string. */
+const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
+
+/** Author metadata from Event<0>. */
+type MetaContent = z.infer<typeof metaContentSchema>;
+
+export {
+  clientMsgSchema,
+  filterSchema,
+  hexIdSchema,
+  jsonMetaContentSchema,
+  type MetaContent,
+  metaContentSchema,
+  signedEventSchema,
+};
