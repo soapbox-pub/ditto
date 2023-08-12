@@ -51,6 +51,8 @@ type ClientREQ = z.infer<typeof clientReqSchema>;
 type ClientEVENT = z.infer<typeof clientEventSchema>;
 /** CLOSE message from client to relay. */
 type ClientCLOSE = z.infer<typeof clientCloseSchema>;
+/** Client message to a Nostr relay. */
+type ClientMsg = z.infer<typeof clientMsgSchema>;
 
 /** Kind 0 content schema. */
 const metaContentSchema = z.object({
@@ -68,6 +70,7 @@ const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
 export {
   type ClientCLOSE,
   type ClientEVENT,
+  type ClientMsg,
   clientMsgSchema,
   type ClientREQ,
   filterSchema,
