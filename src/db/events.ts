@@ -99,8 +99,8 @@ function getFilterQuery(filter: Filter) {
   return query;
 }
 
-async function getFilters(filters: Filter[]): Promise<SignedEvent[]>;
 async function getFilters<K extends number>(filters: [Filter<K>]): Promise<SignedEvent<K>[]>;
+async function getFilters(filters: Filter[]): Promise<SignedEvent[]>;
 async function getFilters(filters: Filter[]) {
   const queries = filters
     .map(getFilterQuery)
