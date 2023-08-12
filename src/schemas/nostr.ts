@@ -52,15 +52,4 @@ const metaContentSchema = z.object({
 /** Parses kind 0 content from a JSON string. */
 const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
 
-/** Author metadata from Event<0>. */
-type MetaContent = z.infer<typeof metaContentSchema>;
-
-export {
-  clientMsgSchema,
-  filterSchema,
-  jsonMetaContentSchema,
-  type MetaContent,
-  metaContentSchema,
-  nostrIdSchema,
-  signedEventSchema,
-};
+export { clientMsgSchema, filterSchema, jsonMetaContentSchema, metaContentSchema, nostrIdSchema, signedEventSchema };
