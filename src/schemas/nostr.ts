@@ -1,7 +1,23 @@
-import { z } from '@/deps.ts';
+import { verifySignature, z } from '@/deps.ts';
 
-import { hexIdSchema, signedEventSchema } from '../schema.ts';
+/** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
+const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
 
+/** Nostr event schema. */
+const eventSchema = z.object({
+  id: hexIdSchema,
+  kind: z.number(),
+  tags: z.array(z.array(z.string())),
+  content: z.string(),
+  created_at: z.number(),
+  pubkey: hexIdSchema,
+  sig: z.string(),
+});
+
+/** Nostr event schema that also verifies the event's signature. */
+const signedEventSchema = eventSchema.refine(verifySignature);
+
+/** Nostr relay filter schema. */
 const filterSchema = z.object({
   kinds: z.number().int().positive().array().optional(),
   ids: hexIdSchema.array().optional(),
@@ -14,12 +30,11 @@ const filterSchema = z.object({
   z.string().array(),
 ));
 
+/** Client message to a Nostr relay. */
 const clientMsgSchema = z.union([
   z.tuple([z.literal('REQ'), z.string().min(1)]).rest(filterSchema),
   z.tuple([z.literal('EVENT'), signedEventSchema]),
   z.tuple([z.literal('CLOSE'), z.string().min(1)]),
 ]);
 
-type Filter = z.infer<typeof filterSchema>;
-
-export { clientMsgSchema, filterSchema };
+export { clientMsgSchema, filterSchema, hexIdSchema, signedEventSchema };

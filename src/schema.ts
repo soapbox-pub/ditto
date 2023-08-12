@@ -1,4 +1,4 @@
-import { verifySignature, z } from '@/deps.ts';
+import { z } from '@/deps.ts';
 
 import type { Event } from './event.ts';
 
@@ -67,20 +67,6 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
-
-const eventSchema = z.object({
-  id: hexIdSchema,
-  kind: z.number(),
-  tags: z.array(z.array(z.string())),
-  content: z.string(),
-  created_at: z.number(),
-  pubkey: hexIdSchema,
-  sig: z.string(),
-});
-
-const signedEventSchema = eventSchema.refine(verifySignature);
-
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
@@ -102,12 +88,10 @@ export {
   emojiTagSchema,
   filteredArray,
   hashtagSchema,
-  hexIdSchema,
   jsonSchema,
   type MetaContent,
   metaContentSchema,
   parseMetaContent,
   parseRelay,
   relaySchema,
-  signedEventSchema,
 };

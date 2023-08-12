@@ -2,7 +2,8 @@ import { type AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { HTTPException } from '@/deps.ts';
 import { type Event } from '@/event.ts';
-import { decode64Schema, jsonSchema, signedEventSchema } from '@/schema.ts';
+import { decode64Schema, jsonSchema } from '@/schema.ts';
+import { signedEventSchema } from '@/schemas/nostr.ts';
 import { eventAge, findTag, sha256, Time } from '@/utils.ts';
 
 const decodeEventSchema = decode64Schema.pipe(jsonSchema).pipe(signedEventSchema);

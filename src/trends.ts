@@ -1,5 +1,6 @@
 import { Sqlite } from '@/deps.ts';
-import { hashtagSchema, hexIdSchema } from '@/schema.ts';
+import { hashtagSchema } from '@/schema.ts';
+import { hexIdSchema } from '@/schemas/nostr.ts';
 import { Time } from '@/utils.ts';
 import { generateDateRange } from '@/utils/time.ts';
 

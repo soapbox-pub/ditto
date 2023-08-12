@@ -1,6 +1,6 @@
 import { type AppContext } from '@/app.ts';
 import { getEventHash, getPublicKey, getSignature, HTTPException, z } from '@/deps.ts';
-import { signedEventSchema } from '@/schema.ts';
+import { signedEventSchema } from '@/schemas/nostr.ts';
 import { ws } from '@/stream.ts';
 
 import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
