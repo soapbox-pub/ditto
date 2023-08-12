@@ -53,7 +53,15 @@ function insertEvent(event: SignedEvent): Promise<void> {
 function getFilterQuery(filter: Filter) {
   let query = db
     .selectFrom('events')
-    .select(['id', 'kind', 'pubkey', 'content', 'tags', 'created_at', 'sig'])
+    .select([
+      'events.id',
+      'events.kind',
+      'events.pubkey',
+      'events.content',
+      'events.tags',
+      'events.created_at',
+      'events.sig',
+    ])
     .orderBy('created_at', 'desc');
 
   for (const key of Object.keys(filter)) {
@@ -91,8 +99,8 @@ function getFilterQuery(filter: Filter) {
   return query;
 }
 
-async function getFilters<K extends number>(filters: [Filter<K>]): Promise<SignedEvent<K>[]>;
 async function getFilters(filters: Filter[]): Promise<SignedEvent[]>;
+async function getFilters<K extends number>(filters: [Filter<K>]): Promise<SignedEvent<K>[]>;
 async function getFilters(filters: Filter[]) {
   const queries = filters
     .map(getFilterQuery)

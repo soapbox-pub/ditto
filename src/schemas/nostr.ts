@@ -27,17 +27,30 @@ const filterSchema = z.object({
   since: z.number().int().positive().optional(),
   until: z.number().int().positive().optional(),
   limit: z.number().int().positive().optional(),
-}).and(z.record(
-  z.custom<`#${string}`>((val) => typeof val === 'string' && val.startsWith('#')),
-  z.string().array(),
-));
+}).passthrough().and(
+  z.record(
+    z.custom<`#${string}`>((val) => typeof val === 'string' && val.startsWith('#')),
+    z.string().array(),
+  ).catch({}),
+);
+
+const clientReqSchema = z.tuple([z.literal('REQ'), z.string().min(1)]).rest(filterSchema);
+const clientEventSchema = z.tuple([z.literal('EVENT'), signedEventSchema]);
+const clientCloseSchema = z.tuple([z.literal('CLOSE'), z.string().min(1)]);
 
 /** Client message to a Nostr relay. */
 const clientMsgSchema = z.union([
-  z.tuple([z.literal('REQ'), z.string().min(1)]).rest(filterSchema),
-  z.tuple([z.literal('EVENT'), signedEventSchema]),
-  z.tuple([z.literal('CLOSE'), z.string().min(1)]),
+  clientReqSchema,
+  clientEventSchema,
+  clientCloseSchema,
 ]);
+
+/** REQ message from client to relay. */
+type ClientREQ = z.infer<typeof clientReqSchema>;
+/** EVENT message from client to relay. */
+type ClientEVENT = z.infer<typeof clientEventSchema>;
+/** CLOSE message from client to relay. */
+type ClientCLOSE = z.infer<typeof clientCloseSchema>;
 
 /** Kind 0 content schema. */
 const metaContentSchema = z.object({
@@ -52,4 +65,14 @@ const metaContentSchema = z.object({
 /** Parses kind 0 content from a JSON string. */
 const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
 
-export { clientMsgSchema, filterSchema, jsonMetaContentSchema, metaContentSchema, nostrIdSchema, signedEventSchema };
+export {
+  type ClientCLOSE,
+  type ClientEVENT,
+  clientMsgSchema,
+  type ClientREQ,
+  filterSchema,
+  jsonMetaContentSchema,
+  metaContentSchema,
+  nostrIdSchema,
+  signedEventSchema,
+};

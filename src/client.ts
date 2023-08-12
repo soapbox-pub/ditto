@@ -1,4 +1,4 @@
-import { Author, findReplyTag, matchFilter, RelayPool, TTLCache } from '@/deps.ts';
+import { Author, type Filter, findReplyTag, matchFilter, RelayPool, TTLCache } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
 import { Conf } from './config.ts';
@@ -28,17 +28,6 @@ function getPool(): Pool {
   poolCache.set(0, pool);
   return pool;
 }
-
-type Filter<K extends number = number> = {
-  ids?: string[];
-  kinds?: K[];
-  authors?: string[];
-  since?: number;
-  until?: number;
-  limit?: number;
-  search?: string;
-  [key: `#${string}`]: string[];
-};
 
 interface GetFilterOpts {
   timeout?: number;
