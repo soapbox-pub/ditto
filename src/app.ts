@@ -29,6 +29,7 @@ import {
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import { trendingTagsController } from './controllers/api/trends.ts';
+import { relayController } from './controllers/nostr/relay.ts';
 import { indexController } from './controllers/site.ts';
 import { hostMetaController } from './controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
@@ -60,6 +61,7 @@ app.use('*', logger());
 
 app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
+app.get('/relay', relayController);
 
 app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
 

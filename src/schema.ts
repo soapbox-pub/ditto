@@ -1,8 +1,4 @@
-import { verifySignature, z } from '@/deps.ts';
-
-import type { Event } from './event.ts';
-
-const optionalString = z.string().optional().catch(undefined);
+import { z } from '@/deps.ts';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
 function filteredArray<T extends z.ZodTypeAny>(schema: T) {
@@ -24,31 +20,6 @@ const jsonSchema = z.string().transform((value, ctx) => {
   }
 });
 
-const metaContentSchema = z.object({
-  name: optionalString,
-  about: optionalString,
-  picture: optionalString,
-  banner: optionalString,
-  nip05: optionalString,
-  lud16: optionalString,
-});
-
-/** Author metadata from Event<0>. */
-type MetaContent = z.infer<typeof metaContentSchema>;
-
-/**
- * Get (and validate) data from a kind 0 event.
- * https://github.com/nostr-protocol/nips/blob/master/01.md
- */
-function parseMetaContent(event: Event<0>): MetaContent {
-  try {
-    const json = JSON.parse(event.content);
-    return metaContentSchema.passthrough().parse(json);
-  } catch (_e) {
-    return {};
-  }
-}
-
 /** Alias for `safeParse`, but instead of returning a success object it returns the value (or undefined on fail). */
 function parseValue<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
   const result = schema.safeParse(value);
@@ -67,20 +38,6 @@ const relaySchema = z.custom<URL>((relay) => {
   }
 });
 
-const hexIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
-
-const eventSchema = z.object({
-  id: hexIdSchema,
-  kind: z.number(),
-  tags: z.array(z.array(z.string())),
-  content: z.string(),
-  created_at: z.number(),
-  pubkey: hexIdSchema,
-  sig: z.string(),
-});
-
-const signedEventSchema = eventSchema.refine(verifySignature);
-
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
@@ -97,17 +54,4 @@ const decode64Schema = z.string().transform((value, ctx) => {
 
 const hashtagSchema = z.string().regex(/^\w{1,30}$/);
 
-export {
-  decode64Schema,
-  emojiTagSchema,
-  filteredArray,
-  hashtagSchema,
-  hexIdSchema,
-  jsonSchema,
-  type MetaContent,
-  metaContentSchema,
-  parseMetaContent,
-  parseRelay,
-  relaySchema,
-  signedEventSchema,
-};
+export { decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, parseRelay, relaySchema };
