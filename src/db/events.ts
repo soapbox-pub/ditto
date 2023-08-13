@@ -1,7 +1,6 @@
+import { db, type TagRow } from '@/db.ts';
 import { type Filter, type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
-
-import { db, type TagRow } from '@/db.ts';
 
 type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
 
