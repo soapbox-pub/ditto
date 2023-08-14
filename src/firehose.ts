@@ -10,9 +10,9 @@ import type { SignedEvent } from '@/event.ts';
 const relays = await getAllRelays();
 const pool = new RelayPool(relays);
 
-// This file watches all events on your Ditto relay and triggers
-// side-effects based on them. This can be used for things like
-// notifications, trending hashtag tracking, etc.
+// This file watches events on all known relays and performs
+// side-effects based on them, such as trending hashtag tracking
+// and storing events for notifications and the home feed.
 pool.subscribe(
   [{ kinds: [1], since: nostrNow() }],
   relays,
