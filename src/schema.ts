@@ -54,4 +54,19 @@ const decode64Schema = z.string().transform((value, ctx) => {
 
 const hashtagSchema = z.string().regex(/^\w{1,30}$/);
 
-export { decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, parseRelay, relaySchema };
+/**
+ * Limits the length before trying to parse the URL.
+ * https://stackoverflow.com/a/417184/8811886
+ */
+const safeUrlSchema = z.string().max(2048).url();
+
+export {
+  decode64Schema,
+  emojiTagSchema,
+  filteredArray,
+  hashtagSchema,
+  jsonSchema,
+  parseRelay,
+  relaySchema,
+  safeUrlSchema,
+};

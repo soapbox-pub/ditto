@@ -1,14 +1,16 @@
 import { verifySignature, z } from '@/deps.ts';
 
-import { jsonSchema } from '../schema.ts';
+import { jsonSchema, safeUrlSchema } from '../schema.ts';
 
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
 const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
+/** Nostr kinds are positive integers. */
+const kindSchema = z.number().int().positive();
 
 /** Nostr event schema. */
 const eventSchema = z.object({
   id: nostrIdSchema,
-  kind: z.number(),
+  kind: kindSchema,
   tags: z.array(z.array(z.string())),
   content: z.string(),
   created_at: z.number(),
@@ -21,7 +23,7 @@ const signedEventSchema = eventSchema.refine(verifySignature);
 
 /** Nostr relay filter schema. */
 const filterSchema = z.object({
-  kinds: z.number().int().positive().array().optional(),
+  kinds: kindSchema.array().optional(),
   ids: nostrIdSchema.array().optional(),
   authors: nostrIdSchema.array().optional(),
   since: z.number().int().positive().optional(),
@@ -67,6 +69,17 @@ const metaContentSchema = z.object({
 /** Parses kind 0 content from a JSON string. */
 const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
 
+/** NIP-11 Relay Information Document. */
+const relayInfoDocSchema = z.object({
+  name: z.string().transform((val) => val.slice(0, 30)).optional().catch(undefined),
+  description: z.string().transform((val) => val.slice(0, 3000)).optional().catch(undefined),
+  pubkey: nostrIdSchema.optional().catch(undefined),
+  contact: safeUrlSchema.optional().catch(undefined),
+  supported_nips: z.number().int().positive().array().optional().catch(undefined),
+  software: safeUrlSchema.optional().catch(undefined),
+  icon: safeUrlSchema.optional().catch(undefined),
+});
+
 export {
   type ClientCLOSE,
   type ClientEVENT,
@@ -77,5 +90,6 @@ export {
   jsonMetaContentSchema,
   metaContentSchema,
   nostrIdSchema,
+  relayInfoDocSchema,
   signedEventSchema,
 };
