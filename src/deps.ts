@@ -1,3 +1,4 @@
+import 'https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/366c70848c3f3733b1b6ca0936573d8c8f4fdb43/load.ts';
 export {
   type Context,
   type Env as HonoEnv,
