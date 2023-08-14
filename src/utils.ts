@@ -164,6 +164,7 @@ export {
   paginationSchema,
   parseBody,
   parseNip05,
+  relaySchema,
   sha256,
 };
 
