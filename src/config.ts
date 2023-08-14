@@ -35,12 +35,9 @@ const Conf = {
       ['sign', 'verify'],
     );
   },
-  get relay() {
-    const value = Deno.env.get('DITTO_RELAY');
-    if (!value) {
-      throw new Error('Missing DITTO_RELAY');
-    }
-    return value;
+  get relay(): `wss://${string}` | `ws://${string}` {
+    const { protocol, host } = Conf.url;
+    return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
   },
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
