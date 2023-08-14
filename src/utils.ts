@@ -142,6 +142,12 @@ function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
   return response;
 }
 
+/** Schema to parse a relay URL. */
+const relaySchema = z.string().max(255).startsWith('wss://').url();
+
+/** Check whether the value is a valid relay URL. */
+const isRelay = (relay: string): relay is `wss://${string}` => relaySchema.safeParse(relay).success;
+
 export {
   activityJson,
   bech32ToPubkey,
@@ -149,6 +155,7 @@ export {
   eventAge,
   eventDateComparator,
   findTag,
+  isRelay,
   lookupAccount,
   type Nip05,
   nostrDate,

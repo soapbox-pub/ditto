@@ -1,20 +1,21 @@
-import { Conf } from '@/config.ts';
 import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
+import { addRelays, getAllRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
-import { nostrDate, nostrNow } from '@/utils.ts';
+import { isRelay, nostrDate, nostrNow } from '@/utils.ts';
 
 import type { SignedEvent } from '@/event.ts';
 
-const relay = new RelayPool([Conf.relay]);
+const relays = await getAllRelays();
+const pool = new RelayPool(relays);
 
 // This file watches all events on your Ditto relay and triggers
 // side-effects based on them. This can be used for things like
 // notifications, trending hashtag tracking, etc.
-relay.subscribe(
+pool.subscribe(
   [{ kinds: [1], since: nostrNow() }],
-  [Conf.relay],
+  relays,
   handleEvent,
   undefined,
   undefined,
@@ -25,6 +26,7 @@ async function handleEvent(event: SignedEvent): Promise<void> {
   console.info('firehose event:', event.id);
 
   trackHashtags(event);
+  trackRelays(event);
 
   if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
     insertEvent(event).catch(console.warn);
@@ -48,4 +50,20 @@ function trackHashtags(event: SignedEvent): void {
   } catch (_e) {
     // do nothing
   }
+}
+
+/** Tracks nown relays in the database. */
+function trackRelays(event: SignedEvent) {
+  const relays = new Set<`wss://${string}`>();
+
+  event.tags.forEach((tag) => {
+    if (['p', 'e', 'a'].includes(tag[0]) && isRelay(tag[2])) {
+      relays.add(tag[2]);
+    }
+    if (event.kind === 10002 && tag[0] === 'r' && isRelay(tag[1])) {
+      relays.add(tag[1]);
+    }
+  });
+
+  return addRelays([...relays]);
 }

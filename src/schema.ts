@@ -20,24 +20,6 @@ const jsonSchema = z.string().transform((value, ctx) => {
   }
 });
 
-/** Alias for `safeParse`, but instead of returning a success object it returns the value (or undefined on fail). */
-function parseValue<T>(schema: z.ZodType<T>, value: unknown): T | undefined {
-  const result = schema.safeParse(value);
-  return result.success ? result.data : undefined;
-}
-
-const parseRelay = (relay: string | URL) => parseValue(relaySchema, relay);
-
-const relaySchema = z.custom<URL>((relay) => {
-  if (typeof relay !== 'string') return false;
-  try {
-    const { protocol } = new URL(relay);
-    return protocol === 'wss:' || protocol === 'ws:';
-  } catch (_e) {
-    return false;
-  }
-});
-
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
@@ -60,13 +42,4 @@ const hashtagSchema = z.string().regex(/^\w{1,30}$/);
  */
 const safeUrlSchema = z.string().max(2048).url();
 
-export {
-  decode64Schema,
-  emojiTagSchema,
-  filteredArray,
-  hashtagSchema,
-  jsonSchema,
-  parseRelay,
-  relaySchema,
-  safeUrlSchema,
-};
+export { decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };
