@@ -20,9 +20,9 @@ relay.subscribe(
   undefined,
 );
 
-/** Handle events through the loopback pipeline. */
+/** Handle events through the firehose pipeline. */
 async function handleEvent(event: SignedEvent): Promise<void> {
-  console.info('loopback event:', event.id);
+  console.info('firehose event:', event.id);
 
   trackHashtags(event);
 
