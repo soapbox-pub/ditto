@@ -14,7 +14,7 @@ const pool = new RelayPool(relays);
 // side-effects based on them, such as trending hashtag tracking
 // and storing events for notifications and the home feed.
 pool.subscribe(
-  [{ kinds: [1], since: nostrNow() }],
+  [{ kinds: [0, 1, 3, 5, 6, 7], since: nostrNow() }],
   relays,
   handleEvent,
   undefined,
@@ -23,7 +23,7 @@ pool.subscribe(
 
 /** Handle events through the firehose pipeline. */
 async function handleEvent(event: SignedEvent): Promise<void> {
-  console.info('firehose event:', event.id);
+  console.info(`firehose: Event<${event.kind}> ${event.id}`);
 
   trackHashtags(event);
   trackRelays(event);
