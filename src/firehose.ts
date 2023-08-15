@@ -52,7 +52,7 @@ function trackHashtags(event: SignedEvent): void {
   }
 }
 
-/** Tracks nown relays in the database. */
+/** Tracks known relays in the database. */
 function trackRelays(event: SignedEvent) {
   const relays = new Set<`wss://${string}`>();
 
