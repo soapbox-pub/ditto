@@ -14,7 +14,7 @@ const pool = new RelayPool(relays);
 // side-effects based on them, such as trending hashtag tracking
 // and storing events for notifications and the home feed.
 pool.subscribe(
-  [{ kinds: [0, 1, 3, 5, 6, 7], since: nostrNow() }],
+  [{ kinds: [0, 1, 3, 5, 6, 7, 10002], since: nostrNow() }],
   relays,
   handleEvent,
   undefined,
