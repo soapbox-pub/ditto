@@ -13,7 +13,11 @@ function addRelays(relays: `wss://${string}`[]) {
 
 /** Get a list of all known good relays. */
 async function getAllRelays(): Promise<string[]> {
-  const rows = await db.selectFrom('relays').select('relays.url').execute();
+  const rows = await db
+    .selectFrom('relays')
+    .select('relays.url')
+    .execute();
+
   return rows.map((row) => row.url);
 }
 
