@@ -2,6 +2,7 @@ import { db } from '@/db.ts';
 
 /** Inserts relays into the database, skipping duplicates. */
 function addRelays(relays: `wss://${string}`[]) {
+  if (!relays.length) return Promise.resolve();
   const values = relays.map((url) => ({ url }));
 
   return db.insertInto('relays')
