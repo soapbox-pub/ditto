@@ -1,9 +1,14 @@
+import { tldts } from '@/deps.ts';
 import { db } from '@/db.ts';
 
 /** Inserts relays into the database, skipping duplicates. */
 function addRelays(relays: `wss://${string}`[]) {
   if (!relays.length) return Promise.resolve();
-  const values = relays.map((url) => ({ url }));
+
+  const values = relays.map((url) => ({
+    url,
+    domain: tldts.getDomain(url),
+  }));
 
   return db.insertInto('relays')
     .values(values)

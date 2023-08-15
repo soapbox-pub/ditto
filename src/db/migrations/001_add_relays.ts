@@ -4,6 +4,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('relays')
     .addColumn('url', 'text', (col) => col.primaryKey())
+    .addColumn('domain', 'text', (col) => col.notNull())
     .execute();
 }
 
