@@ -1,6 +1,8 @@
 import { db, type TagRow } from '@/db.ts';
-import { type Filter, type Insertable } from '@/deps.ts';
+import { type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
+
+import type { DittoFilter } from '@/types.ts';
 
 type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
 
@@ -42,17 +44,10 @@ function insertEvent(event: SignedEvent): Promise<void> {
       return results;
     }, []);
 
-    await Promise.all(tags.map((tag) => {
-      return trx.insertInto('tags')
-        .values(tag)
-        .execute();
-    }));
+    await trx.insertInto('tags')
+      .values(tags)
+      .execute();
   });
-}
-
-/** Custom filter interface that extends Nostr filters with extra options for Ditto. */
-interface DittoFilter<K extends number = number> extends Filter<K> {
-  local?: boolean;
 }
 
 /** Build the query for a filter. */
