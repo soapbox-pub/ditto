@@ -105,9 +105,7 @@ function getFilterQuery(filter: DittoFilter) {
 }
 
 /** Get events for filters from the database. */
-async function getFilters<K extends number>(filters: [DittoFilter<K>]): Promise<SignedEvent<K>[]>;
-async function getFilters(filters: DittoFilter[]): Promise<SignedEvent[]>;
-async function getFilters(filters: DittoFilter[]) {
+async function getFilters<K extends number>(filters: DittoFilter<K>[]): Promise<SignedEvent<K>[]> {
   const queries = filters
     .map(getFilterQuery)
     .map((query) => query.execute());
@@ -115,7 +113,7 @@ async function getFilters(filters: DittoFilter[]) {
   const events = (await Promise.all(queries)).flat();
 
   return events.map((event) => (
-    { ...event, tags: JSON.parse(event.tags) }
+    { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
   ));
 }
 
