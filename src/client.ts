@@ -1,4 +1,4 @@
-import { Author, type Filter, findReplyTag, matchFilter, RelayPool, TTLCache } from '@/deps.ts';
+import { Author, type Filter, findReplyTag, matchFilters, RelayPool, TTLCache } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
 
 import { Conf } from './config.ts';
@@ -34,16 +34,16 @@ interface GetFilterOpts {
 }
 
 /** Get events from a NIP-01 filter. */
-function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
+function getFilters<K extends number>(filters: Filter<K>[], opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
   return new Promise((resolve) => {
     let tid: number;
     const results: SignedEvent[] = [];
 
     const unsub = getPool().subscribe(
-      [filter],
+      filters,
       Conf.poolRelays,
       (event: SignedEvent | null) => {
-        if (event && matchFilter(filter, event)) {
+        if (event && matchFilters(filters, event)) {
           results.push({
             id: event.id,
             kind: event.kind,
@@ -54,7 +54,8 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
             sig: event.sig,
           });
         }
-        if (filter.limit && results.length >= filter.limit) {
+        // HACK
+        if (filters.length === 1 && filters[0].limit && results.length >= filters[0].limit) {
           unsub();
           clearTimeout(tid);
           resolve(results as SignedEvent<K>[]);
@@ -75,6 +76,11 @@ function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}
       }, opts.timeout);
     }
   });
+}
+
+/** @deprecated Use `getFilters` instead. */
+function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
+  return getFilters([filter], opts);
 }
 
 /** Get a Nostr event by its ID. */
@@ -169,4 +175,15 @@ function publish(event: SignedEvent, relays = Conf.publishRelays): void {
   }
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilter, getFollows, getPublicFeed, publish };
+export {
+  getAncestors,
+  getAuthor,
+  getDescendants,
+  getEvent,
+  getFeed,
+  getFilter,
+  getFilters,
+  getFollows,
+  getPublicFeed,
+  publish,
+};

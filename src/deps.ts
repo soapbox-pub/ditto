@@ -17,7 +17,7 @@ export {
   getPublicKey,
   getSignature,
   Kind,
-  matchFilter,
+  matchFilters,
   nip05,
   nip19,
   nip21,
