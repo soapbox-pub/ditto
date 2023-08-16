@@ -106,11 +106,10 @@ function getFilterQuery(filter: DittoFilter) {
 
 /** Get events for filters from the database. */
 async function getFilters<K extends number>(filters: DittoFilter<K>[]): Promise<SignedEvent<K>[]> {
-  const queries = filters
+  const events = await filters
     .map(getFilterQuery)
-    .map((query) => query.execute());
-
-  const events = (await Promise.all(queries)).flat();
+    .reduce((acc, curr) => acc.union(curr))
+    .execute();
 
   return events.map((event) => (
     { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
