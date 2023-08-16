@@ -6,21 +6,22 @@
     "dev": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --watch src/server.ts",
     "debug": "deno run --allow-read --allow-write=data --allow-env --allow-net --unstable --inspect src/server.ts",
     "test": "DB_PATH=\":memory:\" deno test --allow-read --allow-write=data --allow-env --unstable src",
-    "check": "deno check --unstable src/server.ts"
+    "check": "deno check --unstable src/server.ts",
+    "relays:sync": "deno run -A --unstable scripts/relays.ts sync",
   },
   "imports": {
     "@/": "./src/",
     "~/": "./"
   },
   "lint": {
-    "include": ["src/"],
+    "include": ["src/", "scripts/"],
     "rules": {
       "tags": ["recommended"],
       "exclude": ["no-explicit-any"]
     }
   },
   "fmt": {
-    "include": ["src/"],
+    "include": ["src/", "scripts/"],
     "useTabs": false,
     "lineWidth": 120,
     "indentWidth": 2,

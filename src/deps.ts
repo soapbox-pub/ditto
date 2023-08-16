@@ -59,4 +59,5 @@ export {
   type NullableInsertKeys,
   sql,
 } from 'npm:kysely@^0.25.0';
-export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/76748303a45fac64a889cd2b9265c6c9b8ef2e8b/mod.ts';
+export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v1.0.0/mod.ts';
+export { default as tldts } from 'npm:tldts@^6.0.14';

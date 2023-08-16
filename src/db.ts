@@ -8,6 +8,7 @@ interface DittoDB {
   events: EventRow;
   tags: TagRow;
   users: UserRow;
+  relays: RelayRow;
 }
 
 interface EventRow {
@@ -32,6 +33,12 @@ interface UserRow {
   pubkey: string;
   username: string;
   inserted_at: Date;
+}
+
+interface RelayRow {
+  url: string;
+  domain: string;
+  active: boolean;
 }
 
 const db = new Kysely<DittoDB>({
