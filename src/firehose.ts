@@ -1,5 +1,5 @@
 import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
-import { addRelays, getAllRelays } from '@/db/relays.ts';
+import { addRelays, getActiveRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
@@ -7,7 +7,7 @@ import { isRelay, nostrDate, nostrNow } from '@/utils.ts';
 
 import type { SignedEvent } from '@/event.ts';
 
-const relays = await getAllRelays();
+const relays = await getActiveRelays();
 const pool = new RelayPool(relays);
 
 // This file watches events on all known relays and performs

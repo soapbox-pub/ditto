@@ -17,14 +17,15 @@ function addRelays(relays: `wss://${string}`[]) {
     .execute();
 }
 
-/** Get a list of all known good relays. */
-async function getAllRelays(): Promise<string[]> {
+/** Get a list of all known active relay URLs. */
+async function getActiveRelays(): Promise<string[]> {
   const rows = await db
     .selectFrom('relays')
     .select('relays.url')
+    .where('relays.active', '=', true)
     .execute();
 
   return rows.map((row) => row.url);
 }
 
-export { addRelays, getAllRelays };
+export { addRelays, getActiveRelays };
