@@ -7,7 +7,8 @@ function addRelays(relays: `wss://${string}`[]) {
 
   const values = relays.map((url) => ({
     url,
-    domain: tldts.getDomain(url),
+    domain: tldts.getDomain(url)!,
+    active: true,
   }));
 
   return db.insertInto('relays')

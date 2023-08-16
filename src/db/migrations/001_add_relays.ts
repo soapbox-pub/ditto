@@ -5,6 +5,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createTable('relays')
     .addColumn('url', 'text', (col) => col.primaryKey())
     .addColumn('domain', 'text', (col) => col.notNull())
+    .addColumn('active', 'boolean', (col) => col.notNull())
     .execute();
 }
 

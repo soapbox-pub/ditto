@@ -37,6 +37,8 @@ interface UserRow {
 
 interface RelayRow {
   url: string;
+  domain: string;
+  active: boolean;
 }
 
 const db = new Kysely<DittoDB>({
