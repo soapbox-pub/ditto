@@ -73,11 +73,6 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
   });
 }
 
-/** @deprecated Use `getFilters` instead. */
-function getFilter<K extends number>(filter: Filter<K>, opts: GetFiltersOpts = {}): Promise<SignedEvent<K>[]> {
-  return getFilters([filter], opts);
-}
-
 /** Get a Nostr event by its ID. */
 const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<SignedEvent<K> | undefined> => {
   const event = await (getPool().getEventById(id, Conf.poolRelays, 0) as Promise<SignedEvent>);
@@ -102,7 +97,7 @@ const getAuthor = async (pubkey: string, timeout = 1000): Promise<SignedEvent<0>
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
-  const [event] = await getFilter({ authors: [pubkey], kinds: [3] }, { timeout: 5000 });
+  const [event] = await getFilters([{ authors: [pubkey], kinds: [3] }], { timeout: 5000 });
 
   // TODO: figure out a better, more generic & flexible way to handle event cache (and timeouts?)
   // Prewarm cache in GET `/api/v1/accounts/verify_credentials`
@@ -128,13 +123,13 @@ async function getFeed(event3: Event<3>, params: PaginationParams): Promise<Sign
     ...params,
   };
 
-  const results = await getFilter(filter, { timeout: 5000 }) as SignedEvent<1>[];
+  const results = await getFilters([filter], { timeout: 5000 }) as SignedEvent<1>[];
   return results.sort(eventDateComparator);
 }
 
 /** Get a feed of all known text notes. */
 async function getPublicFeed(params: PaginationParams): Promise<SignedEvent<1>[]> {
-  const results = await getFilter({ kinds: [1], ...params }, { timeout: 5000 });
+  const results = await getFilters([{ kinds: [1], ...params }], { timeout: 5000 });
   return results.sort(eventDateComparator);
 }
 
@@ -157,7 +152,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
-  return getFilter({ kinds: [1], '#e': [eventId], limit: 200 }, { timeout: 2000 }) as Promise<SignedEvent<1>[]>;
+  return getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 }) as Promise<SignedEvent<1>[]>;
 }
 
 /** Publish an event to the Nostr relay. */
@@ -170,15 +165,4 @@ function publish(event: SignedEvent, relays = Conf.publishRelays): void {
   }
 }
 
-export {
-  getAncestors,
-  getAuthor,
-  getDescendants,
-  getEvent,
-  getFeed,
-  getFilter,
-  getFilters,
-  getFollows,
-  getPublicFeed,
-  publish,
-};
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFilters, getFollows, getPublicFeed, publish };

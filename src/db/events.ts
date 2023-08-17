@@ -119,11 +119,6 @@ async function getFilters<K extends number>(
   ));
 }
 
-/** @deprecated Use `getFilters` instead. */
-function getFilter<K extends number = number>(filter: DittoFilter<K>): Promise<SignedEvent<K>[]> {
-  return getFilters<K>([filter]);
-}
-
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   return Boolean(
@@ -136,4 +131,4 @@ async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   );
 }
 
-export { getFilter, getFilters, insertEvent, isLocallyFollowed };
+export { getFilters, insertEvent, isLocallyFollowed };
