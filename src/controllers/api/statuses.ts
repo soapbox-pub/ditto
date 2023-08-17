@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { publish } from '@/client.ts';
-import { type Event, ISO6391, Kind, z } from '@/deps.ts';
+import { ISO6391, Kind, z } from '@/deps.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
@@ -31,7 +31,7 @@ const statusController: AppController = async (c) => {
 
   const event = await getEvent(id, { kind: 1 });
   if (event) {
-    return c.json(await toStatus(event as Event<1>));
+    return c.json(await toStatus(event));
   }
 
   return c.json({ error: 'Event not found.' }, 404);
