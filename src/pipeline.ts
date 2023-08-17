@@ -1,4 +1,4 @@
-import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
+import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event } from '@/deps.ts';
@@ -12,16 +12,23 @@ import { isRelay, nostrDate } from '@/utils.ts';
 async function handleEvent(event: Event): Promise<void> {
   console.info(`firehose: Event<${event.kind}> ${event.id}`);
 
-  trackHashtags(event);
-  trackRelays(event);
+  await Promise.all([
+    trackHashtags(event),
+    storeEvent(event),
+    trackRelays(event),
+  ]);
+}
 
-  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
-    insertEvent(event).catch(console.warn);
+/** Maybe store the event, if eligible. */
+async function storeEvent(event: Event): Promise<void> {
+  if (await findUser({ pubkey: event.pubkey }) || await eventsDB.isLocallyFollowed(event.pubkey)) {
+    await eventsDB.insertEvent(event).catch(console.warn);
   }
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-function trackHashtags(event: Event): void {
+// deno-lint-ignore require-await
+async function trackHashtags(event: Event): Promise<void> {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags

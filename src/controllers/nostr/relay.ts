@@ -1,5 +1,5 @@
 import * as eventsDB from '@/db/events.ts';
-import { findUser } from '@/db/users.ts';
+import * as pipeline from '@/pipeline.ts';
 import { jsonSchema } from '@/schema.ts';
 import {
   type ClientCLOSE,
@@ -53,10 +53,10 @@ function connectStream(socket: WebSocket) {
   }
 
   async function handleEvent([_, event]: ClientEVENT) {
-    if (await findUser({ pubkey: event.pubkey })) {
-      eventsDB.insertEvent(event);
+    try {
+      await pipeline.handleEvent(event);
       send(['OK', event.id, true, '']);
-    } else {
+    } catch (_e) {
       send(['OK', event.id, false, 'blocked: only registered users can post']);
     }
   }
