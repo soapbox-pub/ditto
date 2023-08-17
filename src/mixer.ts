@@ -1,7 +1,7 @@
 import { type Event, matchFilters } from '@/deps.ts';
 
-import { getFilters as getFiltersClient } from '@/client.ts';
-import { getFilters as getFiltersDB } from '@/db/events.ts';
+import * as client from '@/client.ts';
+import * as eventsDB from '@/db/events.ts';
 import { eventDateComparator } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
@@ -12,8 +12,8 @@ async function getFilters<K extends number>(
   opts?: GetFiltersOpts,
 ): Promise<Event<K>[]> {
   const results = await Promise.allSettled([
-    getFiltersClient(filters, opts),
-    getFiltersDB(filters, opts),
+    client.getFilters(filters, opts),
+    eventsDB.getFilters(filters, opts),
   ]);
 
   const events = results

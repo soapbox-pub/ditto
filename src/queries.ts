@@ -1,7 +1,7 @@
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
 import { type PaginationParams } from '@/utils.ts';
 
-import { getFilters as getFiltersMixer } from './mixer.ts';
+import * as mixer from './mixer.ts';
 
 interface GetEventOpts<K extends number> {
   /** Timeout in milliseconds. */
@@ -20,19 +20,19 @@ const getEvent = async <K extends number = number>(
   if (kind) {
     filter.kinds = [kind];
   }
-  const [event] = await getFiltersMixer([filter], { limit: 1, timeout });
+  const [event] = await mixer.getFilters([filter], { limit: 1, timeout });
   return event;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, timeout = 1000): Promise<Event<0> | undefined> => {
-  const [event] = await getFiltersMixer([{ authors: [pubkey], kinds: [0] }], { timeout });
+  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [0] }], { timeout });
   return event;
 };
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, timeout = 1000): Promise<Event<3> | undefined> => {
-  const [event] = await getFiltersMixer([{ authors: [pubkey], kinds: [3] }], { timeout });
+  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3] }], { timeout });
   return event;
 };
 
@@ -53,12 +53,12 @@ async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<
     ...params,
   };
 
-  return getFiltersMixer([filter], { timeout: 5000 });
+  return mixer.getFilters([filter], { timeout: 5000 });
 }
 
 /** Get a feed of all known text notes. */
 function getPublicFeed(params: PaginationParams): Promise<Event<1>[]> {
-  return getFiltersMixer([{ kinds: [1], ...params }], { timeout: 5000 });
+  return mixer.getFilters([{ kinds: [1], ...params }], { timeout: 5000 });
 }
 
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
@@ -80,7 +80,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<Event<1>[]> {
-  return getFiltersMixer([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 });
+  return mixer.getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 });
 }
 
 export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, getPublicFeed };

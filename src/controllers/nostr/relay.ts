@@ -1,4 +1,4 @@
-import { getFilters, insertEvent } from '@/db/events.ts';
+import * as eventsDB from '@/db/events.ts';
 import { findUser } from '@/db/users.ts';
 import { jsonSchema } from '@/schema.ts';
 import {
@@ -46,7 +46,7 @@ function connectStream(socket: WebSocket) {
   }
 
   async function handleReq([_, sub, ...filters]: ClientREQ) {
-    for (const event of await getFilters(prepareFilters(filters))) {
+    for (const event of await eventsDB.getFilters(prepareFilters(filters))) {
       send(['EVENT', sub, event]);
     }
     send(['EOSE', sub]);
@@ -54,7 +54,7 @@ function connectStream(socket: WebSocket) {
 
   async function handleEvent([_, event]: ClientEVENT) {
     if (await findUser({ pubkey: event.pubkey })) {
-      insertEvent(event);
+      eventsDB.insertEvent(event);
       send(['OK', event.id, true, '']);
     } else {
       send(['OK', event.id, false, 'blocked: only registered users can post']);
