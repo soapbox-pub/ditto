@@ -106,14 +106,15 @@ function getFilterQuery(filter: DittoFilter) {
 /** Get events for filters from the database. */
 async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
-  _opts?: GetFiltersOpts,
+  opts: GetFiltersOpts = {},
 ): Promise<Event<K>[]> {
-  const events = await filters
-    .map(getFilterQuery)
-    .reduce((acc, curr) => acc.union(curr))
-    .execute();
+  let query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
 
-  return events.map((event) => (
+  if (typeof opts.limit === 'number') {
+    query = query.limit(opts.limit);
+  }
+
+  return (await query.execute()).map((event) => (
     { ...event, tags: JSON.parse(event.tags) } as Event<K>
   ));
 }
