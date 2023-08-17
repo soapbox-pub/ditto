@@ -1,6 +1,5 @@
 import { Conf } from '@/config.ts';
-import { Author, type Filter, findReplyTag, matchFilters, RelayPool, TTLCache } from '@/deps.ts';
-import { type Event, type SignedEvent } from '@/event.ts';
+import { Author, type Event, type Filter, findReplyTag, matchFilters, RelayPool, TTLCache } from '@/deps.ts';
 import { eventDateComparator, type PaginationParams, Time } from '@/utils.ts';
 
 import type { GetFiltersOpts } from '@/types.ts';
@@ -30,15 +29,15 @@ function getPool(): Pool {
 }
 
 /** Get events from a NIP-01 filter. */
-function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<SignedEvent<K>[]> {
+function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
   return new Promise((resolve) => {
     let tid: number;
-    const results: SignedEvent[] = [];
+    const results: Event[] = [];
 
     const unsub = getPool().subscribe(
       filters,
       Conf.poolRelays,
-      (event: SignedEvent | null) => {
+      (event: Event | null) => {
         if (event && matchFilters(filters, event)) {
           results.push({
             id: event.id,
@@ -53,41 +52,41 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
         if (typeof opts.limit === 'number' && results.length >= opts.limit) {
           unsub();
           clearTimeout(tid);
-          resolve(results as SignedEvent<K>[]);
+          resolve(results as Event<K>[]);
         }
       },
       undefined,
       () => {
         unsub();
         clearTimeout(tid);
-        resolve(results as SignedEvent<K>[]);
+        resolve(results as Event<K>[]);
       },
     );
 
     if (typeof opts.timeout === 'number') {
       tid = setTimeout(() => {
         unsub();
-        resolve(results as SignedEvent<K>[]);
+        resolve(results as Event<K>[]);
       }, opts.timeout);
     }
   });
 }
 
 /** Get a Nostr event by its ID. */
-const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<SignedEvent<K> | undefined> => {
-  const event = await (getPool().getEventById(id, Conf.poolRelays, 0) as Promise<SignedEvent>);
+const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<Event<K> | undefined> => {
+  const event = await (getPool().getEventById(id, Conf.poolRelays, 0) as Promise<Event>);
   if (event) {
     if (event.id !== id) return undefined;
     if (kind && event.kind !== kind) return undefined;
-    return event as SignedEvent<K>;
+    return event as Event<K>;
   }
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
-const getAuthor = async (pubkey: string, timeout = 1000): Promise<SignedEvent<0> | undefined> => {
+const getAuthor = async (pubkey: string, timeout = 1000): Promise<Event<0> | undefined> => {
   const author = new Author(getPool(), Conf.poolRelays, pubkey);
 
-  const event: SignedEvent<0> | null = await new Promise((resolve) => {
+  const event: Event<0> | null = await new Promise((resolve) => {
     setTimeout(resolve, timeout, null);
     return author.metaData(resolve, 0);
   });
@@ -96,7 +95,7 @@ const getAuthor = async (pubkey: string, timeout = 1000): Promise<SignedEvent<0>
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> => {
+const getFollows = async (pubkey: string): Promise<Event<3> | undefined> => {
   const [event] = await getFilters([{ authors: [pubkey], kinds: [3] }], { timeout: 5000 });
 
   // TODO: figure out a better, more generic & flexible way to handle event cache (and timeouts?)
@@ -105,12 +104,12 @@ const getFollows = async (pubkey: string): Promise<SignedEvent<3> | undefined> =
     await db.set(['event3', pubkey], event);
     return event;
   } else {
-    return (await db.get<SignedEvent<3>>(['event3', pubkey])).value || undefined;
+    return (await db.get<Event<3>>(['event3', pubkey])).value || undefined;
   }
 };
 
 /** Get events from people the user follows. */
-async function getFeed(event3: Event<3>, params: PaginationParams): Promise<SignedEvent<1>[]> {
+async function getFeed(event3: Event<3>, params: PaginationParams): Promise<Event<1>[]> {
   const authors = event3.tags
     .filter((tag) => tag[0] === 'p')
     .map((tag) => tag[1]);
@@ -123,12 +122,12 @@ async function getFeed(event3: Event<3>, params: PaginationParams): Promise<Sign
     ...params,
   };
 
-  const results = await getFilters([filter], { timeout: 5000 }) as SignedEvent<1>[];
+  const results = await getFilters([filter], { timeout: 5000 }) as Event<1>[];
   return results.sort(eventDateComparator);
 }
 
 /** Get a feed of all known text notes. */
-async function getPublicFeed(params: PaginationParams): Promise<SignedEvent<1>[]> {
+async function getPublicFeed(params: PaginationParams): Promise<Event<1>[]> {
   const results = await getFilters([{ kinds: [1], ...params }], { timeout: 5000 });
   return results.sort(eventDateComparator);
 }
@@ -151,12 +150,12 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
   return result.reverse();
 }
 
-function getDescendants(eventId: string): Promise<SignedEvent<1>[]> {
-  return getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 }) as Promise<SignedEvent<1>[]>;
+function getDescendants(eventId: string): Promise<Event<1>[]> {
+  return getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 }) as Promise<Event<1>[]>;
 }
 
 /** Publish an event to the Nostr relay. */
-function publish(event: SignedEvent, relays = Conf.publishRelays): void {
+function publish(event: Event, relays = Conf.publishRelays): void {
   console.log('Publishing event', event, relays);
   try {
     getPool().publish(event, relays);

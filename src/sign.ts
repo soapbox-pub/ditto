@@ -1,9 +1,7 @@
 import { type AppContext } from '@/app.ts';
-import { getEventHash, getPublicKey, getSignature, HTTPException, z } from '@/deps.ts';
+import { type Event, type EventTemplate, getEventHash, getPublicKey, getSignature, HTTPException, z } from '@/deps.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
 import { ws } from '@/stream.ts';
-
-import type { Event, EventTemplate, SignedEvent } from '@/event.ts';
 
 /** Get signing WebSocket from app context. */
 function getSignStream(c: AppContext): WebSocket | undefined {
@@ -27,18 +25,18 @@ const nostrStreamingEventSchema = z.object({
  * - If a secret key is provided, it will be used to sign the event.
  * - If a signing WebSocket is provided, it will be used to sign the event.
  */
-async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<SignedEvent<K>> {
+async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
   const seckey = c.get('seckey');
   const stream = getSignStream(c);
 
   if (!seckey && stream) {
     try {
-      return await new Promise<SignedEvent<K>>((resolve, reject) => {
+      return await new Promise<Event<K>>((resolve, reject) => {
         const handleMessage = (e: MessageEvent) => {
           try {
             const { data: event } = nostrStreamingEventSchema.parse(JSON.parse(e.data));
             stream.removeEventListener('message', handleMessage);
-            resolve(event as SignedEvent<K>);
+            resolve(event as Event<K>);
           } catch (_e) {
             //
           }
@@ -67,7 +65,7 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
   (event as Event<K>).id = getEventHash(event as Event<K>);
   (event as Event<K>).sig = getSignature(event as Event<K>, seckey);
 
-  return event as SignedEvent<K>;
+  return event as Event<K>;
 }
 
 export { signEvent };

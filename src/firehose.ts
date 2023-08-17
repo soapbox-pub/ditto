@@ -1,11 +1,9 @@
 import { insertEvent, isLocallyFollowed } from '@/db/events.ts';
 import { addRelays, getActiveRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
-import { RelayPool } from '@/deps.ts';
+import { type Event, RelayPool } from '@/deps.ts';
 import { trends } from '@/trends.ts';
 import { isRelay, nostrDate, nostrNow } from '@/utils.ts';
-
-import type { SignedEvent } from '@/event.ts';
 
 const relays = await getActiveRelays();
 const pool = new RelayPool(relays);
@@ -22,7 +20,7 @@ pool.subscribe(
 );
 
 /** Handle events through the firehose pipeline. */
-async function handleEvent(event: SignedEvent): Promise<void> {
+async function handleEvent(event: Event): Promise<void> {
   console.info(`firehose: Event<${event.kind}> ${event.id}`);
 
   trackHashtags(event);
@@ -34,7 +32,7 @@ async function handleEvent(event: SignedEvent): Promise<void> {
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-function trackHashtags(event: SignedEvent): void {
+function trackHashtags(event: Event): void {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags
@@ -53,7 +51,7 @@ function trackHashtags(event: SignedEvent): void {
 }
 
 /** Tracks known relays in the database. */
-function trackRelays(event: SignedEvent) {
+function trackRelays(event: Event) {
   const relays = new Set<`wss://${string}`>();
 
   event.tags.forEach((tag) => {

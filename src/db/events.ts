@@ -1,10 +1,9 @@
 import { db, type TagRow } from '@/db.ts';
-import { type Insertable } from '@/deps.ts';
-import { type SignedEvent } from '@/event.ts';
+import { type Event, type Insertable } from '@/deps.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
 
-type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
+type TagCondition = ({ event, count }: { event: Event; count: number }) => boolean;
 
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
@@ -17,7 +16,7 @@ const tagConditions: Record<string, TagCondition> = {
 };
 
 /** Insert an event (and its tags) into the database. */
-function insertEvent(event: SignedEvent): Promise<void> {
+function insertEvent(event: Event): Promise<void> {
   return db.transaction().execute(async (trx) => {
     await trx.insertInto('events')
       .values({
@@ -108,14 +107,14 @@ function getFilterQuery(filter: DittoFilter) {
 async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   _opts?: GetFiltersOpts,
-): Promise<SignedEvent<K>[]> {
+): Promise<Event<K>[]> {
   const events = await filters
     .map(getFilterQuery)
     .reduce((acc, curr) => acc.union(curr))
     .execute();
 
   return events.map((event) => (
-    { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
+    { ...event, tags: JSON.parse(event.tags) } as Event<K>
   ));
 }
 

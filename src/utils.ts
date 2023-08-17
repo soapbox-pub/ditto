@@ -1,7 +1,6 @@
 import { getAuthor } from '@/client.ts';
 import { Conf } from '@/config.ts';
-import { type Context, nip19, parseFormData, z } from '@/deps.ts';
-import { type Event } from '@/event.ts';
+import { type Context, type Event, nip19, parseFormData, z } from '@/deps.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 
 /** Get the current time in Nostr format. */
