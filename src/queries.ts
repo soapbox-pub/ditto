@@ -34,13 +34,13 @@ async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<
 
   authors.push(event3.pubkey); // see own events in feed
 
-  const filter: Filter = {
+  const filter: Filter<1> = {
     authors,
     kinds: [1],
     ...params,
   };
 
-  const results = await getFiltersMixer([filter], { timeout: 5000 }) as Event<1>[];
+  const results = await getFiltersMixer([filter], { timeout: 5000 });
   return results.sort(eventDateComparator);
 }
 
@@ -69,7 +69,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<Event<1>[]> {
-  return getFiltersMixer([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 }) as Promise<Event<1>[]>;
+  return getFiltersMixer([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 });
 }
 
 export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, getPublicFeed };
