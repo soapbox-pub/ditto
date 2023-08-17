@@ -1,5 +1,5 @@
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
-import { eventDateComparator, type PaginationParams } from '@/utils.ts';
+import { type PaginationParams } from '@/utils.ts';
 
 import { getFilters as getFiltersMixer } from './mixer.ts';
 
@@ -53,14 +53,12 @@ async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<
     ...params,
   };
 
-  const results = await getFiltersMixer([filter], { timeout: 5000 });
-  return results.sort(eventDateComparator);
+  return getFiltersMixer([filter], { timeout: 5000 });
 }
 
 /** Get a feed of all known text notes. */
-async function getPublicFeed(params: PaginationParams): Promise<Event<1>[]> {
-  const results = await getFiltersMixer([{ kinds: [1], ...params }], { timeout: 5000 });
-  return results.sort(eventDateComparator);
+function getPublicFeed(params: PaginationParams): Promise<Event<1>[]> {
+  return getFiltersMixer([{ kinds: [1], ...params }], { timeout: 5000 });
 }
 
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
