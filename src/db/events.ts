@@ -1,6 +1,8 @@
 import { db, type TagRow } from '@/db.ts';
-import { type Filter, type Insertable } from '@/deps.ts';
+import { type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
+
+import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
 
 type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
 
@@ -42,17 +44,10 @@ function insertEvent(event: SignedEvent): Promise<void> {
       return results;
     }, []);
 
-    await Promise.all(tags.map((tag) => {
-      return trx.insertInto('tags')
-        .values(tag)
-        .execute();
-    }));
+    await trx.insertInto('tags')
+      .values(tags)
+      .execute();
   });
-}
-
-/** Custom filter interface that extends Nostr filters with extra options for Ditto. */
-interface DittoFilter<K extends number = number> extends Filter<K> {
-  local?: boolean;
 }
 
 /** Build the query for a filter. */
@@ -110,23 +105,18 @@ function getFilterQuery(filter: DittoFilter) {
 }
 
 /** Get events for filters from the database. */
-async function getFilters<K extends number>(filters: [DittoFilter<K>]): Promise<SignedEvent<K>[]>;
-async function getFilters(filters: DittoFilter[]): Promise<SignedEvent[]>;
-async function getFilters(filters: DittoFilter[]) {
-  const queries = filters
+async function getFilters<K extends number>(
+  filters: DittoFilter<K>[],
+  _opts?: GetFiltersOpts,
+): Promise<SignedEvent<K>[]> {
+  const events = await filters
     .map(getFilterQuery)
-    .map((query) => query.execute());
-
-  const events = (await Promise.all(queries)).flat();
+    .reduce((acc, curr) => acc.union(curr))
+    .execute();
 
   return events.map((event) => (
-    { ...event, tags: JSON.parse(event.tags) }
+    { ...event, tags: JSON.parse(event.tags) } as SignedEvent<K>
   ));
-}
-
-/** Get events for a filter from the database. */
-function getFilter<K extends number = number>(filter: DittoFilter<K>): Promise<SignedEvent<K>[]> {
-  return getFilters<K>([filter]);
 }
 
 /** Returns whether the pubkey is followed by a local user. */
@@ -141,4 +131,4 @@ async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   );
 }
 
-export { getFilter, getFilters, insertEvent, isLocallyFollowed };
+export { getFilters, insertEvent, isLocallyFollowed };
