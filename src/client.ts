@@ -1,5 +1,6 @@
 import { Conf } from '@/config.ts';
 import { type Event, type Filter, matchFilters, RelayPool, TTLCache } from '@/deps.ts';
+import * as pipeline from '@/pipeline.ts';
 import { Time } from '@/utils.ts';
 
 import type { GetFiltersOpts } from '@/types.ts';
@@ -37,6 +38,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
       Conf.poolRelays,
       (event: Event | null) => {
         if (event && matchFilters(filters, event)) {
+          pipeline.handleEvent(event);
           results.push({
             id: event.id,
             kind: event.kind,
