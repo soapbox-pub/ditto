@@ -2,8 +2,7 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { getAuthor } from '@/client.ts';
 import { Conf } from '@/config.ts';
-import { findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
-import { type Event } from '@/event.ts';
+import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
 import { emojiTagSchema, filteredArray } from '@/schema.ts';

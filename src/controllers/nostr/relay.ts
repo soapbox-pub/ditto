@@ -10,14 +10,13 @@ import {
 } from '@/schemas/nostr.ts';
 
 import type { AppController } from '@/app.ts';
-import type { Filter } from '@/deps.ts';
-import type { SignedEvent } from '@/event.ts';
+import type { Event, Filter } from '@/deps.ts';
 
 /** Limit of events returned per-filter. */
 const FILTER_LIMIT = 100;
 
 type RelayMsg =
-  | ['EVENT', string, SignedEvent]
+  | ['EVENT', string, Event]
   | ['NOTICE', string]
   | ['EOSE', string]
   | ['OK', string, boolean, string];

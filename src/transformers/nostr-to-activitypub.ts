@@ -2,7 +2,7 @@ import { Conf } from '@/config.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getPublicKeyPem } from '@/utils/rsa.ts';
 
-import type { Event } from '@/event.ts';
+import type { Event } from '@/deps.ts';
 import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
