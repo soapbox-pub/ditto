@@ -1,7 +1,8 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
-import { getAuthor, getFollows, publish } from '@/client.ts';
+import { publish } from '@/client.ts';
 import { getFilters } from '@/mixer.ts';
+import { getAuthor, getFollows } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';

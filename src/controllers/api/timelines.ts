@@ -1,4 +1,4 @@
-import { getFeed, getFollows, getPublicFeed } from '@/client.ts';
+import { getFeed, getFollows, getPublicFeed } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, paginationSchema } from '@/utils.ts';
 

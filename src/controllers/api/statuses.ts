@@ -1,6 +1,7 @@
 import { type AppController } from '@/app.ts';
-import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
+import { publish } from '@/client.ts';
 import { type Event, ISO6391, Kind, z } from '@/deps.ts';
+import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { nostrNow, parseBody } from '@/utils.ts';

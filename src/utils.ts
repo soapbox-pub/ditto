@@ -1,7 +1,7 @@
-import { getAuthor } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { type Context, type Event, nip19, parseFormData, z } from '@/deps.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
+import { getAuthor } from '@/queries.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = () => Math.floor(new Date().getTime() / 1000);

@@ -1,5 +1,5 @@
-import { getAuthor } from '@/client.ts';
 import { findUser } from '@/db/users.ts';
+import { getAuthor } from '@/queries.ts';
 import { toActor } from '@/transformers/nostr-to-activitypub.ts';
 import { activityJson } from '@/utils.ts';
 
