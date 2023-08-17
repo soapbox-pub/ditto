@@ -24,7 +24,10 @@ const getFollows = async (pubkey: string): Promise<Event<3> | undefined> => {
 };
 
 /** Get events from people the user follows. */
-async function getFeed(event3: Event<3>, params: PaginationParams): Promise<Event<1>[]> {
+async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<1>[]> {
+  const event3 = await getFollows(pubkey);
+  if (!event3) return [];
+
   const authors = event3.tags
     .filter((tag) => tag[0] === 'p')
     .map((tag) => tag[1]);
