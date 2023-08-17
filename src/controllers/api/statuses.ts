@@ -29,7 +29,7 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, 1);
+  const event = await getEvent(id, { kind: 1 });
   if (event) {
     return c.json(await toStatus(event as Event<1>));
   }
@@ -88,7 +88,7 @@ const createStatusController: AppController = async (c) => {
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, 1);
+  const event = await getEvent(id, { kind: 1 });
 
   if (event) {
     const ancestorEvents = await getAncestors(event);
@@ -105,7 +105,7 @@ const contextController: AppController = async (c) => {
 
 const favouriteController: AppController = async (c) => {
   const id = c.req.param('id');
-  const target = await getEvent(id, 1);
+  const target = await getEvent(id, { kind: 1 });
 
   if (target) {
     const event = await signEvent({

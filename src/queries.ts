@@ -3,11 +3,24 @@ import { eventDateComparator, type PaginationParams } from '@/utils.ts';
 
 import { getFilters as getFiltersMixer } from './mixer.ts';
 
+interface GetEventOpts<K extends number> {
+  /** Timeout in milliseconds. */
+  timeout?: number;
+  /** Event kind. */
+  kind?: K;
+}
+
 /** Get a Nostr event by its ID. */
-const getEvent = async <K extends number = number>(id: string, kind?: K): Promise<Event<K> | undefined> => {
+const getEvent = async <K extends number = number>(
+  id: string,
+  opts: GetEventOpts<K> = {},
+): Promise<Event<K> | undefined> => {
+  const { kind, timeout = 1000 } = opts;
   const filter: Filter<K> = { ids: [id], limit: 1 };
-  if (kind) filter.kinds = [kind];
-  const [event] = await getFiltersMixer([filter], { limit: 1, timeout: 1000 });
+  if (kind) {
+    filter.kinds = [kind];
+  }
+  const [event] = await getFiltersMixer([filter], { limit: 1, timeout });
   return event;
 };
 
@@ -56,7 +69,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const parentEvent = await getEvent(inReplyTo, 1);
+      const parentEvent = await getEvent(inReplyTo, { kind: 1 });
 
       if (parentEvent) {
         result.push(parentEvent);
