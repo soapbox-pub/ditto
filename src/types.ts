@@ -5,4 +5,9 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   local?: boolean;
 }
 
-export { type DittoFilter };
+/** Additional options to apply to the whole subscription. */
+interface GetFiltersOpts {
+  timeout?: number;
+}
+
+export type { DittoFilter, GetFiltersOpts };

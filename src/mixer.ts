@@ -5,13 +5,16 @@ import { getFilters as getFiltersDB } from '@/db/events.ts';
 import { eventDateComparator } from '@/utils.ts';
 
 import type { SignedEvent } from '@/event.ts';
-import type { DittoFilter } from '@/types.ts';
+import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
 
 /** Get filters from the database and pool, and mix the best results together. */
-async function getFilters<K extends number>(filters: DittoFilter<K>[]): Promise<SignedEvent<K>[]> {
+async function getFilters<K extends number>(
+  filters: DittoFilter<K>[],
+  opts?: GetFiltersOpts,
+): Promise<SignedEvent<K>[]> {
   const results = await Promise.allSettled([
-    getFiltersClient(filters),
-    getFiltersDB(filters),
+    getFiltersClient(filters, opts),
+    getFiltersDB(filters, opts),
   ]);
 
   const events = results

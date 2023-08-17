@@ -1,9 +1,9 @@
+import { Conf } from '@/config.ts';
 import { Author, type Filter, findReplyTag, matchFilters, RelayPool, TTLCache } from '@/deps.ts';
 import { type Event, type SignedEvent } from '@/event.ts';
+import { eventDateComparator, type PaginationParams, Time } from '@/utils.ts';
 
-import { Conf } from './config.ts';
-
-import { eventDateComparator, type PaginationParams, Time } from './utils.ts';
+import type { GetFiltersOpts } from '@/types.ts';
 
 const db = await Deno.openKv();
 
@@ -29,12 +29,8 @@ function getPool(): Pool {
   return pool;
 }
 
-interface GetFilterOpts {
-  timeout?: number;
-}
-
 /** Get events from a NIP-01 filter. */
-function getFilters<K extends number>(filters: Filter<K>[], opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
+function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<SignedEvent<K>[]> {
   return new Promise((resolve) => {
     let tid: number;
     const results: SignedEvent[] = [];
@@ -79,7 +75,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFilterOpts 
 }
 
 /** @deprecated Use `getFilters` instead. */
-function getFilter<K extends number>(filter: Filter<K>, opts: GetFilterOpts = {}): Promise<SignedEvent<K>[]> {
+function getFilter<K extends number>(filter: Filter<K>, opts: GetFiltersOpts = {}): Promise<SignedEvent<K>[]> {
   return getFilters([filter], opts);
 }
 

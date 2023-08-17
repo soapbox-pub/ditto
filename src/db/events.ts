@@ -2,7 +2,7 @@ import { db, type TagRow } from '@/db.ts';
 import { type Insertable } from '@/deps.ts';
 import { type SignedEvent } from '@/event.ts';
 
-import type { DittoFilter } from '@/types.ts';
+import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
 
 type TagCondition = ({ event, count }: { event: SignedEvent; count: number }) => boolean;
 
@@ -105,7 +105,10 @@ function getFilterQuery(filter: DittoFilter) {
 }
 
 /** Get events for filters from the database. */
-async function getFilters<K extends number>(filters: DittoFilter<K>[]): Promise<SignedEvent<K>[]> {
+async function getFilters<K extends number>(
+  filters: DittoFilter<K>[],
+  _opts?: GetFiltersOpts,
+): Promise<SignedEvent<K>[]> {
   const events = await filters
     .map(getFilterQuery)
     .reduce((acc, curr) => acc.union(curr))
@@ -116,7 +119,7 @@ async function getFilters<K extends number>(filters: DittoFilter<K>[]): Promise<
   ));
 }
 
-/** Get events for a filter from the database. */
+/** @deprecated Use `getFilters` instead. */
 function getFilter<K extends number = number>(filter: DittoFilter<K>): Promise<SignedEvent<K>[]> {
   return getFilters<K>([filter]);
 }
