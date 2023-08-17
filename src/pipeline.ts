@@ -10,8 +10,6 @@ import { isRelay, nostrDate } from '@/utils.ts';
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
-  console.info(`firehose: Event<${event.kind}> ${event.id}`);
-
   await Promise.all([
     trackHashtags(event),
     storeEvent(event),
