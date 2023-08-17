@@ -18,8 +18,8 @@ const getAuthor = async (pubkey: string, timeout = 1000): Promise<Event<0> | und
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string): Promise<Event<3> | undefined> => {
-  const [event] = await getFiltersMixer([{ authors: [pubkey], kinds: [3] }], { timeout: 5000 });
+const getFollows = async (pubkey: string, timeout = 1000): Promise<Event<3> | undefined> => {
+  const [event] = await getFiltersMixer([{ authors: [pubkey], kinds: [3] }], { timeout });
   return event;
 };
 
