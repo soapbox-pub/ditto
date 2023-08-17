@@ -7,7 +7,10 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
+  /** How long to wait (in milliseconds) until aborting the request. */
   timeout?: number;
+  /** Event limit for the whole subscription. */
+  limit?: number;
 }
 
 export type { DittoFilter, GetFiltersOpts };

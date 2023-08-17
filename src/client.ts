@@ -50,8 +50,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
             sig: event.sig,
           });
         }
-        // HACK
-        if (filters.length === 1 && filters[0].limit && results.length >= filters[0].limit) {
+        if (typeof opts.limit === 'number' && results.length >= opts.limit) {
           unsub();
           clearTimeout(tid);
           resolve(results as SignedEvent<K>[]);
