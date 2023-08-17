@@ -1,10 +1,10 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
-import { getAuthor } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
+import { getAuthor } from '@/queries.ts';
 import { emojiTagSchema, filteredArray } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';

@@ -1,6 +1,7 @@
 import { type AppController } from '@/app.ts';
-import { getAncestors, getDescendants, getEvent, publish } from '@/client.ts';
-import { type Event, ISO6391, Kind, z } from '@/deps.ts';
+import { publish } from '@/client.ts';
+import { ISO6391, Kind, z } from '@/deps.ts';
+import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { nostrNow, parseBody } from '@/utils.ts';
@@ -28,9 +29,9 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, 1);
+  const event = await getEvent(id, { kind: 1 });
   if (event) {
-    return c.json(await toStatus(event as Event<1>));
+    return c.json(await toStatus(event));
   }
 
   return c.json({ error: 'Event not found.' }, 404);
@@ -87,7 +88,7 @@ const createStatusController: AppController = async (c) => {
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, 1);
+  const event = await getEvent(id, { kind: 1 });
 
   if (event) {
     const ancestorEvents = await getAncestors(event);
@@ -104,7 +105,7 @@ const contextController: AppController = async (c) => {
 
 const favouriteController: AppController = async (c) => {
   const id = c.req.param('id');
-  const target = await getEvent(id, 1);
+  const target = await getEvent(id, { kind: 1 });
 
   if (target) {
     const event = await signEvent({

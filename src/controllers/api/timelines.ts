@@ -1,4 +1,4 @@
-import { getFeed, getFollows, getPublicFeed } from '@/client.ts';
+import { getFeed, getPublicFeed } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, paginationSchema } from '@/utils.ts';
 
@@ -8,12 +8,7 @@ const homeController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
 
-  const follows = await getFollows(pubkey);
-  if (!follows) {
-    return c.json([]);
-  }
-
-  const events = await getFeed(follows, params);
+  const events = await getFeed(pubkey, params);
   if (!events.length) {
     return c.json([]);
   }
