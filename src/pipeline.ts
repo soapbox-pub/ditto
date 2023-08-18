@@ -2,6 +2,7 @@ import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event } from '@/deps.ts';
+import { isLocallyFollowed } from '@/queries.ts';
 import { trends } from '@/trends.ts';
 import { isRelay, nostrDate } from '@/utils.ts';
 
@@ -19,7 +20,7 @@ async function handleEvent(event: Event): Promise<void> {
 
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: Event): Promise<void> {
-  if (await findUser({ pubkey: event.pubkey }) || await eventsDB.isLocallyFollowed(event.pubkey)) {
+  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
   }
 }

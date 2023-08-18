@@ -1,7 +1,7 @@
+import * as eventsDB from '@/db/events.ts';
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
+import * as mixer from '@/mixer.ts';
 import { type PaginationParams } from '@/utils.ts';
-
-import * as mixer from './mixer.ts';
 
 interface GetEventOpts<K extends number> {
   /** Timeout in milliseconds. */
@@ -83,4 +83,10 @@ function getDescendants(eventId: string): Promise<Event<1>[]> {
   return mixer.getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 });
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, getPublicFeed };
+/** Returns whether the pubkey is followed by a local user. */
+async function isLocallyFollowed(pubkey: string): Promise<boolean> {
+  const [event] = await eventsDB.getFilters([{ kinds: [3], '#p': [pubkey], local: true }], { limit: 1 });
+  return Boolean(event);
+}
+
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, getPublicFeed, isLocallyFollowed };

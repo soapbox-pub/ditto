@@ -119,16 +119,4 @@ async function getFilters<K extends number>(
   ));
 }
 
-/** Returns whether the pubkey is followed by a local user. */
-async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  return Boolean(
-    await getFilterQuery({
-      kinds: [3],
-      '#p': [pubkey],
-      limit: 1,
-      local: true,
-    }).executeTakeFirst(),
-  );
-}
-
-export { getFilters, insertEvent, isLocallyFollowed };
+export { getFilters, insertEvent };
