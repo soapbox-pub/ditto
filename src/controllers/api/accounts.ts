@@ -2,11 +2,13 @@ import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import { publish } from '@/client.ts';
 import * as mixer from '@/mixer.ts';
+import * as pipeline from '@/pipeline.ts';
 import { getAuthor, getFollows } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
+import pipe from 'https://deno.land/x/ramda@v0.27.2/source/pipe.js';
 
 const createAccountController: AppController = (c) => {
   return c.json({ error: 'Please log in with Nostr.' }, 405);
@@ -167,7 +169,13 @@ const updateCredentialsController: AppController = async (c) => {
     created_at: nostrNow(),
   }, c);
 
-  publish(event);
+  try {
+    await pipeline.handleEvent(event);
+  } catch (e) {
+    if (e instanceof pipeline.RelayError) {
+      return c.json({ error: e.message }, 422);
+    }
+  }
 
   const account = await toAccount(event);
   return c.json(account);

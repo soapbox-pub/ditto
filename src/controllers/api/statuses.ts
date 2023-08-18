@@ -1,6 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { publish } from '@/client.ts';
 import { ISO6391, Kind, z } from '@/deps.ts';
+import * as pipeline from '@/pipeline.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
@@ -77,7 +78,13 @@ const createStatusController: AppController = async (c) => {
       created_at: nostrNow(),
     }, c);
 
-    publish(event);
+    try {
+      await pipeline.handleEvent(event);
+    } catch (e) {
+      if (e instanceof pipeline.RelayError) {
+        return c.json({ error: e.message }, 422);
+      }
+    }
 
     return c.json(await toStatus(event));
   } else {
@@ -118,7 +125,13 @@ const favouriteController: AppController = async (c) => {
       created_at: nostrNow(),
     }, c);
 
-    publish(event);
+    try {
+      await pipeline.handleEvent(event);
+    } catch (e) {
+      if (e instanceof pipeline.RelayError) {
+        return c.json({ error: e.message }, 422);
+      }
+    }
 
     const status = await toStatus(target);
 
