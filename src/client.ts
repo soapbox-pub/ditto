@@ -38,7 +38,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
       Conf.poolRelays,
       (event: Event | null) => {
         if (event && matchFilters(filters, event)) {
-          pipeline.handleEvent(event);
+          pipeline.handleEvent(event).catch(() => {});
           results.push({
             id: event.id,
             kind: event.kind,
@@ -72,14 +72,4 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
   });
 }
 
-/** Publish an event to the Nostr relay. */
-function publish(event: Event, relays = Conf.publishRelays): void {
-  console.log('Publishing event', event, relays);
-  try {
-    getPool().publish(event, relays);
-  } catch (e) {
-    console.error(e);
-  }
-}
-
-export { getFilters, publish };
+export { getFilters };

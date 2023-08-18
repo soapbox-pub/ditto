@@ -1,5 +1,4 @@
 import { type AppController } from '@/app.ts';
-import { publish } from '@/client.ts';
 import { ISO6391, Kind, z } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';

@@ -1,6 +1,5 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
-import { publish } from '@/client.ts';
 import * as mixer from '@/mixer.ts';
 import * as pipeline from '@/pipeline.ts';
 import { getAuthor, getFollows } from '@/queries.ts';
@@ -8,7 +7,6 @@ import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
-import pipe from 'https://deno.land/x/ramda@v0.27.2/source/pipe.js';
 
 const createAccountController: AppController = (c) => {
   return c.json({ error: 'Please log in with Nostr.' }, 405);
