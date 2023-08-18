@@ -21,5 +21,8 @@ pool.subscribe(
 /** Handle events through the firehose pipeline. */
 function handleEvent(event: Event): Promise<void> {
   console.info(`firehose: Event<${event.kind}> ${event.id}`);
-  return pipeline.handleEvent(event);
+
+  return pipeline
+    .handleEvent(event)
+    .catch(() => {});
 }
