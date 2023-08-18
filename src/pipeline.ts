@@ -12,9 +12,9 @@ import { isRelay, nostrDate } from '@/utils.ts';
  */
 async function handleEvent(event: Event): Promise<void> {
   await Promise.all([
-    trackHashtags(event),
     storeEvent(event),
     trackRelays(event),
+    trackHashtags(event),
   ]);
 }
 
@@ -22,6 +22,8 @@ async function handleEvent(event: Event): Promise<void> {
 async function storeEvent(event: Event): Promise<void> {
   if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
+  } else {
+    return Promise.reject(new RelayError('blocked', 'only registered users can post'));
   }
 }
 
@@ -61,4 +63,11 @@ function trackRelays(event: Event) {
   return addRelays([...relays]);
 }
 
-export { handleEvent };
+/** NIP-20 command line result. */
+class RelayError extends Error {
+  constructor(prefix: 'duplicate' | 'pow' | 'blocked' | 'rate-limited' | 'invalid' | 'error', message: string) {
+    super(`${prefix}: ${message}`);
+  }
+}
+
+export { handleEvent, RelayError };
