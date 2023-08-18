@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
-import { publish } from '@/client.ts';
 import * as mixer from '@/mixer.ts';
+import * as pipeline from '@/pipeline.ts';
 import { getAuthor, getFollows } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
@@ -167,7 +167,13 @@ const updateCredentialsController: AppController = async (c) => {
     created_at: nostrNow(),
   }, c);
 
-  publish(event);
+  try {
+    await pipeline.handleEvent(event);
+  } catch (e) {
+    if (e instanceof pipeline.RelayError) {
+      return c.json({ error: e.message }, 422);
+    }
+  }
 
   const account = await toAccount(event);
   return c.json(account);
