@@ -17,6 +17,7 @@ import {
   accountSearchController,
   accountStatusesController,
   createAccountController,
+  followController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,
@@ -98,6 +99,7 @@ app.patch('/api/v1/accounts/update_credentials', requireAuth, updateCredentialsC
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 

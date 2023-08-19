@@ -147,6 +147,13 @@ const relaySchema = z.string().max(255).startsWith('wss://').url();
 /** Check whether the value is a valid relay URL. */
 const isRelay = (relay: string): relay is `wss://${string}` => relaySchema.safeParse(relay).success;
 
+/** Check whether source is following target. */
+function isFollowing(source: Event<3>, targetPubkey: string): boolean {
+  return Boolean(
+    source.tags.find(([tagName, tagValue]) => tagName === 'p' && tagValue === targetPubkey),
+  );
+}
+
 export {
   activityJson,
   bech32ToPubkey,
@@ -154,6 +161,7 @@ export {
   eventAge,
   eventDateComparator,
   findTag,
+  isFollowing,
   isRelay,
   lookupAccount,
   type Nip05,

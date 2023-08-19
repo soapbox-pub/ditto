@@ -3,10 +3,20 @@ import { type Filter, findReplyTag, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import * as pipeline from '@/pipeline.ts';
 import { getAuthor, getFollows } from '@/queries.ts';
+import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
-import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { buildLinkHeader, eventDateComparator, lookupAccount, nostrNow, paginationSchema, parseBody } from '@/utils.ts';
+import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import {
+  buildLinkHeader,
+  eventDateComparator,
+  isFollowing,
+  lookupAccount,
+  nostrNow,
+  paginationSchema,
+  parseBody,
+} from '@/utils.ts';
+import { createEvent } from '@/utils/web.ts';
 
 const createAccountController: AppController = (c) => {
   return c.json({ error: 'Please log in with Nostr.' }, 405);
@@ -72,28 +82,10 @@ const relationshipsController: AppController = async (c) => {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const follows = await getFollows(pubkey);
-
-  const result = ids.data.map((id) => ({
-    id,
-    following: !!follows?.tags.find((tag) => tag[0] === 'p' && ids.data.includes(tag[1])),
-    showing_reblogs: false,
-    notifying: false,
-    followed_by: false,
-    blocking: false,
-    blocked_by: false,
-    muting: false,
-    muting_notifications: false,
-    requested: false,
-    domain_blocking: false,
-    endorsed: false,
-  }));
+  const result = await Promise.all(ids.data.map((id) => toRelationship(pubkey, id)));
 
   return c.json(result);
 };
-
-/** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
-const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
 
 const accountStatusesQuerySchema = z.object({
   pinned: booleanParamSchema.optional(),
@@ -179,12 +171,34 @@ const updateCredentialsController: AppController = async (c) => {
   return c.json(account);
 };
 
+const followController: AppController = async (c) => {
+  const sourcePubkey = c.get('pubkey')!;
+  const targetPubkey = c.req.param('pubkey');
+
+  const source = await getFollows(sourcePubkey);
+
+  if (!source || !isFollowing(source, targetPubkey)) {
+    await createEvent({
+      kind: 3,
+      content: '',
+      tags: [
+        ...(source?.tags ?? []),
+        ['p', targetPubkey],
+      ],
+    }, c);
+  }
+
+  const relationship = await toRelationship(sourcePubkey, targetPubkey);
+  return c.json(relationship);
+};
+
 export {
   accountController,
   accountLookupController,
   accountSearchController,
   accountStatusesController,
   createAccountController,
+  followController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,
