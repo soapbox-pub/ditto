@@ -64,7 +64,9 @@ function getFilterQuery(filter: DittoFilter) {
     ])
     .orderBy('events.created_at', 'desc');
 
-  for (const key of Object.keys(filter)) {
+  for (const [key, value] of Object.entries(filter)) {
+    if (value === undefined) continue;
+
     switch (key as keyof DittoFilter) {
       case 'ids':
         query = query.where('events.id', 'in', filter.ids!);
