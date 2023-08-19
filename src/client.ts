@@ -29,6 +29,7 @@ function getPool(): Pool {
 
 /** Get events from a NIP-01 filter. */
 function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
+  if (!filters.length) return Promise.resolve([]);
   return new Promise((resolve) => {
     let tid: number;
     const results: Event[] = [];

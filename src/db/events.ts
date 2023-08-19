@@ -64,7 +64,9 @@ function getFilterQuery(filter: DittoFilter) {
     ])
     .orderBy('events.created_at', 'desc');
 
-  for (const key of Object.keys(filter)) {
+  for (const [key, value] of Object.entries(filter)) {
+    if (value === undefined) continue;
+
     switch (key as keyof DittoFilter) {
       case 'ids':
         query = query.where('events.id', 'in', filter.ids!);
@@ -108,6 +110,7 @@ async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetFiltersOpts = {},
 ): Promise<Event<K>[]> {
+  if (!filters.length) return Promise.resolve([]);
   let query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
 
   if (typeof opts.limit === 'number') {

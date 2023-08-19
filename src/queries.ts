@@ -57,8 +57,8 @@ async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<
 }
 
 /** Get a feed of all known text notes. */
-function getPublicFeed(params: PaginationParams): Promise<Event<1>[]> {
-  return mixer.getFilters([{ kinds: [1], ...params }], { timeout: 5000 });
+function getPublicFeed(params: PaginationParams, local: boolean): Promise<Event<1>[]> {
+  return mixer.getFilters([{ kinds: [1], local, ...params }], { timeout: 5000 });
 }
 
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
