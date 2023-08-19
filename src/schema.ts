@@ -42,4 +42,7 @@ const hashtagSchema = z.string().regex(/^\w{1,30}$/);
  */
 const safeUrlSchema = z.string().max(2048).url();
 
-export { decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };
+/** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
+const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
+
+export { booleanParamSchema, decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };
