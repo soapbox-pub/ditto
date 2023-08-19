@@ -11,7 +11,7 @@ interface LookupOpts {
 
 /** Get pubkey from NIP-05. */
 async function lookup(value: string, opts: LookupOpts = {}): Promise<string | null> {
-  const { timeout = 1000 } = opts;
+  const { timeout = 2000 } = opts;
 
   const match = value.match(NIP05_REGEX);
   if (!match) return null;
