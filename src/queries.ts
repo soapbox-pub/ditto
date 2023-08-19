@@ -1,7 +1,7 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import { type PaginationParams } from '@/utils.ts';
+import { type PaginationParams } from '@/utils/web.ts';
 
 interface GetEventOpts<K extends number> {
   /** Timeout in milliseconds. */
@@ -26,13 +26,13 @@ const getEvent = async <K extends number = number>(
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, timeout = 1000): Promise<Event<0> | undefined> => {
-  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [0] }], { timeout });
+  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, timeout });
   return event;
 };
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, timeout = 1000): Promise<Event<3> | undefined> => {
-  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3] }], { timeout });
+  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, timeout });
   return event;
 };
 
@@ -85,7 +85,7 @@ function getDescendants(eventId: string): Promise<Event<1>[]> {
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  const [event] = await eventsDB.getFilters([{ kinds: [3], '#p': [pubkey], local: true }], { limit: 1 });
+  const [event] = await eventsDB.getFilters([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
   return Boolean(event);
 }
 
