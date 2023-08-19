@@ -4,7 +4,8 @@ import * as pipeline from '@/pipeline.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { nostrNow, parseBody } from '@/utils.ts';
+import { nostrNow } from '@/utils.ts';
+import { parseBody } from '@/utils/web.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),

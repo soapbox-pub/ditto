@@ -7,15 +7,8 @@ import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import {
-  buildLinkHeader,
-  eventDateComparator,
-  isFollowing,
-  lookupAccount,
-  nostrNow,
-  paginationSchema,
-  parseBody,
-} from '@/utils.ts';
+import { eventDateComparator, isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
+import { buildLinkHeader, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 
 const createAccountController: AppController = (c) => {

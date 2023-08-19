@@ -2,7 +2,7 @@ import { z } from '@/deps.ts';
 import { getFeed, getPublicFeed } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { buildLinkHeader, paginationSchema } from '@/utils.ts';
+import { buildLinkHeader, paginationSchema } from '@/utils/web.ts';
 
 import type { AppController } from '@/app.ts';
 
