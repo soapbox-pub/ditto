@@ -12,7 +12,7 @@ async function getFilters<K extends number>(
   opts?: GetFiltersOpts,
 ): Promise<Event<K>[]> {
   const results = await Promise.allSettled([
-    client.getFilters(filters, opts),
+    client.getFilters(filters.filter((filter) => !filter.local), opts),
     eventsDB.getFilters(filters, opts),
   ]);
 
