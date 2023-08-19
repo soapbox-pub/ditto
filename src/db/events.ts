@@ -108,6 +108,7 @@ async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetFiltersOpts = {},
 ): Promise<Event<K>[]> {
+  if (!filters.length) return Promise.resolve([]);
   let query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
 
   if (typeof opts.limit === 'number') {
