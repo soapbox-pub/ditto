@@ -1,3 +1,4 @@
+import * as client from '@/client.ts';
 import * as eventsDB from '@/db/events.ts';
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
@@ -89,4 +90,21 @@ async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   return Boolean(event);
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeed, getFollows, getPublicFeed, isLocallyFollowed };
+/** Sync the user's state from other relays. */
+async function syncUser(pubkey: string): Promise<void> {
+  await client.getFilters([
+    { authors: [pubkey], kinds: [0, 3, 10000, 10001, 10002] },
+  ], { timeout: 5000 });
+}
+
+export {
+  getAncestors,
+  getAuthor,
+  getDescendants,
+  getEvent,
+  getFeed,
+  getFollows,
+  getPublicFeed,
+  isLocallyFollowed,
+  syncUser,
+};

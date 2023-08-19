@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import * as pipeline from '@/pipeline.ts';
-import { getAuthor, getFollows } from '@/queries.ts';
+import { getAuthor, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { signEvent } from '@/sign.ts';
@@ -24,6 +24,8 @@ const createAccountController: AppController = (c) => {
 
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
+
+  await syncUser(pubkey);
 
   const event = await getAuthor(pubkey);
   if (event) {
