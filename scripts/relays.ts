@@ -1,6 +1,6 @@
 import { addRelays } from '@/db/relays.ts';
 import { filteredArray } from '@/schema.ts';
-import { relaySchema } from '~/src/utils.ts';
+import { relaySchema } from '@/utils.ts';
 
 switch (Deno.args[0]) {
   case 'sync':
