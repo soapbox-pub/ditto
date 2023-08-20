@@ -7,7 +7,10 @@ import { nostrNow } from '@/utils.ts';
 import type { AppContext } from '@/app.ts';
 
 /** Publish an event through the API, throwing a Hono exception on failure. */
-async function createEvent<K extends number>(t: Omit<EventTemplate<K>, 'created_at'>, c: AppContext) {
+async function createEvent<K extends number>(
+  t: Omit<EventTemplate<K>, 'created_at'>,
+  c: AppContext,
+): Promise<Event<K>> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
