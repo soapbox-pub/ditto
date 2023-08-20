@@ -1,13 +1,11 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import * as pipeline from '@/pipeline.ts';
 import { getAuthor, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { signEvent } from '@/sign.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { eventDateComparator, isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
+import { eventDateComparator, isFollowing, lookupAccount } from '@/utils.ts';
 import { buildLinkHeader, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 
@@ -147,20 +145,11 @@ const updateCredentialsController: AppController = async (c) => {
   meta.name = result.data.display_name ?? meta.name;
   meta.about = result.data.note ?? meta.about;
 
-  const event = await signEvent({
+  const event = await createEvent({
     kind: 0,
     content: JSON.stringify(meta),
     tags: [],
-    created_at: nostrNow(),
   }, c);
-
-  try {
-    await pipeline.handleEvent(event);
-  } catch (e) {
-    if (e instanceof pipeline.RelayError) {
-      return c.json({ error: e.message }, 422);
-    }
-  }
 
   const account = await toAccount(event);
   return c.json(account);

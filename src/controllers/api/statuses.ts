@@ -1,11 +1,8 @@
 import { type AppController } from '@/app.ts';
 import { ISO6391, Kind, z } from '@/deps.ts';
-import * as pipeline from '@/pipeline.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
-import { signEvent } from '@/sign.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { nostrNow } from '@/utils.ts';
-import { parseBody } from '@/utils/web.ts';
+import { createEvent, parseBody } from '@/utils/web.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -71,20 +68,11 @@ const createStatusController: AppController = async (c) => {
       tags.push(['subject', data.spoiler_text]);
     }
 
-    const event = await signEvent({
+    const event = await createEvent({
       kind: Kind.Text,
       content: data.status ?? '',
       tags,
-      created_at: nostrNow(),
     }, c);
-
-    try {
-      await pipeline.handleEvent(event);
-    } catch (e) {
-      if (e instanceof pipeline.RelayError) {
-        return c.json({ error: e.message }, 422);
-      }
-    }
 
     return c.json(await toStatus(event));
   } else {
@@ -115,23 +103,14 @@ const favouriteController: AppController = async (c) => {
   const target = await getEvent(id, { kind: 1 });
 
   if (target) {
-    const event = await signEvent({
+    await createEvent({
       kind: Kind.Reaction,
       content: '+',
       tags: [
         ['e', target.id],
         ['p', target.pubkey],
       ],
-      created_at: nostrNow(),
     }, c);
-
-    try {
-      await pipeline.handleEvent(event);
-    } catch (e) {
-      if (e instanceof pipeline.RelayError) {
-        return c.json({ error: e.message }, 422);
-      }
-    }
 
     const status = await toStatus(target);
 
