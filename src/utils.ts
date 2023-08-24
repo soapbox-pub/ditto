@@ -1,4 +1,3 @@
-import { findUser } from '@/db/users.ts';
 import { type Event, nip19, z } from '@/deps.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 import { getAuthor } from '@/queries.ts';
