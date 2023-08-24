@@ -5,7 +5,7 @@ import { type Event } from '@/deps.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
-import { isRelay, nostrDate } from '@/utils.ts';
+import { isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
 
 import type { EventData } from '@/types.ts';
 
@@ -75,8 +75,13 @@ function trackRelays(event: Event) {
   return addRelays([...relays]);
 }
 
+/** Determine if the event is being received in a timely manner. */
+const isFresh = ({ created_at }: Event): boolean => created_at >= nostrNow() - Time.seconds(10);
+
 /** Distribute the event through active subscriptions. */
 function streamOut(event: Event, data: EventData) {
+  if (!isFresh(event)) return;
+
   for (const { socket, id } of Sub.matches(event, data)) {
     socket.send(JSON.stringify(['EVENT', id, event]));
   }
