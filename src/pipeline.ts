@@ -7,22 +7,32 @@ import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
 import { isRelay, nostrDate } from '@/utils.ts';
 
+import type { EventData } from '@/types.ts';
+
 /**
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  const data = await getEventData(event);
+
   await Promise.all([
-    storeEvent(event),
+    storeEvent(event, data),
     trackRelays(event),
     trackHashtags(event),
-    streamOut(event),
+    streamOut(event, data),
   ]);
 }
 
+/** Preload data that will be useful to several tasks. */
+async function getEventData({ pubkey }: Event): Promise<EventData> {
+  const user = await findUser({ pubkey });
+  return { user };
+}
+
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: Event): Promise<void> {
-  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
+async function storeEvent(event: Event, data: EventData): Promise<void> {
+  if (data.user || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
@@ -66,9 +76,9 @@ function trackRelays(event: Event) {
 }
 
 /** Distribute the event through active subscriptions. */
-async function streamOut(event: Event) {
-  for await (const sub of Sub.matches(event)) {
-    sub.socket.send(JSON.stringify(['EVENT', event]));
+function streamOut(event: Event, data: EventData) {
+  for (const { socket, id } of Sub.matches(event, data)) {
+    socket.send(JSON.stringify(['EVENT', id, event]));
   }
 }
 

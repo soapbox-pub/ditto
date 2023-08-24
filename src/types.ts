@@ -1,3 +1,4 @@
+import { UserRow } from '@/db.ts';
 import { type Filter } from '@/deps.ts';
 
 /** Custom filter interface that extends Nostr filters with extra options for Ditto. */
@@ -13,4 +14,8 @@ interface GetFiltersOpts {
   limit?: number;
 }
 
-export type { DittoFilter, GetFiltersOpts };
+interface EventData {
+  user: UserRow | undefined;
+}
+
+export type { DittoFilter, EventData, GetFiltersOpts };

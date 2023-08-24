@@ -1,8 +1,7 @@
 import { type Event } from '@/deps.ts';
 import { matchDittoFilters } from './filter.ts';
-import { isEventLocal } from '@/utils.ts';
 
-import type { DittoFilter } from '@/types.ts';
+import type { DittoFilter, EventData } from '@/types.ts';
 
 /** Nostr subscription to receive realtime events. */
 interface Subscription {
@@ -20,7 +19,7 @@ interface Subscription {
  * Subscriptions can be added, removed, and matched against events.
  *
  * ```ts
- * for await (const sub of Sub.matches(event)) {
+ * for (const sub of Sub.matches(event)) {
  *   // Send event to sub.socket
  *   sub.socket.send(JSON.stringify(event));
  * }
@@ -55,18 +54,16 @@ class SubscriptionStore {
    * Loop through matching subscriptions to stream out.
    *
    * ```ts
-   * for await (const sub of Sub.matches(event)) {
+   * for (const sub of Sub.matches(event)) {
    *   // Send event to sub.socket
    *   sub.socket.send(JSON.stringify(event));
    * }
    * ```
    */
-  async *matches(event: Event) {
-    const isLocal = await isEventLocal(event);
-
+  *matches(event: Event, data: EventData): Iterable<Subscription> {
     for (const subs of this.#store.values()) {
       for (const sub of subs.values()) {
-        if (matchDittoFilters(sub.filters, event, { isLocal })) {
+        if (matchDittoFilters(sub.filters, event, data)) {
           yield sub;
         }
       }

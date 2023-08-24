@@ -102,18 +102,11 @@ function isFollowing(source: Event<3>, targetPubkey: string): boolean {
   );
 }
 
-/** Check whether the event belongs to a local user. */
-async function isEventLocal(event: Event) {
-  const user = await findUser({ pubkey: event.pubkey });
-  return !!user;
-}
-
 export {
   bech32ToPubkey,
   eventAge,
   eventDateComparator,
   findTag,
-  isEventLocal,
   isFollowing,
   isRelay,
   lookupAccount,
