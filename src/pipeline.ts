@@ -1,7 +1,7 @@
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
-import { type Event } from '@/deps.ts';
+import { type Event, LRUCache } from '@/deps.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
@@ -14,6 +14,7 @@ import type { EventData } from '@/types.ts';
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  if (encounterEvent(event)) return;
   const data = await getEventData(event);
 
   await Promise.all([
@@ -22,6 +23,16 @@ async function handleEvent(event: Event): Promise<void> {
     trackHashtags(event),
     streamOut(event, data),
   ]);
+}
+
+/** Tracks encountered events to skip duplicates, improving idempotency and performance. */
+const encounters = new LRUCache<string, boolean>({ max: 1000 });
+
+/** Encounter the event, and return whether it has already been encountered. */
+function encounterEvent(event: Event) {
+  const result = encounters.get(event.id);
+  encounters.set(event.id, true);
+  return result;
 }
 
 /** Preload data that will be useful to several tasks. */
