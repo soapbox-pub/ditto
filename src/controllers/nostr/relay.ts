@@ -34,6 +34,10 @@ function connectStream(socket: WebSocket) {
     }
   };
 
+  socket.onclose = () => {
+    Sub.close(socket);
+  };
+
   /** Handle client message. */
   function handleMsg(msg: ClientMsg) {
     switch (msg[0]) {
