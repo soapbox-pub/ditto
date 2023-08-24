@@ -1,26 +1,49 @@
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
-import { type Event } from '@/deps.ts';
+import { type Event, LRUCache } from '@/deps.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
-import { isRelay, nostrDate } from '@/utils.ts';
+import { isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
+
+import type { EventData } from '@/types.ts';
 
 /**
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  if (encounterEvent(event)) return;
+  const data = await getEventData(event);
+
   await Promise.all([
-    storeEvent(event),
+    storeEvent(event, data),
     trackRelays(event),
     trackHashtags(event),
+    streamOut(event, data),
   ]);
 }
 
+/** Tracks encountered events to skip duplicates, improving idempotency and performance. */
+const encounters = new LRUCache<string, boolean>({ max: 1000 });
+
+/** Encounter the event, and return whether it has already been encountered. */
+function encounterEvent(event: Event) {
+  const result = encounters.get(event.id);
+  encounters.set(event.id, true);
+  return result;
+}
+
+/** Preload data that will be useful to several tasks. */
+async function getEventData({ pubkey }: Event): Promise<EventData> {
+  const user = await findUser({ pubkey });
+  return { user };
+}
+
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: Event): Promise<void> {
-  if (await findUser({ pubkey: event.pubkey }) || await isLocallyFollowed(event.pubkey)) {
+async function storeEvent(event: Event, data: EventData): Promise<void> {
+  if (data.user || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
@@ -61,6 +84,18 @@ function trackRelays(event: Event) {
   });
 
   return addRelays([...relays]);
+}
+
+/** Determine if the event is being received in a timely manner. */
+const isFresh = ({ created_at }: Event): boolean => created_at >= nostrNow() - Time.seconds(10);
+
+/** Distribute the event through active subscriptions. */
+function streamOut(event: Event, data: EventData) {
+  if (!isFresh(event)) return;
+
+  for (const { socket, id } of Sub.matches(event, data)) {
+    socket.send(JSON.stringify(['EVENT', id, event]));
+  }
 }
 
 /** NIP-20 command line result. */
