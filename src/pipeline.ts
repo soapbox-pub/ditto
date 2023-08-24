@@ -3,6 +3,7 @@ import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event } from '@/deps.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
 import { isRelay, nostrDate } from '@/utils.ts';
 
@@ -15,6 +16,7 @@ async function handleEvent(event: Event): Promise<void> {
     storeEvent(event),
     trackRelays(event),
     trackHashtags(event),
+    streamOut(event),
   ]);
 }
 
@@ -61,6 +63,13 @@ function trackRelays(event: Event) {
   });
 
   return addRelays([...relays]);
+}
+
+/** Distribute the event through active subscriptions. */
+function streamOut(event: Event) {
+  for (const sub of Sub.matches(event)) {
+    sub.socket.send(JSON.stringify(['EVENT', event]));
+  }
 }
 
 /** NIP-20 command line result. */

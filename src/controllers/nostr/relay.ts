@@ -8,6 +8,7 @@ import {
   clientMsgSchema,
   type ClientREQ,
 } from '@/schemas/nostr.ts';
+import { Sub } from '@/subs.ts';
 
 import type { AppController } from '@/app.ts';
 import type { Event, Filter } from '@/deps.ts';
@@ -49,15 +50,24 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle REQ. Start a subscription. */
-  async function handleReq([_, sub, ...filters]: ClientREQ) {
-    for (const event of await eventsDB.getFilters(prepareFilters(filters))) {
-      send(['EVENT', sub, event]);
+  async function handleReq([_, subId, ...filters]: ClientREQ): Promise<void> {
+    const prepared = prepareFilters(filters);
+
+    for (const event of await eventsDB.getFilters(prepared)) {
+      send(['EVENT', subId, event]);
     }
-    send(['EOSE', sub]);
+
+    send(['EOSE', subId]);
+
+    Sub.sub({
+      id: subId,
+      filters: prepared,
+      socket,
+    });
   }
 
   /** Handle EVENT. Store the event. */
-  async function handleEvent([_, event]: ClientEVENT) {
+  async function handleEvent([_, event]: ClientEVENT): Promise<void> {
     try {
       // This will store it (if eligible) and run other side-effects.
       await pipeline.handleEvent(event);
@@ -72,13 +82,12 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle CLOSE. Close the subscription. */
-  function handleClose([_, _sub]: ClientCLOSE) {
-    // TODO: ???
-    return;
+  function handleClose([_, subId]: ClientCLOSE): void {
+    Sub.unsub({ id: subId, socket });
   }
 
   /** Send a message back to the client. */
-  function send(msg: RelayMsg) {
+  function send(msg: RelayMsg): void {
     return socket.send(JSON.stringify(msg));
   }
 }
