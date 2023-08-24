@@ -66,8 +66,8 @@ function trackRelays(event: Event) {
 }
 
 /** Distribute the event through active subscriptions. */
-function streamOut(event: Event) {
-  for (const sub of Sub.matches(event)) {
+async function streamOut(event: Event) {
+  for await (const sub of Sub.matches(event)) {
     sub.socket.send(JSON.stringify(['EVENT', event]));
   }
 }

@@ -1,3 +1,4 @@
+import { findUser } from '@/db/users.ts';
 import { type Event, nip19, z } from '@/deps.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 import { getAuthor } from '@/queries.ts';
@@ -101,11 +102,18 @@ function isFollowing(source: Event<3>, targetPubkey: string): boolean {
   );
 }
 
+/** Check whether the event belongs to a local user. */
+async function isEventLocal(event: Event) {
+  const user = await findUser({ pubkey: event.pubkey });
+  return !!user;
+}
+
 export {
   bech32ToPubkey,
   eventAge,
   eventDateComparator,
   findTag,
+  isEventLocal,
   isFollowing,
   isRelay,
   lookupAccount,
