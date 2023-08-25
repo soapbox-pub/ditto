@@ -54,16 +54,16 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle REQ. Start a subscription. */
-  async function handleReq([_, subId, ...filters]: ClientREQ): Promise<void> {
-    const prepared = prepareFilters(filters);
+  async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
+    const filters = prepareFilters(rest);
 
-    for (const event of await eventsDB.getFilters(prepared)) {
+    for (const event of await eventsDB.getFilters(filters)) {
       send(['EVENT', subId, event]);
     }
 
     send(['EOSE', subId]);
 
-    for await (const event of Sub.sub(socket, subId, prepared)) {
+    for await (const event of Sub.sub(socket, subId, filters)) {
       send(['EVENT', subId, event]);
     }
   }
