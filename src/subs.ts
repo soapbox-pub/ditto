@@ -20,7 +20,7 @@ class SubscriptionStore {
    * }
    * ```
    */
-  sub(socket: WebSocket, id: string, filters: DittoFilter[]): Subscription {
+  sub<K extends number>(socket: WebSocket, id: string, filters: DittoFilter<K>[]): Subscription<K> {
     let subs = this.#store.get(socket);
 
     if (!subs) {
@@ -31,7 +31,7 @@ class SubscriptionStore {
     const sub = new Subscription(filters);
 
     this.unsub(socket, id);
-    subs.set(id, sub);
+    subs.set(id, sub as unknown as Subscription);
 
     return sub;
   }
