@@ -63,11 +63,9 @@ function connectStream(socket: WebSocket) {
 
     send(['EOSE', subId]);
 
-    Sub.sub({
-      id: subId,
-      filters: prepared,
-      socket,
-    });
+    for await (const event of Sub.sub(socket, subId, prepared)) {
+      send(['EVENT', subId, event]);
+    }
   }
 
   /** Handle EVENT. Store the event. */
@@ -87,7 +85,7 @@ function connectStream(socket: WebSocket) {
 
   /** Handle CLOSE. Close the subscription. */
   function handleClose([_, subId]: ClientCLOSE): void {
-    Sub.unsub({ id: subId, socket });
+    Sub.unsub(socket, subId);
   }
 
   /** Send a message back to the client. */
