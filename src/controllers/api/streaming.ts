@@ -1,5 +1,4 @@
 import { AppController } from '@/app.ts';
-import { type Event } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { TOKEN_REGEX } from '@/middleware/auth19.ts';
 import { streamSchema, ws } from '@/stream.ts';

@@ -90,7 +90,9 @@ function connectStream(socket: WebSocket) {
 
   /** Send a message back to the client. */
   function send(msg: RelayMsg): void {
-    return socket.send(JSON.stringify(msg));
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(msg));
+    }
   }
 }
 
