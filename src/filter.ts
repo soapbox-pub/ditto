@@ -1,6 +1,19 @@
-import { type Event, matchFilters } from '@/deps.ts';
+import { type Event, type Filter, matchFilters } from '@/deps.ts';
 
-import type { DittoFilter, EventData } from '@/types.ts';
+import type { EventData } from '@/types.ts';
+
+/** Custom filter interface that extends Nostr filters with extra options for Ditto. */
+interface DittoFilter<K extends number = number> extends Filter<K> {
+  local?: boolean;
+}
+
+/** Additional options to apply to the whole subscription. */
+interface GetFiltersOpts {
+  /** How long to wait (in milliseconds) until aborting the request. */
+  timeout?: number;
+  /** Event limit for the whole subscription. */
+  limit?: number;
+}
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
   if (filter.local && !data.user) {
@@ -24,4 +37,4 @@ function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData
   return false;
 }
 
-export { matchDittoFilters };
+export { type DittoFilter, type GetFiltersOpts, matchDittoFilters };

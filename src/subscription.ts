@@ -1,7 +1,7 @@
 import { type Event } from '@/deps.ts';
-import { matchDittoFilters } from '@/filter.ts';
+import { type DittoFilter, matchDittoFilters } from '@/filter.ts';
 
-import type { DittoFilter, EventData } from '@/types.ts';
+import type { EventData } from '@/types.ts';
 
 class Subscription<K extends number = number> implements AsyncIterable<Event<K>> {
   filters: DittoFilter<K>[];

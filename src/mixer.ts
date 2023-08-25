@@ -4,7 +4,7 @@ import * as client from '@/client.ts';
 import * as eventsDB from '@/db/events.ts';
 import { eventDateComparator } from '@/utils.ts';
 
-import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
+import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
 /** Get filters from the database and pool, and mix the best results together. */
 async function getFilters<K extends number>(

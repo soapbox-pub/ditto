@@ -1,7 +1,8 @@
 import { type Event } from '@/deps.ts';
 import { Subscription } from '@/subscription.ts';
 
-import type { DittoFilter, EventData } from '@/types.ts';
+import type { DittoFilter } from '@/filter.ts';
+import type { EventData } from '@/types.ts';
 
 /**
  * Manages Ditto event subscriptions.

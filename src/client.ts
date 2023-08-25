@@ -3,7 +3,7 @@ import { type Event, type Filter, matchFilters, RelayPool, TTLCache } from '@/de
 import * as pipeline from '@/pipeline.ts';
 import { Time } from '@/utils.ts';
 
-import type { GetFiltersOpts } from '@/types.ts';
+import type { GetFiltersOpts } from '@/filter.ts';
 
 type Pool = InstanceType<typeof RelayPool>;
 
