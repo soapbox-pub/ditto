@@ -42,8 +42,7 @@ const streamingController: AppController = (c) => {
     }
   }
 
-  socket.addEventListener('open', async () => {
-    console.log('websocket: connection opened');
+  socket.onopen = async () => {
     if (!stream) return;
 
     ws.subscribe(conn, { stream });
@@ -58,14 +57,11 @@ const streamingController: AppController = (c) => {
         }
       }
     }
-  });
+  };
 
-  socket.addEventListener('message', (e) => console.log('websocket message: ', e.data));
-
-  socket.addEventListener('close', () => {
-    console.log('websocket: connection closed');
+  socket.onclose = () => {
     ws.unsubscribeAll(socket);
-  });
+  };
 
   return response;
 };
