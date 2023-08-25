@@ -37,6 +37,7 @@ const streamingController: AppController = (c) => {
       socket.send(JSON.stringify({
         event: name,
         payload: JSON.stringify(payload),
+        stream: [stream],
       }));
     }
   }
