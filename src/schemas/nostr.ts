@@ -80,12 +80,19 @@ const relayInfoDocSchema = z.object({
   icon: safeUrlSchema.optional().catch(undefined),
 });
 
+/** NIP-46 signer response. */
+const connectResponseSchema = z.object({
+  id: z.string(),
+  result: signedEventSchema,
+});
+
 export {
   type ClientCLOSE,
   type ClientEVENT,
   type ClientMsg,
   clientMsgSchema,
   type ClientREQ,
+  connectResponseSchema,
   filterSchema,
   jsonMetaContentSchema,
   metaContentSchema,

@@ -20,6 +20,7 @@ export {
   getSignature,
   Kind,
   matchFilters,
+  nip04,
   nip05,
   nip19,
   nip21,

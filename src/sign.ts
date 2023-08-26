@@ -1,68 +1,98 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { type Event, type EventTemplate, finishEvent, HTTPException, z } from '@/deps.ts';
-import { signedEventSchema } from '@/schemas/nostr.ts';
-import { ws } from '@/stream.ts';
-
-/** Get signing WebSocket from app context. */
-function getSignStream(c: AppContext): WebSocket | undefined {
-  const pubkey = c.get('pubkey');
-  const session = c.get('session');
-
-  if (pubkey && session) {
-    const [socket] = ws.getSockets(`nostr:${pubkey}:${session}`);
-    return socket;
-  }
-}
-
-const nostrStreamingEventSchema = z.object({
-  type: z.literal('nostr.sign'),
-  data: signedEventSchema,
-});
+import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
+import { type Event, type EventTemplate, finishEvent, HTTPException } from '@/deps.ts';
+import { connectResponseSchema } from '@/schemas/nostr.ts';
+import { Sub } from '@/subs.ts';
+import { Time } from '@/utils.ts';
+import { createAdminEvent } from '@/utils/web.ts';
 
 /**
  * Sign Nostr event using the app context.
  *
  * - If a secret key is provided, it will be used to sign the event.
- * - If a signing WebSocket is provided, it will be used to sign the event.
+ * - If `X-Nostr-Sign` is passed, it will use a NIP-46 to sign the event.
  */
 async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
   const seckey = c.get('seckey');
-  const stream = getSignStream(c);
+  const header = c.req.headers.get('x-nostr-sign');
 
-  if (!seckey && stream) {
-    try {
-      return await new Promise<Event<K>>((resolve, reject) => {
-        const handleMessage = (e: MessageEvent) => {
-          try {
-            const { data: event } = nostrStreamingEventSchema.parse(JSON.parse(e.data));
-            stream.removeEventListener('message', handleMessage);
-            resolve(event as Event<K>);
-          } catch (_e) {
-            //
+  if (seckey) {
+    return finishEvent(event, seckey);
+  }
+
+  if (header) {
+    return await signNostrConnect(event, c);
+  }
+
+  throw new HTTPException(400, {
+    res: c.json({ id: 'ditto.sign', error: 'Unable to sign event' }, 400),
+  });
+}
+
+/** Sign event with NIP-46, waiting in the background for the signed event. */
+async function signNostrConnect<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
+  const pubkey = c.get('pubkey');
+
+  if (!pubkey) {
+    throw new HTTPException(401);
+  }
+
+  const messageId = crypto.randomUUID();
+
+  createAdminEvent({
+    kind: 24133,
+    content: await encryptAdmin(
+      pubkey,
+      JSON.stringify({
+        id: messageId,
+        method: 'sign_event',
+        params: [event],
+      }),
+    ),
+    tags: [['p', pubkey]],
+  }, c);
+
+  return awaitSignedEvent<K>(pubkey, messageId, c);
+}
+
+/** Wait for signed event to be sent through Nostr relay. */
+function awaitSignedEvent<K extends number = number>(
+  pubkey: string,
+  messageId: string,
+  c: AppContext,
+): Promise<Event<K>> {
+  const sub = Sub.sub(messageId, '1', [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }]);
+
+  function close(): void {
+    Sub.close(messageId);
+  }
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      close();
+      reject(
+        new HTTPException(408, {
+          res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
+        }),
+      );
+    }, Time.minutes(1));
+
+    (async () => {
+      for await (const event of sub) {
+        if (event.kind === 24133) {
+          const decrypted = await decryptAdmin(event.pubkey, event.content);
+          const msg = connectResponseSchema.parse(decrypted);
+
+          if (msg.id === messageId) {
+            close();
+            clearTimeout(timeout);
+            resolve(msg.result as Event<K>);
           }
-        };
-        stream.addEventListener('message', handleMessage);
-        stream.send(JSON.stringify({ event: 'nostr.sign', payload: JSON.stringify(event) }));
-        setTimeout(() => {
-          stream.removeEventListener('message', handleMessage);
-          reject();
-        }, 60000);
-      });
-    } catch (_e) {
-      throw new HTTPException(408, {
-        res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }, 408),
-      });
-    }
-  }
-
-  if (!seckey) {
-    throw new HTTPException(400, {
-      res: c.json({ id: 'ditto.private_key', error: 'No private key' }, 400),
-    });
-  }
-
-  return finishEvent(event, seckey);
+        }
+      }
+    })();
+  });
 }
 
 /** Sign event as the Ditto server. */
