@@ -3,7 +3,7 @@ import { lookupNip05Cached } from '@/nip05.ts';
 import { getAuthor } from '@/queries.ts';
 
 /** Get the current time in Nostr format. */
-const nostrNow = () => Math.floor(new Date().getTime() / 1000);
+const nostrNow = () => Math.floor(Date.now() / 1000);
 /** Convenience function to convert Nostr dates into native Date objects. */
 const nostrDate = (seconds: number) => new Date(seconds * 1000);
 
