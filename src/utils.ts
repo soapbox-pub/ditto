@@ -3,12 +3,12 @@ import { lookupNip05Cached } from '@/nip05.ts';
 import { getAuthor } from '@/queries.ts';
 
 /** Get the current time in Nostr format. */
-const nostrNow = () => Math.floor(Date.now() / 1000);
+const nostrNow = (): number => Math.floor(Date.now() / 1000);
 /** Convenience function to convert Nostr dates into native Date objects. */
-const nostrDate = (seconds: number) => new Date(seconds * 1000);
+const nostrDate = (seconds: number): Date => new Date(seconds * 1000);
 
 /** Pass to sort() to sort events by date. */
-const eventDateComparator = (a: Event, b: Event) => b.created_at - a.created_at;
+const eventDateComparator = (a: Event, b: Event): number => b.created_at - a.created_at;
 
 /** Get pubkey from bech32 string, if applicable. */
 function bech32ToPubkey(bech32: string): string | undefined {
