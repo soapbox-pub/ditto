@@ -1,6 +1,9 @@
 import { AppController } from '@/app.ts';
+import { type DittoFilter } from '@/filter.ts';
 import { TOKEN_REGEX } from '@/middleware/auth19.ts';
 import { streamSchema, ws } from '@/stream.ts';
+import { Sub } from '@/subs.ts';
+import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 
 const streamingController: AppController = (c) => {
@@ -29,21 +32,47 @@ const streamingController: AppController = (c) => {
     pubkey: bech32ToPubkey(match[1]),
   };
 
-  socket.addEventListener('open', () => {
-    console.log('websocket: connection opened');
-    if (stream) {
-      ws.subscribe(conn, { stream });
+  function send(name: string, payload: object) {
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify({
+        event: name,
+        payload: JSON.stringify(payload),
+        stream: [stream],
+      }));
     }
-  });
+  }
 
-  socket.addEventListener('message', (e) => console.log('websocket message: ', e.data));
+  socket.onopen = async () => {
+    if (!stream) return;
 
-  socket.addEventListener('close', () => {
-    console.log('websocket: connection closed');
+    ws.subscribe(conn, { stream });
+
+    const filter = topicToFilter(stream);
+
+    if (filter) {
+      for await (const event of Sub.sub(socket, '1', [filter])) {
+        const status = await toStatus(event);
+        if (status) {
+          send('update', status);
+        }
+      }
+    }
+  };
+
+  socket.onclose = () => {
     ws.unsubscribeAll(socket);
-  });
+  };
 
   return response;
 };
+
+function topicToFilter(topic: string): DittoFilter<1> | undefined {
+  switch (topic) {
+    case 'public':
+      return { kinds: [1] };
+    case 'public:local':
+      return { kinds: [1], local: true };
+  }
+}
 
 export { streamingController };

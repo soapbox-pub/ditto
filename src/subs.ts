@@ -1,52 +1,57 @@
 import { type Event } from '@/deps.ts';
-import { matchDittoFilters } from './filter.ts';
+import { Subscription } from '@/subscription.ts';
 
-import type { DittoFilter, EventData } from '@/types.ts';
-
-/** Nostr subscription to receive realtime events. */
-interface Subscription {
-  /** User-defined NIP-01 subscription ID. */
-  id: string;
-  /** Event filters for the subscription. */
-  filters: DittoFilter[];
-  /** WebSocket to deliver results to. */
-  socket: WebSocket;
-}
+import type { DittoFilter } from '@/filter.ts';
+import type { EventData } from '@/types.ts';
 
 /**
  * Manages Ditto event subscriptions.
- *
  * Subscriptions can be added, removed, and matched against events.
- *
- * ```ts
- * for (const sub of Sub.matches(event)) {
- *   // Send event to sub.socket
- *   sub.socket.send(JSON.stringify(event));
- * }
- * ```
  */
 class SubscriptionStore {
   #store = new Map<WebSocket, Map<string, Subscription>>();
 
-  /** Add a subscription to the store. */
-  sub(data: Subscription): void {
-    let subs = this.#store.get(data.socket);
+  /**
+   * Add a subscription to the store, and then iterate over it.
+   *
+   * ```ts
+   * for (const event of Sub.sub(socket, subId, filters)) {
+   *   console.log(event);
+   * }
+   * ```
+   */
+  sub<K extends number>(socket: WebSocket, id: string, filters: DittoFilter<K>[]): Subscription<K> {
+    let subs = this.#store.get(socket);
 
     if (!subs) {
       subs = new Map();
-      this.#store.set(data.socket, subs);
+      this.#store.set(socket, subs);
     }
 
-    subs.set(data.id, data);
+    const sub = new Subscription(filters);
+
+    this.unsub(socket, id);
+    subs.set(id, sub as unknown as Subscription);
+
+    return sub;
   }
 
   /** Remove a subscription from the store. */
-  unsub(sub: Pick<Subscription, 'socket' | 'id'>): void {
-    this.#store.get(sub.socket)?.delete(sub.id);
+  unsub(socket: WebSocket, id: string): void {
+    this.#store.get(socket)?.get(id)?.close();
+    this.#store.get(socket)?.delete(id);
   }
 
   /** Remove an entire socket. */
   close(socket: WebSocket): void {
+    const subs = this.#store.get(socket);
+
+    if (subs) {
+      for (const sub of subs.values()) {
+        sub.close();
+      }
+    }
+
     this.#store.delete(socket);
   }
 
@@ -54,16 +59,15 @@ class SubscriptionStore {
    * Loop through matching subscriptions to stream out.
    *
    * ```ts
-   * for (const sub of Sub.matches(event)) {
-   *   // Send event to sub.socket
-   *   sub.socket.send(JSON.stringify(event));
+   * for (const sub of Sub.matches(event, data)) {
+   *   sub.stream(event);
    * }
    * ```
    */
   *matches(event: Event, data: EventData): Iterable<Subscription> {
     for (const subs of this.#store.values()) {
       for (const sub of subs.values()) {
-        if (matchDittoFilters(sub.filters, event, data)) {
+        if (sub.matches(event, data)) {
           yield sub;
         }
       }

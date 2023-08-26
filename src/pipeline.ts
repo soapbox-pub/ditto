@@ -93,8 +93,8 @@ const isFresh = ({ created_at }: Event): boolean => created_at >= nostrNow() - T
 function streamOut(event: Event, data: EventData) {
   if (!isFresh(event)) return;
 
-  for (const { socket, id } of Sub.matches(event, data)) {
-    socket.send(JSON.stringify(['EVENT', id, event]));
+  for (const sub of Sub.matches(event, data)) {
+    sub.stream(event);
   }
 }
 

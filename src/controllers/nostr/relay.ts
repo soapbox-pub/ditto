@@ -54,20 +54,18 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle REQ. Start a subscription. */
-  async function handleReq([_, subId, ...filters]: ClientREQ): Promise<void> {
-    const prepared = prepareFilters(filters);
+  async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
+    const filters = prepareFilters(rest);
 
-    for (const event of await eventsDB.getFilters(prepared)) {
+    for (const event of await eventsDB.getFilters(filters)) {
       send(['EVENT', subId, event]);
     }
 
     send(['EOSE', subId]);
 
-    Sub.sub({
-      id: subId,
-      filters: prepared,
-      socket,
-    });
+    for await (const event of Sub.sub(socket, subId, filters)) {
+      send(['EVENT', subId, event]);
+    }
   }
 
   /** Handle EVENT. Store the event. */
@@ -87,12 +85,14 @@ function connectStream(socket: WebSocket) {
 
   /** Handle CLOSE. Close the subscription. */
   function handleClose([_, subId]: ClientCLOSE): void {
-    Sub.unsub({ id: subId, socket });
+    Sub.unsub(socket, subId);
   }
 
   /** Send a message back to the client. */
   function send(msg: RelayMsg): void {
-    return socket.send(JSON.stringify(msg));
+    if (socket.readyState === WebSocket.OPEN) {
+      socket.send(JSON.stringify(msg));
+    }
   }
 }
 

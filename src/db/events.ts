@@ -1,7 +1,7 @@
 import { db, type TagRow } from '@/db.ts';
 import { type Event, type Insertable } from '@/deps.ts';
 
-import type { DittoFilter, GetFiltersOpts } from '@/types.ts';
+import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
 type TagCondition = ({ event, count }: { event: Event; count: number }) => boolean;
 
