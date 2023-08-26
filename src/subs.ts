@@ -9,7 +9,7 @@ import type { EventData } from '@/types.ts';
  * Subscriptions can be added, removed, and matched against events.
  */
 class SubscriptionStore {
-  #store = new Map<WebSocket, Map<string, Subscription>>();
+  #store = new Map<unknown, Map<string, Subscription>>();
 
   /**
    * Add a subscription to the store, and then iterate over it.
@@ -20,7 +20,7 @@ class SubscriptionStore {
    * }
    * ```
    */
-  sub<K extends number>(socket: WebSocket, id: string, filters: DittoFilter<K>[]): Subscription<K> {
+  sub<K extends number>(socket: unknown, id: string, filters: DittoFilter<K>[]): Subscription<K> {
     let subs = this.#store.get(socket);
 
     if (!subs) {
@@ -37,13 +37,13 @@ class SubscriptionStore {
   }
 
   /** Remove a subscription from the store. */
-  unsub(socket: WebSocket, id: string): void {
+  unsub(socket: unknown, id: string): void {
     this.#store.get(socket)?.get(id)?.close();
     this.#store.get(socket)?.delete(id);
   }
 
   /** Remove an entire socket. */
-  close(socket: WebSocket): void {
+  close(socket: unknown): void {
     const subs = this.#store.get(socket);
 
     if (subs) {
