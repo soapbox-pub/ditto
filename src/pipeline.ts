@@ -2,6 +2,7 @@ import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event, LRUCache } from '@/deps.ts';
+import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
@@ -43,6 +44,7 @@ async function getEventData({ pubkey }: Event): Promise<EventData> {
 
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: Event, data: EventData): Promise<void> {
+  if (isEphemeralKind(event.kind)) return;
   if (data.user || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
   } else {
