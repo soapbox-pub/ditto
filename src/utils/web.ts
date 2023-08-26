@@ -1,16 +1,18 @@
 import { Conf } from '@/config.ts';
 import { type Context, type Event, EventTemplate, HTTPException, parseFormData, z } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
-import { signEvent } from '@/sign.ts';
+import { signAdminEvent, signEvent } from '@/sign.ts';
 import { nostrNow } from '@/utils.ts';
 
 import type { AppContext } from '@/app.ts';
 
-/** Publish an event through the API, throwing a Hono exception on failure. */
-async function createEvent<K extends number>(
-  t: Omit<EventTemplate<K>, 'created_at'>,
-  c: AppContext,
-): Promise<Event<K>> {
+/** EventTemplate with or without a timestamp. If no timestamp is given, it will be generated. */
+interface PendingEvent<K extends number = number> extends Omit<EventTemplate<K>, 'created_at'> {
+  created_at?: number;
+}
+
+/** Publish an event through the pipeline. */
+async function createEvent<K extends number>(t: PendingEvent<K>, c: AppContext): Promise<Event<K>> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
@@ -22,6 +24,21 @@ async function createEvent<K extends number>(
     ...t,
   }, c);
 
+  return publishEvent(event, c);
+}
+
+/** Publish an admin event through the pipeline. */
+async function createAdminEvent<K extends number>(t: PendingEvent<K>, c: AppContext): Promise<Event<K>> {
+  const event = await signAdminEvent({
+    created_at: nostrNow(),
+    ...t,
+  });
+
+  return publishEvent(event, c);
+}
+
+/** Push the event through the pipeline, rethrowing any RelayError. */
+async function publishEvent<K extends number>(event: Event<K>, c: AppContext): Promise<Event<K>> {
   try {
     await pipeline.handleEvent(event);
   } catch (e) {
@@ -90,4 +107,12 @@ function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
   return response;
 }
 
-export { activityJson, buildLinkHeader, createEvent, type PaginationParams, paginationSchema, parseBody };
+export {
+  activityJson,
+  buildLinkHeader,
+  createAdminEvent,
+  createEvent,
+  type PaginationParams,
+  paginationSchema,
+  parseBody,
+};

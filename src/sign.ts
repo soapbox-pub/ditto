@@ -1,5 +1,6 @@
 import { type AppContext } from '@/app.ts';
-import { type Event, type EventTemplate, getEventHash, getPublicKey, getSignature, HTTPException, z } from '@/deps.ts';
+import { Conf } from '@/config.ts';
+import { type Event, type EventTemplate, finishEvent, HTTPException, z } from '@/deps.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
 import { ws } from '@/stream.ts';
 
@@ -61,11 +62,13 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
     });
   }
 
-  (event as Event<K>).pubkey = getPublicKey(seckey);
-  (event as Event<K>).id = getEventHash(event as Event<K>);
-  (event as Event<K>).sig = getSignature(event as Event<K>, seckey);
-
-  return event as Event<K>;
+  return finishEvent(event, seckey);
 }
 
-export { signEvent };
+/** Sign event as the Ditto server. */
+// deno-lint-ignore require-await
+async function signAdminEvent<K extends number = number>(event: EventTemplate<K>): Promise<Event<K>> {
+  return finishEvent(event, Conf.seckey);
+}
+
+export { signAdminEvent, signEvent };
