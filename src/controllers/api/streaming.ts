@@ -61,6 +61,7 @@ const streamingController: AppController = (c) => {
 
   socket.onclose = () => {
     ws.unsubscribeAll(socket);
+    Sub.close(socket);
   };
 
   return response;
