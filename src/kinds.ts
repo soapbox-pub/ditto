@@ -1,11 +1,11 @@
 /** Events are **regular**, which means they're all expected to be stored by relays. */
 function isRegularKind(kind: number) {
-  return 1000 <= kind && kind < 10000;
+  return (1000 <= kind && kind < 10000) || [1, 2, 4, 5, 6, 7, 8, 16, 40, 41, 42, 43, 44].includes(kind);
 }
 
 /** Events are **replaceable**, which means that, for each combination of `pubkey` and `kind`, only the latest event is expected to (SHOULD) be stored by relays, older versions are expected to be discarded. */
 function isReplaceableKind(kind: number) {
-  return (10000 <= kind && kind < 20000) || kind == 0 || kind == 3;
+  return (10000 <= kind && kind < 20000) || [0, 3].includes(kind);
 }
 
 /** Events are **ephemeral**, which means they are not expected to be stored by relays. */
