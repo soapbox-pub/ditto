@@ -7,12 +7,12 @@ import { nostrNow } from '@/utils.ts';
 import type { AppContext } from '@/app.ts';
 
 /** EventTemplate with or without a timestamp. If no timestamp is given, it will be generated. */
-interface PendingEvent<K extends number = number> extends Omit<EventTemplate<K>, 'created_at'> {
+interface EventStub<K extends number = number> extends Omit<EventTemplate<K>, 'created_at'> {
   created_at?: number;
 }
 
 /** Publish an event through the pipeline. */
-async function createEvent<K extends number>(t: PendingEvent<K>, c: AppContext): Promise<Event<K>> {
+async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
@@ -28,7 +28,7 @@ async function createEvent<K extends number>(t: PendingEvent<K>, c: AppContext):
 }
 
 /** Publish an admin event through the pipeline. */
-async function createAdminEvent<K extends number>(t: PendingEvent<K>, c: AppContext): Promise<Event<K>> {
+async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const event = await signAdminEvent({
     created_at: nostrNow(),
     ...t,
