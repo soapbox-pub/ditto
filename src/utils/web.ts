@@ -1,15 +1,13 @@
 import { Conf } from '@/config.ts';
-import { type Context, type Event, EventTemplate, HTTPException, parseFormData, z } from '@/deps.ts';
+import { type Context, type Event, EventTemplate, HTTPException, parseFormData, type TypeFest, z } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent, signEvent } from '@/sign.ts';
 import { nostrNow } from '@/utils.ts';
 
 import type { AppContext } from '@/app.ts';
 
-/** EventTemplate with or without a timestamp. If no timestamp is given, it will be generated. */
-interface EventStub<K extends number = number> extends Omit<EventTemplate<K>, 'created_at'> {
-  created_at?: number;
-}
+/** EventTemplate with defaults. */
+type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
 async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
@@ -21,6 +19,7 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
 
   const event = await signEvent({
     created_at: nostrNow(),
+    tags: [],
     ...t,
   }, c);
 
@@ -31,6 +30,7 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
 async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const event = await signAdminEvent({
     created_at: nostrNow(),
+    tags: [],
     ...t,
   });
 
