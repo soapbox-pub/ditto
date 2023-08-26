@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import { type Event, type Filter, matchFilters } from '@/deps.ts';
 
 import type { EventData } from '@/types.ts';
@@ -16,7 +17,7 @@ interface GetFiltersOpts {
 }
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
-  if (filter.local && !data.user) {
+  if (filter.local && !(data.user || event.pubkey === Conf.pubkey)) {
     return false;
   }
 
