@@ -38,15 +38,14 @@ function instanceController(c: Context) {
       user_count: 0,
     },
     urls: {
-      /** Base URL for the streaming API, so it can be hosted on another domain. Clients will add `/api/v1/streaming` to it. */
       streaming_api: `${wsProtocol}//${host}`,
-      /** Full URL to the Nostr relay. */
-      nostr_relay: `${wsProtocol}//${host}/relay`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
     email: Conf.adminEmail,
-    /** Ditto admin pubkey, so clients can query and validate Nostr events from the server. */
-    pubkey: Conf.pubkey,
+    nostr: {
+      pubkey: Conf.pubkey,
+      relay: `${wsProtocol}//${host}/relay`,
+    },
     rules: [],
   });
 }
