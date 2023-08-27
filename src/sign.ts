@@ -3,6 +3,7 @@ import { Conf } from '@/config.ts';
 import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
 import { type Event, type EventTemplate, finishEvent, HTTPException } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
+import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
 import { Time } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/web.ts';
@@ -82,7 +83,7 @@ function awaitSignedEvent<K extends number = number>(
       for await (const event of sub) {
         if (event.kind === 24133) {
           const decrypted = await decryptAdmin(event.pubkey, event.content);
-          const msg = connectResponseSchema.parse(decrypted);
+          const msg = jsonSchema.pipe(connectResponseSchema).parse(decrypted);
 
           if (msg.id === messageId) {
             close();
