@@ -11,7 +11,7 @@
   },
   "imports": {
     "@/": "./src/",
-    "~/": "./"
+    "~/fixtures/": "./fixtures/"
   },
   "lint": {
     "include": ["src/", "scripts/"],

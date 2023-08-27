@@ -82,7 +82,7 @@ const relationshipsController: AppController = async (c) => {
 
 const accountStatusesQuerySchema = z.object({
   pinned: booleanParamSchema.optional(),
-  limit: z.coerce.number().positive().transform((v) => Math.min(v, 40)).catch(20),
+  limit: z.coerce.number().nonnegative().transform((v) => Math.min(v, 40)).catch(20),
   exclude_replies: booleanParamSchema.optional(),
   tagged: z.string().optional(),
 });

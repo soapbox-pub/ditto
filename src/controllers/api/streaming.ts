@@ -1,10 +1,20 @@
 import { AppController } from '@/app.ts';
+import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { TOKEN_REGEX } from '@/middleware/auth19.ts';
-import { streamSchema, ws } from '@/stream.ts';
 import { Sub } from '@/subs.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { bech32ToPubkey } from '@/utils.ts';
+
+/**
+ * Streaming timelines/categories.
+ * https://docs.joinmastodon.org/methods/streaming/#streams
+ */
+const streamSchema = z.enum([
+  'nostr',
+  'public',
+  'public:local',
+  'user',
+]);
 
 const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
@@ -26,12 +36,6 @@ const streamingController: AppController = (c) => {
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
 
-  const conn = {
-    socket,
-    session: match[2],
-    pubkey: bech32ToPubkey(match[1]),
-  };
-
   function send(name: string, payload: object) {
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
@@ -44,9 +48,6 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-
-    ws.subscribe(conn, { stream });
-
     const filter = topicToFilter(stream);
 
     if (filter) {
@@ -60,7 +61,7 @@ const streamingController: AppController = (c) => {
   };
 
   socket.onclose = () => {
-    ws.unsubscribeAll(socket);
+    Sub.close(socket);
   };
 
   return response;

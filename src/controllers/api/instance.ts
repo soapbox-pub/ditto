@@ -5,6 +5,9 @@ import type { Context } from '@/deps.ts';
 function instanceController(c: Context) {
   const { host, protocol } = Conf.url;
 
+  /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
+  const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
+
   return c.json({
     uri: host,
     title: 'Ditto',
@@ -35,10 +38,14 @@ function instanceController(c: Context) {
       user_count: 0,
     },
     urls: {
-      streaming_api: `${protocol === 'http:' ? 'ws:' : 'wss:'}//${host}`,
+      streaming_api: `${wsProtocol}//${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
     email: Conf.adminEmail,
+    nostr: {
+      pubkey: Conf.pubkey,
+      relay: `${wsProtocol}//${host}/relay`,
+    },
     rules: [],
   });
 }
