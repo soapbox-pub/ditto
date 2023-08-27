@@ -5,7 +5,7 @@ import { jsonSchema, safeUrlSchema } from '../schema.ts';
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
 const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
 /** Nostr kinds are positive integers. */
-const kindSchema = z.number().int().positive();
+const kindSchema = z.number().int().nonnegative();
 
 /** Nostr event schema. */
 const eventSchema = z.object({
@@ -26,9 +26,9 @@ const filterSchema = z.object({
   kinds: kindSchema.array().optional(),
   ids: nostrIdSchema.array().optional(),
   authors: nostrIdSchema.array().optional(),
-  since: z.number().int().positive().optional(),
-  until: z.number().int().positive().optional(),
-  limit: z.number().int().positive().optional(),
+  since: z.number().int().nonnegative().optional(),
+  until: z.number().int().nonnegative().optional(),
+  limit: z.number().int().nonnegative().optional(),
 }).passthrough().and(
   z.record(
     z.custom<`#${string}`>((val) => typeof val === 'string' && val.startsWith('#')),
@@ -75,7 +75,7 @@ const relayInfoDocSchema = z.object({
   description: z.string().transform((val) => val.slice(0, 3000)).optional().catch(undefined),
   pubkey: nostrIdSchema.optional().catch(undefined),
   contact: safeUrlSchema.optional().catch(undefined),
-  supported_nips: z.number().int().positive().array().optional().catch(undefined),
+  supported_nips: z.number().int().nonnegative().array().optional().catch(undefined),
   software: safeUrlSchema.optional().catch(undefined),
   icon: safeUrlSchema.optional().catch(undefined),
 });
