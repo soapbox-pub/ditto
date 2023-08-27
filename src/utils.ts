@@ -102,7 +102,6 @@ function isFollowing(source: Event<3>, targetPubkey: string): boolean {
 }
 
 export {
-  bech32ToPubkey,
   eventAge,
   eventDateComparator,
   findTag,
