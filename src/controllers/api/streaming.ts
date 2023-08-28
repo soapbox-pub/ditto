@@ -1,8 +1,10 @@
 import { type AppController } from '@/app.ts';
-import { nip19, z } from '@/deps.ts';
+import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
+import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { bech32ToPubkey } from '@/utils.ts';
 
 /**
  * Streaming timelines/categories.
@@ -38,8 +40,8 @@ const streamingController: AppController = (c) => {
     return c.json({ error: 'Missing access token' }, 401);
   }
 
-  const match = token.match(new RegExp(`^${nip19.BECH32_REGEX.source}$`));
-  if (!match) {
+  const pubkey = token ? bech32ToPubkey(token) : undefined;
+  if (!pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
@@ -57,7 +59,7 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-    const filter = topicToFilter(stream, c.req.query());
+    const filter = await topicToFilter(stream, pubkey, c.req.query());
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
@@ -76,18 +78,27 @@ const streamingController: AppController = (c) => {
   return response;
 };
 
-function topicToFilter(topic: Stream, query?: Record<string, string>): DittoFilter<1> | undefined {
+async function topicToFilter(
+  topic: Stream,
+  pubkey: string,
+  query: Record<string, string>,
+): Promise<DittoFilter<1> | undefined> {
   switch (topic) {
     case 'public':
       return { kinds: [1] };
     case 'public:local':
       return { kinds: [1], local: true };
     case 'hashtag':
-      if (query?.tag) return { kinds: [1], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query?.tag) return { kinds: [1], local: true, '#t': [query.tag] };
+      if (query.tag) return { kinds: [1], local: true, '#t': [query.tag] };
       break;
+    case 'user':
+      // HACK: this puts the user's entire contacts list into RAM,
+      // and then calls `matchFilters` over it. Refreshing the page
+      // is required after following a new user.
+      return { kinds: [1], authors: await getFeedPubkeys(pubkey) };
   }
 }
 
