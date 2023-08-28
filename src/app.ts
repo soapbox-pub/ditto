@@ -45,7 +45,7 @@ import { hostMetaController } from './controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
-import { auth19, requireAuth } from './middleware/auth19.ts';
+import { auth19, requirePubkey } from './middleware/auth19.ts';
 import { auth98 } from './middleware/auth98.ts';
 
 interface AppEnv extends HonoEnv {
@@ -93,8 +93,8 @@ app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
 app.post('/api/v1/acccounts', createAccountController);
-app.get('/api/v1/accounts/verify_credentials', requireAuth, verifyCredentialsController);
-app.patch('/api/v1/accounts/update_credentials', requireAuth, updateCredentialsController);
+app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
+app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
@@ -105,9 +105,9 @@ app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
-app.post('/api/v1/statuses', requireAuth, createStatusController);
+app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
-app.get('/api/v1/timelines/home', requireAuth, homeController);
+app.get('/api/v1/timelines/home', requirePubkey, homeController);
 app.get('/api/v1/timelines/public', publicController);
 
 app.get('/api/v1/preferences', preferencesController);
@@ -119,7 +119,7 @@ app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 app.get('/api/v1/trends/tags', trendingTagsController);
 app.get('/api/v1/trends', trendingTagsController);
 
-app.get('/api/v1/notifications', notificationsController);
+app.get('/api/v1/notifications', requirePubkey, notificationsController);
 
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);

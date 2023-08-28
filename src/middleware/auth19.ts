@@ -36,7 +36,7 @@ const auth19: AppMiddleware = async (c, next) => {
 };
 
 /** Throw a 401 if the pubkey isn't set. */
-const requireAuth: AppMiddleware = async (c, next) => {
+const requirePubkey: AppMiddleware = async (c, next) => {
   if (!c.get('pubkey')) {
     throw new HTTPException(401);
   }
@@ -44,4 +44,4 @@ const requireAuth: AppMiddleware = async (c, next) => {
   await next();
 };
 
-export { auth19, requireAuth };
+export { auth19, requirePubkey };
