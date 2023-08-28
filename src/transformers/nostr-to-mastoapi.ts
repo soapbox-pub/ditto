@@ -276,4 +276,24 @@ async function toRelationship(sourcePubkey: string, targetPubkey: string) {
   };
 }
 
-export { toAccount, toRelationship, toStatus };
+function toNotification(event: Event) {
+  switch (event.kind) {
+    case 1:
+      return toNotificationMention(event as Event<1>);
+  }
+}
+
+async function toNotificationMention(event: Event<1>) {
+  const status = await toStatus(event);
+  if (!status) return;
+
+  return {
+    id: event.id,
+    type: 'mention',
+    created_at: nostrDate(event.created_at).toISOString(),
+    account: status.account,
+    status: status,
+  };
+}
+
+export { toAccount, toNotification, toRelationship, toStatus };
