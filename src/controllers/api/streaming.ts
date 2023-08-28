@@ -92,7 +92,7 @@ async function topicToFilter(
       if (query.tag) return { kinds: [1], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1], local: true, '#t': [query.tag] };
+      if (query.tag) return { kinds: [1], '#t': [query.tag], local: true };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
