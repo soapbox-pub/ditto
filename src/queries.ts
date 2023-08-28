@@ -37,16 +37,25 @@ const getFollows = async (pubkey: string, timeout = 1000): Promise<Event<3> | un
   return event;
 };
 
-/** Get events from people the user follows. */
-async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<1>[]> {
-  const event3 = await getFollows(pubkey);
-  if (!event3) return [];
+/** Get pubkeys the user follows. */
+async function getFollowedPubkeys(pubkey: string): Promise<string[]> {
+  const event = await getFollows(pubkey);
+  if (!event) return [];
 
-  const authors = event3.tags
+  return event.tags
     .filter((tag) => tag[0] === 'p')
     .map((tag) => tag[1]);
+}
 
-  authors.push(event3.pubkey); // see own events in feed
+/** Get pubkeys the user follows, including the user's own pubkey. */
+async function getFeedPubkeys(pubkey: string): Promise<string[]> {
+  const authors = await getFollowedPubkeys(pubkey);
+  return [...authors, pubkey];
+}
+
+/** Get events from people the user follows. */
+async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<1>[]> {
+  const authors = await getFeedPubkeys(pubkey);
 
   const filter: Filter<1> = {
     authors,
@@ -103,6 +112,7 @@ export {
   getDescendants,
   getEvent,
   getFeed,
+  getFeedPubkeys,
   getFollows,
   getPublicFeed,
   isLocallyFollowed,

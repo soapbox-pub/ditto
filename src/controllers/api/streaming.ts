@@ -1,20 +1,31 @@
-import { AppController } from '@/app.ts';
+import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { TOKEN_REGEX } from '@/middleware/auth19.ts';
+import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { bech32ToPubkey } from '@/utils.ts';
 
 /**
  * Streaming timelines/categories.
  * https://docs.joinmastodon.org/methods/streaming/#streams
  */
 const streamSchema = z.enum([
-  'nostr',
   'public',
+  'public:media',
   'public:local',
+  'public:local:media',
+  'public:remote',
+  'public:remote:media',
+  'hashtag',
+  'hashtag:local',
   'user',
+  'user:notification',
+  'list',
+  'direct',
 ]);
+
+type Stream = z.infer<typeof streamSchema>;
 
 const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
@@ -29,8 +40,8 @@ const streamingController: AppController = (c) => {
     return c.json({ error: 'Missing access token' }, 401);
   }
 
-  const match = token.match(new RegExp(`^${TOKEN_REGEX.source}$`));
-  if (!match) {
+  const pubkey = token ? bech32ToPubkey(token) : undefined;
+  if (!pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
@@ -48,7 +59,7 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-    const filter = topicToFilter(stream);
+    const filter = await topicToFilter(stream, pubkey, c.req.query());
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
@@ -67,12 +78,27 @@ const streamingController: AppController = (c) => {
   return response;
 };
 
-function topicToFilter(topic: string): DittoFilter<1> | undefined {
+async function topicToFilter(
+  topic: Stream,
+  pubkey: string,
+  query: Record<string, string>,
+): Promise<DittoFilter<1> | undefined> {
   switch (topic) {
     case 'public':
       return { kinds: [1] };
     case 'public:local':
       return { kinds: [1], local: true };
+    case 'hashtag':
+      if (query.tag) return { kinds: [1], '#t': [query.tag] };
+      break;
+    case 'hashtag:local':
+      if (query.tag) return { kinds: [1], '#t': [query.tag], local: true };
+      break;
+    case 'user':
+      // HACK: this puts the user's entire contacts list into RAM,
+      // and then calls `matchFilters` over it. Refreshing the page
+      // is required after following a new user.
+      return { kinds: [1], authors: await getFeedPubkeys(pubkey) };
   }
 }
 
