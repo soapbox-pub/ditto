@@ -24,11 +24,12 @@ import {
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
-import { homeController, publicController } from './controllers/api/timelines.ts';
-import instanceController from './controllers/api/instance.ts';
+import { instanceController } from './controllers/api/instance.ts';
+import { notificationsController } from './controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
 import { frontendConfigController } from './controllers/api/pleroma.ts';
 import { preferencesController } from './controllers/api/preferences.ts';
+import { relayController } from './controllers/nostr/relay.ts';
 import { searchController } from './controllers/api/search.ts';
 import {
   contextController,
@@ -37,8 +38,8 @@ import {
   statusController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
+import { homeController, publicController } from './controllers/api/timelines.ts';
 import { trendingTagsController } from './controllers/api/trends.ts';
-import { relayController } from './controllers/nostr/relay.ts';
 import { indexController } from './controllers/site.ts';
 import { hostMetaController } from './controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
@@ -118,8 +119,9 @@ app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 app.get('/api/v1/trends/tags', trendingTagsController);
 app.get('/api/v1/trends', trendingTagsController);
 
+app.get('/api/v1/notifications', notificationsController);
+
 // Not (yet) implemented.
-app.get('/api/v1/notifications', emptyArrayController);
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/accounts/search', emptyArrayController);

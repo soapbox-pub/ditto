@@ -1,8 +1,7 @@
+import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 
-import type { Context } from '@/deps.ts';
-
-function instanceController(c: Context) {
+const instanceController: AppController = (c) => {
   const { host, protocol } = Conf.url;
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
@@ -48,6 +47,6 @@ function instanceController(c: Context) {
     },
     rules: [],
   });
-}
+};
 
-export default instanceController;
+export { instanceController };
