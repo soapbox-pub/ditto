@@ -10,11 +10,21 @@ import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
  * https://docs.joinmastodon.org/methods/streaming/#streams
  */
 const streamSchema = z.enum([
-  'nostr',
   'public',
+  'public:media',
   'public:local',
+  'public:local:media',
+  'public:remote',
+  'public:remote:media',
+  'hashtag',
+  'hashtag:local',
   'user',
+  'user:notification',
+  'list',
+  'direct',
 ]);
+
+type Stream = z.infer<typeof streamSchema>;
 
 const streamingController: AppController = (c) => {
   const upgrade = c.req.headers.get('upgrade');
@@ -48,7 +58,7 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-    const filter = topicToFilter(stream);
+    const filter = topicToFilter(stream, c.req.query());
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
@@ -67,12 +77,18 @@ const streamingController: AppController = (c) => {
   return response;
 };
 
-function topicToFilter(topic: string): DittoFilter<1> | undefined {
+function topicToFilter(topic: Stream, query?: Record<string, string>): DittoFilter<1> | undefined {
   switch (topic) {
     case 'public':
       return { kinds: [1] };
     case 'public:local':
       return { kinds: [1], local: true };
+    case 'hashtag':
+      if (query?.tag) return { kinds: [1], '#t': [query.tag] };
+      break;
+    case 'hashtag:local':
+      if (query?.tag) return { kinds: [1], local: true, '#t': [query.tag] };
+      break;
   }
 }
 
