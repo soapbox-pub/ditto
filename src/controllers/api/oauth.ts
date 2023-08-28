@@ -88,7 +88,7 @@ const oauthController: AppController = (c) => {
   </head>
   <body>
     <form id="oauth_form" action="/oauth/authorize" method="post">
-    <input type="text" placeholder="npub1... or nsec1..." name="nip19" autocomplete="off">
+      <input type="text" placeholder="npub1... or nsec1..." name="nip19" autocomplete="off">
       <input type="hidden" name="pubkey" id="pubkey" value="">
       <input type="hidden" name="redirect_uri" id="redirect_uri" value="${lodash.escape(redirectUri)}">
       <button type="submit">Authorize</button>
@@ -137,19 +137,12 @@ const oauthAuthorizeController: AppController = async (c) => {
   // Parsed FormData values.
   const { pubkey, nip19: nip19id, redirect_uri: redirectUri } = result.data;
 
-  /**
-   * Normally the auth token is just an npub, which is public information.
-   * The sessionId helps us know that Request "B" and Request "A" came from the same person.
-   * Useful for sending websocket events to the correct client.
-   */
-  const sessionId: string = uuid62.v4();
-
   if (pubkey) {
     const encoded = nip19.npubEncode(pubkey!);
-    const url = addCodeToRedirectUri(redirectUri, `${encoded}_${sessionId}`);
+    const url = addCodeToRedirectUri(redirectUri, encoded);
     return c.redirect(url);
   } else if (nip19id) {
-    const url = addCodeToRedirectUri(redirectUri, `${nip19id}_${sessionId}`);
+    const url = addCodeToRedirectUri(redirectUri, nip19id);
     return c.redirect(url);
   }
 

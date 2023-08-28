@@ -1,7 +1,6 @@
-import { AppController } from '@/app.ts';
-import { z } from '@/deps.ts';
+import { type AppController } from '@/app.ts';
+import { nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { TOKEN_REGEX } from '@/middleware/auth19.ts';
 import { Sub } from '@/subs.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 
@@ -39,7 +38,7 @@ const streamingController: AppController = (c) => {
     return c.json({ error: 'Missing access token' }, 401);
   }
 
-  const match = token.match(new RegExp(`^${TOKEN_REGEX.source}$`));
+  const match = token.match(new RegExp(`^${nip19.BECH32_REGEX.source}$`));
   if (!match) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
