@@ -75,7 +75,7 @@ type PaginationParams = z.infer<typeof paginationSchema>;
 
 /** Build HTTP Link header for Mastodon API pagination. */
 function buildLinkHeader(url: string, events: Event[]): string | undefined {
-  if (!events.length) return;
+  if (events.length <= 1) return;
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
 
