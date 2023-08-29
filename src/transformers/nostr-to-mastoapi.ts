@@ -1,7 +1,7 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
-import { countFilters } from '@/db/events.ts';
+import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
@@ -92,7 +92,7 @@ async function toMention(pubkey: string) {
   }
 }
 
-async function toStatus(event: Event<1>) {
+async function toStatus(event: Event<1>, viewerPubkey?: string) {
   const profile = await getAuthor(event.pubkey);
   const account = profile ? await toAccount(profile) : undefined;
   if (!account) return;
@@ -110,13 +110,20 @@ async function toStatus(event: Event<1>) {
   const { html, links, firstUrl } = parseNoteContent(event.content);
   const mediaLinks = getMediaLinks(links);
 
-  const [mentions, card, repliesCount, reblogsCount, favouritesCount] = await Promise.all([
-    Promise.all(mentionedPubkeys.map(toMention)),
-    firstUrl ? unfurlCardCached(firstUrl) : null,
-    countFilters([{ kinds: [1], '#e': [event.id] }]),
-    countFilters([{ kinds: [6], '#e': [event.id] }]),
-    countFilters([{ kinds: [7], '#e': [event.id] }]),
-  ]);
+  const [mentions, card, repliesCount, reblogsCount, favouritesCount, [repostEvent], [reactionEvent]] = await Promise
+    .all([
+      Promise.all(mentionedPubkeys.map(toMention)),
+      firstUrl ? unfurlCardCached(firstUrl) : null,
+      eventsDB.countFilters([{ kinds: [1], '#e': [event.id] }]),
+      eventsDB.countFilters([{ kinds: [6], '#e': [event.id] }]),
+      eventsDB.countFilters([{ kinds: [7], '#e': [event.id] }]),
+      viewerPubkey
+        ? eventsDB.getFilters([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
+        : [],
+      viewerPubkey
+        ? eventsDB.getFilters([{ kinds: [7], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
+        : [],
+    ]);
 
   const content = buildInlineRecipients(mentions) + html;
 
@@ -138,8 +145,8 @@ async function toStatus(event: Event<1>) {
     replies_count: repliesCount,
     reblogs_count: reblogsCount,
     favourites_count: favouritesCount,
-    favourited: false,
-    reblogged: false,
+    favourited: reactionEvent?.content === '+',
+    reblogged: Boolean(repostEvent),
     muted: false,
     bookmarked: false,
     reblog: null,

@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { ISO6391, Kind, z } from '@/deps.ts';
+import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { createEvent, parseBody } from '@/utils/web.ts';
@@ -69,7 +69,7 @@ const createStatusController: AppController = async (c) => {
     }
 
     const event = await createEvent({
-      kind: Kind.Text,
+      kind: 1,
       content: data.status ?? '',
       tags,
     }, c);
@@ -82,17 +82,20 @@ const createStatusController: AppController = async (c) => {
 
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
-
   const event = await getEvent(id, { kind: 1 });
 
-  if (event) {
-    const ancestorEvents = await getAncestors(event);
-    const descendantEvents = await getDescendants(event.id);
+  async function renderStatuses(events: Event<1>[]) {
+    const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
+    return statuses.filter(Boolean);
+  }
 
-    return c.json({
-      ancestors: (await Promise.all(ancestorEvents.map(toStatus))).filter(Boolean),
-      descendants: (await Promise.all(descendantEvents.map(toStatus))).filter(Boolean),
-    });
+  if (event) {
+    const [ancestors, descendants] = await Promise.all([
+      getAncestors(event).then(renderStatuses),
+      getDescendants(event.id).then(renderStatuses),
+    ]);
+
+    return c.json({ ancestors, descendants });
   }
 
   return c.json({ error: 'Event not found.' }, 404);
@@ -104,7 +107,7 @@ const favouriteController: AppController = async (c) => {
 
   if (target) {
     await createEvent({
-      kind: Kind.Reaction,
+      kind: 7,
       content: '+',
       tags: [
         ['e', target.id],

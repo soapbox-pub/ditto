@@ -109,7 +109,7 @@ const accountStatusesController: AppController = async (c) => {
     events = events.filter((event) => !findReplyTag(event));
   }
 
-  const statuses = await Promise.all(events.map(toStatus));
+  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 };
 
