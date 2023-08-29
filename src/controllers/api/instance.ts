@@ -30,6 +30,15 @@ const instanceController: AppController = (c) => {
         max_media_attachments: 20,
       },
     },
+    pleroma: {
+      metadata: {
+        features: [
+          'mastodon_api',
+          'mastodon_api_streaming',
+          'exposable_reactions',
+        ],
+      },
+    },
     languages: ['en'],
     stats: {
       domain_count: 0,

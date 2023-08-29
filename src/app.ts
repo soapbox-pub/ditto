@@ -35,6 +35,8 @@ import {
   contextController,
   createStatusController,
   favouriteController,
+  favouritedByController,
+  rebloggedByController,
   statusController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
@@ -106,6 +108,8 @@ app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
+app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/favourited_by', favouritedByController);
+app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/reblogged_by', rebloggedByController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
