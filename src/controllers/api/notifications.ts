@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import * as mixer from '@/mixer.ts';
-import { buildLinkHeader, paginationSchema } from '@/utils/web.ts';
+import { paginated, paginationSchema } from '@/utils/web.ts';
 import { toNotification } from '@/transformers/nostr-to-mastoapi.ts';
 import { Time } from '@/utils.ts';
 
@@ -14,9 +14,7 @@ const notificationsController: AppController = async (c) => {
   );
 
   const statuses = await Promise.all(events.map(toNotification));
-
-  const link = buildLinkHeader(c.req.url, events);
-  return c.json(statuses, 200, link ? { link } : undefined);
+  return paginated(c, events, statuses);
 };
 
 export { notificationsController };

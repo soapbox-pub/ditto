@@ -3,7 +3,7 @@ import * as mixer from '@/mixer.ts';
 import { getFeed, getPublicFeed } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { buildLinkHeader, paginationSchema } from '@/utils/web.ts';
+import { paginated, paginationSchema } from '@/utils/web.ts';
 import { Time } from '@/utils.ts';
 
 import type { AppController } from '@/app.ts';
@@ -17,10 +17,8 @@ const homeTimelineController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
-
-  const link = buildLinkHeader(c.req.url, events);
-  return c.json(statuses, 200, link ? { link } : undefined);
+  const statuses = await Promise.all(events.map(toStatus));
+  return paginated(c, events, statuses);
 };
 
 const publicQuerySchema = z.object({
@@ -36,10 +34,8 @@ const publicTimelineController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
-
-  const link = buildLinkHeader(c.req.url, events);
-  return c.json(statuses, 200, link ? { link } : undefined);
+  const statuses = await Promise.all(events.map(toStatus));
+  return paginated(c, events, statuses);
 };
 
 const hashtagTimelineController: AppController = async (c) => {
@@ -55,10 +51,8 @@ const hashtagTimelineController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const statuses = (await Promise.all(events.map(toStatus))).filter(Boolean);
-
-  const link = buildLinkHeader(c.req.url, events);
-  return c.json(statuses, 200, link ? { link } : undefined);
+  const statuses = await Promise.all(events.map(toStatus));
+  return paginated(c, events, statuses);
 };
 
 export { hashtagTimelineController, homeTimelineController, publicTimelineController };

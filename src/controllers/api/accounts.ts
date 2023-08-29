@@ -6,7 +6,7 @@ import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { eventDateComparator, isFollowing, lookupAccount } from '@/utils.ts';
-import { buildLinkHeader, paginationSchema, parseBody } from '@/utils/web.ts';
+import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 
 const createAccountController: AppController = (c) => {
@@ -110,9 +110,7 @@ const accountStatusesController: AppController = async (c) => {
   }
 
   const statuses = await Promise.all(events.map(toStatus));
-
-  const link = buildLinkHeader(c.req.url, events);
-  return c.json(statuses, 200, link ? { link } : undefined);
+  return paginated(c, events, statuses);
 };
 
 const fileSchema = z.custom<File>((value) => value instanceof File);
