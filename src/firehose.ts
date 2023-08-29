@@ -1,6 +1,5 @@
 import { getActiveRelays } from '@/db/relays.ts';
 import { type Event, RelayPool } from '@/deps.ts';
-import { nostrNow } from '@/utils.ts';
 
 import * as pipeline from './pipeline.ts';
 
@@ -11,7 +10,7 @@ const pool = new RelayPool(relays);
 // side-effects based on them, such as trending hashtag tracking
 // and storing events for notifications and the home feed.
 pool.subscribe(
-  [{ kinds: [0, 1, 3, 5, 6, 7, 10002], since: nostrNow() }],
+  [{ kinds: [0, 1, 3, 5, 6, 7, 10002], limit: 0 }],
   relays,
   handleEvent,
   undefined,

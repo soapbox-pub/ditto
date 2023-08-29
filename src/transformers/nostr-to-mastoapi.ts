@@ -1,6 +1,7 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
+import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
@@ -91,7 +92,7 @@ async function toMention(pubkey: string) {
   }
 }
 
-async function toStatus(event: Event<1>) {
+async function toStatus(event: Event<1>, viewerPubkey?: string) {
   const profile = await getAuthor(event.pubkey);
   const account = profile ? await toAccount(profile) : undefined;
   if (!account) return;
@@ -109,10 +110,20 @@ async function toStatus(event: Event<1>) {
   const { html, links, firstUrl } = parseNoteContent(event.content);
   const mediaLinks = getMediaLinks(links);
 
-  const [mentions, card] = await Promise.all([
-    Promise.all(mentionedPubkeys.map(toMention)),
-    firstUrl ? await unfurlCardCached(firstUrl) : null,
-  ]);
+  const [mentions, card, repliesCount, reblogsCount, favouritesCount, [repostEvent], [reactionEvent]] = await Promise
+    .all([
+      Promise.all(mentionedPubkeys.map(toMention)),
+      firstUrl ? unfurlCardCached(firstUrl) : null,
+      eventsDB.countFilters([{ kinds: [1], '#e': [event.id] }]),
+      eventsDB.countFilters([{ kinds: [6], '#e': [event.id] }]),
+      eventsDB.countFilters([{ kinds: [7], '#e': [event.id] }]),
+      viewerPubkey
+        ? eventsDB.getFilters([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
+        : [],
+      viewerPubkey
+        ? eventsDB.getFilters([{ kinds: [7], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
+        : [],
+    ]);
 
   const content = buildInlineRecipients(mentions) + html;
 
@@ -131,11 +142,11 @@ async function toStatus(event: Event<1>) {
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
-    replies_count: 0,
-    reblogs_count: 0,
-    favourites_count: 0,
-    favourited: false,
-    reblogged: false,
+    replies_count: repliesCount,
+    reblogs_count: reblogsCount,
+    favourites_count: favouritesCount,
+    favourited: reactionEvent?.content === '+',
+    reblogged: Boolean(repostEvent),
     muted: false,
     bookmarked: false,
     reblog: null,
@@ -276,15 +287,15 @@ async function toRelationship(sourcePubkey: string, targetPubkey: string) {
   };
 }
 
-function toNotification(event: Event) {
+function toNotification(event: Event, viewerPubkey?: string) {
   switch (event.kind) {
     case 1:
-      return toNotificationMention(event as Event<1>);
+      return toNotificationMention(event as Event<1>, viewerPubkey);
   }
 }
 
-async function toNotificationMention(event: Event<1>) {
-  const status = await toStatus(event);
+async function toNotificationMention(event: Event<1>, viewerPubkey?: string) {
+  const status = await toStatus(event, viewerPubkey);
   if (!status) return;
 
   return {

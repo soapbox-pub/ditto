@@ -3,6 +3,7 @@ import * as pipeline from '@/pipeline.ts';
 import { jsonSchema } from '@/schema.ts';
 import {
   type ClientCLOSE,
+  type ClientCOUNT,
   type ClientEVENT,
   type ClientMsg,
   clientMsgSchema,
@@ -13,7 +14,7 @@ import { Sub } from '@/subs.ts';
 import type { AppController } from '@/app.ts';
 import type { Event, Filter } from '@/deps.ts';
 
-/** Limit of events returned per-filter. */
+/** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
 
 /** NIP-01 relay to client message. */
@@ -21,7 +22,8 @@ type RelayMsg =
   | ['EVENT', string, Event]
   | ['NOTICE', string]
   | ['EOSE', string]
-  | ['OK', string, boolean, string];
+  | ['OK', string, boolean, string]
+  | ['COUNT', string, { count: number; approximate?: boolean }];
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
@@ -50,6 +52,9 @@ function connectStream(socket: WebSocket) {
       case 'CLOSE':
         handleClose(msg);
         return;
+      case 'COUNT':
+        handleCount(msg);
+        return;
     }
   }
 
@@ -57,7 +62,7 @@ function connectStream(socket: WebSocket) {
   async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
     const filters = prepareFilters(rest);
 
-    for (const event of await eventsDB.getFilters(filters)) {
+    for (const event of await eventsDB.getFilters(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
@@ -88,6 +93,12 @@ function connectStream(socket: WebSocket) {
     Sub.unsub(socket, subId);
   }
 
+  /** Handle COUNT. Return the number of events matching the filters. */
+  async function handleCount([_, subId, ...rest]: ClientCOUNT): Promise<void> {
+    const count = await eventsDB.countFilters(prepareFilters(rest));
+    send(['COUNT', subId, { count, approximate: false }]);
+  }
+
   /** Send a message back to the client. */
   function send(msg: RelayMsg): void {
     if (socket.readyState === WebSocket.OPEN) {
@@ -100,8 +111,6 @@ function connectStream(socket: WebSocket) {
 function prepareFilters(filters: ClientREQ[2][]): Filter[] {
   return filters.map((filter) => ({
     ...filter,
-    // Limit the number of events returned per-filter.
-    limit: Math.min(filter.limit || FILTER_LIMIT, FILTER_LIMIT),
     // Return only local events unless the query is already narrow.
     local: !filter.ids?.length && !filter.authors?.length,
   }));

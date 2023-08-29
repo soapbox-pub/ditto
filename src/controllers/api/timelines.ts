@@ -40,7 +40,7 @@ async function renderStatuses(c: AppContext, filters: DittoFilter<1>[]) {
     return c.json([]);
   }
 
-  const statuses = await Promise.all(events.map(toStatus));
+  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 }
 

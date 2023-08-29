@@ -13,7 +13,7 @@ const notificationsController: AppController = async (c) => {
     { timeout: Time.seconds(3) },
   );
 
-  const statuses = await Promise.all(events.map(toNotification));
+  const statuses = await Promise.all(events.map((event) => toNotification(event, pubkey)));
   return paginated(c, events, statuses);
 };
 

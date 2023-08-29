@@ -18,7 +18,6 @@ export {
   getEventHash,
   getPublicKey,
   getSignature,
-  Kind,
   matchFilters,
   nip04,
   nip05,

@@ -131,4 +131,16 @@ async function getFilters<K extends number>(
   ));
 }
 
-export { getFilters, insertEvent };
+async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
+  if (!filters.length) return Promise.resolve(0);
+  const query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+
+  const [{ count }] = await query
+    .clearSelect()
+    .select((eb) => eb.fn.count('id').as('count'))
+    .execute();
+
+  return Number(count);
+}
+
+export { countFilters, getFilters, insertEvent };
