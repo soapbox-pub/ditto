@@ -287,15 +287,15 @@ async function toRelationship(sourcePubkey: string, targetPubkey: string) {
   };
 }
 
-function toNotification(event: Event) {
+function toNotification(event: Event, viewerPubkey?: string) {
   switch (event.kind) {
     case 1:
-      return toNotificationMention(event as Event<1>);
+      return toNotificationMention(event as Event<1>, viewerPubkey);
   }
 }
 
-async function toNotificationMention(event: Event<1>) {
-  const status = await toStatus(event);
+async function toNotificationMention(event: Event<1>, viewerPubkey?: string) {
+  const status = await toStatus(event, viewerPubkey);
   if (!status) return;
 
   return {

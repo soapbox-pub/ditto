@@ -63,7 +63,7 @@ const streamingController: AppController = (c) => {
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
-        const status = await toStatus(event);
+        const status = await toStatus(event, pubkey);
         if (status) {
           send('update', status);
         }

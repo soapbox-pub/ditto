@@ -29,7 +29,7 @@ const statusController: AppController = async (c) => {
 
   const event = await getEvent(id, { kind: 1 });
   if (event) {
-    return c.json(await toStatus(event));
+    return c.json(await toStatus(event, c.get('pubkey')));
   }
 
   return c.json({ error: 'Event not found.' }, 404);
@@ -74,7 +74,7 @@ const createStatusController: AppController = async (c) => {
       tags,
     }, c);
 
-    return c.json(await toStatus(event));
+    return c.json(await toStatus(event, c.get('pubkey')));
   } else {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
@@ -115,7 +115,7 @@ const favouriteController: AppController = async (c) => {
       ],
     }, c);
 
-    const status = await toStatus(target);
+    const status = await toStatus(target, c.get('pubkey'));
 
     if (status) {
       status.favourited = true;
