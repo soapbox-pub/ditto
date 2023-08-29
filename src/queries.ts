@@ -2,7 +2,6 @@ import * as client from '@/client.ts';
 import * as eventsDB from '@/db/events.ts';
 import { type Event, type Filter, findReplyTag } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import { type PaginationParams } from '@/utils/web.ts';
 
 interface GetEventOpts<K extends number> {
   /** Timeout in milliseconds. */
