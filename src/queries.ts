@@ -53,24 +53,6 @@ async function getFeedPubkeys(pubkey: string): Promise<string[]> {
   return [...authors, pubkey];
 }
 
-/** Get events from people the user follows. */
-async function getFeed(pubkey: string, params: PaginationParams): Promise<Event<1>[]> {
-  const authors = await getFeedPubkeys(pubkey);
-
-  const filter: Filter<1> = {
-    authors,
-    kinds: [1],
-    ...params,
-  };
-
-  return mixer.getFilters([filter], { timeout: 5000 });
-}
-
-/** Get a feed of all known text notes. */
-function getPublicFeed(params: PaginationParams, local: boolean): Promise<Event<1>[]> {
-  return mixer.getFilters([{ kinds: [1], local, ...params }], { timeout: 5000 });
-}
-
 async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
   if (result.length < 100) {
     const replyTag = findReplyTag(event);
@@ -106,15 +88,4 @@ async function syncUser(pubkey: string): Promise<void> {
   ], { timeout: 5000 });
 }
 
-export {
-  getAncestors,
-  getAuthor,
-  getDescendants,
-  getEvent,
-  getFeed,
-  getFeedPubkeys,
-  getFollows,
-  getPublicFeed,
-  isLocallyFollowed,
-  syncUser,
-};
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeedPubkeys, getFollows, isLocallyFollowed, syncUser };

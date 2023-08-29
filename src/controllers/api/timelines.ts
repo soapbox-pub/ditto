@@ -1,51 +1,40 @@
 import { z } from '@/deps.ts';
+import { type DittoFilter } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
-import { getFeed, getPublicFeed } from '@/queries.ts';
+import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { paginated, paginationSchema } from '@/utils/web.ts';
 import { Time } from '@/utils.ts';
 
-import type { AppController } from '@/app.ts';
+import type { AppContext, AppController } from '@/app.ts';
 
 const homeTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
-
-  const events = await getFeed(pubkey, params);
-  if (!events.length) {
-    return c.json([]);
-  }
-
-  const statuses = await Promise.all(events.map(toStatus));
-  return paginated(c, events, statuses);
+  const authors = await getFeedPubkeys(pubkey);
+  return renderStatuses(c, [{ authors, kinds: [1], ...params }]);
 };
 
 const publicQuerySchema = z.object({
   local: booleanParamSchema.catch(false),
 });
 
-const publicTimelineController: AppController = async (c) => {
+const publicTimelineController: AppController = (c) => {
   const params = paginationSchema.parse(c.req.query());
   const { local } = publicQuerySchema.parse(c.req.query());
-
-  const events = await getPublicFeed(params, local);
-  if (!events.length) {
-    return c.json([]);
-  }
-
-  const statuses = await Promise.all(events.map(toStatus));
-  return paginated(c, events, statuses);
+  return renderStatuses(c, [{ kinds: [1], local, ...params }]);
 };
 
-const hashtagTimelineController: AppController = async (c) => {
+const hashtagTimelineController: AppController = (c) => {
   const hashtag = c.req.param('hashtag')!;
   const params = paginationSchema.parse(c.req.query());
+  return renderStatuses(c, [{ kinds: [1], '#t': [hashtag], ...params }]);
+};
 
-  const events = await mixer.getFilters(
-    [{ kinds: [1], '#t': [hashtag], ...params }],
-    { timeout: Time.seconds(3) },
-  );
+/** Render statuses for timelines. */
+async function renderStatuses(c: AppContext, filters: DittoFilter<1>[]) {
+  const events = await mixer.getFilters(filters, { timeout: Time.seconds(3) });
 
   if (!events.length) {
     return c.json([]);
@@ -53,6 +42,6 @@ const hashtagTimelineController: AppController = async (c) => {
 
   const statuses = await Promise.all(events.map(toStatus));
   return paginated(c, events, statuses);
-};
+}
 
 export { hashtagTimelineController, homeTimelineController, publicTimelineController };
