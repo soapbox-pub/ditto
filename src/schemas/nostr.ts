@@ -39,12 +39,14 @@ const filterSchema = z.object({
 const clientReqSchema = z.tuple([z.literal('REQ'), z.string().min(1)]).rest(filterSchema);
 const clientEventSchema = z.tuple([z.literal('EVENT'), signedEventSchema]);
 const clientCloseSchema = z.tuple([z.literal('CLOSE'), z.string().min(1)]);
+const clientCountSchema = z.tuple([z.literal('COUNT'), z.string().min(1)]).rest(filterSchema);
 
 /** Client message to a Nostr relay. */
 const clientMsgSchema = z.union([
   clientReqSchema,
   clientEventSchema,
   clientCloseSchema,
+  clientCountSchema,
 ]);
 
 /** REQ message from client to relay. */
@@ -53,6 +55,8 @@ type ClientREQ = z.infer<typeof clientReqSchema>;
 type ClientEVENT = z.infer<typeof clientEventSchema>;
 /** CLOSE message from client to relay. */
 type ClientCLOSE = z.infer<typeof clientCloseSchema>;
+/** COUNT message from client to relay. */
+type ClientCOUNT = z.infer<typeof clientCountSchema>;
 /** Client message to a Nostr relay. */
 type ClientMsg = z.infer<typeof clientMsgSchema>;
 
@@ -88,6 +92,7 @@ const connectResponseSchema = z.object({
 
 export {
   type ClientCLOSE,
+  type ClientCOUNT,
   type ClientEVENT,
   type ClientMsg,
   clientMsgSchema,
