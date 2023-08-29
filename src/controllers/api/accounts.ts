@@ -5,7 +5,7 @@ import { getAuthor, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { eventDateComparator, isFollowing, lookupAccount } from '@/utils.ts';
+import { isFollowing, lookupAccount } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 
@@ -103,7 +103,6 @@ const accountStatusesController: AppController = async (c) => {
   }
 
   let events = await mixer.getFilters([filter]);
-  events.sort(eventDateComparator);
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event));
