@@ -11,6 +11,7 @@ function filteredArray<T extends z.ZodTypeAny>(schema: T) {
     ));
 }
 
+/** Parses a JSON string into its native type. */
 const jsonSchema = z.string().transform((value, ctx) => {
   try {
     return JSON.parse(value) as unknown;
@@ -20,6 +21,7 @@ const jsonSchema = z.string().transform((value, ctx) => {
   }
 });
 
+/** Parses a Nostr emoji tag. */
 const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
 
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
@@ -34,6 +36,7 @@ const decode64Schema = z.string().transform((value, ctx) => {
   }
 });
 
+/** Parses a hashtag, eg `#yolo`. */
 const hashtagSchema = z.string().regex(/^\w{1,30}$/);
 
 /**

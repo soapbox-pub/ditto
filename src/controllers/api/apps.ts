@@ -1,4 +1,4 @@
-import type { Context } from '@/deps.ts';
+import type { AppController } from '@/app.ts';
 
 /**
  * Apps are unnecessary cruft in Mastodon API, but necessary to make clients work.
@@ -14,7 +14,7 @@ const FAKE_APP = {
   vapid_key: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
 };
 
-async function createAppController(c: Context) {
+const createAppController: AppController = async (c) => {
   // TODO: Handle both formData and json. 422 on parsing error.
   try {
     const { redirect_uris } = await c.req.json();
@@ -26,10 +26,10 @@ async function createAppController(c: Context) {
   } catch (_e) {
     return c.json(FAKE_APP);
   }
-}
+};
 
-function appCredentialsController(c: Context) {
+const appCredentialsController: AppController = (c) => {
   return c.json(FAKE_APP);
-}
+};
 
 export { appCredentialsController, createAppController };

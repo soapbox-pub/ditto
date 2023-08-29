@@ -1,9 +1,9 @@
 import { Conf } from '@/config.ts';
+import { findUser } from '@/db/users.ts';
 import { nip19, z } from '@/deps.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
-import { findUser } from '@/db/users.ts';
 
 const webfingerQuerySchema = z.object({
   resource: z.string().url(),

@@ -1,5 +1,5 @@
 import { db, type TagRow } from '@/db.ts';
-import { type Event, type Insertable } from '@/deps.ts';
+import { type Event, type Insertable, SqliteError } from '@/deps.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
@@ -23,7 +23,7 @@ function insertEvent(event: Event): Promise<void> {
         ...event,
         tags: JSON.stringify(event.tags),
       })
-      .executeTakeFirst();
+      .execute();
 
     const tagCounts: Record<string, number> = {};
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
@@ -47,6 +47,13 @@ function insertEvent(event: Event): Promise<void> {
       await trx.insertInto('tags')
         .values(tags)
         .execute();
+    }
+  }).catch((error) => {
+    // Don't throw for duplicate events.
+    if (error instanceof SqliteError && error.code === 19) {
+      return;
+    } else {
+      throw error;
     }
   });
 }

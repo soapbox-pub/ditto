@@ -89,6 +89,22 @@ function buildLinkHeader(url: string, events: Event[]): string | undefined {
   return `<${next}>; rel="next", <${prev}>; rel="prev"`;
 }
 
+type Entity = { id: string };
+type HeaderRecord = Record<string, string | string[]>;
+
+/** Return results with pagination headers. */
+function paginated(c: AppContext, events: Event[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
+  const link = buildLinkHeader(c.req.url, events);
+
+  if (link) {
+    headers.link = link;
+  }
+
+  // Filter out undefined entities.
+  const results = entities.filter((entity): entity is Entity => Boolean(entity));
+  return c.json(results, 200, headers);
+}
+
 /** JSON-LD context. */
 type LDContext = (string | Record<string, string | Record<string, string>>)[];
 
@@ -107,12 +123,4 @@ function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
   return response;
 }
 
-export {
-  activityJson,
-  buildLinkHeader,
-  createAdminEvent,
-  createEvent,
-  type PaginationParams,
-  paginationSchema,
-  parseBody,
-};
+export { activityJson, createAdminEvent, createEvent, paginated, type PaginationParams, paginationSchema, parseBody };
