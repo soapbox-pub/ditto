@@ -38,7 +38,7 @@ import {
   statusController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
-import { homeController, publicController } from './controllers/api/timelines.ts';
+import { hashtagTimelineController, homeController, publicController } from './controllers/api/timelines.ts';
 import { trendingTagsController } from './controllers/api/trends.ts';
 import { indexController } from './controllers/site.ts';
 import { hostMetaController } from './controllers/well-known/host-meta.ts';
@@ -109,6 +109,7 @@ app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
 app.get('/api/v1/timelines/home', requirePubkey, homeController);
 app.get('/api/v1/timelines/public', publicController);
+app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
 
 app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
