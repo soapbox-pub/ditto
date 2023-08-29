@@ -1,6 +1,7 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
+import { countFilters } from '@/db/events.ts';
 import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
@@ -109,9 +110,12 @@ async function toStatus(event: Event<1>) {
   const { html, links, firstUrl } = parseNoteContent(event.content);
   const mediaLinks = getMediaLinks(links);
 
-  const [mentions, card] = await Promise.all([
+  const [mentions, card, repliesCount, reblogsCount, favouritesCount] = await Promise.all([
     Promise.all(mentionedPubkeys.map(toMention)),
-    firstUrl ? await unfurlCardCached(firstUrl) : null,
+    firstUrl ? unfurlCardCached(firstUrl) : null,
+    countFilters([{ kinds: [1], '#e': [event.id] }]),
+    countFilters([{ kinds: [6], '#e': [event.id] }]),
+    countFilters([{ kinds: [7], '#e': [event.id] }]),
   ]);
 
   const content = buildInlineRecipients(mentions) + html;
@@ -131,9 +135,9 @@ async function toStatus(event: Event<1>) {
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
-    replies_count: 0,
-    reblogs_count: 0,
-    favourites_count: 0,
+    replies_count: repliesCount,
+    reblogs_count: reblogsCount,
+    favourites_count: favouritesCount,
     favourited: false,
     reblogged: false,
     muted: false,
