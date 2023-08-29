@@ -8,7 +8,7 @@ import { Time } from '@/utils.ts';
 
 import type { AppController } from '@/app.ts';
 
-const homeController: AppController = async (c) => {
+const homeTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
 
@@ -27,7 +27,7 @@ const publicQuerySchema = z.object({
   local: booleanParamSchema.catch(false),
 });
 
-const publicController: AppController = async (c) => {
+const publicTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const { local } = publicQuerySchema.parse(c.req.query());
 
@@ -61,4 +61,4 @@ const hashtagTimelineController: AppController = async (c) => {
   return c.json(statuses, 200, link ? { link } : undefined);
 };
 
-export { hashtagTimelineController, homeController, publicController };
+export { hashtagTimelineController, homeTimelineController, publicTimelineController };
