@@ -50,7 +50,10 @@ export {
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export * as secp from 'npm:@noble/secp256k1@^2.0.0';
 export { LRUCache } from 'npm:lru-cache@^10.0.0';
-export { DB as Sqlite, SqliteError } from 'https://deno.land/x/sqlite@v3.7.3/mod.ts';
+export {
+  DB as Sqlite,
+  SqliteError,
+} from 'https://raw.githubusercontent.com/teleclimber/deno-sqlite/5283320fce74fbfd90b62d379e8703d386ed0b27/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
 export {
   FileMigrationProvider,

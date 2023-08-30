@@ -25,6 +25,10 @@ function insertEvent(event: Event): Promise<void> {
       })
       .execute();
 
+    await trx.insertInto('events_fts')
+      .values({ id: event.id, content: event.content })
+      .execute();
+
     const tagCounts: Record<string, number> = {};
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
       const tagName = tag[0];
@@ -109,6 +113,12 @@ function getFilterQuery(filter: DittoFilter) {
 
   if (filter.local) {
     query = query.innerJoin('users', 'users.pubkey', 'events.pubkey');
+  }
+
+  if (filter.search) {
+    query = query
+      .innerJoin('events_fts', 'events_fts.id', 'events.id')
+      .where('events_fts.content', 'match', filter.search);
   }
 
   return query;
