@@ -87,4 +87,14 @@ async function syncUser(pubkey: string): Promise<void> {
   ], { timeout: 5000 });
 }
 
-export { getAncestors, getAuthor, getDescendants, getEvent, getFeedPubkeys, getFollows, isLocallyFollowed, syncUser };
+export {
+  getAncestors,
+  getAuthor,
+  getDescendants,
+  getEvent,
+  getFeedPubkeys,
+  getFollowedPubkeys,
+  getFollows,
+  isLocallyFollowed,
+  syncUser,
+};

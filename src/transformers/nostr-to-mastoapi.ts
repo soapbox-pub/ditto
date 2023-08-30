@@ -5,7 +5,7 @@ import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
 import { verifyNip05Cached } from '@/nip05.ts';
 import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
-import { getAuthor, getFollows } from '@/queries.ts';
+import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { emojiTagSchema, filteredArray } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isFollowing, type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
@@ -24,14 +24,12 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   const { name, nip05, picture, banner, about } = jsonMetaContentSchema.parse(event.content);
   const npub = nip19.npubEncode(pubkey);
 
-  let parsed05: Nip05 | undefined;
-  try {
-    if (nip05 && await verifyNip05Cached(nip05, pubkey)) {
-      parsed05 = parseNip05(nip05);
-    }
-  } catch (_e) {
-    //
-  }
+  const [parsed05, followersCount, followingCount, statusesCount] = await Promise.all([
+    parseAndVerifyNip05(nip05, pubkey),
+    eventsDB.countFilters([{ kinds: [3], '#p': [pubkey] }]),
+    getFollowedPubkeys(pubkey).then((pubkeys) => pubkeys.length),
+    eventsDB.countFilters([{ kinds: [1], authors: [pubkey] }]),
+  ]);
 
   return {
     id: pubkey,
@@ -45,8 +43,8 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     emojis: toEmojis(event),
     fields: [],
     follow_requests_count: 0,
-    followers_count: 0,
-    following_count: 0,
+    followers_count: followersCount,
+    following_count: followingCount,
     fqn: parsed05?.handle || npub,
     header: banner || DEFAULT_BANNER,
     header_static: banner || DEFAULT_BANNER,
@@ -64,10 +62,16 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
         follow_requests_count: 0,
       }
       : undefined,
-    statuses_count: 0,
+    statuses_count: statusesCount,
     url: Conf.local(`/users/${pubkey}`),
     username: parsed05?.nickname || npub.substring(0, 8),
   };
+}
+
+async function parseAndVerifyNip05(nip05: string | undefined, pubkey: string): Promise<Nip05 | undefined> {
+  if (nip05 && await verifyNip05Cached(nip05, pubkey)) {
+    return parseNip05(nip05);
+  }
 }
 
 async function toMention(pubkey: string) {
