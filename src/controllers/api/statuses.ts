@@ -1,9 +1,9 @@
 import { type AppController } from '@/app.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
-import * as mixer from '@/mixer.ts';
-import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { createEvent, paginated, parseBody } from '@/utils/web.ts';
+import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
+import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
+import { renderEventAccounts } from '@/views.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -129,34 +129,16 @@ const favouriteController: AppController = async (c) => {
   }
 };
 
-const favouritedByController: AppController = async (c) => {
+const favouritedByController: AppController = (c) => {
   const id = c.req.param('id');
-
-  const events = await mixer.getFilters([{ kinds: [7], '#e': [id] }]);
-
-  const accounts = await Promise.all(events.map(async ({ pubkey }) => {
-    const author = await getAuthor(pubkey);
-    if (author) {
-      return toAccount(author);
-    }
-  }));
-
-  return paginated(c, events, accounts);
+  const params = paginationSchema.parse(c.req.query());
+  return renderEventAccounts(c, [{ kinds: [7], '#e': [id], ...params }]);
 };
 
-const rebloggedByController: AppController = async (c) => {
+const rebloggedByController: AppController = (c) => {
   const id = c.req.param('id');
-
-  const events = await mixer.getFilters([{ kinds: [6], '#e': [id] }]);
-
-  const accounts = await Promise.all(events.map(async ({ pubkey }) => {
-    const author = await getAuthor(pubkey);
-    if (author) {
-      return toAccount(author);
-    }
-  }));
-
-  return paginated(c, events, accounts);
+  const params = paginationSchema.parse(c.req.query());
+  return renderEventAccounts(c, [{ kinds: [6], '#e': [id], ...params }]);
 };
 
 export {
