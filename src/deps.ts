@@ -50,7 +50,10 @@ export {
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export * as secp from 'npm:@noble/secp256k1@^2.0.0';
 export { LRUCache } from 'npm:lru-cache@^10.0.0';
-export { DB as Sqlite, SqliteError } from 'https://deno.land/x/sqlite@v3.7.3/mod.ts';
+export {
+  DB as Sqlite,
+  SqliteError,
+} from 'https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
 export {
   FileMigrationProvider,
@@ -60,7 +63,7 @@ export {
   type NullableInsertKeys,
   sql,
 } from 'npm:kysely@^0.25.0';
-export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v1.0.0/mod.ts';
+export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v1.0.1/mod.ts';
 export { default as tldts } from 'npm:tldts@^6.0.14';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';

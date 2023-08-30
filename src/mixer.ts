@@ -2,7 +2,7 @@ import { type Event, matchFilters } from '@/deps.ts';
 
 import * as client from '@/client.ts';
 import * as eventsDB from '@/db/events.ts';
-import { eventDateComparator } from '@/utils.ts';
+import { dedupeEvents, eventDateComparator } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
@@ -11,6 +11,8 @@ async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts?: GetFiltersOpts,
 ): Promise<Event<K>[]> {
+  if (!filters.length) return Promise.resolve([]);
+
   const results = await Promise.allSettled([
     client.getFilters(filters.filter((filter) => !filter.local), opts),
     eventsDB.getFilters(filters, opts),
@@ -31,11 +33,6 @@ function unmixEvents<K extends number>(events: Event<K>[], filters: DittoFilter<
   events.sort(eventDateComparator);
 
   return events;
-}
-
-/** Deduplicate events by ID. */
-function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
-  return [...new Map(events.map((event) => [event.id, event])).values()];
 }
 
 /** Take the newest events among replaceable ones. */

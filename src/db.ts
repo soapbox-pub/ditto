@@ -6,6 +6,7 @@ import { Conf } from '@/config.ts';
 
 interface DittoDB {
   events: EventRow;
+  events_fts: EventFTSRow;
   tags: TagRow;
   users: UserRow;
   relays: RelayRow;
@@ -19,6 +20,11 @@ interface EventRow {
   created_at: number;
   tags: string;
   sig: string;
+}
+
+interface EventFTSRow {
+  id: string;
+  content: string;
 }
 
 interface TagRow {

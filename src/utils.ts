@@ -101,8 +101,14 @@ function isFollowing(source: Event<3>, targetPubkey: string): boolean {
   );
 }
 
+/** Deduplicate events by ID. */
+function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
+  return [...new Map(events.map((event) => [event.id, event])).values()];
+}
+
 export {
   bech32ToPubkey,
+  dedupeEvents,
   eventAge,
   eventDateComparator,
   findTag,
