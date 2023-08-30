@@ -120,7 +120,7 @@ function getFilterQuery(filter: DittoFilter) {
   if (filter.search) {
     query = query
       .innerJoin('events_fts', 'events_fts.id', 'events.id')
-      .where('events_fts.content', 'match', filter.search);
+      .where('events_fts.content', 'match', JSON.stringify(filter.search));
   }
 
   return query;
