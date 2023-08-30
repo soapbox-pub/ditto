@@ -53,7 +53,7 @@ export { LRUCache } from 'npm:lru-cache@^10.0.0';
 export {
   DB as Sqlite,
   SqliteError,
-} from 'https://raw.githubusercontent.com/teleclimber/deno-sqlite/5283320fce74fbfd90b62d379e8703d386ed0b27/mod.ts';
+} from 'https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
 export {
   FileMigrationProvider,
