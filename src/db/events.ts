@@ -2,6 +2,7 @@ import { db, type TagRow } from '@/db.ts';
 import { type Event, type Insertable, SqliteError } from '@/deps.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 
 type TagCondition = ({ event, count }: { event: Event; count: number }) => boolean;
 
@@ -25,9 +26,10 @@ function insertEvent(event: Event): Promise<void> {
       })
       .execute();
 
-    if (event.kind === 1) {
+    const searchContent = buildSearchContent(event);
+    if (searchContent) {
       await trx.insertInto('events_fts')
-        .values({ id: event.id, content: event.content })
+        .values({ id: event.id, content: searchContent.substring(0, 1000) })
         .execute();
     }
 
@@ -143,6 +145,7 @@ async function getFilters<K extends number>(
   ));
 }
 
+/** Get number of events that would be returned by filters. */
 async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
   if (!filters.length) return Promise.resolve(0);
   const query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
@@ -153,6 +156,24 @@ async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promis
     .execute();
 
   return Number(count);
+}
+
+/** Build a search index from the event. */
+function buildSearchContent(event: Event): string {
+  switch (event.kind) {
+    case 0:
+      return buildUserSearchContent(event as Event<0>);
+    case 1:
+      return event.content;
+    default:
+      return '';
+  }
+}
+
+/** Build search content for a user. */
+function buildUserSearchContent(event: Event<0>): string {
+  const { name, nip05, about } = jsonMetaContentSchema.parse(event.content);
+  return [name, nip05, about].filter(Boolean).join('\n');
 }
 
 export { countFilters, getFilters, insertEvent };
