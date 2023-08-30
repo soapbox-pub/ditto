@@ -29,21 +29,9 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const { q, type, limit, account_id } = result.data;
-
-  const filter: Filter = {
-    kinds: typeToKinds(type),
-    search: q,
-    limit,
-  };
-
-  if (account_id) {
-    filter.authors = [account_id];
-  }
-
   const [event, events] = await Promise.all([
     lookupEvent(result.data),
-    (!type || type === 'statuses') ? eventsDB.getFilters([filter]) : [] as Event[],
+    searchEvents(result.data),
   ]);
 
   if (event) {
@@ -71,6 +59,23 @@ const searchController: AppController = async (c) => {
     hashtags: [],
   });
 };
+
+/** Get events for the search params. */
+function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Event[]> {
+  if (type === 'hashtags') return Promise.resolve([]);
+
+  const filter: Filter = {
+    kinds: typeToKinds(type),
+    search: q,
+    limit,
+  };
+
+  if (account_id) {
+    filter.authors = [account_id];
+  }
+
+  return eventsDB.getFilters([filter]);
+}
 
 /** Get event kinds to search from `type` query param. */
 function typeToKinds(type: SearchQuery['type']): number[] {
