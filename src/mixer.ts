@@ -11,6 +11,8 @@ async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts?: GetFiltersOpts,
 ): Promise<Event<K>[]> {
+  if (!filters.length) return Promise.resolve([]);
+
   const results = await Promise.allSettled([
     client.getFilters(filters.filter((filter) => !filter.local), opts),
     eventsDB.getFilters(filters, opts),
