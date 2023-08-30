@@ -1,13 +1,14 @@
 import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import { getAuthor, getFollows, syncUser } from '@/queries.ts';
+import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { isFollowing, lookupAccount } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
+import { renderEventAccounts } from '@/views.ts';
 
 const createAccountController: AppController = (c) => {
   return c.json({ error: 'Please log in with Nostr.' }, 405);
@@ -173,6 +174,25 @@ const followController: AppController = async (c) => {
   return c.json(relationship);
 };
 
+const followersController: AppController = (c) => {
+  const pubkey = c.req.param('pubkey');
+  const params = paginationSchema.parse(c.req.query());
+  return renderEventAccounts(c, [{ kinds: [3], '#p': [pubkey], ...params }]);
+};
+
+const followingController: AppController = async (c) => {
+  const pubkey = c.req.param('pubkey');
+  const pubkeys = await getFollowedPubkeys(pubkey);
+
+  // TODO: pagination by offset.
+  const accounts = await Promise.all(pubkeys.map(async (pubkey) => {
+    const event = await getAuthor(pubkey);
+    return event ? await toAccount(event) : undefined;
+  }));
+
+  return c.json(accounts.filter(Boolean));
+};
+
 export {
   accountController,
   accountLookupController,
@@ -180,6 +200,8 @@ export {
   accountStatusesController,
   createAccountController,
   followController,
+  followersController,
+  followingController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,

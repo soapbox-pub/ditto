@@ -18,6 +18,8 @@ import {
   accountStatusesController,
   createAccountController,
   followController,
+  followersController,
+  followingController,
   relationshipsController,
   updateCredentialsController,
   verifyCredentialsController,
@@ -105,6 +107,8 @@ app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
+app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
+app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
