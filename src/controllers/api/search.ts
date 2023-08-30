@@ -1,6 +1,7 @@
 import { AppController } from '@/app.ts';
+import * as eventsDB from '@/db/events.ts';
 import { lookupAccount } from '@/utils.ts';
-import { toAccount } from '@/transformers/nostr-to-mastoapi.ts';
+import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 
 const searchController: AppController = async (c) => {
   const q = c.req.query('q');
@@ -13,9 +14,12 @@ const searchController: AppController = async (c) => {
   // TODO: Support searching statuses and hashtags.
   const event = await lookupAccount(decodeURIComponent(q));
 
+  const events = await eventsDB.getFilters([{ kinds: [1], search: q }]);
+  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
+
   return c.json({
     accounts: event ? [await toAccount(event)] : [],
-    statuses: [],
+    statuses: statuses.filter(Boolean),
     hashtags: [],
   });
 };
