@@ -49,7 +49,7 @@ interface RelayRow {
 
 const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
-    database: new Sqlite(Conf.dbPath) as any,
+    database: new Sqlite(Conf.dbPath),
   }),
 });
 
