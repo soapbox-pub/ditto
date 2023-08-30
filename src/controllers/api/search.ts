@@ -28,11 +28,24 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const { q, type, limit } = result.data;
+  const { q, type, limit, account_id } = result.data;
+
+  const searchAccounts = !type || type === 'accounts';
+  const searchStatuses = !type || type === 'statuses';
+
+  const filter: Filter = {
+    kinds: searchAccounts ? [0] : [1],
+    search: q,
+    limit,
+  };
+
+  if (account_id) {
+    filter.authors = [account_id];
+  }
 
   const [event, events] = await Promise.all([
     lookupEvent(result.data),
-    !type || type === 'statuses' ? eventsDB.getFilters<number>([{ kinds: [1], search: q, limit }]) : [] as Event[],
+    searchStatuses ? eventsDB.getFilters([filter]) : [] as Event[],
   ]);
 
   if (event) {
@@ -72,6 +85,9 @@ async function lookupEvent(query: SearchQuery): Promise<Event | undefined> {
 async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Filter[]> {
   const filters: Filter[] = [];
 
+  const accounts = !type || type === 'accounts';
+  const statuses = !type || type === 'statuses';
+
   if (!resolve || type === 'hashtags') {
     return filters;
   }
@@ -81,43 +97,32 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Filt
       const result = nip19.decode(q);
       switch (result.type) {
         case 'npub':
-          filters.push({ kinds: [0], authors: [result.data] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data] });
           break;
         case 'nprofile':
-          filters.push({ kinds: [0], authors: [result.data.pubkey] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
           break;
         case 'note':
-          filters.push({ kinds: [1], ids: [result.data] });
+          if (statuses) filters.push({ kinds: [1], ids: [result.data] });
           break;
         case 'nevent':
-          filters.push({ kinds: [1], ids: [result.data.id] });
+          if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
           break;
       }
     } catch (_e) {
       // do nothing
     }
   } else if (/^[0-9a-f]{64}$/.test(q)) {
-    filters.push({ kinds: [0], authors: [q] });
-    filters.push({ kinds: [1], ids: [q] });
-  } else if ((!type || type === 'accounts') && ACCT_REGEX.test(q)) {
+    if (accounts) filters.push({ kinds: [0], authors: [q] });
+    if (statuses) filters.push({ kinds: [1], ids: [q] });
+  } else if (accounts && ACCT_REGEX.test(q)) {
     const pubkey = await lookupNip05Cached(q);
     if (pubkey) {
       filters.push({ kinds: [0], authors: [pubkey] });
     }
   }
 
-  if (!type) {
-    return filters;
-  }
-
-  return filters.filter(({ kinds }) => {
-    switch (type) {
-      case 'accounts':
-        return kinds?.every((kind) => kind === 0);
-      case 'statuses':
-        return kinds?.every((kind) => kind === 1);
-    }
-  });
+  return filters;
 }
 
 export { searchController };
