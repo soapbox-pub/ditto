@@ -4,6 +4,7 @@ import { type Event, type Filter, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { lookupNip05Cached } from '@/nip05.ts';
 import { booleanParamSchema } from '@/schema.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { dedupeEvents, Time } from '@/utils.ts';
 
@@ -15,7 +16,7 @@ const searchQuerySchema = z.object({
   type: z.enum(['accounts', 'statuses', 'hashtags']).optional(),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  account_id: z.string().optional(),
+  account_id: nostrIdSchema.optional(),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
@@ -30,11 +31,8 @@ const searchController: AppController = async (c) => {
 
   const { q, type, limit, account_id } = result.data;
 
-  const searchAccounts = !type || type === 'accounts';
-  const searchStatuses = !type || type === 'statuses';
-
   const filter: Filter = {
-    kinds: searchAccounts ? [0] : [1],
+    kinds: typeToKinds(type),
     search: q,
     limit,
   };
@@ -45,7 +43,7 @@ const searchController: AppController = async (c) => {
 
   const [event, events] = await Promise.all([
     lookupEvent(result.data),
-    searchStatuses ? eventsDB.getFilters([filter]) : [] as Event[],
+    (!type || type === 'statuses') ? eventsDB.getFilters([filter]) : [] as Event[],
   ]);
 
   if (event) {
@@ -73,6 +71,18 @@ const searchController: AppController = async (c) => {
     hashtags: [],
   });
 };
+
+/** Get event kinds to search from `type` query param. */
+function typeToKinds(type: SearchQuery['type']): number[] {
+  switch (type) {
+    case 'accounts':
+      return [0];
+    case 'statuses':
+      return [1];
+    default:
+      return [0, 1];
+  }
+}
 
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery): Promise<Event | undefined> {
