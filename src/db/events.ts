@@ -25,9 +25,11 @@ function insertEvent(event: Event): Promise<void> {
       })
       .execute();
 
-    await trx.insertInto('events_fts')
-      .values({ id: event.id, content: event.content })
-      .execute();
+    if (event.kind === 1) {
+      await trx.insertInto('events_fts')
+        .values({ id: event.id, content: event.content })
+        .execute();
+    }
 
     const tagCounts: Record<string, number> = {};
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
