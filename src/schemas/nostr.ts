@@ -29,6 +29,7 @@ const filterSchema = z.object({
   since: z.number().int().nonnegative().optional(),
   until: z.number().int().nonnegative().optional(),
   limit: z.number().int().nonnegative().optional(),
+  search: z.string().optional(),
 }).passthrough().and(
   z.record(
     z.custom<`#${string}`>((val) => typeof val === 'string' && val.startsWith('#')),
