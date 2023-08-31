@@ -217,7 +217,10 @@ interface PreviewCard {
 async function unfurlCard(url: string): Promise<PreviewCard | null> {
   console.log(`Unfurling ${url}...`);
   try {
-    const result = await unfurl(url, { fetch, follow: 2, timeout: Time.seconds(1), size: 1024 * 1024 });
+    const result = await unfurl(url, {
+      fetch: (url) => fetch(url, { signal: AbortSignal.timeout(Time.seconds(1)) }),
+    });
+
     return {
       type: result.oEmbed?.type || 'link',
       url: result.canonical_url || url,
