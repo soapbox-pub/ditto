@@ -17,6 +17,7 @@ import {
   accountSearchController,
   accountStatusesController,
   createAccountController,
+  favouritesController,
   followController,
   followersController,
   followingController,
@@ -133,6 +134,7 @@ app.get('/api/v1/trends/tags', trendingTagsController);
 app.get('/api/v1/trends', trendingTagsController);
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
+app.get('/api/v1/favourites', requirePubkey, favouritesController);
 
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);
@@ -144,7 +146,6 @@ app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
-app.get('/api/v1/favourites', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
 app.get('/', indexController);

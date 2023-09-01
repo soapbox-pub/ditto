@@ -5,7 +5,7 @@ import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.t
 import { booleanParamSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { isFollowing, lookupAccount } from '@/utils.ts';
+import { isFollowing, lookupAccount, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
@@ -193,12 +193,32 @@ const followingController: AppController = async (c) => {
   return c.json(accounts.filter(Boolean));
 };
 
+const favouritesController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const params = paginationSchema.parse(c.req.query());
+
+  const events7 = await mixer.getFilters(
+    [{ kinds: [7], authors: [pubkey], ...params }],
+    { timeout: Time.seconds(1) },
+  );
+
+  const ids = events7
+    .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
+    .filter((id): id is string => !!id);
+
+  const events1 = await mixer.getFilters([{ kinds: [1], ids }], { timeout: Time.seconds(1) });
+
+  const statuses = await Promise.all(events1.map((event) => toStatus(event, c.get('pubkey'))));
+  return paginated(c, events1, statuses);
+};
+
 export {
   accountController,
   accountLookupController,
   accountSearchController,
   accountStatusesController,
   createAccountController,
+  favouritesController,
   followController,
   followersController,
   followingController,
