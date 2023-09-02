@@ -58,7 +58,7 @@ async function signNostrConnect<K extends number = number>(event: EventTemplate<
 }
 
 /** Wait for signed event to be sent through Nostr relay. */
-function awaitSignedEvent<K extends number = number>(
+async function awaitSignedEvent<K extends number = number>(
   pubkey: string,
   messageId: string,
   c: AppContext,
@@ -69,30 +69,29 @@ function awaitSignedEvent<K extends number = number>(
     Sub.close(messageId);
   }
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      close();
-      reject(
-        new HTTPException(408, {
-          res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
-        }),
-      );
-    }, Time.minutes(1));
+  const timeout = setTimeout(() => {
+    close();
+    throw new HTTPException(408, {
+      res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
+    });
+  }, Time.minutes(1));
 
-    (async () => {
-      for await (const event of sub) {
-        if (event.kind === 24133) {
-          const decrypted = await decryptAdmin(event.pubkey, event.content);
-          const msg = jsonSchema.pipe(connectResponseSchema).parse(decrypted);
+  for await (const event of sub) {
+    if (event.kind === 24133) {
+      const decrypted = await decryptAdmin(event.pubkey, event.content);
+      const msg = jsonSchema.pipe(connectResponseSchema).parse(decrypted);
 
-          if (msg.id === messageId) {
-            close();
-            clearTimeout(timeout);
-            resolve(msg.result as Event<K>);
-          }
-        }
+      if (msg.id === messageId) {
+        close();
+        clearTimeout(timeout);
+        return msg.result as Event<K>;
       }
-    })();
+    }
+  }
+
+  // This should never happen.
+  throw new HTTPException(500, {
+    res: c.json({ id: 'ditto.sign', error: 'Unable to sign event' }, 500),
   });
 }
 
