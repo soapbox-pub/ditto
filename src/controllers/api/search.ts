@@ -2,11 +2,11 @@ import { AppController } from '@/app.ts';
 import * as eventsDB from '@/db/events.ts';
 import { type Event, type Filter, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import { lookupNip05Cached } from '@/nip05.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { dedupeEvents, Time } from '@/utils.ts';
+import { lookupNip05Cached } from '@/utils/nip05.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;

@@ -1,6 +1,6 @@
 import { type Event, nip19, z } from '@/deps.ts';
-import { lookupNip05Cached } from '@/nip05.ts';
 import { getAuthor } from '@/queries.ts';
+import { lookupNip05Cached } from '@/utils/nip05.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
