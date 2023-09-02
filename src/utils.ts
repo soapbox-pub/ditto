@@ -67,7 +67,7 @@ async function lookupAccount(value: string): Promise<Event<0> | undefined> {
 
 /** Return the event's age in milliseconds. */
 function eventAge(event: Event): number {
-  return new Date().getTime() - nostrDate(event.created_at).getTime();
+  return Date.now() - nostrDate(event.created_at).getTime();
 }
 
 function findTag(tags: string[][], name: string): string[] | undefined {
