@@ -1,7 +1,7 @@
-import { type Event } from '@/deps.ts';
+import { type Event, type EventTemplate } from '@/deps.ts';
 import { decode64Schema, jsonSchema } from '@/schema.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
-import { eventAge, findTag, sha256 } from '@/utils.ts';
+import { eventAge, findTag, nostrNow, sha256 } from '@/utils.ts';
 import { Time } from '@/utils/time.ts';
 
 /** Decode a Nostr event from a base64 encoded string. */
@@ -38,9 +38,26 @@ function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
   return schema.safeParseAsync(base64);
 }
 
+/** Create an auth EventTemplate from a Request. */
+async function buildAuthEventTemplate(req: Request): Promise<EventTemplate<27235>> {
+  const { method, url } = req;
+  const payload = await req.clone().text().then(sha256);
+
+  return {
+    kind: 27235,
+    content: '',
+    tags: [
+      ['method', method],
+      ['u', url],
+      ['payload', payload],
+    ],
+    created_at: nostrNow(),
+  };
+}
+
 /** Get the value for the first matching tag name in the event. */
 function tagValue(event: Event, tagName: string): string | undefined {
   return findTag(event.tags, tagName)?.[1];
 }
 
-export { parseAuthRequest, type ParseAuthRequestOpts };
+export { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts };

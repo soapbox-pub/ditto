@@ -1,7 +1,8 @@
 import { type AppMiddleware } from '@/app.ts';
 import { HTTPException } from '@/deps.ts';
-import { parseAuthRequest, type ParseAuthRequestOpts } from '@/utils/nip98.ts';
+import { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts } from '@/utils/nip98.ts';
 import { localRequest } from '@/utils/web.ts';
+import { signNostrConnect } from '@/sign.ts';
 
 /**
  * NIP-98 auth.
@@ -22,12 +23,16 @@ function auth98(opts: ParseAuthRequestOpts = {}): AppMiddleware {
 }
 
 const requireProof: AppMiddleware = async (c, next) => {
+  const header = c.req.headers.get('x-nostr-sign');
   const pubkey = c.get('pubkey');
-  const proof = c.get('proof');
+  const proof = c.get('proof') || header ? await obtainProof() : undefined;
 
-  // if (!proof && hasWebsocket(c.req)) {
-  //   // TODO: attempt to sign nip98 event through websocket
-  // }
+  /** Get the proof over Nostr Connect. */
+  async function obtainProof() {
+    const req = localRequest(c);
+    const event = await buildAuthEventTemplate(req);
+    return signNostrConnect(event, c);
+  }
 
   if (!pubkey || !proof || proof.pubkey !== pubkey) {
     throw new HTTPException(401);

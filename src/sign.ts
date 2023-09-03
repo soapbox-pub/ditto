@@ -101,4 +101,4 @@ async function signAdminEvent<K extends number = number>(event: EventTemplate<K>
   return finishEvent(event, Conf.seckey);
 }
 
-export { signAdminEvent, signEvent };
+export { signAdminEvent, signEvent, signNostrConnect };
