@@ -39,6 +39,7 @@ interface UserRow {
   pubkey: string;
   username: string;
   inserted_at: Date;
+  admin: boolean;
 }
 
 interface RelayRow {
