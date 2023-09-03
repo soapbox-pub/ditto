@@ -1,8 +1,9 @@
-import { type AppMiddleware } from '@/app.ts';
+import { type AppContext, type AppMiddleware } from '@/app.ts';
 import { HTTPException } from '@/deps.ts';
 import { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts } from '@/utils/nip98.ts';
 import { localRequest } from '@/utils/web.ts';
 import { signNostrConnect } from '@/sign.ts';
+import { findUser } from '@/db/users.ts';
 
 /**
  * NIP-98 auth.
@@ -22,23 +23,26 @@ function auth98(opts: ParseAuthRequestOpts = {}): AppMiddleware {
   };
 }
 
-const requireProof: AppMiddleware = async (c, next) => {
+/** Require the user to prove they're an admin before invoking the controller. */
+const requireAdmin: AppMiddleware = async (c, next) => {
   const header = c.req.headers.get('x-nostr-sign');
-  const pubkey = c.get('pubkey');
-  const proof = c.get('proof') || header ? await obtainProof() : undefined;
+  const proof = c.get('proof') || header ? await obtainProof(c) : undefined;
+  const user = proof ? await findUser({ pubkey: proof.pubkey }) : undefined;
 
-  /** Get the proof over Nostr Connect. */
-  async function obtainProof() {
-    const req = localRequest(c);
-    const event = await buildAuthEventTemplate(req);
-    return signNostrConnect(event, c);
-  }
-
-  if (!pubkey || !proof || proof.pubkey !== pubkey) {
+  if (proof && user?.admin) {
+    c.set('pubkey', proof.pubkey);
+    c.set('proof', proof);
+    await next();
+  } else {
     throw new HTTPException(401);
   }
-
-  await next();
 };
 
-export { auth98, requireProof };
+/** Get the proof over Nostr Connect. */
+async function obtainProof(c: AppContext) {
+  const req = localRequest(c);
+  const event = await buildAuthEventTemplate(req);
+  return signNostrConnect(event, c);
+}
+
+export { auth98, requireAdmin };
