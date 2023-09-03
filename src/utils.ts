@@ -1,4 +1,4 @@
-import { type Event, nip19, z } from '@/deps.ts';
+import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 
@@ -106,11 +106,17 @@ function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
 }
 
+/** Ensure the template and event match on their shared keys. */
+function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
+  return getEventHash(event) === getEventHash({ pubkey: event.pubkey, ...template });
+}
+
 export {
   bech32ToPubkey,
   dedupeEvents,
   eventAge,
   eventDateComparator,
+  eventMatchesTemplate,
   findTag,
   isFollowing,
   isRelay,

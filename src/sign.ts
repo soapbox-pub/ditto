@@ -5,14 +5,14 @@ import { type Event, type EventTemplate, finishEvent, HTTPException } from '@/de
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
-import { Time } from '@/utils.ts';
+import { eventMatchesTemplate, Time } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/web.ts';
 
 /**
  * Sign Nostr event using the app context.
  *
  * - If a secret key is provided, it will be used to sign the event.
- * - If `X-Nostr-Sign` is passed, it will use a NIP-46 to sign the event.
+ * - If `X-Nostr-Sign` is passed, it will use NIP-46 to sign the event.
  */
 async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
   const seckey = c.get('seckey');
@@ -54,13 +54,14 @@ async function signNostrConnect<K extends number = number>(event: EventTemplate<
     tags: [['p', pubkey]],
   }, c);
 
-  return awaitSignedEvent<K>(pubkey, messageId, c);
+  return awaitSignedEvent<K>(pubkey, messageId, event, c);
 }
 
 /** Wait for signed event to be sent through Nostr relay. */
 async function awaitSignedEvent<K extends number = number>(
   pubkey: string,
   messageId: string,
+  template: EventTemplate<K>,
   c: AppContext,
 ): Promise<Event<K>> {
   const sub = Sub.sub(messageId, '1', [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }]);
@@ -79,12 +80,17 @@ async function awaitSignedEvent<K extends number = number>(
   for await (const event of sub) {
     if (event.kind === 24133) {
       const decrypted = await decryptAdmin(event.pubkey, event.content);
-      const msg = jsonSchema.pipe(connectResponseSchema).parse(decrypted);
 
-      if (msg.id === messageId) {
+      const result = jsonSchema
+        .pipe(connectResponseSchema)
+        .refine((msg) => msg.id === messageId)
+        .refine((msg) => eventMatchesTemplate(msg.result, template))
+        .safeParse(decrypted);
+
+      if (result.success) {
         close();
         clearTimeout(timeout);
-        return msg.result as Event<K>;
+        return result.data.result as Event<K>;
       }
     }
   }
