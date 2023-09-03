@@ -72,14 +72,15 @@ const Conf = {
   },
   /** Merges the path with the localDomain. */
   local(path: string): string {
-    if (path.startsWith('/')) {
-      // Path is a path.
-      return new URL(path, Conf.localDomain).toString();
-    } else {
-      // Path is possibly a full URL. Replace the domain.
-      const { pathname } = new URL(path);
-      return new URL(pathname, Conf.localDomain).toString();
+    const url = new URL(path.startsWith('/') ? path : new URL(path).pathname, Conf.localDomain);
+
+    if (!path.startsWith('/')) {
+      // Copy query parameters from the original URL to the new URL
+      const originalUrl = new URL(path);
+      url.search = originalUrl.search;
     }
+
+    return url.toString();
   },
 };
 
