@@ -1,4 +1,4 @@
-import { verifySignature, z } from '@/deps.ts';
+import { getEventHash, verifySignature, z } from '@/deps.ts';
 
 import { jsonSchema, safeUrlSchema } from '../schema.ts';
 
@@ -19,7 +19,9 @@ const eventSchema = z.object({
 });
 
 /** Nostr event schema that also verifies the event's signature. */
-const signedEventSchema = eventSchema.refine(verifySignature);
+const signedEventSchema = eventSchema
+  .refine((event) => event.id === getEventHash(event), 'Event ID does not match hash')
+  .refine(verifySignature, 'Event signature is invalid');
 
 /** Nostr relay filter schema. */
 const filterSchema = z.object({
