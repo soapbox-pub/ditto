@@ -70,34 +70,26 @@ async function awaitSignedEvent<K extends number = number>(
     Sub.close(messageId);
   }
 
-  const timeout = setTimeout(() => {
-    close();
-    throw new HTTPException(408, {
-      res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
-    });
-  }, Time.minutes(1));
+  const timeout = setTimeout(close, Time.minutes(1));
 
   for await (const event of sub) {
-    if (event.kind === 24133) {
-      const decrypted = await decryptAdmin(event.pubkey, event.content);
+    const decrypted = await decryptAdmin(event.pubkey, event.content);
 
-      const result = jsonSchema
-        .pipe(connectResponseSchema)
-        .refine((msg) => msg.id === messageId)
-        .refine((msg) => eventMatchesTemplate(msg.result, template))
-        .safeParse(decrypted);
+    const result = jsonSchema
+      .pipe(connectResponseSchema)
+      .refine((msg) => msg.id === messageId, 'Message ID mismatch')
+      .refine((msg) => eventMatchesTemplate(msg.result, template), 'Event template mismatch')
+      .safeParse(decrypted);
 
-      if (result.success) {
-        close();
-        clearTimeout(timeout);
-        return result.data.result as Event<K>;
-      }
+    if (result.success) {
+      close();
+      clearTimeout(timeout);
+      return result.data.result as Event<K>;
     }
   }
 
-  // This should never happen.
-  throw new HTTPException(500, {
-    res: c.json({ id: 'ditto.sign', error: 'Unable to sign event' }, 500),
+  throw new HTTPException(408, {
+    res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
   });
 }
 
