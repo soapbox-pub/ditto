@@ -1,6 +1,6 @@
-import { UserRow } from '@/db.ts';
+import { User } from '@/db/users.ts';
 interface EventData {
-  user: UserRow | undefined;
+  user: User | undefined;
 }
 
 export type { EventData };

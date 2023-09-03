@@ -9,6 +9,7 @@ import { emojiTagSchema, filteredArray } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isFollowing, type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
+import { findUser } from '@/db/users.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
@@ -24,7 +25,8 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
   const { name, nip05, picture, banner, about } = jsonMetaContentSchema.parse(event.content);
   const npub = nip19.npubEncode(pubkey);
 
-  const [parsed05, followersCount, followingCount, statusesCount] = await Promise.all([
+  const [user, parsed05, followersCount, followingCount, statusesCount] = await Promise.all([
+    findUser({ pubkey }),
     parseAndVerifyNip05(nip05, pubkey),
     eventsDB.countFilters([{ kinds: [3], '#p': [pubkey] }]),
     getFollowedPubkeys(pubkey).then((pubkeys) => pubkeys.length),
@@ -65,6 +67,10 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
     statuses_count: statusesCount,
     url: Conf.local(`/users/${pubkey}`),
     username: parsed05?.nickname || npub.substring(0, 8),
+    pleroma: {
+      is_admin: user?.admin || false,
+      is_moderator: user?.admin || false,
+    },
   };
 }
 
