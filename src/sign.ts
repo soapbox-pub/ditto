@@ -5,14 +5,14 @@ import { type Event, type EventTemplate, finishEvent, HTTPException } from '@/de
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
-import { Time } from '@/utils.ts';
+import { eventMatchesTemplate, Time } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/web.ts';
 
 /**
  * Sign Nostr event using the app context.
  *
  * - If a secret key is provided, it will be used to sign the event.
- * - If `X-Nostr-Sign` is passed, it will use a NIP-46 to sign the event.
+ * - If `X-Nostr-Sign` is passed, it will use NIP-46 to sign the event.
  */
 async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
   const seckey = c.get('seckey');
@@ -54,13 +54,14 @@ async function signNostrConnect<K extends number = number>(event: EventTemplate<
     tags: [['p', pubkey]],
   }, c);
 
-  return awaitSignedEvent<K>(pubkey, messageId, c);
+  return awaitSignedEvent<K>(pubkey, messageId, event, c);
 }
 
 /** Wait for signed event to be sent through Nostr relay. */
-function awaitSignedEvent<K extends number = number>(
+async function awaitSignedEvent<K extends number = number>(
   pubkey: string,
   messageId: string,
+  template: EventTemplate<K>,
   c: AppContext,
 ): Promise<Event<K>> {
   const sub = Sub.sub(messageId, '1', [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }]);
@@ -69,30 +70,26 @@ function awaitSignedEvent<K extends number = number>(
     Sub.close(messageId);
   }
 
-  return new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => {
+  const timeout = setTimeout(close, Time.minutes(1));
+
+  for await (const event of sub) {
+    const decrypted = await decryptAdmin(event.pubkey, event.content);
+
+    const result = jsonSchema
+      .pipe(connectResponseSchema)
+      .refine((msg) => msg.id === messageId, 'Message ID mismatch')
+      .refine((msg) => eventMatchesTemplate(msg.result, template), 'Event template mismatch')
+      .safeParse(decrypted);
+
+    if (result.success) {
       close();
-      reject(
-        new HTTPException(408, {
-          res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
-        }),
-      );
-    }, Time.minutes(1));
+      clearTimeout(timeout);
+      return result.data.result as Event<K>;
+    }
+  }
 
-    (async () => {
-      for await (const event of sub) {
-        if (event.kind === 24133) {
-          const decrypted = await decryptAdmin(event.pubkey, event.content);
-          const msg = jsonSchema.pipe(connectResponseSchema).parse(decrypted);
-
-          if (msg.id === messageId) {
-            close();
-            clearTimeout(timeout);
-            resolve(msg.result as Event<K>);
-          }
-        }
-      }
-    })();
+  throw new HTTPException(408, {
+    res: c.json({ id: 'ditto.timeout', error: 'Signing timeout' }),
   });
 }
 
@@ -102,4 +99,4 @@ async function signAdminEvent<K extends number = number>(event: EventTemplate<K>
   return finishEvent(event, Conf.seckey);
 }
 
-export { signAdminEvent, signEvent };
+export { signAdminEvent, signEvent, signNostrConnect };

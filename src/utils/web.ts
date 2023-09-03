@@ -123,4 +123,20 @@ function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
   return response;
 }
 
-export { activityJson, createAdminEvent, createEvent, paginated, type PaginationParams, paginationSchema, parseBody };
+/** Rewrite the URL of the request object to use the local domain. */
+function localRequest(c: Context): Request {
+  return Object.create(c.req.raw, {
+    url: { value: Conf.local(c.req.url) },
+  });
+}
+
+export {
+  activityJson,
+  createAdminEvent,
+  createEvent,
+  localRequest,
+  paginated,
+  type PaginationParams,
+  paginationSchema,
+  parseBody,
+};

@@ -1,6 +1,6 @@
-import { type Event, nip19, z } from '@/deps.ts';
-import { lookupNip05Cached } from '@/nip05.ts';
+import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
+import { lookupNip05Cached } from '@/utils/nip05.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
@@ -67,7 +67,7 @@ async function lookupAccount(value: string): Promise<Event<0> | undefined> {
 
 /** Return the event's age in milliseconds. */
 function eventAge(event: Event): number {
-  return new Date().getTime() - nostrDate(event.created_at).getTime();
+  return Date.now() - nostrDate(event.created_at).getTime();
 }
 
 function findTag(tags: string[][], name: string): string[] | undefined {
@@ -106,11 +106,17 @@ function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
 }
 
+/** Ensure the template and event match on their shared keys. */
+function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
+  return getEventHash(event) === getEventHash({ pubkey: event.pubkey, ...template });
+}
+
 export {
   bech32ToPubkey,
   dedupeEvents,
   eventAge,
   eventDateComparator,
+  eventMatchesTemplate,
   findTag,
   isFollowing,
   isRelay,
