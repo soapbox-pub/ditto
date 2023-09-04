@@ -6,9 +6,12 @@ import { createAdminEvent } from '@/utils/web.ts';
 import { Conf } from '@/config.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const [event] = await eventsDB.getFilters(
-    [{ kinds: [30078], authors: [Conf.pubkey], limit: 1 }],
-  );
+  const [event] = await eventsDB.getFilters([{
+    kinds: [30078],
+    authors: [Conf.pubkey],
+    '#d': ['pub.ditto.frontendConfig'],
+    limit: 1,
+  }]);
 
   if (event) {
     const data = JSON.parse(event.content);
