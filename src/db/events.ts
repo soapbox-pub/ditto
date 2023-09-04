@@ -130,7 +130,7 @@ function getFilterQuery(filter: DittoFilter) {
 
 /** Combine filter queries into a single union query. */
 function getFiltersQuery(filters: DittoFilter[]) {
-  return filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+  return filters.map(getFilterQuery).reduce((result, query) => result.union(query));
 }
 
 /** Get events for filters from the database. */
