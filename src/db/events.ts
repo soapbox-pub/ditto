@@ -128,13 +128,18 @@ function getFilterQuery(filter: DittoFilter) {
   return query;
 }
 
+/** Combine filter queries into a single union query. */
+function getFiltersQuery(filters: DittoFilter[]) {
+  return filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+}
+
 /** Get events for filters from the database. */
 async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetFiltersOpts = {},
 ): Promise<Event<K>[]> {
   if (!filters.length) return Promise.resolve([]);
-  let query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+  let query = getFiltersQuery(filters);
 
   if (typeof opts.limit === 'number') {
     query = query.limit(opts.limit);
@@ -145,10 +150,21 @@ async function getFilters<K extends number>(
   ));
 }
 
+/** Delete events based on filters from the database. */
+function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
+  if (!filters.length) return Promise.resolve();
+  const query = getFiltersQuery(filters);
+
+  return db
+    .deleteFrom('events')
+    .where('id', 'in', () => query.clearSelect().select('id'))
+    .execute();
+}
+
 /** Get number of events that would be returned by filters. */
 async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
   if (!filters.length) return Promise.resolve(0);
-  const query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+  const query = getFiltersQuery(filters);
 
   const [{ count }] = await query
     .clearSelect()
@@ -176,4 +192,4 @@ function buildUserSearchContent(event: Event<0>): string {
   return [name, nip05, about].filter(Boolean).join('\n');
 }
 
-export { countFilters, getFilters, insertEvent };
+export { countFilters, deleteFilters, getFilters, insertEvent };
