@@ -30,7 +30,7 @@ import { emptyArrayController, emptyObjectController } from './controllers/api/f
 import { instanceController } from './controllers/api/instance.ts';
 import { notificationsController } from './controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
-import { frontendConfigController } from './controllers/api/pleroma.ts';
+import { frontendConfigController, updateConfigController } from './controllers/api/pleroma.ts';
 import { preferencesController } from './controllers/api/preferences.ts';
 import { relayController } from './controllers/nostr/relay.ts';
 import { searchController } from './controllers/api/search.ts';
@@ -55,7 +55,7 @@ import { nodeInfoController, nodeInfoSchemaController } from './controllers/well
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
-import { auth98 } from './middleware/auth98.ts';
+import { auth98, requireAdmin } from './middleware/auth98.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -135,6 +135,8 @@ app.get('/api/v1/trends', trendingTagsController);
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
+
+app.post('/api/v1/pleroma/admin/config', requireAdmin, updateConfigController);
 
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);

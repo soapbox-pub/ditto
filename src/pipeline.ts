@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
@@ -42,10 +43,13 @@ async function getEventData({ pubkey }: Event): Promise<EventData> {
   return { user };
 }
 
+/** Check if the pubkey is the `DITTO_NSEC` pubkey. */
+const isAdminEvent = ({ pubkey }: Event): boolean => pubkey === Conf.pubkey;
+
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: Event, data: EventData): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
-  if (data.user || await isLocallyFollowed(event.pubkey)) {
+  if (data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     await eventsDB.insertEvent(event).catch(console.warn);
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
