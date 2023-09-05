@@ -7,7 +7,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
-import { isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
 
 import type { EventData } from '@/types.ts';
 
@@ -93,7 +93,7 @@ function trackRelays(event: Event) {
 }
 
 /** Determine if the event is being received in a timely manner. */
-const isFresh = ({ created_at }: Event): boolean => created_at >= nostrNow() - Time.seconds(10);
+const isFresh = (event: Event): boolean => eventAge(event) < Time.seconds(10);
 
 /** Distribute the event through active subscriptions. */
 function streamOut(event: Event, data: EventData) {
