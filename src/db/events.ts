@@ -154,11 +154,18 @@ async function getFilters<K extends number>(
 /** Delete events based on filters from the database. */
 function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
   if (!filters.length) return Promise.resolve([]);
-  const query = getFiltersQuery(filters);
 
-  return db.deleteFrom('events')
-    .where('id', 'in', () => query.clearSelect().select('id'))
-    .execute();
+  return db.transaction().execute(async (trx) => {
+    const query = getFiltersQuery(filters).clearSelect().select('id');
+
+    await trx.deleteFrom('events_fts')
+      .where('id', 'in', () => query)
+      .execute();
+
+    return trx.deleteFrom('events')
+      .where('id', 'in', () => query)
+      .execute();
+  });
 }
 
 /** Get number of events that would be returned by filters. */
