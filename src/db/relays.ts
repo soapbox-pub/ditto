@@ -6,7 +6,7 @@ function addRelays(relays: `wss://${string}`[]) {
   if (!relays.length) return Promise.resolve();
 
   const values = relays.map((url) => ({
-    url,
+    url: new URL(url).toString(),
     domain: tldts.getDomain(url)!,
     active: true,
   }));
