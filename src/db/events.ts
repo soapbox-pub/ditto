@@ -156,7 +156,7 @@ async function getFilters<K extends number>(
 
 /** Delete events based on filters from the database. */
 function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
-  if (!filters.length) return Promise.resolve();
+  if (!filters.length) return Promise.resolve([]);
   const query = getFiltersQuery(filters);
 
   return db
