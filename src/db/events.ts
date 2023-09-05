@@ -118,7 +118,7 @@ function getFilterQuery(filter: DittoFilter) {
   if (typeof filter.local === 'boolean') {
     query = filter.local
       ? query.innerJoin('users', 'users.pubkey', 'events.pubkey') as typeof query
-      : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null);
+      : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
   }
 
   if (filter.search) {
