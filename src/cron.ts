@@ -14,4 +14,4 @@ async function cleanupEvents() {
   console.log(`Deleted ${result?.numDeletedRows ?? 0} events.`);
 }
 
-cron.hourly(cleanupEvents);
+cron.every15Minute(cleanupEvents);
