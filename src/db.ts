@@ -63,8 +63,26 @@ const migrator = new Migrator({
   }),
 });
 
-console.log('Running migrations...');
-const results = await migrator.migrateToLatest();
-console.log('Migrations finished:', results);
+/** Migrate the database to the latest version. */
+async function migrate() {
+  console.log('Running migrations...');
+  const results = await migrator.migrateToLatest();
+
+  if (results.error) {
+    console.error(results.error);
+    Deno.exit(1);
+  } else {
+    if (!results.results?.length) {
+      console.log('Everything up-to-date.');
+    } else {
+      console.log('Migrations finished!');
+      for (const { migrationName, status } of results.results) {
+        console.log(`  - ${migrationName}: ${status}`);
+      }
+    }
+  }
+}
+
+await migrate();
 
 export { db, type DittoDB, type EventRow, type TagRow, type UserRow };
