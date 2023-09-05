@@ -34,17 +34,14 @@ function insertEvent(event: Event): Promise<void> {
     }
 
     const tagCounts: Record<string, number> = {};
-    const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
-      const tagName = tag[0];
-      tagCounts[tagName] = (tagCounts[tagName] || 0) + 1;
+    const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
+      tagCounts[name] = (tagCounts[name] || 0) + 1;
 
-      if (tagConditions[tagName]?.({ event, count: tagCounts[tagName] - 1 })) {
+      if (value && tagConditions[name]?.({ event, count: tagCounts[name] - 1 })) {
         results.push({
           event_id: event.id,
-          tag: tagName,
-          value_1: tag[1] || null,
-          value_2: tag[2] || null,
-          value_3: tag[3] || null,
+          tag: name,
+          value,
         });
       }
 
@@ -111,7 +108,7 @@ function getFilterQuery(filter: DittoFilter) {
       query = query
         .leftJoin('tags', 'tags.event_id', 'events.id')
         .where('tags.tag', '=', tag)
-        .where('tags.value_1', 'in', value) as typeof query;
+        .where('tags.value', 'in', value) as typeof query;
     }
   }
 
@@ -157,19 +154,11 @@ async function getFilters<K extends number>(
 /** Delete events based on filters from the database. */
 function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
   if (!filters.length) return Promise.resolve([]);
+  const query = getFiltersQuery(filters);
 
-  return db.transaction().execute(async (trx) => {
-    const query = getFiltersQuery(filters).clearSelect().select('id');
-
-    await trx.deleteFrom('tags')
-      .where('event_id', 'in', () => query)
-      .where('tag', 'not in', ['d', 'proxy'])
-      .execute();
-
-    return trx.deleteFrom('events')
-      .where('id', 'in', () => query)
-      .execute();
-  });
+  return db.deleteFrom('events')
+    .where('id', 'in', () => query.clearSelect().select('id'))
+    .execute();
 }
 
 /** Get number of events that would be returned by filters. */

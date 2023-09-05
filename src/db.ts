@@ -29,9 +29,7 @@ interface EventFTSRow {
 
 interface TagRow {
   tag: string;
-  value_1: string | null;
-  value_2: string | null;
-  value_3: string | null;
+  value: string;
   event_id: string;
 }
 
