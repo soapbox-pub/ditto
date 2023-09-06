@@ -1,3 +1,4 @@
+import '@/cron.ts';
 import {
   type Context,
   cors,

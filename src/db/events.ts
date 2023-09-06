@@ -34,17 +34,14 @@ function insertEvent(event: Event): Promise<void> {
     }
 
     const tagCounts: Record<string, number> = {};
-    const tags = event.tags.reduce<Insertable<TagRow>[]>((results, tag) => {
-      const tagName = tag[0];
-      tagCounts[tagName] = (tagCounts[tagName] || 0) + 1;
+    const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
+      tagCounts[name] = (tagCounts[name] || 0) + 1;
 
-      if (tagConditions[tagName]?.({ event, count: tagCounts[tagName] - 1 })) {
+      if (value && tagConditions[name]?.({ event, count: tagCounts[name] - 1 })) {
         results.push({
           event_id: event.id,
-          tag: tagName,
-          value_1: tag[1] || null,
-          value_2: tag[2] || null,
-          value_3: tag[3] || null,
+          tag: name,
+          value,
         });
       }
 
@@ -111,12 +108,14 @@ function getFilterQuery(filter: DittoFilter) {
       query = query
         .leftJoin('tags', 'tags.event_id', 'events.id')
         .where('tags.tag', '=', tag)
-        .where('tags.value_1', 'in', value) as typeof query;
+        .where('tags.value', 'in', value) as typeof query;
     }
   }
 
-  if (filter.local) {
-    query = query.innerJoin('users', 'users.pubkey', 'events.pubkey');
+  if (typeof filter.local === 'boolean') {
+    query = filter.local
+      ? query.innerJoin('users', 'users.pubkey', 'events.pubkey') as typeof query
+      : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
   }
 
   if (filter.search) {
@@ -128,13 +127,20 @@ function getFilterQuery(filter: DittoFilter) {
   return query;
 }
 
+/** Combine filter queries into a single union query. */
+function getFiltersQuery(filters: DittoFilter[]) {
+  return filters
+    .map(getFilterQuery)
+    .reduce((result, query) => result.union(query));
+}
+
 /** Get events for filters from the database. */
 async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetFiltersOpts = {},
 ): Promise<Event<K>[]> {
   if (!filters.length) return Promise.resolve([]);
-  let query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+  let query = getFiltersQuery(filters);
 
   if (typeof opts.limit === 'number') {
     query = query.limit(opts.limit);
@@ -145,10 +151,27 @@ async function getFilters<K extends number>(
   ));
 }
 
+/** Delete events based on filters from the database. */
+function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
+  if (!filters.length) return Promise.resolve([]);
+
+  return db.transaction().execute(async (trx) => {
+    const query = getFiltersQuery(filters).clearSelect().select('id');
+
+    await trx.deleteFrom('events_fts')
+      .where('id', 'in', () => query)
+      .execute();
+
+    return trx.deleteFrom('events')
+      .where('id', 'in', () => query)
+      .execute();
+  });
+}
+
 /** Get number of events that would be returned by filters. */
 async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
   if (!filters.length) return Promise.resolve(0);
-  const query = filters.map(getFilterQuery).reduce((acc, curr) => acc.union(curr));
+  const query = getFiltersQuery(filters);
 
   const [{ count }] = await query
     .clearSelect()
@@ -176,4 +199,4 @@ function buildUserSearchContent(event: Event<0>): string {
   return [name, nip05, about].filter(Boolean).join('\n');
 }
 
-export { countFilters, getFilters, insertEvent };
+export { countFilters, deleteFilters, getFilters, insertEvent };

@@ -4,10 +4,13 @@ import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event, LRUCache } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
+import * as mixer from '@/mixer.ts';
+import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
+import { getTagSet } from '@/tags.ts';
 import { trends } from '@/trends.ts';
-import { isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
 
 import type { EventData } from '@/types.ts';
 
@@ -21,9 +24,11 @@ async function handleEvent(event: Event): Promise<void> {
 
   await Promise.all([
     storeEvent(event, data),
+    processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
     streamOut(event, data),
+    broadcast(event, data),
   ]);
 }
 
@@ -49,16 +54,39 @@ const isAdminEvent = ({ pubkey }: Event): boolean => pubkey === Conf.pubkey;
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: Event, data: EventData): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
+
   if (data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    await eventsDB.insertEvent(event).catch(console.warn);
+    const [deletion] = await mixer.getFilters(
+      [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
+      { limit: 1, timeout: Time.seconds(1) },
+    );
+
+    if (deletion) {
+      return Promise.reject(new RelayError('blocked', 'event was deleted'));
+    } else {
+      await eventsDB.insertEvent(event).catch(console.warn);
+    }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
   }
 }
 
+/** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
+async function processDeletions(event: Event): Promise<void> {
+  if (event.kind === 5) {
+    const ids = getTagSet(event.tags, 'e');
+    const events = await eventsDB.getFilters([{ ids: [...ids] }]);
+
+    const deleteIds = events
+      .filter(({ pubkey, id }) => pubkey === event.pubkey && ids.has(id))
+      .map((event) => event.id);
+
+    await eventsDB.deleteFilters([{ ids: deleteIds }]);
+  }
+}
+
 /** Track whenever a hashtag is used, for processing trending tags. */
-// deno-lint-ignore require-await
-async function trackHashtags(event: Event): Promise<void> {
+function trackHashtags(event: Event): void {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags
@@ -93,7 +121,7 @@ function trackRelays(event: Event) {
 }
 
 /** Determine if the event is being received in a timely manner. */
-const isFresh = ({ created_at }: Event): boolean => created_at >= nostrNow() - Time.seconds(10);
+const isFresh = (event: Event): boolean => eventAge(event) < Time.seconds(10);
 
 /** Distribute the event through active subscriptions. */
 function streamOut(event: Event, data: EventData) {
@@ -101,6 +129,18 @@ function streamOut(event: Event, data: EventData) {
 
   for (const sub of Sub.matches(event, data)) {
     sub.stream(event);
+  }
+}
+
+/**
+ * Publish the event to other relays.
+ * This should only be done in certain circumstances, like mentioning a user or publishing deletions.
+ */
+function broadcast(event: Event, data: EventData) {
+  if (!data.user || !isFresh(event)) return;
+
+  if (event.kind === 5) {
+    publish(event);
   }
 }
 

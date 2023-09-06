@@ -65,5 +65,6 @@ export {
 } from 'npm:kysely@^0.25.0';
 export { DenoSqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v1.0.1/mod.ts';
 export { default as tldts } from 'npm:tldts@^6.0.14';
+export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
