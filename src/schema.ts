@@ -48,4 +48,16 @@ const safeUrlSchema = z.string().max(2048).url();
 /** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
 const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
 
-export { booleanParamSchema, decode64Schema, emojiTagSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };
+/** Schema for `File` objects. */
+const fileSchema = z.custom<File>((value) => value instanceof File);
+
+export {
+  booleanParamSchema,
+  decode64Schema,
+  emojiTagSchema,
+  fileSchema,
+  filteredArray,
+  hashtagSchema,
+  jsonSchema,
+  safeUrlSchema,
+};

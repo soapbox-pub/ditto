@@ -1,4 +1,4 @@
-import { dotenv, getPublicKey, nip19, secp } from '@/deps.ts';
+import { dotenv, getPublicKey, nip19, secp, z } from '@/deps.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -6,6 +6,16 @@ await dotenv.load({
   defaultsPath: null,
   examplePath: null,
 });
+
+const optionalBooleanSchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((value) => value !== undefined ? value === 'true' : undefined);
+
+const optionalNumberSchema = z
+  .string()
+  .optional()
+  .transform((value) => value !== undefined ? Number(value) : undefined);
 
 /** Application-wide configuration. */
 const Conf = {
@@ -57,6 +67,36 @@ const Conf = {
   /** Admin contact to expose through various endpoints. This information is public. */
   get adminEmail() {
     return Deno.env.get('ADMIN_EMAIL') || 'webmaster@localhost';
+  },
+  /** S3 media storage configuration. */
+  s3: {
+    get endPoint() {
+      return Deno.env.get('S3_ENDPOINT')!;
+    },
+    get region() {
+      return Deno.env.get('S3_REGION')!;
+    },
+    get accessKey() {
+      return Deno.env.get('S3_ACCESS_KEY');
+    },
+    get secretKey() {
+      return Deno.env.get('S3_SECRET_KEY');
+    },
+    get bucket() {
+      return Deno.env.get('S3_BUCKET');
+    },
+    get pathStyle() {
+      return optionalBooleanSchema.parse(Deno.env.get('S3_PATH_STYLE'));
+    },
+    get port() {
+      return optionalNumberSchema.parse(Deno.env.get('S3_PORT'));
+    },
+    get sessionToken() {
+      return Deno.env.get('S3_SESSION_TOKEN');
+    },
+    get useSSL() {
+      return optionalBooleanSchema.parse(Deno.env.get('S3_USE_SSL'));
+    },
   },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {

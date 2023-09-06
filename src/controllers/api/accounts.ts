@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { type Filter, findReplyTag, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
-import { booleanParamSchema } from '@/schema.ts';
+import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { isFollowing, lookupAccount, Time } from '@/utils.ts';
@@ -112,8 +112,6 @@ const accountStatusesController: AppController = async (c) => {
   const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 };
-
-const fileSchema = z.custom<File>((value) => value instanceof File);
 
 const updateCredentialsSchema = z.object({
   display_name: z.string().optional(),
