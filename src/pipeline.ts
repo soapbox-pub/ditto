@@ -7,6 +7,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
+import { getTagSet } from '@/tags.ts';
 import { trends } from '@/trends.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
 
@@ -22,6 +23,7 @@ async function handleEvent(event: Event): Promise<void> {
 
   await Promise.all([
     storeEvent(event, data),
+    processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
     streamOut(event, data),
@@ -64,6 +66,20 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
     }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
+  }
+}
+
+/** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
+async function processDeletions(event: Event): Promise<void> {
+  if (event.kind === 5) {
+    const ids = getTagSet(event.tags, 'e');
+    const events = await eventsDB.getFilters([{ ids: [...ids] }]);
+
+    const deleteIds = events
+      .filter(({ pubkey, id }) => pubkey === event.pubkey && ids.has(id))
+      .map((event) => event.id);
+
+    await eventsDB.deleteFilters([{ ids: deleteIds }]);
   }
 }
 
