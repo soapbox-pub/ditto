@@ -58,14 +58,6 @@ const Conf = {
   get adminEmail() {
     return Deno.env.get('ADMIN_EMAIL') || 'webmaster@localhost';
   },
-  /** @deprecated Use relays from the database instead. */
-  get poolRelays() {
-    return (Deno.env.get('RELAY_POOL') || '').split(',').filter(Boolean);
-  },
-  /** @deprecated Publish only to the local relay unless users are mentioned, then try to also send to the relay of those users. Deletions should also be fanned out. */
-  get publishRelays() {
-    return ['wss://relay.mostr.pub'];
-  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);
