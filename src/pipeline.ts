@@ -3,6 +3,7 @@ import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event, LRUCache } from '@/deps.ts';
+import { publish } from '@/firehose.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { isLocallyFollowed } from '@/queries.ts';
@@ -27,6 +28,7 @@ async function handleEvent(event: Event): Promise<void> {
     trackRelays(event),
     trackHashtags(event),
     streamOut(event, data),
+    broadcast(event, data),
   ]);
 }
 
@@ -127,6 +129,18 @@ function streamOut(event: Event, data: EventData) {
 
   for (const sub of Sub.matches(event, data)) {
     sub.stream(event);
+  }
+}
+
+/**
+ * Publish the event to other relays.
+ * This should only be done in certain circumstances, like mentioning a user or publishing deletions.
+ */
+function broadcast(event: Event, data: EventData) {
+  if (!data.user || !isFresh(event)) return;
+
+  if (event.kind === 5) {
+    publish(event);
   }
 }
 
