@@ -4,6 +4,7 @@ import { addRelays } from '@/db/relays.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event, LRUCache } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
+import * as mixer from '@/mixer.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { trends } from '@/trends.ts';
@@ -49,8 +50,18 @@ const isAdminEvent = ({ pubkey }: Event): boolean => pubkey === Conf.pubkey;
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: Event, data: EventData): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
+
   if (data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    await eventsDB.insertEvent(event).catch(console.warn);
+    const [deletion] = await mixer.getFilters(
+      [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
+      { limit: 1, timeout: Time.seconds(1) },
+    );
+
+    if (deletion) {
+      return Promise.reject(new RelayError('blocked', 'event was deleted'));
+    } else {
+      await eventsDB.insertEvent(event).catch(console.warn);
+    }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
   }
