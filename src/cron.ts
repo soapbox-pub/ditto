@@ -11,7 +11,9 @@ async function cleanupEvents() {
     local: false,
   }]);
 
-  console.log(`Deleted ${result?.numDeletedRows ?? 0} events.`);
+  console.log(`Cleaned up ${result?.numDeletedRows ?? 0} old remote events.`);
 }
+
+await cleanupEvents();
 
 cron.every15Minute(cleanupEvents);
