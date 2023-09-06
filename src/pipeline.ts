@@ -68,8 +68,7 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-// deno-lint-ignore require-await
-async function trackHashtags(event: Event): Promise<void> {
+function trackHashtags(event: Event): void {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags
