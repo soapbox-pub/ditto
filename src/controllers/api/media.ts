@@ -1,6 +1,6 @@
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { S3Client, z } from '@/deps.ts';
+import { IpfsHash, S3Client, z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/web.ts';
 
@@ -21,15 +21,24 @@ const mediaController: AppController = async (c) => {
   }
 
   const { file } = result.data;
+  const cid = await IpfsHash.of(file.stream()) as string;
 
   try {
-    await s3.putObject('test', file.stream());
+    await s3.putObject(`ipfs/${cid}`, file.stream(), {
+      metadata: {
+        'Content-Type': file.type,
+        'x-amz-acl': 'public-read',
+      },
+    });
   } catch (e) {
     console.error(e);
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
 
-  return c.json({});
+  return c.json({
+    id: cid,
+    type: file.type,
+  });
 };
 
 export { mediaController };
