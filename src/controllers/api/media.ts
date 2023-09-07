@@ -1,10 +1,8 @@
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
-import { IpfsHash, S3Client, z } from '@/deps.ts';
+import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/web.ts';
-
-const s3 = new S3Client({ ...Conf.s3 });
+import { s3Uploader } from '@/uploaders/s3.ts';
 
 const mediaBodySchema = z.object({
   file: fileSchema.refine((file) => !!file.type),
@@ -20,25 +18,18 @@ const mediaController: AppController = async (c) => {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
   }
 
-  const { file } = result.data;
-  const cid = await IpfsHash.of(file.stream()) as string;
-
   try {
-    await s3.putObject(`ipfs/${cid}`, file.stream(), {
-      metadata: {
-        'Content-Type': file.type,
-        'x-amz-acl': 'public-read',
-      },
+    const { file } = result.data;
+    const { cid } = await s3Uploader(file);
+
+    return c.json({
+      id: cid,
+      type: file.type,
     });
   } catch (e) {
     console.error(e);
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
-
-  return c.json({
-    id: cid,
-    type: file.type,
-  });
 };
 
 export { mediaController };
