@@ -20,7 +20,7 @@ const mediaController: AppController = async (c) => {
 
   try {
     const { file } = result.data;
-    const { cid } = await s3Uploader(file);
+    const { cid } = await s3Uploader.upload(file);
 
     return c.json({
       id: cid,
