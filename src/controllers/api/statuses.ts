@@ -1,4 +1,5 @@
 import { type AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
@@ -40,45 +41,46 @@ const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
 
-  if (result.success) {
-    const { data } = result;
-
-    if (data.visibility !== 'public') {
-      return c.json({ error: 'Only posting publicly is supported.' }, 422);
-    }
-
-    if (data.poll) {
-      return c.json({ error: 'Polls are not yet supported.' }, 422);
-    }
-
-    if (data.media_ids?.length) {
-      return c.json({ error: 'Media uploads are not yet supported.' }, 422);
-    }
-
-    const tags: string[][] = [];
-
-    if (data.in_reply_to_id) {
-      tags.push(['e', data.in_reply_to_id, 'reply']);
-    }
-
-    if (data.sensitive && data.spoiler_text) {
-      tags.push(['content-warning', data.spoiler_text]);
-    } else if (data.sensitive) {
-      tags.push(['content-warning']);
-    } else if (data.spoiler_text) {
-      tags.push(['subject', data.spoiler_text]);
-    }
-
-    const event = await createEvent({
-      kind: 1,
-      content: data.status ?? '',
-      tags,
-    }, c);
-
-    return c.json(await toStatus(event, c.get('pubkey')));
-  } else {
+  if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
+
+  const { data } = result;
+
+  if (data.visibility !== 'public') {
+    return c.json({ error: 'Only posting publicly is supported.' }, 422);
+  }
+
+  if (data.poll) {
+    return c.json({ error: 'Polls are not yet supported.' }, 422);
+  }
+
+  const tags: string[][] = [];
+
+  if (data.in_reply_to_id) {
+    tags.push(['e', data.in_reply_to_id, 'reply']);
+  }
+
+  if (data.sensitive && data.spoiler_text) {
+    tags.push(['content-warning', data.spoiler_text]);
+  } else if (data.sensitive) {
+    tags.push(['content-warning']);
+  } else if (data.spoiler_text) {
+    tags.push(['subject', data.spoiler_text]);
+  }
+
+  for (const cid of data.media_ids ?? []) {
+    const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
+    tags.push(['media', url]);
+  }
+
+  const event = await createEvent({
+    kind: 1,
+    content: data.status ?? '',
+    tags,
+  }, c);
+
+  return c.json(await toStatus(event, c.get('pubkey')));
 };
 
 const contextController: AppController = async (c) => {

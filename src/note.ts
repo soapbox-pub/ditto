@@ -54,7 +54,7 @@ function parseNoteContent(content: string): ParsedNoteContent {
 
 interface MediaLink {
   url: string;
-  mimeType: string;
+  mimeType?: string;
 }
 
 function getMediaLinks(links: Link[]): MediaLink[] {

@@ -118,7 +118,6 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
   ];
 
   const { html, links, firstUrl } = parseNoteContent(event.content);
-  const mediaLinks = getMediaLinks(links);
 
   const [mentions, card, repliesCount, reblogsCount, favouritesCount, [repostEvent], [reactionEvent]] = await Promise
     .all([
@@ -139,6 +138,12 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
 
   const cw = event.tags.find(isCWTag);
   const subject = event.tags.find((tag) => tag[0] === 'subject');
+
+  const mediaLinks = getMediaLinks(links);
+
+  const media = event.tags
+    .filter((tag) => tag[0] === 'media')
+    .map((tag) => ({ url: tag[1], mimeType: tag[2] || undefined }));
 
   return {
     id: event.id,
@@ -161,7 +166,7 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
     bookmarked: false,
     reblog: null,
     application: null,
-    media_attachments: mediaLinks.map(renderAttachment),
+    media_attachments: mediaLinks.concat(media).map(renderAttachment),
     mentions,
     tags: [],
     emojis: toEmojis(event),
@@ -187,7 +192,7 @@ function buildInlineRecipients(mentions: Mention[]): string {
 
 const attachmentTypeSchema = z.enum(['image', 'video', 'gifv', 'audio', 'unknown']).catch('unknown');
 
-function renderAttachment({ url, mimeType }: MediaLink) {
+function renderAttachment({ url, mimeType = '' }: MediaLink) {
   const [baseType, _subType] = mimeType.split('/');
   const type = attachmentTypeSchema.parse(baseType);
 
