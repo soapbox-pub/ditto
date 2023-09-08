@@ -1,4 +1,8 @@
 import { dotenv, getPublicKey, nip19, secp, z } from '@/deps.ts';
+import { ipfsUploader } from '@/uploaders/ipfs.ts';
+import { s3Uploader } from '@/uploaders/s3.ts';
+
+import type { Uploader } from '@/uploaders/types.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -42,7 +46,7 @@ const Conf = {
     const { protocol, host } = Conf.url;
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
   },
-  /** Domain of the Ditto server, including the protocol. */
+  /** Origin of the Ditto server, including the protocol and port. */
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
   },
@@ -88,11 +92,35 @@ const Conf = {
       return optionalBooleanSchema.parse(Deno.env.get('S3_USE_SSL'));
     },
   },
+  /** IPFS uploader configuration. */
   ipfs: {
     /** Base URL for private IPFS API calls. */
     get apiUrl() {
       return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
     },
+  },
+  /** Module to upload files with. */
+  get uploader(): Uploader {
+    switch (Deno.env.get('DITTO_UPLOADER')) {
+      case 's3':
+        return s3Uploader;
+      case 'ipfs':
+        return ipfsUploader;
+      default:
+        return ipfsUploader;
+    }
+  },
+  /** Media base URL for uploads. */
+  get mediaDomain() {
+    const value = Deno.env.get('MEDIA_DOMAIN');
+
+    if (!value) {
+      const url = Conf.url;
+      url.host = `media.${url.host}`;
+      return url.toString();
+    }
+
+    return value;
   },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {

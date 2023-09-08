@@ -1,8 +1,8 @@
 import { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/web.ts';
-import { s3Uploader } from '@/uploaders/s3.ts';
 
 const mediaBodySchema = z.object({
   file: fileSchema.refine((file) => !!file.type),
@@ -19,12 +19,19 @@ const mediaController: AppController = async (c) => {
   }
 
   try {
-    const { file } = result.data;
-    const { cid } = await s3Uploader.upload(file);
+    const { file, description } = result.data;
+    const { cid } = await Conf.uploader.upload(file);
+
+    const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
 
     return c.json({
       id: cid,
       type: file.type,
+      url,
+      preview_url: url,
+      remote_url: null,
+      description,
+      blurhash: null,
     });
   } catch (e) {
     console.error(e);
