@@ -29,6 +29,7 @@ import {
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
+import { mediaController } from './controllers/api/media.ts';
 import { notificationsController } from './controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
 import { frontendConfigController, updateConfigController } from './controllers/api/pleroma.ts';
@@ -56,7 +57,7 @@ import { nodeInfoController, nodeInfoSchemaController } from './controllers/well
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
-import { auth98, requireAdmin } from './middleware/auth98.ts';
+import { auth98, requireRole } from './middleware/auth98.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -121,6 +122,9 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
+app.post('/api/v1/media', requireRole('user'), mediaController);
+app.post('/api/v2/media', requireRole('user'), mediaController);
+
 app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
 app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
@@ -137,7 +141,7 @@ app.get('/api/v1/trends', trendingTagsController);
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
 
-app.post('/api/v1/pleroma/admin/config', requireAdmin, updateConfigController);
+app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);
