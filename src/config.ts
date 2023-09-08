@@ -111,6 +111,10 @@ const Conf = {
 
     return value;
   },
+  /** Max upload size for files in number of bytes. Default 100MiB. */
+  get maxUploadSize() {
+    return Number(Deno.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);
+  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);

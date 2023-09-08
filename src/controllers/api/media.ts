@@ -5,9 +5,13 @@ import { fileSchema } from '@/schema.ts';
 import { configUploader as uploader } from '@/uploaders/config.ts';
 import { parseBody } from '@/utils/web.ts';
 
+const uploadSchema = fileSchema
+  .refine((file) => !!file.type, 'File type is required.')
+  .refine((file) => file.size <= Conf.maxUploadSize, 'File size is too large.');
+
 const mediaBodySchema = z.object({
-  file: fileSchema.refine((file) => !!file.type),
-  thumbnail: fileSchema.optional(),
+  file: uploadSchema,
+  thumbnail: uploadSchema.optional(),
   description: z.string().optional(),
   focus: z.string().optional(),
 });
