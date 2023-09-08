@@ -2,6 +2,7 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
+import { configUploader as uploader } from '@/uploaders/config.ts';
 import { parseBody } from '@/utils/web.ts';
 
 const mediaBodySchema = z.object({
@@ -20,7 +21,7 @@ const mediaController: AppController = async (c) => {
 
   try {
     const { file, description } = result.data;
-    const { cid } = await Conf.uploader.upload(file);
+    const { cid } = await uploader.upload(file);
 
     const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
 

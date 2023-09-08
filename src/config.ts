@@ -1,8 +1,4 @@
 import { dotenv, getPublicKey, nip19, secp, z } from '@/deps.ts';
-import { ipfsUploader } from '@/uploaders/ipfs.ts';
-import { s3Uploader } from '@/uploaders/s3.ts';
-
-import type { Uploader } from '@/uploaders/types.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -100,15 +96,8 @@ const Conf = {
     },
   },
   /** Module to upload files with. */
-  get uploader(): Uploader {
-    switch (Deno.env.get('DITTO_UPLOADER')) {
-      case 's3':
-        return s3Uploader;
-      case 'ipfs':
-        return ipfsUploader;
-      default:
-        return ipfsUploader;
-    }
+  get uploader() {
+    return Deno.env.get('DITTO_UPLOADER');
   },
   /** Media base URL for uploads. */
   get mediaDomain() {
