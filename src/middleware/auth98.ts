@@ -7,7 +7,7 @@ import {
   validateAuthEvent,
 } from '@/utils/nip98.ts';
 import { localRequest } from '@/utils/web.ts';
-import { signNostrConnect } from '@/sign.ts';
+import { signEvent } from '@/sign.ts';
 import { findUser, User } from '@/db/users.ts';
 
 /**
@@ -63,7 +63,7 @@ function matchesRole(user: User, role: UserRole): boolean {
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   const req = localRequest(c);
   const reqEvent = await buildAuthEventTemplate(req, opts);
-  const resEvent = await signNostrConnect(reqEvent, c);
+  const resEvent = await signEvent(reqEvent, c);
   const result = await validateAuthEvent(req, resEvent, opts);
 
   if (result.success) {
