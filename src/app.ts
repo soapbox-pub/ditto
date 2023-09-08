@@ -122,8 +122,8 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
-app.post('/api/v1/media', requireRole('user'), mediaController);
-app.post('/api/v2/media', requireRole('user'), mediaController);
+app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);
+app.post('/api/v2/media', requireRole('user', { validatePayload: false }), mediaController);
 
 app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
