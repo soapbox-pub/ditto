@@ -27,7 +27,7 @@ const mediaController: AppController = async (c) => {
 
     return c.json({
       id: cid,
-      type: file.type,
+      type: getAttachmentType(file.type),
       url,
       preview_url: url,
       remote_url: null,
@@ -39,5 +39,19 @@ const mediaController: AppController = async (c) => {
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
 };
+
+/** MIME to Mastodon API `Attachment` type. */
+function getAttachmentType(mime: string): string {
+  const [type] = mime.split('/');
+
+  switch (type) {
+    case 'image':
+    case 'video':
+    case 'audio':
+      return type;
+    default:
+      return 'unknown';
+  }
+}
 
 export { mediaController };
