@@ -7,16 +7,6 @@ await dotenv.load({
   examplePath: null,
 });
 
-const optionalBooleanSchema = z
-  .enum(['true', 'false'])
-  .optional()
-  .transform((value) => value !== undefined ? value === 'true' : undefined);
-
-const optionalNumberSchema = z
-  .string()
-  .optional()
-  .transform((value) => value !== undefined ? Number(value) : undefined);
-
 /** Application-wide configuration. */
 const Conf = {
   /** Ditto admin secret key in nip19 format. This is the way it's configured by an admin. */
@@ -98,22 +88,45 @@ const Conf = {
       return optionalBooleanSchema.parse(Deno.env.get('S3_USE_SSL'));
     },
   },
+  ipfs: {
+    /** Base URL for private IPFS API calls. */
+    get apiUrl() {
+      return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
+    },
+  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);
   },
   /** Merges the path with the localDomain. */
   local(path: string): string {
-    const url = new URL(path.startsWith('/') ? path : new URL(path).pathname, Conf.localDomain);
-
-    if (!path.startsWith('/')) {
-      // Copy query parameters from the original URL to the new URL
-      const originalUrl = new URL(path);
-      url.search = originalUrl.search;
-    }
-
-    return url.toString();
+    return mergePaths(Conf.localDomain, path);
   },
 };
+
+const optionalBooleanSchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((value) => value !== undefined ? value === 'true' : undefined);
+
+const optionalNumberSchema = z
+  .string()
+  .optional()
+  .transform((value) => value !== undefined ? Number(value) : undefined);
+
+function mergePaths(base: string, path: string) {
+  const url = new URL(
+    path.startsWith('/') ? path : new URL(path).pathname,
+    base,
+  );
+
+  if (!path.startsWith('/')) {
+    // Copy query parameters from the original URL to the new URL
+    const originalUrl = new URL(path);
+    url.search = originalUrl.search;
+  }
+
+  return url.toString();
+}
 
 export { Conf };

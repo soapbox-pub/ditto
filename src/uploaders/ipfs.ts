@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
 
 import type { Uploader } from './types.ts';
@@ -9,10 +10,12 @@ const ipfsAddResultSchema = z.object({
 });
 
 const ipfsUploader: Uploader = async (file) => {
+  const url = new URL('/api/v0/add', Conf.ipfs.apiUrl);
+
   const formData = new FormData();
   formData.append('file', file);
 
-  const response = await fetch('http://localhost:5001/api/v0/add', {
+  const response = await fetch(url, {
     method: 'POST',
     body: formData,
   });
