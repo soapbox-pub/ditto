@@ -1,19 +1,25 @@
 import { db, type TagRow } from '@/db.ts';
 import { type Event, type Insertable, SqliteError } from '@/deps.ts';
+import { isParameterizedReplaceableKind } from '@/kinds.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { isNostrId, isURL } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 
-type TagCondition = ({ event, count }: { event: Event; count: number }) => boolean;
+type TagCondition = ({ event, count, value }: {
+  event: Event;
+  count: number;
+  value: string;
+}) => boolean;
 
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
-  'd': ({ event, count }) => 30000 <= event.kind && event.kind < 40000 && count === 0,
-  'e': ({ count }) => count < 15,
-  'p': ({ event, count }) => event.kind === 3 || count < 15,
-  'proxy': ({ count }) => count === 0,
-  'q': ({ event, count }) => event.kind === 1 && count === 0,
-  't': ({ count }) => count < 5,
+  'd': ({ event, count, value }) => isParameterizedReplaceableKind(event.kind) && count === 0 && value.length < 200,
+  'e': ({ count, value }) => isNostrId(value) && count < 15,
+  'p': ({ event, count, value }) => isNostrId(value) && (event.kind === 3 || count < 15),
+  'proxy': ({ count, value }) => isURL(value) && count === 0 && value.length < 200,
+  'q': ({ event, count, value }) => isNostrId(value) && event.kind === 1 && count === 0,
+  't': ({ count, value }) => count < 5 && value.length < 50,
 };
 
 /** Insert an event (and its tags) into the database. */
@@ -37,7 +43,7 @@ function insertEvent(event: Event): Promise<void> {
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
       tagCounts[name] = (tagCounts[name] || 0) + 1;
 
-      if (value && tagConditions[name]?.({ event, count: tagCounts[name] - 1 })) {
+      if (value && tagConditions[name]?.({ event, count: tagCounts[name] - 1, value })) {
         results.push({
           event_id: event.id,
           tag: name,

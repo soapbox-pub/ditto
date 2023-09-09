@@ -1,6 +1,7 @@
 import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
@@ -111,6 +112,21 @@ function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
   return getEventHash(event) === getEventHash({ pubkey: event.pubkey, ...template });
 }
 
+/** Test whether the value is a Nostr ID. */
+function isNostrId(value: unknown): boolean {
+  return nostrIdSchema.safeParse(value).success;
+}
+
+/** Test whether the value is a URL. */
+function isURL(value: unknown): boolean {
+  try {
+    new URL(value as string);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 export {
   bech32ToPubkey,
   dedupeEvents,
@@ -119,7 +135,9 @@ export {
   eventMatchesTemplate,
   findTag,
   isFollowing,
+  isNostrId,
   isRelay,
+  isURL,
   lookupAccount,
   type Nip05,
   nostrDate,
