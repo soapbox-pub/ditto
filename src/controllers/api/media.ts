@@ -1,5 +1,6 @@
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { insertUnattachedMedia } from '@/db/unattached-media.ts';
 import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { configUploader as uploader } from '@/uploaders/config.ts';
@@ -26,6 +27,17 @@ const mediaController: AppController = async (c) => {
   try {
     const { file, description } = result.data;
     const { cid } = await uploader.upload(file);
+
+    await insertUnattachedMedia({
+      pukey: c.get('pubkey')!,
+      cid,
+      data: {
+        name: file.name,
+        mime: file.type,
+        size: file.size,
+        description,
+      },
+    });
 
     const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
 

@@ -68,5 +68,6 @@ export { default as tldts } from 'npm:tldts@^6.0.14';
 export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
+export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
