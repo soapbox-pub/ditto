@@ -64,7 +64,7 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
     if (deletion) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
-      await eventsDB.insertEvent(event).catch(console.warn);
+      await eventsDB.insertEvent(event, data).catch(console.warn);
     }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));

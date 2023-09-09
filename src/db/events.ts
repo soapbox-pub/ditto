@@ -2,12 +2,14 @@ import { db, type TagRow } from '@/db.ts';
 import { type Event, type Insertable, SqliteError } from '@/deps.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { EventData } from '@/types.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
 type TagCondition = ({ event, count, value }: {
   event: Event;
+  data: EventData;
   count: number;
   value: string;
 }) => boolean;
@@ -16,7 +18,7 @@ type TagCondition = ({ event, count, value }: {
 const tagConditions: Record<string, TagCondition> = {
   'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
   'e': ({ count, value }) => count < 15 && isNostrId(value),
-  'media': ({ count, value }) => count < 4 && isURL(value),
+  'media': ({ count, value, data }) => (data.user || count < 4) && isURL(value),
   'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
   'proxy': ({ count, value }) => count === 0 && isURL(value),
   'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
@@ -24,7 +26,7 @@ const tagConditions: Record<string, TagCondition> = {
 };
 
 /** Insert an event (and its tags) into the database. */
-function insertEvent(event: Event): Promise<void> {
+function insertEvent(event: Event, data: EventData): Promise<void> {
   return db.transaction().execute(async (trx) => {
     await trx.insertInto('events')
       .values({
@@ -44,7 +46,14 @@ function insertEvent(event: Event): Promise<void> {
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
       tagCounts[name] = (tagCounts[name] || 0) + 1;
 
-      if (value && value.length < 200 && tagConditions[name]?.({ event, count: tagCounts[name] - 1, value })) {
+      const shouldIndex = tagConditions[name]?.({
+        event,
+        data,
+        count: tagCounts[name] - 1,
+        value,
+      });
+
+      if (value && value.length < 200 && shouldIndex) {
         results.push({
           event_id: event.id,
           tag: name,
