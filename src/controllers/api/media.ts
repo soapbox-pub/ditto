@@ -28,9 +28,11 @@ const mediaController: AppController = async (c) => {
     const { file, description } = result.data;
     const { cid } = await uploader.upload(file);
 
+    const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
+
     await insertUnattachedMedia({
       pukey: c.get('pubkey')!,
-      cid,
+      url,
       data: {
         name: file.name,
         mime: file.type,
@@ -38,8 +40,6 @@ const mediaController: AppController = async (c) => {
         description,
       },
     });
-
-    const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
 
     return c.json({
       id: cid,

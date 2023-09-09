@@ -4,7 +4,7 @@ import { uuid62 } from '@/deps.ts';
 interface UnattachedMedia {
   id: string;
   pukey: string;
-  cid: string;
+  url: string;
   data: {
     name?: string;
     mime?: string;
