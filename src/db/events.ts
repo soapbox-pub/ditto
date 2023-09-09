@@ -14,11 +14,12 @@ type TagCondition = ({ event, count, value }: {
 
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
-  'd': ({ event, count }) => isParameterizedReplaceableKind(event.kind) && count === 0,
-  'e': ({ count, value }) => isNostrId(value) && count < 15,
-  'p': ({ event, count, value }) => isNostrId(value) && (event.kind === 3 || count < 15),
-  'proxy': ({ count, value }) => isURL(value) && count === 0,
-  'q': ({ event, count, value }) => isNostrId(value) && event.kind === 1 && count === 0,
+  'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
+  'e': ({ count, value }) => count < 15 && isNostrId(value),
+  'media': ({ count, value }) => count < 4 && isURL(value),
+  'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
+  'proxy': ({ count, value }) => count === 0 && isURL(value),
+  'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
   't': ({ count, value }) => count < 5 && value.length < 50,
 };
 
