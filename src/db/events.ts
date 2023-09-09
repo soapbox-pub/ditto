@@ -194,21 +194,32 @@ async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promis
 function filterIndexableTags(event: Event, data: EventData): string[][] {
   const tagCounts: Record<string, number> = {};
 
-  return event.tags.reduce<string[][]>((results, tag) => {
-    const [name, value] = tag;
-    tagCounts[name] = (tagCounts[name] || 0) + 1;
+  function getCount(name: string) {
+    return tagCounts[name] || 0;
+  }
 
-    const shouldIndex = tagConditions[name]?.({
+  function incrementCount(name: string) {
+    tagCounts[name] = getCount(name) + 1;
+  }
+
+  function checkCondition(name: string, value: string, condition: TagCondition) {
+    return condition({
       event,
       data,
-      count: tagCounts[name] - 1,
+      count: getCount(name),
       value,
     });
+  }
 
-    if (value && value.length < 200 && shouldIndex) {
+  return event.tags.reduce<string[][]>((results, tag) => {
+    const [name, value] = tag;
+    const condition = tagConditions[name] as TagCondition | undefined;
+
+    if (value && condition && value.length < 200 && checkCondition(name, value, condition)) {
       results.push(tag);
     }
 
+    incrementCount(name);
     return results;
   }, []);
 }
