@@ -14,10 +14,10 @@ type TagCondition = ({ event, count, value }: {
 
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
-  'd': ({ event, count, value }) => isParameterizedReplaceableKind(event.kind) && count === 0 && value.length < 200,
+  'd': ({ event, count }) => isParameterizedReplaceableKind(event.kind) && count === 0,
   'e': ({ count, value }) => isNostrId(value) && count < 15,
   'p': ({ event, count, value }) => isNostrId(value) && (event.kind === 3 || count < 15),
-  'proxy': ({ count, value }) => isURL(value) && count === 0 && value.length < 200,
+  'proxy': ({ count, value }) => isURL(value) && count === 0,
   'q': ({ event, count, value }) => isNostrId(value) && event.kind === 1 && count === 0,
   't': ({ count, value }) => count < 5 && value.length < 50,
 };
@@ -43,7 +43,7 @@ function insertEvent(event: Event): Promise<void> {
     const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
       tagCounts[name] = (tagCounts[name] || 0) + 1;
 
-      if (value && tagConditions[name]?.({ event, count: tagCounts[name] - 1, value })) {
+      if (value && value.length < 200 && tagConditions[name]?.({ event, count: tagCounts[name] - 1, value })) {
         results.push({
           event_id: event.id,
           tag: name,
