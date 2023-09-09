@@ -1,5 +1,5 @@
-import { db, type TagRow } from '@/db.ts';
-import { type Event, type Insertable, SqliteError } from '@/deps.ts';
+import { db } from '@/db.ts';
+import { type Event, SqliteError } from '@/deps.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { EventData } from '@/types.ts';
@@ -7,6 +7,7 @@ import { isNostrId, isURL } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
 
+/** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
   event: Event;
   data: EventData;
@@ -28,47 +29,39 @@ const tagConditions: Record<string, TagCondition> = {
 /** Insert an event (and its tags) into the database. */
 function insertEvent(event: Event, data: EventData): Promise<void> {
   return db.transaction().execute(async (trx) => {
-    await trx.insertInto('events')
-      .values({
-        ...event,
-        tags: JSON.stringify(event.tags),
-      })
-      .execute();
+    /** Insert the event into the database. */
+    async function addEvent() {
+      await trx.insertInto('events')
+        .values({ ...event, tags: JSON.stringify(event.tags) })
+        .execute();
+    }
 
-    const searchContent = buildSearchContent(event);
-    if (searchContent) {
+    /** Add search data to the FTS table. */
+    async function indexSearch() {
+      const searchContent = buildSearchContent(event);
+      if (!searchContent) return;
       await trx.insertInto('events_fts')
         .values({ id: event.id, content: searchContent.substring(0, 1000) })
         .execute();
     }
 
-    const tagCounts: Record<string, number> = {};
-    const tags = event.tags.reduce<Insertable<TagRow>[]>((results, [name, value]) => {
-      tagCounts[name] = (tagCounts[name] || 0) + 1;
+    /** Index event tags depending on the conditions defined above. */
+    async function indexTags() {
+      const tags = filterIndexableTags(event, data);
+      const rows = tags.map(([tag, value]) => ({ event_id: event.id, tag, value }));
 
-      const shouldIndex = tagConditions[name]?.({
-        event,
-        data,
-        count: tagCounts[name] - 1,
-        value,
-      });
-
-      if (value && value.length < 200 && shouldIndex) {
-        results.push({
-          event_id: event.id,
-          tag: name,
-          value,
-        });
-      }
-
-      return results;
-    }, []);
-
-    if (tags.length) {
+      if (!tags.length) return;
       await trx.insertInto('tags')
-        .values(tags)
+        .values(rows)
         .execute();
     }
+
+    // Run the queries.
+    await Promise.all([
+      addEvent(),
+      indexTags(),
+      indexSearch(),
+    ]);
   }).catch((error) => {
     // Don't throw for duplicate events.
     if (error instanceof SqliteError && error.code === 19) {
@@ -195,6 +188,29 @@ async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promis
     .execute();
 
   return Number(count);
+}
+
+/** Return only the tags that should be indexed. */
+function filterIndexableTags(event: Event, data: EventData): string[][] {
+  const tagCounts: Record<string, number> = {};
+
+  return event.tags.reduce<string[][]>((results, tag) => {
+    const [name, value] = tag;
+    tagCounts[name] = (tagCounts[name] || 0) + 1;
+
+    const shouldIndex = tagConditions[name]?.({
+      event,
+      data,
+      count: tagCounts[name] - 1,
+      value,
+    });
+
+    if (value && value.length < 200 && shouldIndex) {
+      results.push(tag);
+    }
+
+    return results;
+  }, []);
 }
 
 /** Build a search index from the event. */
