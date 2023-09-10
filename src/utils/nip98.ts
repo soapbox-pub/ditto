@@ -36,7 +36,7 @@ function validateAuthEvent(req: Request, event: Event, opts: ParseAuthRequestOpt
     .refine((event) => eventAge(event) < maxAge, 'Event expired')
     .refine((event) => tagValue(event, 'method') === req.method, 'Event method does not match HTTP request method')
     .refine((event) => tagValue(event, 'u') === req.url, 'Event URL does not match request URL')
-    .refine((event) => pow > 0 && nip13.getPow(event.id) >= pow, 'Insufficient proof of work')
+    .refine((event) => pow ? nip13.getPow(event.id) >= pow : true, 'Insufficient proof of work')
     .refine(validateBody, 'Event payload does not match request body');
 
   function validateBody(event: Event<27235>) {
