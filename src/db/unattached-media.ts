@@ -27,4 +27,25 @@ function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'
     .execute();
 }
 
-export { insertUnattachedMedia };
+/** Find attachments that exist but aren't attached to any events. */
+function getUnattachedMedia(until: Date) {
+  return db.selectFrom('unattached_media')
+    .select([
+      'unattached_media.id',
+      'unattached_media.pukey',
+      'unattached_media.url',
+      'unattached_media.data',
+      'unattached_media.uploaded_at',
+    ])
+    .leftJoin('tags', 'unattached_media.url', 'tags.value')
+    .where('uploaded_at', '<', until)
+    .execute();
+}
+
+function deleteUnattachedMediaByUrl(url: string) {
+  return db.deleteFrom('unattached_media')
+    .where('url', '=', url)
+    .execute();
+}
+
+export { deleteUnattachedMediaByUrl, getUnattachedMedia, insertUnattachedMedia };
