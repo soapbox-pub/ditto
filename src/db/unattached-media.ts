@@ -59,7 +59,16 @@ function getUnattachedMediaByIds(ids: string[]) {
     .execute();
 }
 
+/** Delete rows as an event with media is being created. */
+function deleteAttachedMedia(pubkey: string, urls: string[]) {
+  return db.deleteFrom('unattached_media')
+    .where('pubkey', '=', pubkey)
+    .where('url', 'in', urls)
+    .execute();
+}
+
 export {
+  deleteAttachedMedia,
   deleteUnattachedMediaByUrl,
   getUnattachedMedia,
   getUnattachedMediaByIds,
