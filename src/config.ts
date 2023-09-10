@@ -115,6 +115,17 @@ const Conf = {
   get maxUploadSize() {
     return Number(Deno.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);
   },
+  /** Usernames that regular users cannot sign up with. */
+  get forbiddenUsernames() {
+    return Deno.env.get('FORBIDDEN_USERNAMES')?.split(',') || [
+      '_',
+      'admin',
+      'administrator',
+      'root',
+      'sysadmin',
+      'system',
+    ];
+  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);

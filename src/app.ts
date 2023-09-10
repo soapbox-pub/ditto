@@ -57,7 +57,7 @@ import { nodeInfoController, nodeInfoSchemaController } from './controllers/well
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
-import { auth98, requireRole } from './middleware/auth98.ts';
+import { auth98, requireProof, requireRole } from './middleware/auth98.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -103,7 +103,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/acccounts', createAccountController);
+app.post('/api/v1/acccounts', requireProof({ pow: 20 }), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);

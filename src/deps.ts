@@ -21,6 +21,7 @@ export {
   matchFilters,
   nip04,
   nip05,
+  nip13,
   nip19,
   nip21,
   verifySignature,
