@@ -126,6 +126,12 @@ const Conf = {
       'system',
     ];
   },
+  /** Proof-of-work configuration. */
+  pow: {
+    get registrations() {
+      return Number(Deno.env.get('DITTO_POW_REGISTRATIONS') ?? 20);
+    },
+  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);

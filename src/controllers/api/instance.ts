@@ -53,6 +53,9 @@ const instanceController: AppController = (c) => {
     nostr: {
       pubkey: Conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
+      pow: {
+        registrations: Conf.pow.registrations,
+      },
     },
     rules: [],
   });
