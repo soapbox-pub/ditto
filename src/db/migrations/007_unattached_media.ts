@@ -4,7 +4,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('unattached_media')
     .addColumn('id', 'text', (c) => c.primaryKey())
-    .addColumn('pukey', 'text', (c) => c.notNull())
+    .addColumn('pubkey', 'text', (c) => c.notNull())
     .addColumn('url', 'text', (c) => c.notNull())
     .addColumn('data', 'text', (c) => c.notNull())
     .addColumn('uploaded_at', 'datetime', (c) => c.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
@@ -17,9 +17,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('unattached_media_pukey')
+    .createIndex('unattached_media_pubkey')
     .on('unattached_media')
-    .column('pukey')
+    .column('pubkey')
     .execute();
 
   await db.schema

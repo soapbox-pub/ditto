@@ -49,7 +49,7 @@ interface RelayRow {
 
 interface UnattachedMediaRow {
   id: string;
-  pukey: string;
+  pubkey: string;
   url: string;
   data: string;
   uploaded_at: Date;

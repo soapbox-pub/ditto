@@ -3,7 +3,7 @@ import { uuid62 } from '@/deps.ts';
 
 interface UnattachedMedia {
   id: string;
-  pukey: string;
+  pubkey: string;
   url: string;
   data: {
     name?: string;
@@ -16,15 +16,18 @@ interface UnattachedMedia {
   uploaded_at: Date;
 }
 
-function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
-  return db.insertInto('unattached_media')
-    .values({
-      id: uuid62.v4(),
-      uploaded_at: new Date(),
-      ...media,
-      data: JSON.stringify(media.data),
-    })
+async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
+  const result = {
+    id: uuid62.v4(),
+    uploaded_at: new Date(),
+    ...media,
+  };
+
+  await db.insertInto('unattached_media')
+    .values({ ...result, data: JSON.stringify(media.data) })
     .execute();
+
+  return result;
 }
 
 /** Find attachments that exist but aren't attached to any events. */
@@ -32,7 +35,7 @@ function getUnattachedMedia(until: Date) {
   return db.selectFrom('unattached_media')
     .select([
       'unattached_media.id',
-      'unattached_media.pukey',
+      'unattached_media.pubkey',
       'unattached_media.url',
       'unattached_media.data',
       'unattached_media.uploaded_at',
@@ -48,4 +51,17 @@ function deleteUnattachedMediaByUrl(url: string) {
     .execute();
 }
 
-export { deleteUnattachedMediaByUrl, getUnattachedMedia, insertUnattachedMedia };
+function getUnattachedMediaByIds(ids: string[]) {
+  return db.selectFrom('unattached_media')
+    .select([
+      'unattached_media.id',
+      'unattached_media.pubkey',
+      'unattached_media.url',
+      'unattached_media.data',
+      'unattached_media.uploaded_at',
+    ])
+    .where('id', 'in', ids)
+    .execute();
+}
+
+export { deleteUnattachedMediaByUrl, getUnattachedMedia, getUnattachedMediaByIds, insertUnattachedMedia };

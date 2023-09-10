@@ -143,7 +143,7 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
 
   const media = event.tags
     .filter((tag) => tag[0] === 'media')
-    .map((tag) => ({ url: tag[1], mimeType: tag[2] || undefined }));
+    .map(([_, url]) => ({ url }));
 
   return {
     id: event.id,

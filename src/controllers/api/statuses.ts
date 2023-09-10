@@ -1,10 +1,10 @@
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
+import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -69,9 +69,12 @@ const createStatusController: AppController = async (c) => {
     tags.push(['subject', data.spoiler_text]);
   }
 
-  for (const cid of data.media_ids ?? []) {
-    const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
-    tags.push(['media', url]);
+  if (data.media_ids?.length) {
+    const media = await getUnattachedMediaByIds(data.media_ids)
+      .then((media) => media.filter(({ pubkey }) => pubkey === c.get('pubkey')))
+      .then((media) => media.map(({ url, data }) => ['media', url, data]));
+
+    tags.push(...media);
   }
 
   const event = await createEvent({
