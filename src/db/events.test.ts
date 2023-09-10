@@ -6,12 +6,12 @@ import { insertUser } from '@/db/users.ts';
 
 Deno.test('count filters', async () => {
   assertEquals(await countFilters([{ kinds: [1] }]), 0);
-  await insertEvent(event55920b75);
+  await insertEvent(event55920b75, { user: undefined });
   assertEquals(await countFilters([{ kinds: [1] }]), 1);
 });
 
 Deno.test('insert and filter events', async () => {
-  await insertEvent(event55920b75);
+  await insertEvent(event55920b75, { user: undefined });
 
   assertEquals(await getFilters([{ kinds: [1] }]), [event55920b75]);
   assertEquals(await getFilters([{ kinds: [3] }]), []);
@@ -24,14 +24,14 @@ Deno.test('insert and filter events', async () => {
 });
 
 Deno.test('delete events', async () => {
-  await insertEvent(event55920b75);
+  await insertEvent(event55920b75, { user: undefined });
   assertEquals(await getFilters([{ kinds: [1] }]), [event55920b75]);
   await deleteFilters([{ kinds: [1] }]);
   assertEquals(await getFilters([{ kinds: [1] }]), []);
 });
 
 Deno.test('query events with local filter', async () => {
-  await insertEvent(event55920b75);
+  await insertEvent(event55920b75, { user: undefined });
 
   assertEquals(await getFilters([{}]), [event55920b75]);
   assertEquals(await getFilters([{ local: true }]), []);

@@ -1,4 +1,4 @@
-import { dotenv, getPublicKey, nip19, secp } from '@/deps.ts';
+import { dotenv, getPublicKey, nip19, secp, z } from '@/deps.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -42,7 +42,7 @@ const Conf = {
     const { protocol, host } = Conf.url;
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
   },
-  /** Domain of the Ditto server, including the protocol. */
+  /** Origin of the Ditto server, including the protocol and port. */
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
   },
@@ -58,22 +58,96 @@ const Conf = {
   get adminEmail() {
     return Deno.env.get('ADMIN_EMAIL') || 'webmaster@localhost';
   },
+  /** S3 media storage configuration. */
+  s3: {
+    get endPoint() {
+      return Deno.env.get('S3_ENDPOINT')!;
+    },
+    get region() {
+      return Deno.env.get('S3_REGION')!;
+    },
+    get accessKey() {
+      return Deno.env.get('S3_ACCESS_KEY');
+    },
+    get secretKey() {
+      return Deno.env.get('S3_SECRET_KEY');
+    },
+    get bucket() {
+      return Deno.env.get('S3_BUCKET');
+    },
+    get pathStyle() {
+      return optionalBooleanSchema.parse(Deno.env.get('S3_PATH_STYLE'));
+    },
+    get port() {
+      return optionalNumberSchema.parse(Deno.env.get('S3_PORT'));
+    },
+    get sessionToken() {
+      return Deno.env.get('S3_SESSION_TOKEN');
+    },
+    get useSSL() {
+      return optionalBooleanSchema.parse(Deno.env.get('S3_USE_SSL'));
+    },
+  },
+  /** IPFS uploader configuration. */
+  ipfs: {
+    /** Base URL for private IPFS API calls. */
+    get apiUrl() {
+      return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
+    },
+  },
+  /** Module to upload files with. */
+  get uploader() {
+    return Deno.env.get('DITTO_UPLOADER');
+  },
+  /** Media base URL for uploads. */
+  get mediaDomain() {
+    const value = Deno.env.get('MEDIA_DOMAIN');
+
+    if (!value) {
+      const url = Conf.url;
+      url.host = `media.${url.host}`;
+      return url.toString();
+    }
+
+    return value;
+  },
+  /** Max upload size for files in number of bytes. Default 100MiB. */
+  get maxUploadSize() {
+    return Number(Deno.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);
+  },
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   get url() {
     return new URL(Conf.localDomain);
   },
   /** Merges the path with the localDomain. */
   local(path: string): string {
-    const url = new URL(path.startsWith('/') ? path : new URL(path).pathname, Conf.localDomain);
-
-    if (!path.startsWith('/')) {
-      // Copy query parameters from the original URL to the new URL
-      const originalUrl = new URL(path);
-      url.search = originalUrl.search;
-    }
-
-    return url.toString();
+    return mergePaths(Conf.localDomain, path);
   },
 };
+
+const optionalBooleanSchema = z
+  .enum(['true', 'false'])
+  .optional()
+  .transform((value) => value !== undefined ? value === 'true' : undefined);
+
+const optionalNumberSchema = z
+  .string()
+  .optional()
+  .transform((value) => value !== undefined ? Number(value) : undefined);
+
+function mergePaths(base: string, path: string) {
+  const url = new URL(
+    path.startsWith('/') ? path : new URL(path).pathname,
+    base,
+  );
+
+  if (!path.startsWith('/')) {
+    // Copy query parameters from the original URL to the new URL
+    const originalUrl = new URL(path);
+    url.search = originalUrl.search;
+  }
+
+  return url.toString();
+}
 
 export { Conf };

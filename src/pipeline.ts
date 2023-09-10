@@ -1,6 +1,7 @@
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
+import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
 import { type Event, LRUCache } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
@@ -27,6 +28,7 @@ async function handleEvent(event: Event): Promise<void> {
     processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
+    processMedia(event, data),
     streamOut(event, data),
     broadcast(event, data),
   ]);
@@ -64,7 +66,7 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
     if (deletion) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
-      await eventsDB.insertEvent(event).catch(console.warn);
+      await eventsDB.insertEvent(event, data).catch(console.warn);
     }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));
@@ -118,6 +120,14 @@ function trackRelays(event: Event) {
   });
 
   return addRelays([...relays]);
+}
+
+/** Delete unattached media entries that are attached to the event. */
+function processMedia({ tags, pubkey }: Event, { user }: EventData) {
+  if (user) {
+    const urls = getTagSet(tags, 'media');
+    return deleteAttachedMedia(pubkey, [...urls]);
+  }
 }
 
 /** Determine if the event is being received in a timely manner. */

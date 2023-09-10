@@ -4,6 +4,7 @@ import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
 import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
+import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -40,45 +41,49 @@ const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
 
-  if (result.success) {
-    const { data } = result;
-
-    if (data.visibility !== 'public') {
-      return c.json({ error: 'Only posting publicly is supported.' }, 422);
-    }
-
-    if (data.poll) {
-      return c.json({ error: 'Polls are not yet supported.' }, 422);
-    }
-
-    if (data.media_ids?.length) {
-      return c.json({ error: 'Media uploads are not yet supported.' }, 422);
-    }
-
-    const tags: string[][] = [];
-
-    if (data.in_reply_to_id) {
-      tags.push(['e', data.in_reply_to_id, 'reply']);
-    }
-
-    if (data.sensitive && data.spoiler_text) {
-      tags.push(['content-warning', data.spoiler_text]);
-    } else if (data.sensitive) {
-      tags.push(['content-warning']);
-    } else if (data.spoiler_text) {
-      tags.push(['subject', data.spoiler_text]);
-    }
-
-    const event = await createEvent({
-      kind: 1,
-      content: data.status ?? '',
-      tags,
-    }, c);
-
-    return c.json(await toStatus(event, c.get('pubkey')));
-  } else {
+  if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
+
+  const { data } = result;
+
+  if (data.visibility !== 'public') {
+    return c.json({ error: 'Only posting publicly is supported.' }, 422);
+  }
+
+  if (data.poll) {
+    return c.json({ error: 'Polls are not yet supported.' }, 422);
+  }
+
+  const tags: string[][] = [];
+
+  if (data.in_reply_to_id) {
+    tags.push(['e', data.in_reply_to_id, 'reply']);
+  }
+
+  if (data.sensitive && data.spoiler_text) {
+    tags.push(['content-warning', data.spoiler_text]);
+  } else if (data.sensitive) {
+    tags.push(['content-warning']);
+  } else if (data.spoiler_text) {
+    tags.push(['subject', data.spoiler_text]);
+  }
+
+  if (data.media_ids?.length) {
+    const media = await getUnattachedMediaByIds(data.media_ids)
+      .then((media) => media.filter(({ pubkey }) => pubkey === c.get('pubkey')))
+      .then((media) => media.map(({ url, data }) => ['media', url, data]));
+
+    tags.push(...media);
+  }
+
+  const event = await createEvent({
+    kind: 1,
+    content: data.status ?? '',
+    tags,
+  }, c);
+
+  return c.json(await toStatus(event, c.get('pubkey')));
 };
 
 const contextController: AppController = async (c) => {

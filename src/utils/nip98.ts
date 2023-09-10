@@ -15,13 +15,21 @@ interface ParseAuthRequestOpts {
 }
 
 /** Parse the auth event from a Request, returning a zod SafeParse type. */
-function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
-  const { maxAge = Time.minutes(1), validatePayload = true } = opts;
-
+// deno-lint-ignore require-await
+async function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
   const header = req.headers.get('authorization');
   const base64 = header?.match(/^Nostr (.+)$/)?.[1];
+  const result = decode64EventSchema.safeParse(base64);
 
-  const schema = decode64EventSchema
+  if (!result.success) return result;
+  return validateAuthEvent(req, result.data, opts);
+}
+
+/** Compare the auth event with the request, returning a zod SafeParse type. */
+function validateAuthEvent(req: Request, event: Event, opts: ParseAuthRequestOpts = {}) {
+  const { maxAge = Time.minutes(1), validatePayload = true } = opts;
+
+  const schema = signedEventSchema
     .refine((event): event is Event<27235> => event.kind === 27235, 'Event must be kind 27235')
     .refine((event) => eventAge(event) < maxAge, 'Event expired')
     .refine((event) => tagValue(event, 'method') === req.method, 'Event method does not match HTTP request method')
@@ -35,22 +43,28 @@ function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
       .then((hash) => hash === tagValue(event, 'payload'));
   }
 
-  return schema.safeParseAsync(base64);
+  return schema.safeParseAsync(event);
 }
 
 /** Create an auth EventTemplate from a Request. */
-async function buildAuthEventTemplate(req: Request): Promise<EventTemplate<27235>> {
+async function buildAuthEventTemplate(req: Request, opts: ParseAuthRequestOpts = {}): Promise<EventTemplate<27235>> {
+  const { validatePayload = true } = opts;
   const { method, url } = req;
-  const payload = await req.clone().text().then(sha256);
+
+  const tags = [
+    ['method', method],
+    ['u', url],
+  ];
+
+  if (validatePayload) {
+    const payload = await req.clone().text().then(sha256);
+    tags.push(['payload', payload]);
+  }
 
   return {
     kind: 27235,
     content: '',
-    tags: [
-      ['method', method],
-      ['u', url],
-      ['payload', payload],
-    ],
+    tags,
     created_at: nostrNow(),
   };
 }
@@ -60,4 +74,4 @@ function tagValue(event: Event, tagName: string): string | undefined {
   return findTag(event.tags, tagName)?.[1];
 }
 
-export { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts };
+export { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts, validateAuthEvent };

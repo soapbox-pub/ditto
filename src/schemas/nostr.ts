@@ -73,8 +73,26 @@ const metaContentSchema = z.object({
   lud16: z.string().optional().catch(undefined),
 }).partial().passthrough();
 
+/** Media data schema from `"media"` tags. */
+const mediaDataSchema = z.object({
+  blurhash: z.string().optional().catch(undefined),
+  cid: z.string().optional().catch(undefined),
+  description: z.string().max(200).optional().catch(undefined),
+  height: z.number().int().positive().optional().catch(undefined),
+  mime: z.string().optional().catch(undefined),
+  name: z.string().optional().catch(undefined),
+  size: z.number().int().positive().optional().catch(undefined),
+  width: z.number().int().positive().optional().catch(undefined),
+});
+
+/** Media data from `"media"` tags. */
+type MediaData = z.infer<typeof mediaDataSchema>;
+
 /** Parses kind 0 content from a JSON string. */
 const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
+
+/** Parses media data from a JSON string. */
+const jsonMediaDataSchema = jsonSchema.pipe(mediaDataSchema).catch({});
 
 /** NIP-11 Relay Information Document. */
 const relayInfoDocSchema = z.object({
@@ -102,7 +120,10 @@ export {
   type ClientREQ,
   connectResponseSchema,
   filterSchema,
+  jsonMediaDataSchema,
   jsonMetaContentSchema,
+  type MediaData,
+  mediaDataSchema,
   metaContentSchema,
   nostrIdSchema,
   relayInfoDocSchema,

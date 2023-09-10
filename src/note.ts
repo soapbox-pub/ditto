@@ -1,5 +1,6 @@
 import { Conf } from '@/config.ts';
 import { linkify, linkifyStr, mime, nip19, nip21 } from '@/deps.ts';
+import { type DittoAttachment } from '@/views/attachment.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
@@ -52,13 +53,8 @@ function parseNoteContent(content: string): ParsedNoteContent {
   };
 }
 
-interface MediaLink {
-  url: string;
-  mimeType: string;
-}
-
-function getMediaLinks(links: Link[]): MediaLink[] {
-  return links.reduce<MediaLink[]>((acc, link) => {
+function getMediaLinks(links: Link[]): DittoAttachment[] {
+  return links.reduce<DittoAttachment[]>((acc, link) => {
     const mimeType = getUrlMimeType(link.href);
     if (!mimeType) return acc;
 
@@ -67,7 +63,9 @@ function getMediaLinks(links: Link[]): MediaLink[] {
     if (['audio', 'image', 'video'].includes(baseType)) {
       acc.push({
         url: link.href,
-        mimeType,
+        data: {
+          mime: mimeType,
+        },
       });
     }
 
@@ -110,4 +108,4 @@ function getDecodedPubkey(decoded: nip19.DecodeResult): string | undefined {
   }
 }
 
-export { getMediaLinks, type MediaLink, parseNoteContent };
+export { getMediaLinks, parseNoteContent };

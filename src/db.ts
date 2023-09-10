@@ -10,6 +10,7 @@ interface DittoDB {
   tags: TagRow;
   users: UserRow;
   relays: RelayRow;
+  unattached_media: UnattachedMediaRow;
 }
 
 interface EventRow {
@@ -44,6 +45,14 @@ interface RelayRow {
   url: string;
   domain: string;
   active: boolean;
+}
+
+interface UnattachedMediaRow {
+  id: string;
+  pubkey: string;
+  url: string;
+  data: string;
+  uploaded_at: Date;
 }
 
 const db = new Kysely<DittoDB>({
