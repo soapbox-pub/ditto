@@ -5,6 +5,7 @@ import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { configUploader as uploader } from '@/uploaders/config.ts';
 import { parseBody } from '@/utils/web.ts';
+import { renderAttachment } from '@/views/attachment.ts';
 
 const uploadSchema = fileSchema
   .refine((file) => !!file.type, 'File type is required.')
@@ -41,33 +42,11 @@ const mediaController: AppController = async (c) => {
       },
     });
 
-    return c.json({
-      id: media.id,
-      type: getAttachmentType(file.type),
-      url,
-      preview_url: url,
-      remote_url: null,
-      description,
-      blurhash: null,
-    });
+    return c.json(renderAttachment(media));
   } catch (e) {
     console.error(e);
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
 };
-
-/** MIME to Mastodon API `Attachment` type. */
-function getAttachmentType(mime: string): string {
-  const [type] = mime.split('/');
-
-  switch (type) {
-    case 'image':
-    case 'video':
-    case 'audio':
-      return type;
-    default:
-      return 'unknown';
-  }
-}
 
 export { mediaController };

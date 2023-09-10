@@ -1,18 +1,12 @@
 import { db } from '@/db.ts';
 import { uuid62 } from '@/deps.ts';
+import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
   id: string;
   pubkey: string;
   url: string;
-  data: {
-    name?: string;
-    mime?: string;
-    width?: number;
-    height?: number;
-    size?: number;
-    description?: string;
-  };
+  data: MediaData;
   uploaded_at: Date;
 }
 
@@ -64,4 +58,10 @@ function getUnattachedMediaByIds(ids: string[]) {
     .execute();
 }
 
-export { deleteUnattachedMediaByUrl, getUnattachedMedia, getUnattachedMediaByIds, insertUnattachedMedia };
+export {
+  deleteUnattachedMediaByUrl,
+  getUnattachedMedia,
+  getUnattachedMediaByIds,
+  insertUnattachedMedia,
+  type UnattachedMedia,
+};

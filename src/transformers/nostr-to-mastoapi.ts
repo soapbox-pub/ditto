@@ -2,14 +2,15 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, z } from '@/deps.ts';
-import { getMediaLinks, type MediaLink, parseNoteContent } from '@/note.ts';
+import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl } from '@/deps.ts';
+import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { emojiTagSchema, filteredArray } from '@/schema.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { jsonMediaDataSchema, jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isFollowing, type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
 import { findUser } from '@/db/users.ts';
+import { DittoAttachment, renderAttachment } from '@/views/attachment.ts';
 
 const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
 const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
@@ -141,9 +142,11 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
 
   const mediaLinks = getMediaLinks(links);
 
-  const media = event.tags
+  const mediaTags: DittoAttachment[] = event.tags
     .filter((tag) => tag[0] === 'media')
-    .map(([_, url]) => ({ url }));
+    .map(([_, url, json]) => ({ url, data: jsonMediaDataSchema.parse(json) }));
+
+  const media = [...mediaLinks, ...mediaTags];
 
   return {
     id: event.id,
@@ -166,7 +169,7 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
     bookmarked: false,
     reblog: null,
     application: null,
-    media_attachments: mediaLinks.concat(media).map(renderAttachment),
+    media_attachments: media.map(renderAttachment),
     mentions,
     tags: [],
     emojis: toEmojis(event),
@@ -188,24 +191,6 @@ function buildInlineRecipients(mentions: Mention[]): string {
   }, []);
 
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
-}
-
-const attachmentTypeSchema = z.enum(['image', 'video', 'gifv', 'audio', 'unknown']).catch('unknown');
-
-function renderAttachment({ url, mimeType = '' }: MediaLink) {
-  const [baseType, _subType] = mimeType.split('/');
-  const type = attachmentTypeSchema.parse(baseType);
-
-  return {
-    id: url,
-    type,
-    url,
-    preview_url: url,
-    remote_url: null,
-    meta: {},
-    description: '',
-    blurhash: null,
-  };
 }
 
 interface PreviewCard {
