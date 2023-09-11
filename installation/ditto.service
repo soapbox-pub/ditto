@@ -1,0 +1,14 @@
+[Unit]
+Description=Ditto
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=ditto
+WorkingDirectory=/opt/ditto
+ExecStart=/usr/local/bin/deno task start
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
