@@ -1,12 +1,12 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { type Filter, findReplyTag, z } from '@/deps.ts';
+import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { isFollowing, lookupAccount, Time } from '@/utils.ts';
+import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
@@ -41,7 +41,12 @@ const createAccountController: AppController = async (c) => {
       admin: 0,
     });
 
-    return new Response();
+    return c.json({
+      access_token: nip19.npubEncode(pubkey),
+      token_type: 'Bearer',
+      scope: 'read write follow push',
+      created_at: nostrNow(),
+    });
   } catch (_e) {
     return c.json({ error: 'Username already taken.' }, 422);
   }
