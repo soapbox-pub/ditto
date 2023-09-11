@@ -12,7 +12,7 @@ const instanceController: AppController = (c) => {
     title: 'Ditto',
     description: 'An efficient and flexible social media server.',
     short_description: 'An efficient and flexible social media server.',
-    registrations: false,
+    registrations: Conf.registrations,
     max_toot_chars: Conf.postCharLimit,
     configuration: {
       media_attachments: {
@@ -53,6 +53,9 @@ const instanceController: AppController = (c) => {
     nostr: {
       pubkey: Conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
+      pow: {
+        registrations: Conf.pow.registrations,
+      },
     },
     rules: [],
   });

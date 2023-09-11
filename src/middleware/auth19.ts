@@ -38,7 +38,7 @@ const auth19: AppMiddleware = async (c, next) => {
 /** Throw a 401 if the pubkey isn't set. */
 const requirePubkey: AppMiddleware = async (c, next) => {
   if (!c.get('pubkey')) {
-    throw new HTTPException(401);
+    throw new HTTPException(401, { message: 'No pubkey provided' });
   }
 
   await next();

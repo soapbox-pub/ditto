@@ -1,17 +1,55 @@
 import { type AppController } from '@/app.ts';
-import { type Filter, findReplyTag, z } from '@/deps.ts';
+import { Conf } from '@/config.ts';
+import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { isFollowing, lookupAccount, Time } from '@/utils.ts';
+import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
+import { insertUser } from '@/db/users.ts';
 
-const createAccountController: AppController = (c) => {
-  return c.json({ error: 'Please log in with Nostr.' }, 405);
+const usernameSchema = z
+  .string().min(1).max(30)
+  .regex(/^[a-z0-9_]+$/i)
+  .refine((username) => !Conf.forbiddenUsernames.includes(username), 'Username is reserved.');
+
+const createAccountSchema = z.object({
+  username: usernameSchema,
+});
+
+const createAccountController: AppController = async (c) => {
+  if (!Conf.registrations) {
+    return c.json({ error: 'Registrations are disabled.' }, 403);
+  }
+
+  const pubkey = c.get('pubkey')!;
+  const result = createAccountSchema.safeParse(await c.req.json());
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  try {
+    await insertUser({
+      pubkey,
+      username: result.data.username,
+      inserted_at: new Date(),
+      admin: 0,
+    });
+
+    return c.json({
+      access_token: nip19.npubEncode(pubkey),
+      token_type: 'Bearer',
+      scope: 'read write follow push',
+      created_at: nostrNow(),
+    });
+  } catch (_e) {
+    return c.json({ error: 'Username already taken.' }, 422);
+  }
 };
 
 const verifyCredentialsController: AppController = async (c) => {
@@ -22,9 +60,9 @@ const verifyCredentialsController: AppController = async (c) => {
   const event = await getAuthor(pubkey);
   if (event) {
     return c.json(await toAccount(event, { withSource: true }));
+  } else {
+    return c.json(await accountFromPubkey(pubkey, { withSource: true }));
   }
-
-  return c.json({ error: 'Could not find user.' }, 404);
 };
 
 const accountController: AppController = async (c) => {

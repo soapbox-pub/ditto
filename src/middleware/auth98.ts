@@ -1,5 +1,5 @@
 import { type AppContext, type AppMiddleware } from '@/app.ts';
-import { HTTPException } from '@/deps.ts';
+import { type Event, HTTPException } from '@/deps.ts';
 import {
   buildAuthEventTemplate,
   parseAuthRequest,
@@ -32,19 +32,22 @@ type UserRole = 'user' | 'admin';
 
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
-  return async (c, next) => {
-    const header = c.req.headers.get('x-nostr-sign');
-    const proof = c.get('proof') || header ? await obtainProof(c, opts) : undefined;
-    const user = proof ? await findUser({ pubkey: proof.pubkey }) : undefined;
+  return withProof(async (_c, proof, next) => {
+    const user = await findUser({ pubkey: proof.pubkey });
 
-    if (proof && user && matchesRole(user, role)) {
-      c.set('pubkey', proof.pubkey);
-      c.set('proof', proof);
+    if (user && matchesRole(user, role)) {
       await next();
     } else {
       throw new HTTPException(401);
     }
-  };
+  }, opts);
+}
+
+/** Require the user to demonstrate they own the pubkey by signing an event. */
+function requireProof(opts?: ParseAuthRequestOpts): AppMiddleware {
+  return withProof(async (_c, _proof, next) => {
+    await next();
+  }, opts);
 }
 
 /** Check whether the user fulfills the role. */
@@ -59,6 +62,30 @@ function matchesRole(user: User, role: UserRole): boolean {
   }
 }
 
+/** HOC to obtain proof in middleware. */
+function withProof(
+  handler: (c: AppContext, proof: Event<27235>, next: () => Promise<void>) => Promise<void>,
+  opts?: ParseAuthRequestOpts,
+): AppMiddleware {
+  return async (c, next) => {
+    const pubkey = c.get('pubkey');
+    const proof = c.get('proof') || await obtainProof(c, opts);
+
+    // Prevent people from accidentally using the wrong account. This has no other security implications.
+    if (proof && pubkey && pubkey !== proof.pubkey) {
+      throw new HTTPException(401, { message: 'Pubkey mismatch' });
+    }
+
+    if (proof) {
+      c.set('pubkey', proof.pubkey);
+      c.set('proof', proof);
+      await handler(c, proof, next);
+    } else {
+      throw new HTTPException(401, { message: 'No proof' });
+    }
+  };
+}
+
 /** Get the proof over Nostr Connect. */
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   const req = localRequest(c);
@@ -71,4 +98,4 @@ async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   }
 }
 
-export { auth98, requireRole };
+export { auth98, requireProof, requireRole };

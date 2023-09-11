@@ -8,6 +8,7 @@ import {
   type HonoEnv,
   logger,
   type MiddlewareHandler,
+  serveStatic,
 } from '@/deps.ts';
 import '@/firehose.ts';
 
@@ -27,7 +28,7 @@ import {
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
-import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
+import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
 import { notificationsController } from './controllers/api/notifications.ts';
@@ -57,7 +58,8 @@ import { nodeInfoController, nodeInfoSchemaController } from './controllers/well
 import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
-import { auth98, requireRole } from './middleware/auth98.ts';
+import { auth98, requireProof, requireRole } from './middleware/auth98.ts';
+import { csp } from './middleware/csp.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -82,7 +84,7 @@ app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 app.get('/relay', relayController);
 
-app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
+app.use('*', csp(), cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
 
 app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
@@ -103,7 +105,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/acccounts', createAccountController);
+app.post('/api/v1/accounts', requireProof(), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
@@ -146,7 +148,6 @@ app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigContr
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
-app.get('/api/v1/accounts/search', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
@@ -154,6 +155,11 @@ app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
+
+app.use('/api/*', notImplementedController);
+
+app.get('*', serveStatic({ root: './public/' }));
+app.get('*', serveStatic({ path: './public/index.html' }));
 
 app.get('/', indexController);
 

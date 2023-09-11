@@ -7,7 +7,7 @@ export {
   HTTPException,
   type MiddlewareHandler,
 } from 'https://deno.land/x/hono@v3.3.4/mod.ts';
-export { cors, logger } from 'https://deno.land/x/hono@v3.3.4/middleware.ts';
+export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.3.4/middleware.ts';
 export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { Author, RelayPool } from 'https://dev.jspm.io/nostr-relaypool@0.6.28';
 export {
@@ -21,8 +21,10 @@ export {
   matchFilters,
   nip04,
   nip05,
+  nip13,
   nip19,
   nip21,
+  type UnsignedEvent,
   verifySignature,
 } from 'npm:nostr-tools@^1.14.0';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
