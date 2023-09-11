@@ -29,7 +29,7 @@ import {
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
-import { emptyArrayController, emptyObjectController } from './controllers/api/fallback.ts';
+import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
 import { notificationsController } from './controllers/api/notifications.ts';
@@ -156,6 +156,8 @@ app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
+
+app.use('/api/*', notImplementedController);
 
 app.get('*', serveStatic({ root: './public/' }));
 app.get('*', serveStatic({ path: './public/index.html' }));
