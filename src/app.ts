@@ -60,6 +60,7 @@ import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
 import { auth98, requireProof, requireRole } from './middleware/auth98.ts';
+import { csp } from './middleware/csp.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -84,7 +85,7 @@ app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 app.get('/relay', relayController);
 
-app.use('*', cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
+app.use('*', csp(), cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
 
 app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
