@@ -159,6 +159,7 @@ app.get('/api/v1/lists', emptyArrayController);
 app.use('/api/*', notImplementedController);
 
 app.get('*', serveStatic({ root: './public/' }));
+app.get('*', serveStatic({ root: './static/' }));
 app.get('*', serveStatic({ path: './public/index.html' }));
 
 app.get('/', indexController);

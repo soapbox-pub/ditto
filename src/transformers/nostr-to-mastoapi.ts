@@ -12,8 +12,8 @@ import { verifyNip05Cached } from '@/utils/nip05.ts';
 import { findUser } from '@/db/users.ts';
 import { DittoAttachment, renderAttachment } from '@/views/attachment.ts';
 
-const DEFAULT_AVATAR = 'https://gleasonator.com/images/avi.png';
-const DEFAULT_BANNER = 'https://gleasonator.com/images/banner.png';
+const defaultAvatar = () => Conf.local('/images/avi.png');
+const defaultBanner = () => Conf.local('/images/banner.png');
 
 interface ToAccountOpts {
   withSource?: boolean;
@@ -21,9 +21,16 @@ interface ToAccountOpts {
 
 async function toAccount(event: UnsignedEvent<0>, opts: ToAccountOpts = {}) {
   const { withSource = false } = opts;
-
   const { pubkey } = event;
-  const { name, nip05, picture, banner, about } = jsonMetaContentSchema.parse(event.content);
+
+  const {
+    name,
+    nip05,
+    picture = defaultAvatar(),
+    banner = defaultBanner(),
+    about,
+  } = jsonMetaContentSchema.parse(event.content);
+
   const npub = nip19.npubEncode(pubkey);
 
   const [user, parsed05, followersCount, followingCount, statusesCount] = await Promise.all([
@@ -37,8 +44,8 @@ async function toAccount(event: UnsignedEvent<0>, opts: ToAccountOpts = {}) {
   return {
     id: pubkey,
     acct: parsed05?.handle || npub,
-    avatar: picture || DEFAULT_AVATAR,
-    avatar_static: picture || DEFAULT_AVATAR,
+    avatar: picture,
+    avatar_static: picture,
     bot: false,
     created_at: event ? nostrDate(event.created_at).toISOString() : new Date().toISOString(),
     discoverable: true,
@@ -49,8 +56,8 @@ async function toAccount(event: UnsignedEvent<0>, opts: ToAccountOpts = {}) {
     followers_count: followersCount,
     following_count: followingCount,
     fqn: parsed05?.handle || npub,
-    header: banner || DEFAULT_BANNER,
-    header_static: banner || DEFAULT_BANNER,
+    header: banner,
+    header_static: banner,
     last_status_at: null,
     locked: false,
     note: lodash.escape(about),
