@@ -11,6 +11,7 @@ import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { insertUser } from '@/db/users.ts';
+import { uploadFile } from '@/upload.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -171,13 +172,24 @@ const updateCredentialsController: AppController = async (c) => {
   }
 
   const author = await getAuthor(pubkey);
-  if (!author) {
-    return c.json({ error: 'Could not find user.' }, 404);
-  }
+  const meta = author ? jsonMetaContentSchema.parse(author.content) : {};
 
-  const meta = jsonMetaContentSchema.parse(author.content);
-  meta.name = result.data.display_name ?? meta.name;
-  meta.about = result.data.note ?? meta.about;
+  const {
+    avatar: avatarFile,
+    header: headerFile,
+    display_name,
+    note,
+  } = result.data;
+
+  const [avatar, header] = await Promise.all([
+    avatarFile ? uploadFile(avatarFile, { pubkey }) : undefined,
+    headerFile ? uploadFile(headerFile, { pubkey }) : undefined,
+  ]);
+
+  meta.name = display_name ?? meta.name;
+  meta.about = note ?? meta.about;
+  meta.picture = avatar?.url ?? meta.picture;
+  meta.banner = header?.url ?? meta.banner;
 
   const event = await createEvent({
     kind: 0,
