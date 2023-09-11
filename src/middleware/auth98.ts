@@ -81,7 +81,7 @@ function withProof(
       c.set('proof', proof);
       await handler(c, proof, next);
     } else {
-      throw new HTTPException(401);
+      throw new HTTPException(401, { message: 'No proof' });
     }
   };
 }

@@ -36,7 +36,7 @@ async function signNostrConnect<K extends number = number>(event: EventTemplate<
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
-    throw new HTTPException(401);
+    throw new HTTPException(401, { message: 'Missing pubkey' });
   }
 
   const messageId = crypto.randomUUID();
