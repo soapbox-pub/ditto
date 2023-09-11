@@ -157,8 +157,7 @@ app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
-app.get('/packs/*', serveStatic({ root: './public/' }));
-app.get('/instance/*', serveStatic({ root: './public/' }));
+app.get('*', serveStatic({ root: './public/' }));
 app.get('*', serveStatic({ path: './public/index.html' }));
 
 app.get('/', indexController);
