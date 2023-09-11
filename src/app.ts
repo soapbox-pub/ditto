@@ -1,4 +1,5 @@
 import '@/cron.ts';
+import { type User } from '@/db/users.ts';
 import {
   type Context,
   cors,
@@ -69,6 +70,8 @@ interface AppEnv extends HonoEnv {
     seckey?: string;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: Event<27235>;
+    /** User associated with the pubkey, if any. */
+    user?: User;
   };
 }
 
@@ -107,7 +110,11 @@ app.get('/oauth/authorize', oauthController);
 
 app.post('/api/v1/accounts', requireProof(), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
-app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
+app.patch(
+  '/api/v1/accounts/update_credentials',
+  requireRole('user', { validatePayload: false }),
+  updateCredentialsController,
+);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
