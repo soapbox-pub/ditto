@@ -147,7 +147,6 @@ app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigContr
 // Not (yet) implemented.
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
-app.get('/api/v1/accounts/search', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
