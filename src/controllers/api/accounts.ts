@@ -164,6 +164,7 @@ const updateCredentialsSchema = z.object({
 
 const updateCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
+  const user = c.get('user')!;
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
 
@@ -190,6 +191,7 @@ const updateCredentialsController: AppController = async (c) => {
   meta.about = note ?? meta.about;
   meta.picture = avatar?.url ?? meta.picture;
   meta.banner = header?.url ?? meta.banner;
+  meta.nip05 = `${user.username}@${Conf.url.host}` ?? meta.nip05;
 
   const event = await createEvent({
     kind: 0,
