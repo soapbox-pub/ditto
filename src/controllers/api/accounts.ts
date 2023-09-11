@@ -22,6 +22,10 @@ const createAccountSchema = z.object({
 });
 
 const createAccountController: AppController = async (c) => {
+  if (!Conf.registrations) {
+    return c.json({ error: 'Registrations are disabled.' }, 403);
+  }
+
   const pubkey = c.get('pubkey')!;
   const result = createAccountSchema.safeParse(await c.req.json());
 
