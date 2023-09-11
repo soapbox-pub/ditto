@@ -117,8 +117,7 @@ async function toMention(pubkey: string) {
 
 async function toStatus(event: Event<1>, viewerPubkey?: string) {
   const profile = await getAuthor(event.pubkey);
-  const account = profile ? await toAccount(profile) : undefined;
-  if (!account) return;
+  const account = profile ? await toAccount(profile) : await accountFromPubkey(event.pubkey);
 
   const replyTag = findReplyTag(event);
 
