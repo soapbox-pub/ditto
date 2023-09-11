@@ -5,7 +5,7 @@ import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
@@ -60,9 +60,9 @@ const verifyCredentialsController: AppController = async (c) => {
   const event = await getAuthor(pubkey);
   if (event) {
     return c.json(await toAccount(event, { withSource: true }));
+  } else {
+    return c.json(await accountFromPubkey(pubkey, { withSource: true }));
   }
-
-  return c.json({ error: 'Could not find user.' }, 404);
 };
 
 const accountController: AppController = async (c) => {

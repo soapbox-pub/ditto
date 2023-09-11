@@ -2,12 +2,12 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl } from '@/deps.ts';
+import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, type UnsignedEvent } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { emojiTagSchema, filteredArray } from '@/schema.ts';
 import { jsonMediaDataSchema, jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { isFollowing, type Nip05, nostrDate, parseNip05, Time } from '@/utils.ts';
+import { isFollowing, type Nip05, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
 import { findUser } from '@/db/users.ts';
 import { DittoAttachment, renderAttachment } from '@/views/attachment.ts';
@@ -19,7 +19,7 @@ interface ToAccountOpts {
   withSource?: boolean;
 }
 
-async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
+async function toAccount(event: UnsignedEvent<0>, opts: ToAccountOpts = {}) {
   const { withSource = false } = opts;
 
   const { pubkey } = event;
@@ -73,6 +73,18 @@ async function toAccount(event: Event<0>, opts: ToAccountOpts = {}) {
       is_moderator: user?.admin || false,
     },
   };
+}
+
+function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}) {
+  const event: UnsignedEvent<0> = {
+    kind: 0,
+    pubkey,
+    content: '',
+    tags: [],
+    created_at: nostrNow(),
+  };
+
+  return toAccount(event, opts);
 }
 
 async function parseAndVerifyNip05(nip05: string | undefined, pubkey: string): Promise<Nip05 | undefined> {
@@ -257,7 +269,7 @@ function unfurlCardCached(url: string): Promise<PreviewCard | null> {
   return card;
 }
 
-function toEmojis(event: Event) {
+function toEmojis(event: UnsignedEvent) {
   const emojiTags = event.tags.filter((tag) => tag[0] === 'emoji');
 
   return filteredArray(emojiTagSchema).parse(emojiTags)
@@ -310,4 +322,4 @@ async function toNotificationMention(event: Event<1>, viewerPubkey?: string) {
   };
 }
 
-export { toAccount, toNotification, toRelationship, toStatus };
+export { accountFromPubkey, toAccount, toNotification, toRelationship, toStatus };
