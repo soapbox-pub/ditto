@@ -1,4 +1,3 @@
-import { Conf } from '@/config.ts';
 import '@/cron.ts';
 import {
   type Context,
@@ -106,7 +105,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/accounts', requireProof({ pow: Conf.pow.registrations }), createAccountController);
+app.post('/api/v1/accounts', requireProof(), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
