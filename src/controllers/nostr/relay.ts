@@ -112,7 +112,7 @@ function prepareFilters(filters: ClientREQ[2][]): Filter[] {
   return filters.map((filter) => ({
     ...filter,
     // Return only local events unless the query is already narrow.
-    local: !filter.ids?.length && !filter.authors?.length,
+    local: (filter.ids?.length || filter.authors?.length) ? undefined : true,
   }));
 }
 
