@@ -1,22 +1,19 @@
-import { type Event } from '@/deps.ts';
+import { type Event, Machina } from '@/deps.ts';
 import { type DittoFilter, matchDittoFilters } from '@/filter.ts';
 
 import type { EventData } from '@/types.ts';
 
 class Subscription<K extends number = number> implements AsyncIterable<Event<K>> {
   filters: DittoFilter<K>[];
-  #next?: (event: Event<K>) => void;
-  #closed = false;
+  #machina: Machina<Event<K>>;
 
   constructor(filters: DittoFilter<K>[]) {
     this.filters = filters;
+    this.#machina = new Machina();
   }
 
   stream(event: Event<K>): void {
-    if (this.#next) {
-      this.#next(event);
-      this.#next = undefined;
-    }
+    this.#machina.push(event);
   }
 
   matches(event: Event, data: EventData): boolean {
@@ -24,22 +21,11 @@ class Subscription<K extends number = number> implements AsyncIterable<Event<K>>
   }
 
   close() {
-    this.#closed = true;
-    this.#next?.(undefined!);
+    this.#machina.close();
   }
 
-  async *[Symbol.asyncIterator]() {
-    while (true) {
-      const event = await new Promise<Event<K>>((resolve) => {
-        this.#next = resolve;
-      });
-
-      if (this.#closed) {
-        return;
-      }
-
-      yield event;
-    }
+  [Symbol.asyncIterator]() {
+    return this.#machina.stream();
   }
 }
 
