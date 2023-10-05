@@ -144,6 +144,9 @@ const Conf = {
   local(path: string): string {
     return mergePaths(Conf.localDomain, path);
   },
+  get sentryDsn() {
+    return Deno.env.get('SENTRY_DSN');
+  },
 };
 
 const optionalBooleanSchema = z
