@@ -2,7 +2,7 @@ import { AppContext } from '@/app.ts';
 import { type Filter } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor } from '@/queries.ts';
-import { toAccount } from '@/transformers/nostr-to-mastoapi.ts';
+import { toAccount } from '@/views/nostr-to-mastoapi.ts';
 import { paginated } from '@/utils/web.ts';
 
 /** Render account objects for the author of each event. */
