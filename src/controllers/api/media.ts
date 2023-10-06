@@ -2,7 +2,7 @@ import { AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/web.ts';
-import { renderAttachment } from '@/views/attachment.ts';
+import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { uploadFile } from '@/upload.ts';
 
 const mediaBodySchema = z.object({

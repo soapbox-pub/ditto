@@ -3,8 +3,8 @@ import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
-import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { bech32ToPubkey } from '@/utils.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /**
  * Streaming timelines/categories.
@@ -63,7 +63,7 @@ const streamingController: AppController = (c) => {
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
-        const status = await toStatus(event, pubkey);
+        const status = await renderStatus(event, pubkey);
         if (status) {
           send('update', status);
         }

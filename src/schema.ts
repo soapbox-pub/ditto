@@ -21,9 +21,6 @@ const jsonSchema = z.string().transform((value, ctx) => {
   }
 });
 
-/** Parses a Nostr emoji tag. */
-const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
-
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
 const decode64Schema = z.string().transform((value, ctx) => {
   try {
@@ -51,13 +48,4 @@ const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value 
 /** Schema for `File` objects. */
 const fileSchema = z.custom<File>((value) => value instanceof File);
 
-export {
-  booleanParamSchema,
-  decode64Schema,
-  emojiTagSchema,
-  fileSchema,
-  filteredArray,
-  hashtagSchema,
-  jsonSchema,
-  safeUrlSchema,
-};
+export { booleanParamSchema, decode64Schema, fileSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };

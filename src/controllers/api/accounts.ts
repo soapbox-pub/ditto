@@ -1,17 +1,19 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { insertUser } from '@/db/users.ts';
 import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { uploadFile } from '@/upload.ts';
 import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { insertUser } from '@/db/users.ts';
-import { uploadFile } from '@/upload.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { renderRelationship } from '@/views/mastodon/relationships.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -60,7 +62,7 @@ const verifyCredentialsController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(await toAccount(event, { withSource: true }));
+    return c.json(await renderAccount(event, { withSource: true }));
   } else {
     return c.json(await accountFromPubkey(pubkey, { withSource: true }));
   }
@@ -71,7 +73,7 @@ const accountController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(await toAccount(event));
+    return c.json(await renderAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -86,7 +88,7 @@ const accountLookupController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(acct));
   if (event) {
-    return c.json(await toAccount(event));
+    return c.json(await renderAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -101,7 +103,7 @@ const accountSearchController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(q));
   if (event) {
-    return c.json([await toAccount(event)]);
+    return c.json([await renderAccount(event)]);
   }
 
   return c.json([]);
@@ -115,7 +117,7 @@ const relationshipsController: AppController = async (c) => {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const result = await Promise.all(ids.data.map((id) => toRelationship(pubkey, id)));
+  const result = await Promise.all(ids.data.map((id) => renderRelationship(pubkey, id)));
 
   return c.json(result);
 };
@@ -148,7 +150,7 @@ const accountStatusesController: AppController = async (c) => {
     events = events.filter((event) => !findReplyTag(event));
   }
 
-  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 };
 
@@ -199,7 +201,7 @@ const updateCredentialsController: AppController = async (c) => {
     tags: [],
   }, c);
 
-  const account = await toAccount(event);
+  const account = await renderAccount(event);
   return c.json(account);
 };
 
@@ -220,7 +222,7 @@ const followController: AppController = async (c) => {
     }, c);
   }
 
-  const relationship = await toRelationship(sourcePubkey, targetPubkey);
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
@@ -237,7 +239,7 @@ const followingController: AppController = async (c) => {
   // TODO: pagination by offset.
   const accounts = await Promise.all(pubkeys.map(async (pubkey) => {
     const event = await getAuthor(pubkey);
-    return event ? await toAccount(event) : undefined;
+    return event ? await renderAccount(event) : undefined;
   }));
 
   return c.json(accounts.filter(Boolean));
@@ -258,7 +260,7 @@ const favouritesController: AppController = async (c) => {
 
   const events1 = await mixer.getFilters([{ kinds: [1], ids }], { timeout: Time.seconds(1) });
 
-  const statuses = await Promise.all(events1.map((event) => toStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);
 };
 

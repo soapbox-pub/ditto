@@ -3,9 +3,9 @@ import { type DittoFilter } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
 import { Time } from '@/utils.ts';
+import { paginated, paginationSchema } from '@/utils/web.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 
@@ -40,7 +40,7 @@ async function renderStatuses(c: AppContext, filters: DittoFilter<1>[]) {
     return c.json([]);
   }
 
-  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 }
 

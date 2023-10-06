@@ -6,7 +6,7 @@ import type { Event } from '@/deps.ts';
 import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
-async function toActor(event: Event<0>, username: string): Promise<Actor | undefined> {
+async function renderActor(event: Event<0>, username: string): Promise<Actor | undefined> {
   const content = jsonMetaContentSchema.parse(event.content);
 
   return {
@@ -44,4 +44,4 @@ async function toActor(event: Event<0>, username: string): Promise<Actor | undef
   };
 }
 
-export { toActor };
+export { renderActor };

@@ -4,9 +4,10 @@ import { type Event, type Filter, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { dedupeEvents, Time } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
+import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
@@ -44,12 +45,12 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event): event is Event<0> => event.kind === 0)
-        .map((event) => toAccount(event)),
+        .map((event) => renderAccount(event)),
     ),
     Promise.all(
       results
         .filter((event): event is Event<1> => event.kind === 1)
-        .map((event) => toStatus(event, c.get('pubkey'))),
+        .map((event) => renderStatus(event, c.get('pubkey'))),
     ),
   ]);
 

@@ -1,8 +1,8 @@
 import { type AppController } from '@/app.ts';
 import * as mixer from '@/mixer.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
-import { toNotification } from '@/transformers/nostr-to-mastoapi.ts';
 import { Time } from '@/utils.ts';
+import { paginated, paginationSchema } from '@/utils/web.ts';
+import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 const notificationsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
@@ -13,7 +13,7 @@ const notificationsController: AppController = async (c) => {
     { timeout: Time.seconds(3) },
   );
 
-  const statuses = await Promise.all(events.map((event) => toNotification(event, pubkey)));
+  const statuses = await Promise.all(events.map((event) => renderNotification(event, pubkey)));
   return paginated(c, events, statuses);
 };
 
