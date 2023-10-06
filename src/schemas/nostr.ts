@@ -111,6 +111,12 @@ const connectResponseSchema = z.object({
   result: signedEventSchema,
 });
 
+/** Parses a Nostr emoji tag. */
+const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()]);
+
+/** NIP-30 custom emoji tag. */
+type EmojiTag = z.infer<typeof emojiTagSchema>;
+
 export {
   type ClientCLOSE,
   type ClientCOUNT,
@@ -119,6 +125,8 @@ export {
   clientMsgSchema,
   type ClientREQ,
   connectResponseSchema,
+  type EmojiTag,
+  emojiTagSchema,
   filterSchema,
   jsonMediaDataSchema,
   jsonMetaContentSchema,
