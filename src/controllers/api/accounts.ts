@@ -11,9 +11,9 @@ import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { accountFromPubkey, toRelationship } from '@/views/nostr-to-mastoapi.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -117,7 +117,7 @@ const relationshipsController: AppController = async (c) => {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const result = await Promise.all(ids.data.map((id) => toRelationship(pubkey, id)));
+  const result = await Promise.all(ids.data.map((id) => renderRelationship(pubkey, id)));
 
   return c.json(result);
 };
@@ -222,7 +222,7 @@ const followController: AppController = async (c) => {
     }, c);
   }
 
-  const relationship = await toRelationship(sourcePubkey, targetPubkey);
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
