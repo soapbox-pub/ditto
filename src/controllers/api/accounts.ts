@@ -12,7 +12,8 @@ import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
-import { accountFromPubkey, toRelationship, toStatus } from '@/views/nostr-to-mastoapi.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { accountFromPubkey, toRelationship } from '@/views/nostr-to-mastoapi.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -149,7 +150,7 @@ const accountStatusesController: AppController = async (c) => {
     events = events.filter((event) => !findReplyTag(event));
   }
 
-  const statuses = await Promise.all(events.map((event) => toStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
 };
 
@@ -259,7 +260,7 @@ const favouritesController: AppController = async (c) => {
 
   const events1 = await mixer.getFilters([{ kinds: [1], ids }], { timeout: Time.seconds(1) });
 
-  const statuses = await Promise.all(events1.map((event) => toStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);
 };
 

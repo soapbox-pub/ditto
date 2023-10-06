@@ -7,7 +7,7 @@ import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { dedupeEvents, Time } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
-import { toStatus } from '@/views/nostr-to-mastoapi.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
@@ -50,7 +50,7 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event): event is Event<1> => event.kind === 1)
-        .map((event) => toStatus(event, c.get('pubkey'))),
+        .map((event) => renderStatus(event, c.get('pubkey'))),
     ),
   ]);
 
