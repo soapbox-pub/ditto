@@ -1,10 +1,10 @@
 import { type AppController } from '@/app.ts';
+import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
-import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
+import { toStatus } from '@/views/nostr-to-mastoapi.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),

@@ -1,7 +1,7 @@
 import { findUser } from '@/db/users.ts';
 import { getAuthor } from '@/queries.ts';
-import { toActor } from '@/transformers/nostr-to-activitypub.ts';
 import { activityJson } from '@/utils/web.ts';
+import { toActor } from '@/views/nostr-to-activitypub.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 

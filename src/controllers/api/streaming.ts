@@ -3,8 +3,8 @@ import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
-import { toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { bech32ToPubkey } from '@/utils.ts';
+import { toStatus } from '@/views/nostr-to-mastoapi.ts';
 
 /**
  * Streaming timelines/categories.

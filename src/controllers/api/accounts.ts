@@ -1,17 +1,17 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { insertUser } from '@/db/users.ts';
 import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
+import { uploadFile } from '@/upload.ts';
 import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { insertUser } from '@/db/users.ts';
-import { uploadFile } from '@/upload.ts';
+import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/views/nostr-to-mastoapi.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)

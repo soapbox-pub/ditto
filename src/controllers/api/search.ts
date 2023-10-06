@@ -4,9 +4,9 @@ import { type Event, type Filter, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { toAccount, toStatus } from '@/transformers/nostr-to-mastoapi.ts';
 import { dedupeEvents, Time } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
+import { toAccount, toStatus } from '@/views/nostr-to-mastoapi.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;

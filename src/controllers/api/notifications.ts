@@ -1,8 +1,8 @@
 import { type AppController } from '@/app.ts';
 import * as mixer from '@/mixer.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
-import { toNotification } from '@/transformers/nostr-to-mastoapi.ts';
 import { Time } from '@/utils.ts';
+import { paginated, paginationSchema } from '@/utils/web.ts';
+import { toNotification } from '@/views/nostr-to-mastoapi.ts';
 
 const notificationsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
