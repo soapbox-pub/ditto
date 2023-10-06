@@ -11,7 +11,8 @@ import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { accountFromPubkey, toAccount, toRelationship, toStatus } from '@/views/nostr-to-mastoapi.ts';
+import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { accountFromPubkey, toRelationship, toStatus } from '@/views/nostr-to-mastoapi.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -60,7 +61,7 @@ const verifyCredentialsController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(await toAccount(event, { withSource: true }));
+    return c.json(await renderAccount(event, { withSource: true }));
   } else {
     return c.json(await accountFromPubkey(pubkey, { withSource: true }));
   }
@@ -71,7 +72,7 @@ const accountController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
-    return c.json(await toAccount(event));
+    return c.json(await renderAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -86,7 +87,7 @@ const accountLookupController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(acct));
   if (event) {
-    return c.json(await toAccount(event));
+    return c.json(await renderAccount(event));
   }
 
   return c.json({ error: 'Could not find user.' }, 404);
@@ -101,7 +102,7 @@ const accountSearchController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(q));
   if (event) {
-    return c.json([await toAccount(event)]);
+    return c.json([await renderAccount(event)]);
   }
 
   return c.json([]);
@@ -199,7 +200,7 @@ const updateCredentialsController: AppController = async (c) => {
     tags: [],
   }, c);
 
-  const account = await toAccount(event);
+  const account = await renderAccount(event);
   return c.json(account);
 };
 
@@ -237,7 +238,7 @@ const followingController: AppController = async (c) => {
   // TODO: pagination by offset.
   const accounts = await Promise.all(pubkeys.map(async (pubkey) => {
     const event = await getAuthor(pubkey);
-    return event ? await toAccount(event) : undefined;
+    return event ? await renderAccount(event) : undefined;
   }));
 
   return c.json(accounts.filter(Boolean));

@@ -2,108 +2,19 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
-import { findUser } from '@/db/users.ts';
-import { type Event, findReplyTag, lodash, nip19, type UnsignedEvent } from '@/deps.ts';
+import { type Event, findReplyTag, nip19 } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
-import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
-import { filteredArray } from '@/schema.ts';
-import { emojiTagSchema, jsonMediaDataSchema, jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { isFollowing, type Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
-import { verifyNip05Cached } from '@/utils/nip05.ts';
+import { getAuthor, getFollows } from '@/queries.ts';
+import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
+import { isFollowing, nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
-
-const defaultAvatar = () => Conf.local('/images/avi.png');
-const defaultBanner = () => Conf.local('/images/banner.png');
-
-interface ToAccountOpts {
-  withSource?: boolean;
-}
-
-async function toAccount(event: UnsignedEvent<0>, opts: ToAccountOpts = {}) {
-  const { withSource = false } = opts;
-  const { pubkey } = event;
-
-  const {
-    name,
-    nip05,
-    picture = defaultAvatar(),
-    banner = defaultBanner(),
-    about,
-  } = jsonMetaContentSchema.parse(event.content);
-
-  const npub = nip19.npubEncode(pubkey);
-
-  const [user, parsed05, followersCount, followingCount, statusesCount] = await Promise.all([
-    findUser({ pubkey }),
-    parseAndVerifyNip05(nip05, pubkey),
-    eventsDB.countFilters([{ kinds: [3], '#p': [pubkey] }]),
-    getFollowedPubkeys(pubkey).then((pubkeys) => pubkeys.length),
-    eventsDB.countFilters([{ kinds: [1], authors: [pubkey] }]),
-  ]);
-
-  return {
-    id: pubkey,
-    acct: parsed05?.handle || npub,
-    avatar: picture,
-    avatar_static: picture,
-    bot: false,
-    created_at: event ? nostrDate(event.created_at).toISOString() : new Date().toISOString(),
-    discoverable: true,
-    display_name: name,
-    emojis: toEmojis(event),
-    fields: [],
-    follow_requests_count: 0,
-    followers_count: followersCount,
-    following_count: followingCount,
-    fqn: parsed05?.handle || npub,
-    header: banner,
-    header_static: banner,
-    last_status_at: null,
-    locked: false,
-    note: lodash.escape(about),
-    roles: [],
-    source: withSource
-      ? {
-        fields: [],
-        language: '',
-        note: about || '',
-        privacy: 'public',
-        sensitive: false,
-        follow_requests_count: 0,
-      }
-      : undefined,
-    statuses_count: statusesCount,
-    url: Conf.local(`/users/${pubkey}`),
-    username: parsed05?.nickname || npub.substring(0, 8),
-    pleroma: {
-      is_admin: user?.admin || false,
-      is_moderator: user?.admin || false,
-    },
-  };
-}
-
-function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}) {
-  const event: UnsignedEvent<0> = {
-    kind: 0,
-    pubkey,
-    content: '',
-    tags: [],
-    created_at: nostrNow(),
-  };
-
-  return toAccount(event, opts);
-}
-
-async function parseAndVerifyNip05(nip05: string | undefined, pubkey: string): Promise<Nip05 | undefined> {
-  if (nip05 && await verifyNip05Cached(nip05, pubkey)) {
-    return parseNip05(nip05);
-  }
-}
+import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 async function toMention(pubkey: string) {
   const profile = await getAuthor(pubkey);
-  const account = profile ? await toAccount(profile) : undefined;
+  const account = profile ? await renderAccount(profile) : undefined;
 
   if (account) {
     return {
@@ -125,7 +36,7 @@ async function toMention(pubkey: string) {
 
 async function toStatus(event: Event<1>, viewerPubkey?: string) {
   const profile = await getAuthor(event.pubkey);
-  const account = profile ? await toAccount(profile) : await accountFromPubkey(event.pubkey);
+  const account = profile ? await renderAccount(profile) : await accountFromPubkey(event.pubkey);
 
   const replyTag = findReplyTag(event);
 
@@ -191,7 +102,7 @@ async function toStatus(event: Event<1>, viewerPubkey?: string) {
     media_attachments: media.map(renderAttachment),
     mentions,
     tags: [],
-    emojis: toEmojis(event),
+    emojis: renderEmojis(event),
     poll: null,
     uri: Conf.local(`/posts/${event.id}`),
     url: Conf.local(`/posts/${event.id}`),
@@ -210,17 +121,6 @@ function buildInlineRecipients(mentions: Mention[]): string {
   }, []);
 
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
-}
-
-function toEmojis(event: UnsignedEvent) {
-  const emojiTags = event.tags.filter((tag) => tag[0] === 'emoji');
-
-  return filteredArray(emojiTagSchema).parse(emojiTags)
-    .map((tag) => ({
-      shortcode: tag[1],
-      static_url: tag[2],
-      url: tag[2],
-    }));
 }
 
 async function toRelationship(sourcePubkey: string, targetPubkey: string) {
@@ -265,4 +165,4 @@ async function toNotificationMention(event: Event<1>, viewerPubkey?: string) {
   };
 }
 
-export { accountFromPubkey, toAccount, toNotification, toRelationship, toStatus };
+export { accountFromPubkey, toNotification, toRelationship, toStatus };
