@@ -2,14 +2,15 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, findReplyTag, lodash, nip19, sanitizeHtml, TTLCache, unfurl, type UnsignedEvent } from '@/deps.ts';
+import { findUser } from '@/db/users.ts';
+import { type Event, findReplyTag, lodash, nip19, type UnsignedEvent } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { filteredArray } from '@/schema.ts';
 import { emojiTagSchema, jsonMediaDataSchema, jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { isFollowing, type Nip05, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
+import { isFollowing, type Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
-import { findUser } from '@/db/users.ts';
+import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { DittoAttachment, renderAttachment } from '@/views/attachment.ts';
 
 const defaultAvatar = () => Conf.local('/images/avi.png');
@@ -209,70 +210,6 @@ function buildInlineRecipients(mentions: Mention[]): string {
   }, []);
 
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
-}
-
-interface PreviewCard {
-  url: string;
-  title: string;
-  description: string;
-  type: 'link' | 'photo' | 'video' | 'rich';
-  author_name: string;
-  author_url: string;
-  provider_name: string;
-  provider_url: string;
-  html: string;
-  width: number;
-  height: number;
-  image: string | null;
-  embed_url: string;
-  blurhash: string | null;
-}
-
-async function unfurlCard(url: string): Promise<PreviewCard | null> {
-  console.log(`Unfurling ${url}...`);
-  try {
-    const result = await unfurl(url, {
-      fetch: (url) => fetch(url, { signal: AbortSignal.timeout(Time.seconds(1)) }),
-    });
-
-    return {
-      type: result.oEmbed?.type || 'link',
-      url: result.canonical_url || url,
-      title: result.oEmbed?.title || result.title || '',
-      description: result.open_graph.description || result.description || '',
-      author_name: result.oEmbed?.author_name || '',
-      author_url: result.oEmbed?.author_url || '',
-      provider_name: result.oEmbed?.provider_name || '',
-      provider_url: result.oEmbed?.provider_url || '',
-      // @ts-expect-error `html` does in fact exist on oEmbed.
-      html: sanitizeHtml(result.oEmbed?.html || '', {
-        allowedTags: ['iframe'],
-        allowedAttributes: {
-          iframe: ['width', 'height', 'src', 'frameborder', 'allowfullscreen'],
-        },
-      }),
-      width: result.oEmbed?.width || 0,
-      height: result.oEmbed?.height || 0,
-      image: result.oEmbed?.thumbnails?.[0].url || result.open_graph.images?.[0].url || null,
-      embed_url: '',
-      blurhash: null,
-    };
-  } catch (_e) {
-    return null;
-  }
-}
-
-const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({ ttl: Time.hours(12), max: 500 });
-
-/** Unfurl card from cache if available, otherwise fetch it. */
-function unfurlCardCached(url: string): Promise<PreviewCard | null> {
-  const cached = previewCardCache.get(url);
-  if (cached !== undefined) return cached;
-
-  const card = unfurlCard(url);
-  previewCardCache.set(url, card);
-
-  return card;
 }
 
 function toEmojis(event: UnsignedEvent) {
