@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import '@/cron.ts';
 import { type User } from '@/db/users.ts';
 import {
@@ -9,6 +10,7 @@ import {
   type HonoEnv,
   logger,
   type MiddlewareHandler,
+  sentryMiddleware,
   serveStatic,
 } from '@/deps.ts';
 import '@/firehose.ts';
@@ -80,6 +82,11 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 type AppController = Handler<AppEnv>;
 
 const app = new Hono<AppEnv>();
+
+if (Conf.sentryDsn) {
+  // @ts-ignore Mismatched hono types.
+  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn }));
+}
 
 app.use('*', logger());
 
