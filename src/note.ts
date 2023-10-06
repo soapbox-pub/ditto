@@ -1,6 +1,6 @@
 import { Conf } from '@/config.ts';
 import { linkify, linkifyStr, mime, nip19, nip21 } from '@/deps.ts';
-import { type DittoAttachment } from '@/views/attachment.ts';
+import { type DittoAttachment } from '@/views/mastodon/attachments.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');

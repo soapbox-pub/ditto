@@ -11,7 +11,7 @@ import { emojiTagSchema, jsonMediaDataSchema, jsonMetaContentSchema } from '@/sc
 import { isFollowing, type Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
-import { DittoAttachment, renderAttachment } from '@/views/attachment.ts';
+import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
 
 const defaultAvatar = () => Conf.local('/images/avi.png');
 const defaultBanner = () => Conf.local('/images/banner.png');
