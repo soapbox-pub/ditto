@@ -3,7 +3,7 @@ import { Conf } from '@/config.ts';
 import { insertUser } from '@/db/users.ts';
 import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
 import * as mixer from '@/mixer.ts';
-import { getAuthor, getFollowedPubkeys, getFollows, syncUser } from '@/queries.ts';
+import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { uploadFile } from '@/upload.ts';
@@ -57,8 +57,6 @@ const createAccountController: AppController = async (c) => {
 
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
-
-  await syncUser(pubkey);
 
   const event = await getAuthor(pubkey);
   if (event) {
