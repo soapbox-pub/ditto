@@ -1,6 +1,5 @@
 import { type Event, matchFilters } from '@/deps.ts';
 
-import * as client from '@/client.ts';
 import * as eventsDB from '@/db/events.ts';
 import { dedupeEvents, eventDateComparator } from '@/utils.ts';
 
@@ -14,7 +13,6 @@ async function getFilters<K extends number>(
   if (!filters.length) return Promise.resolve([]);
 
   const results = await Promise.allSettled([
-    client.getFilters(filters.filter((filter) => !filter.local), opts),
     eventsDB.getFilters(filters, opts),
   ]);
 
