@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator, Sqlite } from '@/deps.ts';
+import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
 import { Conf } from '@/config.ts';
 
 interface DittoDB {
@@ -57,7 +57,7 @@ interface UnattachedMediaRow {
 
 const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
-    database: new Sqlite(Conf.dbPath),
+    database: new DenoSqlite3(Conf.dbPath),
   }),
 });
 
