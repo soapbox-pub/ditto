@@ -1,5 +1,5 @@
 import { db } from '@/db.ts';
-import { type Event, SqliteError } from '@/deps.ts';
+import { type Event } from '@/deps.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { EventData } from '@/types.ts';
@@ -64,7 +64,7 @@ function insertEvent(event: Event, data: EventData): Promise<void> {
     ]);
   }).catch((error) => {
     // Don't throw for duplicate events.
-    if (error instanceof SqliteError && error.code === 19) {
+    if (error.message.includes('UNIQUE constraint failed')) {
       return;
     } else {
       throw error;
