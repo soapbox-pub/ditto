@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
+import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator, sql } from '@/deps.ts';
 import { Conf } from '@/config.ts';
 
 interface DittoDB {
@@ -55,11 +55,26 @@ interface UnattachedMediaRow {
   uploaded_at: Date;
 }
 
+const sqlite = new DenoSqlite3(Conf.dbPath);
+
+setPragmas(sqlite, {
+  synchronous: 'normal',
+  temp_store: 'memory',
+  mmap_size: Conf.sqlite.mmapSize,
+});
+
 const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
-    database: new DenoSqlite3(Conf.dbPath),
+    database: sqlite,
   }),
 });
+
+function setPragmas(db: DenoSqlite3, pragmas: Record<string, string | number>) {
+  for (const [pragma, value] of Object.entries(pragmas)) {
+    db.prepare(`PRAGMA ${pragma} = ${value}`).run();
+    console.log(`PRAGMA ${pragma} = ${db.prepare(`PRAGMA ${pragma}`).value()}`);
+  }
+}
 
 const migrator = new Migrator({
   db,
