@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator, sql } from '@/deps.ts';
+import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
 import { Conf } from '@/config.ts';
 import { getPragma, setPragma } from '@/pragma.ts';
 
