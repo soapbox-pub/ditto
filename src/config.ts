@@ -144,8 +144,24 @@ const Conf = {
   local(path: string): string {
     return mergePaths(Conf.localDomain, path);
   },
+  /** URL to send Sentry errors to. */
   get sentryDsn() {
     return Deno.env.get('SENTRY_DSN');
+  },
+  /** SQLite settings. */
+  sqlite: {
+    /**
+     * Number of bytes to use for memory-mapped IO.
+     * https://www.sqlite.org/pragma.html#pragma_mmap_size
+     */
+    get mmapSize(): number {
+      const value = Deno.env.get('SQLITE_MMAP_SIZE');
+      if (value) {
+        return Number(value);
+      } else {
+        return 1024 * 1024 * 1024;
+      }
+    },
   },
 };
 

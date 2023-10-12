@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
 import { Conf } from '@/config.ts';
+import { getPragma, setPragma } from '@/pragma.ts';
 
 interface DittoDB {
   events: EventRow;
@@ -59,6 +60,19 @@ const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
     database: new DenoSqlite3(Conf.dbPath),
   }),
+});
+
+// Set PRAGMA values.
+await Promise.all([
+  setPragma(db, 'synchronous', 'normal'),
+  setPragma(db, 'temp_store', 'memory'),
+  setPragma(db, 'mmap_size', Conf.sqlite.mmapSize),
+]);
+
+// Log out PRAGMA values for debugging.
+['journal_mode', 'synchronous', 'temp_store', 'mmap_size'].forEach(async (pragma) => {
+  const value = await getPragma(db, pragma);
+  console.log(`PRAGMA ${pragma} = ${value};`);
 });
 
 const migrator = new Migrator({
