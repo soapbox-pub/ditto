@@ -55,24 +55,26 @@ interface UnattachedMediaRow {
   uploaded_at: Date;
 }
 
-const sqlite = new DenoSqlite3(Conf.dbPath);
-
-setPragmas(sqlite, {
-  synchronous: 'normal',
-  temp_store: 'memory',
-  mmap_size: Conf.sqlite.mmapSize,
-});
-
 const db = new Kysely<DittoDB>({
   dialect: new DenoSqliteDialect({
-    database: sqlite,
+    database: new DenoSqlite3(Conf.dbPath),
   }),
 });
 
-function setPragmas(db: DenoSqlite3, pragmas: Record<string, string | number>) {
-  for (const [pragma, value] of Object.entries(pragmas)) {
-    db.prepare(`PRAGMA ${pragma} = ${value}`).run();
-    console.log(`PRAGMA ${pragma} = ${db.prepare(`PRAGMA ${pragma}`).value()}`);
+await Promise.all([
+  setPragma(db, 'synchronous', 'normal'),
+  setPragma(db, 'temp_store', 'memory'),
+  setPragma(db, 'mmap_size', Conf.sqlite.mmapSize),
+]);
+
+/** Set the PRAGMA and then read back its value to confirm. */
+async function setPragma(db: Kysely<any>, pragma: string, value: string | number) {
+  await sql.raw(`PRAGMA ${pragma} = ${value}`).execute(db);
+  const result = (await sql.raw(`PRAGMA ${pragma}`).execute(db)).rows[0] as object;
+
+  for (const [key, value] of Object.entries(result)) {
+    console.log(`PRAGMA ${key} = ${value};`);
+    break;
   }
 }
 
