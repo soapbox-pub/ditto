@@ -8,8 +8,8 @@ function setPragma(db: Kysely<any>, pragma: string, value: string | number) {
 /** Get value of PRAGMA from the database. */
 async function getPragma(db: Kysely<any>, pragma: string) {
   const result = await sql.raw(`PRAGMA ${pragma}`).execute(db);
-  const row = result.rows[0] as Record<string, unknown>;
-  return row[pragma];
+  const row = result.rows[0] as Record<string, unknown> | undefined;
+  return row?.[pragma];
 }
 
 export { getPragma, setPragma };
