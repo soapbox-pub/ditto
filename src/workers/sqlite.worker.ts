@@ -9,7 +9,7 @@ type Msg =
   | ['query', [string, unknown[]]];
 
 function call([cmd, args]: Msg) {
-  switch(cmd) {
+  switch (cmd) {
     case 'open':
       return handleOpen(args[0]);
     case 'query':
