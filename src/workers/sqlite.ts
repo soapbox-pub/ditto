@@ -1,17 +1,30 @@
 class SqliteWorker {
   #path: string;
   #worker: Worker;
+  ready: Promise<void>;
 
   constructor(path: string) {
     this.#path = path;
     this.#worker = new Worker(new URL('./sqlite.worker.ts', import.meta.url).href, { type: 'module' });
+
+    this.ready = new Promise<void>((resolve) => {
+      const handleEvent = (event: MessageEvent) => {
+        if (event.data[0] === 'ready') {
+          this.#worker.removeEventListener('message', handleEvent);
+          resolve();
+        }
+      };
+      this.#worker.addEventListener('message', handleEvent);
+    });
   }
 
-  open(): Promise<void> {
+  async open(): Promise<void> {
+    await this.ready;
     return this.#call(['open', [this.#path]]);
   }
 
-  query(sql: string, params?: any): Promise<unknown[]> {
+  async query(sql: string, params?: any): Promise<unknown[]> {
+    await this.ready;
     return this.#call(['query', [sql, params]]);
   }
 

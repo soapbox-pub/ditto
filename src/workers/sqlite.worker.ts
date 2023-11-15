@@ -30,3 +30,5 @@ self.addEventListener('message', (event: MessageEvent<[string, Msg]>) => {
   const result = call(msg);
   self.postMessage([id, result]);
 });
+
+self.postMessage(['ready']);
