@@ -22,7 +22,11 @@ function handleOpen(path: string): void {
 }
 
 function handleQuery(sql: string, params: any[] = []) {
-  return db.prepare(sql).all(...params);
+  return {
+    rows: db.prepare(sql).all(...params),
+    numAffectedRows: BigInt(db.changes),
+    insertId: BigInt(db.lastInsertRowId),
+  };
 }
 
 self.addEventListener('message', (event: MessageEvent<[string, Msg]>) => {

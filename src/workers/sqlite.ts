@@ -1,3 +1,9 @@
+interface QueryResult {
+  rows: unknown[];
+  numAffectedRows: bigint;
+  insertId: bigint;
+}
+
 class SqliteWorker {
   #path: string;
   #worker: Worker;
@@ -23,7 +29,7 @@ class SqliteWorker {
     return this.#call(['open', [this.#path]]);
   }
 
-  async query(sql: string, params?: any): Promise<unknown[]> {
+  async query(sql: string, params?: any): Promise<QueryResult> {
     await this.ready;
     return this.#call(['query', [sql, params]]);
   }
