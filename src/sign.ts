@@ -25,7 +25,7 @@ async function signEvent<K extends number = number>(
   opts: SignEventOpts = {},
 ): Promise<Event<K>> {
   const seckey = c.get('seckey');
-  const header = c.req.headers.get('x-nostr-sign');
+  const header = c.req.header('x-nostr-sign');
 
   if (seckey) {
     return finishEvent(event, seckey);
