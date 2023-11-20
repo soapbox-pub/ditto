@@ -28,8 +28,8 @@ const streamSchema = z.enum([
 type Stream = z.infer<typeof streamSchema>;
 
 const streamingController: AppController = (c) => {
-  const upgrade = c.req.headers.get('upgrade');
-  const token = c.req.headers.get('sec-websocket-protocol');
+  const upgrade = c.req.header('upgrade');
+  const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
 
   if (upgrade?.toLowerCase() !== 'websocket') {

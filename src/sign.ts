@@ -8,22 +8,31 @@ import { Sub } from '@/subs.ts';
 import { eventMatchesTemplate, Time } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/web.ts';
 
+interface SignEventOpts {
+  /** Target proof-of-work difficulty for the signed event. */
+  pow?: number;
+}
+
 /**
  * Sign Nostr event using the app context.
  *
  * - If a secret key is provided, it will be used to sign the event.
  * - If `X-Nostr-Sign` is passed, it will use NIP-46 to sign the event.
  */
-async function signEvent<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
+async function signEvent<K extends number = number>(
+  event: EventTemplate<K>,
+  c: AppContext,
+  opts: SignEventOpts = {},
+): Promise<Event<K>> {
   const seckey = c.get('seckey');
-  const header = c.req.headers.get('x-nostr-sign');
+  const header = c.req.header('x-nostr-sign');
 
   if (seckey) {
     return finishEvent(event, seckey);
   }
 
   if (header) {
-    return await signNostrConnect(event, c);
+    return await signNostrConnect(event, c, opts);
   }
 
   throw new HTTPException(400, {
@@ -32,7 +41,11 @@ async function signEvent<K extends number = number>(event: EventTemplate<K>, c: 
 }
 
 /** Sign event with NIP-46, waiting in the background for the signed event. */
-async function signNostrConnect<K extends number = number>(event: EventTemplate<K>, c: AppContext): Promise<Event<K>> {
+async function signNostrConnect<K extends number = number>(
+  event: EventTemplate<K>,
+  c: AppContext,
+  opts: SignEventOpts = {},
+): Promise<Event<K>> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
@@ -48,7 +61,9 @@ async function signNostrConnect<K extends number = number>(event: EventTemplate<
       JSON.stringify({
         id: messageId,
         method: 'sign_event',
-        params: [event],
+        params: [event, {
+          pow: opts.pow,
+        }],
       }),
     ),
     tags: [['p', pubkey]],

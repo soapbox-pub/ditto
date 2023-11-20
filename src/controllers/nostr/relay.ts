@@ -117,7 +117,7 @@ function prepareFilters(filters: ClientREQ[2][]): Filter[] {
 }
 
 const relayController: AppController = (c) => {
-  const upgrade = c.req.headers.get('upgrade');
+  const upgrade = c.req.header('upgrade');
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use a Nostr client to connect.', 400);
