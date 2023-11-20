@@ -91,7 +91,7 @@ function withProof(
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   const req = localRequest(c);
   const reqEvent = await buildAuthEventTemplate(req, opts);
-  const resEvent = await signEvent(reqEvent, c);
+  const resEvent = await signEvent(reqEvent, c, opts);
   const result = await validateAuthEvent(req, resEvent, opts);
 
   if (result.success) {
