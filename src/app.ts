@@ -115,7 +115,7 @@ app.post('/oauth/revoke', emptyObjectController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/accounts', requireProof(), createAccountController);
+app.post('/api/v1/accounts', requireProof({ pow: 20 }), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
 app.patch(
   '/api/v1/accounts/update_credentials',
