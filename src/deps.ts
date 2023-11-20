@@ -6,8 +6,8 @@ export {
   Hono,
   HTTPException,
   type MiddlewareHandler,
-} from 'https://deno.land/x/hono@v3.7.5/mod.ts';
-export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.7.5/middleware.ts';
+} from 'https://deno.land/x/hono@v3.10.1/mod.ts';
+export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.10.1/middleware.ts';
 export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { Author, RelayPool } from 'https://dev.jspm.io/nostr-relaypool@0.6.28';
 export {
