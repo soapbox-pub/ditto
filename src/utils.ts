@@ -107,9 +107,31 @@ function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
 }
 
+/** Return a copy of the event with the given tags removed. */
+function stripTags<E extends EventTemplate>(event: E, tags: string[] = []): E {
+  if (!tags.length) return event;
+  return {
+    ...event,
+    tags: event.tags.filter(([name]) => !tags.includes(name)),
+  };
+}
+
 /** Ensure the template and event match on their shared keys. */
 function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
-  return getEventHash(event) === getEventHash({ pubkey: event.pubkey, ...template });
+  const whitelist = ['nonce'];
+
+  event = stripTags(event, whitelist);
+  template = stripTags(template, whitelist);
+
+  if (template.created_at > event.created_at) {
+    return false;
+  }
+
+  return getEventHash(event) === getEventHash({
+    pubkey: event.pubkey,
+    ...template,
+    created_at: event.created_at,
+  });
 }
 
 /** Test whether the value is a Nostr ID. */
