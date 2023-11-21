@@ -123,7 +123,15 @@ function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
   event = stripTags(event, whitelist);
   template = stripTags(template, whitelist);
 
-  return getEventHash(event) === getEventHash({ pubkey: event.pubkey, ...template });
+  if (template.created_at > event.created_at) {
+    return false;
+  }
+
+  return getEventHash(event) === getEventHash({
+    pubkey: event.pubkey,
+    ...template,
+    created_at: event.created_at,
+  });
 }
 
 /** Test whether the value is a Nostr ID. */
