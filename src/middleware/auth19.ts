@@ -6,7 +6,7 @@ const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
 /** NIP-19 auth middleware. */
 const auth19: AppMiddleware = async (c, next) => {
-  const authHeader = c.req.headers.get('authorization');
+  const authHeader = c.req.header('authorization');
   const match = authHeader?.match(BEARER_REGEX);
 
   if (match) {

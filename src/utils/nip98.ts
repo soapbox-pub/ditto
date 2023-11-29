@@ -1,4 +1,4 @@
-import { type Event, type EventTemplate, nip13 } from '@/deps.ts';
+import { type Event, type EventTemplate, nip13, type VerifiedEvent } from '@/deps.ts';
 import { decode64Schema, jsonSchema } from '@/schema.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
 import { eventAge, findTag, nostrNow, sha256 } from '@/utils.ts';
@@ -32,7 +32,7 @@ function validateAuthEvent(req: Request, event: Event, opts: ParseAuthRequestOpt
   const { maxAge = Time.minutes(1), validatePayload = true, pow = 0 } = opts;
 
   const schema = signedEventSchema
-    .refine((event): event is Event<27235> => event.kind === 27235, 'Event must be kind 27235')
+    .refine((event): event is VerifiedEvent<27235> => event.kind === 27235, 'Event must be kind 27235')
     .refine((event) => eventAge(event) < maxAge, 'Event expired')
     .refine((event) => tagValue(event, 'method') === req.method, 'Event method does not match HTTP request method')
     .refine((event) => tagValue(event, 'u') === req.url, 'Event URL does not match request URL')

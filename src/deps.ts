@@ -6,8 +6,8 @@ export {
   Hono,
   HTTPException,
   type MiddlewareHandler,
-} from 'https://deno.land/x/hono@v3.7.5/mod.ts';
-export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.7.5/middleware.ts';
+} from 'https://deno.land/x/hono@v3.10.1/mod.ts';
+export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.10.1/middleware.ts';
 export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { Author, RelayPool } from 'https://dev.jspm.io/nostr-relaypool@0.6.28';
 export {
@@ -25,8 +25,9 @@ export {
   nip19,
   nip21,
   type UnsignedEvent,
+  type VerifiedEvent,
   verifySignature,
-} from 'npm:nostr-tools@^1.14.0';
+} from 'npm:nostr-tools@^1.17.0';
 export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
@@ -73,7 +74,8 @@ export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
 export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 export { Machina } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/08a157d39f2741c9a3a4364cb97db36e71d8c03a/mod.ts';
-export * as Sentry from 'npm:@sentry/node@^7.73.0';
+export * as Sentry from 'https://deno.land/x/sentry@7.78.0/index.js';
 export { sentry as sentryMiddleware } from 'npm:@hono/sentry@^1.0.0';
+export * as Comlink from 'npm:comlink@^4.4.1';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
