@@ -14,7 +14,7 @@ export const FetchWorker = {
       {
         status: response.status,
         statusText: response.statusText,
-        headers: Array.from(response.headers.entries()),
+        headers: [...response.headers.entries()],
       },
     ];
   },
