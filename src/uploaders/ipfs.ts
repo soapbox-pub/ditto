@@ -1,5 +1,6 @@
 import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 
 import type { Uploader } from './types.ts';
 
@@ -22,7 +23,7 @@ const ipfsUploader: Uploader = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(url, {
+    const response = await fetchWorker(url, {
       method: 'POST',
       body: formData,
     });
@@ -41,7 +42,7 @@ const ipfsUploader: Uploader = {
 
     url.search = query.toString();
 
-    await fetch(url, {
+    await fetchWorker(url, {
       method: 'POST',
     });
   },
