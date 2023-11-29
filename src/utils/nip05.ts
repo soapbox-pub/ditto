@@ -1,5 +1,6 @@
 import { TTLCache, z } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 
 const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: Time.hours(1), max: 5000 });
 
@@ -19,7 +20,7 @@ async function lookup(value: string, opts: LookupOpts = {}): Promise<string | nu
   const [_, name = '_', domain] = match;
 
   try {
-    const res = await fetch(`https://${domain}/.well-known/nostr.json?name=${name}`, {
+    const res = await fetchWorker(`https://${domain}/.well-known/nostr.json?name=${name}`, {
       signal: AbortSignal.timeout(timeout),
     });
 

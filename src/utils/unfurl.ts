@@ -1,5 +1,6 @@
 import { TTLCache, unfurl } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 
 interface PreviewCard {
   url: string;
@@ -22,7 +23,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
   console.log(`Unfurling ${url}...`);
   try {
     const result = await unfurl(url, {
-      fetch: (url) => fetch(url, { signal }),
+      fetch: (url) => fetchWorker(url, { signal }),
     });
 
     return {
