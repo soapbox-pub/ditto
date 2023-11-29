@@ -11,11 +11,61 @@ const _worker = Comlink.wrap<typeof FetchWorker>(
   ),
 );
 
-const fetchWorker: typeof fetch = async (input, init) => {
-  const { signal, ...rest } = init || {};
-  const url = input instanceof Request ? input.url : input.toString();
-  const args = await _worker.fetch(url, rest, signal);
-  return new Response(...args);
+/**
+ * Fetch implementation with a Web Worker.
+ * Calling this performs the fetch in a separate CPU thread so it doesn't block the main thread.
+ */
+const fetchWorker: typeof fetch = async (...args) => {
+  const [url, init] = serializeFetchArgs(args);
+  const { body, signal, ...rest } = init;
+  const result = await _worker.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
+  return new Response(...result);
 };
+
+/** Take arguments to `fetch`, and turn them into something we can send over Comlink. */
+function serializeFetchArgs(args: Parameters<typeof fetch>): [string, RequestInit] {
+  const request = normalizeRequest(args);
+  const init = requestToInit(request);
+  return [request.url, init];
+}
+
+/** Get a `Request` object from arguments to `fetch`. */
+function normalizeRequest(args: Parameters<typeof fetch>): Request {
+  return new Request(...args);
+}
+
+/** Get the body as a type we can transfer over Web Workers. */
+async function prepareBodyForWorker(
+  body: BodyInit | undefined | null,
+): Promise<ArrayBuffer | Blob | string | undefined | null> {
+  if (!body || typeof body === 'string' || body instanceof ArrayBuffer || body instanceof Blob) {
+    return body;
+  } else {
+    const response = new Response(body);
+    return await response.arrayBuffer();
+  }
+}
+
+/**
+ * Convert a `Request` object into its serialized `RequestInit` format.
+ * `RequestInit` is a subset of `Request`, just lacking helper methods like `json()`,
+ * making it easier to serialize (exceptions: `body` and `signal`).
+ */
+function requestToInit(request: Request): RequestInit {
+  return {
+    method: request.method,
+    headers: [...request.headers.entries()],
+    body: request.body,
+    referrer: request.referrer,
+    referrerPolicy: request.referrerPolicy,
+    mode: request.mode,
+    credentials: request.credentials,
+    cache: request.cache,
+    redirect: request.redirect,
+    integrity: request.integrity,
+    keepalive: request.keepalive,
+    signal: request.signal,
+  };
+}
 
 export { fetchWorker };

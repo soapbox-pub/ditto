@@ -4,10 +4,14 @@ import { fetchWorker } from './fetch.ts';
 
 await sleep(2000);
 
-Deno.test('fetchWorker', async () => {
-  const response = await fetchWorker('https://example.com');
-  const text = await response.text();
-  assert(text.includes('Example Domain'));
+Deno.test({
+  name: 'fetchWorker',
+  async fn() {
+    const response = await fetchWorker('https://example.com');
+    const text = await response.text();
+    assert(text.includes('Example Domain'));
+  },
+  sanitizeResources: false,
 });
 
 Deno.test({
