@@ -10,7 +10,7 @@ export const FetchWorker = {
   ): Promise<[BodyInit, ResponseInit]> {
     const response = await fetch(url, { ...init, signal });
     return [
-      await response.text(),
+      await response.arrayBuffer(),
       {
         status: response.status,
         statusText: response.statusText,
