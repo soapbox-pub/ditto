@@ -1,5 +1,6 @@
-import SqliteWorker from './workers/sqlite.ts';
+import { Conf } from '@/config.ts';
+import SqliteWorker from '@/workers/sqlite.ts';
 
-const sqliteWorker = new SqliteWorker('./data/db.sqlite3');
+const sqliteWorker = new SqliteWorker(Conf.dbPath);
 
 export { sqliteWorker };
