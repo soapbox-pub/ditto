@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { PolySqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
+import { FileMigrationProvider, Kysely, Migrator, PolySqliteDialect } from '@/deps.ts';
 import { Conf } from '@/config.ts';
 import { getPragma, setPragma } from '@/pragma.ts';
 import { sqliteWorker } from '@/workers.ts';

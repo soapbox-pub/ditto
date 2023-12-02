@@ -60,13 +60,13 @@ export {
 export { Database as DenoSqlite3 } from 'https://deno.land/x/sqlite3@0.9.1/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
 export {
+  type CompiledQuery,
   FileMigrationProvider,
   type Insertable,
   Kysely,
-  type QueryResult,
-  type CompiledQuery,
   Migrator,
   type NullableInsertKeys,
+  type QueryResult,
   sql,
 } from 'npm:kysely@^0.26.3';
 export { PolySqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v2.0.0/mod.ts';

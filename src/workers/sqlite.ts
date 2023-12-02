@@ -48,6 +48,7 @@ class SqliteWorker {
     });
   }
 
+  // deno-lint-ignore require-await
   async destroy() {
     this.#worker.terminate();
   }
