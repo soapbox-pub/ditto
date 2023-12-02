@@ -1,8 +1,4 @@
-interface QueryResult {
-  rows: unknown[];
-  numAffectedRows: bigint;
-  insertId: bigint;
-}
+import type { CompiledQuery, QueryResult } from '@/deps.ts';
 
 class SqliteWorker {
   #path: string;
@@ -29,9 +25,9 @@ class SqliteWorker {
     return this.#call(['open', [this.#path]]);
   }
 
-  async query(sql: string, params?: any): Promise<QueryResult> {
+  async executeQuery<R>({ sql, parameters }: CompiledQuery): Promise<QueryResult<R>> {
     await this.ready;
-    return this.#call(['query', [sql, params]]);
+    return this.#call(['query', [sql, parameters]]);
   }
 
   #call<T>(msg: [string, unknown[]]): Promise<T> {
@@ -50,6 +46,10 @@ class SqliteWorker {
       };
       this.#worker.addEventListener('message', handleEvent);
     });
+  }
+
+  async destroy() {
+    this.#worker.terminate();
   }
 }
 

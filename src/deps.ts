@@ -63,11 +63,13 @@ export {
   FileMigrationProvider,
   type Insertable,
   Kysely,
+  type QueryResult,
+  type CompiledQuery,
   Migrator,
   type NullableInsertKeys,
   sql,
 } from 'npm:kysely@^0.26.3';
-export { DenoSqlite3Dialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v2.0.0/mod.ts';
+export { PolySqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v2.0.0/mod.ts';
 export { default as tldts } from 'npm:tldts@^6.0.14';
 export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
