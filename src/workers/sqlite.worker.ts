@@ -1,38 +1,26 @@
 /// <reference lib="webworker" />
 
-import { DenoSqlite3 } from '@/deps.ts';
+import { Comlink, type CompiledQuery, DenoSqlite3, type QueryResult } from '@/deps.ts';
 
-let db: DenoSqlite3;
+let db: DenoSqlite3 | undefined;
 
-type Msg =
-  | ['open', [string]]
-  | ['query', [string, unknown[]]];
+export const SqliteWorker = {
+  open(path: string): void {
+    db = new DenoSqlite3(path);
+  },
+  executeQuery<R>({ sql, parameters }: CompiledQuery): QueryResult<R> {
+    if (!db) throw new Error('Database not open');
+    return {
+      rows: db.prepare(sql).all(...parameters as any[]) as R[],
+      numAffectedRows: BigInt(db.changes),
+      insertId: BigInt(db.lastInsertRowId),
+    };
+  },
+  destroy() {
+    db?.close();
+  },
+};
 
-function call([cmd, args]: Msg) {
-  switch (cmd) {
-    case 'open':
-      return handleOpen(args[0]);
-    case 'query':
-      return handleQuery(args[0], args[1]);
-  }
-}
-
-function handleOpen(path: string): void {
-  db = new DenoSqlite3(path);
-}
-
-function handleQuery(sql: string, params: any[] = []) {
-  return {
-    rows: db.prepare(sql).all(...params),
-    numAffectedRows: BigInt(db.changes),
-    insertId: BigInt(db.lastInsertRowId),
-  };
-}
-
-self.addEventListener('message', (event: MessageEvent<[string, Msg]>) => {
-  const [id, msg] = event.data;
-  const result = call(msg);
-  self.postMessage([id, result]);
-});
+Comlink.expose(SqliteWorker);
 
 self.postMessage(['ready']);
