@@ -12,6 +12,7 @@ import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { trends } from '@/trends.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
+import { verifySignatureWorker } from '@/workers/verify.ts';
 
 import type { EventData } from '@/types.ts';
 
@@ -20,6 +21,7 @@ import type { EventData } from '@/types.ts';
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  if (!(await verifySignatureWorker(event))) return;
   if (encounterEvent(event)) return;
   const data = await getEventData(event);
 
