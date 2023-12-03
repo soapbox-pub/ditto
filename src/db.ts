@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { DenoSqlite3, DenoSqliteDialect, FileMigrationProvider, Kysely, Migrator } from '@/deps.ts';
+import { FileMigrationProvider, Kysely, Migrator, PolySqliteDialect } from '@/deps.ts';
 import { Conf } from '@/config.ts';
 import { getPragma, setPragma } from '@/pragma.ts';
+import SqliteWorker from '@/workers/sqlite.ts';
 
 interface DittoDB {
   events: EventRow;
@@ -56,9 +57,12 @@ interface UnattachedMediaRow {
   uploaded_at: Date;
 }
 
+const sqliteWorker = new SqliteWorker();
+await sqliteWorker.open(Conf.dbPath);
+
 const db = new Kysely<DittoDB>({
-  dialect: new DenoSqliteDialect({
-    database: new DenoSqlite3(Conf.dbPath),
+  dialect: new PolySqliteDialect({
+    database: sqliteWorker,
   }),
 });
 
