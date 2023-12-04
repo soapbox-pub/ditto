@@ -10,8 +10,8 @@ import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
-import { trends } from '@/trends.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
+import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 
 import type { EventData } from '@/types.ts';
@@ -90,7 +90,7 @@ async function processDeletions(event: Event): Promise<void> {
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-function trackHashtags(event: Event): void {
+async function trackHashtags(event: Event): Promise<void> {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags
@@ -102,7 +102,7 @@ function trackHashtags(event: Event): void {
 
   try {
     console.info('tracking tags:', tags);
-    trends.addTagUsages(event.pubkey, tags, date);
+    await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
   }
