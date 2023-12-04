@@ -1,8 +1,7 @@
-import { Sqlite } from '@/deps.ts';
+import { Comlink, Sqlite } from '@/deps.ts';
 import { hashtagSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { Time } from '@/utils.ts';
-import { generateDateRange } from '@/utils/time.ts';
+import { generateDateRange, Time } from '@/utils/time.ts';
 
 interface GetTrendingTagsOpts {
   since: Date;
@@ -19,13 +18,13 @@ interface GetTagHistoryOpts {
   offset?: number;
 }
 
-class TrendsDB {
-  #db: Sqlite;
+let db: Sqlite;
 
-  constructor(db: Sqlite) {
-    this.#db = db;
+export const TrendsWorker = {
+  open(path: string) {
+    db = new Sqlite(path);
 
-    this.#db.execute(`
+    db.execute(`
       CREATE TABLE IF NOT EXISTS tag_usages (
         tag TEXT NOT NULL COLLATE NOCASE,
         pubkey8 TEXT NOT NULL,
@@ -43,11 +42,11 @@ class TrendsDB {
 
     setInterval(cleanup, Time.hours(1));
     cleanup();
-  }
+  },
 
   /** Gets the most used hashtags between the date range. */
   getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts) {
-    return this.#db.query<string[]>(
+    return db.query<string[]>(
       `
       SELECT tag, COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
@@ -63,14 +62,14 @@ class TrendsDB {
       accounts: Number(row[1]),
       uses: Number(row[2]),
     }));
-  }
+  },
 
   /**
    * Gets the tag usage count for a specific tag.
    * It returns an array with counts for each date between the range.
    */
   getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
-    const result = this.#db.query<string[]>(
+    const result = db.query<string[]>(
       `
       SELECT date(inserted_at), COUNT(DISTINCT pubkey8), COUNT(*)
         FROM tag_usages
@@ -98,28 +97,26 @@ class TrendsDB {
       const data = result.find((item) => item.day.getTime() === day.getTime());
       return data || { day, accounts: 0, uses: 0 };
     });
-  }
+  },
 
   addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
     const pubkey8 = nostrIdSchema.parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
-    this.#db.query(
+    db.query(
       'INSERT INTO tag_usages (tag, pubkey8, inserted_at) VALUES ' + tags.map(() => '(?, ?, ?)').join(', '),
       tags.map((tag) => [tag, pubkey8, date]).flat(),
     );
-  }
+  },
 
   cleanupTagUsages(until: Date): void {
-    this.#db.query(
+    db.query(
       'DELETE FROM tag_usages WHERE inserted_at < ?',
       [until],
     );
-  }
-}
+  },
+};
 
-const trends = new TrendsDB(
-  new Sqlite('data/trends.sqlite3'),
-);
+Comlink.expose(TrendsWorker);
 
-export { trends, TrendsDB };
+self.postMessage('ready');
