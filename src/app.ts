@@ -14,6 +14,7 @@ import {
   serveStatic,
 } from '@/deps.ts';
 import '@/firehose.ts';
+import { Time } from '@/utils.ts';
 
 import { actorController } from './controllers/activitypub/actor.ts';
 import {
@@ -62,6 +63,7 @@ import { nostrController } from './controllers/well-known/nostr.ts';
 import { webfingerController } from './controllers/well-known/webfinger.ts';
 import { auth19, requirePubkey } from './middleware/auth19.ts';
 import { auth98, requireProof, requireRole } from './middleware/auth98.ts';
+import { cache } from './middleware/cache.ts';
 import { csp } from './middleware/csp.ts';
 
 interface AppEnv extends HonoEnv {
@@ -151,8 +153,8 @@ app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
-app.get('/api/v1/trends/tags', trendingTagsController);
-app.get('/api/v1/trends', trendingTagsController);
+app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
