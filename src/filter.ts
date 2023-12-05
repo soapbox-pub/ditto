@@ -8,6 +8,9 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   local?: boolean;
 }
 
+/** Additional properties that may be added to events. */
+type With = 'authors';
+
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
   /** How long to wait (in milliseconds) until aborting the request. */
@@ -15,7 +18,7 @@ interface GetFiltersOpts {
   /** Event limit for the whole subscription. */
   limit?: number;
   /** Whether to include a corresponding kind 0 event in the `authors` key of each event. */
-  with_authors?: boolean;
+  with?: With[];
 }
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {

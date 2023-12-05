@@ -172,7 +172,7 @@ async function getFilters<K extends number>(
   if (!filters.length) return Promise.resolve([]);
   let query = getFiltersQuery(filters);
 
-  if (opts.with_authors) {
+  if (opts.with?.includes('authors')) {
     query = query
       .leftJoin(
         (eb) =>
