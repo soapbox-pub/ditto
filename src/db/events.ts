@@ -144,31 +144,6 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
       : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
   }
 
-  if (filter.with_authors) {
-    // get kind 0 event associated with the `pubkey` field of the event
-    query = query
-      .leftJoin(
-        (eb) =>
-          eb
-            .selectFrom('events')
-            .selectAll()
-            .where('kind', '=', 0)
-            .orderBy('created_at', 'desc')
-            .groupBy('pubkey')
-            .as('authors'),
-        (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
-      )
-      .select([
-        'authors.id as author_id',
-        'authors.kind as author_kind',
-        'authors.pubkey as author_pubkey',
-        'authors.content as author_content',
-        'authors.tags as author_tags',
-        'authors.created_at as author_created_at',
-        'authors.sig as author_sig',
-      ]);
-  }
-
   if (filter.search) {
     query = query
       .innerJoin('events_fts', 'events_fts.id', 'events.id')
@@ -196,6 +171,30 @@ async function getFilters<K extends number>(
 ): Promise<DittoEvent<K>[]> {
   if (!filters.length) return Promise.resolve([]);
   let query = getFiltersQuery(filters);
+
+  if (opts.with_authors) {
+    query = query
+      .leftJoin(
+        (eb) =>
+          eb
+            .selectFrom('events')
+            .selectAll()
+            .where('kind', '=', 0)
+            .orderBy('created_at', 'desc')
+            .groupBy('pubkey')
+            .as('authors'),
+        (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
+      )
+      .select([
+        'authors.id as author_id',
+        'authors.kind as author_kind',
+        'authors.pubkey as author_pubkey',
+        'authors.content as author_content',
+        'authors.tags as author_tags',
+        'authors.created_at as author_created_at',
+        'authors.sig as author_sig',
+      ]) as typeof query;
+  }
 
   if (typeof opts.limit === 'number') {
     query = query.limit(opts.limit);
