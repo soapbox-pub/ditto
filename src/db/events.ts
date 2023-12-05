@@ -1,5 +1,5 @@
-import { db } from '@/db.ts';
-import { type Event } from '@/deps.ts';
+import { db, type DittoDB } from '@/db.ts';
+import { type Event, type SelectQueryBuilder } from '@/deps.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { EventData } from '@/types.ts';
@@ -72,8 +72,25 @@ function insertEvent(event: Event, data: EventData): Promise<void> {
   });
 }
 
+type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
+  id: string;
+  tags: string;
+  kind: number;
+  pubkey: string;
+  content: string;
+  created_at: number;
+  sig: string;
+  author_id?: string;
+  author_tags?: string;
+  author_kind?: number;
+  author_pubkey?: string;
+  author_content?: string;
+  author_created_at?: number;
+  author_sig?: string;
+}>;
+
 /** Build the query for a filter. */
-function getFilterQuery(filter: DittoFilter) {
+function getFilterQuery(filter: DittoFilter): EventQuery {
   let query = db
     .selectFrom('events')
     .select([
@@ -127,6 +144,31 @@ function getFilterQuery(filter: DittoFilter) {
       : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
   }
 
+  if (filter.with_author) {
+    // get kind 0 event associated with the `pubkey` field of the event
+    query = query
+      .leftJoin(
+        (eb) =>
+          eb
+            .selectFrom('events')
+            .selectAll()
+            .where('kind', '=', 0)
+            .orderBy('created_at', 'desc')
+            .groupBy('pubkey')
+            .as('authors'),
+        (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
+      )
+      .select([
+        'authors.id as author_id',
+        'authors.kind as author_kind',
+        'authors.pubkey as author_pubkey',
+        'authors.content as author_content',
+        'authors.tags as author_tags',
+        'authors.created_at as author_created_at',
+        'authors.sig as author_sig',
+      ]);
+  }
+
   if (filter.search) {
     query = query
       .innerJoin('events_fts', 'events_fts.id', 'events.id')
@@ -143,11 +185,15 @@ function getFiltersQuery(filters: DittoFilter[]) {
     .reduce((result, query) => result.union(query));
 }
 
+interface DittoEvent<K extends number = number> extends Event<K> {
+  author?: Event<0>;
+}
+
 /** Get events for filters from the database. */
 async function getFilters<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetFiltersOpts = {},
-): Promise<Event<K>[]> {
+): Promise<DittoEvent<K>[]> {
   if (!filters.length) return Promise.resolve([]);
   let query = getFiltersQuery(filters);
 
@@ -155,9 +201,26 @@ async function getFilters<K extends number>(
     query = query.limit(opts.limit);
   }
 
-  return (await query.execute()).map((event) => (
-    { ...event, tags: JSON.parse(event.tags) } as Event<K>
-  ));
+  return (await query.execute()).map((row) => ({
+    id: row.id,
+    kind: row.kind,
+    pubkey: row.pubkey,
+    content: row.content,
+    created_at: row.created_at,
+    tags: JSON.parse(row.tags),
+    author: row.author_id
+      ? {
+        id: row.author_id,
+        kind: row.author_kind!,
+        pubkey: row.author_pubkey!,
+        content: row.author_content!,
+        created_at: row.author_created_at!,
+        tags: JSON.parse(row.author_tags!),
+        sig: row.author_sig!,
+      }
+      : undefined,
+    sig: row.sig,
+  } as DittoEvent<K>));
 }
 
 /** Delete events based on filters from the database. */
