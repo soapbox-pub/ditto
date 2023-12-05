@@ -6,7 +6,7 @@ import type { EventData } from '@/types.ts';
 /** Custom filter interface that extends Nostr filters with extra options for Ditto. */
 interface DittoFilter<K extends number = number> extends Filter<K> {
   local?: boolean;
-  with_author?: boolean;
+  with_authors?: boolean;
 }
 
 /** Additional options to apply to the whole subscription. */

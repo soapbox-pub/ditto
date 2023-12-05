@@ -144,7 +144,7 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
       : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
   }
 
-  if (filter.with_author) {
+  if (filter.with_authors) {
     // get kind 0 event associated with the `pubkey` field of the event
     query = query
       .leftJoin(
