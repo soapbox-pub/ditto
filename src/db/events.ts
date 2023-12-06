@@ -200,26 +200,31 @@ async function getFilters<K extends number>(
     query = query.limit(opts.limit);
   }
 
-  return (await query.execute()).map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    pubkey: row.pubkey,
-    content: row.content,
-    created_at: row.created_at,
-    tags: JSON.parse(row.tags),
-    author: row.author_id
-      ? {
+  return (await query.execute()).map((row) => {
+    const event: DittoEvent<K> = {
+      id: row.id,
+      kind: row.kind as K,
+      pubkey: row.pubkey,
+      content: row.content,
+      created_at: row.created_at,
+      tags: JSON.parse(row.tags),
+      sig: row.sig,
+    };
+
+    if (row.author_id) {
+      event.author = {
         id: row.author_id,
-        kind: row.author_kind!,
+        kind: row.author_kind! as 0,
         pubkey: row.author_pubkey!,
         content: row.author_content!,
         created_at: row.author_created_at!,
         tags: JSON.parse(row.author_tags!),
         sig: row.author_sig!,
-      }
-      : undefined,
-    sig: row.sig,
-  } as DittoEvent<K>));
+      };
+    }
+
+    return event;
+  });
 }
 
 /** Delete events based on filters from the database. */
