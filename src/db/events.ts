@@ -304,4 +304,4 @@ function buildUserSearchContent(event: Event<0>): string {
   return [name, nip05, about].filter(Boolean).join('\n');
 }
 
-export { countFilters, deleteFilters, getFilters, insertEvent };
+export { countFilters, deleteFilters, type DittoEvent, getFilters, insertEvent };

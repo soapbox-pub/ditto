@@ -44,4 +44,4 @@ function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData
   return false;
 }
 
-export { type DittoFilter, type GetFiltersOpts, matchDittoFilters };
+export { type DittoFilter, type GetFiltersOpts, matchDittoFilters, type Relation };

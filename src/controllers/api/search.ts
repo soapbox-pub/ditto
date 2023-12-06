@@ -1,6 +1,7 @@
 import { AppController } from '@/app.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, type Filter, nip19, z } from '@/deps.ts';
+import { type Event, nip19, z } from '@/deps.ts';
+import { type DittoFilter } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
@@ -65,9 +66,10 @@ const searchController: AppController = async (c) => {
 function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Event[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
-  const filter: Filter = {
+  const filter: DittoFilter = {
     kinds: typeToKinds(type),
     search: q,
+    relations: ['author'],
     limit,
   };
 
@@ -98,8 +100,8 @@ async function lookupEvent(query: SearchQuery): Promise<Event | undefined> {
 }
 
 /** Get filters to lookup the input value. */
-async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Filter[]> {
-  const filters: Filter[] = [];
+async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<DittoFilter[]> {
+  const filters: DittoFilter[] = [];
 
   const accounts = !type || type === 'accounts';
   const statuses = !type || type === 'statuses';
@@ -138,7 +140,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Filt
     }
   }
 
-  return filters;
+  return filters.map((filter) => ({ ...filter, relations: ['author'] }));
 }
 
 export { searchController };
