@@ -3,13 +3,16 @@ import { type Event, type Filter, matchFilters } from '@/deps.ts';
 
 import type { EventData } from '@/types.ts';
 
+/** Additional properties that may be added by Ditto to events. */
+type Relation = 'author';
+
 /** Custom filter interface that extends Nostr filters with extra options for Ditto. */
 interface DittoFilter<K extends number = number> extends Filter<K> {
+  /** Whether the event was authored by a local user. */
   local?: boolean;
+  /** Additional fields to add to the returned event. */
+  relations?: Relation[];
 }
-
-/** Additional properties that may be added by Ditto to events. */
-type Extra = 'author';
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
@@ -17,8 +20,6 @@ interface GetFiltersOpts {
   timeout?: number;
   /** Event limit for the whole subscription. */
   limit?: number;
-  /** Whether to include a corresponding kind 0 event in the `authors` key of each event. */
-  extra?: Extra[];
 }
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
