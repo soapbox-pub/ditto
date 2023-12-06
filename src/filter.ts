@@ -8,8 +8,8 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   local?: boolean;
 }
 
-/** Additional properties that may be added to events. */
-type With = 'authors';
+/** Additional properties that may be added by Ditto to events. */
+type Extra = 'author';
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
@@ -18,7 +18,7 @@ interface GetFiltersOpts {
   /** Event limit for the whole subscription. */
   limit?: number;
   /** Whether to include a corresponding kind 0 event in the `authors` key of each event. */
-  with?: With[];
+  extra?: Extra[];
 }
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
