@@ -2,7 +2,7 @@ import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ad
 
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, findReplyTag, nip19 } from '@/deps.ts';
+import { findReplyTag, nip19 } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
@@ -12,10 +12,8 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-async function renderStatus(event: Event<1>, viewerPubkey?: string) {
-  const profile = await getAuthor(event.pubkey);
-  const account = profile ? await renderAccount(profile) : await accountFromPubkey(event.pubkey);
-
+async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string) {
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
   const replyTag = findReplyTag(event);
 
   const mentionedPubkeys = [

@@ -67,6 +67,7 @@ export {
   Migrator,
   type NullableInsertKeys,
   type QueryResult,
+  type SelectQueryBuilder,
   sql,
 } from 'npm:kysely@^0.26.3';
 export { PolySqliteDialect } from 'https://gitlab.com/soapbox-pub/kysely-deno-sqlite/-/raw/v2.0.0/mod.ts';

@@ -34,7 +34,10 @@ const hashtagTimelineController: AppController = (c) => {
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: DittoFilter<1>[]) {
-  const events = await mixer.getFilters(filters, { timeout: Time.seconds(1) });
+  const events = await mixer.getFilters(
+    filters.map((filter) => ({ ...filter, relations: ['author'] })),
+    { timeout: Time.seconds(1) },
+  );
 
   if (!events.length) {
     return c.json([]);

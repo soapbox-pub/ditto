@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
-import { getAncestors, getDescendants, getEvent } from '@/queries.ts';
+import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -29,7 +29,7 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, { kind: 1 });
+  const event = await getEvent(id, { kind: 1, relations: ['author'] });
   if (event) {
     return c.json(await renderStatus(event, c.get('pubkey')));
   }
@@ -83,12 +83,13 @@ const createStatusController: AppController = async (c) => {
     tags,
   }, c);
 
-  return c.json(await renderStatus(event, c.get('pubkey')));
+  const author = await getAuthor(event.pubkey);
+  return c.json(await renderStatus({ ...event, author }, c.get('pubkey')));
 };
 
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
-  const event = await getEvent(id, { kind: 1 });
+  const event = await getEvent(id, { kind: 1, relations: ['author'] });
 
   async function renderStatuses(events: Event<1>[]) {
     const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
@@ -109,7 +110,7 @@ const contextController: AppController = async (c) => {
 
 const favouriteController: AppController = async (c) => {
   const id = c.req.param('id');
-  const target = await getEvent(id, { kind: 1 });
+  const target = await getEvent(id, { kind: 1, relations: ['author'] });
 
   if (target) {
     await createEvent({

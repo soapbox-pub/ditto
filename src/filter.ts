@@ -3,9 +3,15 @@ import { type Event, type Filter, matchFilters } from '@/deps.ts';
 
 import type { EventData } from '@/types.ts';
 
+/** Additional properties that may be added by Ditto to events. */
+type Relation = 'author';
+
 /** Custom filter interface that extends Nostr filters with extra options for Ditto. */
 interface DittoFilter<K extends number = number> extends Filter<K> {
+  /** Whether the event was authored by a local user. */
   local?: boolean;
+  /** Additional fields to add to the returned event. */
+  relations?: Relation[];
 }
 
 /** Additional options to apply to the whole subscription. */
@@ -38,4 +44,4 @@ function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData
   return false;
 }
 
-export { type DittoFilter, type GetFiltersOpts, matchDittoFilters };
+export { type DittoFilter, type GetFiltersOpts, matchDittoFilters, type Relation };
