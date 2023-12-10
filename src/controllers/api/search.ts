@@ -69,7 +69,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Even
   const filter: DittoFilter = {
     kinds: typeToKinds(type),
     search: q,
-    relations: ['author'],
+    relations: ['author', 'event_stats', 'author_stats'],
     limit,
   };
 
@@ -115,16 +115,20 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Ditt
       const result = nip19.decode(q);
       switch (result.type) {
         case 'npub':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data], relations: ['author_stats'] });
           break;
         case 'nprofile':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey], relations: ['author_stats'] });
           break;
         case 'note':
-          if (statuses) filters.push({ kinds: [1], ids: [result.data] });
+          if (statuses) {
+            filters.push({ kinds: [1], ids: [result.data], relations: ['author', 'event_stats', 'author_stats'] });
+          }
           break;
         case 'nevent':
-          if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
+          if (statuses) {
+            filters.push({ kinds: [1], ids: [result.data.id], relations: ['author', 'event_stats', 'author_stats'] });
+          }
           break;
       }
     } catch (_e) {
@@ -136,11 +140,11 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Ditt
   } else if (accounts && ACCT_REGEX.test(q)) {
     const pubkey = await lookupNip05Cached(q);
     if (pubkey) {
-      filters.push({ kinds: [0], authors: [pubkey] });
+      filters.push({ kinds: [0], authors: [pubkey], relations: ['author_stats'] });
     }
   }
 
-  return filters.map((filter) => ({ ...filter, relations: ['author'] }));
+  return filters;
 }
 
 export { searchController };

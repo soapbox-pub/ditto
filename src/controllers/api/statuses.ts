@@ -29,7 +29,7 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, { kind: 1, relations: ['author'] });
+  const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
   if (event) {
     return c.json(await renderStatus(event, c.get('pubkey')));
   }
@@ -89,7 +89,7 @@ const createStatusController: AppController = async (c) => {
 
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
-  const event = await getEvent(id, { kind: 1, relations: ['author'] });
+  const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
 
   async function renderStatuses(events: Event<1>[]) {
     const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
@@ -110,7 +110,7 @@ const contextController: AppController = async (c) => {
 
 const favouriteController: AppController = async (c) => {
   const id = c.req.param('id');
-  const target = await getEvent(id, { kind: 1, relations: ['author'] });
+  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
 
   if (target) {
     await createEvent({

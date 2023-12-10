@@ -15,7 +15,7 @@ async function renderEventAccounts(c: AppContext, filters: Filter[]) {
   }
 
   const accounts = await Promise.all([...pubkeys].map(async (pubkey) => {
-    const author = await getAuthor(pubkey);
+    const author = await getAuthor(pubkey, { relations: ['author_stats'] });
     if (author) {
       return renderAccount(author);
     }

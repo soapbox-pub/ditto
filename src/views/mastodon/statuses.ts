@@ -86,8 +86,8 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
 }
 
 async function toMention(pubkey: string) {
-  const profile = await getAuthor(pubkey);
-  const account = profile ? await renderAccount(profile) : undefined;
+  const author = await getAuthor(pubkey);
+  const account = author ? await renderAccount(author) : undefined;
 
   if (account) {
     return {
