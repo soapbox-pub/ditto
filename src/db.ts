@@ -13,6 +13,22 @@ interface DittoDB {
   users: UserRow;
   relays: RelayRow;
   unattached_media: UnattachedMediaRow;
+  pubkey_stats: PubkeyStatsRow;
+  event_stats: EventStatsRow;
+}
+
+interface PubkeyStatsRow {
+  pubkey: string;
+  followers_count: number;
+  following_count: number;
+  notes_count: number;
+}
+
+interface EventStatsRow {
+  event_id: string;
+  replies_count: number;
+  reposts_count: number;
+  reactions_count: number;
 }
 
 interface EventRow {
@@ -101,7 +117,7 @@ async function migrate() {
       console.log('Everything up-to-date.');
     } else {
       console.log('Migrations finished!');
-      for (const { migrationName, status } of results.results) {
+      for (const { migrationName, status } of results.results!) {
         console.log(`  - ${migrationName}: ${status}`);
       }
     }
@@ -110,4 +126,4 @@ async function migrate() {
 
 await migrate();
 
-export { db, type DittoDB, type EventRow, type TagRow, type UserRow };
+export { db, type DittoDB, type EventRow, type EventStatsRow, type PubkeyStatsRow, type TagRow, type UserRow };
