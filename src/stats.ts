@@ -14,26 +14,28 @@ function updateStatsQuery(event: Event) {
 
   switch (event.kind) {
     case 1:
-      return incrementPubkeyStatQuery(event.pubkey, 'notes_count', 1);
+      return incrementPubkeyStatsQuery([event.pubkey], 'notes_count', 1);
     case 6:
-      return firstE ? incrementEventStatQuery(firstE, 'reposts_count', 1) : undefined;
+      return firstE ? incrementEventStatsQuery([firstE], 'reposts_count', 1) : undefined;
     case 7:
-      return firstE ? incrementEventStatQuery(firstE, 'reactions_count', 1) : undefined;
+      return firstE ? incrementEventStatsQuery([firstE], 'reactions_count', 1) : undefined;
   }
 }
 
-function incrementPubkeyStatQuery(pubkey: string, stat: PubkeyStat, diff: number) {
-  const row: PubkeyStatsRow = {
-    pubkey,
-    followers_count: 0,
-    following_count: 0,
-    notes_count: 0,
-  };
-
-  row[stat] = diff;
+function incrementPubkeyStatsQuery(pubkeys: string[], stat: PubkeyStat, diff: number) {
+  const values: PubkeyStatsRow[] = pubkeys.map((pubkey) => {
+    const row: PubkeyStatsRow = {
+      pubkey,
+      followers_count: 0,
+      following_count: 0,
+      notes_count: 0,
+    };
+    row[stat] = diff;
+    return row;
+  });
 
   return db.insertInto('pubkey_stats')
-    .values(row)
+    .values(values)
     .onConflict((oc) =>
       oc
         .column('pubkey')
@@ -43,18 +45,20 @@ function incrementPubkeyStatQuery(pubkey: string, stat: PubkeyStat, diff: number
     );
 }
 
-function incrementEventStatQuery(eventId: string, stat: EventStat, diff: number) {
-  const row: EventStatsRow = {
-    event_id: eventId,
-    replies_count: 0,
-    reposts_count: 0,
-    reactions_count: 0,
-  };
-
-  row[stat] = diff;
+function incrementEventStatsQuery(eventIds: string[], stat: EventStat, diff: number) {
+  const values: EventStatsRow[] = eventIds.map((event_id) => {
+    const row: EventStatsRow = {
+      event_id,
+      replies_count: 0,
+      reposts_count: 0,
+      reactions_count: 0,
+    };
+    row[stat] = diff;
+    return row;
+  });
 
   return db.insertInto('event_stats')
-    .values(row)
+    .values(values)
     .onConflict((oc) =>
       oc
         .column('event_id')
