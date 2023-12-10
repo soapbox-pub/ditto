@@ -80,6 +80,9 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
   content: string;
   created_at: number;
   sig: string;
+  stats_replies_count?: number;
+  stats_reposts_count?: number;
+  stats_reactions_count?: number;
   author_id?: string;
   author_tags?: string;
   author_kind?: number;
@@ -87,6 +90,9 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
   author_content?: string;
   author_created_at?: number;
   author_sig?: string;
+  author_stats_followers_count?: number;
+  author_stats_following_count?: number;
+  author_stats_notes_count?: number;
 }>;
 
 /** Build the query for a filter. */
@@ -184,8 +190,12 @@ function getFiltersQuery(filters: DittoFilter[]) {
     .reduce((result, query) => result.unionAll(query));
 }
 
+type AuthorStats = Omit<DittoDB['pubkey_stats'], 'pubkey'>;
+type EventStats = Omit<DittoDB['event_stats'], 'event_id'>;
+
 interface DittoEvent<K extends number = number> extends Event<K> {
-  author?: Event<0>;
+  author?: Event<0> & { stats?: AuthorStats };
+  stats?: EventStats;
 }
 
 /** Get events for filters from the database. */
@@ -220,6 +230,22 @@ async function getFilters<K extends number>(
         created_at: row.author_created_at!,
         tags: JSON.parse(row.author_tags!),
         sig: row.author_sig!,
+      };
+
+      if (typeof row.author_stats_followers_count === 'number') {
+        event.author.stats = {
+          followers_count: row.author_stats_followers_count,
+          following_count: row.author_stats_following_count!,
+          notes_count: row.author_stats_notes_count!,
+        };
+      }
+    }
+
+    if (typeof row.stats_replies_count === 'number') {
+      event.stats = {
+        replies_count: row.stats_replies_count,
+        reposts_count: row.stats_reposts_count!,
+        reactions_count: row.stats_reactions_count!,
       };
     }
 

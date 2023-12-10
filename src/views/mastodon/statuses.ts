@@ -26,13 +26,10 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
 
   const { html, links, firstUrl } = parseNoteContent(event.content);
 
-  const [mentions, card, repliesCount, reblogsCount, favouritesCount, [repostEvent], [reactionEvent]] = await Promise
+  const [mentions, card, [repostEvent], [reactionEvent]] = await Promise
     .all([
       Promise.all(mentionedPubkeys.map(toMention)),
       firstUrl ? unfurlCardCached(firstUrl) : null,
-      eventsDB.countFilters([{ kinds: [1], '#e': [event.id] }]),
-      eventsDB.countFilters([{ kinds: [6], '#e': [event.id] }]),
-      eventsDB.countFilters([{ kinds: [7], '#e': [event.id] }]),
       viewerPubkey
         ? eventsDB.getFilters([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
         : [],
@@ -66,9 +63,9 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
-    replies_count: repliesCount,
-    reblogs_count: reblogsCount,
-    favourites_count: favouritesCount,
+    replies_count: event.stats?.replies_count ?? 0,
+    reblogs_count: event.stats?.reposts_count ?? 0,
+    favourites_count: event.stats?.reactions_count ?? 0,
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,
