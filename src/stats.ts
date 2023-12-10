@@ -29,13 +29,13 @@ function getStatsDiff(event: Event): StatDiff[] {
   const statDiffs: StatDiff[] = [];
 
   const firstE = event.tags.find(([name]) => name === 'e')?.[1];
-  const replyTag = findReplyTag(event as Event<1>);
+  const inReplyToId = findReplyTag(event as Event<1>)?.[1];
 
   switch (event.kind) {
     case 1:
       statDiffs.push(['pubkey_stats', event.pubkey, 'notes_count', 1]);
-      if (replyTag && replyTag[1]) {
-        statDiffs.push(['event_stats', replyTag[1], 'replies_count', 1]);
+      if (inReplyToId) {
+        statDiffs.push(['event_stats', inReplyToId, 'replies_count', 1]);
       }
       break;
     case 6:
