@@ -1,7 +1,8 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { insertUser } from '@/db/users.ts';
-import { type Filter, findReplyTag, nip19, z } from '@/deps.ts';
+import { findReplyTag, nip19, z } from '@/deps.ts';
+import { type DittoFilter } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
@@ -137,7 +138,7 @@ const accountStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const filter: Filter<1> = { authors: [pubkey], kinds: [1], since, until, limit };
+  const filter: DittoFilter<1> = { authors: [pubkey], kinds: [1], relations: ['author'], since, until, limit };
   if (tagged) {
     filter['#t'] = [tagged];
   }
@@ -256,7 +257,7 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await mixer.getFilters([{ kinds: [1], ids }], { timeout: Time.seconds(1) });
+  const events1 = await mixer.getFilters([{ kinds: [1], ids, relations: ['author'] }], { timeout: Time.seconds(1) });
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);

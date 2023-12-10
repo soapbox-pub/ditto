@@ -1,5 +1,6 @@
 import * as eventsDB from '@/db/events.ts';
-import { type Event, type Filter, findReplyTag } from '@/deps.ts';
+import { type Event, findReplyTag } from '@/deps.ts';
+import { type DittoFilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 
 interface GetEventOpts<K extends number> {
@@ -7,6 +8,8 @@ interface GetEventOpts<K extends number> {
   timeout?: number;
   /** Event kind. */
   kind?: K;
+  /** Relations to include on the event. */
+  relations?: Relation[];
 }
 
 /** Get a Nostr event by its ID. */
@@ -14,8 +17,8 @@ const getEvent = async <K extends number = number>(
   id: string,
   opts: GetEventOpts<K> = {},
 ): Promise<Event<K> | undefined> => {
-  const { kind, timeout = 1000 } = opts;
-  const filter: Filter<K> = { ids: [id], limit: 1 };
+  const { kind, relations, timeout = 1000 } = opts;
+  const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
@@ -57,7 +60,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const parentEvent = await getEvent(inReplyTo, { kind: 1 });
+      const parentEvent = await getEvent(inReplyTo, { kind: 1, relations: ['author'] });
 
       if (parentEvent) {
         result.push(parentEvent);
@@ -70,7 +73,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<Event<1>[]> {
-  return mixer.getFilters([{ kinds: [1], '#e': [eventId] }], { limit: 200, timeout: 2000 });
+  return mixer.getFilters([{ kinds: [1], '#e': [eventId], relations: ['author'] }], { limit: 200, timeout: 2000 });
 }
 
 /** Returns whether the pubkey is followed by a local user. */

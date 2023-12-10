@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { getFeedPubkeys } from '@/queries.ts';
+import { getAuthor, getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -63,7 +63,8 @@ const streamingController: AppController = (c) => {
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
-        const status = await renderStatus(event, pubkey);
+        const author = await getAuthor(event.pubkey);
+        const status = await renderStatus({ ...event, author }, pubkey);
         if (status) {
           send('update', status);
         }

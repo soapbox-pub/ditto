@@ -1,4 +1,5 @@
 import { type Event } from '@/deps.ts';
+import { getAuthor } from '@/queries.ts';
 import { nostrDate } from '@/utils.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -11,7 +12,8 @@ function renderNotification(event: Event, viewerPubkey?: string) {
 }
 
 async function renderNotificationMention(event: Event<1>, viewerPubkey?: string) {
-  const status = await renderStatus(event, viewerPubkey);
+  const author = await getAuthor(event.pubkey);
+  const status = await renderStatus({ ...event, author }, viewerPubkey);
   if (!status) return;
 
   return {
