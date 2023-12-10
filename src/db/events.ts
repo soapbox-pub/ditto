@@ -176,11 +176,11 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
 
   if (filter.relations?.includes('author_stats')) {
     query = query
-      .leftJoin('pubkey_stats', 'pubkey_stats.pubkey', 'events.pubkey')
+      .leftJoin('author_stats', 'author_stats.pubkey', 'events.pubkey')
       .select((eb) => [
-        eb.fn.coalesce('pubkey_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
-        eb.fn.coalesce('pubkey_stats.following_count', eb.val(0)).as('author_stats_following_count'),
-        eb.fn.coalesce('pubkey_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
+        eb.fn.coalesce('author_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
+        eb.fn.coalesce('author_stats.following_count', eb.val(0)).as('author_stats_following_count'),
+        eb.fn.coalesce('author_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
       ]);
   }
 
@@ -210,7 +210,7 @@ function getFiltersQuery(filters: DittoFilter[]) {
     .reduce((result, query) => result.unionAll(query));
 }
 
-type AuthorStats = Omit<DittoDB['pubkey_stats'], 'pubkey'>;
+type AuthorStats = Omit<DittoDB['author_stats'], 'pubkey'>;
 type EventStats = Omit<DittoDB['event_stats'], 'event_id'>;
 
 interface DittoEvent<K extends number = number> extends Event<K> {

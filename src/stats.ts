@@ -1,23 +1,23 @@
-import { db, type EventStatsRow, type PubkeyStatsRow } from '@/db.ts';
+import { type AuthorStatsRow, db, type EventStatsRow } from '@/db.ts';
 import { Event, findReplyTag } from '@/deps.ts';
 
-type PubkeyStat = keyof Omit<PubkeyStatsRow, 'pubkey'>;
+type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
 type EventStat = keyof Omit<EventStatsRow, 'event_id'>;
 
-type PubkeyStatDiff = ['pubkey_stats', pubkey: string, stat: PubkeyStat, diff: number];
+type AuthorStatDiff = ['author_stats', pubkey: string, stat: AuthorStat, diff: number];
 type EventStatDiff = ['event_stats', eventId: string, stat: EventStat, diff: number];
-type StatDiff = PubkeyStatDiff | EventStatDiff;
+type StatDiff = AuthorStatDiff | EventStatDiff;
 
 /** Store stats for the event in LMDB. */
 async function updateStats(event: Event) {
   const statDiffs = getStatsDiff(event);
   if (!statDiffs.length) return;
 
-  const pubkeyDiffs = statDiffs.filter(([table]) => table === 'pubkey_stats') as PubkeyStatDiff[];
+  const pubkeyDiffs = statDiffs.filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
   const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
   await Promise.all([
-    pubkeyDiffs.length ? pubkeyStatsQuery(pubkeyDiffs).execute() : undefined,
+    pubkeyDiffs.length ? authorStatsQuery(pubkeyDiffs).execute() : undefined,
     eventDiffs.length ? eventStatsQuery(eventDiffs).execute() : undefined,
   ]);
 }
@@ -31,7 +31,7 @@ function getStatsDiff(event: Event): StatDiff[] {
 
   switch (event.kind) {
     case 1:
-      statDiffs.push(['pubkey_stats', event.pubkey, 'notes_count', 1]);
+      statDiffs.push(['author_stats', event.pubkey, 'notes_count', 1]);
       if (inReplyToId) {
         statDiffs.push(['event_stats', inReplyToId, 'replies_count', 1]);
       }
@@ -50,9 +50,9 @@ function getStatsDiff(event: Event): StatDiff[] {
   return statDiffs;
 }
 
-function pubkeyStatsQuery(diffs: PubkeyStatDiff[]) {
-  const values: PubkeyStatsRow[] = diffs.map(([_, pubkey, stat, diff]) => {
-    const row: PubkeyStatsRow = {
+function authorStatsQuery(diffs: AuthorStatDiff[]) {
+  const values: AuthorStatsRow[] = diffs.map(([_, pubkey, stat, diff]) => {
+    const row: AuthorStatsRow = {
       pubkey,
       followers_count: 0,
       following_count: 0,
@@ -62,7 +62,7 @@ function pubkeyStatsQuery(diffs: PubkeyStatDiff[]) {
     return row;
   });
 
-  return db.insertInto('pubkey_stats')
+  return db.insertInto('author_stats')
     .values(values)
     .onConflict((oc) =>
       oc

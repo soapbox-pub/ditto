@@ -13,11 +13,11 @@ interface DittoDB {
   users: UserRow;
   relays: RelayRow;
   unattached_media: UnattachedMediaRow;
-  pubkey_stats: PubkeyStatsRow;
+  author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
 }
 
-interface PubkeyStatsRow {
+interface AuthorStatsRow {
   pubkey: string;
   followers_count: number;
   following_count: number;
@@ -126,4 +126,4 @@ async function migrate() {
 
 await migrate();
 
-export { db, type DittoDB, type EventRow, type EventStatsRow, type PubkeyStatsRow, type TagRow, type UserRow };
+export { type AuthorStatsRow, db, type DittoDB, type EventRow, type EventStatsRow, type TagRow, type UserRow };
