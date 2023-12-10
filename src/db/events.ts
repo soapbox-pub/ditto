@@ -171,7 +171,7 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
 
           return exp
             .orderBy('created_at', 'desc')
-            .groupBy('pubkey')
+            .groupBy('events.pubkey')
             .as('authors');
         },
         (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
@@ -184,9 +184,13 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
         'authors.tags as author_tags',
         'authors.created_at as author_created_at',
         'authors.sig as author_sig',
-        'authors.author_stats_followers_count',
-        'authors.author_stats_following_count',
-        'authors.author_stats_notes_count',
+        ...(filter.relations?.includes('stats')
+          ? [
+            'authors.author_stats_followers_count',
+            'authors.author_stats_following_count',
+            'authors.author_stats_notes_count',
+          ] as const
+          : []),
       ]);
   }
 

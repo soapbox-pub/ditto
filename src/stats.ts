@@ -9,19 +9,17 @@ type EventStatDiff = ['event_stats', eventId: string, stat: EventStat, diff: num
 type StatDiff = PubkeyStatDiff | EventStatDiff;
 
 /** Store stats for the event in LMDB. */
-function updateStats(event: Event) {
+async function updateStats(event: Event) {
   const statDiffs = getStatsDiff(event);
   if (!statDiffs.length) return;
 
   const pubkeyDiffs = statDiffs.filter(([table]) => table === 'pubkey_stats') as PubkeyStatDiff[];
   const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
-  return db.transaction().execute(() => {
-    return Promise.all([
-      pubkeyStatsQuery(pubkeyDiffs).execute(),
-      eventStatsQuery(eventDiffs).execute(),
-    ]);
-  });
+  await Promise.all([
+    pubkeyDiffs.length ? pubkeyStatsQuery(pubkeyDiffs).execute() : undefined,
+    eventDiffs.length ? eventStatsQuery(eventDiffs).execute() : undefined,
+  ]);
 }
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
