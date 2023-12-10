@@ -224,8 +224,9 @@ type AuthorStats = Omit<DittoDB['pubkey_stats'], 'pubkey'>;
 type EventStats = Omit<DittoDB['event_stats'], 'event_id'>;
 
 interface DittoEvent<K extends number = number> extends Event<K> {
-  author?: Event<0> & { stats?: AuthorStats };
-  stats?: EventStats;
+  author?: DittoEvent<0>;
+  author_stats?: AuthorStats;
+  event_stats?: EventStats;
 }
 
 /** Get events for filters from the database. */
@@ -263,7 +264,7 @@ async function getFilters<K extends number>(
       };
 
       if (typeof row.author_stats_followers_count === 'number') {
-        event.author.stats = {
+        event.author.author_stats = {
           followers_count: row.author_stats_followers_count,
           following_count: row.author_stats_following_count!,
           notes_count: row.author_stats_notes_count!,
@@ -272,7 +273,7 @@ async function getFilters<K extends number>(
     }
 
     if (typeof row.stats_replies_count === 'number') {
-      event.stats = {
+      event.event_stats = {
         replies_count: row.stats_replies_count,
         reposts_count: row.stats_reposts_count!,
         reactions_count: row.stats_reactions_count!,

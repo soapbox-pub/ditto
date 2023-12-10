@@ -45,8 +45,8 @@ async function renderAccount(
     emojis: renderEmojis(event),
     fields: [],
     follow_requests_count: 0,
-    followers_count: event.stats?.followers_count ?? 0,
-    following_count: event.stats?.following_count ?? 0,
+    followers_count: event.author_stats?.followers_count ?? 0,
+    following_count: event.author_stats?.following_count ?? 0,
     fqn: parsed05?.handle || npub,
     header: banner,
     header_static: banner,
@@ -64,7 +64,7 @@ async function renderAccount(
         follow_requests_count: 0,
       }
       : undefined,
-    statuses_count: event.stats?.notes_count ?? 0,
+    statuses_count: event.author_stats?.notes_count ?? 0,
     url: Conf.local(`/users/${pubkey}`),
     username: parsed05?.nickname || npub.substring(0, 8),
     pleroma: {
