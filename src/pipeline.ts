@@ -71,7 +71,7 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
     } else {
       await Promise.all([
         eventsDB.insertEvent(event, data).catch(console.warn),
-        updateStats(event),
+        updateStats(event).catch(console.warn),
       ]);
     }
   } else {
