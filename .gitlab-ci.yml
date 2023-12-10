@@ -1,4 +1,4 @@
-image: denoland/deno:1.38.4
+image: denoland/deno:1.38.5
 
 default:
   interruptible: true
