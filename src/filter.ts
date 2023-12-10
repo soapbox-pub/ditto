@@ -4,7 +4,7 @@ import { type Event, type Filter, matchFilters } from '@/deps.ts';
 import type { EventData } from '@/types.ts';
 
 /** Additional properties that may be added by Ditto to events. */
-type Relation = 'author';
+type Relation = 'author' | 'stats';
 
 /** Custom filter interface that extends Nostr filters with extra options for Ditto. */
 interface DittoFilter<K extends number = number> extends Filter<K> {

@@ -140,7 +140,7 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
       query = query
         .leftJoin('tags', 'tags.event_id', 'events.id')
         .where('tags.tag', '=', tag)
-        .where('tags.value', 'in', value) as typeof query;
+        .where('tags.value', 'in', value);
     }
   }
 
@@ -153,14 +153,27 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
   if (filter.relations?.includes('author')) {
     query = query
       .leftJoin(
-        (eb) =>
-          eb
+        (eb) => {
+          let exp: EventQuery = eb
             .selectFrom('events')
             .selectAll()
-            .where('kind', '=', 0)
+            .where('kind', '=', 0);
+
+          if (filter.relations?.includes('stats')) {
+            exp = exp
+              .leftJoin('pubkey_stats', 'pubkey_stats.pubkey', 'events.pubkey')
+              .select((eb) => [
+                eb.fn.coalesce('pubkey_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
+                eb.fn.coalesce('pubkey_stats.following_count', eb.val(0)).as('author_stats_following_count'),
+                eb.fn.coalesce('pubkey_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
+              ]) as typeof exp;
+          }
+
+          return exp
             .orderBy('created_at', 'desc')
             .groupBy('pubkey')
-            .as('authors'),
+            .as('authors');
+        },
         (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
       )
       .select([
@@ -171,7 +184,20 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
         'authors.tags as author_tags',
         'authors.created_at as author_created_at',
         'authors.sig as author_sig',
-      ]) as typeof query;
+        'authors.author_stats_followers_count',
+        'authors.author_stats_following_count',
+        'authors.author_stats_notes_count',
+      ]);
+  }
+
+  if (filter.relations?.includes('stats')) {
+    query = query
+      .leftJoin('event_stats', 'event_stats.event_id', 'events.id')
+      .select((eb) => [
+        eb.fn.coalesce('event_stats.replies_count', eb.val(0)).as('stats_replies_count'),
+        eb.fn.coalesce('event_stats.reposts_count', eb.val(0)).as('stats_reposts_count'),
+        eb.fn.coalesce('event_stats.reactions_count', eb.val(0)).as('stats_reactions_count'),
+      ]);
   }
 
   if (filter.search) {
