@@ -1,14 +1,19 @@
 import { tldts } from '@/deps.ts';
 import { db } from '@/db.ts';
 
+interface AddRelaysOpts {
+  active?: boolean;
+}
+
 /** Inserts relays into the database, skipping duplicates. */
-function addRelays(relays: `wss://${string}`[]) {
+function addRelays(relays: `wss://${string}`[], opts: AddRelaysOpts = {}) {
   if (!relays.length) return Promise.resolve();
+  const { active = false } = opts;
 
   const values = relays.map((url) => ({
     url: new URL(url).toString(),
     domain: tldts.getDomain(url)!,
-    active: true,
+    active,
   }));
 
   return db.insertInto('relays')

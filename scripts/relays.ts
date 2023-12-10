@@ -18,6 +18,6 @@ async function sync([url]: string[]) {
   const response = await fetch(url);
   const data = await response.json();
   const values = filteredArray(relaySchema).parse(data) as `wss://${string}`[];
-  await addRelays(values);
+  await addRelays(values, { active: true });
   console.log(`Done: added ${values.length} relays.`);
 }
