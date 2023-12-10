@@ -26,7 +26,7 @@ async function updateStats(event: Event) {
 function getStatsDiff(event: Event): StatDiff[] {
   const statDiffs: StatDiff[] = [];
 
-  const firstE = event.tags.find(([name]) => name === 'e')?.[1];
+  const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
   const inReplyToId = findReplyTag(event as Event<1>)?.[1];
 
   switch (event.kind) {
@@ -37,13 +37,13 @@ function getStatsDiff(event: Event): StatDiff[] {
       }
       break;
     case 6:
-      if (firstE) {
-        statDiffs.push(['event_stats', firstE, 'reposts_count', 1]);
+      if (firstTaggedId) {
+        statDiffs.push(['event_stats', firstTaggedId, 'reposts_count', 1]);
       }
       break;
     case 7:
-      if (firstE) {
-        statDiffs.push(['event_stats', firstE, 'reactions_count', 1]);
+      if (firstTaggedId) {
+        statDiffs.push(['event_stats', firstTaggedId, 'reactions_count', 1]);
       }
   }
 
