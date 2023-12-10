@@ -153,27 +153,14 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
   if (filter.relations?.includes('author')) {
     query = query
       .leftJoin(
-        (eb) => {
-          let exp: EventQuery = eb
+        (eb) =>
+          eb
             .selectFrom('events')
             .selectAll()
-            .where('kind', '=', 0);
-
-          if (filter.relations?.includes('stats')) {
-            exp = exp
-              .leftJoin('pubkey_stats', 'pubkey_stats.pubkey', 'events.pubkey')
-              .select((eb) => [
-                eb.fn.coalesce('pubkey_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
-                eb.fn.coalesce('pubkey_stats.following_count', eb.val(0)).as('author_stats_following_count'),
-                eb.fn.coalesce('pubkey_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
-              ]) as typeof exp;
-          }
-
-          return exp
+            .where('kind', '=', 0)
             .orderBy('created_at', 'desc')
-            .groupBy('events.pubkey')
-            .as('authors');
-        },
+            .groupBy('pubkey')
+            .as('authors'),
         (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
       )
       .select([
@@ -184,17 +171,20 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
         'authors.tags as author_tags',
         'authors.created_at as author_created_at',
         'authors.sig as author_sig',
-        ...(filter.relations?.includes('stats')
-          ? [
-            'authors.author_stats_followers_count',
-            'authors.author_stats_following_count',
-            'authors.author_stats_notes_count',
-          ] as const
-          : []),
       ]);
   }
 
-  if (filter.relations?.includes('stats')) {
+  if (filter.relations?.includes('author_stats')) {
+    query = query
+      .leftJoin('pubkey_stats', 'pubkey_stats.pubkey', 'events.pubkey')
+      .select((eb) => [
+        eb.fn.coalesce('pubkey_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
+        eb.fn.coalesce('pubkey_stats.following_count', eb.val(0)).as('author_stats_following_count'),
+        eb.fn.coalesce('pubkey_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
+      ]);
+  }
+
+  if (filter.relations?.includes('event_stats')) {
     query = query
       .leftJoin('event_stats', 'event_stats.event_id', 'events.id')
       .select((eb) => [
@@ -262,14 +252,14 @@ async function getFilters<K extends number>(
         tags: JSON.parse(row.author_tags!),
         sig: row.author_sig!,
       };
+    }
 
-      if (typeof row.author_stats_followers_count === 'number') {
-        event.author.author_stats = {
-          followers_count: row.author_stats_followers_count,
-          following_count: row.author_stats_following_count!,
-          notes_count: row.author_stats_notes_count!,
-        };
-      }
+    if (typeof row.author_stats_followers_count === 'number') {
+      event.author_stats = {
+        followers_count: row.author_stats_followers_count,
+        following_count: row.author_stats_following_count!,
+        notes_count: row.author_stats_notes_count!,
+      };
     }
 
     if (typeof row.stats_replies_count === 'number') {

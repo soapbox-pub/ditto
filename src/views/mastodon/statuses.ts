@@ -13,7 +13,10 @@ import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string) {
-  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+  const account = event.author
+    ? await renderAccount({ ...event.author, author_stats: event.author_stats })
+    : await accountFromPubkey(event.pubkey);
+
   const replyTag = findReplyTag(event);
 
   const mentionedPubkeys = [
