@@ -10,16 +10,19 @@ type EventStatDiff = ['event_stats', eventId: string, stat: EventStat, diff: num
 type StatDiff = AuthorStatDiff | EventStatDiff;
 
 /** Store stats for the event in LMDB. */
-async function updateStats<K extends number>(event: Event<K> & { prev?: Event<K> }) {
+async function updateStats<K extends number>(event: Event<K>) {
+  let prev: Event<K> | undefined;
   const queries: InsertQueryBuilder<DittoDB, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
-    await maybeSetPrev(event);
-    queries.push(updateFollowingCountQuery(event as Event<3>));
+    prev = await maybeGetPrev(event);
+    if (!prev || event.created_at >= prev.created_at) {
+      queries.push(updateFollowingCountQuery(event as Event<3>));
+    }
   }
 
-  const statDiffs = getStatsDiff(event);
+  const statDiffs = getStatsDiff(event, prev);
   const pubkeyDiffs = statDiffs.filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
   const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
@@ -32,7 +35,7 @@ async function updateStats<K extends number>(event: Event<K> & { prev?: Event<K>
 }
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
-function getStatsDiff<K extends number>(event: Event<K> & { prev?: Event<K> }): StatDiff[] {
+function getStatsDiff<K extends number>(event: Event<K>, prev: Event<K> | undefined): StatDiff[] {
   const statDiffs: StatDiff[] = [];
 
   const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
@@ -46,7 +49,7 @@ function getStatsDiff<K extends number>(event: Event<K> & { prev?: Event<K> }): 
       }
       break;
     case 3:
-      statDiffs.push(...getFollowDiff(event as Event<3>, event.prev as Event<3> | undefined));
+      statDiffs.push(...getFollowDiff(event as Event<3>, prev as Event<3> | undefined));
       break;
     case 6:
       if (firstTaggedId) {
@@ -114,17 +117,13 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
     );
 }
 
-/** Set the `prev` value on the event to the last version of the event, if any. */
-async function maybeSetPrev<K extends number>(event: Event<K> & { prev?: Event<K> }): Promise<void> {
-  if (event.prev?.kind === event.kind) return;
-
+/** Get the last version of the event, if any. */
+async function maybeGetPrev<K extends number>(event: Event<K>): Promise<Event<K>> {
   const [prev] = await eventsDB.getFilters([
     { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
   ]);
 
-  if (prev.created_at < event.created_at) {
-    event.prev = prev;
-  }
+  return prev;
 }
 
 /** Set the following count to the total number of unique "p" tags in the follow list. */
