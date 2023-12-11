@@ -158,7 +158,6 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
             .selectFrom('events')
             .selectAll()
             .where('kind', '=', 0)
-            .orderBy('created_at', 'desc')
             .groupBy('pubkey')
             .as('authors'),
         (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
