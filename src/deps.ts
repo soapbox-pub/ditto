@@ -63,6 +63,7 @@ export {
   type CompiledQuery,
   FileMigrationProvider,
   type Insertable,
+  type InsertQueryBuilder,
   Kysely,
   Migrator,
   type NullableInsertKeys,

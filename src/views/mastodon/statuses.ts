@@ -13,7 +13,10 @@ import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string) {
-  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+  const account = event.author
+    ? await renderAccount({ ...event.author, author_stats: event.author_stats })
+    : await accountFromPubkey(event.pubkey);
+
   const replyTag = findReplyTag(event);
 
   const mentionedPubkeys = [
@@ -26,13 +29,10 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
 
   const { html, links, firstUrl } = parseNoteContent(event.content);
 
-  const [mentions, card, repliesCount, reblogsCount, favouritesCount, [repostEvent], [reactionEvent]] = await Promise
+  const [mentions, card, [repostEvent], [reactionEvent]] = await Promise
     .all([
       Promise.all(mentionedPubkeys.map(toMention)),
       firstUrl ? unfurlCardCached(firstUrl) : null,
-      eventsDB.countFilters([{ kinds: [1], '#e': [event.id] }]),
-      eventsDB.countFilters([{ kinds: [6], '#e': [event.id] }]),
-      eventsDB.countFilters([{ kinds: [7], '#e': [event.id] }]),
       viewerPubkey
         ? eventsDB.getFilters([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
         : [],
@@ -66,9 +66,9 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
-    replies_count: repliesCount,
-    reblogs_count: reblogsCount,
-    favourites_count: favouritesCount,
+    replies_count: event.event_stats?.replies_count ?? 0,
+    reblogs_count: event.event_stats?.reposts_count ?? 0,
+    favourites_count: event.event_stats?.reactions_count ?? 0,
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,
@@ -86,8 +86,8 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
 }
 
 async function toMention(pubkey: string) {
-  const profile = await getAuthor(pubkey);
-  const account = profile ? await renderAccount(profile) : undefined;
+  const author = await getAuthor(pubkey);
+  const account = author ? await renderAccount(author) : undefined;
 
   if (account) {
     return {

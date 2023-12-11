@@ -8,6 +8,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
@@ -68,7 +69,10 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
     if (deletion) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
-      await eventsDB.insertEvent(event, data).catch(console.warn);
+      await Promise.all([
+        eventsDB.insertEvent(event, data).catch(console.warn),
+        updateStats(event).catch(console.warn),
+      ]);
     }
   } else {
     return Promise.reject(new RelayError('blocked', 'only registered users can post'));

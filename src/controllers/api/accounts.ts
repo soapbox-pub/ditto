@@ -59,7 +59,7 @@ const createAccountController: AppController = async (c) => {
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
 
-  const event = await getAuthor(pubkey);
+  const event = await getAuthor(pubkey, { relations: ['author_stats'] });
   if (event) {
     return c.json(await renderAccount(event, { withSource: true }));
   } else {
@@ -138,7 +138,15 @@ const accountStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const filter: DittoFilter<1> = { authors: [pubkey], kinds: [1], relations: ['author'], since, until, limit };
+  const filter: DittoFilter<1> = {
+    authors: [pubkey],
+    kinds: [1],
+    relations: ['author', 'event_stats', 'author_stats'],
+    since,
+    until,
+    limit,
+  };
+
   if (tagged) {
     filter['#t'] = [tagged];
   }
@@ -257,7 +265,9 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await mixer.getFilters([{ kinds: [1], ids, relations: ['author'] }], { timeout: Time.seconds(1) });
+  const events1 = await mixer.getFilters([{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }], {
+    timeout: Time.seconds(1),
+  });
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);

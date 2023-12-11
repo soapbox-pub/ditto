@@ -27,8 +27,14 @@ const getEvent = async <K extends number = number>(
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
-const getAuthor = async (pubkey: string, timeout = 1000): Promise<Event<0> | undefined> => {
-  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, timeout });
+const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
+  const { relations, timeout = 1000 } = opts;
+
+  const [event] = await mixer.getFilters(
+    [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
+    { limit: 1, timeout },
+  );
+
   return event;
 };
 
@@ -60,7 +66,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const parentEvent = await getEvent(inReplyTo, { kind: 1, relations: ['author'] });
+      const parentEvent = await getEvent(inReplyTo, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
 
       if (parentEvent) {
         result.push(parentEvent);
@@ -73,7 +79,10 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string): Promise<Event<1>[]> {
-  return mixer.getFilters([{ kinds: [1], '#e': [eventId], relations: ['author'] }], { limit: 200, timeout: 2000 });
+  return mixer.getFilters(
+    [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
+    { limit: 200, timeout: 2000 },
+  );
 }
 
 /** Returns whether the pubkey is followed by a local user. */
