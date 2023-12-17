@@ -1,5 +1,5 @@
 import { type Event } from '@/deps.ts';
-import { allRelays, pool } from '@/pool.ts';
+import { activeRelays, pool } from '@/pool.ts';
 import { nostrNow } from '@/utils.ts';
 
 import * as pipeline from './pipeline.ts';
@@ -9,7 +9,7 @@ import * as pipeline from './pipeline.ts';
 // and storing events for notifications and the home feed.
 pool.subscribe(
   [{ kinds: [0, 1, 3, 5, 6, 7, 10002], limit: 0, since: nostrNow() }],
-  allRelays,
+  activeRelays,
   handleEvent,
   undefined,
   undefined,
