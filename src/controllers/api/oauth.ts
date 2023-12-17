@@ -67,7 +67,7 @@ const oauthController: AppController = (c) => {
 
   c.res.headers.set(
     'content-security-policy',
-    'default-src \'self\' \'sha256-m2qD6rbE2Ixbo2Bjy2dgQebcotRIAawW7zbmXItIYAM=\'',
+    "default-src 'self' 'sha256-m2qD6rbE2Ixbo2Bjy2dgQebcotRIAawW7zbmXItIYAM='",
   );
 
   return c.html(`<!DOCTYPE html>
