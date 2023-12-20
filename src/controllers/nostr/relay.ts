@@ -1,3 +1,4 @@
+import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import * as eventsDB from '@/db/events.ts';
 import * as pipeline from '@/pipeline.ts';
 import { jsonSchema } from '@/schema.ts';
@@ -116,8 +117,13 @@ function prepareFilters(filters: ClientREQ[2][]): Filter[] {
   }));
 }
 
-const relayController: AppController = (c) => {
+const relayController: AppController = (c, next) => {
   const upgrade = c.req.header('upgrade');
+
+  // NIP-11: https://github.com/nostr-protocol/nips/blob/master/11.md
+  if (c.req.header('accept') === 'application/nostr+json') {
+    return relayInfoController(c, next);
+  }
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use a Nostr client to connect.', 400);
