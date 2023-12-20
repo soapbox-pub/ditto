@@ -5,7 +5,7 @@ const relayInfoController: AppController = (c) => {
   return c.json({
     name: 'Ditto',
     description: 'Nostr and the Fediverse.',
-    pubkey: '<administrative contact pubkey>',
+    pubkey: Conf.pubkey,
     contact: `mailto:${Conf.adminEmail}`,
     supported_nips: [1, 5, 9, 11, 45, 46, 98],
     software: 'Ditto',
