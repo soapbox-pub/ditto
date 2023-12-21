@@ -20,6 +20,8 @@ interface GetFiltersOpts {
   timeout?: number;
   /** Event limit for the whole subscription. */
   limit?: number;
+  /** Relays to use, if applicable. */
+  relays?: WebSocket['url'][];
 }
 
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
