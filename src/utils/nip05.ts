@@ -7,12 +7,12 @@ const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: Time.hour
 const NIP05_REGEX = /^(?:([\w.+-]+)@)?([\w.-]+)$/;
 
 interface LookupOpts {
-  timeout?: number;
+  signal?: AbortSignal;
 }
 
 /** Get pubkey from NIP-05. */
 async function lookup(value: string, opts: LookupOpts = {}): Promise<string | null> {
-  const { timeout = 2000 } = opts;
+  const { signal = AbortSignal.timeout(2000) } = opts;
 
   const match = value.match(NIP05_REGEX);
   if (!match) return null;
@@ -21,7 +21,7 @@ async function lookup(value: string, opts: LookupOpts = {}): Promise<string | nu
 
   try {
     const res = await fetchWorker(`https://${domain}/.well-known/nostr.json?name=${name}`, {
-      signal: AbortSignal.timeout(timeout),
+      signal,
     });
 
     const { names } = nostrJsonSchema.parse(await res.json());
