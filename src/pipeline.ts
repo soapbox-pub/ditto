@@ -64,7 +64,7 @@ async function storeEvent(event: Event, data: EventData): Promise<void> {
   if (data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const [deletion] = await mixer.getFilters(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
-      { limit: 1, timeout: Time.seconds(1) },
+      { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
     );
 
     if (deletion) {

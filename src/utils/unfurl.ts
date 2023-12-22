@@ -60,12 +60,12 @@ const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({
 });
 
 /** Unfurl card from cache if available, otherwise fetch it. */
-function unfurlCardCached(url: string, timeout = Time.seconds(1)): Promise<PreviewCard | null> {
+function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Promise<PreviewCard | null> {
   const cached = previewCardCache.get(url);
   if (cached !== undefined) {
     return cached;
   } else {
-    const card = unfurlCard(url, AbortSignal.timeout(timeout));
+    const card = unfurlCard(url, signal);
     previewCardCache.set(url, card);
     return card;
   }
