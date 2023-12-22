@@ -1,6 +1,6 @@
 import { type Event, type Filter, matchFilters } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
-import { allRelays, pool } from '@/pool.ts';
+import { activeRelays, pool } from '@/pool.ts';
 
 import type { GetFiltersOpts } from '@/filter.ts';
 
@@ -13,7 +13,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
 
     const unsub = pool.subscribe(
       filters,
-      allRelays,
+      activeRelays,
       (event: Event | null) => {
         if (event && matchFilters(filters, event)) {
           pipeline.handleEvent(event).catch(() => {});
