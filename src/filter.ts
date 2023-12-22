@@ -3,6 +3,8 @@ import { type Event, type Filter, matchFilters } from '@/deps.ts';
 
 import type { EventData } from '@/types.ts';
 
+import stringifyStable from 'npm:fast-stable-stringify';
+
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';
 
@@ -13,6 +15,9 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   /** Additional fields to add to the returned event. */
   relations?: Relation[];
 }
+
+/** Filter to get one specific event. */
+type MicroFilter = { ids: [Event['id']] } | { kinds: [0]; authors: [Event['pubkey']] };
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
@@ -46,4 +51,33 @@ function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData
   return false;
 }
 
-export { type DittoFilter, type GetFiltersOpts, matchDittoFilters, type Relation };
+/** Get deterministic ID for a microfilter. */
+function getFilterId(filter: MicroFilter): string {
+  if ('ids' in filter) {
+    return stringifyStable({ ids: [filter.ids] });
+  } else {
+    return stringifyStable({
+      kinds: [filter.kinds[0]],
+      authors: [filter.authors[0]],
+    });
+  }
+}
+
+/** Get a microfilter from a Nostr event. */
+function eventToMicroFilter(event: Event): MicroFilter {
+  if (event.kind === 0) {
+    return { kinds: [0], authors: [event.pubkey] };
+  } else {
+    return { ids: [event.id] };
+  }
+}
+
+export {
+  type DittoFilter,
+  eventToMicroFilter,
+  getFilterId,
+  type GetFiltersOpts,
+  matchDittoFilters,
+  type MicroFilter,
+  type Relation,
+};

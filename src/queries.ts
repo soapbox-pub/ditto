@@ -2,6 +2,7 @@ import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
 import { type DittoFilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
+import { reqmeister } from '@/common.ts';
 
 interface GetEventOpts<K extends number> {
   /** Timeout in milliseconds. */
@@ -30,10 +31,10 @@ const getEvent = async <K extends number = number>(
 const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
   const { relations, timeout = 1000 } = opts;
 
-  const [event] = await mixer.getFilters(
+  const event = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, timeout },
-  );
+  ).then(([event]) => event) || await reqmeister.req({ kinds: [0], authors: [pubkey] }).catch(() => {});
 
   return event;
 };

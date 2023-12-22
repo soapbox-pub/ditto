@@ -1,3 +1,4 @@
+import { reqmeister } from '@/common.ts';
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
@@ -8,7 +9,6 @@ import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
-import { Reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
@@ -17,11 +17,6 @@ import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 
 import type { EventData } from '@/types.ts';
-
-const reqmeister = new Reqmeister({
-  delay: Time.seconds(1),
-  timeout: Time.seconds(1),
-});
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -145,11 +140,11 @@ function trackRelays(event: Event) {
 /** Track related events to fetch. */
 function trackRelatedEvents(event: Event, data: EventData) {
   if (!data.user) {
-    reqmeister.wantAuthor(event.pubkey);
+    reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
     if (name === 'e' && !encounters.has(id)) {
-      reqmeister.wantEvent(id, [relay]);
+      reqmeister.req({ ids: [id] }, [relay]).catch(() => {});
     }
   }
 }
