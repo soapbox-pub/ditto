@@ -24,6 +24,7 @@ import type { EventData } from '@/types.ts';
 async function handleEvent(event: Event): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   if (encounterEvent(event)) return;
+  console.info(`pipeline: Event<${event.kind}> ${event.id}`);
   const data = await getEventData(event);
 
   await Promise.all([
