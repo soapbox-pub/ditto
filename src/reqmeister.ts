@@ -6,7 +6,7 @@ import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
 
 interface ReqmeisterOpts {
   delay?: number;
-  timeout?: number;
+  signal?: AbortSignal;
 }
 
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
@@ -55,7 +55,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedEvents.size) filters.push({ ids: [...wantedEvents] });
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
-    const events = await client.getFilters(filters, { timeout: this.#opts.timeout });
+    const events = await client.getFilters(filters, { signal: this.#opts.signal });
 
     for (const event of events) {
       this.encounter(event);
