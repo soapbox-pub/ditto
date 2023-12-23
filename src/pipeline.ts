@@ -26,6 +26,7 @@ async function handleEvent(event: Event): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (encounterEvent(event)) return;
+  console.info(`pipeline: Event<${event.kind}> ${event.id}`);
   const data = await getEventData(event);
 
   await Promise.all([
@@ -72,7 +73,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const [deletion] = await mixer.getFilters(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
-      { limit: 1, timeout: Time.seconds(1) },
+      { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
     );
 
     if (deletion) {

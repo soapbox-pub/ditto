@@ -1,6 +1,5 @@
 import { type AppController } from '@/app.ts';
 import * as mixer from '@/mixer.ts';
-import { Time } from '@/utils.ts';
 import { paginated, paginationSchema } from '@/utils/web.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
@@ -10,7 +9,7 @@ const notificationsController: AppController = async (c) => {
 
   const events = await mixer.getFilters(
     [{ kinds: [1], '#p': [pubkey], since, until }],
-    { timeout: Time.seconds(3) },
+    { signal: AbortSignal.timeout(3000) },
   );
 
   const statuses = await Promise.all(events.map((event) => renderNotification(event, pubkey)));

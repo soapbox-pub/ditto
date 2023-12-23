@@ -6,9 +6,10 @@ import type { GetFiltersOpts } from '@/filter.ts';
 
 /** Get events from a NIP-01 filter. */
 function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
+  if (opts.signal?.aborted) return Promise.resolve([]);
   if (!filters.length) return Promise.resolve([]);
+
   return new Promise((resolve) => {
-    let tid: number;
     const results: Event[] = [];
 
     const unsub = pool.subscribe(
@@ -29,24 +30,20 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
         }
         if (typeof opts.limit === 'number' && results.length >= opts.limit) {
           unsub();
-          clearTimeout(tid);
           resolve(results as Event<K>[]);
         }
       },
       undefined,
       () => {
         unsub();
-        clearTimeout(tid);
         resolve(results as Event<K>[]);
       },
     );
 
-    if (typeof opts.timeout === 'number') {
-      tid = setTimeout(() => {
-        unsub();
-        resolve(results as Event<K>[]);
-      }, opts.timeout);
-    }
+    opts.signal?.addEventListener('abort', () => {
+      unsub();
+      resolve(results as Event<K>[]);
+    });
   });
 }
 

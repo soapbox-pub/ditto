@@ -5,7 +5,7 @@ import { type DittoFilter } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { dedupeEvents, Time } from '@/utils.ts';
+import { dedupeEvents } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -93,9 +93,9 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 }
 
 /** Resolve a searched value into an event, if applicable. */
-async function lookupEvent(query: SearchQuery): Promise<Event | undefined> {
+async function lookupEvent(query: SearchQuery, signal = AbortSignal.timeout(1000)): Promise<Event | undefined> {
   const filters = await getLookupFilters(query);
-  const [event] = await mixer.getFilters(filters, { limit: 1, timeout: Time.seconds(1) });
+  const [event] = await mixer.getFilters(filters, { limit: 1, signal });
   return event;
 }
 

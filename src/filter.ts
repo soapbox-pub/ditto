@@ -21,8 +21,8 @@ type MicroFilter = { ids: [Event['id']] } | { kinds: [0]; authors: [Event['pubke
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
-  /** How long to wait (in milliseconds) until aborting the request. */
-  timeout?: number;
+  /** Signal to abort the request. */
+  signal?: AbortSignal;
   /** Event limit for the whole subscription. */
   limit?: number;
   /** Relays to use, if applicable. */
