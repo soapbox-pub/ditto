@@ -34,7 +34,7 @@ async function handleEvent(event: Event): Promise<void> {
     processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
-    trackRelatedEvents(event, data),
+    fetchRelatedEvents(event, data),
     processMedia(event, data),
     streamOut(event, data),
     broadcast(event, data),
@@ -138,8 +138,8 @@ function trackRelays(event: Event) {
   return addRelays([...relays]);
 }
 
-/** Track related events to fetch. */
-function trackRelatedEvents(event: Event, data: EventData) {
+/** Queue related events to fetch. */
+function fetchRelatedEvents(event: Event, data: EventData) {
   if (!data.user) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
   }
