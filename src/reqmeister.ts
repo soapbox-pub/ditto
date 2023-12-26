@@ -10,6 +10,7 @@ interface ReqmeisterOpts {
 
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
+/** Batches requests to Nostr relays using microfilters. */
 class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => any }> {
   #opts: ReqmeisterOpts;
   #queue: ReqmeisterQueueItem[] = [];
