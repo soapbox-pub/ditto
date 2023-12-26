@@ -81,5 +81,7 @@ export { Machina } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/08a1
 export * as Sentry from 'https://deno.land/x/sentry@7.78.0/index.js';
 export { sentry as sentryMiddleware } from 'npm:@hono/sentry@^1.0.0';
 export * as Comlink from 'npm:comlink@^4.4.1';
+export { EventEmitter } from 'npm:tseep@^1.1.3';
+export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';

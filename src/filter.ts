@@ -1,9 +1,7 @@
 import { Conf } from '@/config.ts';
-import { type Event, type Filter, matchFilters } from '@/deps.ts';
+import { type Event, type Filter, matchFilters, stringifyStable } from '@/deps.ts';
 
 import type { EventData } from '@/types.ts';
-
-import stringifyStable from 'npm:fast-stable-stringify';
 
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';

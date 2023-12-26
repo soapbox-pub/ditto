@@ -1,7 +1,6 @@
 import * as client from '@/client.ts';
-import { Event, Filter } from '@/deps.ts';
+import { type Event, EventEmitter, type Filter } from '@/deps.ts';
 
-import { EventEmitter } from 'npm:tseep';
 import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
 
 interface ReqmeisterOpts {
