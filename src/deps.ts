@@ -83,5 +83,7 @@ export { sentry as sentryMiddleware } from 'npm:@hono/sentry@^1.0.0';
 export * as Comlink from 'npm:comlink@^4.4.1';
 export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
+// @deno-types="npm:@types/debug@^4.1.12"
+export { default as Debug } from 'npm:debug@^4.3.4';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
