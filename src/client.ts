@@ -14,7 +14,7 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
 
     const unsub = pool.subscribe(
       filters,
-      activeRelays,
+      opts.relays ?? activeRelays,
       (event: Event | null) => {
         if (event && matchFilters(filters, event)) {
           pipeline.handleEvent(event).catch(() => {});
