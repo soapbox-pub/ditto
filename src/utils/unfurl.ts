@@ -1,4 +1,4 @@
-import { Debug, TTLCache, unfurl } from '@/deps.ts';
+import { Debug, sanitizeHtml, TTLCache, unfurl } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
@@ -32,7 +32,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       type: result.oEmbed?.type || 'link',
       url: result.canonical_url || url,
       title: result.oEmbed?.title || result.title || '',
-      description: result.open_graph.description || result.description || '',
+      description: result.open_graph?.description || result.description || '',
       author_name: result.oEmbed?.author_name || '',
       author_url: result.oEmbed?.author_url || '',
       provider_name: result.oEmbed?.provider_name || '',
@@ -46,11 +46,12 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       }),
       width: result.oEmbed?.width || 0,
       height: result.oEmbed?.height || 0,
-      image: result.oEmbed?.thumbnails?.[0].url || result.open_graph.images?.[0].url || null,
+      image: result.oEmbed?.thumbnails?.[0].url || result.open_graph?.images?.[0].url || null,
       embed_url: '',
       blurhash: null,
     };
-  } catch (_e) {
+  } catch (e) {
+    debug(e);
     return null;
   }
 }
