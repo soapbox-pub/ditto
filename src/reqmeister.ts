@@ -10,6 +10,11 @@ interface ReqmeisterOpts {
   timeout?: number;
 }
 
+interface ReqmeisterReqOpts {
+  relays?: WebSocket['url'][];
+  signal?: AbortSignal;
+}
+
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
 /** Batches requests to Nostr relays using microfilters. */
@@ -70,15 +75,21 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     this.#perform();
   }
 
-  req(filter: IdMicrofilter, relays?: WebSocket['url'][]): Promise<Event>;
-  req(filter: AuthorMicrofilter, relays?: WebSocket['url'][]): Promise<Event<0>>;
-  req(filter: MicroFilter, relays?: WebSocket['url'][]): Promise<Event>;
-  req(filter: MicroFilter, relays: WebSocket['url'][] = []): Promise<Event> {
+  req(filter: IdMicrofilter, opts?: ReqmeisterReqOpts): Promise<Event>;
+  req(filter: AuthorMicrofilter, opts?: ReqmeisterReqOpts): Promise<Event<0>>;
+  req(filter: MicroFilter, opts?: ReqmeisterReqOpts): Promise<Event>;
+  req(filter: MicroFilter, opts: ReqmeisterReqOpts = {}): Promise<Event> {
+    const { relays = [], signal } = opts;
+    if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+
     const filterId = getFilterId(filter);
+
     this.#queue.push([filterId, filter, relays]);
+
     return new Promise<Event>((resolve, reject) => {
       this.once(filterId, resolve);
       this.#promise.finally(() => setTimeout(reject, 0));
+      signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
     });
   }
 

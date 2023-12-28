@@ -52,7 +52,7 @@ const getEvent = async <K extends number = number>(
 
   if (memoryEvent) return memoryEvent;
 
-  return await reqmeister.req(microfilter).catch(() => undefined) as Event<K> | undefined;
+  return await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
@@ -74,7 +74,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
   if (dbEvent) return dbEvent;
   if (memoryEvent) return memoryEvent;
 
-  return reqmeister.req(microfilter).catch(() => undefined);
+  return reqmeister.req(microfilter, opts).catch(() => undefined);
 };
 
 /** Get users the given pubkey follows. */

@@ -144,7 +144,7 @@ function fetchRelatedEvents(event: Event, data: EventData) {
   }
   for (const [name, id, relay] of event.tags) {
     if (name === 'e' && !memorelay.hasEventById(id)) {
-      reqmeister.req({ ids: [id] }, [relay]).catch(() => {});
+      reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
     }
   }
 }
