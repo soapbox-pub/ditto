@@ -1,8 +1,10 @@
-import { type Event } from '@/deps.ts';
+import { Debug, type Event } from '@/deps.ts';
 import { Subscription } from '@/subscription.ts';
 
 import type { DittoFilter } from '@/filter.ts';
 import type { EventData } from '@/types.ts';
+
+const debug = Debug('ditto:subs');
 
 /**
  * Manages Ditto event subscriptions.
@@ -21,6 +23,7 @@ class SubscriptionStore {
    * ```
    */
   sub<K extends number>(socket: unknown, id: string, filters: DittoFilter<K>[]): Subscription<K> {
+    debug('sub', id, JSON.stringify(filters));
     let subs = this.#store.get(socket);
 
     if (!subs) {
@@ -38,12 +41,14 @@ class SubscriptionStore {
 
   /** Remove a subscription from the store. */
   unsub(socket: unknown, id: string): void {
+    debug('unsub', id);
     this.#store.get(socket)?.get(id)?.close();
     this.#store.get(socket)?.delete(id);
   }
 
   /** Remove an entire socket. */
   close(socket: unknown): void {
+    debug('close', socket);
     const subs = this.#store.get(socket);
 
     if (subs) {

@@ -1,14 +1,14 @@
-import { reqmeister } from '@/common.ts';
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { type Event, LRUCache } from '@/deps.ts';
+import { Debug, type Event, LRUCache } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
@@ -18,6 +18,8 @@ import { verifySignatureWorker } from '@/workers/verify.ts';
 
 import type { EventData } from '@/types.ts';
 
+const debug = Debug('ditto:pipeline');
+
 /**
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
@@ -26,7 +28,7 @@ async function handleEvent(event: Event): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (encounterEvent(event)) return;
-  console.info(`pipeline: Event<${event.kind}> ${event.id}`);
+  debug(`Event<${event.kind}> ${event.id}`);
   const data = await getEventData(event);
 
   await Promise.all([
@@ -80,8 +82,8 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.insertEvent(event, data).catch(console.warn),
-        updateStats(event).catch(console.warn),
+        eventsDB.insertEvent(event, data).catch(debug),
+        updateStats(event).catch(debug),
       ]);
     }
   } else {
@@ -115,7 +117,7 @@ async function trackHashtags(event: Event): Promise<void> {
   if (!tags.length) return;
 
   try {
-    console.info('tracking tags:', tags);
+    debug('tracking tags:', tags);
     await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing

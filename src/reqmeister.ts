@@ -1,11 +1,13 @@
 import * as client from '@/client.ts';
-import { type Event, EventEmitter, type Filter } from '@/deps.ts';
-
+import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
 import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
+import { Time } from '@/utils/time.ts';
+
+const debug = Debug('ditto:reqmeister');
 
 interface ReqmeisterOpts {
   delay?: number;
-  signal?: AbortSignal;
+  timeout?: number;
 }
 
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
@@ -20,11 +22,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   constructor(opts: ReqmeisterOpts = {}) {
     super();
     this.#opts = opts;
-    this.#cycle();
+    this.#tick();
     this.#perform();
   }
 
-  #cycle() {
+  #tick() {
     this.#resolve?.();
     this.#promise = new Promise((resolve) => {
       this.#resolve = resolve;
@@ -32,7 +34,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 
   async #perform() {
-    const { delay } = this.#opts;
+    const { delay, timeout = Time.seconds(1) } = this.#opts;
     await new Promise((resolve) => setTimeout(resolve, delay));
 
     const queue = this.#queue;
@@ -55,13 +57,16 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedEvents.size) filters.push({ ids: [...wantedEvents] });
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
-    const events = await client.getFilters(filters, { signal: this.#opts.signal });
+    if (filters.length) {
+      debug('REQ', JSON.stringify(filters));
+      const events = await client.getFilters(filters, { signal: AbortSignal.timeout(timeout) });
 
-    for (const event of events) {
-      this.encounter(event);
+      for (const event of events) {
+        this.encounter(event);
+      }
     }
 
-    this.#cycle();
+    this.#tick();
     this.#perform();
   }
 
@@ -70,7 +75,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     this.#queue.push([filterId, filter, relays]);
     return new Promise<Event>((resolve, reject) => {
       this.once(filterId, resolve);
-      this.#promise.finally(reject);
+      this.#promise.finally(() => setTimeout(reject, 0));
     });
   }
 
@@ -86,4 +91,9 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 }
 
-export { Reqmeister };
+const reqmeister = new Reqmeister({
+  delay: Time.seconds(1),
+  timeout: Time.seconds(1),
+});
+
+export { reqmeister };

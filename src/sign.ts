@@ -1,12 +1,14 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
-import { type Event, type EventTemplate, finishEvent, HTTPException } from '@/deps.ts';
+import { Debug, type Event, type EventTemplate, finishEvent, HTTPException } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
 import { eventMatchesTemplate, Time } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/web.ts';
+
+const debug = Debug('ditto:sign');
 
 interface SignEventOpts {
   /** Target proof-of-work difficulty for the signed event. */
@@ -28,10 +30,12 @@ async function signEvent<K extends number = number>(
   const header = c.req.header('x-nostr-sign');
 
   if (seckey) {
+    debug(`Signing Event<${event.kind}> with secret key`);
     return finishEvent(event, seckey);
   }
 
   if (header) {
+    debug(`Signing Event<${event.kind}> with NIP-46`);
     return await signNostrConnect(event, c, opts);
   }
 

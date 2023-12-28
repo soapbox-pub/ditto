@@ -3,8 +3,7 @@
   "lock": false,
   "tasks": {
     "start": "deno run -A --unstable src/server.ts",
-    "dev": "deno run -A --unstable --watch src/server.ts",
-    "debug": "deno run -A --unstable --inspect src/server.ts",
+    "dev": "deno run -A --unstable --watch --inspect src/server.ts",
     "test": "DB_PATH=\":memory:\" deno test -A --unstable",
     "check": "deno check src/server.ts",
     "relays:sync": "deno run -A --unstable scripts/relays.ts sync"

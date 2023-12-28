@@ -1,6 +1,8 @@
-import { TTLCache, unfurl } from '@/deps.ts';
+import { Debug, TTLCache, unfurl } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+
+const debug = Debug('ditto:unfurl');
 
 interface PreviewCard {
   url: string;
@@ -20,7 +22,7 @@ interface PreviewCard {
 }
 
 async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {
-  console.log(`Unfurling ${url}...`);
+  debug(`Unfurling ${url}...`);
   try {
     const result = await unfurl(url, {
       fetch: (url) => fetchWorker(url, { signal }),

@@ -1,13 +1,16 @@
-import { type Event, type Filter, matchFilters } from '@/deps.ts';
+import { Debug, type Event, type Filter, matchFilters } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
 
 import type { GetFiltersOpts } from '@/filter.ts';
 
+const debug = Debug('ditto:client');
+
 /** Get events from a NIP-01 filter. */
 function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
   if (opts.signal?.aborted) return Promise.resolve([]);
   if (!filters.length) return Promise.resolve([]);
+  debug('REQ', JSON.stringify(filters));
 
   return new Promise((resolve) => {
     const results: Event[] = [];

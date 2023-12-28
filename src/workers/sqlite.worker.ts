@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 
-import { Comlink, type CompiledQuery, DenoSqlite3, type QueryResult, Sentry } from '@/deps.ts';
+import { Comlink, type CompiledQuery, Debug, DenoSqlite3, type QueryResult, Sentry } from '@/deps.ts';
 import '@/sentry.ts';
 
 let db: DenoSqlite3 | undefined;
+const debug = Debug('ditto:sqlite.worker');
 
 export const SqliteWorker = {
   open(path: string): void {
@@ -11,6 +12,7 @@ export const SqliteWorker = {
   },
   executeQuery<R>({ sql, parameters }: CompiledQuery): QueryResult<R> {
     if (!db) throw new Error('Database not open');
+    debug(sql);
 
     const result: QueryResult<R> = Sentry.startSpan({ name: sql, op: 'db.query' }, () => {
       return {
