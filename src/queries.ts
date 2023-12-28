@@ -22,23 +22,24 @@ const getEvent = async <K extends number = number>(
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  let event: Event<K> | undefined;
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts) as Event<K>[];
 
-  [event] = await memorelay.getFilters([microfilter], opts);
-
-  if (event && !relations) return event;
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
 
   const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
 
-  event = await mixer.getFilters([filter], { limit: 1, signal })
-    .then((events) => events[0] || event);
+  const dbEvent = await eventsDB.getFilters([filter], { limit: 1, signal })
+    .then(([event]) => event);
 
-  if (event) return event;
+  if (dbEvent) return dbEvent;
+  if (memoryEvent) return memoryEvent;
 
-  return await reqmeister.req(microfilter).catch(() => event) as Event<K> | undefined;
+  return await reqmeister.req(microfilter).catch(() => undefined) as Event<K> | undefined;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
@@ -46,20 +47,21 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  let event: Event<0> | undefined;
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts);
 
-  [event] = await memorelay.getFilters([microfilter], opts);
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
 
-  if (event && !relations) return event;
-
-  event = await eventsDB.getFilters(
+  const dbEvent = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
-  ).then((events) => events[0] || event);
+  ).then(([event]) => event);
 
-  if (event) return event;
+  if (dbEvent) return dbEvent;
+  if (memoryEvent) return memoryEvent;
 
-  return reqmeister.req(microfilter).catch(() => event);
+  return reqmeister.req(microfilter).catch(() => undefined);
 };
 
 /** Get users the given pubkey follows. */
