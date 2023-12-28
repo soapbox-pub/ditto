@@ -1,6 +1,6 @@
 import * as client from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
-import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
+import { AuthorMicrofilter, eventToMicroFilter, getFilterId, IdMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
 
 const debug = Debug('ditto:reqmeister');
@@ -70,6 +70,9 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     this.#perform();
   }
 
+  req(filter: IdMicrofilter, relays?: WebSocket['url'][]): Promise<Event>;
+  req(filter: AuthorMicrofilter, relays?: WebSocket['url'][]): Promise<Event<0>>;
+  req(filter: MicroFilter, relays?: WebSocket['url'][]): Promise<Event>;
   req(filter: MicroFilter, relays: WebSocket['url'][] = []): Promise<Event> {
     const filterId = getFilterId(filter);
     this.#queue.push([filterId, filter, relays]);

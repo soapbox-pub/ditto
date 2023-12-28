@@ -14,8 +14,12 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   relations?: Relation[];
 }
 
+/** Microfilter to get one specific event by ID. */
+type IdMicrofilter = { ids: [Event['id']] };
+/** Microfilter to get an author. */
+type AuthorMicrofilter = { kinds: [0]; authors: [Event['pubkey']] };
 /** Filter to get one specific event. */
-type MicroFilter = { ids: [Event['id']] } | { kinds: [0]; authors: [Event['pubkey']] };
+type MicroFilter = IdMicrofilter | AuthorMicrofilter;
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
@@ -89,11 +93,13 @@ function isMicrofilter(filter: Filter): filter is MicroFilter {
 }
 
 export {
+  type AuthorMicrofilter,
   type DittoFilter,
   eventToMicroFilter,
   getFilterId,
   type GetFiltersOpts,
   getMicroFilters,
+  type IdMicrofilter,
   isMicrofilter,
   matchDittoFilters,
   type MicroFilter,

@@ -1,8 +1,9 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
-import { type DittoFilter, type Relation } from '@/filter.ts';
+import { AuthorMicrofilter, type DittoFilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { reqmeister } from '@/reqmeister.ts';
+import { memorelay } from '@/db/memorelay.ts';
 
 interface GetEventOpts<K extends number> {
   /** Signal to abort the request. */
@@ -30,13 +31,22 @@ const getEvent = async <K extends number = number>(
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const event = await eventsDB.getFilters(
+  let event: Event<0> | undefined;
+
+  [event] = await memorelay.getFilters([microfilter], opts);
+
+  if (event) return event;
+
+  [event] = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
-  ).then(([event]) => event) || await reqmeister.req({ kinds: [0], authors: [pubkey] }).catch(() => {});
+  );
 
-  return event;
+  if (event) return event;
+
+  return reqmeister.req({ kinds: [0], authors: [pubkey] }).catch(() => undefined);
 };
 
 /** Get users the given pubkey follows. */
