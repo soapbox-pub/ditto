@@ -228,7 +228,7 @@ async function getFilters<K extends number>(
   opts: GetFiltersOpts = {},
 ): Promise<DittoEvent<K>[]> {
   if (!filters.length) return Promise.resolve([]);
-  debug('getFilters', JSON.stringify(filters));
+  debug('REQ', JSON.stringify(filters));
   let query = getFiltersQuery(filters);
 
   if (typeof opts.limit === 'number') {
