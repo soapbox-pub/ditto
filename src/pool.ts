@@ -1,5 +1,5 @@
 import { getActiveRelays } from '@/db/relays.ts';
-import { Debug, type Event, RelayPool } from '@/deps.ts';
+import { Debug, type Event, RelayPoolWorker } from '@/deps.ts';
 
 const debug = Debug('ditto:pool');
 
@@ -7,7 +7,10 @@ const activeRelays = await getActiveRelays();
 
 console.log(`pool: connecting to ${activeRelays.length} relays.`);
 
-const pool = new RelayPool(activeRelays, {
+const worker = new Worker('https://unpkg.com/nostr-relaypool@0.6.30/lib/nostr-relaypool.worker.js', { type: 'module' });
+
+// @ts-ignore Wrong types.
+const pool = new RelayPoolWorker(worker, activeRelays, {
   // The pipeline verifies events.
   skipVerification: true,
   // The logging feature overwhelms the CPU and creates too many logs.
