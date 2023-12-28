@@ -58,7 +58,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
     if (filters.length) {
-      debug(JSON.stringify(filters));
+      debug('REQ', JSON.stringify(filters));
       const events = await client.getFilters(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {

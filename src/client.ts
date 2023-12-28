@@ -10,7 +10,7 @@ const debug = Debug('ditto:client');
 function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
   if (opts.signal?.aborted) return Promise.resolve([]);
   if (!filters.length) return Promise.resolve([]);
-  debug(JSON.stringify(filters));
+  debug('REQ', JSON.stringify(filters));
 
   return new Promise((resolve) => {
     const results: Event[] = [];
