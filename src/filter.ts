@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
-import { type Event, type Filter, matchFilters, stringifyStable } from '@/deps.ts';
-
-import type { EventData } from '@/types.ts';
+import { type Event, type Filter, matchFilters, stringifyStable, z } from '@/deps.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
+import { type EventData } from '@/types.ts';
 
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';
@@ -14,8 +14,12 @@ interface DittoFilter<K extends number = number> extends Filter<K> {
   relations?: Relation[];
 }
 
+/** Microfilter to get one specific event by ID. */
+type IdMicrofilter = { ids: [Event['id']] };
+/** Microfilter to get an author. */
+type AuthorMicrofilter = { kinds: [0]; authors: [Event['pubkey']] };
 /** Filter to get one specific event. */
-type MicroFilter = { ids: [Event['id']] } | { kinds: [0]; authors: [Event['pubkey']] };
+type MicroFilter = IdMicrofilter | AuthorMicrofilter;
 
 /** Additional options to apply to the whole subscription. */
 interface GetFiltersOpts {
@@ -63,18 +67,40 @@ function getFilterId(filter: MicroFilter): string {
 
 /** Get a microfilter from a Nostr event. */
 function eventToMicroFilter(event: Event): MicroFilter {
+  const [microfilter] = getMicroFilters(event);
+  return microfilter;
+}
+
+/** Get all the microfilters for an event, in order of priority. */
+function getMicroFilters(event: Event): MicroFilter[] {
+  const microfilters: MicroFilter[] = [];
   if (event.kind === 0) {
-    return { kinds: [0], authors: [event.pubkey] };
-  } else {
-    return { ids: [event.id] };
+    microfilters.push({ kinds: [0], authors: [event.pubkey] });
   }
+  microfilters.push({ ids: [event.id] });
+  return microfilters;
+}
+
+/** Microfilter schema. */
+const microFilterSchema = z.union([
+  z.object({ ids: z.tuple([nostrIdSchema]) }).strict(),
+  z.object({ kinds: z.tuple([z.literal(0)]), authors: z.tuple([nostrIdSchema]) }).strict(),
+]);
+
+/** Checks whether the filter is a microfilter. */
+function isMicrofilter(filter: Filter): filter is MicroFilter {
+  return microFilterSchema.safeParse(filter).success;
 }
 
 export {
+  type AuthorMicrofilter,
   type DittoFilter,
   eventToMicroFilter,
   getFilterId,
   type GetFiltersOpts,
+  getMicroFilters,
+  type IdMicrofilter,
+  isMicrofilter,
   matchDittoFilters,
   type MicroFilter,
   type Relation,

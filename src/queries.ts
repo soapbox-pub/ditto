@@ -1,8 +1,9 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
-import { type DittoFilter, type Relation } from '@/filter.ts';
+import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { reqmeister } from '@/reqmeister.ts';
+import { memorelay } from '@/db/memorelay.ts';
 
 interface GetEventOpts<K extends number> {
   /** Signal to abort the request. */
@@ -19,24 +20,61 @@ const getEvent = async <K extends number = number>(
   opts: GetEventOpts<K> = {},
 ): Promise<Event<K> | undefined> => {
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: IdMicrofilter = { ids: [id] };
+
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts) as eventsDB.DittoEvent<K>[];
+
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
+
   const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
-  const [event] = await mixer.getFilters([filter], { limit: 1, signal });
-  return event;
+
+  const dbEvent = await eventsDB.getFilters([filter], { limit: 1, signal })
+    .then(([event]) => event);
+
+  // TODO: make this DRY-er.
+
+  if (dbEvent && !dbEvent.author) {
+    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    dbEvent.author = author;
+  }
+
+  if (dbEvent) return dbEvent;
+
+  if (memoryEvent && !memoryEvent.author) {
+    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    memoryEvent.author = author;
+  }
+
+  if (memoryEvent) return memoryEvent;
+
+  return await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const event = await eventsDB.getFilters(
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts);
+
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
+
+  const dbEvent = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
-  ).then(([event]) => event) || await reqmeister.req({ kinds: [0], authors: [pubkey] }).catch(() => {});
+  ).then(([event]) => event);
 
-  return event;
+  if (dbEvent) return dbEvent;
+  if (memoryEvent) return memoryEvent;
+
+  return reqmeister.req(microfilter, opts).catch(() => undefined);
 };
 
 /** Get users the given pubkey follows. */

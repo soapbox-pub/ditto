@@ -1,6 +1,6 @@
 import * as client from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
-import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
+import { AuthorMicrofilter, eventToMicroFilter, getFilterId, IdMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
 
 const debug = Debug('ditto:reqmeister');
@@ -8,6 +8,11 @@ const debug = Debug('ditto:reqmeister');
 interface ReqmeisterOpts {
   delay?: number;
   timeout?: number;
+}
+
+interface ReqmeisterReqOpts {
+  relays?: WebSocket['url'][];
+  signal?: AbortSignal;
 }
 
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
@@ -70,12 +75,21 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     this.#perform();
   }
 
-  req(filter: MicroFilter, relays: WebSocket['url'][] = []): Promise<Event> {
+  req(filter: IdMicrofilter, opts?: ReqmeisterReqOpts): Promise<Event>;
+  req(filter: AuthorMicrofilter, opts?: ReqmeisterReqOpts): Promise<Event<0>>;
+  req(filter: MicroFilter, opts?: ReqmeisterReqOpts): Promise<Event>;
+  req(filter: MicroFilter, opts: ReqmeisterReqOpts = {}): Promise<Event> {
+    const { relays = [], signal } = opts;
+    if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+
     const filterId = getFilterId(filter);
+
     this.#queue.push([filterId, filter, relays]);
+
     return new Promise<Event>((resolve, reject) => {
       this.once(filterId, resolve);
       this.#promise.finally(() => setTimeout(reject, 0));
+      signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
     });
   }
 

@@ -1,0 +1,15 @@
+{
+  "id": "63d38c9b483d2d98a46382eadefd272e0e4bdb106a5b6eddb400c4e76f693d35",
+  "pubkey": "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6",
+  "created_at": 1699398376,
+  "kind": 0,
+  "tags": [
+    [
+      "proxy",
+      "https://gleasonator.com/users/alex",
+      "activitypub"
+    ]
+  ],
+  "content": "{\"name\":\"Alex Gleason\",\"about\":\"I create Fediverse software that empowers people online.\\n\\nI'm vegan btw.\\n\\nNote: If you have a question for me, please tag me publicly. This gives the opportunity for others to chime in, and bystanders to learn.\",\"picture\":\"https://media.gleasonator.com/aae0071188681629f200ab41502e03b9861d2754a44c008d3869c8a08b08d1f1.png\",\"banner\":\"https://media.gleasonator.com/e5f6e0e380536780efa774e8d3c8a5a040e3f9f99dbb48910b261c32872ee3a3.gif\",\"nip05\":\"alex_at_gleasonator.com@mostr.pub\",\"lud16\":\"alex@alexgleason.me\"}",
+  "sig": "9d48bbb600aab44abaeee11c97f1753f1d7de08378e9b33d84f9be893a09270aeceecfde3cfb698c555ae1bde3e4e54b3463a61bb99bdf673d64c2202f98b0e9"
+}
