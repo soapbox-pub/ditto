@@ -1,6 +1,6 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
 import * as eventsDB from '@/db/events.ts';
-import { type Event, findReplyTag, type InsertQueryBuilder } from '@/deps.ts';
+import { Debug, type Event, findReplyTag, type InsertQueryBuilder } from '@/deps.ts';
 
 type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
 type EventStat = keyof Omit<EventStatsRow, 'event_id'>;
@@ -8,6 +8,8 @@ type EventStat = keyof Omit<EventStatsRow, 'event_id'>;
 type AuthorStatDiff = ['author_stats', pubkey: string, stat: AuthorStat, diff: number];
 type EventStatDiff = ['event_stats', eventId: string, stat: EventStat, diff: number];
 type StatDiff = AuthorStatDiff | EventStatDiff;
+
+const debug = Debug('ditto:stats');
 
 /** Store stats for the event in LMDB. */
 async function updateStats<K extends number>(event: Event<K>) {
@@ -25,6 +27,10 @@ async function updateStats<K extends number>(event: Event<K>) {
   const statDiffs = getStatsDiff(event, prev);
   const pubkeyDiffs = statDiffs.filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
   const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
+
+  if (statDiffs.length) {
+    debug({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs });
+  }
 
   if (pubkeyDiffs.length) queries.push(authorStatsQuery(pubkeyDiffs));
   if (eventDiffs.length) queries.push(eventStatsQuery(eventDiffs));
