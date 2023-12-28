@@ -1,9 +1,10 @@
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
+import { memorelay } from '@/db/memorelay.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { Debug, type Event, LRUCache } from '@/deps.ts';
+import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
@@ -12,11 +13,10 @@ import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
+import { type EventData } from '@/types.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
-
-import type { EventData } from '@/types.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -43,15 +43,12 @@ async function handleEvent(event: Event): Promise<void> {
   ]);
 }
 
-/** Tracks encountered events to skip duplicates, improving idempotency and performance. */
-const encounters = new LRUCache<Event['id'], true>({ max: 1000 });
-
 /** Encounter the event, and return whether it has already been encountered. */
 function encounterEvent(event: Event): boolean {
-  const result = encounters.get(event.id);
-  encounters.set(event.id, true);
+  const preexisting = memorelay.hasEvent(event);
+  memorelay.insertEvent(event);
   reqmeister.encounter(event);
-  return !!result;
+  return preexisting;
 }
 
 /** Preload data that will be useful to several tasks. */
@@ -146,7 +143,7 @@ function fetchRelatedEvents(event: Event, data: EventData) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !encounters.has(id)) {
+    if (name === 'e' && !memorelay.hasEventById(id)) {
       reqmeister.req({ ids: [id] }, [relay]).catch(() => {});
     }
   }

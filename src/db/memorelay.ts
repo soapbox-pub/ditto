@@ -40,4 +40,30 @@ function insertEvent(event: Event): void {
   }
 }
 
-export { getFilters, insertEvent };
+/** Check if an event is in memory. */
+function hasEvent(event: Event): boolean {
+  for (const microfilter of getMicroFilters(event)) {
+    const filterId = getFilterId(microfilter);
+    const existing = events.get(filterId);
+    if (existing) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Check if an event is in memory by ID. */
+function hasEventById(eventId: string): boolean {
+  const filterId = getFilterId({ ids: [eventId] });
+  return events.has(filterId);
+}
+
+/** In-memory data store for events using microfilters. */
+const memorelay = {
+  getFilters,
+  insertEvent,
+  hasEvent,
+  hasEventById,
+};
+
+export { memorelay };
