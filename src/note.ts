@@ -43,7 +43,7 @@ interface ParsedNoteContent {
 function parseNoteContent(content: string): ParsedNoteContent {
   // Parsing twice is ineffecient, but I don't know how to do only once.
   const html = linkifyStr(content, linkifyOpts);
-  const links = linkify.find(content).filter(isValidLink);
+  const links = linkify.find(content).filter(isLinkURL);
   const firstUrl = links.find(isNonMediaLink)?.href;
 
   return {
@@ -77,15 +77,9 @@ function isNonMediaLink({ href }: Link): boolean {
   return /^https?:\/\//.test(href) && !getUrlMimeType(href);
 }
 
-/** Ensures the URL can be parsed. Why linkifyjs doesn't already guarantee this, idk... */
-function isValidLink(link: Link): boolean {
-  try {
-    new URL(link.href);
-    return true;
-  } catch (_e) {
-    console.error(`Invalid link: ${link.href}`);
-    return false;
-  }
+/** Ensures the Link is a URL so it can be parsed. */
+function isLinkURL(link: Link): boolean {
+  return link.type === 'url';
 }
 
 /** `npm:mime` treats `.com` as a file extension, so parse the full URL to get its path first. */
