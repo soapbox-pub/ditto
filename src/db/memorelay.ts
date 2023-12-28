@@ -4,8 +4,8 @@ import { getFilterId, type GetFiltersOpts, getMicroFilters, isMicrofilter } from
 const debug = Debug('ditto:memorelay');
 
 const events = new LRUCache<string, Event>({
-  max: 1000,
-  maxEntrySize: 1000,
+  max: 3000,
+  maxEntrySize: 5000,
   sizeCalculation: (event) => JSON.stringify(event).length,
 });
 
