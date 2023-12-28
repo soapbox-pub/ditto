@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
-import { type Event, type Filter, matchFilters, stringifyStable } from '@/deps.ts';
-
-import type { EventData } from '@/types.ts';
+import { type Event, type Filter, matchFilters, stringifyStable, z } from '@/deps.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
+import { type EventData } from '@/types.ts';
 
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';
@@ -70,11 +70,23 @@ function eventToMicroFilter(event: Event): MicroFilter {
   }
 }
 
+/** Microfilter schema. */
+const microFilterSchema = z.union([
+  z.object({ ids: z.tuple([nostrIdSchema]) }).strict(),
+  z.object({ kinds: z.tuple([z.literal(0)]), authors: z.tuple([nostrIdSchema]) }).strict(),
+]);
+
+/** Checks whether the filter is a microfilter. */
+function isMicrofilter(filter: Filter): filter is MicroFilter {
+  return microFilterSchema.safeParse(filter).success;
+}
+
 export {
   type DittoFilter,
   eventToMicroFilter,
   getFilterId,
   type GetFiltersOpts,
+  isMicrofilter,
   matchDittoFilters,
   type MicroFilter,
   type Relation,
