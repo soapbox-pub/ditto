@@ -3,7 +3,7 @@ import path from 'node:path';
 
 import { FileMigrationProvider, Kysely, Migrator, PolySqliteDialect } from '@/deps.ts';
 import { Conf } from '@/config.ts';
-import { getPragma, setPragma } from '@/pragma.ts';
+import { setPragma } from '@/pragma.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 interface DittoDB {
@@ -89,12 +89,6 @@ await Promise.all([
   setPragma(db, 'mmap_size', Conf.sqlite.mmapSize),
 ]);
 
-// Log out PRAGMA values for debugging.
-['journal_mode', 'synchronous', 'temp_store', 'mmap_size'].forEach(async (pragma) => {
-  const value = await getPragma(db, pragma);
-  console.log(`PRAGMA ${pragma} = ${value};`);
-});
-
 const migrator = new Migrator({
   db,
   provider: new FileMigrationProvider({
@@ -106,7 +100,7 @@ const migrator = new Migrator({
 
 /** Migrate the database to the latest version. */
 async function migrate() {
-  console.log('Running migrations...');
+  console.info('Running migrations...');
   const results = await migrator.migrateToLatest();
 
   if (results.error) {
@@ -114,11 +108,11 @@ async function migrate() {
     Deno.exit(1);
   } else {
     if (!results.results?.length) {
-      console.log('Everything up-to-date.');
+      console.info('Everything up-to-date.');
     } else {
-      console.log('Migrations finished!');
+      console.info('Migrations finished!');
       for (const { migrationName, status } of results.results!) {
-        console.log(`  - ${migrationName}: ${status}`);
+        console.info(`  - ${migrationName}: ${status}`);
       }
     }
   }

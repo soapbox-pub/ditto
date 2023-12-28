@@ -82,8 +82,8 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.insertEvent(event, data).catch(console.warn),
-        updateStats(event).catch(console.warn),
+        eventsDB.insertEvent(event, data).catch(debug),
+        updateStats(event).catch(debug),
       ]);
     }
   } else {

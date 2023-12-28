@@ -6,7 +6,7 @@ import { cidFromUrl } from '@/utils/ipfs.ts';
 
 /** Delete files that aren't attached to any events. */
 async function cleanupMedia() {
-  console.log('Deleting orphaned media files...');
+  console.info('Deleting orphaned media files...');
 
   const until = new Date(Date.now() - Time.minutes(15));
   const media = await getUnattachedMedia(until);
@@ -22,7 +22,7 @@ async function cleanupMedia() {
     }
   }
 
-  console.log(`Removed ${media?.length ?? 0} orphaned media files.`);
+  console.info(`Removed ${media?.length ?? 0} orphaned media files.`);
 }
 
 await cleanupMedia();
