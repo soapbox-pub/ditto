@@ -1,8 +1,13 @@
 import { Debug, type Event, type Filter, LRUCache } from '@/deps.ts';
-import { getFilterId, type GetFiltersOpts, isMicrofilter } from '@/filter.ts';
+import { getFilterId, type GetFiltersOpts, getMicroFilters, isMicrofilter } from '@/filter.ts';
 
 const debug = Debug('ditto:memorelay');
-const events = new LRUCache<string, Event>({ max: 1000 });
+
+const events = new LRUCache<string, Event>({
+  max: 1000,
+  maxEntrySize: 1000,
+  sizeCalculation: (event) => JSON.stringify(event).length,
+});
 
 /** Get events from memory. */
 function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
@@ -24,4 +29,15 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
   return Promise.resolve(results);
 }
 
-export { getFilters };
+/** Insert an event into memory. */
+function insertEvent(event: Event): void {
+  for (const microfilter of getMicroFilters(event)) {
+    const filterId = getFilterId(microfilter);
+    const existing = events.get(filterId);
+    if (!existing || event.created_at > existing.created_at) {
+      events.set(filterId, event);
+    }
+  }
+}
+
+export { getFilters, insertEvent };

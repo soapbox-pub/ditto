@@ -63,11 +63,18 @@ function getFilterId(filter: MicroFilter): string {
 
 /** Get a microfilter from a Nostr event. */
 function eventToMicroFilter(event: Event): MicroFilter {
+  const [microfilter] = getMicroFilters(event);
+  return microfilter;
+}
+
+/** Get all the microfilters for an event, in order of priority. */
+function getMicroFilters(event: Event): MicroFilter[] {
+  const microfilters: MicroFilter[] = [];
   if (event.kind === 0) {
-    return { kinds: [0], authors: [event.pubkey] };
-  } else {
-    return { ids: [event.id] };
+    microfilters.push({ kinds: [0], authors: [event.pubkey] });
   }
+  microfilters.push({ ids: [event.id] });
+  return microfilters;
 }
 
 /** Microfilter schema. */
@@ -86,6 +93,7 @@ export {
   eventToMicroFilter,
   getFilterId,
   type GetFiltersOpts,
+  getMicroFilters,
   isMicrofilter,
   matchDittoFilters,
   type MicroFilter,
