@@ -1,6 +1,8 @@
-import { Comlink } from '@/deps.ts';
+import { Comlink, Debug } from '@/deps.ts';
 
 import './handlers/abortsignal.ts';
+
+const debug = Debug('ditto:fetch.worker');
 
 export const FetchWorker = {
   async fetch(
@@ -8,6 +10,7 @@ export const FetchWorker = {
     init: Omit<RequestInit, 'signal'>,
     signal: AbortSignal | null | undefined,
   ): Promise<[BodyInit, ResponseInit]> {
+    debug(init.method, url);
     const response = await fetch(url, { ...init, signal });
     return [
       await response.arrayBuffer(),

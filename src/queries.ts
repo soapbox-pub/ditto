@@ -1,11 +1,13 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
-import { type DittoFilter, type Relation } from '@/filter.ts';
+import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
+import { reqmeister } from '@/reqmeister.ts';
+import { memorelay } from '@/db/memorelay.ts';
 
 interface GetEventOpts<K extends number> {
-  /** Timeout in milliseconds. */
-  timeout?: number;
+  /** Signal to abort the request. */
+  signal?: AbortSignal;
   /** Event kind. */
   kind?: K;
   /** Relations to include on the event. */
@@ -17,36 +19,73 @@ const getEvent = async <K extends number = number>(
   id: string,
   opts: GetEventOpts<K> = {},
 ): Promise<Event<K> | undefined> => {
-  const { kind, relations, timeout = 1000 } = opts;
+  const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: IdMicrofilter = { ids: [id] };
+
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts) as eventsDB.DittoEvent<K>[];
+
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
+
   const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
-  const [event] = await mixer.getFilters([filter], { limit: 1, timeout });
-  return event;
+
+  const dbEvent = await eventsDB.getFilters([filter], { limit: 1, signal })
+    .then(([event]) => event);
+
+  // TODO: make this DRY-er.
+
+  if (dbEvent && !dbEvent.author) {
+    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    dbEvent.author = author;
+  }
+
+  if (dbEvent) return dbEvent;
+
+  if (memoryEvent && !memoryEvent.author) {
+    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    memoryEvent.author = author;
+  }
+
+  if (memoryEvent) return memoryEvent;
+
+  return await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
-  const { relations, timeout = 1000 } = opts;
+  const { relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const [event] = await mixer.getFilters(
+  const [memoryEvent] = await memorelay.getFilters([microfilter], opts);
+
+  if (memoryEvent && !relations) {
+    return memoryEvent;
+  }
+
+  const dbEvent = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
-    { limit: 1, timeout },
-  );
+    { limit: 1, signal },
+  ).then(([event]) => event);
 
-  return event;
+  if (dbEvent) return dbEvent;
+  if (memoryEvent) return memoryEvent;
+
+  return reqmeister.req(microfilter, opts).catch(() => undefined);
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string, timeout = 1000): Promise<Event<3> | undefined> => {
-  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, timeout });
+const getFollows = async (pubkey: string, signal = AbortSignal.timeout(1000)): Promise<Event<3> | undefined> => {
+  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
 /** Get pubkeys the user follows. */
-async function getFollowedPubkeys(pubkey: string): Promise<string[]> {
-  const event = await getFollows(pubkey);
+async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise<string[]> {
+  const event = await getFollows(pubkey, signal);
   if (!event) return [];
 
   return event.tags
@@ -78,10 +117,10 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
   return result.reverse();
 }
 
-function getDescendants(eventId: string): Promise<Event<1>[]> {
+function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<Event<1>[]> {
   return mixer.getFilters(
     [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
-    { limit: 200, timeout: 2000 },
+    { limit: 200, signal },
   );
 }
 

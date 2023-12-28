@@ -4,6 +4,7 @@ import { type User } from '@/db/users.ts';
 import {
   type Context,
   cors,
+  Debug,
   type Event,
   type Handler,
   Hono,
@@ -90,7 +91,14 @@ if (Conf.sentryDsn) {
   app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn }));
 }
 
-app.use('*', logger());
+const debug = Debug('ditto:http');
+
+app.use('/api', logger(debug));
+app.use('/relay', logger(debug));
+app.use('/.well-known', logger(debug));
+app.use('/users', logger(debug));
+app.use('/nodeinfo', logger(debug));
+app.use('/oauth', logger(debug));
 
 app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);

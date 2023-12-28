@@ -10,8 +10,8 @@ const instanceController: AppController = (c) => {
   return c.json({
     uri: host,
     title: 'Ditto',
-    description: 'An efficient and flexible social media server.',
-    short_description: 'An efficient and flexible social media server.',
+    description: 'Nostr and the Fediverse',
+    short_description: 'Nostr and the Fediverse',
     registrations: Conf.registrations,
     max_toot_chars: Conf.postCharLimit,
     configuration: {

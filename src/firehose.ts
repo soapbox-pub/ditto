@@ -1,8 +1,10 @@
-import { type Event } from '@/deps.ts';
+import { Debug, type Event } from '@/deps.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { nostrNow } from '@/utils.ts';
 
 import * as pipeline from './pipeline.ts';
+
+const debug = Debug('ditto:firehose');
 
 // This file watches events on all known relays and performs
 // side-effects based on them, such as trending hashtag tracking
@@ -17,7 +19,7 @@ pool.subscribe(
 
 /** Handle events through the firehose pipeline. */
 function handleEvent(event: Event): Promise<void> {
-  console.info(`firehose: Event<${event.kind}> ${event.id}`);
+  debug(`Event<${event.kind}> ${event.id}`);
 
   return pipeline
     .handleEvent(event)

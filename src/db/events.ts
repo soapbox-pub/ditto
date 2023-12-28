@@ -1,11 +1,13 @@
 import { db, type DittoDB } from '@/db.ts';
-import { type Event, type SelectQueryBuilder } from '@/deps.ts';
+import { Debug, type Event, type SelectQueryBuilder } from '@/deps.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { EventData } from '@/types.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 
 import type { DittoFilter, GetFiltersOpts } from '@/filter.ts';
+
+const debug = Debug('ditto:db:events');
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -28,6 +30,8 @@ const tagConditions: Record<string, TagCondition> = {
 
 /** Insert an event (and its tags) into the database. */
 function insertEvent(event: Event, data: EventData): Promise<void> {
+  debug('insertEvent', JSON.stringify(event));
+
   return db.transaction().execute(async (trx) => {
     /** Insert the event into the database. */
     async function addEvent() {
@@ -224,6 +228,7 @@ async function getFilters<K extends number>(
   opts: GetFiltersOpts = {},
 ): Promise<DittoEvent<K>[]> {
   if (!filters.length) return Promise.resolve([]);
+  debug('REQ', JSON.stringify(filters));
   let query = getFiltersQuery(filters);
 
   if (typeof opts.limit === 'number') {
@@ -276,6 +281,7 @@ async function getFilters<K extends number>(
 /** Delete events based on filters from the database. */
 function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
   if (!filters.length) return Promise.resolve([]);
+  debug('deleteFilters', JSON.stringify(filters));
 
   return db.transaction().execute(async (trx) => {
     const query = getFiltersQuery(filters).clearSelect().select('id');
@@ -293,6 +299,7 @@ function deleteFilters<K extends number>(filters: DittoFilter<K>[]) {
 /** Get number of events that would be returned by filters. */
 async function countFilters<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
   if (!filters.length) return Promise.resolve(0);
+  debug('countFilters', JSON.stringify(filters));
   const query = getFiltersQuery(filters);
 
   const [{ count }] = await query

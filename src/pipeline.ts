@@ -1,21 +1,24 @@
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
+import { memorelay } from '@/db/memorelay.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { type Event, LRUCache } from '@/deps.ts';
+import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
+import { type EventData } from '@/types.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 
-import type { EventData } from '@/types.ts';
+const debug = Debug('ditto:pipeline');
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -23,28 +26,29 @@ import type { EventData } from '@/types.ts';
  */
 async function handleEvent(event: Event): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
+  const wanted = reqmeister.isWanted(event);
   if (encounterEvent(event)) return;
+  debug(`Event<${event.kind}> ${event.id}`);
   const data = await getEventData(event);
 
   await Promise.all([
-    storeEvent(event, data),
+    storeEvent(event, data, { force: wanted }),
     processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
+    fetchRelatedEvents(event, data),
     processMedia(event, data),
     streamOut(event, data),
     broadcast(event, data),
   ]);
 }
 
-/** Tracks encountered events to skip duplicates, improving idempotency and performance. */
-const encounters = new LRUCache<string, boolean>({ max: 1000 });
-
 /** Encounter the event, and return whether it has already been encountered. */
-function encounterEvent(event: Event) {
-  const result = encounters.get(event.id);
-  encounters.set(event.id, true);
-  return result;
+function encounterEvent(event: Event): boolean {
+  const preexisting = memorelay.hasEvent(event);
+  memorelay.insertEvent(event);
+  reqmeister.encounter(event);
+  return preexisting;
 }
 
 /** Preload data that will be useful to several tasks. */
@@ -56,22 +60,27 @@ async function getEventData({ pubkey }: Event): Promise<EventData> {
 /** Check if the pubkey is the `DITTO_NSEC` pubkey. */
 const isAdminEvent = ({ pubkey }: Event): boolean => pubkey === Conf.pubkey;
 
-/** Maybe store the event, if eligible. */
-async function storeEvent(event: Event, data: EventData): Promise<void> {
-  if (isEphemeralKind(event.kind)) return;
+interface StoreEventOpts {
+  force?: boolean;
+}
 
-  if (data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
+/** Maybe store the event, if eligible. */
+async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = {}): Promise<void> {
+  if (isEphemeralKind(event.kind)) return;
+  const { force = false } = opts;
+
+  if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const [deletion] = await mixer.getFilters(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
-      { limit: 1, timeout: Time.seconds(1) },
+      { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
     );
 
     if (deletion) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.insertEvent(event, data).catch(console.warn),
-        updateStats(event).catch(console.warn),
+        eventsDB.insertEvent(event, data).catch(debug),
+        updateStats(event).catch(debug),
       ]);
     }
   } else {
@@ -105,7 +114,7 @@ async function trackHashtags(event: Event): Promise<void> {
   if (!tags.length) return;
 
   try {
-    console.info('tracking tags:', tags);
+    debug('tracking tags:', JSON.stringify(tags));
     await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
@@ -126,6 +135,18 @@ function trackRelays(event: Event) {
   });
 
   return addRelays([...relays]);
+}
+
+/** Queue related events to fetch. */
+function fetchRelatedEvents(event: Event, data: EventData) {
+  if (!data.user) {
+    reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
+  }
+  for (const [name, id, relay] of event.tags) {
+    if (name === 'e' && !memorelay.hasEventById(id)) {
+      reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+    }
+  }
 }
 
 /** Delete unattached media entries that are attached to the event. */

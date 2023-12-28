@@ -8,7 +8,7 @@ import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { uploadFile } from '@/upload.ts';
-import { isFollowing, lookupAccount, nostrNow, Time } from '@/utils.ts';
+import { isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
@@ -258,7 +258,7 @@ const favouritesController: AppController = async (c) => {
 
   const events7 = await mixer.getFilters(
     [{ kinds: [7], authors: [pubkey], ...params }],
-    { timeout: Time.seconds(1) },
+    { signal: AbortSignal.timeout(1000) },
   );
 
   const ids = events7
@@ -266,7 +266,7 @@ const favouritesController: AppController = async (c) => {
     .filter((id): id is string => !!id);
 
   const events1 = await mixer.getFilters([{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }], {
-    timeout: Time.seconds(1),
+    signal: AbortSignal.timeout(1000),
   });
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
