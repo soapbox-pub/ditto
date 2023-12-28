@@ -7,7 +7,7 @@ const debug = Debug('ditto:reqmeister');
 
 interface ReqmeisterOpts {
   delay?: number;
-  signal?: AbortSignal;
+  timeout?: number;
 }
 
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
@@ -34,7 +34,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 
   async #perform() {
-    const { delay } = this.#opts;
+    const { delay, timeout = Time.seconds(1) } = this.#opts;
     await new Promise((resolve) => setTimeout(resolve, delay));
 
     const queue = this.#queue;
@@ -59,7 +59,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
     if (filters.length) {
       debug(JSON.stringify(filters));
-      const events = await client.getFilters(filters, { signal: this.#opts.signal });
+      const events = await client.getFilters(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
         this.encounter(event);
@@ -75,7 +75,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     this.#queue.push([filterId, filter, relays]);
     return new Promise<Event>((resolve, reject) => {
       this.once(filterId, resolve);
-      this.#promise.finally(reject);
+      this.#promise.finally(() => setTimeout(reject, 0));
     });
   }
 
@@ -93,7 +93,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
 const reqmeister = new Reqmeister({
   delay: Time.seconds(1),
-  signal: AbortSignal.timeout(Time.seconds(1)),
+  timeout: Time.seconds(1),
 });
 
 export { reqmeister };

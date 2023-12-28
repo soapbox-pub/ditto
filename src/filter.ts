@@ -52,7 +52,7 @@ function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData
 /** Get deterministic ID for a microfilter. */
 function getFilterId(filter: MicroFilter): string {
   if ('ids' in filter) {
-    return stringifyStable({ ids: [filter.ids] });
+    return stringifyStable({ ids: [filter.ids[0]] });
   } else {
     return stringifyStable({
       kinds: [filter.kinds[0]],
