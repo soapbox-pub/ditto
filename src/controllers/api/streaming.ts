@@ -1,10 +1,12 @@
 import { type AppController } from '@/app.ts';
-import { z } from '@/deps.ts';
+import { Debug, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+
+const debug = Debug('ditto:streaming');
 
 /**
  * Streaming timelines/categories.
@@ -49,6 +51,7 @@ const streamingController: AppController = (c) => {
 
   function send(name: string, payload: object) {
     if (socket.readyState === WebSocket.OPEN) {
+      debug('send', name, JSON.stringify(payload));
       socket.send(JSON.stringify({
         event: name,
         payload: JSON.stringify(payload),

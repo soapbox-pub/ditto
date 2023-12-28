@@ -23,7 +23,7 @@ class SubscriptionStore {
    * ```
    */
   sub<K extends number>(socket: unknown, id: string, filters: DittoFilter<K>[]): Subscription<K> {
-    debug('sub', id, filters);
+    debug('sub', id, JSON.stringify(filters));
     let subs = this.#store.get(socket);
 
     if (!subs) {

@@ -48,7 +48,7 @@ function lookupNip05Cached(value: string): Promise<string | null> {
   const cached = nip05Cache.get(value);
   if (cached !== undefined) return cached;
 
-  debug(`Looking up NIP-05 for ${value}`);
+  debug(`Lookup ${value}`);
   const result = lookup(value);
   nip05Cache.set(value, result);
 
