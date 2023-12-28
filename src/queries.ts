@@ -1,6 +1,6 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
-import { AuthorMicrofilter, type DittoFilter, type Relation } from '@/filter.ts';
+import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { memorelay } from '@/db/memorelay.ts';
@@ -20,12 +20,25 @@ const getEvent = async <K extends number = number>(
   opts: GetEventOpts<K> = {},
 ): Promise<Event<K> | undefined> => {
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
+  const microfilter: IdMicrofilter = { ids: [id] };
+
+  let event: Event<K> | undefined;
+
+  [event] = await memorelay.getFilters([microfilter], opts);
+
+  if (event && !relations) return event;
+
   const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
-  const [event] = await mixer.getFilters([filter], { limit: 1, signal });
-  return event;
+
+  event = await mixer.getFilters([filter], { limit: 1, signal })
+    .then((events) => events[0] || event);
+
+  if (event) return event;
+
+  return await reqmeister.req(microfilter).catch(() => event) as Event<K> | undefined;
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
@@ -37,16 +50,16 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
 
   [event] = await memorelay.getFilters([microfilter], opts);
 
-  if (event) return event;
+  if (event && !relations) return event;
 
-  [event] = await eventsDB.getFilters(
+  event = await eventsDB.getFilters(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
-  );
+  ).then((events) => events[0] || event);
 
   if (event) return event;
 
-  return reqmeister.req({ kinds: [0], authors: [pubkey] }).catch(() => undefined);
+  return reqmeister.req(microfilter).catch(() => event);
 };
 
 /** Get users the given pubkey follows. */
