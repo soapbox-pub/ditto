@@ -1,7 +1,9 @@
 import * as client from '@/client.ts';
-import { type Event, EventEmitter, type Filter } from '@/deps.ts';
-
+import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
 import { eventToMicroFilter, getFilterId, type MicroFilter } from '@/filter.ts';
+import { Time } from '@/utils/time.ts';
+
+const debug = Debug('ditto:reqmeister');
 
 interface ReqmeisterOpts {
   delay?: number;
@@ -20,11 +22,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   constructor(opts: ReqmeisterOpts = {}) {
     super();
     this.#opts = opts;
-    this.#cycle();
+    this.#tick();
     this.#perform();
   }
 
-  #cycle() {
+  #tick() {
     this.#resolve?.();
     this.#promise = new Promise((resolve) => {
       this.#resolve = resolve;
@@ -55,13 +57,16 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedEvents.size) filters.push({ ids: [...wantedEvents] });
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
-    const events = await client.getFilters(filters, { signal: this.#opts.signal });
+    if (filters.length) {
+      debug(JSON.stringify(filters));
+      const events = await client.getFilters(filters, { signal: this.#opts.signal });
 
-    for (const event of events) {
-      this.encounter(event);
+      for (const event of events) {
+        this.encounter(event);
+      }
     }
 
-    this.#cycle();
+    this.#tick();
     this.#perform();
   }
 
@@ -86,4 +91,9 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 }
 
-export { Reqmeister };
+const reqmeister = new Reqmeister({
+  delay: Time.seconds(1),
+  signal: AbortSignal.timeout(Time.seconds(1)),
+});
+
+export { reqmeister };

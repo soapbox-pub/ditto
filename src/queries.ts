@@ -2,7 +2,7 @@ import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
 import { type DittoFilter, type Relation } from '@/filter.ts';
 import * as mixer from '@/mixer.ts';
-import { reqmeister } from '@/common.ts';
+import { reqmeister } from '@/reqmeister.ts';
 
 interface GetEventOpts<K extends number> {
   /** Signal to abort the request. */

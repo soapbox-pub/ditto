@@ -1,4 +1,3 @@
-import { reqmeister } from '@/common.ts';
 import { Conf } from '@/config.ts';
 import * as eventsDB from '@/db/events.ts';
 import { addRelays } from '@/db/relays.ts';
@@ -9,6 +8,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';

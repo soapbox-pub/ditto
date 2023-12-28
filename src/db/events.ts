@@ -30,7 +30,7 @@ const tagConditions: Record<string, TagCondition> = {
 
 /** Insert an event (and its tags) into the database. */
 function insertEvent(event: Event, data: EventData): Promise<void> {
-  debug('insertEvent', event);
+  debug('insertEvent', JSON.stringify(event));
 
   return db.transaction().execute(async (trx) => {
     /** Insert the event into the database. */

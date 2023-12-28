@@ -1,6 +1,7 @@
+import { Debug, type MiddlewareHandler } from '@/deps.ts';
 import ExpiringCache from '@/utils/expiring-cache.ts';
 
-import type { MiddlewareHandler } from '@/deps.ts';
+const debug = Debug('ditto:middleware:cache');
 
 export const cache = (options: {
   cacheName: string;
@@ -11,14 +12,14 @@ export const cache = (options: {
     const cache = new ExpiringCache(await caches.open(options.cacheName));
     const response = await cache.match(key);
     if (!response) {
-      console.debug('Building cache for page', c.req.url);
+      debug('Building cache for page', c.req.url);
       await next();
       const response = c.res.clone();
       if (response.status < 500) {
         await cache.putExpiring(key, response, options.expires ?? 0);
       }
     } else {
-      console.debug('Serving page from cache', c.req.url);
+      debug('Serving page from cache', c.req.url);
       return response;
     }
   };

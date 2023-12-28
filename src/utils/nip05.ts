@@ -1,6 +1,8 @@
-import { TTLCache, z } from '@/deps.ts';
+import { Debug, TTLCache, z } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+
+const debug = Debug('ditto:nip05');
 
 const nip05Cache = new TTLCache<string, Promise<string | null>>({ ttl: Time.hours(1), max: 5000 });
 
@@ -46,7 +48,7 @@ function lookupNip05Cached(value: string): Promise<string | null> {
   const cached = nip05Cache.get(value);
   if (cached !== undefined) return cached;
 
-  console.log(`Looking up NIP-05 for ${value}`);
+  debug(`Looking up NIP-05 for ${value}`);
   const result = lookup(value);
   nip05Cache.set(value, result);
 

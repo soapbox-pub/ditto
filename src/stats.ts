@@ -29,7 +29,7 @@ async function updateStats<K extends number>(event: Event<K>) {
   const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
   if (statDiffs.length) {
-    debug({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs });
+    debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
   if (pubkeyDiffs.length) queries.push(authorStatsQuery(pubkeyDiffs));

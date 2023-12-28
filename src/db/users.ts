@@ -1,6 +1,8 @@
-import { type Insertable } from '@/deps.ts';
+import { Debug, type Insertable } from '@/deps.ts';
 
 import { db, type UserRow } from '../db.ts';
+
+const debug = Debug('ditto:users');
 
 interface User {
   pubkey: string;
@@ -11,6 +13,7 @@ interface User {
 
 /** Adds a user to the database. */
 function insertUser(user: Insertable<UserRow>) {
+  debug('insertUser', JSON.stringify(user));
   return db.insertInto('users').values(user).execute();
 }
 
