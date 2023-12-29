@@ -1,7 +1,8 @@
+import { Conf } from '@/config.ts';
 import { db, type DittoDB } from '@/db.ts';
 import { Debug, type Event, type SelectQueryBuilder } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { isParameterizedReplaceableKind } from '@/kinds.ts';
+import { isDittoInternalKind, isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -25,11 +26,17 @@ const tagConditions: Record<string, TagCondition> = {
   'proxy': ({ count, value }) => count === 0 && isURL(value),
   'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
   't': ({ count, value }) => count < 5 && value.length < 50,
+  'name': ({ event, count }) => event.kind === 30361 && count === 0,
+  'role': ({ event, count }) => event.kind === 30361 && count === 0,
 };
 
 /** Insert an event (and its tags) into the database. */
 function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
   debug('EVENT', JSON.stringify(event));
+
+  if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
+    throw new Error('Internal events can only be stored by the server keypair');
+  }
 
   return db.transaction().execute(async (trx) => {
     /** Insert the event into the database. */
