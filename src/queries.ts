@@ -22,7 +22,7 @@ const getEvent = async <K extends number = number>(
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  const [memoryEvent] = await memorelay.getFilters([microfilter], opts) as DittoEvent<K>[];
+  const [memoryEvent] = await memorelay.getEvents([microfilter], opts) as DittoEvent<K>[];
 
   if (memoryEvent && !relations) {
     return memoryEvent;
@@ -39,14 +39,14 @@ const getEvent = async <K extends number = number>(
   // TODO: make this DRY-er.
 
   if (dbEvent && !dbEvent.author) {
-    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    const [author] = await memorelay.getEvents([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
     dbEvent.author = author;
   }
 
   if (dbEvent) return dbEvent;
 
   if (memoryEvent && !memoryEvent.author) {
-    const [author] = await memorelay.getFilters([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    const [author] = await memorelay.getEvents([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
     memoryEvent.author = author;
   }
 
@@ -60,7 +60,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const [memoryEvent] = await memorelay.getFilters([microfilter], opts);
+  const [memoryEvent] = await memorelay.getEvents([microfilter], opts);
 
   if (memoryEvent && !relations) {
     return memoryEvent;

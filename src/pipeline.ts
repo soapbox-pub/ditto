@@ -26,7 +26,7 @@ const debug = Debug('ditto:pipeline');
 async function handleEvent(event: Event): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
-  if (encounterEvent(event)) return;
+  if (await encounterEvent(event)) return;
   debug(`Event<${event.kind}> ${event.id}`);
   const data = await getEventData(event);
 
@@ -43,9 +43,9 @@ async function handleEvent(event: Event): Promise<void> {
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
-function encounterEvent(event: Event): boolean {
-  const preexisting = memorelay.hasEvent(event);
-  memorelay.insertEvent(event);
+async function encounterEvent(event: Event): Promise<boolean> {
+  const preexisting = (await memorelay.countEvents([{ ids: [event.id] }])) > 0;
+  memorelay.storeEvent(event);
   reqmeister.encounter(event);
   return preexisting;
 }
@@ -142,7 +142,7 @@ function fetchRelatedEvents(event: Event, data: EventData) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !memorelay.hasEventById(id)) {
+    if (name === 'e' && !memorelay.countEvents([{ ids: [id] }])) {
       reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
     }
   }

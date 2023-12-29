@@ -21,16 +21,6 @@ type AuthorMicrofilter = { kinds: [0]; authors: [Event['pubkey']] };
 /** Filter to get one specific event. */
 type MicroFilter = IdMicrofilter | AuthorMicrofilter;
 
-/** Additional options to apply to the whole subscription. */
-interface GetFiltersOpts {
-  /** Signal to abort the request. */
-  signal?: AbortSignal;
-  /** Event limit for the whole subscription. */
-  limit?: number;
-  /** Relays to use, if applicable. */
-  relays?: WebSocket['url'][];
-}
-
 function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
   if (filter.local && !(data.user || event.pubkey === Conf.pubkey)) {
     return false;
@@ -97,7 +87,6 @@ export {
   type DittoFilter,
   eventToMicroFilter,
   getFilterId,
-  type GetFiltersOpts,
   getMicroFilters,
   type IdMicrofilter,
   isMicrofilter,

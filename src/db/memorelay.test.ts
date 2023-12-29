@@ -5,14 +5,12 @@ import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
 import { memorelay } from './memorelay.ts';
 
 Deno.test('memorelay', async () => {
-  assertEquals(memorelay.hasEvent(event1), false);
-  assertEquals(memorelay.hasEventById(event1.id), false);
+  assertEquals(await memorelay.countEvents([{ ids: [event1.id] }]), 0);
 
-  memorelay.insertEvent(event1);
+  await memorelay.storeEvent(event1);
 
-  assertEquals(memorelay.hasEvent(event1), true);
-  assertEquals(memorelay.hasEventById(event1.id), true);
+  assertEquals(await memorelay.countEvents([{ ids: [event1.id] }]), 1);
 
-  const result = await memorelay.getFilters([{ ids: [event1.id] }]);
+  const result = await memorelay.getEvents([{ ids: [event1.id] }]);
   assertEquals(result[0], event1);
 });

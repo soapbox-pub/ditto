@@ -354,8 +354,8 @@ function buildUserSearchContent(event: Event<0>): string {
 
 /** SQLite database storage adapter for Nostr events. */
 const eventsDB: EventStore = {
-  storeEvent,
   getEvents,
+  storeEvent,
   countEvents,
   deleteEvents,
 };
