@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { memorelay } from '@/db/memorelay.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
@@ -69,7 +69,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   const { force = false } = opts;
 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const [deletion] = await eventsDB.getFilters(
+    const [deletion] = await eventsDB.getEvents(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
       { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
     );
@@ -78,7 +78,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.insertEvent(event, data).catch(debug),
+        eventsDB.storeEvent(event, data).catch(debug),
         updateStats(event).catch(debug),
       ]);
     }
@@ -91,13 +91,13 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
 async function processDeletions(event: Event): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
-    const events = await eventsDB.getFilters([{ ids: [...ids] }]);
+    const events = await eventsDB.getEvents([{ ids: [...ids] }]);
 
     const deleteIds = events
       .filter(({ pubkey, id }) => pubkey === event.pubkey && ids.has(id))
       .map((event) => event.id);
 
-    await eventsDB.deleteFilters([{ ids: deleteIds }]);
+    await eventsDB.deleteEvents([{ ids: deleteIds }]);
   }
 }
 

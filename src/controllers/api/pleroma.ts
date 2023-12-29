@@ -1,12 +1,12 @@
 import { type AppController } from '@/app.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { z } from '@/deps.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { createAdminEvent } from '@/utils/web.ts';
 import { Conf } from '@/config.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const [event] = await eventsDB.getFilters([{
+  const [event] = await eventsDB.getEvents([{
     kinds: [30078],
     authors: [Conf.pubkey],
     '#d': ['pub.ditto.frontendConfig'],

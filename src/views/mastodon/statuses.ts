@@ -1,7 +1,7 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { findReplyTag, nip19 } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
@@ -33,12 +33,8 @@ async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string
     .all([
       Promise.all(mentionedPubkeys.map(toMention)),
       firstUrl ? unfurlCardCached(firstUrl) : null,
-      viewerPubkey
-        ? eventsDB.getFilters([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
-        : [],
-      viewerPubkey
-        ? eventsDB.getFilters([{ kinds: [7], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 })
-        : [],
+      viewerPubkey ? eventsDB.getEvents([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 }) : [],
+      viewerPubkey ? eventsDB.getEvents([{ kinds: [7], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 }) : [],
     ]);
 
   const content = buildInlineRecipients(mentions) + html;
