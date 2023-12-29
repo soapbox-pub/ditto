@@ -1,7 +1,6 @@
 import * as eventsDB from '@/db/events.ts';
 import { type Event, findReplyTag } from '@/deps.ts';
 import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
-import * as mixer from '@/mixer.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { memorelay } from '@/db/memorelay.ts';
 
@@ -79,7 +78,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal = AbortSignal.timeout(1000)): Promise<Event<3> | undefined> => {
-  const [event] = await mixer.getFilters([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+  const [event] = await eventsDB.getFilters([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
@@ -118,7 +117,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<Event<1>[]> {
-  return mixer.getFilters(
+  return eventsDB.getFilters(
     [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
     { limit: 200, signal },
   );

@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import * as mixer from '@/mixer.ts';
+import * as eventsDB from '@/db/events.ts';
 import { paginated, paginationSchema } from '@/utils/web.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
@@ -7,7 +7,7 @@ const notificationsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const { since, until } = paginationSchema.parse(c.req.query());
 
-  const events = await mixer.getFilters(
+  const events = await eventsDB.getFilters(
     [{ kinds: [1], '#p': [pubkey], since, until }],
     { signal: AbortSignal.timeout(3000) },
   );

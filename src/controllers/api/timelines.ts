@@ -1,6 +1,6 @@
+import * as eventsDB from '@/db/events.ts';
 import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import * as mixer from '@/mixer.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { paginated, paginationSchema } from '@/utils/web.ts';
@@ -33,7 +33,7 @@ const hashtagTimelineController: AppController = (c) => {
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: DittoFilter<1>[], signal = AbortSignal.timeout(1000)) {
-  const events = await mixer.getFilters(
+  const events = await eventsDB.getFilters(
     filters.map((filter) => ({ ...filter, relations: ['author', 'event_stats', 'author_stats'] })),
     { signal },
   );

@@ -6,7 +6,6 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
 import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
-import * as mixer from '@/mixer.ts';
 import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { reqmeister } from '@/reqmeister.ts';
@@ -70,7 +69,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   const { force = false } = opts;
 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const [deletion] = await mixer.getFilters(
+    const [deletion] = await eventsDB.getFilters(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
       { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
     );
