@@ -1,13 +1,12 @@
 import { Debug, type Event, type Filter, matchFilters } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
-
-import type { GetFiltersOpts } from '@/filter.ts';
+import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 
 const debug = Debug('ditto:client');
 
 /** Get events from a NIP-01 filter. */
-function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts = {}): Promise<Event<K>[]> {
+function getEvents<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
   if (opts.signal?.aborted) return Promise.resolve([]);
   if (!filters.length) return Promise.resolve([]);
   debug('REQ', JSON.stringify(filters));
@@ -50,4 +49,19 @@ function getFilters<K extends number>(filters: Filter<K>[], opts: GetFiltersOpts
   });
 }
 
-export { getFilters };
+/** Publish an event to the given relays, or the entire pool. */
+function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+  const { relays = activeRelays } = opts;
+  debug('EVENT', event);
+  pool.publish(event, relays);
+  return Promise.resolve();
+}
+
+const client: EventStore = {
+  getEvents,
+  storeEvent,
+  countEvents: () => Promise.reject(new Error('COUNT not implemented')),
+  deleteEvents: () => Promise.reject(new Error('Cannot delete events from relays. Create a kind 5 event instead.')),
+};
+
+export { client };

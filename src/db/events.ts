@@ -3,8 +3,7 @@ import { Debug, type Event, type SelectQueryBuilder } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { isParameterizedReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { type DittoEvent, EventStore, type GetEventsOpts } from '@/store.ts';
-import { EventData } from '@/types.ts';
+import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 
 const debug = Debug('ditto:db:events');
@@ -12,7 +11,7 @@ const debug = Debug('ditto:db:events');
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
   event: Event;
-  data: EventData;
+  opts: StoreEventOpts;
   count: number;
   value: string;
 }) => boolean;
@@ -21,7 +20,7 @@ type TagCondition = ({ event, count, value }: {
 const tagConditions: Record<string, TagCondition> = {
   'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
   'e': ({ count, value }) => count < 15 && isNostrId(value),
-  'media': ({ count, value, data }) => (data.user || count < 4) && isURL(value),
+  'media': ({ count, value, opts }) => (opts.data?.user || count < 4) && isURL(value),
   'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
   'proxy': ({ count, value }) => count === 0 && isURL(value),
   'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
@@ -29,7 +28,7 @@ const tagConditions: Record<string, TagCondition> = {
 };
 
 /** Insert an event (and its tags) into the database. */
-function storeEvent(event: Event, data: EventData): Promise<void> {
+function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
   debug('EVENT', JSON.stringify(event));
 
   return db.transaction().execute(async (trx) => {
@@ -51,7 +50,7 @@ function storeEvent(event: Event, data: EventData): Promise<void> {
 
     /** Index event tags depending on the conditions defined above. */
     async function indexTags() {
-      const tags = filterIndexableTags(event, data);
+      const tags = filterIndexableTags(event, opts);
       const rows = tags.map(([tag, value]) => ({ event_id: event.id, tag, value }));
 
       if (!tags.length) return;
@@ -302,7 +301,7 @@ async function countEvents<K extends number>(filters: DittoFilter<K>[]): Promise
 }
 
 /** Return only the tags that should be indexed. */
-function filterIndexableTags(event: Event, data: EventData): string[][] {
+function filterIndexableTags(event: Event, opts: StoreEventOpts): string[][] {
   const tagCounts: Record<string, number> = {};
 
   function getCount(name: string) {
@@ -316,7 +315,7 @@ function filterIndexableTags(event: Event, data: EventData): string[][] {
   function checkCondition(name: string, value: string, condition: TagCondition) {
     return condition({
       event,
-      data,
+      opts,
       count: getCount(name),
       value,
     });

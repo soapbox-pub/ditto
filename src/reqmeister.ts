@@ -1,4 +1,4 @@
-import * as client from '@/client.ts';
+import { client } from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
 import { AuthorMicrofilter, eventToMicroFilter, getFilterId, IdMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
@@ -64,7 +64,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
     if (filters.length) {
       debug('REQ', JSON.stringify(filters));
-      const events = await client.getFilters(filters, { signal: AbortSignal.timeout(timeout) });
+      const events = await client.getEvents(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
         this.encounter(event);

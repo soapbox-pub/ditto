@@ -1,3 +1,4 @@
+import { client } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { eventsDB } from '@/db/events.ts';
 import { memorelay } from '@/db/memorelay.ts';
@@ -6,7 +7,6 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
 import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
-import { publish } from '@/pool.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
@@ -78,7 +78,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.storeEvent(event, data).catch(debug),
+        eventsDB.storeEvent(event, { data }).catch(debug),
         updateStats(event).catch(debug),
       ]);
     }
@@ -176,7 +176,7 @@ function broadcast(event: Event, data: EventData) {
   if (!data.user || !isFresh(event)) return;
 
   if (event.kind === 5) {
-    publish(event);
+    client.storeEvent(event);
   }
 }
 

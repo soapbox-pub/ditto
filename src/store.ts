@@ -13,6 +13,14 @@ interface GetEventsOpts {
   relays?: WebSocket['url'][];
 }
 
+/** Options when storing an event. */
+interface StoreEventOpts {
+  /** Event data to store. */
+  data?: EventData;
+  /** Relays to use, if applicable. */
+  relays?: WebSocket['url'][];
+}
+
 type AuthorStats = Omit<DittoDB['author_stats'], 'pubkey'>;
 type EventStats = Omit<DittoDB['event_stats'], 'event_id'>;
 
@@ -26,7 +34,7 @@ interface DittoEvent<K extends number = number> extends Event<K> {
 /** Storage interface for Nostr events. */
 interface EventStore {
   /** Add an event to the store. */
-  storeEvent(event: Event, data?: EventData): Promise<void>;
+  storeEvent(event: Event, opts?: StoreEventOpts): Promise<void>;
   /** Get events from filters. */
   getEvents<K extends number>(filters: DittoFilter<K>[], opts?: GetEventsOpts): Promise<DittoEvent<K>[]>;
   /** Get the number of events from filters. */
@@ -35,4 +43,4 @@ interface EventStore {
   deleteEvents<K extends number>(filters: DittoFilter<K>[]): Promise<void>;
 }
 
-export type { DittoEvent, EventStore, GetEventsOpts };
+export type { DittoEvent, EventStore, GetEventsOpts, StoreEventOpts };
