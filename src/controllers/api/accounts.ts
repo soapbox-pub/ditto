@@ -1,9 +1,9 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import * as eventsDB from '@/db/events.ts';
 import { insertUser } from '@/db/users.ts';
 import { findReplyTag, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import * as mixer from '@/mixer.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
@@ -151,7 +151,7 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  let events = await mixer.getFilters([filter]);
+  let events = await eventsDB.getFilters([filter]);
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event));
@@ -256,7 +256,7 @@ const favouritesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const params = paginationSchema.parse(c.req.query());
 
-  const events7 = await mixer.getFilters(
+  const events7 = await eventsDB.getFilters(
     [{ kinds: [7], authors: [pubkey], ...params }],
     { signal: AbortSignal.timeout(1000) },
   );
@@ -265,9 +265,12 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await mixer.getFilters([{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }], {
-    signal: AbortSignal.timeout(1000),
-  });
+  const events1 = await eventsDB.getFilters(
+    [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }],
+    {
+      signal: AbortSignal.timeout(1000),
+    },
+  );
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);
