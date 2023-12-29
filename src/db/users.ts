@@ -1,10 +1,8 @@
 import { Conf } from '@/config.ts';
-import { Debug, type Filter, type Insertable } from '@/deps.ts';
-import { type UserRow } from '@/db.ts';
+import { Debug, type Filter } from '@/deps.ts';
 import { eventsDB } from '@/db/events.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent } from '@/sign.ts';
-import { nostrNow } from '@/utils.ts';
 
 const debug = Debug('ditto:users');
 
@@ -16,7 +14,7 @@ interface User {
 }
 
 /** Adds a user to the database. */
-async function insertUser(user: Insertable<UserRow>) {
+async function insertUser(user: User) {
   debug('insertUser', JSON.stringify(user));
   const { origin, host } = Conf.url;
 
@@ -31,7 +29,7 @@ async function insertUser(user: Insertable<UserRow>) {
       ['alt', `@${user.username}@${host}'s account was updated by the admins of ${host}`],
     ],
     content: '',
-    created_at: nostrNow(),
+    created_at: Math.floor(user.inserted_at.getTime() / 1000),
   });
 
   return pipeline.handleEvent(event);
@@ -44,7 +42,7 @@ async function insertUser(user: Insertable<UserRow>) {
  * await findUser({ username: 'alex' });
  * ```
  */
-async function findUser(user: Partial<Insertable<UserRow>>): Promise<User | undefined> {
+async function findUser(user: Partial<User>): Promise<User | undefined> {
   const filter: Filter = { kinds: [30361], authors: [Conf.pubkey], limit: 1 };
 
   for (const [key, value] of Object.entries(user)) {

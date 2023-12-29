@@ -1,7 +1,17 @@
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { eventsDB } from '@/db/events.ts';
+import { type Kysely } from '@/deps.ts';
 import { signAdminEvent } from '@/sign.ts';
+
+interface DB {
+  users: {
+    pubkey: string;
+    username: string;
+    inserted_at: Date;
+    admin: 0 | 1;
+  };
+}
 
 switch (Deno.args[0]) {
   case 'users-to-events':
@@ -14,7 +24,7 @@ switch (Deno.args[0]) {
 async function usersToEvents() {
   const { origin, host } = Conf.url;
 
-  for (const row of await db.selectFrom('users').selectAll().execute()) {
+  for (const row of await (db as unknown as Kysely<DB>).selectFrom('users').selectAll().execute()) {
     const event = await signAdminEvent({
       kind: 30361,
       tags: [

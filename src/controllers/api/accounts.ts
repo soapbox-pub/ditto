@@ -42,7 +42,7 @@ const createAccountController: AppController = async (c) => {
       pubkey,
       username: result.data.username,
       inserted_at: new Date(),
-      admin: 0,
+      admin: false,
     });
 
     return c.json({

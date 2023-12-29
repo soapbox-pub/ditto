@@ -154,6 +154,7 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
     }
   }
 
+  // FIXME: local filtering is broken.
   if (typeof filter.local === 'boolean') {
     query = filter.local
       ? query.innerJoin('users', 'users.pubkey', 'events.pubkey') as typeof query
