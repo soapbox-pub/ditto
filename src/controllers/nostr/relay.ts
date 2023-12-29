@@ -1,5 +1,5 @@
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import * as pipeline from '@/pipeline.ts';
 import { jsonSchema } from '@/schema.ts';
 import {
@@ -63,7 +63,7 @@ function connectStream(socket: WebSocket) {
   async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
     const filters = prepareFilters(rest);
 
-    for (const event of await eventsDB.getFilters(filters, { limit: FILTER_LIMIT })) {
+    for (const event of await eventsDB.getEvents(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 

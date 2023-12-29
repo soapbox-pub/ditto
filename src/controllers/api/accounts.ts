@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { insertUser } from '@/db/users.ts';
 import { findReplyTag, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
@@ -151,7 +151,7 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  let events = await eventsDB.getFilters([filter]);
+  let events = await eventsDB.getEvents([filter]);
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event));
@@ -256,7 +256,7 @@ const favouritesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const params = paginationSchema.parse(c.req.query());
 
-  const events7 = await eventsDB.getFilters(
+  const events7 = await eventsDB.getEvents(
     [{ kinds: [7], authors: [pubkey], ...params }],
     { signal: AbortSignal.timeout(1000) },
   );
@@ -265,7 +265,7 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await eventsDB.getFilters(
+  const events1 = await eventsDB.getEvents(
     [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }],
     {
       signal: AbortSignal.timeout(1000),

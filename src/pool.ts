@@ -1,7 +1,5 @@
 import { getActiveRelays } from '@/db/relays.ts';
-import { Debug, type Event, RelayPoolWorker } from '@/deps.ts';
-
-const debug = Debug('ditto:pool');
+import { RelayPoolWorker } from '@/deps.ts';
 
 const activeRelays = await getActiveRelays();
 
@@ -17,10 +15,4 @@ const pool = new RelayPoolWorker(worker, activeRelays, {
   logErrorsAndNotices: false,
 });
 
-/** Publish an event to the given relays, or the entire pool. */
-function publish(event: Event, relays: string[] = activeRelays) {
-  debug('publish', event);
-  return pool.publish(event, relays);
-}
-
-export { activeRelays, pool, publish };
+export { activeRelays, pool };

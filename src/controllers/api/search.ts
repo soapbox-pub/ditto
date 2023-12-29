@@ -1,5 +1,5 @@
 import { AppController } from '@/app.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { type Event, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { booleanParamSchema } from '@/schema.ts';
@@ -76,7 +76,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Even
     filter.authors = [account_id];
   }
 
-  return eventsDB.getFilters([filter]);
+  return eventsDB.getEvents([filter]);
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -94,7 +94,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal = AbortSignal.timeout(1000)): Promise<Event | undefined> {
   const filters = await getLookupFilters(query);
-  const [event] = await eventsDB.getFilters(filters, { limit: 1, signal });
+  const [event] = await eventsDB.getEvents(filters, { limit: 1, signal });
   return event;
 }
 

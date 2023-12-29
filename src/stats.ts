@@ -1,5 +1,5 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import * as eventsDB from '@/db/events.ts';
+import { eventsDB } from '@/db/events.ts';
 import { Debug, type Event, findReplyTag, type InsertQueryBuilder } from '@/deps.ts';
 
 type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
@@ -125,7 +125,7 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 
 /** Get the last version of the event, if any. */
 async function maybeGetPrev<K extends number>(event: Event<K>): Promise<Event<K>> {
-  const [prev] = await eventsDB.getFilters([
+  const [prev] = await eventsDB.getEvents([
     { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
   ]);
 
