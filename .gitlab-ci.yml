@@ -17,3 +17,5 @@ lint:
 test:
   stage: test
   script: deno task test
+  variables:
+    DITTO_NSEC: nsec1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqwkhnav

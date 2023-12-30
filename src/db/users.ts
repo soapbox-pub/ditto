@@ -13,12 +13,11 @@ interface User {
   admin: boolean;
 }
 
-/** Adds a user to the database. */
-async function insertUser(user: User) {
+function buildUserEvent(user: User) {
   debug('insertUser', JSON.stringify(user));
   const { origin, host } = Conf.url;
 
-  const event = await signAdminEvent({
+  return signAdminEvent({
     kind: 30361,
     tags: [
       ['d', user.pubkey],
@@ -31,7 +30,12 @@ async function insertUser(user: User) {
     content: '',
     created_at: Math.floor(user.inserted_at.getTime() / 1000),
   });
+}
 
+/** Adds a user to the database. */
+async function insertUser(user: User) {
+  debug('insertUser', JSON.stringify(user));
+  const event = await buildUserEvent(user);
   return pipeline.handleEvent(event);
 }
 
@@ -71,4 +75,4 @@ async function findUser(user: Partial<User>): Promise<User | undefined> {
   }
 }
 
-export { findUser, insertUser, type User };
+export { buildUserEvent, findUser, insertUser, type User };
