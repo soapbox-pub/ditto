@@ -96,7 +96,7 @@ function connectStream(socket: WebSocket) {
 
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...rest]: ClientCOUNT): Promise<void> {
-    const count = await eventsDB.countFilters(prepareFilters(rest));
+    const count = await eventsDB.countEvents(prepareFilters(rest));
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
