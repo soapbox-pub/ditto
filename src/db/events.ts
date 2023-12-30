@@ -1,7 +1,8 @@
+import { Conf } from '@/config.ts';
 import { db, type DittoDB } from '@/db.ts';
-import { Debug, type Event, type SelectQueryBuilder } from '@/deps.ts';
+import { Debug, type Event, Kysely, type SelectQueryBuilder } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { isParameterizedReplaceableKind } from '@/kinds.ts';
+import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -25,13 +26,19 @@ const tagConditions: Record<string, TagCondition> = {
   'proxy': ({ count, value }) => count === 0 && isURL(value),
   'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
   't': ({ count, value }) => count < 5 && value.length < 50,
+  'name': ({ event, count }) => event.kind === 30361 && count === 0,
+  'role': ({ event, count }) => event.kind === 30361 && count === 0,
 };
 
 /** Insert an event (and its tags) into the database. */
-function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+async function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
   debug('EVENT', JSON.stringify(event));
 
-  return db.transaction().execute(async (trx) => {
+  if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
+    throw new Error('Internal events can only be stored by the server keypair');
+  }
+
+  return await db.transaction().execute(async (trx) => {
     /** Insert the event into the database. */
     async function addEvent() {
       await trx.insertInto('events')
@@ -57,6 +64,30 @@ function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
       await trx.insertInto('tags')
         .values(rows)
         .execute();
+    }
+
+    if (isReplaceableKind(event.kind)) {
+      const prevEvents = await getFilterQuery(trx, { kinds: [event.kind], authors: [event.pubkey] }).execute();
+      for (const prevEvent of prevEvents) {
+        if (prevEvent.created_at >= event.created_at) {
+          throw new Error('Cannot replace an event with an older event');
+        }
+      }
+      await deleteEventsTrx(trx, [{ kinds: [event.kind], authors: [event.pubkey] }]);
+    }
+
+    if (isParameterizedReplaceableKind(event.kind)) {
+      const d = event.tags.find(([tag]) => tag === 'd')?.[1];
+      if (d) {
+        const prevEvents = await getFilterQuery(trx, { kinds: [event.kind], authors: [event.pubkey], '#d': [d] })
+          .execute();
+        for (const prevEvent of prevEvents) {
+          if (prevEvent.created_at >= event.created_at) {
+            throw new Error('Cannot replace an event with an older event');
+          }
+        }
+        await deleteEventsTrx(trx, [{ kinds: [event.kind], authors: [event.pubkey], '#d': [d] }]);
+      }
     }
 
     // Run the queries.
@@ -99,7 +130,7 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
 }>;
 
 /** Build the query for a filter. */
-function getFilterQuery(filter: DittoFilter): EventQuery {
+function getFilterQuery(db: Kysely<DittoDB>, filter: DittoFilter): EventQuery {
   let query = db
     .selectFrom('events')
     .select([
@@ -148,9 +179,9 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
   }
 
   if (typeof filter.local === 'boolean') {
-    query = filter.local
-      ? query.innerJoin('users', 'users.pubkey', 'events.pubkey') as typeof query
-      : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
+    query = query
+      .leftJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+      .where('users.d_tag', filter.local ? 'is not' : 'is', null);
   }
 
   if (filter.relations?.includes('author')) {
@@ -208,8 +239,17 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
 /** Combine filter queries into a single union query. */
 function getEventsQuery(filters: DittoFilter[]) {
   return filters
-    .map((filter) => db.selectFrom(() => getFilterQuery(filter).as('events')).selectAll())
+    .map((filter) => db.selectFrom(() => getFilterQuery(db, filter).as('events')).selectAll())
     .reduce((result, query) => result.unionAll(query));
+}
+
+/** Query to get user events, joined by tags. */
+function usersQuery() {
+  return getFilterQuery(db, { kinds: [30361], authors: [Conf.pubkey] })
+    .leftJoin('tags', 'tags.event_id', 'events.id')
+    .where('tags.tag', '=', 'd')
+    .select('tags.value as d_tag')
+    .as('users');
 }
 
 /** Get events for filters from the database. */
@@ -268,22 +308,28 @@ async function getEvents<K extends number>(
   });
 }
 
+/** Delete events from each table. Should be run in a transaction! */
+async function deleteEventsTrx(db: Kysely<DittoDB>, filters: DittoFilter[]) {
+  if (!filters.length) return Promise.resolve();
+  debug('DELETE', JSON.stringify(filters));
+
+  const query = getEventsQuery(filters).clearSelect().select('id');
+
+  await db.deleteFrom('events_fts')
+    .where('id', 'in', () => query)
+    .execute();
+
+  return db.deleteFrom('events')
+    .where('id', 'in', () => query)
+    .execute();
+}
+
 /** Delete events based on filters from the database. */
 async function deleteEvents<K extends number>(filters: DittoFilter<K>[]): Promise<void> {
   if (!filters.length) return Promise.resolve();
   debug('DELETE', JSON.stringify(filters));
 
-  await db.transaction().execute(async (trx) => {
-    const query = getEventsQuery(filters).clearSelect().select('id');
-
-    await trx.deleteFrom('events_fts')
-      .where('id', 'in', () => query)
-      .execute();
-
-    return trx.deleteFrom('events')
-      .where('id', 'in', () => query)
-      .execute();
-  });
+  await db.transaction().execute((trx) => deleteEventsTrx(trx, filters));
 }
 
 /** Get number of events that would be returned by filters. */

@@ -18,6 +18,11 @@ function isParameterizedReplaceableKind(kind: number) {
   return 30000 <= kind && kind < 40000;
 }
 
+/** These events are only valid if published by the server keypair. */
+function isDittoInternalKind(kind: number) {
+  return kind === 30361;
+}
+
 /** Classification of the event kind. */
 type KindClassification = 'regular' | 'replaceable' | 'ephemeral' | 'parameterized' | 'unknown';
 
@@ -32,6 +37,7 @@ function classifyKind(kind: number): KindClassification {
 
 export {
   classifyKind,
+  isDittoInternalKind,
   isEphemeralKind,
   isParameterizedReplaceableKind,
   isRegularKind,

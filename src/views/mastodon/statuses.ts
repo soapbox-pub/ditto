@@ -6,13 +6,14 @@ import { findReplyTag, nip19 } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
+import { DittoEvent } from '@/store.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-async function renderStatus(event: eventsDB.DittoEvent<1>, viewerPubkey?: string) {
+async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
   const account = event.author
     ? await renderAccount({ ...event.author, author_stats: event.author_stats })
     : await accountFromPubkey(event.pubkey);

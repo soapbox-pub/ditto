@@ -1,6 +1,7 @@
-import { assertEquals } from '@/deps-test.ts';
-import { insertUser } from '@/db/users.ts';
+import { assertEquals, assertRejects } from '@/deps-test.ts';
+import { buildUserEvent } from '@/db/users.ts';
 
+import event0 from '~/fixtures/events/event-0.json' assert { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
 
 import { eventsDB as db } from './events.ts';
@@ -38,13 +39,26 @@ Deno.test('query events with local filter', async () => {
   assertEquals(await db.getEvents([{ local: true }]), []);
   assertEquals(await db.getEvents([{ local: false }]), [event1]);
 
-  await insertUser({
+  const userEvent = await buildUserEvent({
     username: 'alex',
     pubkey: event1.pubkey,
     inserted_at: new Date(),
-    admin: 0,
+    admin: false,
   });
+  await db.storeEvent(userEvent);
 
-  assertEquals(await db.getEvents([{ local: true }]), [event1]);
-  assertEquals(await db.getEvents([{ local: false }]), []);
+  assertEquals(await db.getEvents([{ kinds: [1], local: true }]), [event1]);
+  assertEquals(await db.getEvents([{ kinds: [1], local: false }]), []);
+});
+
+Deno.test('inserting replaceable events', async () => {
+  assertEquals(await db.countEvents([{ kinds: [0], authors: [event0.pubkey] }]), 0);
+
+  await db.storeEvent(event0);
+  await assertRejects(() => db.storeEvent(event0));
+  assertEquals(await db.countEvents([{ kinds: [0], authors: [event0.pubkey] }]), 1);
+
+  const changeEvent = { ...event0, id: '123', created_at: event0.created_at + 1 };
+  await db.storeEvent(changeEvent);
+  assertEquals(await db.getEvents([{ kinds: [0] }]), [changeEvent]);
 });

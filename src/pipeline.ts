@@ -71,7 +71,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const [deletion] = await eventsDB.getEvents(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
-      { limit: 1, signal: AbortSignal.timeout(Time.seconds(1)) },
+      { limit: 1 },
     );
 
     if (deletion) {

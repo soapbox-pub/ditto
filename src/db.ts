@@ -10,7 +10,6 @@ interface DittoDB {
   events: EventRow;
   events_fts: EventFTSRow;
   tags: TagRow;
-  users: UserRow;
   relays: RelayRow;
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
@@ -50,13 +49,6 @@ interface TagRow {
   tag: string;
   value: string;
   event_id: string;
-}
-
-interface UserRow {
-  pubkey: string;
-  username: string;
-  inserted_at: Date;
-  admin: 0 | 1;
 }
 
 interface RelayRow {
@@ -120,4 +112,4 @@ async function migrate() {
 
 await migrate();
 
-export { type AuthorStatsRow, db, type DittoDB, type EventRow, type EventStatsRow, type TagRow, type UserRow };
+export { type AuthorStatsRow, db, type DittoDB, type EventRow, type EventStatsRow, type TagRow };
