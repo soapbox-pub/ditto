@@ -42,9 +42,9 @@ Deno.test('query events with local filter', async () => {
     username: 'alex',
     pubkey: event1.pubkey,
     inserted_at: new Date(),
-    admin: 0,
+    admin: false,
   });
 
-  assertEquals(await db.getEvents([{ local: true }]), [event1]);
-  assertEquals(await db.getEvents([{ local: false }]), []);
+  assertEquals(await db.getEvents([{ kinds: [1], local: true }]), [event1]);
+  assertEquals(await db.getEvents([{ kinds: [1], local: false }]), []);
 });
