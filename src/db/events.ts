@@ -154,11 +154,11 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
     }
   }
 
-  // FIXME: local filtering is broken.
   if (typeof filter.local === 'boolean') {
     query = filter.local
-      ? query.innerJoin('users', 'users.pubkey', 'events.pubkey') as typeof query
-      : query.leftJoin('users', 'users.pubkey', 'events.pubkey').where('users.pubkey', 'is', null) as typeof query;
+      ? query.innerJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+      : query.leftJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+        .where('users.d_tag', 'is', null);
   }
 
   if (filter.relations?.includes('author')) {
@@ -218,6 +218,15 @@ function getEventsQuery(filters: DittoFilter[]) {
   return filters
     .map((filter) => db.selectFrom(() => getFilterQuery(filter).as('events')).selectAll())
     .reduce((result, query) => result.unionAll(query));
+}
+
+/** Query to get user events, joined by tags. */
+function usersQuery() {
+  return getFilterQuery({ kinds: [30361], authors: [Conf.pubkey] })
+    .leftJoin('tags', 'tags.event_id', 'events.id')
+    .where('tags.tag', '=', 'd')
+    .select('tags.value as d_tag')
+    .as('users');
 }
 
 /** Get events for filters from the database. */
