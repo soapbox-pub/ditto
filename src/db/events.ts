@@ -156,7 +156,8 @@ function getFilterQuery(filter: DittoFilter): EventQuery {
 
   if (typeof filter.local === 'boolean') {
     query = filter.local
-      ? query.innerJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+      ? query.leftJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+        .where('users.d_tag', 'is not', null)
       : query.leftJoin(usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
         .where('users.d_tag', 'is', null);
   }
