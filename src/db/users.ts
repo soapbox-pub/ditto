@@ -35,6 +35,9 @@ function buildUserEvent(user: User) {
 /** Adds a user to the database. */
 async function insertUser(user: User) {
   debug('insertUser', JSON.stringify(user));
+  if (await findUser({ username: user.username })) {
+    throw new Error('User already exists');
+  }
   const event = await buildUserEvent(user);
   return pipeline.handleEvent(event);
 }
