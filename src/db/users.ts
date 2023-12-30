@@ -14,7 +14,6 @@ interface User {
 }
 
 function buildUserEvent(user: User) {
-  debug('insertUser', JSON.stringify(user));
   const { origin, host } = Conf.url;
 
   return signAdminEvent({
