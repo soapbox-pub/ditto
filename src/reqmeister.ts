@@ -79,17 +79,33 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   req(filter: AuthorMicrofilter, opts?: ReqmeisterReqOpts): Promise<Event<0>>;
   req(filter: MicroFilter, opts?: ReqmeisterReqOpts): Promise<Event>;
   req(filter: MicroFilter, opts: ReqmeisterReqOpts = {}): Promise<Event> {
-    const { relays = [], signal } = opts;
-    if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+    const {
+      relays = [],
+      signal = AbortSignal.timeout(this.#opts.timeout ?? 1000),
+    } = opts;
+
+    if (signal.aborted) {
+      return Promise.reject(new DOMException('Aborted', 'AbortError'));
+    }
 
     const filterId = getFilterId(filter);
 
     this.#queue.push([filterId, filter, relays]);
 
     return new Promise<Event>((resolve, reject) => {
-      this.once(filterId, resolve);
-      this.#promise.finally(() => setTimeout(reject, 0));
-      signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+      const handleEvent = (event: Event) => {
+        resolve(event);
+        this.removeListener(filterId, handleEvent);
+      };
+
+      const handleAbort = () => {
+        reject(new DOMException('Aborted', 'AbortError'));
+        this.removeListener(filterId, resolve);
+        signal.removeEventListener('abort', handleAbort);
+      };
+
+      this.once(filterId, handleEvent);
+      signal.addEventListener('abort', handleAbort, { once: true });
     });
   }
 
