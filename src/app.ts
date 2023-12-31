@@ -93,12 +93,12 @@ if (Conf.sentryDsn) {
 
 const debug = Debug('ditto:http');
 
-app.use('/api', logger(debug));
-app.use('/relay', logger(debug));
-app.use('/.well-known', logger(debug));
-app.use('/users', logger(debug));
-app.use('/nodeinfo', logger(debug));
-app.use('/oauth', logger(debug));
+app.use('/api/*', logger(debug));
+app.use('/relay/*', logger(debug));
+app.use('/.well-known/*', logger(debug));
+app.use('/users/*', logger(debug));
+app.use('/nodeinfo/*', logger(debug));
+app.use('/oauth/*', logger(debug));
 
 app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
