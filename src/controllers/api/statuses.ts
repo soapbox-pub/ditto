@@ -29,7 +29,12 @@ const createStatusSchema = z.object({
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
-  const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const event = await getEvent(id, {
+    kind: 1,
+    relations: ['author', 'event_stats', 'author_stats'],
+    signal: AbortSignal.timeout(1500),
+  });
+
   if (event) {
     return c.json(await renderStatus(event, c.get('pubkey')));
   }
