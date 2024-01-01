@@ -246,6 +246,20 @@ const followingController: AppController = async (c) => {
   return c.json(accounts.filter(Boolean));
 };
 
+const blockController: AppController = async (c) => {
+  const sourcePubkey = c.get('pubkey')!;
+  const targetPubkey = c.req.param('pubkey');
+
+  await updateListEvent(
+    { kinds: [10000], authors: [sourcePubkey] },
+    (tags) => addTag(tags, ['p', targetPubkey]),
+    c,
+  );
+
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  return c.json(relationship);
+};
+
 const favouritesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const params = paginationSchema.parse(c.req.query());
@@ -275,6 +289,7 @@ export {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  blockController,
   createAccountController,
   favouritesController,
   followController,

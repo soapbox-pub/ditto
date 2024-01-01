@@ -15,7 +15,7 @@ async function renderRelationship(sourcePubkey: string, targetPubkey: string) {
     showing_reblogs: true,
     notifying: false,
     followed_by: target3 ? hasTag(target3?.tags, ['p', sourcePubkey]) : false,
-    blocking: event10000 ? hasTag(target10000.tags, ['p', targetPubkey]) : false,
+    blocking: event10000 ? hasTag(event10000.tags, ['p', targetPubkey]) : false,
     blocked_by: target10000 ? hasTag(target10000.tags, ['p', sourcePubkey]) : false,
     muting: false,
     muting_notifications: false,

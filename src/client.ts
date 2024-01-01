@@ -52,6 +52,7 @@ function getEvents<K extends number>(filters: Filter<K>[], opts: GetEventsOpts =
 /** Publish an event to the given relays, or the entire pool. */
 function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
   const { relays = activeRelays } = opts;
+  const debug = Debug('ditto:client:publish');
   debug('EVENT', event);
   pool.publish(event, relays);
   return Promise.resolve();

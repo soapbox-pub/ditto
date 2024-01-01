@@ -60,7 +60,7 @@ function updateListEvent<K extends number>(
 ): Promise<Event<K>> {
   return updateEvent(filter, (prev) => ({
     kind: filter.kinds[0],
-    content: prev?.content,
+    content: prev?.content ?? '',
     tags: fn(prev?.tags ?? []),
   }), c);
 }

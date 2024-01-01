@@ -23,6 +23,7 @@ import {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  blockController,
   createAccountController,
   favouritesController,
   followController,
@@ -135,6 +136,7 @@ app.patch(
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', blockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
