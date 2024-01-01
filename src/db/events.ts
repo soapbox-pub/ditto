@@ -257,6 +257,7 @@ async function getEvents<K extends number>(
   filters: DittoFilter<K>[],
   opts: GetEventsOpts = {},
 ): Promise<DittoEvent<K>[]> {
+  if (opts.signal?.aborted) return Promise.resolve([]);
   if (!filters.length) return Promise.resolve([]);
   debug('REQ', JSON.stringify(filters));
   let query = getEventsQuery(filters);
