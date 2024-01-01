@@ -37,6 +37,7 @@ import {
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { blocksController } from './controllers/api/blocks.ts';
+import { bookmarksController } from './controllers/api/bookmarks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
@@ -47,12 +48,14 @@ import { preferencesController } from './controllers/api/preferences.ts';
 import { relayController } from './controllers/nostr/relay.ts';
 import { searchController } from './controllers/api/search.ts';
 import {
+  bookmarkController,
   contextController,
   createStatusController,
   favouriteController,
   favouritedByController,
   rebloggedByController,
   statusController,
+  unbookmarkController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import {
@@ -152,7 +155,9 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/favourited_by', favouritedByControll
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/reblogged_by', rebloggedByController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', requirePubkey, favouriteController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requirePubkey, bookmarkController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requirePubkey, unbookmarkController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
 app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);
@@ -173,12 +178,12 @@ app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) })
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
+app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
 // Not (yet) implemented.
-app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);

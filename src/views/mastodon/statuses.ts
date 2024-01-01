@@ -30,13 +30,22 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
 
   const { html, links, firstUrl } = parseNoteContent(event.content);
 
-  const [mentions, card, [repostEvent], [reactionEvent]] = await Promise
+  const [mentions, card, relatedEvents] = await Promise
     .all([
       Promise.all(mentionedPubkeys.map(toMention)),
       firstUrl ? unfurlCardCached(firstUrl) : null,
-      viewerPubkey ? eventsDB.getEvents([{ kinds: [6], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 }) : [],
-      viewerPubkey ? eventsDB.getEvents([{ kinds: [7], '#e': [event.id], authors: [viewerPubkey] }], { limit: 1 }) : [],
+      viewerPubkey
+        ? await eventsDB.getEvents([
+          { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+          { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+          { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+        ])
+        : [],
     ]);
+
+  const reactionEvent = relatedEvents.find((event) => event.kind === 6);
+  const repostEvent = relatedEvents.find((event) => event.kind === 7);
+  const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
 
   const content = buildInlineRecipients(mentions) + html;
 
@@ -69,7 +78,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,
-    bookmarked: false,
+    bookmarked: Boolean(bookmarkEvent),
     reblog: null,
     application: null,
     media_attachments: media.map(renderAttachment),

@@ -2,12 +2,17 @@ import { eventsDB } from '@/db/events.ts';
 import { hasTag } from '@/tags.ts';
 
 async function renderRelationship(sourcePubkey: string, targetPubkey: string) {
-  const [event3, target3, event10000, target10000] = await eventsDB.getEvents([
+  const events = await eventsDB.getEvents([
     { kinds: [3], authors: [sourcePubkey], limit: 1 },
     { kinds: [3], authors: [targetPubkey], limit: 1 },
     { kinds: [10000], authors: [sourcePubkey], limit: 1 },
     { kinds: [10000], authors: [targetPubkey], limit: 1 },
   ]);
+
+  const event3 = events.find((event) => event.kind === 3 && event.pubkey === sourcePubkey);
+  const target3 = events.find((event) => event.kind === 3 && event.pubkey === targetPubkey);
+  const event10000 = events.find((event) => event.kind === 10000 && event.pubkey === sourcePubkey);
+  const target10000 = events.find((event) => event.kind === 10000 && event.pubkey === targetPubkey);
 
   return {
     id: targetPubkey,
