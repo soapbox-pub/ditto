@@ -47,10 +47,10 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
 
 /** Render statuses by event IDs. */
 async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal.timeout(1000)) {
-  const { since, until, limit } = paginationSchema.parse(c.req.query());
+  const { limit } = paginationSchema.parse(c.req.query());
 
   const events = await eventsDB.getEvents(
-    [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'], since, until, limit }],
+    [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'], limit }],
     { signal },
   );
 
@@ -58,11 +58,14 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
     return c.json([]);
   }
 
+  const sortedEvents = [...events].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+
   const statuses = await Promise.all(
-    events.map((event) => renderStatus(event, c.get('pubkey'))),
+    sortedEvents.map((event) => renderStatus(event, c.get('pubkey'))),
   );
 
-  return paginated(c, events, statuses);
+  // TODO: pagination with min_id and max_id based on the order of `ids`.
+  return c.json(statuses);
 }
 
 export { renderAccounts, renderEventAccounts, renderStatuses };

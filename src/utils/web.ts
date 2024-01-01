@@ -119,9 +119,10 @@ function buildLinkHeader(url: string, events: Event[]): string | undefined {
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
 
+  const { localDomain } = Conf;
   const { pathname, search } = new URL(url);
-  const next = new URL(pathname + search, Conf.localDomain);
-  const prev = new URL(pathname + search, Conf.localDomain);
+  const next = new URL(pathname + search, localDomain);
+  const prev = new URL(pathname + search, localDomain);
 
   next.searchParams.set('until', String(lastEvent.created_at));
   prev.searchParams.set('since', String(firstEvent.created_at));
@@ -132,7 +133,7 @@ function buildLinkHeader(url: string, events: Event[]): string | undefined {
 type Entity = { id: string };
 type HeaderRecord = Record<string, string | string[]>;
 
-/** Return results with pagination headers. */
+/** Return results with pagination headers. Assumes chronological sorting of events. */
 function paginated(c: AppContext, events: Event[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
   const link = buildLinkHeader(c.req.url, events);
 
