@@ -48,7 +48,7 @@ class SubscriptionStore {
 
   /** Remove an entire socket. */
   close(socket: unknown): void {
-    debug('close', socket);
+    debug('close', (socket as any)?.constructor?.name);
     const subs = this.#store.get(socket);
 
     if (subs) {

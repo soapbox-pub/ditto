@@ -3,7 +3,7 @@ import { eventsDB } from '@/db/events.ts';
 import { type Filter } from '@/deps.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
+import { paginated, paginationSchema } from '@/utils/api.ts';
 
 /** Render account objects for the author of each event. */
 async function renderEventAccounts(c: AppContext, filters: Filter[], signal = AbortSignal.timeout(1000)) {

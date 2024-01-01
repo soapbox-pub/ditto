@@ -6,7 +6,7 @@ import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
 import { eventMatchesTemplate, Time } from '@/utils.ts';
-import { createAdminEvent } from '@/utils/web.ts';
+import { createAdminEvent } from '@/utils/api.ts';
 
 const debug = Debug('ditto:sign');
 
