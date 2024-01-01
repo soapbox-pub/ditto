@@ -24,4 +24,15 @@ async function renderEventAccounts(c: AppContext, filters: Filter[]) {
   return paginated(c, events, accounts);
 }
 
-export { renderEventAccounts };
+async function renderAccounts(c: AppContext, pubkeys: string[]) {
+  // TODO: pagination by offset.
+  // FIXME: this is very inefficient!
+  const accounts = await Promise.all(pubkeys.map(async (pubkey) => {
+    const event = await getAuthor(pubkey);
+    return event ? await renderAccount(event) : undefined;
+  }));
+
+  return c.json(accounts.filter(Boolean));
+}
+
+export { renderAccounts, renderEventAccounts };

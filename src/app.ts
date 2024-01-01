@@ -30,10 +30,13 @@ import {
   followersController,
   followingController,
   relationshipsController,
+  unblockController,
+  unfollowController,
   updateCredentialsController,
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
+import { blocksController } from './controllers/api/blocks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
@@ -136,8 +139,10 @@ app.patch(
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', blockController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requirePubkey, blockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requirePubkey, unblockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requirePubkey, followController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requirePubkey, unfollowController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
@@ -168,6 +173,7 @@ app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) })
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
+app.get('/api/v1/blocks', requirePubkey, blocksController);
 
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
@@ -175,7 +181,6 @@ app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigContr
 app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
-app.get('/api/v1/blocks', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/markers', emptyObjectController);
