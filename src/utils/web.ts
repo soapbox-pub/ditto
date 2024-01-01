@@ -64,6 +64,7 @@ function updateListEvent<K extends number>(
     tags: fn(prev?.tags ?? []),
   }), c);
 }
+
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const event = await signAdminEvent({
