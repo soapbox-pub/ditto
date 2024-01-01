@@ -55,6 +55,7 @@ import {
   favouritedByController,
   rebloggedByController,
   statusController,
+  unbookmarkController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import {
@@ -156,6 +157,7 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', requirePubkey, favouriteController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requirePubkey, bookmarkController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requirePubkey, unbookmarkController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
 app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);

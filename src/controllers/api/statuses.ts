@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { addTag } from '@/tags.ts';
+import { addTag, deleteTag } from '@/tags.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -180,6 +180,33 @@ const bookmarkController: AppController = async (c) => {
   }
 };
 
+/** https://docs.joinmastodon.org/methods/statuses/#unbookmark */
+const unbookmarkController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+    relations: ['author', 'event_stats', 'author_stats'],
+  });
+
+  if (event) {
+    await updateListEvent(
+      { kinds: [10003], authors: [pubkey] },
+      (tags) => deleteTag(tags, ['e', eventId]),
+      c,
+    );
+
+    const status = await renderStatus(event, pubkey);
+    if (status) {
+      status.bookmarked = false;
+    }
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
 export {
   bookmarkController,
   contextController,
@@ -188,4 +215,5 @@ export {
   favouritedByController,
   rebloggedByController,
   statusController,
+  unbookmarkController,
 };
