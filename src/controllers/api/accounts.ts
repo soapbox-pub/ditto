@@ -12,7 +12,7 @@ import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
-import { renderEventAccounts } from '@/views.ts';
+import { renderAccounts, renderEventAccounts } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -236,16 +236,10 @@ const followersController: AppController = (c) => {
 const followingController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const pubkeys = await getFollowedPubkeys(pubkey);
-
-  // TODO: pagination by offset.
-  const accounts = await Promise.all(pubkeys.map(async (pubkey) => {
-    const event = await getAuthor(pubkey);
-    return event ? await renderAccount(event) : undefined;
-  }));
-
-  return c.json(accounts.filter(Boolean));
+  return renderAccounts(c, pubkeys);
 };
 
+/** https://docs.joinmastodon.org/methods/accounts/#block */
 const blockController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
