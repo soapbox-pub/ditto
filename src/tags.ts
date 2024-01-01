@@ -22,7 +22,7 @@ function deleteTag(tags: readonly string[][], tag: string[]): string[][] {
 }
 
 /** Add a tag to the list, replacing the name/value pair if it already exists. */
-function setTag(tags: readonly string[][], tag: string[]): string[][] {
+function addTag(tags: readonly string[][], tag: string[]): string[][] {
   const tagIndex = tags.findIndex(([name, value]) => name === tag[0] && value === tag[1]);
   if (tagIndex === -1) {
     return [...tags, tag];
@@ -31,4 +31,4 @@ function setTag(tags: readonly string[][], tag: string[]): string[][] {
   }
 }
 
-export { deleteTag, getTagSet, hasTag, setTag };
+export { addTag, deleteTag, getTagSet, hasTag };

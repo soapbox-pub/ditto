@@ -53,7 +53,7 @@ async function updateEvent<K extends number, E extends EventStub<K>>(
 }
 
 /** Fetch existing event, update its tags, then publish the new event. */
-function updateListEvent<K extends number, E extends EventStub<K>>(
+function updateListEvent<K extends number>(
   filter: UpdateEventFilter<K>,
   fn: (tags: string[][]) => string[][],
   c: AppContext,

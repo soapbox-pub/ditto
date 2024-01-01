@@ -7,7 +7,7 @@ import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { setTag } from '@/tags.ts';
+import { addTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
@@ -219,7 +219,7 @@ const followController: AppController = async (c) => {
 
   await updateListEvent(
     { kinds: [3], authors: [sourcePubkey] },
-    (tags) => setTag(tags, ['p', targetPubkey]),
+    (tags) => addTag(tags, ['p', targetPubkey]),
     c,
   );
 
