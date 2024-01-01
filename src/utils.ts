@@ -1,6 +1,5 @@
 import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
-import { hasTag } from '@/tags.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
@@ -96,11 +95,6 @@ const relaySchema = z.string().max(255).startsWith('wss://').url();
 /** Check whether the value is a valid relay URL. */
 const isRelay = (relay: string): relay is `wss://${string}` => relaySchema.safeParse(relay).success;
 
-/** Check whether source is following target. */
-function isFollowing(source: Event<3>, targetPubkey: string): boolean {
-  return hasTag(source.tags, ['p', targetPubkey]);
-}
-
 /** Deduplicate events by ID. */
 function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
@@ -155,7 +149,6 @@ export {
   eventDateComparator,
   eventMatchesTemplate,
   findTag,
-  isFollowing,
   isNostrId,
   isRelay,
   isURL,

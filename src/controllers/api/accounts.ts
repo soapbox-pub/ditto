@@ -7,9 +7,9 @@ import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { setTag } from '@/tags.ts';
+import { hasTag, setTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
-import { isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
+import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
@@ -218,14 +218,10 @@ const followController: AppController = async (c) => {
   const targetPubkey = c.req.param('pubkey');
 
   const source = await getFollows(sourcePubkey);
+  const tag = ['p', targetPubkey];
 
-  if (!source || !isFollowing(source, targetPubkey)) {
-    await updateListEvent(
-      source ?? { kind: 3 },
-      ['p', targetPubkey],
-      setTag,
-      c,
-    );
+  if (!source || !hasTag(source.tags, tag)) {
+    await updateListEvent(source ?? { kind: 3 }, tag, setTag, c);
   }
 
   const relationship = await renderRelationship(sourcePubkey, targetPubkey);
