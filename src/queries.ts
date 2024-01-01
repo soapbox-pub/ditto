@@ -78,7 +78,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string, signal = AbortSignal.timeout(1000)): Promise<Event<3> | undefined> => {
+const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<Event<3> | undefined> => {
   const [event] = await eventsDB.getEvents([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };

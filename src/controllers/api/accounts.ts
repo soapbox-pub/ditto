@@ -4,12 +4,13 @@ import { eventsDB } from '@/db/events.ts';
 import { insertUser } from '@/db/users.ts';
 import { findReplyTag, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
+import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { addTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
-import { isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
-import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
+import { lookupAccount, nostrNow } from '@/utils.ts';
+import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -216,18 +217,11 @@ const followController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
 
-  const source = await getFollows(sourcePubkey);
-
-  if (!source || !isFollowing(source, targetPubkey)) {
-    await createEvent({
-      kind: 3,
-      content: '',
-      tags: [
-        ...(source?.tags ?? []),
-        ['p', targetPubkey],
-      ],
-    }, c);
-  }
+  await updateListEvent(
+    { kinds: [3], authors: [sourcePubkey] },
+    (tags) => addTag(tags, ['p', targetPubkey]),
+    c,
+  );
 
   const relationship = await renderRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
@@ -250,6 +244,20 @@ const followingController: AppController = async (c) => {
   }));
 
   return c.json(accounts.filter(Boolean));
+};
+
+const blockController: AppController = async (c) => {
+  const sourcePubkey = c.get('pubkey')!;
+  const targetPubkey = c.req.param('pubkey');
+
+  await updateListEvent(
+    { kinds: [10000], authors: [sourcePubkey] },
+    (tags) => addTag(tags, ['p', targetPubkey]),
+    c,
+  );
+
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  return c.json(relationship);
 };
 
 const favouritesController: AppController = async (c) => {
@@ -281,6 +289,7 @@ export {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  blockController,
   createAccountController,
   favouritesController,
   followController,
