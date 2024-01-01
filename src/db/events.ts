@@ -20,7 +20,7 @@ type TagCondition = ({ event, count, value }: {
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
   'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
-  'e': ({ count, value }) => count < 15 && isNostrId(value),
+  'e': ({ event, count, value, opts }) => ((opts.data?.user && event.kind === 10003) || count < 15) && isNostrId(value),
   'media': ({ count, value, opts }) => (opts.data?.user || count < 4) && isURL(value),
   'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
   'proxy': ({ count, value }) => count === 0 && isURL(value),
