@@ -38,6 +38,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
         ? await eventsDB.getEvents([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+          { kinds: [10001], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
         ])
         : [],
@@ -45,6 +46,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
 
   const reactionEvent = relatedEvents.find((event) => event.kind === 6);
   const repostEvent = relatedEvents.find((event) => event.kind === 7);
+  const pinEvent = relatedEvents.find((event) => event.kind === 10001);
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
 
   const content = buildInlineRecipients(mentions) + html;
@@ -79,6 +81,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
     reblogged: Boolean(repostEvent),
     muted: false,
     bookmarked: Boolean(bookmarkEvent),
+    pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
     media_attachments: media.map(renderAttachment),
