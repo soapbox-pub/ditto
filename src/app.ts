@@ -37,6 +37,7 @@ import {
 } from './controllers/api/accounts.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { blocksController } from './controllers/api/blocks.ts';
+import { bookmarksController } from './controllers/api/bookmarks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
 import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
@@ -175,12 +176,12 @@ app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) })
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
+app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
 // Not (yet) implemented.
-app.get('/api/v1/bookmarks', emptyArrayController);
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/mutes', emptyArrayController);
