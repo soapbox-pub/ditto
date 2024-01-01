@@ -29,7 +29,8 @@ async function lookup(value: string, opts: LookupOpts = {}): Promise<string | nu
     const { names } = nostrJsonSchema.parse(await res.json());
 
     return names[name] || null;
-  } catch (_e) {
+  } catch (e) {
+    debug(e);
     return null;
   }
 }
@@ -51,6 +52,14 @@ function lookupNip05Cached(value: string): Promise<string | null> {
   debug(`Lookup ${value}`);
   const result = lookup(value);
   nip05Cache.set(value, result);
+
+  result.then((result) => {
+    if (result) {
+      debug(`Found: ${value} is ${result}`);
+    } else {
+      debug(`Not found: ${value} is ${result}`);
+    }
+  });
 
   return result;
 }
