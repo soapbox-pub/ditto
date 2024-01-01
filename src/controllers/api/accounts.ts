@@ -7,7 +7,7 @@ import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { addTag } from '@/tags.ts';
+import { addTag, deleteTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
@@ -213,6 +213,7 @@ const updateCredentialsController: AppController = async (c) => {
   return c.json(account);
 };
 
+/** https://docs.joinmastodon.org/methods/accounts/#follow */
 const followController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
@@ -220,6 +221,21 @@ const followController: AppController = async (c) => {
   await updateListEvent(
     { kinds: [3], authors: [sourcePubkey] },
     (tags) => addTag(tags, ['p', targetPubkey]),
+    c,
+  );
+
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  return c.json(relationship);
+};
+
+/** https://docs.joinmastodon.org/methods/accounts/#unfollow */
+const unfollowController: AppController = async (c) => {
+  const sourcePubkey = c.get('pubkey')!;
+  const targetPubkey = c.req.param('pubkey');
+
+  await updateListEvent(
+    { kinds: [3], authors: [sourcePubkey] },
+    (tags) => deleteTag(tags, ['p', targetPubkey]),
     c,
   );
 
@@ -247,6 +263,21 @@ const blockController: AppController = async (c) => {
   await updateListEvent(
     { kinds: [10000], authors: [sourcePubkey] },
     (tags) => addTag(tags, ['p', targetPubkey]),
+    c,
+  );
+
+  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  return c.json(relationship);
+};
+
+/** https://docs.joinmastodon.org/methods/accounts/#unblock */
+const unblockController: AppController = async (c) => {
+  const sourcePubkey = c.get('pubkey')!;
+  const targetPubkey = c.req.param('pubkey');
+
+  await updateListEvent(
+    { kinds: [10000], authors: [sourcePubkey] },
+    (tags) => deleteTag(tags, ['p', targetPubkey]),
     c,
   );
 
@@ -290,6 +321,8 @@ export {
   followersController,
   followingController,
   relationshipsController,
+  unblockController,
+  unfollowController,
   updateCredentialsController,
   verifyCredentialsController,
 };

@@ -30,6 +30,8 @@ import {
   followersController,
   followingController,
   relationshipsController,
+  unblockController,
+  unfollowController,
   updateCredentialsController,
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
@@ -137,8 +139,10 @@ app.patch(
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', blockController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', followController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requirePubkey, blockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requirePubkey, unblockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requirePubkey, followController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requirePubkey, unfollowController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
