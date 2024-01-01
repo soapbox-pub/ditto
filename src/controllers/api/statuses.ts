@@ -207,13 +207,69 @@ const unbookmarkController: AppController = async (c) => {
   }
 };
 
+/** https://docs.joinmastodon.org/methods/statuses/#pin */
+const pinController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+    relations: ['author', 'event_stats', 'author_stats'],
+  });
+
+  if (event) {
+    await updateListEvent(
+      { kinds: [10001], authors: [pubkey] },
+      (tags) => addTag(tags, ['e', eventId]),
+      c,
+    );
+
+    const status = await renderStatus(event, pubkey);
+    if (status) {
+      status.pinned = true;
+    }
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
+/** https://docs.joinmastodon.org/methods/statuses/#unpin */
+const unpinController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+    relations: ['author', 'event_stats', 'author_stats'],
+  });
+
+  if (event) {
+    await updateListEvent(
+      { kinds: [10001], authors: [pubkey] },
+      (tags) => deleteTag(tags, ['e', eventId]),
+      c,
+    );
+
+    const status = await renderStatus(event, pubkey);
+    if (status) {
+      status.pinned = false;
+    }
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
 export {
   bookmarkController,
   contextController,
   createStatusController,
   favouriteController,
   favouritedByController,
+  pinController,
   rebloggedByController,
   statusController,
   unbookmarkController,
+  unpinController,
 };
