@@ -1,13 +1,12 @@
+import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { type Context, type Event, EventTemplate, HTTPException, parseFormData, type TypeFest, z } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent, signEvent } from '@/sign.ts';
 import { nostrNow } from '@/utils.ts';
 
-import type { AppContext } from '@/app.ts';
-
 /** EventTemplate with defaults. */
-type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'created_at' | 'tags'>;
+type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
 async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
@@ -18,6 +17,7 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
   }
 
   const event = await signEvent({
+    content: '',
     created_at: nostrNow(),
     tags: [],
     ...t,
@@ -26,9 +26,24 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
   return publishEvent(event, c);
 }
 
+/** Add the tag to the list and then publish the new list, or throw if the tag already exists. */
+function updateListEvent<K extends number, E extends EventStub<K>>(
+  t: E,
+  tag: string[],
+  fn: (tags: string[][], tag: string[]) => string[][],
+  c: AppContext,
+): Promise<Event<K>> {
+  const { kind, content, tags = [] } = t;
+  return createEvent(
+    { kind, content, tags: fn(tags, tag) },
+    c,
+  );
+}
+
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const event = await signAdminEvent({
+    content: '',
     created_at: nostrNow(),
     tags: [],
     ...t,
@@ -139,4 +154,5 @@ export {
   type PaginationParams,
   paginationSchema,
   parseBody,
+  updateListEvent,
 };

@@ -7,9 +7,10 @@ import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { setTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { isFollowing, lookupAccount, nostrNow } from '@/utils.ts';
-import { paginated, paginationSchema, parseBody } from '@/utils/web.ts';
+import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -219,14 +220,12 @@ const followController: AppController = async (c) => {
   const source = await getFollows(sourcePubkey);
 
   if (!source || !isFollowing(source, targetPubkey)) {
-    await createEvent({
-      kind: 3,
-      content: '',
-      tags: [
-        ...(source?.tags ?? []),
-        ['p', targetPubkey],
-      ],
-    }, c);
+    await updateListEvent(
+      source ?? { kind: 3 },
+      ['p', targetPubkey],
+      setTag,
+      c,
+    );
   }
 
   const relationship = await renderRelationship(sourcePubkey, targetPubkey);

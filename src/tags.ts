@@ -11,6 +11,11 @@ function getTagSet(tags: string[][], tagName: string): Set<string> {
   return set;
 }
 
+/** Check if the tag exists by its name and value. */
+function hasTag(tags: string[][], tag: string[]): boolean {
+  return tags.some(([name, value]) => name === tag[0] && value === tag[1]);
+}
+
 /** Delete all occurences of the tag by its name/value pair. */
 function deleteTag(tags: readonly string[][], tag: string[]): string[][] {
   return tags.filter(([name, value]) => !(name === tag[0] && value === tag[1]));
@@ -26,4 +31,4 @@ function setTag(tags: readonly string[][], tag: string[]): string[][] {
   }
 }
 
-export { deleteTag, getTagSet, setTag };
+export { deleteTag, getTagSet, hasTag, setTag };
