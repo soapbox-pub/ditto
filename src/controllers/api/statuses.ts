@@ -2,7 +2,8 @@ import { type AppController } from '@/app.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { createEvent, paginationSchema, parseBody } from '@/utils/web.ts';
+import { addTag } from '@/tags.ts';
+import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -152,7 +153,35 @@ const rebloggedByController: AppController = (c) => {
   return renderEventAccounts(c, [{ kinds: [6], '#e': [id], ...params }]);
 };
 
+/** https://docs.joinmastodon.org/methods/statuses/#bookmark */
+const bookmarkController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+    relations: ['author', 'event_stats', 'author_stats'],
+  });
+
+  if (event) {
+    await updateListEvent(
+      { kinds: [10003], authors: [pubkey] },
+      (tags) => addTag(tags, ['e', eventId]),
+      c,
+    );
+
+    const status = await renderStatus(event, pubkey);
+    if (status) {
+      status.bookmarked = true;
+    }
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
 export {
+  bookmarkController,
   contextController,
   createStatusController,
   favouriteController,

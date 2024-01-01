@@ -47,6 +47,7 @@ import { preferencesController } from './controllers/api/preferences.ts';
 import { relayController } from './controllers/nostr/relay.ts';
 import { searchController } from './controllers/api/search.ts';
 import {
+  bookmarkController,
   contextController,
   createStatusController,
   favouriteController,
@@ -152,7 +153,8 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/favourited_by', favouritedByControll
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/reblogged_by', rebloggedByController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', favouriteController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', requirePubkey, favouriteController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requirePubkey, bookmarkController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
 app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);
