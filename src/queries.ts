@@ -4,6 +4,7 @@ import { type Event, findReplyTag } from '@/deps.ts';
 import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { type DittoEvent } from '@/store.ts';
+import { getTagSet } from '@/tags.ts';
 
 interface GetEventOpts<K extends number> {
   /** Signal to abort the request. */
@@ -87,10 +88,7 @@ const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<Event<3
 async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise<string[]> {
   const event = await getFollows(pubkey, signal);
   if (!event) return [];
-
-  return event.tags
-    .filter((tag) => tag[0] === 'p')
-    .map((tag) => tag[1]);
+  return [...getTagSet(event.tags, 'p')];
 }
 
 /** Get pubkeys the user follows, including the user's own pubkey. */

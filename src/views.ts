@@ -47,6 +47,10 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
 
 /** Render statuses by event IDs. */
 async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal.timeout(1000)) {
+  if (!ids.length) {
+    return c.json([]);
+  }
+
   const { limit } = paginationSchema.parse(c.req.query());
 
   const events = await eventsDB.getEvents(

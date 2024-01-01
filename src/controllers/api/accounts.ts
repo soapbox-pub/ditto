@@ -7,12 +7,12 @@ import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { addTag, deleteTag } from '@/tags.ts';
+import { addTag, deleteTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
 import { createEvent } from '@/utils/web.ts';
-import { renderAccounts, renderEventAccounts } from '@/views.ts';
+import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -134,9 +134,14 @@ const accountStatusesController: AppController = async (c) => {
   const { since, until } = paginationSchema.parse(c.req.query());
   const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
 
-  // Nostr doesn't support pinned statuses.
   if (pinned) {
-    return c.json([]);
+    const [pinEvent] = await eventsDB.getEvents([{ kinds: [10001], authors: [pubkey], limit: 1 }]);
+    if (pinEvent) {
+      const pinnedEventIds = getTagSet(pinEvent.tags, 'e');
+      return renderStatuses(c, [...pinnedEventIds].reverse());
+    } else {
+      return c.json([]);
+    }
   }
 
   const filter: DittoFilter<1> = {
