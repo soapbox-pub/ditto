@@ -2,6 +2,7 @@ import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import {
   type Context,
+  Debug,
   type Event,
   EventTemplate,
   Filter,
@@ -14,6 +15,8 @@ import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent, signEvent } from '@/sign.ts';
 import { nostrNow } from '@/utils.ts';
 import { eventsDB } from '@/db/events.ts';
+
+const debug = Debug('ditto:api');
 
 /** EventTemplate with defaults. */
 type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'content' | 'created_at' | 'tags'>;
@@ -79,6 +82,7 @@ async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext
 
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent<K extends number>(event: Event<K>, c: AppContext): Promise<Event<K>> {
+  debug('EVENT', event);
   try {
     await pipeline.handleEvent(event);
   } catch (e) {
