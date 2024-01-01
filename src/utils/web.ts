@@ -1,9 +1,19 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { type Context, type Event, EventTemplate, HTTPException, parseFormData, type TypeFest, z } from '@/deps.ts';
+import {
+  type Context,
+  type Event,
+  EventTemplate,
+  Filter,
+  HTTPException,
+  parseFormData,
+  type TypeFest,
+  z,
+} from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent, signEvent } from '@/sign.ts';
 import { nostrNow } from '@/utils.ts';
+import { eventsDB } from '@/db/events.ts';
 
 /** EventTemplate with defaults. */
 type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'content' | 'created_at' | 'tags'>;
@@ -26,20 +36,34 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
   return publishEvent(event, c);
 }
 
-/** Add the tag to the list and then publish the new list, or throw if the tag already exists. */
-function updateListEvent<K extends number, E extends EventStub<K>>(
-  t: E,
-  tag: string[],
-  fn: (tags: string[][], tag: string[]) => string[][],
-  c: AppContext,
-): Promise<Event<K>> {
-  const { kind, content, tags = [] } = t;
-  return createEvent(
-    { kind, content, tags: fn(tags, tag) },
-    c,
-  );
+/** Filter for fetching an existing event to update. */
+interface UpdateEventFilter<K extends number> extends Filter<K> {
+  kinds: [K];
+  limit?: 1;
 }
 
+/** Fetch existing event, update it, then publish the new event. */
+async function updateEvent<K extends number, E extends EventStub<K>>(
+  filter: UpdateEventFilter<K>,
+  fn: (prev: Event<K> | undefined) => E,
+  c: AppContext,
+): Promise<Event<K>> {
+  const [prev] = await eventsDB.getEvents([filter], { limit: 1 });
+  return createEvent(fn(prev), c);
+}
+
+/** Fetch existing event, update its tags, then publish the new event. */
+function updateListEvent<K extends number, E extends EventStub<K>>(
+  filter: UpdateEventFilter<K>,
+  fn: (tags: string[][]) => string[][],
+  c: AppContext,
+): Promise<Event<K>> {
+  return updateEvent(filter, (prev) => ({
+    kind: filter.kinds[0],
+    content: prev?.content,
+    tags: fn(prev?.tags ?? []),
+  }), c);
+}
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
   const event = await signAdminEvent({
@@ -154,5 +178,6 @@ export {
   type PaginationParams,
   paginationSchema,
   parseBody,
+  updateEvent,
   updateListEvent,
 };

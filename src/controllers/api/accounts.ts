@@ -4,10 +4,10 @@ import { eventsDB } from '@/db/events.ts';
 import { insertUser } from '@/db/users.ts';
 import { findReplyTag, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { getAuthor, getFollowedPubkeys, getFollows } from '@/queries.ts';
+import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { hasTag, setTag } from '@/tags.ts';
+import { setTag } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
@@ -217,12 +217,11 @@ const followController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
 
-  const source = await getFollows(sourcePubkey);
-  const tag = ['p', targetPubkey];
-
-  if (!source || !hasTag(source.tags, tag)) {
-    await updateListEvent(source ?? { kind: 3 }, tag, setTag, c);
-  }
+  await updateListEvent(
+    { kinds: [3], authors: [sourcePubkey] },
+    (tags) => setTag(tags, ['p', targetPubkey]),
+    c,
+  );
 
   const relationship = await renderRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
