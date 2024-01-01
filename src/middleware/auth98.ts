@@ -6,7 +6,7 @@ import {
   type ParseAuthRequestOpts,
   validateAuthEvent,
 } from '@/utils/nip98.ts';
-import { localRequest } from '@/utils/web.ts';
+import { localRequest } from '@/utils/api.ts';
 import { signEvent } from '@/sign.ts';
 import { findUser, User } from '@/db/users.ts';
 

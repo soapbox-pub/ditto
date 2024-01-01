@@ -3,7 +3,7 @@ import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
+import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 import type { AppContext, AppController } from '@/app.ts';

@@ -2,7 +2,7 @@ import { type AppController } from '@/app.ts';
 import { eventsDB } from '@/db/events.ts';
 import { z } from '@/deps.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
-import { createAdminEvent } from '@/utils/web.ts';
+import { createAdminEvent } from '@/utils/api.ts';
 import { Conf } from '@/config.ts';
 
 const frontendConfigController: AppController = async (c) => {

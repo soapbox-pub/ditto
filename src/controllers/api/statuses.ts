@@ -3,7 +3,7 @@ import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { addTag, deleteTag } from '@/tags.ts';
-import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/web.ts';
+import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 

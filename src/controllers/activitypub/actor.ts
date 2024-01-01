@@ -1,6 +1,6 @@
 import { findUser } from '@/db/users.ts';
 import { getAuthor } from '@/queries.ts';
-import { activityJson } from '@/utils/web.ts';
+import { activityJson } from '@/utils/api.ts';
 import { renderActor } from '@/views/activitypub/actor.ts';
 
 import type { AppContext, AppController } from '@/app.ts';

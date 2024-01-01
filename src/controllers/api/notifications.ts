@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { eventsDB } from '@/db/events.ts';
-import { paginated, paginationSchema } from '@/utils/web.ts';
+import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 const notificationsController: AppController = async (c) => {

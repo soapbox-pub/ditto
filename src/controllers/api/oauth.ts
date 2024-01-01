@@ -1,7 +1,7 @@
 import { lodash, nip19, z } from '@/deps.ts';
 import { AppController } from '@/app.ts';
 import { nostrNow } from '@/utils.ts';
-import { parseBody } from '@/utils/web.ts';
+import { parseBody } from '@/utils/api.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
