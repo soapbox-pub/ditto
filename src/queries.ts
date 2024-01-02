@@ -1,10 +1,12 @@
 import { eventsDB } from '@/db/events.ts';
 import { memorelay } from '@/db/memorelay.ts';
-import { type Event, findReplyTag } from '@/deps.ts';
+import { Debug, type Event, findReplyTag } from '@/deps.ts';
 import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { type DittoEvent } from '@/store.ts';
 import { getTagSet } from '@/tags.ts';
+
+const debug = Debug('ditto:queries');
 
 interface GetEventOpts<K extends number> {
   /** Signal to abort the request. */
@@ -20,12 +22,14 @@ const getEvent = async <K extends number = number>(
   id: string,
   opts: GetEventOpts<K> = {},
 ): Promise<Event<K> | undefined> => {
+  debug(`getEvent: ${id}`);
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
   const [memoryEvent] = await memorelay.getEvents([microfilter], opts) as DittoEvent<K>[];
 
   if (memoryEvent && !relations) {
+    debug(`getEvent: ${id.slice(0, 8)} found in memory`);
     return memoryEvent;
   }
 
@@ -44,16 +48,29 @@ const getEvent = async <K extends number = number>(
     dbEvent.author = author;
   }
 
-  if (dbEvent) return dbEvent;
+  if (dbEvent) {
+    debug(`getEvent: ${id.slice(0, 8)} found in db`);
+    return dbEvent;
+  }
 
   if (memoryEvent && !memoryEvent.author) {
     const [author] = await memorelay.getEvents([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
     memoryEvent.author = author;
   }
 
-  if (memoryEvent) return memoryEvent;
+  if (memoryEvent) {
+    debug(`getEvent: ${id.slice(0, 8)} found in memory`);
+    return memoryEvent;
+  }
 
-  return await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
+  const reqEvent = await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
+
+  if (reqEvent) {
+    debug(`getEvent: ${id.slice(0, 8)} found by reqmeister`);
+    return reqEvent;
+  }
+
+  debug(`getEvent: ${id.slice(0, 8)} not found`);
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
