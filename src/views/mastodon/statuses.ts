@@ -44,8 +44,8 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
         : [],
     ]);
 
-  const reactionEvent = relatedEvents.find((event) => event.kind === 6);
-  const repostEvent = relatedEvents.find((event) => event.kind === 7);
+  const reactionEvent = relatedEvents.find((event) => event.kind === 7);
+  const repostEvent = relatedEvents.find((event) => event.kind === 6);
   const pinEvent = relatedEvents.find((event) => event.kind === 10001);
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
 
