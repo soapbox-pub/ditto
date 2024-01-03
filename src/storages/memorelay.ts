@@ -5,10 +5,10 @@ import { type EventStore, type GetEventsOpts } from '@/store.ts';
 /** In-memory data store for events using microfilters. */
 class Memorelay implements EventStore {
   #debug = Debug('ditto:memorelay');
-  #events: LRUCache<string, Event>;
+  #cache: LRUCache<string, Event>;
 
   constructor(...args: ConstructorParameters<typeof LRUCache<string, Event>>) {
-    this.#events = new LRUCache<string, Event>(...args);
+    this.#cache = new LRUCache<string, Event>(...args);
   }
 
   /** Get events from memory. */
@@ -21,7 +21,7 @@ class Memorelay implements EventStore {
 
     for (const filter of filters) {
       if (isMicrofilter(filter)) {
-        const event = this.#events.get(getFilterId(filter));
+        const event = this.#cache.get(getFilterId(filter));
         if (event) {
           results.push(event as Event<K>);
         }
@@ -35,9 +35,9 @@ class Memorelay implements EventStore {
   storeEvent(event: Event): Promise<void> {
     for (const microfilter of getMicroFilters(event)) {
       const filterId = getFilterId(microfilter);
-      const existing = this.#events.get(filterId);
+      const existing = this.#cache.get(filterId);
       if (!existing || event.created_at > existing.created_at) {
-        this.#events.set(filterId, event);
+        this.#cache.set(filterId, event);
       }
     }
     return Promise.resolve();
@@ -53,7 +53,7 @@ class Memorelay implements EventStore {
   deleteEvents(filters: Filter[]): Promise<void> {
     for (const filter of filters) {
       if (isMicrofilter(filter)) {
-        this.#events.delete(getFilterId(filter));
+        this.#cache.delete(getFilterId(filter));
       }
     }
     return Promise.resolve();
