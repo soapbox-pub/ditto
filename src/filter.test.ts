@@ -4,7 +4,7 @@ import { assertEquals } from '@/deps-test.ts';
 import event0 from '~/fixtures/events/event-0.json' assert { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
 
-import { eventToMicroFilter, getFilterId, getMicroFilters, isMicrofilter } from './filter.ts';
+import { eventToMicroFilter, getFilterId, getFilterLimit, getMicroFilters, isMicrofilter } from './filter.ts';
 
 Deno.test('getMicroFilters', () => {
   const event = event0 as Event<0>;
@@ -34,4 +34,14 @@ Deno.test('getFilterId', () => {
     getFilterId({ authors: [event0.pubkey], kinds: [0] }),
     '{"authors":["79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6"],"kinds":[0]}',
   );
+});
+
+Deno.test('getFilterLimit', () => {
+  assertEquals(getFilterLimit({ ids: [event0.id] }), 1);
+  assertEquals(getFilterLimit({ ids: [event0.id], limit: 2 }), 1);
+  assertEquals(getFilterLimit({ ids: [event0.id], limit: 0 }), 0);
+  assertEquals(getFilterLimit({ ids: [event0.id], limit: -1 }), 0);
+  assertEquals(getFilterLimit({ kinds: [0], authors: [event0.pubkey] }), 1);
+  assertEquals(getFilterLimit({ kinds: [1], authors: [event0.pubkey] }), Infinity);
+  assertEquals(getFilterLimit({}), Infinity);
 });

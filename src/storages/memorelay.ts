@@ -1,4 +1,5 @@
 import { Debug, type Event, type Filter, LRUCache, matchFilter, matchFilters } from '@/deps.ts';
+import { canFilter, getFilterLimit } from '@/filter.ts';
 import { type EventStore, type GetEventsOpts } from '@/store.ts';
 
 /** In-memory data store for events. */
@@ -27,6 +28,7 @@ class Memorelay implements EventStore {
   /** Get events from memory. */
   getEvents<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
     if (opts.signal?.aborted) return Promise.resolve([]);
+    filters = filters.filter(canFilter);
     if (!filters.length) return Promise.resolve([]);
     this.#debug('REQ', JSON.stringify(filters));
 
@@ -37,7 +39,7 @@ class Memorelay implements EventStore {
       let index = 0;
 
       for (const filter of filters) {
-        const limit = filter.limit ?? Infinity;
+        const limit = getFilterLimit(filter);
         const usage = usages[index] ?? 0;
 
         if (usage >= limit) {
@@ -50,7 +52,7 @@ class Memorelay implements EventStore {
         index++;
       }
 
-      if (filters.every((filter, index) => usages[index] >= (filter.limit ?? Infinity))) {
+      if (filters.every((filter, index) => usages[index] >= getFilterLimit(filter))) {
         break;
       }
     }
