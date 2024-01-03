@@ -2,7 +2,13 @@ import { assertEquals } from '@/deps-test.ts';
 
 import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
 
-import { memorelay } from './memorelay.ts';
+import { Memorelay } from './memorelay.ts';
+
+const memorelay = new Memorelay({
+  max: 3000,
+  maxEntrySize: 5000,
+  sizeCalculation: (event) => JSON.stringify(event).length,
+});
 
 Deno.test('memorelay', async () => {
   assertEquals(await memorelay.countEvents([{ ids: [event1.id] }]), 0);

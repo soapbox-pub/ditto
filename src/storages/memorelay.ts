@@ -1,14 +1,22 @@
-import { Debug, type Event, type Filter, LRUCache } from '@/deps.ts';
-import { getFilterId, getMicroFilters, isMicrofilter } from '@/filter.ts';
+import { Debug, type Event, type Filter, LRUCache, matchFilter, matchFilters } from '@/deps.ts';
 import { type EventStore, type GetEventsOpts } from '@/store.ts';
 
-/** In-memory data store for events using microfilters. */
+/** In-memory data store for events. */
 class Memorelay implements EventStore {
   #debug = Debug('ditto:memorelay');
   #cache: LRUCache<string, Event>;
 
   constructor(...args: ConstructorParameters<typeof LRUCache<string, Event>>) {
     this.#cache = new LRUCache<string, Event>(...args);
+  }
+
+  /** Iterate stored events. */
+  *#events(): Generator<Event> {
+    for (const event of this.#cache.values()) {
+      if (event && !(event instanceof Promise)) {
+        yield event;
+      }
+    }
   }
 
   /** Get events from memory. */
@@ -18,13 +26,27 @@ class Memorelay implements EventStore {
     this.#debug('REQ', JSON.stringify(filters));
 
     const results: Event<K>[] = [];
+    const usages: number[] = [];
 
-    for (const filter of filters) {
-      if (isMicrofilter(filter)) {
-        const event = this.#cache.get(getFilterId(filter));
-        if (event) {
+    for (const event of this.#events()) {
+      let index = 0;
+
+      for (const filter of filters) {
+        const limit = filter.limit ?? Infinity;
+        const usage = usages[index] ?? 0;
+
+        if (usage >= limit) {
+          continue;
+        } else if (matchFilter(filter, event)) {
           results.push(event as Event<K>);
+          usages[index] = usage + 1;
         }
+
+        index++;
+      }
+
+      if (filters.every((filter, index) => usages[index] >= (filter.limit ?? Infinity))) {
+        break;
       }
     }
 
@@ -33,13 +55,7 @@ class Memorelay implements EventStore {
 
   /** Insert an event into memory. */
   storeEvent(event: Event): Promise<void> {
-    for (const microfilter of getMicroFilters(event)) {
-      const filterId = getFilterId(microfilter);
-      const existing = this.#cache.get(filterId);
-      if (!existing || event.created_at > existing.created_at) {
-        this.#cache.set(filterId, event);
-      }
-    }
+    this.#cache.set(event.id, event);
     return Promise.resolve();
   }
 
@@ -51,9 +67,9 @@ class Memorelay implements EventStore {
 
   /** Delete events from memory. */
   deleteEvents(filters: Filter[]): Promise<void> {
-    for (const filter of filters) {
-      if (isMicrofilter(filter)) {
-        this.#cache.delete(getFilterId(filter));
+    for (const event of this.#events()) {
+      if (matchFilters(filters, event)) {
+        this.#cache.delete(event.id);
       }
     }
     return Promise.resolve();
