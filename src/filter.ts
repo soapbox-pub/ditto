@@ -104,6 +104,17 @@ function canFilter(filter: Filter): boolean {
   return getFilterLimit(filter) > 0;
 }
 
+/** Normalize the `limit` of each filter, and remove filters that can't produce any events. */
+function normalizeFilters<F extends Filter>(filters: F[]): F[] {
+  return filters.reduce<F[]>((acc, filter) => {
+    const limit = getFilterLimit(filter);
+    if (limit > 0) {
+      acc.push(limit === Infinity ? filter : { ...filter, limit });
+    }
+    return acc;
+  }, []);
+}
+
 export {
   type AuthorMicrofilter,
   canFilter,
@@ -116,5 +127,6 @@ export {
   isMicrofilter,
   matchDittoFilters,
   type MicroFilter,
+  normalizeFilters,
   type Relation,
 };
