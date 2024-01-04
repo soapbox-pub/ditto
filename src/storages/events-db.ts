@@ -187,7 +187,7 @@ class EventsDB implements EventStore {
 
     if (typeof filter.local === 'boolean') {
       query = query
-        .leftJoin(this.usersQuery, (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
+        .leftJoin(() => this.usersQuery(), (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
         .where('users.d_tag', filter.local ? 'is not' : 'is', null);
     }
 
