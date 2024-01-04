@@ -1,6 +1,7 @@
 import { Debug, type Event, type Filter, LRUCache, matchFilter } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type EventStore, type GetEventsOpts } from '@/store.ts';
+import { EventSet } from '@/utils/event-set.ts';
 
 /** In-memory data store for events. */
 class Memorelay implements EventStore {
@@ -35,14 +36,14 @@ class Memorelay implements EventStore {
     this.#debug('REQ', JSON.stringify(filters));
 
     /** Event results to return. */
-    const results: Event<K>[] = [];
+    const results = new EventSet<Event<K>>();
 
     /** Number of times an event has been added to results for each filter. */
     const filterUsages: number[] = [];
 
     /** Check if all filters have been satisfied. */
     function checkSatisfied() {
-      return results.length >= (opts.limit ?? Infinity) ||
+      return results.size >= (opts.limit ?? Infinity) ||
         filters.every((filter, index) => filter.limit && (filterUsages[index] >= filter.limit));
     }
 
@@ -52,7 +53,7 @@ class Memorelay implements EventStore {
         for (const id of filter.ids) {
           const event = this.#cache.get(id);
           if (event && matchFilter(filter, event)) {
-            results.push(event as Event<K>);
+            results.add(event as Event<K>);
           }
         }
         filterUsages[index] = Infinity;
@@ -61,7 +62,7 @@ class Memorelay implements EventStore {
 
     // Return early if all filters are satisfied.
     if (checkSatisfied()) {
-      return Promise.resolve(results);
+      return Promise.resolve([...results]);
     }
 
     // Seek through all events in memory.
@@ -73,7 +74,7 @@ class Memorelay implements EventStore {
         if (usage >= limit) {
           return;
         } else if (matchFilter(filter, event)) {
-          results.push(event as Event<K>);
+          results.add(event as Event<K>);
           this.#cache.get(event.id);
           filterUsages[index] = usage + 1;
         }
@@ -87,7 +88,7 @@ class Memorelay implements EventStore {
       }
     }
 
-    return Promise.resolve(results);
+    return Promise.resolve([...results]);
   }
 
   /** Insert an event into memory. */
