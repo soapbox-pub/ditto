@@ -1,7 +1,7 @@
 import { Debug, type Event, type Filter, matchFilters } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
-import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
+import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
 
 const debug = Debug('ditto:client');
 

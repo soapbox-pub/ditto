@@ -4,8 +4,9 @@ import { Debug, type Event, Kysely, type SelectQueryBuilder } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 import { isNostrId, isURL } from '@/utils.ts';
+
+import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {

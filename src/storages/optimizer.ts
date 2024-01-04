@@ -1,6 +1,7 @@
-import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/store.ts';
 import { type DittoFilter, normalizeFilters } from '@/filter.ts';
 import { EventSet } from '@/utils/event-set.ts';
+
+import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
 
 interface OptimizerOpts {
   db: EventStore;

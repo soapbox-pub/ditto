@@ -1,7 +1,8 @@
 import { Debug, type Event, type Filter, LRUCache, matchFilter } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
-import { type EventStore, type GetEventsOpts } from '@/store.ts';
 import { EventSet } from '@/utils/event-set.ts';
+
+import { type EventStore, type GetEventsOpts } from './types.ts';
 
 /** In-memory data store for events. */
 class Memorelay implements EventStore {

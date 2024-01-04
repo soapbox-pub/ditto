@@ -8,7 +8,7 @@ import {
   isMicrofilter,
   type MicroFilter,
 } from '@/filter.ts';
-import { type EventStore, GetEventsOpts } from '@/store.ts';
+import { type EventStore, GetEventsOpts } from '@/storages/types.ts';
 import { Time } from '@/utils/time.ts';
 
 const debug = Debug('ditto:reqmeister');

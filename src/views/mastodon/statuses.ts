@@ -6,7 +6,7 @@ import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
-import { type DittoEvent } from '@/store.ts';
+import { type DittoEvent } from '@/storages/types.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
