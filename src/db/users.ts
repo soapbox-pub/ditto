@@ -1,8 +1,8 @@
 import { Conf } from '@/config.ts';
 import { Debug, type Filter } from '@/deps.ts';
-import { eventsDB } from '@/db/events.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent } from '@/sign.ts';
+import { eventsDB } from '@/storages.ts';
 
 const debug = Debug('ditto:users');
 

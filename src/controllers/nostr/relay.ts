@@ -1,5 +1,5 @@
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { eventsDB } from '@/db/events.ts';
+import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
 import { jsonSchema } from '@/schema.ts';
 import {

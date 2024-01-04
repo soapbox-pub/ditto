@@ -1,8 +1,8 @@
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import { eventsDB } from '@/db/events.ts';
 import { type Kysely } from '@/deps.ts';
 import { signAdminEvent } from '@/sign.ts';
+import { eventsDB } from '@/storages.ts';
 
 interface DB {
   users: {

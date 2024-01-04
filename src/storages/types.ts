@@ -33,6 +33,8 @@ interface DittoEvent<K extends number = number> extends Event<K> {
 
 /** Storage interface for Nostr events. */
 interface EventStore {
+  /** Indicates NIPs supported by this data store, similar to NIP-11. For example, `50` would indicate support for `search` filters. */
+  supportedNips: readonly number[];
   /** Add an event to the store. */
   storeEvent(event: Event, opts?: StoreEventOpts): Promise<void>;
   /** Get events from filters. */

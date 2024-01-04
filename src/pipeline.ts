@@ -1,7 +1,5 @@
 import { client } from '@/client.ts';
 import { Conf } from '@/config.ts';
-import { eventsDB } from '@/db/events.ts';
-import { memorelay } from '@/db/memorelay.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
@@ -10,6 +8,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
+import { eventsDB, memorelay } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';

@@ -1,12 +1,12 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { eventsDB } from '@/db/events.ts';
 import { insertUser } from '@/db/users.ts';
 import { findReplyTag, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { eventsDB } from '@/storages.ts';
 import { addTag, deleteTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';

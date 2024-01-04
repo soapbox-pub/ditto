@@ -1,4 +1,4 @@
-import { eventsDB } from '@/db/events.ts';
+import { eventsDB } from '@/storages.ts';
 import { hasTag } from '@/tags.ts';
 
 async function renderRelationship(sourcePubkey: string, targetPubkey: string) {

@@ -2,6 +2,7 @@ import { Conf } from '@/config.ts';
 import { type Event, type Filter, matchFilters, stringifyStable, z } from '@/deps.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { type EventData } from '@/types.ts';
+import { isReplaceableKind } from '@/kinds.ts';
 
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';
@@ -82,15 +83,50 @@ function isMicrofilter(filter: Filter): filter is MicroFilter {
   return microFilterSchema.safeParse(filter).success;
 }
 
+/** Calculate the intrinsic limit of a filter. */
+function getFilterLimit(filter: Filter): number {
+  if (filter.ids && !filter.ids.length) return 0;
+  if (filter.kinds && !filter.kinds.length) return 0;
+  if (filter.authors && !filter.authors.length) return 0;
+
+  return Math.min(
+    Math.max(0, filter.limit ?? Infinity),
+    filter.ids?.length ?? Infinity,
+    filter.authors?.length &&
+      filter.kinds?.every((kind) => isReplaceableKind(kind))
+      ? filter.authors.length * filter.kinds.length
+      : Infinity,
+  );
+}
+
+/** Returns true if the filter could potentially return any stored events at all. */
+function canFilter(filter: Filter): boolean {
+  return getFilterLimit(filter) > 0;
+}
+
+/** Normalize the `limit` of each filter, and remove filters that can't produce any events. */
+function normalizeFilters<F extends Filter>(filters: F[]): F[] {
+  return filters.reduce<F[]>((acc, filter) => {
+    const limit = getFilterLimit(filter);
+    if (limit > 0) {
+      acc.push(limit === Infinity ? filter : { ...filter, limit });
+    }
+    return acc;
+  }, []);
+}
+
 export {
   type AuthorMicrofilter,
+  canFilter,
   type DittoFilter,
   eventToMicroFilter,
   getFilterId,
+  getFilterLimit,
   getMicroFilters,
   type IdMicrofilter,
   isMicrofilter,
   matchDittoFilters,
   type MicroFilter,
+  normalizeFilters,
   type Relation,
 };

@@ -2,8 +2,8 @@ import { Conf } from '@/config.ts';
 import { findUser } from '@/db/users.ts';
 import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { type DittoEvent } from '@/storages/types.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
-import { type DittoEvent } from '@/store.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 

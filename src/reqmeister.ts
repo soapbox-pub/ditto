@@ -1,6 +1,14 @@
 import { client } from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
-import { AuthorMicrofilter, eventToMicroFilter, getFilterId, IdMicrofilter, type MicroFilter } from '@/filter.ts';
+import {
+  AuthorMicrofilter,
+  eventToMicroFilter,
+  getFilterId,
+  IdMicrofilter,
+  isMicrofilter,
+  type MicroFilter,
+} from '@/filter.ts';
+import { type EventStore, GetEventsOpts } from '@/storages/types.ts';
 import { Time } from '@/utils/time.ts';
 
 const debug = Debug('ditto:reqmeister');
@@ -18,11 +26,13 @@ interface ReqmeisterReqOpts {
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
 /** Batches requests to Nostr relays using microfilters. */
-class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => any }> {
+class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => any }> implements EventStore {
   #opts: ReqmeisterOpts;
   #queue: ReqmeisterQueueItem[] = [];
   #promise!: Promise<void>;
   #resolve!: () => void;
+
+  supportedNips = [];
 
   constructor(opts: ReqmeisterOpts = {}) {
     super();
@@ -118,6 +128,33 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   isWanted(event: Event): boolean {
     const filterId = getFilterId(eventToMicroFilter(event));
     return this.#queue.some(([id]) => id === filterId);
+  }
+
+  getEvents<K extends number>(filters: Filter<K>[], opts?: GetEventsOpts | undefined): Promise<Event<K>[]> {
+    if (opts?.signal?.aborted) return Promise.resolve([]);
+    if (!filters.length) return Promise.resolve([]);
+
+    const promises = filters.reduce<Promise<Event<K>>[]>((result, filter) => {
+      if (isMicrofilter(filter)) {
+        result.push(this.req(filter) as Promise<Event<K>>);
+      }
+      return result;
+    }, []);
+
+    return Promise.all(promises);
+  }
+
+  storeEvent(event: Event): Promise<void> {
+    this.encounter(event);
+    return Promise.resolve();
+  }
+
+  countEvents(_filters: Filter[]): Promise<number> {
+    throw new Error('COUNT not implemented.');
+  }
+
+  deleteEvents(_filters: Filter[]): Promise<void> {
+    throw new Error('DELETE not implemented.');
   }
 }
 
