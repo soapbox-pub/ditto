@@ -50,14 +50,23 @@ class SearchStore implements EventStore {
       this.#debug(`Searching for "${query}" at ${this.#relay.socket.url}...`);
 
       const sub = this.#relay.req(filters, opts);
-      sub.eoseSignal.onabort = () => sub.close();
+
+      const close = () => {
+        sub.close();
+        opts?.signal?.removeEventListener('abort', close);
+        sub.eoseSignal.removeEventListener('abort', close);
+      };
+
+      opts?.signal?.addEventListener('abort', close, { once: true });
+      sub.eoseSignal.addEventListener('abort', close, { once: true });
+
       const events = new EventSet<DittoEvent<K>>();
 
       for await (const event of sub) {
         events.add(event);
       }
 
-      return hydrateEvents({ events: [...events], filters, storage: this.#hydrator });
+      return hydrateEvents({ events: [...events], filters, storage: this.#hydrator, signal: opts?.signal });
     } else {
       this.#debug(`Searching for "${query}" locally...`);
       return this.#fallback.getEvents(filters, opts);

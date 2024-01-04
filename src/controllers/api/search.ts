@@ -30,9 +30,11 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
+  const signal = AbortSignal.timeout(1000);
+
   const [event, events] = await Promise.all([
-    lookupEvent(result.data),
-    searchEvents(result.data),
+    lookupEvent(result.data, signal),
+    searchEvents(result.data, signal),
   ]);
 
   if (event) {
@@ -62,7 +64,7 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Event[]> {
+function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<Event[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
   const filter: DittoFilter = {
@@ -76,7 +78,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Even
     filter.authors = [account_id];
   }
 
-  return searchStore.getEvents([filter]);
+  return searchStore.getEvents([filter], { signal });
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -92,7 +94,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 }
 
 /** Resolve a searched value into an event, if applicable. */
-async function lookupEvent(query: SearchQuery, signal = AbortSignal.timeout(1000)): Promise<Event | undefined> {
+async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Event | undefined> {
   const filters = await getLookupFilters(query);
   const [event] = await searchStore.getEvents(filters, { limit: 1, signal });
   return event;
