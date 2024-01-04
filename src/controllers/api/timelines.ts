@@ -1,4 +1,4 @@
-import { eventsDB } from '@/db/events.ts';
+import { eventsDB } from '@/storages.ts';
 import { z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { getFeedPubkeys } from '@/queries.ts';

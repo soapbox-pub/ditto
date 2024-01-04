@@ -1,6 +1,6 @@
 import { AppContext } from '@/app.ts';
-import { eventsDB } from '@/db/events.ts';
 import { type Filter } from '@/deps.ts';
+import { eventsDB } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';

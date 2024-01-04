@@ -1,6 +1,6 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import { eventsDB } from '@/db/events.ts';
 import { Debug, type Event, findReplyTag, type InsertQueryBuilder } from '@/deps.ts';
+import { eventsDB } from '@/storages.ts';
 
 type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
 type EventStat = keyof Omit<EventStatsRow, 'event_id'>;

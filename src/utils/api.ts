@@ -13,8 +13,8 @@ import {
 } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent, signEvent } from '@/sign.ts';
+import { eventsDB } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
-import { eventsDB } from '@/db/events.ts';
 
 const debug = Debug('ditto:api');
 

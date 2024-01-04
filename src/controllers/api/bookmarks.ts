@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { eventsDB } from '@/db/events.ts';
+import { eventsDB } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { renderStatuses } from '@/views.ts';
 

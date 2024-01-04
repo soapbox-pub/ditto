@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { eventsDB } from '@/db/events.ts';
+import { eventsDB } from '@/storages.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 

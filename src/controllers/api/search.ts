@@ -1,9 +1,9 @@
 import { AppController } from '@/app.ts';
-import { eventsDB } from '@/db/events.ts';
 import { type Event, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
+import { eventsDB } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';

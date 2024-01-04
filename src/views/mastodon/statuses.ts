@@ -1,12 +1,12 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
-import { eventsDB } from '@/db/events.ts';
 import { findReplyTag, nip19 } from '@/deps.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
-import { DittoEvent } from '@/store.ts';
+import { eventsDB } from '@/storages.ts';
+import { type DittoEvent } from '@/store.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
