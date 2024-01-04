@@ -57,18 +57,18 @@ class EventSet<E extends Event = Event> implements Set<E> {
 
   [Symbol.toStringTag]: string = 'EventSet';
 
-  /** Returns true if both events are replaceable, belong to the same pubkey (and `d` tag, for parameterized events), and the first event is newer than the second one. */
-  static eventReplaces(event: Event, event2: Event): boolean {
+  /** Returns true if both events are replaceable, belong to the same kind and pubkey (and `d` tag, for parameterized events), and the first event is newer than the second one. */
+  static eventReplaces(event: Event, target: Event): boolean {
     if (isReplaceableKind(event.kind)) {
-      return event.kind === event2.kind && event.pubkey === event2.pubkey && event.created_at > event2.created_at;
+      return event.kind === target.kind && event.pubkey === target.pubkey && event.created_at > target.created_at;
     } else if (isParameterizedReplaceableKind(event.kind)) {
       const d = event.tags.find(([name]) => name === 'd')?.[1] || '';
-      const d2 = event2.tags.find(([name]) => name === 'd')?.[1] || '';
+      const d2 = target.tags.find(([name]) => name === 'd')?.[1] || '';
 
-      return event.kind === event2.kind &&
-        event.pubkey === event2.pubkey &&
+      return event.kind === target.kind &&
+        event.pubkey === target.pubkey &&
         d === d2 &&
-        event.created_at > event2.created_at;
+        event.created_at > target.created_at;
     }
     return false;
   }
