@@ -57,7 +57,7 @@ class SearchStore implements EventStore {
         const authorIds = new Set([...events].map((event) => event.pubkey));
         const authors = await this.getEvents([{ kinds: [0], authors: [...authorIds] }], opts);
         for (const event of events) {
-          event.author = authors.find((author) => author.id === event.pubkey);
+          event.author = authors.find((author) => author.pubkey === event.pubkey);
         }
       }
 

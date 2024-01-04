@@ -1,3 +1,4 @@
+import { Debug } from '@/deps.ts';
 import { type DittoFilter, normalizeFilters } from '@/filter.ts';
 import { EventSet } from '@/utils/event-set.ts';
 
@@ -10,6 +11,8 @@ interface OptimizerOpts {
 }
 
 class Optimizer implements EventStore {
+  #debug = Debug('ditto:optimizer');
+
   #db: EventStore;
   #cache: EventStore;
   #client: EventStore;
@@ -33,6 +36,8 @@ class Optimizer implements EventStore {
     filters: DittoFilter<K>[],
     opts: GetEventsOpts | undefined = {},
   ): Promise<DittoEvent<K>[]> {
+    this.#debug('REQ', JSON.stringify(filters));
+
     const { limit = Infinity } = opts;
     filters = normalizeFilters(filters);
 
@@ -45,6 +50,7 @@ class Optimizer implements EventStore {
     for (let i = 0; i < filters.length; i++) {
       const filter = filters[i];
       if (filter.ids) {
+        this.#debug(`Filter[${i}] is an IDs filter; querying cache...`);
         const ids = new Set<string>(filter.ids);
         for (const event of await this.#cache.getEvents([filter], opts)) {
           ids.delete(event.id);
@@ -59,18 +65,27 @@ class Optimizer implements EventStore {
     if (!filters.length) return getResults();
 
     // Query the database for events.
+    this.#debug('Querying database...');
     for (const dbEvent of await this.#db.getEvents(filters, opts)) {
       results.add(dbEvent);
       if (results.size >= limit) return getResults();
     }
 
+    // We already searched the DB, so stop if this is a search filter.
+    if (filters.some((filter) => typeof filter.search === 'string')) {
+      this.#debug(`Bailing early for search filter: "${filters[0]?.search}"`);
+      return getResults();
+    }
+
     // Query the cache again.
+    this.#debug('Querying cache...');
     for (const cacheEvent of await this.#cache.getEvents(filters, opts)) {
       results.add(cacheEvent);
       if (results.size >= limit) return getResults();
     }
 
     // Finally, query the client.
+    this.#debug('Querying client...');
     for (const clientEvent of await this.#client.getEvents(filters, opts)) {
       results.add(clientEvent);
       if (results.size >= limit) return getResults();
