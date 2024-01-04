@@ -1,7 +1,7 @@
 import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f4fb59c90c092e5aa59c01e6556a4bec264c167/mod.ts';
 
 import { Debug, type Event, type Filter } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { type DittoFilter, normalizeFilters } from '@/filter.ts';
 import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
 import { EventSet } from '@/utils/event-set.ts';
 
@@ -34,23 +34,32 @@ class SearchStore implements EventStore {
     filters: DittoFilter<K>[],
     opts?: GetEventsOpts | undefined,
   ): Promise<DittoEvent<K>[]> {
+    filters = normalizeFilters(filters);
     this.#debug('REQ', JSON.stringify(filters));
+    const query = filters[0]?.search;
 
     if (this.#relay) {
-      this.#debug(`Searching for "${filters[0]?.search}" at ${this.#relay.socket.url}...`);
+      this.#debug(`Searching for "${query}" at ${this.#relay.socket.url}...`);
 
       const sub = this.#relay.req(filters, opts);
       sub.eoseSignal.onabort = () => sub.close();
       const events = new EventSet<DittoEvent<K>>();
 
       for await (const event of sub) {
-        this.#debug('EVENT', JSON.stringify(event));
         events.add(event);
+      }
+
+      if (filters[0]?.relations?.includes('author')) {
+        const authorIds = new Set([...events].map((event) => event.pubkey));
+        const authors = await this.getEvents([{ kinds: [0], authors: [...authorIds] }], opts);
+        for (const event of events) {
+          event.author = authors.find((author) => author.id === event.pubkey);
+        }
       }
 
       return [...events];
     } else {
-      this.#debug(`Searching for "${filters[0]?.search}" locally...`);
+      this.#debug(`Searching for "${query}" locally...`);
       return this.#fallback.getEvents(filters, opts);
     }
   }
