@@ -59,6 +59,7 @@ function storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
 }
 
 const client: EventStore = {
+  supportedNips: [1],
   getEvents,
   storeEvent,
   countEvents: () => Promise.reject(new Error('COUNT not implemented')),

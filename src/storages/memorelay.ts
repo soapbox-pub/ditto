@@ -8,13 +8,11 @@ class Memorelay implements EventStore {
   #debug = Debug('ditto:memorelay');
   #cache: LRUCache<string, Event>;
 
+  /** NIPs supported by this storage method. */
+  supportedNips = [1, 45];
+
   constructor(...args: ConstructorParameters<typeof LRUCache<string, Event>>) {
     this.#cache = new LRUCache<string, Event>(...args);
-  }
-
-  /** NIPs supported by this storage method. */
-  get supportedNips(): number[] {
-    return [1];
   }
 
   /** Iterate stored events. */

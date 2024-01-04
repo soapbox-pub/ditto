@@ -32,6 +32,8 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   #promise!: Promise<void>;
   #resolve!: () => void;
 
+  supportedNips = [];
+
   constructor(opts: ReqmeisterOpts = {}) {
     super();
     this.#opts = opts;

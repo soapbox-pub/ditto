@@ -56,6 +56,9 @@ class EventsDB implements EventStore {
   #db: Kysely<DittoDB>;
   #debug = Debug('ditto:db:events');
 
+  /** NIPs supported by this storage method. */
+  supportedNips = [1, 45, 50];
+
   constructor(db: Kysely<DittoDB>) {
     this.#db = db;
   }

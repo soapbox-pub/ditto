@@ -13,6 +13,8 @@ class Optimizer implements EventStore {
   #cache: EventStore;
   #client: EventStore;
 
+  supportedNips = [1];
+
   constructor(opts: OptimizerOpts) {
     this.#db = opts.db;
     this.#cache = opts.cache;
