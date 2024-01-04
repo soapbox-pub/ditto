@@ -42,6 +42,10 @@ const Conf = {
     const { protocol, host } = Conf.url;
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
   },
+  /** Relay to use for NIP-50 `search` queries. */
+  get searchRelay() {
+    return Deno.env.get('SEARCH_RELAY');
+  },
   /** Origin of the Ditto server, including the protocol and port. */
   get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';

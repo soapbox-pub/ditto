@@ -3,7 +3,7 @@ import { type Event, nip19, z } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { eventsDB } from '@/storages.ts';
+import { searchStore } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { lookupNip05Cached } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
@@ -76,7 +76,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery): Promise<Even
     filter.authors = [account_id];
   }
 
-  return eventsDB.getEvents([filter]);
+  return searchStore.getEvents([filter]);
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -94,7 +94,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal = AbortSignal.timeout(1000)): Promise<Event | undefined> {
   const filters = await getLookupFilters(query);
-  const [event] = await eventsDB.getEvents(filters, { limit: 1, signal });
+  const [event] = await searchStore.getEvents(filters, { limit: 1, signal });
   return event;
 }
 
