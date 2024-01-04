@@ -2,24 +2,28 @@ import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f
 
 import { Debug, type Event, type Filter } from '@/deps.ts';
 import { type DittoFilter, normalizeFilters } from '@/filter.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
 import { EventSet } from '@/utils/event-set.ts';
 
 interface SearchStoreOpts {
   relay: string | undefined;
   fallback: EventStore;
+  hydrator?: EventStore;
 }
 
 class SearchStore implements EventStore {
   #debug = Debug('ditto:storages:search');
 
   #fallback: EventStore;
+  #hydrator: EventStore;
   #relay: NiceRelay | undefined;
 
   supportedNips = [50];
 
   constructor(opts: SearchStoreOpts) {
     this.#fallback = opts.fallback;
+    this.#hydrator = opts.hydrator ?? this;
 
     if (opts.relay) {
       this.#relay = new NiceRelay(opts.relay);
@@ -53,15 +57,7 @@ class SearchStore implements EventStore {
         events.add(event);
       }
 
-      if (filters[0]?.relations?.includes('author')) {
-        const authorIds = new Set([...events].map((event) => event.pubkey));
-        const authors = await this.getEvents([{ kinds: [0], authors: [...authorIds] }], opts);
-        for (const event of events) {
-          event.author = authors.find((author) => author.pubkey === event.pubkey);
-        }
-      }
-
-      return [...events];
+      return hydrateEvents({ events: [...events], filters, storage: this.#hydrator });
     } else {
       this.#debug(`Searching for "${query}" locally...`);
       return this.#fallback.getEvents(filters, opts);
