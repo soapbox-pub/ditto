@@ -35,6 +35,10 @@ class SearchStore implements EventStore {
     opts?: GetEventsOpts | undefined,
   ): Promise<DittoEvent<K>[]> {
     filters = normalizeFilters(filters);
+
+    if (opts?.signal?.aborted) return Promise.resolve([]);
+    if (!filters.length) return Promise.resolve([]);
+
     this.#debug('REQ', JSON.stringify(filters));
     const query = filters[0]?.search;
 
