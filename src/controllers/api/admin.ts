@@ -43,7 +43,7 @@ const adminAccountsController: AppController = async (c) => {
 
   const events = await eventsDB.getEvents([{ kinds: [30361], authors: [Conf.pubkey], limit }]);
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
-  const authors = await eventsDB.getEvents([{ kinds: [0], ids: pubkeys, limit: pubkeys.length }]);
+  const authors = await eventsDB.getEvents([{ kinds: [0], authors: pubkeys }]);
 
   for (const event of events) {
     const d = event.tags.find(([name]) => name === 'd')?.[1];
