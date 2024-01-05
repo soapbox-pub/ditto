@@ -35,6 +35,7 @@ import {
   updateCredentialsController,
   verifyCredentialsController,
 } from './controllers/api/accounts.ts';
+import { adminAccountsController } from './controllers/api/admin.ts';
 import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
 import { blocksController } from './controllers/api/blocks.ts';
 import { bookmarksController } from './controllers/api/bookmarks.ts';
@@ -185,6 +186,7 @@ app.get('/api/v1/favourites', requirePubkey, favouritesController);
 app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 
+app.get('/api/v1/admin/accounts', adminAccountsController);
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
 // Not (yet) implemented.

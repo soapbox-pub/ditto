@@ -12,7 +12,7 @@ interface ToAccountOpts {
 }
 
 async function renderAccount(
-  event: Omit<NonNullable<DittoEvent['author']>, 'id' | 'sig'>,
+  event: Omit<DittoEvent<0>, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
 ) {
   const { withSource = false } = opts;
@@ -39,7 +39,7 @@ async function renderAccount(
     avatar: picture,
     avatar_static: picture,
     bot: false,
-    created_at: nostrDate(event.created_at).toISOString(),
+    created_at: user ? user.inserted_at.toISOString() : nostrDate(event.created_at).toISOString(),
     discoverable: true,
     display_name: name,
     emojis: renderEmojis(event),
