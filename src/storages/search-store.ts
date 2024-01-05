@@ -46,7 +46,7 @@ class SearchStore implements EventStore {
     this.#debug('REQ', JSON.stringify(filters));
     const query = filters[0]?.search;
 
-    if (this.#relay) {
+    if (this.#relay && this.#relay.socket.readyState === WebSocket.OPEN) {
       this.#debug(`Searching for "${query}" at ${this.#relay.socket.url}...`);
 
       const sub = this.#relay.req(filters, opts);
