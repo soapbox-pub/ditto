@@ -4,6 +4,7 @@ import { z } from '@/deps.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
+import { paginated, paginationSchema } from '@/utils/api.ts';
 
 const adminAccountQuerySchema = z.object({
   local: booleanParamSchema.optional(),
@@ -20,10 +21,6 @@ const adminAccountQuerySchema = z.object({
   email: z.string().optional(),
   ip: z.string().optional(),
   staff: booleanParamSchema.optional(),
-  max_id: z.string().optional(),
-  since_id: z.string().optional(),
-  min_id: z.string().optional(),
-  limit: z.number().min(1).max(80).optional(),
 });
 
 const adminAccountsController: AppController = async (c) => {
@@ -33,7 +30,6 @@ const adminAccountsController: AppController = async (c) => {
     silenced,
     suspended,
     sensitized,
-    limit,
   } = adminAccountQuerySchema.parse(c.req.query());
 
   // Not supported.
@@ -41,7 +37,9 @@ const adminAccountsController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await eventsDB.getEvents([{ kinds: [30361], authors: [Conf.pubkey], limit }]);
+  const { since, until, limit } = paginationSchema.parse(c.req.query());
+
+  const events = await eventsDB.getEvents([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }]);
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
   const authors = await eventsDB.getEvents([{ kinds: [0], authors: pubkeys }]);
 
@@ -50,11 +48,11 @@ const adminAccountsController: AppController = async (c) => {
     event.d_author = authors.find((author) => author.pubkey === d);
   }
 
-  return c.json(
-    await Promise.all(
-      events.map((event) => renderAdminAccount(event)),
-    ),
+  const accounts = await Promise.all(
+    events.map((event) => renderAdminAccount(event)),
   );
+
+  return paginated(c, events, accounts);
 };
 
 export { adminAccountsController };
