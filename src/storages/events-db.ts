@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
 import { Debug, type Event, Kysely, type SelectQueryBuilder } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { type DittoFilter, normalizeFilters } from '@/filter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -264,12 +264,12 @@ class EventsDB implements EventStore {
   }
 
   /** Get events for filters from the database. */
-  async getEvents<K extends number>(
-    filters: DittoFilter<K>[],
-    opts: GetEventsOpts = {},
-  ): Promise<DittoEvent<K>[]> {
+  async getEvents<K extends number>(filters: DittoFilter<K>[], opts: GetEventsOpts = {}): Promise<DittoEvent<K>[]> {
+    filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
+
     if (opts.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
+
     this.#debug('REQ', JSON.stringify(filters));
     let query = this.getEventsQuery(filters);
 

@@ -29,6 +29,8 @@ interface DittoEvent<K extends number = number> extends Event<K> {
   author?: DittoEvent<0>;
   author_stats?: AuthorStats;
   event_stats?: EventStats;
+  d_author?: DittoEvent<0>;
+  user?: DittoEvent<30361>;
 }
 
 /** Storage interface for Nostr events. */
