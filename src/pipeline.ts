@@ -43,7 +43,7 @@ async function handleEvent(event: Event): Promise<void> {
 async function encounterEvent(event: Event): Promise<boolean> {
   const preexisting = (await memorelay.countEvents([{ ids: [event.id] }])) > 0;
   memorelay.storeEvent(event);
-  reqmeister.encounter(event);
+  reqmeister.storeEvent(event);
   return preexisting;
 }
 

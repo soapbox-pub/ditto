@@ -77,7 +77,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
       const events = await client.getEvents(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
-        this.encounter(event);
+        this.storeEvent(event);
       }
     }
 
@@ -119,10 +119,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     });
   }
 
-  encounter(event: Event): void {
+  storeEvent(event: Event): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);
+    return Promise.resolve();
   }
 
   isWanted(event: Event): boolean {
@@ -142,11 +143,6 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     }, []);
 
     return Promise.all(promises);
-  }
-
-  storeEvent(event: Event): Promise<void> {
-    this.encounter(event);
-    return Promise.resolve();
   }
 
   countEvents(_filters: Filter[]): Promise<number> {
