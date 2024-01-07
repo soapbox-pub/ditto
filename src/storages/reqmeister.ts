@@ -1,4 +1,3 @@
-import { client } from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
 import {
   AuthorMicrofilter,
@@ -11,9 +10,8 @@ import {
 import { type EventStore, GetEventsOpts } from '@/storages/types.ts';
 import { Time } from '@/utils/time.ts';
 
-const debug = Debug('ditto:reqmeister');
-
 interface ReqmeisterOpts {
+  client: EventStore;
   delay?: number;
   timeout?: number;
 }
@@ -27,6 +25,8 @@ type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
 /** Batches requests to Nostr relays using microfilters. */
 class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => any }> implements EventStore {
+  #debug = Debug('ditto:reqmeister');
+
   #opts: ReqmeisterOpts;
   #queue: ReqmeisterQueueItem[] = [];
   #promise!: Promise<void>;
@@ -34,7 +34,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
   supportedNips = [];
 
-  constructor(opts: ReqmeisterOpts = {}) {
+  constructor(opts: ReqmeisterOpts) {
     super();
     this.#opts = opts;
     this.#tick();
@@ -49,7 +49,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 
   async #perform() {
-    const { delay, timeout = Time.seconds(1) } = this.#opts;
+    const { client, delay, timeout = Time.seconds(1) } = this.#opts;
     await new Promise((resolve) => setTimeout(resolve, delay));
 
     const queue = this.#queue;
@@ -73,7 +73,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
     if (filters.length) {
-      debug('REQ', JSON.stringify(filters));
+      this.#debug('REQ', JSON.stringify(filters));
       const events = await client.getEvents(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {

@@ -1,3 +1,4 @@
+import { client } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { EventsDB } from '@/storages/events-db.ts';
@@ -15,6 +16,7 @@ const memorelay = new Memorelay({ max: 3000 });
 
 /** Batches requests for single events. */
 const reqmeister = new Reqmeister({
+  client,
   delay: Time.seconds(1),
   timeout: Time.seconds(1),
 });
