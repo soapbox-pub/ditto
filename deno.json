@@ -9,6 +9,7 @@
     "check": "deno check src/server.ts",
     "relays:sync": "deno run -A --unstable scripts/relays.ts sync"
   },
+  "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
     "~/fixtures/": "./fixtures/"

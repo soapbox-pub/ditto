@@ -1,7 +1,6 @@
 {
   "deno.enable": true,
   "deno.lint": true,
-  "deno.enablePaths": ["./src", "./scripts"],
   "editor.defaultFormatter": "denoland.vscode-deno",
   "path-intellisense.extensionOnImport": true
 }
