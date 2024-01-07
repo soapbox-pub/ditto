@@ -158,9 +158,4 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 }
 
-const reqmeister = new Reqmeister({
-  delay: Time.seconds(1),
-  timeout: Time.seconds(1),
-});
-
-export { reqmeister };
+export { Reqmeister };

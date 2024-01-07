@@ -1,7 +1,6 @@
-import { eventsDB, memorelay } from '@/storages.ts';
+import { eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Debug, type Event, findReplyTag } from '@/deps.ts';
 import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
-import { reqmeister } from '@/reqmeister.ts';
 import { type DittoEvent } from '@/storages/types.ts';
 import { getTagSet } from '@/tags.ts';
 
