@@ -1,12 +1,21 @@
-import { client } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
+import * as pipeline from '@/pipeline.ts';
+import { activeRelays, pool } from '@/pool.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { Memorelay } from '@/storages/memorelay.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
+import { PoolStore } from '@/storages/pool-store.ts';
 import { Reqmeister } from '@/storages/reqmeister.ts';
 import { SearchStore } from '@/storages/search-store.ts';
 import { Time } from '@/utils/time.ts';
+
+/** Relay pool storage. */
+const client = new PoolStore({
+  pool,
+  relays: activeRelays,
+  publisher: pipeline,
+});
 
 /** SQLite database to store events this Ditto server cares about. */
 const eventsDB = new EventsDB(db);
@@ -34,4 +43,4 @@ const searchStore = new SearchStore({
   fallback: optimizer,
 });
 
-export { eventsDB, memorelay, optimizer, reqmeister, searchStore };
+export { client, eventsDB, memorelay, optimizer, reqmeister, searchStore };
