@@ -58,10 +58,6 @@ const Conf = {
   get postCharLimit() {
     return Number(Deno.env.get('POST_CHAR_LIMIT') || 5000);
   },
-  /** Admin contact to expose through various endpoints. This information is public. */
-  get adminEmail() {
-    return Deno.env.get('ADMIN_EMAIL') || 'webmaster@localhost';
-  },
   /** S3 media storage configuration. */
   s3: {
     get endPoint() {
