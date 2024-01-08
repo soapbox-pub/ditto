@@ -1,4 +1,3 @@
-import { client } from '@/client.ts';
 import { Debug, type Event, EventEmitter, type Filter } from '@/deps.ts';
 import {
   AuthorMicrofilter,
@@ -11,9 +10,8 @@ import {
 import { type EventStore, GetEventsOpts } from '@/storages/types.ts';
 import { Time } from '@/utils/time.ts';
 
-const debug = Debug('ditto:reqmeister');
-
 interface ReqmeisterOpts {
+  client: EventStore;
   delay?: number;
   timeout?: number;
 }
@@ -27,6 +25,8 @@ type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
 /** Batches requests to Nostr relays using microfilters. */
 class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => any }> implements EventStore {
+  #debug = Debug('ditto:reqmeister');
+
   #opts: ReqmeisterOpts;
   #queue: ReqmeisterQueueItem[] = [];
   #promise!: Promise<void>;
@@ -34,7 +34,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
   supportedNips = [];
 
-  constructor(opts: ReqmeisterOpts = {}) {
+  constructor(opts: ReqmeisterOpts) {
     super();
     this.#opts = opts;
     this.#tick();
@@ -49,7 +49,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
   }
 
   async #perform() {
-    const { delay, timeout = Time.seconds(1) } = this.#opts;
+    const { client, delay, timeout = Time.seconds(1) } = this.#opts;
     await new Promise((resolve) => setTimeout(resolve, delay));
 
     const queue = this.#queue;
@@ -73,11 +73,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
     if (filters.length) {
-      debug('REQ', JSON.stringify(filters));
-      const events = await client.getEvents(filters, { signal: AbortSignal.timeout(timeout) });
+      this.#debug('REQ', JSON.stringify(filters));
+      const events = await client.filter(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
-        this.encounter(event);
+        this.add(event);
       }
     }
 
@@ -119,10 +119,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     });
   }
 
-  encounter(event: Event): void {
+  add(event: Event): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);
+    return Promise.resolve();
   }
 
   isWanted(event: Event): boolean {
@@ -130,7 +131,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     return this.#queue.some(([id]) => id === filterId);
   }
 
-  getEvents<K extends number>(filters: Filter<K>[], opts?: GetEventsOpts | undefined): Promise<Event<K>[]> {
+  filter<K extends number>(filters: Filter<K>[], opts?: GetEventsOpts | undefined): Promise<Event<K>[]> {
     if (opts?.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
 
@@ -144,23 +145,13 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     return Promise.all(promises);
   }
 
-  storeEvent(event: Event): Promise<void> {
-    this.encounter(event);
-    return Promise.resolve();
-  }
-
-  countEvents(_filters: Filter[]): Promise<number> {
+  count(_filters: Filter[]): Promise<number> {
     throw new Error('COUNT not implemented.');
   }
 
-  deleteEvents(_filters: Filter[]): Promise<void> {
+  deleteFilters(_filters: Filter[]): Promise<void> {
     throw new Error('DELETE not implemented.');
   }
 }
 
-const reqmeister = new Reqmeister({
-  delay: Time.seconds(1),
-  timeout: Time.seconds(1),
-});
-
-export { reqmeister };
+export { Reqmeister };

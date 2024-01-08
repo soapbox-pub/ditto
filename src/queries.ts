@@ -1,7 +1,6 @@
-import { eventsDB, memorelay } from '@/storages.ts';
+import { eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Debug, type Event, findReplyTag } from '@/deps.ts';
 import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
-import { reqmeister } from '@/reqmeister.ts';
 import { type DittoEvent } from '@/storages/types.ts';
 import { getTagSet } from '@/tags.ts';
 
@@ -25,7 +24,7 @@ const getEvent = async <K extends number = number>(
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  const [memoryEvent] = await memorelay.getEvents([microfilter], opts) as DittoEvent<K>[];
+  const [memoryEvent] = await memorelay.filter([microfilter], opts) as DittoEvent<K>[];
 
   if (memoryEvent && !relations) {
     debug(`getEvent: ${id.slice(0, 8)} found in memory`);
@@ -37,13 +36,13 @@ const getEvent = async <K extends number = number>(
     filter.kinds = [kind];
   }
 
-  const dbEvent = await eventsDB.getEvents([filter], { limit: 1, signal })
+  const dbEvent = await eventsDB.filter([filter], { limit: 1, signal })
     .then(([event]) => event);
 
   // TODO: make this DRY-er.
 
   if (dbEvent && !dbEvent.author) {
-    const [author] = await memorelay.getEvents([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    const [author] = await memorelay.filter([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
     dbEvent.author = author;
   }
 
@@ -53,7 +52,7 @@ const getEvent = async <K extends number = number>(
   }
 
   if (memoryEvent && !memoryEvent.author) {
-    const [author] = await memorelay.getEvents([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    const [author] = await memorelay.filter([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
     memoryEvent.author = author;
   }
 
@@ -77,13 +76,13 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const [memoryEvent] = await memorelay.getEvents([microfilter], opts);
+  const [memoryEvent] = await memorelay.filter([microfilter], opts);
 
   if (memoryEvent && !relations) {
     return memoryEvent;
   }
 
-  const dbEvent = await eventsDB.getEvents(
+  const dbEvent = await eventsDB.filter(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
   ).then(([event]) => event);
@@ -96,7 +95,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<Event<3> | undefined> => {
-  const [event] = await eventsDB.getEvents([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+  const [event] = await eventsDB.filter([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
@@ -132,7 +131,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
 }
 
 function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<Event<1>[]> {
-  return eventsDB.getEvents(
+  return eventsDB.filter(
     [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
     { limit: 200, signal },
   );
@@ -140,7 +139,7 @@ function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Pr
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  const [event] = await eventsDB.getEvents([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
+  const [event] = await eventsDB.filter([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
   return Boolean(event);
 }
 

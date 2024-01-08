@@ -25,14 +25,14 @@ class Optimizer implements EventStore {
     this.#client = opts.client;
   }
 
-  async storeEvent(event: DittoEvent<number>, opts?: StoreEventOpts | undefined): Promise<void> {
+  async add(event: DittoEvent<number>, opts?: StoreEventOpts | undefined): Promise<void> {
     await Promise.all([
-      this.#db.storeEvent(event, opts),
-      this.#cache.storeEvent(event, opts),
+      this.#db.add(event, opts),
+      this.#cache.add(event, opts),
     ]);
   }
 
-  async getEvents<K extends number>(
+  async filter<K extends number>(
     filters: DittoFilter<K>[],
     opts: GetEventsOpts | undefined = {},
   ): Promise<DittoEvent<K>[]> {
@@ -52,7 +52,7 @@ class Optimizer implements EventStore {
       if (filter.ids) {
         this.#debug(`Filter[${i}] is an IDs filter; querying cache...`);
         const ids = new Set<string>(filter.ids);
-        for (const event of await this.#cache.getEvents([filter], opts)) {
+        for (const event of await this.#cache.filter([filter], opts)) {
           ids.delete(event.id);
           results.add(event);
           if (results.size >= limit) return getResults();
@@ -66,7 +66,7 @@ class Optimizer implements EventStore {
 
     // Query the database for events.
     this.#debug('Querying database...');
-    for (const dbEvent of await this.#db.getEvents(filters, opts)) {
+    for (const dbEvent of await this.#db.filter(filters, opts)) {
       results.add(dbEvent);
       if (results.size >= limit) return getResults();
     }
@@ -79,14 +79,14 @@ class Optimizer implements EventStore {
 
     // Query the cache again.
     this.#debug('Querying cache...');
-    for (const cacheEvent of await this.#cache.getEvents(filters, opts)) {
+    for (const cacheEvent of await this.#cache.filter(filters, opts)) {
       results.add(cacheEvent);
       if (results.size >= limit) return getResults();
     }
 
     // Finally, query the client.
     this.#debug('Querying client...');
-    for (const clientEvent of await this.#client.getEvents(filters, opts)) {
+    for (const clientEvent of await this.#client.filter(filters, opts)) {
       results.add(clientEvent);
       if (results.size >= limit) return getResults();
     }

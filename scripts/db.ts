@@ -39,6 +39,6 @@ async function usersToEvents() {
       created_at: Math.floor(new Date(row.inserted_at).getTime() / 1000),
     });
 
-    await eventsDB.storeEvent(event);
+    await eventsDB.add(event);
   }
 }

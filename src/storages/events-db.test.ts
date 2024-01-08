@@ -10,37 +10,37 @@ import { EventsDB } from './events-db.ts';
 const eventsDB = new EventsDB(db);
 
 Deno.test('count filters', async () => {
-  assertEquals(await eventsDB.countEvents([{ kinds: [1] }]), 0);
-  await eventsDB.storeEvent(event1);
-  assertEquals(await eventsDB.countEvents([{ kinds: [1] }]), 1);
+  assertEquals(await eventsDB.count([{ kinds: [1] }]), 0);
+  await eventsDB.add(event1);
+  assertEquals(await eventsDB.count([{ kinds: [1] }]), 1);
 });
 
 Deno.test('insert and filter events', async () => {
-  await eventsDB.storeEvent(event1);
+  await eventsDB.add(event1);
 
-  assertEquals(await eventsDB.getEvents([{ kinds: [1] }]), [event1]);
-  assertEquals(await eventsDB.getEvents([{ kinds: [3] }]), []);
-  assertEquals(await eventsDB.getEvents([{ since: 1691091000 }]), [event1]);
-  assertEquals(await eventsDB.getEvents([{ until: 1691091000 }]), []);
+  assertEquals(await eventsDB.filter([{ kinds: [1] }]), [event1]);
+  assertEquals(await eventsDB.filter([{ kinds: [3] }]), []);
+  assertEquals(await eventsDB.filter([{ since: 1691091000 }]), [event1]);
+  assertEquals(await eventsDB.filter([{ until: 1691091000 }]), []);
   assertEquals(
-    await eventsDB.getEvents([{ '#proxy': ['https://gleasonator.com/objects/8f6fac53-4f66-4c6e-ac7d-92e5e78c3e79'] }]),
+    await eventsDB.filter([{ '#proxy': ['https://gleasonator.com/objects/8f6fac53-4f66-4c6e-ac7d-92e5e78c3e79'] }]),
     [event1],
   );
 });
 
 Deno.test('delete events', async () => {
-  await eventsDB.storeEvent(event1);
-  assertEquals(await eventsDB.getEvents([{ kinds: [1] }]), [event1]);
-  await eventsDB.deleteEvents([{ kinds: [1] }]);
-  assertEquals(await eventsDB.getEvents([{ kinds: [1] }]), []);
+  await eventsDB.add(event1);
+  assertEquals(await eventsDB.filter([{ kinds: [1] }]), [event1]);
+  await eventsDB.deleteFilters([{ kinds: [1] }]);
+  assertEquals(await eventsDB.filter([{ kinds: [1] }]), []);
 });
 
 Deno.test('query events with local filter', async () => {
-  await eventsDB.storeEvent(event1);
+  await eventsDB.add(event1);
 
-  assertEquals(await eventsDB.getEvents([{}]), [event1]);
-  assertEquals(await eventsDB.getEvents([{ local: true }]), []);
-  assertEquals(await eventsDB.getEvents([{ local: false }]), [event1]);
+  assertEquals(await eventsDB.filter([{}]), [event1]);
+  assertEquals(await eventsDB.filter([{ local: true }]), []);
+  assertEquals(await eventsDB.filter([{ local: false }]), [event1]);
 
   const userEvent = await buildUserEvent({
     username: 'alex',
@@ -48,20 +48,20 @@ Deno.test('query events with local filter', async () => {
     inserted_at: new Date(),
     admin: false,
   });
-  await eventsDB.storeEvent(userEvent);
+  await eventsDB.add(userEvent);
 
-  assertEquals(await eventsDB.getEvents([{ kinds: [1], local: true }]), [event1]);
-  assertEquals(await eventsDB.getEvents([{ kinds: [1], local: false }]), []);
+  assertEquals(await eventsDB.filter([{ kinds: [1], local: true }]), [event1]);
+  assertEquals(await eventsDB.filter([{ kinds: [1], local: false }]), []);
 });
 
 Deno.test('inserting replaceable events', async () => {
-  assertEquals(await eventsDB.countEvents([{ kinds: [0], authors: [event0.pubkey] }]), 0);
+  assertEquals(await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }]), 0);
 
-  await eventsDB.storeEvent(event0);
-  await assertRejects(() => eventsDB.storeEvent(event0));
-  assertEquals(await eventsDB.countEvents([{ kinds: [0], authors: [event0.pubkey] }]), 1);
+  await eventsDB.add(event0);
+  await assertRejects(() => eventsDB.add(event0));
+  assertEquals(await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }]), 1);
 
   const changeEvent = { ...event0, id: '123', created_at: event0.created_at + 1 };
-  await eventsDB.storeEvent(changeEvent);
-  assertEquals(await eventsDB.getEvents([{ kinds: [0] }]), [changeEvent]);
+  await eventsDB.add(changeEvent);
+  assertEquals(await eventsDB.filter([{ kinds: [0] }]), [changeEvent]);
 });

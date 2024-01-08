@@ -11,14 +11,14 @@ async function renderEventAccounts(c: AppContext, filters: Filter[], signal = Ab
     return c.json([]);
   }
 
-  const events = await eventsDB.getEvents(filters, { signal });
+  const events = await eventsDB.filter(filters, { signal });
   const pubkeys = new Set(events.map(({ pubkey }) => pubkey));
 
   if (!pubkeys.size) {
     return c.json([]);
   }
 
-  const authors = await eventsDB.getEvents(
+  const authors = await eventsDB.filter(
     [{ kinds: [0], authors: [...pubkeys], relations: ['author_stats'] }],
     { signal },
   );
@@ -33,7 +33,7 @@ async function renderEventAccounts(c: AppContext, filters: Filter[], signal = Ab
 async function renderAccounts(c: AppContext, authors: string[], signal = AbortSignal.timeout(1000)) {
   const { since, until, limit } = paginationSchema.parse(c.req.query());
 
-  const events = await eventsDB.getEvents(
+  const events = await eventsDB.filter(
     [{ kinds: [0], authors, relations: ['author_stats'], since, until, limit }],
     { signal },
   );
@@ -53,7 +53,7 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
 
   const { limit } = paginationSchema.parse(c.req.query());
 
-  const events = await eventsDB.getEvents(
+  const events = await eventsDB.filter(
     [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'], limit }],
     { signal },
   );

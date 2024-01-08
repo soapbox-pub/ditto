@@ -38,13 +38,13 @@ interface EventStore {
   /** Indicates NIPs supported by this data store, similar to NIP-11. For example, `50` would indicate support for `search` filters. */
   supportedNips: readonly number[];
   /** Add an event to the store. */
-  storeEvent(event: Event, opts?: StoreEventOpts): Promise<void>;
+  add(event: Event, opts?: StoreEventOpts): Promise<void>;
   /** Get events from filters. */
-  getEvents<K extends number>(filters: DittoFilter<K>[], opts?: GetEventsOpts): Promise<DittoEvent<K>[]>;
+  filter<K extends number>(filters: DittoFilter<K>[], opts?: GetEventsOpts): Promise<DittoEvent<K>[]>;
   /** Get the number of events from filters. */
-  countEvents<K extends number>(filters: DittoFilter<K>[]): Promise<number>;
+  count?<K extends number>(filters: DittoFilter<K>[]): Promise<number>;
   /** Delete events from filters. */
-  deleteEvents<K extends number>(filters: DittoFilter<K>[]): Promise<void>;
+  deleteFilters?<K extends number>(filters: DittoFilter<K>[]): Promise<void>;
 }
 
 export type { DittoEvent, EventStore, GetEventsOpts, StoreEventOpts };

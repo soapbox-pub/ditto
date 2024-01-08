@@ -1,4 +1,3 @@
-import { client } from '@/client.ts';
 import { Conf } from '@/config.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
@@ -6,9 +5,8 @@ import { findUser } from '@/db/users.ts';
 import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
-import { reqmeister } from '@/reqmeister.ts';
 import { updateStats } from '@/stats.ts';
-import { eventsDB, memorelay } from '@/storages.ts';
+import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';
@@ -43,9 +41,9 @@ async function handleEvent(event: Event): Promise<void> {
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: Event): Promise<boolean> {
-  const preexisting = (await memorelay.countEvents([{ ids: [event.id] }])) > 0;
-  memorelay.storeEvent(event);
-  reqmeister.encounter(event);
+  const preexisting = (await memorelay.count([{ ids: [event.id] }])) > 0;
+  memorelay.add(event);
+  reqmeister.add(event);
   return preexisting;
 }
 
@@ -68,7 +66,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   const { force = false } = opts;
 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const [deletion] = await eventsDB.getEvents(
+    const [deletion] = await eventsDB.filter(
       [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
       { limit: 1 },
     );
@@ -77,7 +75,7 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.storeEvent(event, { data }).catch(debug),
+        eventsDB.add(event, { data }).catch(debug),
         updateStats(event).catch(debug),
       ]);
     }
@@ -90,13 +88,13 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
 async function processDeletions(event: Event): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
-    const events = await eventsDB.getEvents([{ ids: [...ids] }]);
+    const events = await eventsDB.filter([{ ids: [...ids] }]);
 
     const deleteIds = events
       .filter(({ pubkey, id }) => pubkey === event.pubkey && ids.has(id))
       .map((event) => event.id);
 
-    await eventsDB.deleteEvents([{ ids: deleteIds }]);
+    await eventsDB.deleteFilters([{ ids: deleteIds }]);
   }
 }
 
@@ -141,7 +139,7 @@ function fetchRelatedEvents(event: Event, data: EventData) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !memorelay.countEvents([{ ids: [id] }])) {
+    if (name === 'e' && !memorelay.count([{ ids: [id] }])) {
       reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
     }
   }
@@ -175,7 +173,7 @@ function broadcast(event: Event, data: EventData) {
   if (!data.user || !isFresh(event)) return;
 
   if (event.kind === 5) {
-    client.storeEvent(event);
+    client.add(event);
   }
 }
 

@@ -65,7 +65,7 @@ class EventsDB implements EventStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+  async add(event: Event, opts: StoreEventOpts = {}): Promise<void> {
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
@@ -264,7 +264,7 @@ class EventsDB implements EventStore {
   }
 
   /** Get events for filters from the database. */
-  async getEvents<K extends number>(filters: DittoFilter<K>[], opts: GetEventsOpts = {}): Promise<DittoEvent<K>[]> {
+  async filter<K extends number>(filters: DittoFilter<K>[], opts: GetEventsOpts = {}): Promise<DittoEvent<K>[]> {
     filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -337,7 +337,7 @@ class EventsDB implements EventStore {
   }
 
   /** Delete events based on filters from the database. */
-  async deleteEvents<K extends number>(filters: DittoFilter<K>[]): Promise<void> {
+  async deleteFilters<K extends number>(filters: DittoFilter<K>[]): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -345,7 +345,7 @@ class EventsDB implements EventStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async countEvents<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
+  async count<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
     if (!filters.length) return Promise.resolve(0);
     this.#debug('COUNT', JSON.stringify(filters));
     const query = this.getEventsQuery(filters);
