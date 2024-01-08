@@ -27,14 +27,14 @@ class PoolStore implements EventStore {
     this.#publisher = opts.publisher;
   }
 
-  storeEvent(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+  add(event: Event, opts: StoreEventOpts = {}): Promise<void> {
     const { relays = this.#relays } = opts;
     this.#debug('EVENT', event);
     this.#pool.publish(event, relays);
     return Promise.resolve();
   }
 
-  getEvents<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
+  filter<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
     filters = normalizeFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -80,11 +80,11 @@ class PoolStore implements EventStore {
     });
   }
 
-  countEvents() {
+  count() {
     return Promise.reject(new Error('COUNT not implemented'));
   }
 
-  deleteEvents() {
+  deleteFilters() {
     return Promise.reject(new Error('Cannot delete events from relays. Create a kind 5 event instead.'));
   }
 }

@@ -30,11 +30,11 @@ class SearchStore implements EventStore {
     }
   }
 
-  storeEvent(_event: Event, _opts?: StoreEventOpts | undefined): Promise<void> {
+  add(_event: Event, _opts?: StoreEventOpts | undefined): Promise<void> {
     throw new Error('EVENT not implemented.');
   }
 
-  async getEvents<K extends number>(
+  async filter<K extends number>(
     filters: DittoFilter<K>[],
     opts?: GetEventsOpts | undefined,
   ): Promise<DittoEvent<K>[]> {
@@ -69,15 +69,15 @@ class SearchStore implements EventStore {
       return hydrateEvents({ events: [...events], filters, storage: this.#hydrator, signal: opts?.signal });
     } else {
       this.#debug(`Searching for "${query}" locally...`);
-      return this.#fallback.getEvents(filters, opts);
+      return this.#fallback.filter(filters, opts);
     }
   }
 
-  countEvents<K extends number>(_filters: Filter<K>[]): Promise<number> {
+  count<K extends number>(_filters: Filter<K>[]): Promise<number> {
     throw new Error('COUNT not implemented.');
   }
 
-  deleteEvents<K extends number>(_filters: Filter<K>[]): Promise<void> {
+  deleteFilters<K extends number>(_filters: Filter<K>[]): Promise<void> {
     throw new Error('DELETE not implemented.');
   }
 }

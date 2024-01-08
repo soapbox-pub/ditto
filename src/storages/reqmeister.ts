@@ -74,10 +74,10 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
 
     if (filters.length) {
       this.#debug('REQ', JSON.stringify(filters));
-      const events = await client.getEvents(filters, { signal: AbortSignal.timeout(timeout) });
+      const events = await client.filter(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
-        this.storeEvent(event);
+        this.add(event);
       }
     }
 
@@ -119,7 +119,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     });
   }
 
-  storeEvent(event: Event): Promise<void> {
+  add(event: Event): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);
@@ -131,7 +131,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     return this.#queue.some(([id]) => id === filterId);
   }
 
-  getEvents<K extends number>(filters: Filter<K>[], opts?: GetEventsOpts | undefined): Promise<Event<K>[]> {
+  filter<K extends number>(filters: Filter<K>[], opts?: GetEventsOpts | undefined): Promise<Event<K>[]> {
     if (opts?.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
 
@@ -145,11 +145,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: Event) => an
     return Promise.all(promises);
   }
 
-  countEvents(_filters: Filter[]): Promise<number> {
+  count(_filters: Filter[]): Promise<number> {
     throw new Error('COUNT not implemented.');
   }
 
-  deleteEvents(_filters: Filter[]): Promise<void> {
+  deleteFilters(_filters: Filter[]): Promise<void> {
     throw new Error('DELETE not implemented.');
   }
 }

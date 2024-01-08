@@ -26,7 +26,7 @@ class Memorelay implements EventStore {
   }
 
   /** Get events from memory. */
-  getEvents<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
+  filter<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
     filters = normalizeFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -91,20 +91,20 @@ class Memorelay implements EventStore {
   }
 
   /** Insert an event into memory. */
-  storeEvent(event: Event): Promise<void> {
+  add(event: Event): Promise<void> {
     this.#cache.set(event.id, event);
     return Promise.resolve();
   }
 
   /** Count events in memory for the filters. */
-  async countEvents(filters: Filter[]): Promise<number> {
-    const events = await this.getEvents(filters);
+  async count(filters: Filter[]): Promise<number> {
+    const events = await this.filter(filters);
     return events.length;
   }
 
   /** Delete events from memory. */
-  async deleteEvents(filters: Filter[]): Promise<void> {
-    for (const event of await this.getEvents(filters)) {
+  async deleteFilters(filters: Filter[]): Promise<void> {
+    for (const event of await this.filter(filters)) {
       this.#cache.delete(event.id);
     }
     return Promise.resolve();
