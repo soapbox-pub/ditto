@@ -37,10 +37,6 @@ Example:
 
 The sections below describe the `content` field. Some are encrypted and some are not, depending on whether the data should be public. Also, some events are user events, and some are admin events.
 
-### `pub.ditto.blocks`
+### `pub.ditto.pleroma.config`
 
-An encrypted array of blocked pubkeys, JSON stringified in `content` and encrypted with `nip04.encrypt`.
-
-### `pub.ditto.frontendConfig`
-
-JSON data for Pleroma frontends served on `/api/pleroma/frontend_configurations`. Each key contains arbitrary data used by a different frontend.
+NIP-04 encrypted JSON array of Pleroma ConfigDB objects. Pleroma admin API endpoints set this config, and Ditto reads from it.
