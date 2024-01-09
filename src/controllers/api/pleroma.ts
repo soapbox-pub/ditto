@@ -15,8 +15,8 @@ const frontendConfigController: AppController = async (c) => {
     limit: 1,
   }]);
 
-  const configs = jsonSchema.pipe(z.array(configSchema)).parse(
-    event?.content ? await decryptAdmin(Conf.pubkey, event.content) : [],
+  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
+    event?.content ? await decryptAdmin(Conf.pubkey, event.content) : '',
   );
 
   const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
@@ -33,6 +33,23 @@ const frontendConfigController: AppController = async (c) => {
   }
 };
 
+const configController: AppController = async (c) => {
+  const { pubkey } = Conf;
+
+  const [event] = await eventsDB.filter([{
+    kinds: [30078],
+    authors: [pubkey],
+    '#d': ['pub.ditto.pleroma.config'],
+    limit: 1,
+  }]);
+
+  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
+    event?.content ? await decryptAdmin(pubkey, event.content) : '',
+  );
+
+  return c.json({ configs, need_reboot: false });
+};
+
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
@@ -44,8 +61,8 @@ const updateConfigController: AppController = async (c) => {
     limit: 1,
   }]);
 
-  const configs = jsonSchema.pipe(z.array(configSchema)).parse(
-    event?.content ? await decryptAdmin(pubkey, event.content) : [],
+  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
+    event?.content ? await decryptAdmin(pubkey, event.content) : '',
   );
 
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
@@ -68,4 +85,4 @@ const updateConfigController: AppController = async (c) => {
   return c.json({ configs: newConfigs, need_reboot: false });
 };
 
-export { frontendConfigController, updateConfigController };
+export { configController, frontendConfigController, updateConfigController };

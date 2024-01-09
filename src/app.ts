@@ -44,7 +44,7 @@ import { instanceController } from './controllers/api/instance.ts';
 import { mediaController } from './controllers/api/media.ts';
 import { notificationsController } from './controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
-import { frontendConfigController, updateConfigController } from './controllers/api/pleroma.ts';
+import { configController, frontendConfigController, updateConfigController } from './controllers/api/pleroma.ts';
 import { preferencesController } from './controllers/api/preferences.ts';
 import { relayController } from './controllers/nostr/relay.ts';
 import { searchController } from './controllers/api/search.ts';
@@ -187,6 +187,7 @@ app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 
 app.get('/api/v1/admin/accounts', adminAccountsController);
+app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 
 // Not (yet) implemented.
