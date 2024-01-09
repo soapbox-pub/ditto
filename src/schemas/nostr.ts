@@ -85,6 +85,12 @@ const mediaDataSchema = z.object({
   width: z.number().int().positive().optional().catch(undefined),
 });
 
+/** Kind 0 content schema for the Ditto server admin user. */
+const serverMetaSchema = metaContentSchema.extend({
+  tagline: z.string().optional().catch(undefined),
+  email: z.string().optional().catch(undefined),
+});
+
 /** Media data from `"media"` tags. */
 type MediaData = z.infer<typeof mediaDataSchema>;
 
@@ -93,6 +99,9 @@ const jsonMetaContentSchema = jsonSchema.pipe(metaContentSchema).catch({});
 
 /** Parses media data from a JSON string. */
 const jsonMediaDataSchema = jsonSchema.pipe(mediaDataSchema).catch({});
+
+/** Parses server admin meta from a JSON string. */
+const jsonServerMetaSchema = jsonSchema.pipe(serverMetaSchema).catch({});
 
 /** NIP-11 Relay Information Document. */
 const relayInfoDocSchema = z.object({
@@ -130,6 +139,7 @@ export {
   filterSchema,
   jsonMediaDataSchema,
   jsonMetaContentSchema,
+  jsonServerMetaSchema,
   type MediaData,
   mediaDataSchema,
   metaContentSchema,

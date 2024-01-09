@@ -1,17 +1,22 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { jsonServerMetaSchema } from '@/schemas/nostr.ts';
+import { eventsDB } from '@/storages.ts';
 
-const instanceController: AppController = (c) => {
+const instanceController: AppController = async (c) => {
   const { host, protocol } = Conf.url;
+
+  const [event] = await eventsDB.filter([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }]);
+  const meta = jsonServerMetaSchema.parse(event?.content);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
 
   return c.json({
     uri: host,
-    title: 'Ditto',
-    description: 'Nostr and the Fediverse',
-    short_description: 'Nostr and the Fediverse',
+    title: meta.name ?? 'Ditto',
+    description: meta.about ?? 'Nostr and the Fediverse',
+    short_description: meta.tagline ?? 'Nostr and the Fediverse',
     registrations: Conf.registrations,
     max_toot_chars: Conf.postCharLimit,
     configuration: {
@@ -49,7 +54,7 @@ const instanceController: AppController = (c) => {
       streaming_api: `${wsProtocol}//${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
-    email: Conf.adminEmail,
+    email: meta.email ?? `postmaster@${host}`,
     nostr: {
       pubkey: Conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
