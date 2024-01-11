@@ -1,8 +1,10 @@
 # Ditto custom events
 
-## Users
+Instead of using database tables, the Ditto server publishes Nostr events that describe its state. It then reads these events using Nostr filters.
 
-Ditto user events describe a pubkey's relationship with the Ditto server. They are parameterized replaceable events of kind `30361` where the `d` tag is a pubkey. These events are published by Ditto's internal admin keypair.
+## User Event (kind 30361)
+
+The Ditto server publishes kind `30361` events to represent users. These events are parameterized replaceable events of kind `30361` where the `d` tag is a pubkey. These events are published by Ditto's internal admin keypair.
 
 User events have the following tags:
 
