@@ -85,4 +85,13 @@ const updateConfigController: AppController = async (c) => {
   return c.json({ configs: newConfigs, need_reboot: false });
 };
 
-export { configController, frontendConfigController, updateConfigController };
+const pleromaAdminDeleteStatusController: AppController = async (c) => {
+  await createAdminEvent({
+    kind: 5,
+    tags: [['e', c.req.param('id')]],
+  }, c);
+
+  return c.json({});
+};
+
+export { configController, frontendConfigController, pleromaAdminDeleteStatusController, updateConfigController };
