@@ -66,12 +66,11 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
   const { force = false } = opts;
 
   if (force || data.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const [deletion] = await eventsDB.filter(
-      [{ kinds: [5], authors: [event.pubkey], '#e': [event.id], limit: 1 }],
-      { limit: 1 },
-    );
+    const isDeleted = await eventsDB.count(
+      [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
+    ) > 0;
 
-    if (deletion) {
+    if (isDeleted) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
@@ -88,12 +87,13 @@ async function storeEvent(event: Event, data: EventData, opts: StoreEventOpts = 
 async function processDeletions(event: Event): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
-    const events = await eventsDB.filter([{ ids: [...ids] }]);
 
-    const deleteIds = events
-      .filter(({ pubkey, id }) => pubkey === event.pubkey && ids.has(id))
-      .map((event) => event.id);
+    const events = await eventsDB.filter([{
+      ids: [...ids],
+      authors: [Conf.pubkey, event.pubkey],
+    }]);
 
+    const deleteIds = events.map(({ id }) => id);
     await eventsDB.deleteFilters([{ ids: deleteIds }]);
   }
 }
