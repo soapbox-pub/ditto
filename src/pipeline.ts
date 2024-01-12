@@ -88,13 +88,17 @@ async function processDeletions(event: Event): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
 
-    const events = await eventsDB.filter([{
-      ids: [...ids],
-      authors: [Conf.pubkey, event.pubkey],
-    }]);
+    if (event.pubkey === Conf.pubkey) {
+      await eventsDB.deleteFilters([{ ids: [...ids] }]);
+    } else {
+      const events = await eventsDB.filter([{
+        ids: [...ids],
+        authors: [event.pubkey],
+      }]);
 
-    const deleteIds = events.map(({ id }) => id);
-    await eventsDB.deleteFilters([{ ids: deleteIds }]);
+      const deleteIds = events.map(({ id }) => id);
+      await eventsDB.deleteFilters([{ ids: deleteIds }]);
+    }
   }
 }
 
