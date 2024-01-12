@@ -51,6 +51,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       blurhash: null,
     };
   } catch (e) {
+    debug(`Failed to unfurl ${url}`);
     debug(e);
     return null;
   }
