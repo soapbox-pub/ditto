@@ -400,6 +400,8 @@ function buildSearchContent(event: Event): string {
       return buildUserSearchContent(event as Event<0>);
     case 1:
       return event.content;
+    case 30009:
+      return buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
     default:
       return '';
   }
@@ -409,6 +411,11 @@ function buildSearchContent(event: Event): string {
 function buildUserSearchContent(event: Event<0>): string {
   const { name, nip05, about } = jsonMetaContentSchema.parse(event.content);
   return [name, nip05, about].filter(Boolean).join('\n');
+}
+
+/** Build search content from tag values. */
+function buildTagsSearchContent(tags: string[][]): string {
+  return tags.map(([_tag, value]) => value).join('\n');
 }
 
 export { EventsDB };
