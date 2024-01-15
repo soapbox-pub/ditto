@@ -5,12 +5,15 @@ import { findUser } from '@/db/users.ts';
 import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
+import { lnurlResponseSchema } from '@/schemas/lnurl.ts';
 import { updateStats } from '@/stats.ts';
 import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';
+import { lnurlDecode } from '@/utils/lnurl.ts';
 import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 
@@ -34,6 +37,7 @@ async function handleEvent(event: Event): Promise<void> {
     trackHashtags(event),
     fetchRelatedEvents(event, data),
     processMedia(event, data),
+    submitZaps(event, data),
     streamOut(event, data),
     broadcast(event, data),
   ]);
@@ -154,6 +158,33 @@ function processMedia({ tags, pubkey }: Event, { user }: EventData) {
   if (user) {
     const urls = getTagSet(tags, 'media');
     return deleteAttachedMedia(pubkey, [...urls]);
+  }
+}
+
+/** Submit zap requests to Lightning nodes (for local users only). */
+async function submitZaps(event: Event, data: EventData) {
+  if (event.kind === 9734 && data.user) {
+    const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
+    const amount = event.tags.find(([name]) => name === 'amount')?.[1];
+    if (lnurl && amount) {
+      try {
+        const url = lnurlDecode(lnurl);
+        const response = await fetchWorker(url);
+        const json = await response.json();
+        const result = lnurlResponseSchema.parse(json);
+        if (result.tag === 'payRequest' && result.allowsNostr && result.nostrPubkey) {
+          const callback = new URL(result.callback);
+          const params = new URLSearchParams();
+          params.set('amount', amount);
+          params.set('nostr', JSON.stringify(event));
+          params.set('lnurl', lnurl);
+          callback.search = params.toString();
+          await fetch(callback);
+        }
+      } catch (e) {
+        debug('lnurl error:', e);
+      }
+    }
   }
 }
 
