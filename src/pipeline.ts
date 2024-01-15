@@ -162,14 +162,14 @@ function processMedia({ tags, pubkey }: Event, { user }: EventData) {
 }
 
 /** Submit zap requests to Lightning nodes (for local users only). */
-async function submitZaps(event: Event, data: EventData) {
+async function submitZaps(event: Event, data: EventData, signal = AbortSignal.timeout(5000)) {
   if (event.kind === 9734 && data.user) {
     const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
     const amount = event.tags.find(([name]) => name === 'amount')?.[1];
     if (lnurl && amount) {
       try {
         const url = lnurlDecode(lnurl);
-        const response = await fetchWorker(url);
+        const response = await fetchWorker(url, { signal });
         const json = await response.json();
         const result = lnurlResponseSchema.parse(json);
         if (result.tag === 'payRequest' && result.allowsNostr && result.nostrPubkey) {
@@ -179,7 +179,7 @@ async function submitZaps(event: Event, data: EventData) {
           params.set('nostr', JSON.stringify(event));
           params.set('lnurl', lnurl);
           callback.search = params.toString();
-          await fetch(callback);
+          await fetchWorker(callback, { signal });
         }
       } catch (e) {
         debug('lnurl error:', e);
