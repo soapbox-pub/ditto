@@ -33,6 +33,18 @@ Example:
 }
 ```
 
+## Invite Request Event (kind 3036)
+
+Clients wishing to join a Ditto server should publish a kind `3036` event to the Ditto relay, mentioning the admin pubkey.
+
+The event's content is NIP-44 encrypted JSON, containing the following fields:
+
+- `nip05` - desired NIP-05 username, including the domain.
+- `email` - email address of the user.
+- `reason` - reason for joining the server.
+
+Only `nip05` is always required. Other fields may be required depending on the policy of the server.
+
 ## NIP-78
 
 [NIP-78](https://github.com/nostr-protocol/nips/blob/master/78.md) defines events of kind `30078` with a globally unique `d` tag. These events are queried by the `d` tag, which allows Ditto to store custom data on relays. Ditto uses reverse DNS names like `pub.ditto.<thing>` for `d` tags.
