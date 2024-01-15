@@ -16,7 +16,7 @@ const instanceController: AppController = async (c) => {
     uri: host,
     title: meta.name ?? 'Ditto',
     description: meta.about ?? 'Nostr and the Fediverse',
-    short_description: meta.tagline ?? 'Nostr and the Fediverse',
+    short_description: meta.tagline ?? meta.about ?? 'Nostr and the Fediverse',
     registrations: Conf.registrations,
     max_toot_chars: Conf.postCharLimit,
     configuration: {

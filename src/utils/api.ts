@@ -179,6 +179,7 @@ export {
   activityJson,
   createAdminEvent,
   createEvent,
+  type EventStub,
   localRequest,
   paginated,
   type PaginationParams,
