@@ -64,6 +64,7 @@ import {
   statusController,
   unbookmarkController,
   unpinController,
+  zapController,
 } from './controllers/api/statuses.ts';
 import { streamingController } from './controllers/api/streaming.ts';
 import {
@@ -168,6 +169,7 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requirePubkey, bookmarkC
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requirePubkey, unbookmarkController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requirePubkey, pinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requirePubkey, unpinController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requirePubkey, zapController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 
 app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);

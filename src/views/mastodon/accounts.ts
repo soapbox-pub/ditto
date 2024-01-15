@@ -3,6 +3,7 @@ import { findUser } from '@/db/users.ts';
 import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type DittoEvent } from '@/storages/types.ts';
+import { getLnurl } from '@/utils/lnurl.ts';
 import { verifyNip05Cached } from '@/utils/nip05.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
@@ -24,6 +25,8 @@ async function renderAccount(
     picture = Conf.local('/images/avi.png'),
     banner = Conf.local('/images/banner.png'),
     about,
+    lud06,
+    lud16,
   } = jsonMetaContentSchema.parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
@@ -67,6 +70,9 @@ async function renderAccount(
     statuses_count: event.author_stats?.notes_count ?? 0,
     url: Conf.local(`/users/${pubkey}`),
     username: parsed05?.nickname || npub.substring(0, 8),
+    ditto: {
+      accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
+    },
     pleroma: {
       is_admin: user?.admin || false,
       is_moderator: user?.admin || false,
