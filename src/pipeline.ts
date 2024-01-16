@@ -5,17 +5,19 @@ import { findUser } from '@/db/users.ts';
 import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
-import { lnurlResponseSchema } from '@/schemas/lnurl.ts';
+import { lnurlCallbackResponseSchema, lnurlResponseSchema } from '@/schemas/lnurl.ts';
 import { updateStats } from '@/stats.ts';
 import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';
 import { lnurlDecode } from '@/utils/lnurl.ts';
-import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
+import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
+import { signAdminEvent } from '@/sign.ts';
+import { encryptAdmin } from '@/crypto.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -179,7 +181,27 @@ async function submitZaps(event: Event, data: EventData, signal = AbortSignal.ti
           params.set('nostr', JSON.stringify(event));
           params.set('lnurl', lnurl);
           callback.search = params.toString();
-          await fetchWorker(callback, { signal });
+          const response = await fetchWorker(callback, { signal });
+          const json = await response.json();
+          const { pr } = lnurlCallbackResponseSchema.parse(json);
+          const nwcRequestEvent = await signAdminEvent({
+            kind: 23194,
+            content: await encryptAdmin(
+              event.pubkey,
+              JSON.stringify({
+                method: 'pay_invoice',
+                params: {
+                  invoice: pr,
+                },
+              }),
+            ),
+            created_at: nostrNow(),
+            tags: [
+              ['p', event.pubkey],
+              ['e', event.id],
+            ],
+          });
+          await handleEvent(nwcRequestEvent);
         }
       } catch (e) {
         debug('lnurl error:', e);

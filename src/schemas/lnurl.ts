@@ -12,4 +12,9 @@ const lnurlResponseSchema = z.object({
   nostrPubkey: nostrIdSchema.optional(),
 });
 
-export { lnurlResponseSchema };
+const lnurlCallbackResponseSchema = z.object({
+  pr: z.string(),
+  routes: z.unknown().array(),
+});
+
+export { lnurlCallbackResponseSchema, lnurlResponseSchema };
