@@ -1,8 +1,9 @@
 import { Conf } from '@/config.ts';
+import { encryptAdmin } from '@/crypto.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { Debug, type Event, LNURL } from '@/deps.ts';
+import { Debug, type Event } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { lnurlCallbackResponseSchema } from '@/schemas/lnurl.ts';
@@ -16,7 +17,7 @@ import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 import { signAdminEvent } from '@/sign.ts';
-import { encryptAdmin } from '@/crypto.ts';
+import { lnurlCache } from '@/utils/lnurl.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -169,7 +170,7 @@ async function submitZaps(event: Event, data: EventData, signal = AbortSignal.ti
     const amount = event.tags.find(([name]) => name === 'amount')?.[1];
     if (lnurl && amount) {
       try {
-        const details = await LNURL.lookup(lnurl, { fetch: fetchWorker, signal });
+        const details = await lnurlCache.fetch(lnurl, { signal });
         if (details.tag === 'payRequest' && details.allowsNostr && details.nostrPubkey) {
           const callback = new URL(details.callback);
           const params = new URLSearchParams();

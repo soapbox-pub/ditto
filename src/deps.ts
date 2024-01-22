@@ -88,6 +88,7 @@ export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 export { default as Debug } from 'npm:debug@^4.3.4';
 export {
   LNURL,
+  type LNURLDetails,
   type MapCache,
   NIP05,
 } from 'https://gitlab.com/soapbox-pub/nlib/-/raw/137af48cbc2639a8969d233fc24d2b959f34782a/mod.ts';
