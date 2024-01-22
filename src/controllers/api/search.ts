@@ -5,7 +5,7 @@ import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
-import { lookupNip05Cached } from '@/utils/nip05.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -95,13 +95,13 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Event | undefined> {
-  const filters = await getLookupFilters(query);
+  const filters = await getLookupFilters(query, signal);
   const [event] = await searchStore.filter(filters, { limit: 1, signal });
   return event;
 }
 
 /** Get filters to lookup the input value. */
-async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<DittoFilter[]> {
+async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: AbortSignal): Promise<DittoFilter[]> {
   const filters: DittoFilter[] = [];
 
   const accounts = !type || type === 'accounts';
@@ -139,9 +139,13 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery): Promise<Ditt
     if (accounts) filters.push({ kinds: [0], authors: [q] });
     if (statuses) filters.push({ kinds: [1], ids: [q] });
   } else if (accounts && ACCT_REGEX.test(q)) {
-    const pubkey = await lookupNip05Cached(q);
-    if (pubkey) {
-      filters.push({ kinds: [0], authors: [pubkey], relations: ['author_stats'] });
+    try {
+      const { pubkey } = await nip05Cache.fetch(q, { signal });
+      if (pubkey) {
+        filters.push({ kinds: [0], authors: [pubkey], relations: ['author_stats'] });
+      }
+    } catch (_e) {
+      // do nothing
     }
   }
 

@@ -1,6 +1,6 @@
 import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
-import { lookupNip05Cached } from '@/utils/nip05.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
 /** Get the current time in Nostr format. */
@@ -56,10 +56,11 @@ function parseNip05(value: string): Nip05 {
 }
 
 /** Resolve a bech32 or NIP-05 identifier to an account. */
-async function lookupAccount(value: string): Promise<Event<0> | undefined> {
+async function lookupAccount(value: string, signal = AbortSignal.timeout(3000)): Promise<Event<0> | undefined> {
   console.log(`Looking up ${value}`);
 
-  const pubkey = bech32ToPubkey(value) || await lookupNip05Cached(value);
+  const pubkey = bech32ToPubkey(value) ||
+    await nip05Cache.fetch(value, { signal }).then(({ pubkey }) => pubkey).catch(() => undefined);
 
   if (pubkey) {
     return getAuthor(pubkey);

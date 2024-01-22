@@ -24,3 +24,5 @@ export const FetchWorker = {
 };
 
 Comlink.expose(FetchWorker);
+
+self.postMessage('ready');
