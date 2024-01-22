@@ -4,21 +4,27 @@ import './handlers/abortsignal.ts';
 
 import type { FetchWorker } from './fetch.worker.ts';
 
-const _worker = Comlink.wrap<typeof FetchWorker>(
-  new Worker(
-    new URL('./fetch.worker.ts', import.meta.url),
-    { type: 'module' },
-  ),
-);
+const worker = new Worker(new URL('./fetch.worker.ts', import.meta.url), { type: 'module' });
+const client = Comlink.wrap<typeof FetchWorker>(worker);
+
+// Wait for the worker to be ready before we start using it.
+const ready = new Promise<void>((resolve) => {
+  const handleEvent = () => {
+    self.removeEventListener('message', handleEvent);
+    resolve();
+  };
+  worker.addEventListener('message', handleEvent);
+});
 
 /**
  * Fetch implementation with a Web Worker.
  * Calling this performs the fetch in a separate CPU thread so it doesn't block the main thread.
  */
 const fetchWorker: typeof fetch = async (...args) => {
+  await ready;
   const [url, init] = serializeFetchArgs(args);
   const { body, signal, ...rest } = init;
-  const result = await _worker.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
+  const result = await client.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
   return new Response(...result);
 };
 

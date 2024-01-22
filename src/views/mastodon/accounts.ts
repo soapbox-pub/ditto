@@ -3,7 +3,7 @@ import { findUser } from '@/db/users.ts';
 import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { type DittoEvent } from '@/storages/types.ts';
-import { verifyNip05Cached } from '@/utils/nip05.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
@@ -86,9 +86,19 @@ function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}) {
   return renderAccount(event, opts);
 }
 
-async function parseAndVerifyNip05(nip05: string | undefined, pubkey: string): Promise<Nip05 | undefined> {
-  if (nip05 && await verifyNip05Cached(nip05, pubkey)) {
-    return parseNip05(nip05);
+async function parseAndVerifyNip05(
+  nip05: string | undefined,
+  pubkey: string,
+  signal = AbortSignal.timeout(3000),
+): Promise<Nip05 | undefined> {
+  if (!nip05) return;
+  try {
+    const result = await nip05Cache.fetch(nip05, { signal });
+    if (result.pubkey === pubkey) {
+      return parseNip05(nip05);
+    }
+  } catch (_e) {
+    // do nothing
   }
 }
 
