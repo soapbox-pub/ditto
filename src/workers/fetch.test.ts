@@ -1,4 +1,4 @@
-import { assert, assertRejects } from '@/deps-test.ts';
+import { assertEquals, assertRejects } from '@/deps-test.ts';
 
 import { fetchWorker } from './fetch.ts';
 
@@ -7,9 +7,9 @@ await sleep(2000);
 Deno.test({
   name: 'fetchWorker',
   async fn() {
-    const response = await fetchWorker('https://example.com');
-    const text = await response.text();
-    assert(text.includes('Example Domain'));
+    const response = await fetchWorker('http://httpbin.org/get');
+    const json = await response.json();
+    assertEquals(json.headers.Host, 'httpbin.org');
   },
   sanitizeResources: false,
 });
