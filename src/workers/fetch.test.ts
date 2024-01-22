@@ -2,8 +2,6 @@ import { assertEquals, assertRejects } from '@/deps-test.ts';
 
 import { fetchWorker } from './fetch.ts';
 
-await sleep(2000);
-
 Deno.test({
   name: 'fetchWorker',
   async fn() {
@@ -29,7 +27,3 @@ Deno.test({
   },
   sanitizeResources: false,
 });
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
