@@ -25,6 +25,7 @@ const debug = Debug('ditto:pipeline');
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  const signal = AbortSignal.timeout(5000);
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event)) return;
@@ -36,9 +37,9 @@ async function handleEvent(event: Event): Promise<void> {
     processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
-    fetchRelatedEvents(event, data),
+    fetchRelatedEvents(event, data, signal),
     processMedia(event, data),
-    payZap(event, data),
+    payZap(event, data, signal),
     streamOut(event, data),
     broadcast(event, data),
   ]);
@@ -143,9 +144,9 @@ function trackRelays(event: Event) {
 }
 
 /** Queue related events to fetch. */
-function fetchRelatedEvents(event: Event, data: EventData) {
+function fetchRelatedEvents(event: Event, data: EventData, signal: AbortSignal) {
   if (!data.user) {
-    reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
+    reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
     if (name === 'e' && !memorelay.count([{ ids: [id] }])) {
@@ -163,7 +164,7 @@ function processMedia({ tags, pubkey }: Event, { user }: EventData) {
 }
 
 /** Emit Nostr Wallet Connect event from zaps so users may pay. */
-async function payZap(event: Event, data: EventData, signal = AbortSignal.timeout(5000)) {
+async function payZap(event: Event, data: EventData, signal: AbortSignal) {
   if (event.kind !== 9734 || !data.user) return;
 
   const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
