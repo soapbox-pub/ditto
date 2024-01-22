@@ -2,16 +2,15 @@ import { Conf } from '@/config.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { Debug, type Event } from '@/deps.ts';
+import { Debug, type Event, LNURL } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
-import { lnurlCallbackResponseSchema, lnurlResponseSchema } from '@/schemas/lnurl.ts';
+import { lnurlCallbackResponseSchema } from '@/schemas/lnurl.ts';
 import { updateStats } from '@/stats.ts';
 import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';
-import { lnurlDecode } from '@/utils/lnurl.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
@@ -170,12 +169,9 @@ async function submitZaps(event: Event, data: EventData, signal = AbortSignal.ti
     const amount = event.tags.find(([name]) => name === 'amount')?.[1];
     if (lnurl && amount) {
       try {
-        const url = lnurlDecode(lnurl);
-        const response = await fetchWorker(url, { signal });
-        const json = await response.json();
-        const result = lnurlResponseSchema.parse(json);
-        if (result.tag === 'payRequest' && result.allowsNostr && result.nostrPubkey) {
-          const callback = new URL(result.callback);
+        const details = await LNURL.lookup(lnurl, { fetch: fetchWorker, signal });
+        if (details.tag === 'payRequest' && details.allowsNostr && details.nostrPubkey) {
+          const callback = new URL(details.callback);
           const params = new URLSearchParams();
           params.set('amount', amount);
           params.set('nostr', JSON.stringify(event));

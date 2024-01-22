@@ -87,8 +87,9 @@ export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 // @deno-types="npm:@types/debug@^4.1.12"
 export { default as Debug } from 'npm:debug@^4.3.4';
 export {
+  LNURL,
   type MapCache,
   NIP05,
-} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/46be9e985950547574b1735d0ae52a6a7217d056/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/137af48cbc2639a8969d233fc24d2b959f34782a/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
