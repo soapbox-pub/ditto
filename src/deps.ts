@@ -91,6 +91,6 @@ export {
   type LNURLDetails,
   type MapCache,
   NIP05,
-} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/137af48cbc2639a8969d233fc24d2b959f34782a/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/5d711597f3b2a163817cc1fb0f1f3ce8cede7cf7/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';

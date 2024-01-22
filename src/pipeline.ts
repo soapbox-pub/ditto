@@ -3,10 +3,9 @@ import { encryptAdmin } from '@/crypto.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { Debug, type Event } from '@/deps.ts';
+import { Debug, type Event, LNURL } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
-import { lnurlCallbackResponseSchema } from '@/schemas/lnurl.ts';
 import { updateStats } from '@/stats.ts';
 import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
@@ -39,7 +38,7 @@ async function handleEvent(event: Event): Promise<void> {
     trackHashtags(event),
     fetchRelatedEvents(event, data),
     processMedia(event, data),
-    submitZaps(event, data),
+    payZap(event, data),
     streamOut(event, data),
     broadcast(event, data),
   ]);
@@ -163,47 +162,48 @@ function processMedia({ tags, pubkey }: Event, { user }: EventData) {
   }
 }
 
-/** Submit zap requests to Lightning nodes (for local users only). */
-async function submitZaps(event: Event, data: EventData, signal = AbortSignal.timeout(5000)) {
-  if (event.kind === 9734 && data.user) {
-    const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
-    const amount = event.tags.find(([name]) => name === 'amount')?.[1];
-    if (lnurl && amount) {
-      try {
-        const details = await lnurlCache.fetch(lnurl, { signal });
-        if (details.tag === 'payRequest' && details.allowsNostr && details.nostrPubkey) {
-          const callback = new URL(details.callback);
-          const params = new URLSearchParams();
-          params.set('amount', amount);
-          params.set('nostr', JSON.stringify(event));
-          params.set('lnurl', lnurl);
-          callback.search = params.toString();
-          const response = await fetchWorker(callback, { signal });
-          const json = await response.json();
-          const { pr } = lnurlCallbackResponseSchema.parse(json);
-          const nwcRequestEvent = await signAdminEvent({
-            kind: 23194,
-            content: await encryptAdmin(
-              event.pubkey,
-              JSON.stringify({
-                method: 'pay_invoice',
-                params: {
-                  invoice: pr,
-                },
-              }),
-            ),
-            created_at: nostrNow(),
-            tags: [
-              ['p', event.pubkey],
-              ['e', event.id],
-            ],
-          });
-          await handleEvent(nwcRequestEvent);
-        }
-      } catch (e) {
-        debug('lnurl error:', e);
-      }
+/** Emit Nostr Wallet Connect event from zaps so users may pay. */
+async function payZap(event: Event, data: EventData, signal = AbortSignal.timeout(5000)) {
+  if (event.kind !== 9734 || !data.user) return;
+
+  const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
+  const amount = Number(event.tags.find(([name]) => name === 'amount')?.[1]);
+
+  if (!lnurl || !amount) return;
+
+  try {
+    const details = await lnurlCache.fetch(lnurl, { signal });
+
+    if (details.tag !== 'payRequest' || !details.allowsNostr || !details.nostrPubkey) {
+      throw new Error('invalid lnurl');
     }
+
+    if (amount > details.maxSendable || amount < details.minSendable) {
+      throw new Error('amount out of range');
+    }
+
+    const { pr } = await LNURL.callback(
+      details.callback,
+      { amount, nostr: event, lnurl },
+      { fetch: fetchWorker, signal },
+    );
+
+    const nwcRequestEvent = await signAdminEvent({
+      kind: 23194,
+      content: await encryptAdmin(
+        event.pubkey,
+        JSON.stringify({ method: 'pay_invoice', params: { invoice: pr } }),
+      ),
+      created_at: nostrNow(),
+      tags: [
+        ['p', event.pubkey],
+        ['e', event.id],
+      ],
+    });
+
+    await handleEvent(nwcRequestEvent);
+  } catch (e) {
+    debug('lnurl error:', e);
   }
 }
 
