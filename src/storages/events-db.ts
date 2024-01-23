@@ -68,6 +68,7 @@ class EventsDB implements EventStore {
 
   /** Insert an event (and its tags) into the database. */
   async add(event: NostrEvent): Promise<void> {
+    event = cloneEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
@@ -406,6 +407,19 @@ function buildSearchContent(event: NostrEvent): string {
     default:
       return '';
   }
+}
+
+/** Return a normalized event without any non-standard keys. */
+function cloneEvent(event: NostrEvent): NostrEvent {
+  return {
+    id: event.id,
+    pubkey: event.pubkey,
+    kind: event.kind,
+    content: event.content,
+    tags: event.tags,
+    sig: event.sig,
+    created_at: event.created_at,
+  };
 }
 
 /** Build search content for a user. */
