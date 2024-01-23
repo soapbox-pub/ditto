@@ -1,4 +1,4 @@
-import { eventsDB, memorelay, reqmeister } from '@/storages.ts';
+import { cache, eventsDB, reqmeister } from '@/storages.ts';
 import { Debug, type NostrEvent } from '@/deps.ts';
 import { type AuthorMicrofilter, type IdMicrofilter } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -25,7 +25,7 @@ const getEvent = async (
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  const [memoryEvent] = await memorelay.query([microfilter], opts) as DittoEvent[];
+  const [memoryEvent] = await cache.query([microfilter]) as DittoEvent[];
 
   if (memoryEvent && !relations) {
     debug(`getEvent: ${id.slice(0, 8)} found in memory`);
@@ -43,7 +43,7 @@ const getEvent = async (
   // TODO: make this DRY-er.
 
   if (dbEvent && !dbEvent.author) {
-    const [author] = await memorelay.query([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    const [author] = await cache.query([{ kinds: [0], authors: [dbEvent.pubkey] }]);
     dbEvent.author = author;
   }
 
@@ -53,7 +53,7 @@ const getEvent = async (
   }
 
   if (memoryEvent && !memoryEvent.author) {
-    const [author] = await memorelay.query([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    const [author] = await cache.query([{ kinds: [0], authors: [memoryEvent.pubkey] }]);
     memoryEvent.author = author;
   }
 
@@ -77,7 +77,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<Nostr
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const [memoryEvent] = await memorelay.query([microfilter], opts);
+  const [memoryEvent] = await cache.query([microfilter]);
 
   if (memoryEvent && !relations) {
     return memoryEvent;
