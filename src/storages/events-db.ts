@@ -6,12 +6,11 @@ import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind 
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 
-import { type DittoEvent, EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
+import { type DittoEvent, EventStore, type GetEventsOpts } from './types.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
-  event: Event;
-  opts: StoreEventOpts;
+  event: DittoEvent;
   count: number;
   value: string;
 }) => boolean;
@@ -19,8 +18,8 @@ type TagCondition = ({ event, count, value }: {
 /** Conditions for when to index certain tags. */
 const tagConditions: Record<string, TagCondition> = {
   'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
-  'e': ({ event, count, value, opts }) => ((opts.data?.user && event.kind === 10003) || count < 15) && isNostrId(value),
-  'media': ({ count, value, opts }) => (opts.data?.user || count < 4) && isURL(value),
+  'e': ({ event, count, value }) => ((event.user && event.kind === 10003) || count < 15) && isNostrId(value),
+  'media': ({ event, count, value }) => (event.user || count < 4) && isURL(value),
   'P': ({ event, count, value }) => event.kind === 9735 && count === 0 && isNostrId(value),
   'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
   'proxy': ({ count, value }) => count === 0 && isURL(value),
@@ -66,7 +65,7 @@ class EventsDB implements EventStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async add(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+  async add(event: DittoEvent): Promise<void> {
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
@@ -92,7 +91,7 @@ class EventsDB implements EventStore {
 
       /** Index event tags depending on the conditions defined above. */
       async function indexTags() {
-        const tags = filterIndexableTags(event, opts);
+        const tags = filterIndexableTags(event);
         const rows = tags.map(([tag, value]) => ({ event_id: event.id, tag, value }));
 
         if (!tags.length) return;
@@ -361,7 +360,7 @@ class EventsDB implements EventStore {
 }
 
 /** Return only the tags that should be indexed. */
-function filterIndexableTags(event: Event, opts: StoreEventOpts): string[][] {
+function filterIndexableTags(event: DittoEvent): string[][] {
   const tagCounts: Record<string, number> = {};
 
   function getCount(name: string) {
@@ -375,7 +374,6 @@ function filterIndexableTags(event: Event, opts: StoreEventOpts): string[][] {
   function checkCondition(name: string, value: string, condition: TagCondition) {
     return condition({
       event,
-      opts,
       count: getCount(name),
       value,
     });

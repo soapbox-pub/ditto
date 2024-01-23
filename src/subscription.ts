@@ -1,7 +1,6 @@
 import { type Event, Machina } from '@/deps.ts';
 import { type DittoFilter, matchDittoFilters } from '@/filter.ts';
-
-import type { EventData } from '@/types.ts';
+import { type DittoEvent } from '@/storages/types.ts';
 
 class Subscription<K extends number = number> implements AsyncIterable<Event<K>> {
   filters: DittoFilter<K>[];
@@ -16,8 +15,8 @@ class Subscription<K extends number = number> implements AsyncIterable<Event<K>>
     this.#machina.push(event);
   }
 
-  matches(event: Event, data: EventData): boolean {
-    return matchDittoFilters(this.filters, event, data);
+  matches(event: DittoEvent): boolean {
+    return matchDittoFilters(this.filters, event);
   }
 
   close() {
