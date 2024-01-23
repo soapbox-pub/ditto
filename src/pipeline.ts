@@ -27,28 +27,28 @@ async function handleEvent(event: DittoEvent): Promise<void> {
   const signal = AbortSignal.timeout(5000);
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
-  if (await encounterEvent(event)) return;
+  if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event);
 
   await Promise.all([
-    storeEvent(event, { force: wanted }),
-    processDeletions(event),
+    storeEvent(event, { force: wanted, signal }),
+    processDeletions(event, signal),
     trackRelays(event),
     trackHashtags(event),
     fetchRelatedEvents(event, signal),
     processMedia(event),
     payZap(event, signal),
     streamOut(event),
-    broadcast(event),
+    broadcast(event, signal),
   ]);
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
-async function encounterEvent(event: NostrEvent): Promise<boolean> {
+async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
   const preexisting = (await memorelay.count([{ ids: [event.id] }])) > 0;
-  memorelay.event(event);
-  reqmeister.event(event);
+  memorelay.event(event, { signal });
+  reqmeister.event(event, { signal });
   return preexisting;
 }
 
@@ -62,24 +62,26 @@ async function hydrateEvent(event: DittoEvent): Promise<void> {
 const isAdminEvent = ({ pubkey }: NostrEvent): boolean => pubkey === Conf.pubkey;
 
 interface StoreEventOpts {
-  force?: boolean;
+  force: boolean;
+  signal: AbortSignal;
 }
 
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: DittoEvent, opts: StoreEventOpts = {}): Promise<void> {
+async function storeEvent(event: DittoEvent, opts: StoreEventOpts): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
-  const { force = false } = opts;
+  const { force = false, signal } = opts;
 
   if (force || event.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const isDeleted = await eventsDB.count(
       [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
+      opts,
     ) > 0;
 
     if (isDeleted) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.event(event).catch(debug),
+        eventsDB.event(event, { signal }).catch(debug),
         updateStats(event).catch(debug),
       ]);
     }
@@ -89,20 +91,20 @@ async function storeEvent(event: DittoEvent, opts: StoreEventOpts = {}): Promise
 }
 
 /** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
-async function processDeletions(event: NostrEvent): Promise<void> {
+async function processDeletions(event: NostrEvent, signal: AbortSignal): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
 
     if (event.pubkey === Conf.pubkey) {
-      await eventsDB.remove([{ ids: [...ids] }]);
+      await eventsDB.remove([{ ids: [...ids] }], { signal });
     } else {
-      const events = await eventsDB.query([{
-        ids: [...ids],
-        authors: [event.pubkey],
-      }]);
+      const events = await eventsDB.query(
+        [{ ids: [...ids], authors: [event.pubkey] }],
+        { signal },
+      );
 
       const deleteIds = events.map(({ id }) => id);
-      await eventsDB.remove([{ ids: deleteIds }]);
+      await eventsDB.remove([{ ids: deleteIds }], { signal });
     }
   }
 }
@@ -148,7 +150,7 @@ function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !memorelay.count([{ ids: [id] }])) {
+    if (name === 'e' && !memorelay.count([{ ids: [id] }], { signal })) {
       reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
     }
   }
@@ -223,11 +225,11 @@ function streamOut(event: NostrEvent) {
  * Publish the event to other relays.
  * This should only be done in certain circumstances, like mentioning a user or publishing deletions.
  */
-function broadcast(event: DittoEvent) {
+function broadcast(event: DittoEvent, signal: AbortSignal) {
   if (!event.user || !isFresh(event)) return;
 
   if (event.kind === 5) {
-    client.event(event);
+    client.event(event, { signal });
   }
 }
 

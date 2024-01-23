@@ -106,7 +106,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     });
   }
 
-  event(event: NostrEvent): Promise<void> {
+  event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);

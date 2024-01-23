@@ -8,6 +8,7 @@ import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isNostrId, isURL } from '@/utils.ts';
+import { abortError } from '@/utils/abort.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -63,7 +64,7 @@ class EventsDB implements NStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent): Promise<void> {
+  async event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
     event = cleanEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
@@ -336,7 +337,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: DittoFilter[]): Promise<void> {
+  async remove(filters: DittoFilter[], _opts?: NStoreOpts): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -344,8 +345,10 @@ class EventsDB implements NStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(filters: DittoFilter[]): Promise<number> {
+  async count(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<number> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve(0);
+
     this.#debug('COUNT', JSON.stringify(filters));
     const query = this.getEventsQuery(filters);
 
