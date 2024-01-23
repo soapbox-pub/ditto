@@ -38,7 +38,7 @@ class Memorelay implements NStore {
     if (!filters.length) return Promise.resolve([]);
 
     /** Event results to return. */
-    const results = new NSet<NostrEvent>();
+    const results = new NSet();
 
     /** Number of times an event has been added to results for each filter. */
     const filterUsages: number[] = [];

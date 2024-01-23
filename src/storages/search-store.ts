@@ -56,7 +56,7 @@ class SearchStore implements NStore {
       opts?.signal?.addEventListener('abort', close, { once: true });
       sub.eoseSignal.addEventListener('abort', close, { once: true });
 
-      const events = new NSet<DittoEvent>();
+      const events = new NSet();
 
       for await (const event of sub) {
         events.add(event);
