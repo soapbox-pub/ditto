@@ -1,7 +1,6 @@
 import { type DittoDB } from '@/db.ts';
 import { type Event } from '@/deps.ts';
 import { type DittoFilter } from '@/filter.ts';
-import { type EventData } from '@/types.ts';
 
 /** Additional options to apply to the whole subscription. */
 interface GetEventsOpts {
@@ -15,8 +14,6 @@ interface GetEventsOpts {
 
 /** Options when storing an event. */
 interface StoreEventOpts {
-  /** Event data to store. */
-  data?: EventData;
   /** Relays to use, if applicable. */
   relays?: WebSocket['url'][];
 }

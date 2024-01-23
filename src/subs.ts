@@ -1,8 +1,7 @@
-import { Debug, type Event } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
+import { type DittoFilter } from '@/filter.ts';
+import { type DittoEvent } from '@/storages/types.ts';
 import { Subscription } from '@/subscription.ts';
-
-import type { DittoFilter } from '@/filter.ts';
-import type { EventData } from '@/types.ts';
 
 const debug = Debug('ditto:subs');
 
@@ -69,10 +68,10 @@ class SubscriptionStore {
    * }
    * ```
    */
-  *matches(event: Event, data: EventData): Iterable<Subscription> {
+  *matches(event: DittoEvent): Iterable<Subscription> {
     for (const subs of this.#store.values()) {
       for (const sub of subs.values()) {
-        if (sub.matches(event, data)) {
+        if (sub.matches(event)) {
           yield sub;
         }
       }

@@ -1,8 +1,8 @@
 import { Conf } from '@/config.ts';
 import { type Event, type Filter, matchFilters, stringifyStable, z } from '@/deps.ts';
-import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { type EventData } from '@/types.ts';
 import { isReplaceableKind } from '@/kinds.ts';
+import { nostrIdSchema } from '@/schemas/nostr.ts';
+import { type DittoEvent } from '@/storages/types.ts';
 
 /** Additional properties that may be added by Ditto to events. */
 type Relation = 'author' | 'author_stats' | 'event_stats';
@@ -22,8 +22,8 @@ type AuthorMicrofilter = { kinds: [0]; authors: [Event['pubkey']] };
 /** Filter to get one specific event. */
 type MicroFilter = IdMicrofilter | AuthorMicrofilter;
 
-function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): boolean {
-  if (filter.local && !(data.user || event.pubkey === Conf.pubkey)) {
+function matchDittoFilter(filter: DittoFilter, event: DittoEvent): boolean {
+  if (filter.local && !(event.user || event.pubkey === Conf.pubkey)) {
     return false;
   }
 
@@ -34,9 +34,9 @@ function matchDittoFilter(filter: DittoFilter, event: Event, data: EventData): b
  * Similar to nostr-tools `matchFilters`, but supports Ditto's custom keys.
  * Database calls are needed to look up the extra data, so it's passed in as an argument.
  */
-function matchDittoFilters(filters: DittoFilter[], event: Event, data: EventData): boolean {
+function matchDittoFilters(filters: DittoFilter[], event: DittoEvent): boolean {
   for (const filter of filters) {
-    if (matchDittoFilter(filter, event, data)) {
+    if (matchDittoFilter(filter, event)) {
       return true;
     }
   }
