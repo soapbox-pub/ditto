@@ -70,6 +70,7 @@ const metaContentSchema = z.object({
   picture: z.string().optional().catch(undefined),
   banner: z.string().optional().catch(undefined),
   nip05: z.string().optional().catch(undefined),
+  lud06: z.string().optional().catch(undefined),
   lud16: z.string().optional().catch(undefined),
 }).partial().passthrough();
 

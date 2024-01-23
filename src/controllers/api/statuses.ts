@@ -1,11 +1,14 @@
 import { type AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { type Event, ISO6391, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
+import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { getLnurl } from '@/utils/lnurl.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -261,6 +264,47 @@ const unpinController: AppController = async (c) => {
   }
 };
 
+const zapSchema = z.object({
+  amount: z.number().int().positive(),
+  comment: z.string().optional(),
+});
+
+const zapController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const body = await parseBody(c.req.raw);
+  const params = zapSchema.safeParse(body);
+
+  if (!params.success) {
+    return c.json({ error: 'Bad request', schema: params.error }, 400);
+  }
+
+  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const author = target?.author;
+  const meta = jsonMetaContentSchema.parse(author?.content);
+  const lnurl = getLnurl(meta);
+
+  if (target && lnurl) {
+    await createEvent({
+      kind: 9734,
+      content: params.data.comment ?? '',
+      tags: [
+        ['e', target.id],
+        ['p', target.pubkey],
+        ['amount', params.data.amount.toString()],
+        ['relays', Conf.relay],
+        ['lnurl', lnurl],
+      ],
+    }, c);
+
+    const status = await renderStatus(target, c.get('pubkey'));
+    status.zapped = true;
+
+    return c.json(status);
+  } else {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+};
+
 export {
   bookmarkController,
   contextController,
@@ -272,4 +316,5 @@ export {
   statusController,
   unbookmarkController,
   unpinController,
+  zapController,
 };

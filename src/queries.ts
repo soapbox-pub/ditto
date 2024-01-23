@@ -19,7 +19,7 @@ interface GetEventOpts<K extends number> {
 const getEvent = async <K extends number = number>(
   id: string,
   opts: GetEventOpts<K> = {},
-): Promise<Event<K> | undefined> => {
+): Promise<DittoEvent<K> | undefined> => {
   debug(`getEvent: ${id}`);
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };

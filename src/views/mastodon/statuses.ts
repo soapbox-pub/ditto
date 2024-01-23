@@ -38,6 +38,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
         ? await eventsDB.filter([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+          { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [10001], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
         ])
@@ -48,6 +49,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
   const repostEvent = relatedEvents.find((event) => event.kind === 6);
   const pinEvent = relatedEvents.find((event) => event.kind === 10001);
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
+  const zapEvent = relatedEvents.find((event) => event.kind === 9734);
 
   const content = buildInlineRecipients(mentions) + html;
 
@@ -91,6 +93,7 @@ async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
     poll: null,
     uri: Conf.local(`/posts/${event.id}`),
     url: Conf.local(`/posts/${event.id}`),
+    zapped: Boolean(zapEvent),
   };
 }
 

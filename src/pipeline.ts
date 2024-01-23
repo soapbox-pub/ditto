@@ -1,8 +1,9 @@
 import { Conf } from '@/config.ts';
+import { encryptAdmin } from '@/crypto.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { findUser } from '@/db/users.ts';
-import { Debug, type Event } from '@/deps.ts';
+import { Debug, type Event, LNURL } from '@/deps.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
@@ -10,9 +11,12 @@ import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { type EventData } from '@/types.ts';
-import { eventAge, isRelay, nostrDate, Time } from '@/utils.ts';
+import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
+import { signAdminEvent } from '@/sign.ts';
+import { lnurlCache } from '@/utils/lnurl.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -21,6 +25,7 @@ const debug = Debug('ditto:pipeline');
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: Event): Promise<void> {
+  const signal = AbortSignal.timeout(5000);
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event)) return;
@@ -32,8 +37,9 @@ async function handleEvent(event: Event): Promise<void> {
     processDeletions(event),
     trackRelays(event),
     trackHashtags(event),
-    fetchRelatedEvents(event, data),
+    fetchRelatedEvents(event, data, signal),
     processMedia(event, data),
+    payZap(event, data, signal),
     streamOut(event, data),
     broadcast(event, data),
   ]);
@@ -138,9 +144,9 @@ function trackRelays(event: Event) {
 }
 
 /** Queue related events to fetch. */
-function fetchRelatedEvents(event: Event, data: EventData) {
+function fetchRelatedEvents(event: Event, data: EventData, signal: AbortSignal) {
   if (!data.user) {
-    reqmeister.req({ kinds: [0], authors: [event.pubkey] }).catch(() => {});
+    reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
     if (name === 'e' && !memorelay.count([{ ids: [id] }])) {
@@ -154,6 +160,51 @@ function processMedia({ tags, pubkey }: Event, { user }: EventData) {
   if (user) {
     const urls = getTagSet(tags, 'media');
     return deleteAttachedMedia(pubkey, [...urls]);
+  }
+}
+
+/** Emit Nostr Wallet Connect event from zaps so users may pay. */
+async function payZap(event: Event, data: EventData, signal: AbortSignal) {
+  if (event.kind !== 9734 || !data.user) return;
+
+  const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
+  const amount = Number(event.tags.find(([name]) => name === 'amount')?.[1]);
+
+  if (!lnurl || !amount) return;
+
+  try {
+    const details = await lnurlCache.fetch(lnurl, { signal });
+
+    if (details.tag !== 'payRequest' || !details.allowsNostr || !details.nostrPubkey) {
+      throw new Error('invalid lnurl');
+    }
+
+    if (amount > details.maxSendable || amount < details.minSendable) {
+      throw new Error('amount out of range');
+    }
+
+    const { pr } = await LNURL.callback(
+      details.callback,
+      { amount, nostr: event, lnurl },
+      { fetch: fetchWorker, signal },
+    );
+
+    const nwcRequestEvent = await signAdminEvent({
+      kind: 23194,
+      content: await encryptAdmin(
+        event.pubkey,
+        JSON.stringify({ method: 'pay_invoice', params: { invoice: pr } }),
+      ),
+      created_at: nostrNow(),
+      tags: [
+        ['p', event.pubkey],
+        ['e', event.id],
+      ],
+    });
+
+    await handleEvent(nwcRequestEvent);
+  } catch (e) {
+    debug('lnurl error:', e);
   }
 }
 

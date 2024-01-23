@@ -10,7 +10,7 @@ const debug = Debug('ditto:firehose');
 // side-effects based on them, such as trending hashtag tracking
 // and storing events for notifications and the home feed.
 pool.subscribe(
-  [{ kinds: [0, 1, 3, 5, 6, 7, 10002], limit: 0, since: nostrNow() }],
+  [{ kinds: [0, 1, 3, 5, 6, 7, 9735, 10002], limit: 0, since: nostrNow() }],
   activeRelays,
   handleEvent,
   undefined,

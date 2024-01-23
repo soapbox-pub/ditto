@@ -21,6 +21,7 @@ const tagConditions: Record<string, TagCondition> = {
   'd': ({ event, count }) => count === 0 && isParameterizedReplaceableKind(event.kind),
   'e': ({ event, count, value, opts }) => ((opts.data?.user && event.kind === 10003) || count < 15) && isNostrId(value),
   'media': ({ count, value, opts }) => (opts.data?.user || count < 4) && isURL(value),
+  'P': ({ event, count, value }) => event.kind === 9735 && count === 0 && isNostrId(value),
   'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
   'proxy': ({ count, value }) => count === 0 && isURL(value),
   'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
