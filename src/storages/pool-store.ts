@@ -53,7 +53,7 @@ class PoolStore implements NStore {
     if (!filters.length) return Promise.resolve([]);
 
     return new Promise((resolve, reject) => {
-      const results = new NSet<NostrEvent>();
+      const results = new NSet();
 
       const unsub = this.#pool.subscribe(
         filters,

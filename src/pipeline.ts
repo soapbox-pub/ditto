@@ -7,7 +7,7 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
-import { client, eventsDB, memorelay, reqmeister } from '@/storages.ts';
+import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
@@ -45,8 +45,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
-  const preexisting = (await memorelay.count([{ ids: [event.id] }])) > 0;
-  memorelay.event(event, { signal });
+  const preexisting = (await cache.count([{ ids: [event.id] }])) > 0;
+  cache.event(event);
   reqmeister.event(event, { signal });
   return preexisting;
 }
@@ -149,7 +149,7 @@ function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !memorelay.count([{ ids: [id] }], { signal })) {
+    if (name === 'e' && !cache.count([{ ids: [id] }])) {
       reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
     }
   }

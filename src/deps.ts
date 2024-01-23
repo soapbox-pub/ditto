@@ -83,16 +83,17 @@ export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 // @deno-types="npm:@types/debug@^4.1.12"
 export { default as Debug } from 'npm:debug@^4.3.4';
-export { NSet } from 'https://gitlab.com/soapbox-pub/nset/-/raw/b3c5601612f9bd277626198c5534e0796e003884/mod.ts';
 export {
   LNURL,
   type LNURLDetails,
   type MapCache,
+  NCache,
   NIP05,
   type NostrEvent,
   type NostrFilter,
+  NSet,
   type NStore,
   type NStoreOpts,
-} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/057ecc6e2ce813db6e2279288fbfd08c5b53cc0c/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/91ddffb8d7091286641fdc419bdde07c8037eac7/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';

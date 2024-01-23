@@ -40,7 +40,7 @@ class Optimizer implements NStore {
     if (!filters.length) return Promise.resolve([]);
 
     const { limit = Infinity } = opts;
-    const results = new NSet<DittoEvent>();
+    const results = new NSet();
 
     // Filters with IDs are immutable, so we can take them straight from the cache if we have them.
     for (let i = 0; i < filters.length; i++) {

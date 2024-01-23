@@ -1,9 +1,9 @@
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
+import { NCache } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { EventsDB } from '@/storages/events-db.ts';
-import { Memorelay } from '@/storages/memorelay.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
 import { Reqmeister } from '@/storages/reqmeister.ts';
@@ -21,7 +21,7 @@ const client = new PoolStore({
 const eventsDB = new EventsDB(db);
 
 /** In-memory data store for cached events. */
-const memorelay = new Memorelay({ max: 3000 });
+const cache = new NCache({ max: 3000 });
 
 /** Batches requests for single events. */
 const reqmeister = new Reqmeister({
@@ -33,7 +33,7 @@ const reqmeister = new Reqmeister({
 /** Main Ditto storage adapter */
 const optimizer = new Optimizer({
   db: eventsDB,
-  cache: memorelay,
+  cache,
   client: reqmeister,
 });
 
@@ -43,4 +43,4 @@ const searchStore = new SearchStore({
   fallback: optimizer,
 });
 
-export { client, eventsDB, memorelay, optimizer, reqmeister, searchStore };
+export { cache, client, eventsDB, optimizer, reqmeister, searchStore };
