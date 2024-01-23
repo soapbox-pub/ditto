@@ -1,10 +1,11 @@
 import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f4fb59c90c092e5aa59c01e6556a4bec264c167/mod.ts';
 
-import { Debug, type Event, type Filter } from '@/deps.ts';
-import { type DittoFilter, normalizeFilters } from '@/filter.ts';
+import { Debug, type NostrEvent, type NostrFilter, NSet } from '@/deps.ts';
+import { normalizeFilters } from '@/filter.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
-import { EventSet } from '@/utils/event-set.ts';
+import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
 
 interface SearchStoreOpts {
   relay: string | undefined;
@@ -30,14 +31,14 @@ class SearchStore implements EventStore {
     }
   }
 
-  add(_event: Event, _opts?: StoreEventOpts | undefined): Promise<void> {
+  add(_event: NostrEvent, _opts?: StoreEventOpts | undefined): Promise<void> {
     throw new Error('EVENT not implemented.');
   }
 
-  async filter<K extends number>(
-    filters: DittoFilter<K>[],
+  async filter(
+    filters: DittoFilter[],
     opts?: GetEventsOpts | undefined,
-  ): Promise<DittoEvent<K>[]> {
+  ): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters);
 
     if (opts?.signal?.aborted) return Promise.resolve([]);
@@ -60,7 +61,7 @@ class SearchStore implements EventStore {
       opts?.signal?.addEventListener('abort', close, { once: true });
       sub.eoseSignal.addEventListener('abort', close, { once: true });
 
-      const events = new EventSet<DittoEvent<K>>();
+      const events = new NSet<DittoEvent>();
 
       for await (const event of sub) {
         events.add(event);
@@ -73,11 +74,11 @@ class SearchStore implements EventStore {
     }
   }
 
-  count<K extends number>(_filters: Filter<K>[]): Promise<number> {
+  count(_filters: NostrFilter[]): Promise<number> {
     throw new Error('COUNT not implemented.');
   }
 
-  deleteFilters<K extends number>(_filters: Filter<K>[]): Promise<void> {
+  deleteFilters(_filters: NostrFilter[]): Promise<void> {
     throw new Error('DELETE not implemented.');
   }
 }

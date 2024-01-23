@@ -1,24 +1,14 @@
 import { Conf } from '@/config.ts';
-import { type Event, type Filter, matchFilters, stringifyStable, z } from '@/deps.ts';
+import { matchFilters, type NostrEvent, type NostrFilter, stringifyStable, z } from '@/deps.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isReplaceableKind } from '@/kinds.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { type DittoEvent } from '@/storages/types.ts';
-
-/** Additional properties that may be added by Ditto to events. */
-type Relation = 'author' | 'author_stats' | 'event_stats';
-
-/** Custom filter interface that extends Nostr filters with extra options for Ditto. */
-interface DittoFilter<K extends number = number> extends Filter<K> {
-  /** Whether the event was authored by a local user. */
-  local?: boolean;
-  /** Additional fields to add to the returned event. */
-  relations?: Relation[];
-}
 
 /** Microfilter to get one specific event by ID. */
-type IdMicrofilter = { ids: [Event['id']] };
+type IdMicrofilter = { ids: [NostrEvent['id']] };
 /** Microfilter to get an author. */
-type AuthorMicrofilter = { kinds: [0]; authors: [Event['pubkey']] };
+type AuthorMicrofilter = { kinds: [0]; authors: [NostrEvent['pubkey']] };
 /** Filter to get one specific event. */
 type MicroFilter = IdMicrofilter | AuthorMicrofilter;
 
@@ -57,13 +47,13 @@ function getFilterId(filter: MicroFilter): string {
 }
 
 /** Get a microfilter from a Nostr event. */
-function eventToMicroFilter(event: Event): MicroFilter {
+function eventToMicroFilter(event: NostrEvent): MicroFilter {
   const [microfilter] = getMicroFilters(event);
   return microfilter;
 }
 
 /** Get all the microfilters for an event, in order of priority. */
-function getMicroFilters(event: Event): MicroFilter[] {
+function getMicroFilters(event: NostrEvent): MicroFilter[] {
   const microfilters: MicroFilter[] = [];
   if (event.kind === 0) {
     microfilters.push({ kinds: [0], authors: [event.pubkey] });
@@ -79,12 +69,12 @@ const microFilterSchema = z.union([
 ]);
 
 /** Checks whether the filter is a microfilter. */
-function isMicrofilter(filter: Filter): filter is MicroFilter {
+function isMicrofilter(filter: NostrFilter): filter is MicroFilter {
   return microFilterSchema.safeParse(filter).success;
 }
 
 /** Calculate the intrinsic limit of a filter. */
-function getFilterLimit(filter: Filter): number {
+function getFilterLimit(filter: NostrFilter): number {
   if (filter.ids && !filter.ids.length) return 0;
   if (filter.kinds && !filter.kinds.length) return 0;
   if (filter.authors && !filter.authors.length) return 0;
@@ -100,12 +90,12 @@ function getFilterLimit(filter: Filter): number {
 }
 
 /** Returns true if the filter could potentially return any stored events at all. */
-function canFilter(filter: Filter): boolean {
+function canFilter(filter: NostrFilter): boolean {
   return getFilterLimit(filter) > 0;
 }
 
 /** Normalize the `limit` of each filter, and remove filters that can't produce any events. */
-function normalizeFilters<F extends Filter>(filters: F[]): F[] {
+function normalizeFilters<F extends NostrFilter>(filters: F[]): F[] {
   return filters.reduce<F[]>((acc, filter) => {
     const limit = getFilterLimit(filter);
     if (limit > 0) {
@@ -118,7 +108,6 @@ function normalizeFilters<F extends Filter>(filters: F[]): F[] {
 export {
   type AuthorMicrofilter,
   canFilter,
-  type DittoFilter,
   eventToMicroFilter,
   getFilterId,
   getFilterLimit,
@@ -128,5 +117,4 @@ export {
   matchDittoFilters,
   type MicroFilter,
   normalizeFilters,
-  type Relation,
 };

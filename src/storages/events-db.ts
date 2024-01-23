@@ -1,12 +1,15 @@
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
-import { Debug, type Event, Kysely, type SelectQueryBuilder } from '@/deps.ts';
-import { type DittoFilter, normalizeFilters } from '@/filter.ts';
+import { Debug, Kysely, type NostrEvent, type SelectQueryBuilder } from '@/deps.ts';
+import { cleanEvent } from '@/events.ts';
+import { normalizeFilters } from '@/filter.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 
-import { type DittoEvent, EventStore, type GetEventsOpts } from './types.ts';
+import { type EventStore, type GetEventsOpts } from './types.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -65,7 +68,8 @@ class EventsDB implements EventStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async add(event: DittoEvent): Promise<void> {
+  async add(event: NostrEvent): Promise<void> {
+    event = cleanEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
@@ -264,7 +268,7 @@ class EventsDB implements EventStore {
   }
 
   /** Get events for filters from the database. */
-  async filter<K extends number>(filters: DittoFilter<K>[], opts: GetEventsOpts = {}): Promise<DittoEvent<K>[]> {
+  async filter(filters: DittoFilter[], opts: GetEventsOpts = {}): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -278,9 +282,9 @@ class EventsDB implements EventStore {
     }
 
     return (await query.execute()).map((row) => {
-      const event: DittoEvent<K> = {
+      const event: DittoEvent = {
         id: row.id,
-        kind: row.kind as K,
+        kind: row.kind,
         pubkey: row.pubkey,
         content: row.content,
         created_at: row.created_at,
@@ -337,7 +341,7 @@ class EventsDB implements EventStore {
   }
 
   /** Delete events based on filters from the database. */
-  async deleteFilters<K extends number>(filters: DittoFilter<K>[]): Promise<void> {
+  async deleteFilters(filters: DittoFilter[]): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -345,7 +349,7 @@ class EventsDB implements EventStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count<K extends number>(filters: DittoFilter<K>[]): Promise<number> {
+  async count(filters: DittoFilter[]): Promise<number> {
     if (!filters.length) return Promise.resolve(0);
     this.#debug('COUNT', JSON.stringify(filters));
     const query = this.getEventsQuery(filters);
@@ -393,10 +397,10 @@ function filterIndexableTags(event: DittoEvent): string[][] {
 }
 
 /** Build a search index from the event. */
-function buildSearchContent(event: Event): string {
+function buildSearchContent(event: NostrEvent): string {
   switch (event.kind) {
     case 0:
-      return buildUserSearchContent(event as Event<0>);
+      return buildUserSearchContent(event);
     case 1:
       return event.content;
     case 30009:
@@ -407,7 +411,7 @@ function buildSearchContent(event: Event): string {
 }
 
 /** Build search content for a user. */
-function buildUserSearchContent(event: Event<0>): string {
+function buildUserSearchContent(event: NostrEvent): string {
   const { name, nip05, about } = jsonMetaContentSchema.parse(event.content);
   return [name, nip05, about].filter(Boolean).join('\n');
 }

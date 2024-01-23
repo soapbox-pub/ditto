@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import { Debug, type Filter } from '@/deps.ts';
+import { Debug, type NostrFilter } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { signAdminEvent } from '@/sign.ts';
 import { eventsDB } from '@/storages.ts';
@@ -49,7 +49,7 @@ async function insertUser(user: User) {
  * ```
  */
 async function findUser(user: Partial<User>): Promise<User | undefined> {
-  const filter: Filter = { kinds: [30361], authors: [Conf.pubkey], limit: 1 };
+  const filter: NostrFilter = { kinds: [30361], authors: [Conf.pubkey], limit: 1 };
 
   for (const [key, value] of Object.entries(user)) {
     switch (key) {

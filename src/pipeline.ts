@@ -2,7 +2,8 @@ import { Conf } from '@/config.ts';
 import { encryptAdmin } from '@/crypto.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
-import { Debug, type Event, LNURL } from '@/deps.ts';
+import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
@@ -15,7 +16,6 @@ import { TrendsWorker } from '@/workers/trends.ts';
 import { verifySignatureWorker } from '@/workers/verify.ts';
 import { signAdminEvent } from '@/sign.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
-import { DittoEvent } from '@/storages/types.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -28,7 +28,7 @@ async function handleEvent(event: DittoEvent): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event)) return;
-  debug(`Event<${event.kind}> ${event.id}`);
+  debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event);
 
   await Promise.all([
@@ -45,7 +45,7 @@ async function handleEvent(event: DittoEvent): Promise<void> {
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
-async function encounterEvent(event: Event): Promise<boolean> {
+async function encounterEvent(event: NostrEvent): Promise<boolean> {
   const preexisting = (await memorelay.count([{ ids: [event.id] }])) > 0;
   memorelay.add(event);
   reqmeister.add(event);
@@ -59,7 +59,7 @@ async function hydrateEvent(event: DittoEvent): Promise<void> {
 }
 
 /** Check if the pubkey is the `DITTO_NSEC` pubkey. */
-const isAdminEvent = ({ pubkey }: Event): boolean => pubkey === Conf.pubkey;
+const isAdminEvent = ({ pubkey }: NostrEvent): boolean => pubkey === Conf.pubkey;
 
 interface StoreEventOpts {
   force?: boolean;
@@ -89,7 +89,7 @@ async function storeEvent(event: DittoEvent, opts: StoreEventOpts = {}): Promise
 }
 
 /** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
-async function processDeletions(event: Event): Promise<void> {
+async function processDeletions(event: NostrEvent): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
 
@@ -108,7 +108,7 @@ async function processDeletions(event: Event): Promise<void> {
 }
 
 /** Track whenever a hashtag is used, for processing trending tags. */
-async function trackHashtags(event: Event): Promise<void> {
+async function trackHashtags(event: NostrEvent): Promise<void> {
   const date = nostrDate(event.created_at);
 
   const tags = event.tags
@@ -127,7 +127,7 @@ async function trackHashtags(event: Event): Promise<void> {
 }
 
 /** Tracks known relays in the database. */
-function trackRelays(event: Event) {
+function trackRelays(event: NostrEvent) {
   const relays = new Set<`wss://${string}`>();
 
   event.tags.forEach((tag) => {
@@ -208,10 +208,10 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 }
 
 /** Determine if the event is being received in a timely manner. */
-const isFresh = (event: Event): boolean => eventAge(event) < Time.seconds(10);
+const isFresh = (event: NostrEvent): boolean => eventAge(event) < Time.seconds(10);
 
 /** Distribute the event through active subscriptions. */
-function streamOut(event: Event) {
+function streamOut(event: NostrEvent) {
   if (!isFresh(event)) return;
 
   for (const sub of Sub.matches(event)) {

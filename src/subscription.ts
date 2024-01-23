@@ -1,17 +1,18 @@
-import { type Event, Machina } from '@/deps.ts';
-import { type DittoFilter, matchDittoFilters } from '@/filter.ts';
-import { type DittoEvent } from '@/storages/types.ts';
+import { Machina, type NostrEvent } from '@/deps.ts';
+import { matchDittoFilters } from '@/filter.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 
-class Subscription<K extends number = number> implements AsyncIterable<Event<K>> {
-  filters: DittoFilter<K>[];
-  #machina: Machina<Event<K>>;
+class Subscription implements AsyncIterable<NostrEvent> {
+  filters: DittoFilter[];
+  #machina: Machina<NostrEvent>;
 
-  constructor(filters: DittoFilter<K>[]) {
+  constructor(filters: DittoFilter[]) {
     this.filters = filters;
     this.#machina = new Machina();
   }
 
-  stream(event: Event<K>): void {
+  stream(event: NostrEvent): void {
     this.#machina.push(event);
   }
 

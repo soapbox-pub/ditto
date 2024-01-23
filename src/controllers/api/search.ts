@@ -1,6 +1,6 @@
 import { AppController } from '@/app.ts';
-import { type Event, nip19, z } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { nip19, type NostrEvent, z } from '@/deps.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';
@@ -46,12 +46,12 @@ const searchController: AppController = async (c) => {
   const [accounts, statuses] = await Promise.all([
     Promise.all(
       results
-        .filter((event): event is Event<0> => event.kind === 0)
+        .filter((event): event is NostrEvent => event.kind === 0)
         .map((event) => renderAccount(event)),
     ),
     Promise.all(
       results
-        .filter((event): event is Event<1> => event.kind === 1)
+        .filter((event): event is NostrEvent => event.kind === 1)
         .map((event) => renderStatus(event, c.get('pubkey'))),
     ),
   ]);
@@ -64,7 +64,7 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<Event[]> {
+function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
   const filter: DittoFilter = {
@@ -94,7 +94,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 }
 
 /** Resolve a searched value into an event, if applicable. */
-async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Event | undefined> {
+async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
   const [event] = await searchStore.filter(filters, { limit: 1, signal });
   return event;

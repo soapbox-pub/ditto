@@ -1,13 +1,12 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { insertUser } from '@/db/users.ts';
-import { findReplyTag, nip19, z } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { nip19, z } from '@/deps.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
-import { addTag, deleteTag, getTagSet } from '@/tags.ts';
+import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { lookupAccount, nostrNow } from '@/utils.ts';
 import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
@@ -15,6 +14,7 @@ import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts'
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { DittoFilter } from '@/interfaces/DittoFilter.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -143,7 +143,7 @@ const accountStatusesController: AppController = async (c) => {
     }
   }
 
-  const filter: DittoFilter<1> = {
+  const filter: DittoFilter = {
     authors: [pubkey],
     kinds: [1],
     relations: ['author', 'event_stats', 'author_stats'],
@@ -159,7 +159,7 @@ const accountStatusesController: AppController = async (c) => {
   let events = await eventsDB.filter([filter]);
 
   if (exclude_replies) {
-    events = events.filter((event) => !findReplyTag(event));
+    events = events.filter((event) => !findReplyTag(event.tags));
   }
 
   const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));

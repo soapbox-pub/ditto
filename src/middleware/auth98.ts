@@ -1,5 +1,5 @@
 import { type AppContext, type AppMiddleware } from '@/app.ts';
-import { type Event, HTTPException } from '@/deps.ts';
+import { HTTPException, type NostrEvent } from '@/deps.ts';
 import {
   buildAuthEventTemplate,
   parseAuthRequest,
@@ -65,7 +65,7 @@ function matchesRole(user: User, role: UserRole): boolean {
 
 /** HOC to obtain proof in middleware. */
 function withProof(
-  handler: (c: AppContext, proof: Event<27235>, next: () => Promise<void>) => Promise<void>,
+  handler: (c: AppContext, proof: NostrEvent, next: () => Promise<void>) => Promise<void>,
   opts?: ParseAuthRequestOpts,
 ): AppMiddleware {
   return async (c, next) => {

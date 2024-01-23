@@ -1,6 +1,7 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import { Debug, type Event, findReplyTag, type InsertQueryBuilder } from '@/deps.ts';
+import { Debug, type InsertQueryBuilder, type NostrEvent } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
+import { findReplyTag } from '@/tags.ts';
 
 type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
 type EventStat = keyof Omit<EventStatsRow, 'event_id'>;
@@ -12,15 +13,15 @@ type StatDiff = AuthorStatDiff | EventStatDiff;
 const debug = Debug('ditto:stats');
 
 /** Store stats for the event in LMDB. */
-async function updateStats<K extends number>(event: Event<K>) {
-  let prev: Event<K> | undefined;
+async function updateStats(event: NostrEvent) {
+  let prev: NostrEvent | undefined;
   const queries: InsertQueryBuilder<DittoDB, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
     prev = await maybeGetPrev(event);
     if (!prev || event.created_at >= prev.created_at) {
-      queries.push(updateFollowingCountQuery(event as Event<3>));
+      queries.push(updateFollowingCountQuery(event));
     }
   }
 
@@ -41,11 +42,11 @@ async function updateStats<K extends number>(event: Event<K>) {
 }
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
-function getStatsDiff<K extends number>(event: Event<K>, prev: Event<K> | undefined): StatDiff[] {
+function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): StatDiff[] {
   const statDiffs: StatDiff[] = [];
 
   const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
-  const inReplyToId = findReplyTag(event as Event<1>)?.[1];
+  const inReplyToId = findReplyTag(event.tags)?.[1];
 
   switch (event.kind) {
     case 1:
@@ -55,7 +56,7 @@ function getStatsDiff<K extends number>(event: Event<K>, prev: Event<K> | undefi
       }
       break;
     case 3:
-      statDiffs.push(...getFollowDiff(event as Event<3>, prev as Event<3> | undefined));
+      statDiffs.push(...getFollowDiff(event, prev));
       break;
     case 6:
       if (firstTaggedId) {
@@ -124,7 +125,7 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 }
 
 /** Get the last version of the event, if any. */
-async function maybeGetPrev<K extends number>(event: Event<K>): Promise<Event<K>> {
+async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
   const [prev] = await eventsDB.filter([
     { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
   ]);
@@ -133,7 +134,7 @@ async function maybeGetPrev<K extends number>(event: Event<K>): Promise<Event<K>
 }
 
 /** Set the following count to the total number of unique "p" tags in the follow list. */
-function updateFollowingCountQuery({ pubkey, tags }: Event<3>) {
+function updateFollowingCountQuery({ pubkey, tags }: NostrEvent) {
   const following_count = new Set(
     tags
       .filter(([name]) => name === 'p')
@@ -155,7 +156,7 @@ function updateFollowingCountQuery({ pubkey, tags }: Event<3>) {
 }
 
 /** Compare the old and new follow events (if any), and return a diff array. */
-function getFollowDiff(event: Event<3>, prev?: Event<3>): AuthorStatDiff[] {
+function getFollowDiff(event: NostrEvent, prev?: NostrEvent): AuthorStatDiff[] {
   const prevTags = prev?.tags ?? [];
 
   const prevPubkeys = new Set(

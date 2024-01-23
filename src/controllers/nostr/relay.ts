@@ -13,14 +13,14 @@ import {
 import { Sub } from '@/subs.ts';
 
 import type { AppController } from '@/app.ts';
-import type { Event, Filter } from '@/deps.ts';
+import type { NostrEvent, NostrFilter } from '@/deps.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
 
 /** NIP-01 relay to client message. */
 type RelayMsg =
-  | ['EVENT', string, Event]
+  | ['EVENT', string, NostrEvent]
   | ['NOTICE', string]
   | ['EOSE', string]
   | ['OK', string, boolean, string]
@@ -109,7 +109,7 @@ function connectStream(socket: WebSocket) {
 }
 
 /** Enforce the filters with certain criteria. */
-function prepareFilters(filters: ClientREQ[2][]): Filter[] {
+function prepareFilters(filters: ClientREQ[2][]): NostrFilter[] {
   return filters.map((filter) => ({
     ...filter,
     // Return only local events unless the query is already narrow.

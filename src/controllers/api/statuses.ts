@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
-import { type Event, ISO6391, z } from '@/deps.ts';
+import { ISO6391, type NostrEvent, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
@@ -100,7 +100,7 @@ const contextController: AppController = async (c) => {
   const id = c.req.param('id');
   const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
 
-  async function renderStatuses(events: Event<1>[]) {
+  async function renderStatuses(events: NostrEvent[]) {
     const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
     return statuses.filter(Boolean);
   }

@@ -1,13 +1,13 @@
-import { Debug, type Event, type Filter, matchFilters, type RelayPoolWorker } from '@/deps.ts';
+import { Debug, matchFilters, type NostrEvent, type NostrFilter, NSet, type RelayPoolWorker } from '@/deps.ts';
+import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
-import { EventSet } from '@/utils/event-set.ts';
 
 interface PoolStoreOpts {
   pool: InstanceType<typeof RelayPoolWorker>;
   relays: WebSocket['url'][];
   publisher: {
-    handleEvent(event: Event): Promise<void>;
+    handleEvent(event: NostrEvent): Promise<void>;
   };
 }
 
@@ -16,7 +16,7 @@ class PoolStore implements EventStore {
   #pool: InstanceType<typeof RelayPoolWorker>;
   #relays: WebSocket['url'][];
   #publisher: {
-    handleEvent(event: Event): Promise<void>;
+    handleEvent(event: NostrEvent): Promise<void>;
   };
 
   supportedNips = [1];
@@ -27,14 +27,15 @@ class PoolStore implements EventStore {
     this.#publisher = opts.publisher;
   }
 
-  add(event: Event, opts: StoreEventOpts = {}): Promise<void> {
+  add(event: NostrEvent, opts: StoreEventOpts = {}): Promise<void> {
     const { relays = this.#relays } = opts;
+    event = cleanEvent(event);
     this.#debug('EVENT', event);
     this.#pool.publish(event, relays);
     return Promise.resolve();
   }
 
-  filter<K extends number>(filters: Filter<K>[], opts: GetEventsOpts = {}): Promise<Event<K>[]> {
+  filter(filters: NostrFilter[], opts: GetEventsOpts = {}): Promise<NostrEvent[]> {
     filters = normalizeFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -43,17 +44,17 @@ class PoolStore implements EventStore {
     this.#debug('REQ', JSON.stringify(filters));
 
     return new Promise((resolve) => {
-      const results = new EventSet<Event<K>>();
+      const results = new NSet<NostrEvent>();
 
       const unsub = this.#pool.subscribe(
         filters,
         opts.relays ?? this.#relays,
-        (event: Event | null) => {
+        (event: NostrEvent | null) => {
           if (event && matchFilters(filters, event)) {
             this.#publisher.handleEvent(event).catch(() => {});
             results.add({
               id: event.id,
-              kind: event.kind as K,
+              kind: event.kind,
               pubkey: event.pubkey,
               content: event.content,
               tags: event.tags,

@@ -1,24 +1,25 @@
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
-import { findReplyTag, nip19 } from '@/deps.ts';
+import { nip19 } from '@/deps.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
-import { type DittoEvent } from '@/storages/types.ts';
+import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-async function renderStatus(event: DittoEvent<1>, viewerPubkey?: string) {
+async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
   const account = event.author
     ? await renderAccount({ ...event.author, author_stats: event.author_stats })
     : await accountFromPubkey(event.pubkey);
 
-  const replyTag = findReplyTag(event);
+  const replyTag = findReplyTag(event.tags);
 
   const mentionedPubkeys = [
     ...new Set(
