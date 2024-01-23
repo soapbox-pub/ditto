@@ -1,24 +1,21 @@
-import { Debug, NSet } from '@/deps.ts';
+import { Debug, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
-
-import { type EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
+import { abortError } from '@/utils/abort.ts';
 
 interface OptimizerOpts {
-  db: EventStore;
-  cache: EventStore;
-  client: EventStore;
+  db: NStore;
+  cache: NStore;
+  client: NStore;
 }
 
-class Optimizer implements EventStore {
+class Optimizer implements NStore {
   #debug = Debug('ditto:optimizer');
 
-  #db: EventStore;
-  #cache: EventStore;
-  #client: EventStore;
-
-  supportedNips = [1];
+  #db: NStore;
+  #cache: NStore;
+  #client: NStore;
 
   constructor(opts: OptimizerOpts) {
     this.#db = opts.db;
@@ -26,25 +23,23 @@ class Optimizer implements EventStore {
     this.#client = opts.client;
   }
 
-  async add(event: DittoEvent, opts?: StoreEventOpts | undefined): Promise<void> {
+  async event(event: DittoEvent, opts?: NStoreOpts | undefined): Promise<void> {
+    if (opts?.signal?.aborted) return Promise.reject(abortError());
+
     await Promise.all([
-      this.#db.add(event, opts),
-      this.#cache.add(event, opts),
+      this.#db.event(event, opts),
+      this.#cache.event(event, opts),
     ]);
   }
 
-  async filter(
-    filters: DittoFilter[],
-    opts: GetEventsOpts | undefined = {},
-  ): Promise<DittoEvent[]> {
-    this.#debug('REQ', JSON.stringify(filters));
+  async query(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
+    if (opts?.signal?.aborted) return Promise.reject(abortError());
 
-    const { limit = Infinity } = opts;
     filters = normalizeFilters(filters);
-
-    if (opts?.signal?.aborted) return Promise.resolve([]);
+    this.#debug('REQ', JSON.stringify(filters));
     if (!filters.length) return Promise.resolve([]);
 
+    const { limit = Infinity } = opts;
     const results = new NSet<DittoEvent>();
 
     // Filters with IDs are immutable, so we can take them straight from the cache if we have them.
@@ -53,7 +48,7 @@ class Optimizer implements EventStore {
       if (filter.ids) {
         this.#debug(`Filter[${i}] is an IDs filter; querying cache...`);
         const ids = new Set<string>(filter.ids);
-        for (const event of await this.#cache.filter([filter], opts)) {
+        for (const event of await this.#cache.query([filter], opts)) {
           ids.delete(event.id);
           results.add(event);
           if (results.size >= limit) return getResults();
@@ -67,7 +62,7 @@ class Optimizer implements EventStore {
 
     // Query the database for events.
     this.#debug('Querying database...');
-    for (const dbEvent of await this.#db.filter(filters, opts)) {
+    for (const dbEvent of await this.#db.query(filters, opts)) {
       results.add(dbEvent);
       if (results.size >= limit) return getResults();
     }
@@ -80,14 +75,14 @@ class Optimizer implements EventStore {
 
     // Query the cache again.
     this.#debug('Querying cache...');
-    for (const cacheEvent of await this.#cache.filter(filters, opts)) {
+    for (const cacheEvent of await this.#cache.query(filters, opts)) {
       results.add(cacheEvent);
       if (results.size >= limit) return getResults();
     }
 
     // Finally, query the client.
     this.#debug('Querying client...');
-    for (const clientEvent of await this.#client.filter(filters, opts)) {
+    for (const clientEvent of await this.#client.query(filters, opts)) {
       results.add(clientEvent);
       if (results.size >= limit) return getResults();
     }
@@ -100,12 +95,12 @@ class Optimizer implements EventStore {
     return getResults();
   }
 
-  countEvents(_filters: DittoFilter[]): Promise<number> {
-    throw new Error('COUNT not implemented.');
+  count(_filters: DittoFilter[]): Promise<number> {
+    return Promise.reject(new Error('COUNT not implemented.'));
   }
 
-  deleteEvents(_filters: DittoFilter[]): Promise<void> {
-    throw new Error('DELETE not implemented.');
+  remove(_filters: DittoFilter[]): Promise<void> {
+    return Promise.reject(new Error('DELETE not implemented.'));
   }
 }
 

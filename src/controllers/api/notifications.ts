@@ -7,7 +7,7 @@ const notificationsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const { since, until } = paginationSchema.parse(c.req.query());
 
-  const events = await eventsDB.filter(
+  const events = await eventsDB.query(
     [{ kinds: [1], '#p': [pubkey], since, until }],
     { signal: AbortSignal.timeout(3000) },
   );

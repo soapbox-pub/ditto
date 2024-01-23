@@ -2,7 +2,7 @@ import { eventsDB } from '@/storages.ts';
 import { hasTag } from '@/tags.ts';
 
 async function renderRelationship(sourcePubkey: string, targetPubkey: string) {
-  const events = await eventsDB.filter([
+  const events = await eventsDB.query([
     { kinds: [3], authors: [sourcePubkey], limit: 1 },
     { kinds: [3], authors: [targetPubkey], limit: 1 },
     { kinds: [10000], authors: [sourcePubkey], limit: 1 },

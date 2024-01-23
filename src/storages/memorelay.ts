@@ -1,15 +1,20 @@
-import { Debug, LRUCache, matchFilter, type NostrEvent, type NostrFilter, NSet } from '@/deps.ts';
+import {
+  Debug,
+  LRUCache,
+  matchFilter,
+  type NostrEvent,
+  type NostrFilter,
+  NSet,
+  type NStore,
+  type NStoreOpts,
+} from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
-
-import { type EventStore, type GetEventsOpts } from './types.ts';
+import { abortError } from '@/utils/abort.ts';
 
 /** In-memory data store for events. */
-class Memorelay implements EventStore {
+class Memorelay implements NStore {
   #debug = Debug('ditto:memorelay');
   #cache: LRUCache<string, NostrEvent>;
-
-  /** NIPs supported by this storage method. */
-  supportedNips = [1, 45];
 
   constructor(...args: ConstructorParameters<typeof LRUCache<string, NostrEvent>>) {
     this.#cache = new LRUCache<string, NostrEvent>(...args);
@@ -25,13 +30,12 @@ class Memorelay implements EventStore {
   }
 
   /** Get events from memory. */
-  filter(filters: NostrFilter[], opts: GetEventsOpts = {}): Promise<NostrEvent[]> {
+  query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<NostrEvent[]> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
+
     filters = normalizeFilters(filters);
-
-    if (opts.signal?.aborted) return Promise.resolve([]);
-    if (!filters.length) return Promise.resolve([]);
-
     this.#debug('REQ', JSON.stringify(filters));
+    if (!filters.length) return Promise.resolve([]);
 
     /** Event results to return. */
     const results = new NSet<NostrEvent>();
@@ -90,20 +94,21 @@ class Memorelay implements EventStore {
   }
 
   /** Insert an event into memory. */
-  add(event: NostrEvent): Promise<void> {
+  event(event: NostrEvent, opts: NStoreOpts = {}): Promise<void> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
     this.#cache.set(event.id, event);
     return Promise.resolve();
   }
 
   /** Count events in memory for the filters. */
-  async count(filters: NostrFilter[]): Promise<number> {
-    const events = await this.filter(filters);
+  async count(filters: NostrFilter[], opts?: NStoreOpts): Promise<number> {
+    const events = await this.query(filters, opts);
     return events.length;
   }
 
   /** Delete events from memory. */
-  async deleteFilters(filters: NostrFilter[]): Promise<void> {
-    for (const event of await this.filter(filters)) {
+  async remove(filters: NostrFilter[], opts: NStoreOpts): Promise<void> {
+    for (const event of await this.query(filters, opts)) {
       this.#cache.delete(event.id);
     }
     return Promise.resolve();

@@ -63,7 +63,7 @@ function connectStream(socket: WebSocket) {
   async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
     const filters = prepareFilters(rest);
 
-    for (const event of await eventsDB.filter(filters, { limit: FILTER_LIMIT })) {
+    for (const event of await eventsDB.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 

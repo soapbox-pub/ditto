@@ -1,26 +1,24 @@
 import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f4fb59c90c092e5aa59c01e6556a4bec264c167/mod.ts';
 
-import { Debug, type NostrEvent, type NostrFilter, NSet } from '@/deps.ts';
+import { Debug, type NostrEvent, type NostrFilter, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
+import { abortError } from '@/utils/abort.ts';
 
 interface SearchStoreOpts {
   relay: string | undefined;
-  fallback: EventStore;
-  hydrator?: EventStore;
+  fallback: NStore;
+  hydrator?: NStore;
 }
 
-class SearchStore implements EventStore {
+class SearchStore implements NStore {
   #debug = Debug('ditto:storages:search');
 
-  #fallback: EventStore;
-  #hydrator: EventStore;
+  #fallback: NStore;
+  #hydrator: NStore;
   #relay: NiceRelay | undefined;
-
-  supportedNips = [50];
 
   constructor(opts: SearchStoreOpts) {
     this.#fallback = opts.fallback;
@@ -31,17 +29,14 @@ class SearchStore implements EventStore {
     }
   }
 
-  add(_event: NostrEvent, _opts?: StoreEventOpts | undefined): Promise<void> {
-    throw new Error('EVENT not implemented.');
+  event(_event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
+    return Promise.reject(new Error('EVENT not implemented.'));
   }
 
-  async filter(
-    filters: DittoFilter[],
-    opts?: GetEventsOpts | undefined,
-  ): Promise<DittoEvent[]> {
+  async query(filters: DittoFilter[], opts?: NStoreOpts): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters);
 
-    if (opts?.signal?.aborted) return Promise.resolve([]);
+    if (opts?.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve([]);
 
     this.#debug('REQ', JSON.stringify(filters));
@@ -70,16 +65,16 @@ class SearchStore implements EventStore {
       return hydrateEvents({ events: [...events], filters, storage: this.#hydrator, signal: opts?.signal });
     } else {
       this.#debug(`Searching for "${query}" locally...`);
-      return this.#fallback.filter(filters, opts);
+      return this.#fallback.query(filters, opts);
     }
   }
 
   count(_filters: NostrFilter[]): Promise<number> {
-    throw new Error('COUNT not implemented.');
+    return Promise.reject(new Error('COUNT not implemented.'));
   }
 
-  deleteFilters(_filters: NostrFilter[]): Promise<void> {
-    throw new Error('DELETE not implemented.');
+  remove(_filters: NostrFilter[]): Promise<void> {
+    return Promise.reject(new Error('DELETE not implemented.'));
   }
 }
 

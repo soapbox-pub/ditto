@@ -13,10 +13,10 @@ const memorelay = new Memorelay({
 Deno.test('memorelay', async () => {
   assertEquals(await memorelay.count([{ ids: [event1.id] }]), 0);
 
-  await memorelay.add(event1);
+  await memorelay.event(event1);
 
   assertEquals(await memorelay.count([{ ids: [event1.id] }]), 1);
 
-  const result = await memorelay.filter([{ ids: [event1.id] }]);
+  const result = await memorelay.query([{ ids: [event1.id] }]);
   assertEquals(result[0], event1);
 });

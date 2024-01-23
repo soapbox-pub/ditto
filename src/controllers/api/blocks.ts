@@ -7,7 +7,7 @@ import { renderAccounts } from '@/views.ts';
 const blocksController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
 
-  const [event10000] = await eventsDB.filter([
+  const [event10000] = await eventsDB.query([
     { kinds: [10000], authors: [pubkey], limit: 1 },
   ]);
 

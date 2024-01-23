@@ -32,7 +32,7 @@ const hashtagTimelineController: AppController = (c) => {
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: DittoFilter[], signal = AbortSignal.timeout(1000)) {
-  const events = await eventsDB.filter(
+  const events = await eventsDB.query(
     filters.map((filter) => ({ ...filter, relations: ['author', 'event_stats', 'author_stats'] })),
     { signal },
   );

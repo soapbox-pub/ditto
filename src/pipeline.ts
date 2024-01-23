@@ -47,14 +47,14 @@ async function handleEvent(event: DittoEvent): Promise<void> {
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent): Promise<boolean> {
   const preexisting = (await memorelay.count([{ ids: [event.id] }])) > 0;
-  memorelay.add(event);
-  reqmeister.add(event);
+  memorelay.event(event);
+  reqmeister.event(event);
   return preexisting;
 }
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent): Promise<void> {
-  const [user] = await eventsDB.filter([{ kinds: [30361], authors: [Conf.pubkey], limit: 1 }]);
+  const [user] = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], limit: 1 }]);
   event.user = user;
 }
 
@@ -79,7 +79,7 @@ async function storeEvent(event: DittoEvent, opts: StoreEventOpts = {}): Promise
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
     } else {
       await Promise.all([
-        eventsDB.add(event).catch(debug),
+        eventsDB.event(event).catch(debug),
         updateStats(event).catch(debug),
       ]);
     }
@@ -94,15 +94,15 @@ async function processDeletions(event: NostrEvent): Promise<void> {
     const ids = getTagSet(event.tags, 'e');
 
     if (event.pubkey === Conf.pubkey) {
-      await eventsDB.deleteFilters([{ ids: [...ids] }]);
+      await eventsDB.remove([{ ids: [...ids] }]);
     } else {
-      const events = await eventsDB.filter([{
+      const events = await eventsDB.query([{
         ids: [...ids],
         authors: [event.pubkey],
       }]);
 
       const deleteIds = events.map(({ id }) => id);
-      await eventsDB.deleteFilters([{ ids: deleteIds }]);
+      await eventsDB.remove([{ ids: deleteIds }]);
     }
   }
 }
@@ -227,7 +227,7 @@ function broadcast(event: DittoEvent) {
   if (!event.user || !isFresh(event)) return;
 
   if (event.kind === 5) {
-    client.add(event);
+    client.event(event);
   }
 }
 

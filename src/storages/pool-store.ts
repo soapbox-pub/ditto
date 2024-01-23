@@ -1,7 +1,16 @@
-import { Debug, matchFilters, type NostrEvent, type NostrFilter, NSet, type RelayPoolWorker } from '@/deps.ts';
+import {
+  Debug,
+  matchFilters,
+  type NostrEvent,
+  type NostrFilter,
+  NSet,
+  type NStore,
+  type NStoreOpts,
+  type RelayPoolWorker,
+} from '@/deps.ts';
 import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
-import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
+import { abortError } from '@/utils/abort.ts';
 
 interface PoolStoreOpts {
   pool: InstanceType<typeof RelayPoolWorker>;
@@ -11,7 +20,7 @@ interface PoolStoreOpts {
   };
 }
 
-class PoolStore implements EventStore {
+class PoolStore implements NStore {
   #debug = Debug('ditto:client');
   #pool: InstanceType<typeof RelayPoolWorker>;
   #relays: WebSocket['url'][];
@@ -19,31 +28,31 @@ class PoolStore implements EventStore {
     handleEvent(event: NostrEvent): Promise<void>;
   };
 
-  supportedNips = [1];
-
   constructor(opts: PoolStoreOpts) {
     this.#pool = opts.pool;
     this.#relays = opts.relays;
     this.#publisher = opts.publisher;
   }
 
-  add(event: NostrEvent, opts: StoreEventOpts = {}): Promise<void> {
+  event(event: NostrEvent, opts: NStoreOpts = {}): Promise<void> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
     const { relays = this.#relays } = opts;
+
     event = cleanEvent(event);
     this.#debug('EVENT', event);
+
     this.#pool.publish(event, relays);
     return Promise.resolve();
   }
 
-  filter(filters: NostrFilter[], opts: GetEventsOpts = {}): Promise<NostrEvent[]> {
-    filters = normalizeFilters(filters);
+  query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<NostrEvent[]> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
 
-    if (opts.signal?.aborted) return Promise.resolve([]);
+    filters = normalizeFilters(filters);
+    this.#debug('REQ', JSON.stringify(filters));
     if (!filters.length) return Promise.resolve([]);
 
-    this.#debug('REQ', JSON.stringify(filters));
-
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       const results = new NSet<NostrEvent>();
 
       const unsub = this.#pool.subscribe(
@@ -74,10 +83,13 @@ class PoolStore implements EventStore {
         },
       );
 
-      opts.signal?.addEventListener('abort', () => {
+      const onAbort = () => {
         unsub();
-        resolve([...results]);
-      });
+        reject(abortError());
+        opts.signal?.removeEventListener('abort', onAbort);
+      };
+
+      opts.signal?.addEventListener('abort', onAbort);
     });
   }
 
@@ -85,7 +97,7 @@ class PoolStore implements EventStore {
     return Promise.reject(new Error('COUNT not implemented'));
   }
 
-  deleteFilters() {
+  remove() {
     return Promise.reject(new Error('Cannot delete events from relays. Create a kind 5 event instead.'));
   }
 }

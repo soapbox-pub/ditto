@@ -51,7 +51,7 @@ async function updateEvent<K extends number, E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await eventsDB.filter([filter], { limit: 1 });
+  const [prev] = await eventsDB.query([filter], { limit: 1 });
   return createEvent(fn(prev), c);
 }
 

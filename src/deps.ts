@@ -91,6 +91,8 @@ export {
   NIP05,
   type NostrEvent,
   type NostrFilter,
-} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/5d711597f3b2a163817cc1fb0f1f3ce8cede7cf7/mod.ts';
+  type NStore,
+  type NStoreOpts,
+} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/057ecc6e2ce813db6e2279288fbfd08c5b53cc0c/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
