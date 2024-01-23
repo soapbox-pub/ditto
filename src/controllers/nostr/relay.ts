@@ -78,7 +78,7 @@ function connectStream(socket: WebSocket) {
   async function handleEvent([_, event]: ClientEVENT): Promise<void> {
     try {
       // This will store it (if eligible) and run other side-effects.
-      await pipeline.handleEvent(event);
+      await pipeline.handleEvent(event, AbortSignal.timeout(1000));
       send(['OK', event.id, true, '']);
     } catch (e) {
       if (e instanceof pipeline.RelayError) {

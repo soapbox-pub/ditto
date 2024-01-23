@@ -6,10 +6,12 @@ import { renderStatuses } from '@/views.ts';
 /** https://docs.joinmastodon.org/methods/bookmarks/#get */
 const bookmarksController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
+  const { signal } = c.req.raw;
 
-  const [event10003] = await eventsDB.query([
-    { kinds: [10003], authors: [pubkey], limit: 1 },
-  ]);
+  const [event10003] = await eventsDB.query(
+    [{ kinds: [10003], authors: [pubkey], limit: 1 }],
+    { signal },
+  );
 
   if (event10003) {
     const eventIds = getTagSet(event10003.tags, 'e');

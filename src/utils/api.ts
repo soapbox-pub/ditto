@@ -46,12 +46,12 @@ interface UpdateEventFilter extends NostrFilter {
 }
 
 /** Fetch existing event, update it, then publish the new event. */
-async function updateEvent<K extends number, E extends EventStub>(
+async function updateEvent<E extends EventStub>(
   filter: UpdateEventFilter,
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await eventsDB.query([filter], { limit: 1 });
+  const [prev] = await eventsDB.query([filter], { limit: 1, signal: c.req.raw.signal });
   return createEvent(fn(prev), c);
 }
 
@@ -84,7 +84,7 @@ async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await pipeline.handleEvent(event);
+    await pipeline.handleEvent(event, c.req.raw.signal);
   } catch (e) {
     if (e instanceof pipeline.RelayError) {
       throw new HTTPException(422, {

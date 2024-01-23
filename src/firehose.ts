@@ -22,6 +22,6 @@ function handleEvent(event: NostrEvent): Promise<void> {
   debug(`NostrEvent<${event.kind}> ${event.id}`);
 
   return pipeline
-    .handleEvent(event)
+    .handleEvent(event, AbortSignal.timeout(5000))
     .catch(() => {});
 }

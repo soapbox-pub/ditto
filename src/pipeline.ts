@@ -23,8 +23,7 @@ const debug = Debug('ditto:pipeline');
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
  */
-async function handleEvent(event: DittoEvent): Promise<void> {
-  const signal = AbortSignal.timeout(5000);
+async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   if (!(await verifySignatureWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event, signal)) return;
@@ -203,7 +202,7 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
       ],
     });
 
-    await handleEvent(nwcRequestEvent);
+    await handleEvent(nwcRequestEvent, signal);
   } catch (e) {
     debug('lnurl error:', e);
   }

@@ -6,10 +6,11 @@ import { renderNotification } from '@/views/mastodon/notifications.ts';
 const notificationsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const { since, until } = paginationSchema.parse(c.req.query());
+  const { signal } = c.req.raw;
 
   const events = await eventsDB.query(
     [{ kinds: [1], '#p': [pubkey], since, until }],
-    { signal: AbortSignal.timeout(3000) },
+    { signal },
   );
 
   const statuses = await Promise.all(events.map((event) => renderNotification(event, pubkey)));

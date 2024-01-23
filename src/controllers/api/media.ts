@@ -13,7 +13,9 @@ const mediaBodySchema = z.object({
 });
 
 const mediaController: AppController = async (c) => {
+  const pubkey = c.get('pubkey')!;
   const result = mediaBodySchema.safeParse(await parseBody(c.req.raw));
+  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
@@ -21,7 +23,7 @@ const mediaController: AppController = async (c) => {
 
   try {
     const { file, description } = result.data;
-    const media = await uploadFile(file, { pubkey: c.get('pubkey')!, description });
+    const media = await uploadFile(file, { pubkey, description }, signal);
     return c.json(renderAttachment(media));
   } catch (e) {
     console.error(e);
