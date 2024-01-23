@@ -1,8 +1,9 @@
-import { Debug } from '@/deps.ts';
-import { type DittoFilter, normalizeFilters } from '@/filter.ts';
-import { EventSet } from '@/utils/event-set.ts';
+import { Debug, NSet } from '@/deps.ts';
+import { normalizeFilters } from '@/filter.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 
-import { type DittoEvent, type EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
+import { type EventStore, type GetEventsOpts, type StoreEventOpts } from './types.ts';
 
 interface OptimizerOpts {
   db: EventStore;
@@ -25,17 +26,17 @@ class Optimizer implements EventStore {
     this.#client = opts.client;
   }
 
-  async add(event: DittoEvent<number>, opts?: StoreEventOpts | undefined): Promise<void> {
+  async add(event: DittoEvent, opts?: StoreEventOpts | undefined): Promise<void> {
     await Promise.all([
       this.#db.add(event, opts),
       this.#cache.add(event, opts),
     ]);
   }
 
-  async filter<K extends number>(
-    filters: DittoFilter<K>[],
+  async filter(
+    filters: DittoFilter[],
     opts: GetEventsOpts | undefined = {},
-  ): Promise<DittoEvent<K>[]> {
+  ): Promise<DittoEvent[]> {
     this.#debug('REQ', JSON.stringify(filters));
 
     const { limit = Infinity } = opts;
@@ -44,7 +45,7 @@ class Optimizer implements EventStore {
     if (opts?.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
 
-    const results = new EventSet<DittoEvent<K>>();
+    const results = new NSet<DittoEvent>();
 
     // Filters with IDs are immutable, so we can take them straight from the cache if we have them.
     for (let i = 0; i < filters.length; i++) {
@@ -99,11 +100,11 @@ class Optimizer implements EventStore {
     return getResults();
   }
 
-  countEvents<K extends number>(_filters: DittoFilter<K>[]): Promise<number> {
+  countEvents(_filters: DittoFilter[]): Promise<number> {
     throw new Error('COUNT not implemented.');
   }
 
-  deleteEvents<K extends number>(_filters: DittoFilter<K>[]): Promise<void> {
+  deleteEvents(_filters: DittoFilter[]): Promise<void> {
     throw new Error('DELETE not implemented.');
   }
 }

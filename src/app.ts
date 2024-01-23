@@ -5,12 +5,12 @@ import {
   type Context,
   cors,
   Debug,
-  type Event,
   type Handler,
   Hono,
   type HonoEnv,
   logger,
   type MiddlewareHandler,
+  type NostrEvent,
   sentryMiddleware,
   serveStatic,
 } from '@/deps.ts';
@@ -90,7 +90,7 @@ interface AppEnv extends HonoEnv {
     /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
     seckey?: string;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
-    proof?: Event<27235>;
+    proof?: NostrEvent;
     /** User associated with the pubkey, if any. */
     user?: User;
   };

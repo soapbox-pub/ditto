@@ -1,12 +1,11 @@
-import { eventsDB } from '@/storages.ts';
+import { type AppContext, type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
+import { eventsDB } from '@/storages.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-
-import type { AppContext, AppController } from '@/app.ts';
 
 const homeTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
@@ -32,7 +31,7 @@ const hashtagTimelineController: AppController = (c) => {
 };
 
 /** Render statuses for timelines. */
-async function renderStatuses(c: AppContext, filters: DittoFilter<1>[], signal = AbortSignal.timeout(1000)) {
+async function renderStatuses(c: AppContext, filters: DittoFilter[], signal = AbortSignal.timeout(1000)) {
   const events = await eventsDB.filter(
     filters.map((filter) => ({ ...filter, relations: ['author', 'event_stats', 'author_stats'] })),
     { signal },

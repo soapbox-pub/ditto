@@ -2,11 +2,11 @@ import { Conf } from '@/config.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getPublicKeyPem } from '@/utils/rsa.ts';
 
-import type { Event } from '@/deps.ts';
+import type { NostrEvent } from '@/deps.ts';
 import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
-async function renderActor(event: Event<0>, username: string): Promise<Actor | undefined> {
+async function renderActor(event: NostrEvent, username: string): Promise<Actor | undefined> {
   const content = jsonMetaContentSchema.parse(event.content);
 
   return {

@@ -1,15 +1,16 @@
-import { type DittoFilter } from '@/filter.ts';
-import { type DittoEvent, type EventStore } from '@/storages/types.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { type EventStore } from '@/storages/types.ts';
 
-interface HydrateEventOpts<K extends number> {
-  events: DittoEvent<K>[];
-  filters: DittoFilter<K>[];
+interface HydrateEventOpts {
+  events: DittoEvent[];
+  filters: DittoFilter[];
   storage: EventStore;
   signal?: AbortSignal;
 }
 
 /** Hydrate event relationships using the provided storage. */
-async function hydrateEvents<K extends number>(opts: HydrateEventOpts<K>): Promise<DittoEvent<K>[]> {
+async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
   const { events, filters, storage, signal } = opts;
 
   if (filters.some((filter) => filter.relations?.includes('author'))) {

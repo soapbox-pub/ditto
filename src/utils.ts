@@ -1,4 +1,4 @@
-import { type Event, type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
+import { type EventTemplate, getEventHash, nip19, type NostrEvent, z } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
@@ -9,7 +9,7 @@ const nostrNow = (): number => Math.floor(Date.now() / 1000);
 const nostrDate = (seconds: number): Date => new Date(seconds * 1000);
 
 /** Pass to sort() to sort events by date. */
-const eventDateComparator = (a: Event, b: Event): number => b.created_at - a.created_at;
+const eventDateComparator = (a: NostrEvent, b: NostrEvent): number => b.created_at - a.created_at;
 
 /** Get pubkey from bech32 string, if applicable. */
 function bech32ToPubkey(bech32: string): string | undefined {
@@ -56,7 +56,7 @@ function parseNip05(value: string): Nip05 {
 }
 
 /** Resolve a bech32 or NIP-05 identifier to an account. */
-async function lookupAccount(value: string, signal = AbortSignal.timeout(3000)): Promise<Event<0> | undefined> {
+async function lookupAccount(value: string, signal = AbortSignal.timeout(3000)): Promise<NostrEvent | undefined> {
   console.log(`Looking up ${value}`);
 
   const pubkey = bech32ToPubkey(value) ||
@@ -68,7 +68,7 @@ async function lookupAccount(value: string, signal = AbortSignal.timeout(3000)):
 }
 
 /** Return the event's age in milliseconds. */
-function eventAge(event: Event): number {
+function eventAge(event: NostrEvent): number {
   return Date.now() - nostrDate(event.created_at).getTime();
 }
 
@@ -97,7 +97,7 @@ const relaySchema = z.string().max(255).startsWith('wss://').url();
 const isRelay = (relay: string): relay is `wss://${string}` => relaySchema.safeParse(relay).success;
 
 /** Deduplicate events by ID. */
-function dedupeEvents<K extends number>(events: Event<K>[]): Event<K>[] {
+function dedupeEvents(events: NostrEvent[]): NostrEvent[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
 }
 
@@ -111,7 +111,7 @@ function stripTags<E extends EventTemplate>(event: E, tags: string[] = []): E {
 }
 
 /** Ensure the template and event match on their shared keys. */
-function eventMatchesTemplate(event: Event, template: EventTemplate): boolean {
+function eventMatchesTemplate(event: NostrEvent, template: EventTemplate): boolean {
   const whitelist = ['nonce'];
 
   event = stripTags(event, whitelist);

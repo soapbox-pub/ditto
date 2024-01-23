@@ -3,10 +3,10 @@ import { Conf } from '@/config.ts';
 import {
   type Context,
   Debug,
-  type Event,
   EventTemplate,
-  Filter,
   HTTPException,
+  type NostrEvent,
+  NostrFilter,
   parseFormData,
   type TypeFest,
   z,
@@ -19,10 +19,10 @@ import { nostrNow } from '@/utils.ts';
 const debug = Debug('ditto:api');
 
 /** EventTemplate with defaults. */
-type EventStub<K extends number = number> = TypeFest.SetOptional<EventTemplate<K>, 'content' | 'created_at' | 'tags'>;
+type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
+async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
@@ -40,27 +40,27 @@ async function createEvent<K extends number>(t: EventStub<K>, c: AppContext): Pr
 }
 
 /** Filter for fetching an existing event to update. */
-interface UpdateEventFilter<K extends number> extends Filter<K> {
-  kinds: [K];
+interface UpdateEventFilter extends NostrFilter {
+  kinds: [number];
   limit?: 1;
 }
 
 /** Fetch existing event, update it, then publish the new event. */
-async function updateEvent<K extends number, E extends EventStub<K>>(
-  filter: UpdateEventFilter<K>,
-  fn: (prev: Event<K> | undefined) => E,
+async function updateEvent<K extends number, E extends EventStub>(
+  filter: UpdateEventFilter,
+  fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
-): Promise<Event<K>> {
+): Promise<NostrEvent> {
   const [prev] = await eventsDB.filter([filter], { limit: 1 });
   return createEvent(fn(prev), c);
 }
 
 /** Fetch existing event, update its tags, then publish the new event. */
-function updateListEvent<K extends number>(
-  filter: UpdateEventFilter<K>,
+function updateListEvent(
+  filter: UpdateEventFilter,
   fn: (tags: string[][]) => string[][],
   c: AppContext,
-): Promise<Event<K>> {
+): Promise<NostrEvent> {
   return updateEvent(filter, (prev) => ({
     kind: filter.kinds[0],
     content: prev?.content ?? '',
@@ -69,7 +69,7 @@ function updateListEvent<K extends number>(
 }
 
 /** Publish an admin event through the pipeline. */
-async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext): Promise<Event<K>> {
+async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
   const event = await signAdminEvent({
     content: '',
     created_at: nostrNow(),
@@ -81,7 +81,7 @@ async function createAdminEvent<K extends number>(t: EventStub<K>, c: AppContext
 }
 
 /** Push the event through the pipeline, rethrowing any RelayError. */
-async function publishEvent<K extends number>(event: Event<K>, c: AppContext): Promise<Event<K>> {
+async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
     await pipeline.handleEvent(event);
@@ -118,7 +118,7 @@ const paginationSchema = z.object({
 type PaginationParams = z.infer<typeof paginationSchema>;
 
 /** Build HTTP Link header for Mastodon API pagination. */
-function buildLinkHeader(url: string, events: Event[]): string | undefined {
+function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined {
   if (events.length <= 1) return;
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
@@ -138,7 +138,7 @@ type Entity = { id: string };
 type HeaderRecord = Record<string, string | string[]>;
 
 /** Return results with pagination headers. Assumes chronological sorting of events. */
-function paginated(c: AppContext, events: Event[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
+function paginated(c: AppContext, events: NostrEvent[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
   const link = buildLinkHeader(c.req.url, events);
 
   if (link) {

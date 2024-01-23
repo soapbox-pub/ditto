@@ -1,7 +1,7 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
-import { Debug, type Event, type EventTemplate, finishEvent, HTTPException } from '@/deps.ts';
+import { Debug, type EventTemplate, finishEvent, HTTPException, type NostrEvent } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
@@ -21,11 +21,11 @@ interface SignEventOpts {
  * - If a secret key is provided, it will be used to sign the event.
  * - If `X-Nostr-Sign` is passed, it will use NIP-46 to sign the event.
  */
-async function signEvent<K extends number = number>(
-  event: EventTemplate<K>,
+async function signEvent(
+  event: EventTemplate,
   c: AppContext,
   opts: SignEventOpts = {},
-): Promise<Event<K>> {
+): Promise<NostrEvent> {
   const seckey = c.get('seckey');
   const header = c.req.header('x-nostr-sign');
 
@@ -45,11 +45,11 @@ async function signEvent<K extends number = number>(
 }
 
 /** Sign event with NIP-46, waiting in the background for the signed event. */
-async function signNostrConnect<K extends number = number>(
-  event: EventTemplate<K>,
+async function signNostrConnect(
+  event: EventTemplate,
   c: AppContext,
   opts: SignEventOpts = {},
-): Promise<Event<K>> {
+): Promise<NostrEvent> {
   const pubkey = c.get('pubkey');
 
   if (!pubkey) {
@@ -73,16 +73,16 @@ async function signNostrConnect<K extends number = number>(
     tags: [['p', pubkey]],
   }, c);
 
-  return awaitSignedEvent<K>(pubkey, messageId, event, c);
+  return awaitSignedEvent(pubkey, messageId, event, c);
 }
 
 /** Wait for signed event to be sent through Nostr relay. */
-async function awaitSignedEvent<K extends number = number>(
+async function awaitSignedEvent(
   pubkey: string,
   messageId: string,
-  template: EventTemplate<K>,
+  template: EventTemplate,
   c: AppContext,
-): Promise<Event<K>> {
+): Promise<NostrEvent> {
   const sub = Sub.sub(messageId, '1', [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }]);
 
   function close(): void {
@@ -103,7 +103,7 @@ async function awaitSignedEvent<K extends number = number>(
     if (result.success) {
       close();
       clearTimeout(timeout);
-      return result.data.result as Event<K>;
+      return result.data.result;
     }
   }
 
@@ -114,7 +114,7 @@ async function awaitSignedEvent<K extends number = number>(
 
 /** Sign event as the Ditto server. */
 // deno-lint-ignore require-await
-async function signAdminEvent<K extends number = number>(event: EventTemplate<K>): Promise<Event<K>> {
+async function signAdminEvent(event: EventTemplate): Promise<NostrEvent> {
   return finishEvent(event, Conf.seckey);
 }
 

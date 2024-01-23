@@ -1,12 +1,12 @@
 import { AppContext } from '@/app.ts';
-import { type Filter } from '@/deps.ts';
+import { type NostrFilter } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 
 /** Render account objects for the author of each event. */
-async function renderEventAccounts(c: AppContext, filters: Filter[], signal = AbortSignal.timeout(1000)) {
+async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal = AbortSignal.timeout(1000)) {
   if (!filters.length) {
     return c.json([]);
   }

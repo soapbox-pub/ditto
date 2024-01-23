@@ -11,9 +11,7 @@ export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.10.1/midd
 export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { RelayPoolWorker } from 'https://dev.jspm.io/nostr-relaypool@0.6.30';
 export {
-  type Event,
   type EventTemplate,
-  type Filter,
   finishEvent,
   getEventHash,
   getPublicKey,
@@ -29,7 +27,6 @@ export {
   type VerifiedEvent,
   verifySignature,
 } from 'npm:nostr-tools@^1.17.0';
-export { findReplyTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
@@ -86,6 +83,7 @@ export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 // @deno-types="npm:@types/debug@^4.1.12"
 export { default as Debug } from 'npm:debug@^4.3.4';
+export { NSet } from 'https://gitlab.com/soapbox-pub/nset/-/raw/b3c5601612f9bd277626198c5534e0796e003884/mod.ts';
 export {
   LNURL,
   type LNURLDetails,

@@ -1,17 +1,17 @@
-import { type Event } from '@/deps.ts';
+import { type NostrEvent } from '@/deps.ts';
 import { getAuthor } from '@/queries.ts';
 import { nostrDate } from '@/utils.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-function renderNotification(event: Event, viewerPubkey?: string) {
+function renderNotification(event: NostrEvent, viewerPubkey?: string) {
   switch (event.kind) {
     case 1:
-      return renderNotificationMention(event as Event<1>, viewerPubkey);
+      return renderNotificationMention(event, viewerPubkey);
   }
 }
 
-async function renderNotificationMention(event: Event<1>, viewerPubkey?: string) {
+async function renderNotificationMention(event: NostrEvent, viewerPubkey?: string) {
   const author = await getAuthor(event.pubkey);
   const status = await renderStatus({ ...event, author }, viewerPubkey);
   if (!status) return;

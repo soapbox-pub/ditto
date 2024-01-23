@@ -31,4 +31,12 @@ function addTag(tags: readonly string[][], tag: string[]): string[][] {
   }
 }
 
-export { addTag, deleteTag, getTagSet, hasTag };
+const isReplyTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'reply';
+const isRootTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'root';
+const isLegacyReplyTag = (tag: string[]) => tag[0] === 'e' && !tag[3];
+
+function findReplyTag(tags: string[][]) {
+  return tags.find(isReplyTag) || tags.find(isRootTag) || tags.findLast(isLegacyReplyTag);
+}
+
+export { addTag, deleteTag, findReplyTag, getTagSet, hasTag };

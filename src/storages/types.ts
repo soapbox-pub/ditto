@@ -1,6 +1,5 @@
-import { type DittoDB } from '@/db.ts';
-import { type Event } from '@/deps.ts';
-import { type DittoFilter } from '@/filter.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 
 /** Additional options to apply to the whole subscription. */
 interface GetEventsOpts {
@@ -18,30 +17,18 @@ interface StoreEventOpts {
   relays?: WebSocket['url'][];
 }
 
-type AuthorStats = Omit<DittoDB['author_stats'], 'pubkey'>;
-type EventStats = Omit<DittoDB['event_stats'], 'event_id'>;
-
-/** Internal Event representation used by Ditto, including extra keys. */
-interface DittoEvent<K extends number = number> extends Event<K> {
-  author?: DittoEvent<0>;
-  author_stats?: AuthorStats;
-  event_stats?: EventStats;
-  d_author?: DittoEvent<0>;
-  user?: DittoEvent<30361>;
-}
-
 /** Storage interface for Nostr events. */
 interface EventStore {
   /** Indicates NIPs supported by this data store, similar to NIP-11. For example, `50` would indicate support for `search` filters. */
   supportedNips: readonly number[];
   /** Add an event to the store. */
-  add(event: Event, opts?: StoreEventOpts): Promise<void>;
+  add(event: DittoEvent, opts?: StoreEventOpts): Promise<void>;
   /** Get events from filters. */
-  filter<K extends number>(filters: DittoFilter<K>[], opts?: GetEventsOpts): Promise<DittoEvent<K>[]>;
+  filter(filters: DittoFilter[], opts?: GetEventsOpts): Promise<DittoEvent[]>;
   /** Get the number of events from filters. */
-  count?<K extends number>(filters: DittoFilter<K>[]): Promise<number>;
+  count?(filters: DittoFilter[]): Promise<number>;
   /** Delete events from filters. */
-  deleteFilters?<K extends number>(filters: DittoFilter<K>[]): Promise<void>;
+  deleteFilters?(filters: DittoFilter[]): Promise<void>;
 }
 
-export type { DittoEvent, EventStore, GetEventsOpts, StoreEventOpts };
+export type { EventStore, GetEventsOpts, StoreEventOpts };

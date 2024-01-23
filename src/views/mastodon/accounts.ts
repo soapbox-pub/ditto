@@ -1,8 +1,8 @@
 import { Conf } from '@/config.ts';
 import { findUser } from '@/db/users.ts';
 import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { type DittoEvent } from '@/storages/types.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
@@ -13,7 +13,7 @@ interface ToAccountOpts {
 }
 
 async function renderAccount(
-  event: Omit<DittoEvent<0>, 'id' | 'sig'>,
+  event: Omit<DittoEvent, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
 ) {
   const { withSource = false } = opts;
@@ -81,7 +81,7 @@ async function renderAccount(
 }
 
 function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}) {
-  const event: UnsignedEvent<0> = {
+  const event: UnsignedEvent = {
     kind: 0,
     pubkey,
     content: '',

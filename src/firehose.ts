@@ -1,4 +1,4 @@
-import { Debug, type Event } from '@/deps.ts';
+import { Debug, type NostrEvent } from '@/deps.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { nostrNow } from '@/utils.ts';
 
@@ -18,8 +18,8 @@ pool.subscribe(
 );
 
 /** Handle events through the firehose pipeline. */
-function handleEvent(event: Event): Promise<void> {
-  debug(`Event<${event.kind}> ${event.id}`);
+function handleEvent(event: NostrEvent): Promise<void> {
+  debug(`NostrEvent<${event.kind}> ${event.id}`);
 
   return pipeline
     .handleEvent(event)

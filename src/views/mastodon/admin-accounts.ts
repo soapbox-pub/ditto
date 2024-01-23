@@ -1,9 +1,9 @@
-import { DittoEvent } from '@/storages/types.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 
 import { accountFromPubkey, renderAccount } from './accounts.ts';
 
-async function renderAdminAccount(event: DittoEvent<30361>) {
+async function renderAdminAccount(event: DittoEvent) {
   const d = event.tags.find(([name]) => name === 'd')?.[1]!;
   const account = event.d_author ? await renderAccount({ ...event.d_author, user: event }) : await accountFromPubkey(d);
 

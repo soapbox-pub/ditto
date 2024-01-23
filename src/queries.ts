@@ -1,37 +1,38 @@
 import { eventsDB, memorelay, reqmeister } from '@/storages.ts';
-import { Debug, type Event, findReplyTag } from '@/deps.ts';
-import { type AuthorMicrofilter, type DittoFilter, type IdMicrofilter, type Relation } from '@/filter.ts';
-import { type DittoEvent } from '@/storages/types.ts';
-import { getTagSet } from '@/tags.ts';
+import { Debug, type NostrEvent } from '@/deps.ts';
+import { type AuthorMicrofilter, type IdMicrofilter } from '@/filter.ts';
+import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { type DittoFilter, type DittoRelation } from '@/interfaces/DittoFilter.ts';
+import { findReplyTag, getTagSet } from '@/tags.ts';
 
 const debug = Debug('ditto:queries');
 
-interface GetEventOpts<K extends number> {
+interface GetEventOpts {
   /** Signal to abort the request. */
   signal?: AbortSignal;
   /** Event kind. */
-  kind?: K;
+  kind?: number;
   /** Relations to include on the event. */
-  relations?: Relation[];
+  relations?: DittoRelation[];
 }
 
 /** Get a Nostr event by its ID. */
-const getEvent = async <K extends number = number>(
+const getEvent = async (
   id: string,
-  opts: GetEventOpts<K> = {},
-): Promise<DittoEvent<K> | undefined> => {
+  opts: GetEventOpts = {},
+): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  const [memoryEvent] = await memorelay.filter([microfilter], opts) as DittoEvent<K>[];
+  const [memoryEvent] = await memorelay.filter([microfilter], opts) as DittoEvent[];
 
   if (memoryEvent && !relations) {
     debug(`getEvent: ${id.slice(0, 8)} found in memory`);
     return memoryEvent;
   }
 
-  const filter: DittoFilter<K> = { ids: [id], relations, limit: 1 };
+  const filter: DittoFilter = { ids: [id], relations, limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
@@ -61,7 +62,7 @@ const getEvent = async <K extends number = number>(
     return memoryEvent;
   }
 
-  const reqEvent = await reqmeister.req(microfilter, opts).catch(() => undefined) as Event<K> | undefined;
+  const reqEvent = await reqmeister.req(microfilter, opts).catch(() => undefined);
 
   if (reqEvent) {
     debug(`getEvent: ${id.slice(0, 8)} found by reqmeister`);
@@ -72,7 +73,7 @@ const getEvent = async <K extends number = number>(
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
-const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Event<0> | undefined> => {
+const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
@@ -94,7 +95,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts<0> = {}): Promise<Ev
 };
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<Event<3> | undefined> => {
+const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
   const [event] = await eventsDB.filter([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
@@ -112,9 +113,9 @@ async function getFeedPubkeys(pubkey: string): Promise<string[]> {
   return [...authors, pubkey];
 }
 
-async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise<Event<1>[]> {
+async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promise<NostrEvent[]> {
   if (result.length < 100) {
-    const replyTag = findReplyTag(event);
+    const replyTag = findReplyTag(event.tags);
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
@@ -130,7 +131,7 @@ async function getAncestors(event: Event<1>, result = [] as Event<1>[]): Promise
   return result.reverse();
 }
 
-function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<Event<1>[]> {
+function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
   return eventsDB.filter(
     [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
     { limit: 200, signal },

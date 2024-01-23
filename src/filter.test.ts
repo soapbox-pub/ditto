@@ -1,4 +1,3 @@
-import { type Event } from '@/deps.ts';
 import { assertEquals } from '@/deps-test.ts';
 
 import event0 from '~/fixtures/events/event-0.json' assert { type: 'json' };
@@ -7,7 +6,7 @@ import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
 import { eventToMicroFilter, getFilterId, getFilterLimit, getMicroFilters, isMicrofilter } from './filter.ts';
 
 Deno.test('getMicroFilters', () => {
-  const event = event0 as Event<0>;
+  const event = event0;
   const microfilters = getMicroFilters(event);
   assertEquals(microfilters.length, 2);
   assertEquals(microfilters[0], { authors: [event.pubkey], kinds: [0] });
