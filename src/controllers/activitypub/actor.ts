@@ -7,11 +7,12 @@ import type { AppContext, AppController } from '@/app.ts';
 
 const actorController: AppController = async (c) => {
   const username = c.req.param('username');
+  const { signal } = c.req.raw;
 
-  const user = await findUser({ username });
+  const user = await findUser({ username }, signal);
   if (!user) return notFound(c);
 
-  const event = await getAuthor(user.pubkey);
+  const event = await getAuthor(user.pubkey, { signal });
   if (!event) return notFound(c);
 
   const actor = await renderActor(event, user.username);

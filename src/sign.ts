@@ -5,7 +5,7 @@ import { Debug, type EventTemplate, finishEvent, HTTPException, type NostrEvent 
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
-import { eventMatchesTemplate, Time } from '@/utils.ts';
+import { eventMatchesTemplate } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 
 const debug = Debug('ditto:sign');
@@ -87,9 +87,10 @@ async function awaitSignedEvent(
 
   function close(): void {
     Sub.close(messageId);
+    c.req.raw.signal.removeEventListener('abort', close);
   }
 
-  const timeout = setTimeout(close, Time.minutes(1));
+  c.req.raw.signal.addEventListener('abort', close);
 
   for await (const event of sub) {
     const decrypted = await decryptAdmin(event.pubkey, event.content);
@@ -102,7 +103,6 @@ async function awaitSignedEvent(
 
     if (result.success) {
       close();
-      clearTimeout(timeout);
       return result.data.result;
     }
   }

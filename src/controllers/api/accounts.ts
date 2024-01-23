@@ -132,9 +132,10 @@ const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const { since, until } = paginationSchema.parse(c.req.query());
   const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
+  const { signal } = c.req.raw;
 
   if (pinned) {
-    const [pinEvent] = await eventsDB.query([{ kinds: [10001], authors: [pubkey], limit: 1 }]);
+    const [pinEvent] = await eventsDB.query([{ kinds: [10001], authors: [pubkey], limit: 1 }], { signal });
     if (pinEvent) {
       const pinnedEventIds = getTagSet(pinEvent.tags, 'e');
       return renderStatuses(c, [...pinnedEventIds].reverse());
@@ -156,7 +157,7 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  let events = await eventsDB.query([filter]);
+  let events = await eventsDB.query([filter], { signal });
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event.tags));
@@ -292,10 +293,11 @@ const unblockController: AppController = async (c) => {
 const favouritesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const params = paginationSchema.parse(c.req.query());
+  const { signal } = c.req.raw;
 
   const events7 = await eventsDB.query(
     [{ kinds: [7], authors: [pubkey], ...params }],
-    { signal: AbortSignal.timeout(1000) },
+    { signal },
   );
 
   const ids = events7
@@ -304,9 +306,7 @@ const favouritesController: AppController = async (c) => {
 
   const events1 = await eventsDB.query(
     [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }],
-    {
-      signal: AbortSignal.timeout(1000),
-    },
+    { signal },
   );
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));

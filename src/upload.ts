@@ -8,7 +8,7 @@ interface FileMeta {
 }
 
 /** Upload a file, track it in the database, and return the resulting media object. */
-async function uploadFile(file: File, meta: FileMeta) {
+async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal) {
   const { name, type, size } = file;
   const { pubkey, description } = meta;
 
@@ -16,7 +16,7 @@ async function uploadFile(file: File, meta: FileMeta) {
     throw new Error('File size is too large.');
   }
 
-  const { cid } = await uploader.upload(file);
+  const { cid } = await uploader.upload(file, signal);
   const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
 
   return insertUnattachedMedia({

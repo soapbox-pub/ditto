@@ -38,10 +38,11 @@ const adminAccountsController: AppController = async (c) => {
   }
 
   const { since, until, limit } = paginationSchema.parse(c.req.query());
+  const { signal } = c.req.raw;
 
-  const events = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }]);
+  const events = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
-  const authors = await eventsDB.query([{ kinds: [0], authors: pubkeys }]);
+  const authors = await eventsDB.query([{ kinds: [0], authors: pubkeys }], { signal });
 
   for (const event of events) {
     const d = event.tags.find(([name]) => name === 'd')?.[1];

@@ -25,12 +25,11 @@ type SearchQuery = z.infer<typeof searchQuerySchema>;
 
 const searchController: AppController = async (c) => {
   const result = searchQuerySchema.safeParse(c.req.query());
+  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
-
-  const signal = AbortSignal.timeout(1000);
 
   const [event, events] = await Promise.all([
     lookupEvent(result.data, signal),
@@ -46,12 +45,12 @@ const searchController: AppController = async (c) => {
   const [accounts, statuses] = await Promise.all([
     Promise.all(
       results
-        .filter((event): event is NostrEvent => event.kind === 0)
+        .filter((event) => event.kind === 0)
         .map((event) => renderAccount(event)),
     ),
     Promise.all(
       results
-        .filter((event): event is NostrEvent => event.kind === 1)
+        .filter((event) => event.kind === 1)
         .map((event) => renderStatus(event, c.get('pubkey'))),
     ),
   ]);

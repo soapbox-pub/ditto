@@ -19,5 +19,5 @@ async function publish(t: EventStub) {
     ...t,
   });
 
-  await pipeline.handleEvent(event);
+  await pipeline.handleEvent(event, AbortSignal.timeout(5000));
 }

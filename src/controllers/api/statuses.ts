@@ -241,10 +241,12 @@ const pinController: AppController = async (c) => {
 const unpinController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const eventId = c.req.param('id');
+  const { signal } = c.req.raw;
 
   const event = await getEvent(eventId, {
     kind: 1,
     relations: ['author', 'event_stats', 'author_stats'],
+    signal,
   });
 
   if (event) {
@@ -273,12 +275,13 @@ const zapController: AppController = async (c) => {
   const id = c.req.param('id');
   const body = await parseBody(c.req.raw);
   const params = zapSchema.safeParse(body);
+  const { signal } = c.req.raw;
 
   if (!params.success) {
     return c.json({ error: 'Bad request', schema: params.error }, 400);
   }
 
-  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'], signal });
   const author = target?.author;
   const meta = jsonMetaContentSchema.parse(author?.content);
   const lnurl = getLnurl(meta);

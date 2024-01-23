@@ -8,12 +8,14 @@ import { createAdminEvent } from '@/utils/api.ts';
 import { jsonSchema } from '@/schema.ts';
 
 const frontendConfigController: AppController = async (c) => {
+  const { signal } = c.req.raw;
+
   const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [Conf.pubkey],
     '#d': ['pub.ditto.pleroma.config'],
     limit: 1,
-  }]);
+  }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
     event?.content ? await decryptAdmin(Conf.pubkey, event.content) : '',
@@ -35,13 +37,14 @@ const frontendConfigController: AppController = async (c) => {
 
 const configController: AppController = async (c) => {
   const { pubkey } = Conf;
+  const { signal } = c.req.raw;
 
   const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],
     limit: 1,
-  }]);
+  }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
     event?.content ? await decryptAdmin(pubkey, event.content) : '',
@@ -53,13 +56,14 @@ const configController: AppController = async (c) => {
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
+  const { signal } = c.req.raw;
 
   const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],
     limit: 1,
-  }]);
+  }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
     event?.content ? await decryptAdmin(pubkey, event.content) : '',

@@ -38,7 +38,7 @@ async function insertUser(user: User) {
     throw new Error('User already exists');
   }
   const event = await buildUserEvent(user);
-  return pipeline.handleEvent(event);
+  return pipeline.handleEvent(event, AbortSignal.timeout(1000));
 }
 
 /**
@@ -48,7 +48,7 @@ async function insertUser(user: User) {
  * await findUser({ username: 'alex' });
  * ```
  */
-async function findUser(user: Partial<User>): Promise<User | undefined> {
+async function findUser(user: Partial<User>, signal?: AbortSignal): Promise<User | undefined> {
   const filter: NostrFilter = { kinds: [30361], authors: [Conf.pubkey], limit: 1 };
 
   for (const [key, value] of Object.entries(user)) {
@@ -65,7 +65,7 @@ async function findUser(user: Partial<User>): Promise<User | undefined> {
     }
   }
 
-  const [event] = await eventsDB.query([filter]);
+  const [event] = await eventsDB.query([filter], { signal });
 
   if (event) {
     return {

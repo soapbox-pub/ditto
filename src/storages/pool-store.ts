@@ -16,7 +16,7 @@ interface PoolStoreOpts {
   pool: InstanceType<typeof RelayPoolWorker>;
   relays: WebSocket['url'][];
   publisher: {
-    handleEvent(event: NostrEvent): Promise<void>;
+    handleEvent(event: NostrEvent, signal: AbortSignal): Promise<void>;
   };
 }
 
@@ -25,7 +25,7 @@ class PoolStore implements NStore {
   #pool: InstanceType<typeof RelayPoolWorker>;
   #relays: WebSocket['url'][];
   #publisher: {
-    handleEvent(event: NostrEvent): Promise<void>;
+    handleEvent(event: NostrEvent, signal: AbortSignal): Promise<void>;
   };
 
   constructor(opts: PoolStoreOpts) {
@@ -60,7 +60,7 @@ class PoolStore implements NStore {
         opts.relays ?? this.#relays,
         (event: NostrEvent | null) => {
           if (event && matchFilters(filters, event)) {
-            this.#publisher.handleEvent(event).catch(() => {});
+            this.#publisher.handleEvent(event, AbortSignal.timeout(1000)).catch(() => {});
             results.add({
               id: event.id,
               kind: event.kind,
