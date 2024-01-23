@@ -1,6 +1,7 @@
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
 import { Debug, Kysely, type NostrEvent, type SelectQueryBuilder } from '@/deps.ts';
+import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
@@ -68,7 +69,7 @@ class EventsDB implements EventStore {
 
   /** Insert an event (and its tags) into the database. */
   async add(event: NostrEvent): Promise<void> {
-    event = cloneEvent(event);
+    event = cleanEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {
@@ -407,19 +408,6 @@ function buildSearchContent(event: NostrEvent): string {
     default:
       return '';
   }
-}
-
-/** Return a normalized event without any non-standard keys. */
-function cloneEvent(event: NostrEvent): NostrEvent {
-  return {
-    id: event.id,
-    pubkey: event.pubkey,
-    kind: event.kind,
-    content: event.content,
-    tags: event.tags,
-    sig: event.sig,
-    created_at: event.created_at,
-  };
 }
 
 /** Build search content for a user. */

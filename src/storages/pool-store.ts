@@ -1,4 +1,5 @@
 import { Debug, matchFilters, type NostrEvent, type NostrFilter, NSet, type RelayPoolWorker } from '@/deps.ts';
+import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type EventStore, type GetEventsOpts, type StoreEventOpts } from '@/storages/types.ts';
 
@@ -28,6 +29,7 @@ class PoolStore implements EventStore {
 
   add(event: NostrEvent, opts: StoreEventOpts = {}): Promise<void> {
     const { relays = this.#relays } = opts;
+    event = cleanEvent(event);
     this.#debug('EVENT', event);
     this.#pool.publish(event, relays);
     return Promise.resolve();
