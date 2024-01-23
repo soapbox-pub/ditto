@@ -1,11 +1,11 @@
+import { type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
-import { type EventStore } from '@/storages/types.ts';
 
 interface HydrateEventOpts {
   events: DittoEvent[];
   filters: DittoFilter[];
-  storage: EventStore;
+  storage: NStore;
   signal?: AbortSignal;
 }
 
@@ -15,7 +15,7 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
 
   if (filters.some((filter) => filter.relations?.includes('author'))) {
     const pubkeys = new Set([...events].map((event) => event.pubkey));
-    const authors = await storage.filter([{ kinds: [0], authors: [...pubkeys] }], { signal });
+    const authors = await storage.query([{ kinds: [0], authors: [...pubkeys] }], { signal });
 
     for (const event of events) {
       event.author = authors.find((author) => author.pubkey === event.pubkey);

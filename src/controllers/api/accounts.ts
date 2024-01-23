@@ -134,7 +134,7 @@ const accountStatusesController: AppController = async (c) => {
   const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
 
   if (pinned) {
-    const [pinEvent] = await eventsDB.filter([{ kinds: [10001], authors: [pubkey], limit: 1 }]);
+    const [pinEvent] = await eventsDB.query([{ kinds: [10001], authors: [pubkey], limit: 1 }]);
     if (pinEvent) {
       const pinnedEventIds = getTagSet(pinEvent.tags, 'e');
       return renderStatuses(c, [...pinnedEventIds].reverse());
@@ -156,7 +156,7 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  let events = await eventsDB.filter([filter]);
+  let events = await eventsDB.query([filter]);
 
   if (exclude_replies) {
     events = events.filter((event) => !findReplyTag(event.tags));
@@ -293,7 +293,7 @@ const favouritesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const params = paginationSchema.parse(c.req.query());
 
-  const events7 = await eventsDB.filter(
+  const events7 = await eventsDB.query(
     [{ kinds: [7], authors: [pubkey], ...params }],
     { signal: AbortSignal.timeout(1000) },
   );
@@ -302,7 +302,7 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await eventsDB.filter(
+  const events1 = await eventsDB.query(
     [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }],
     {
       signal: AbortSignal.timeout(1000),

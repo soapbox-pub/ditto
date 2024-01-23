@@ -25,7 +25,7 @@ const getEvent = async (
   const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: IdMicrofilter = { ids: [id] };
 
-  const [memoryEvent] = await memorelay.filter([microfilter], opts) as DittoEvent[];
+  const [memoryEvent] = await memorelay.query([microfilter], opts) as DittoEvent[];
 
   if (memoryEvent && !relations) {
     debug(`getEvent: ${id.slice(0, 8)} found in memory`);
@@ -37,13 +37,13 @@ const getEvent = async (
     filter.kinds = [kind];
   }
 
-  const dbEvent = await eventsDB.filter([filter], { limit: 1, signal })
+  const dbEvent = await eventsDB.query([filter], { limit: 1, signal })
     .then(([event]) => event);
 
   // TODO: make this DRY-er.
 
   if (dbEvent && !dbEvent.author) {
-    const [author] = await memorelay.filter([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
+    const [author] = await memorelay.query([{ kinds: [0], authors: [dbEvent.pubkey] }], opts);
     dbEvent.author = author;
   }
 
@@ -53,7 +53,7 @@ const getEvent = async (
   }
 
   if (memoryEvent && !memoryEvent.author) {
-    const [author] = await memorelay.filter([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
+    const [author] = await memorelay.query([{ kinds: [0], authors: [memoryEvent.pubkey] }], opts);
     memoryEvent.author = author;
   }
 
@@ -77,13 +77,13 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<Nostr
   const { relations, signal = AbortSignal.timeout(1000) } = opts;
   const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
 
-  const [memoryEvent] = await memorelay.filter([microfilter], opts);
+  const [memoryEvent] = await memorelay.query([microfilter], opts);
 
   if (memoryEvent && !relations) {
     return memoryEvent;
   }
 
-  const dbEvent = await eventsDB.filter(
+  const dbEvent = await eventsDB.query(
     [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
     { limit: 1, signal },
   ).then(([event]) => event);
@@ -96,7 +96,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<Nostr
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
-  const [event] = await eventsDB.filter([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+  const [event] = await eventsDB.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
@@ -132,7 +132,7 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 }
 
 function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  return eventsDB.filter(
+  return eventsDB.query(
     [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
     { limit: 200, signal },
   );
@@ -140,7 +140,7 @@ function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Pr
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  const [event] = await eventsDB.filter([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
+  const [event] = await eventsDB.query([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
   return Boolean(event);
 }
 

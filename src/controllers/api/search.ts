@@ -78,7 +78,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
     filter.authors = [account_id];
   }
 
-  return searchStore.filter([filter], { signal });
+  return searchStore.query([filter], { signal });
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -96,7 +96,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
-  const [event] = await searchStore.filter(filters, { limit: 1, signal });
+  const [event] = await searchStore.query(filters, { limit: 1, signal });
   return event;
 }
 

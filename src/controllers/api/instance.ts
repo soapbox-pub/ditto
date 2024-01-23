@@ -6,7 +6,7 @@ import { eventsDB } from '@/storages.ts';
 const instanceController: AppController = async (c) => {
   const { host, protocol } = Conf.url;
 
-  const [event] = await eventsDB.filter([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }]);
+  const [event] = await eventsDB.query([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }]);
   const meta = jsonServerMetaSchema.parse(event?.content);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */

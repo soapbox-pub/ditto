@@ -36,7 +36,7 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
       Promise.all(mentionedPubkeys.map(toMention)),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
-        ? await eventsDB.filter([
+        ? await eventsDB.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },

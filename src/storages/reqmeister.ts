@@ -1,10 +1,10 @@
-import { Debug, EventEmitter, type NostrEvent, type NostrFilter } from '@/deps.ts';
+import { Debug, EventEmitter, type NostrEvent, type NostrFilter, type NStore, type NStoreOpts } from '@/deps.ts';
 import { eventToMicroFilter, getFilterId, isMicrofilter, type MicroFilter } from '@/filter.ts';
-import { type EventStore, GetEventsOpts } from '@/storages/types.ts';
 import { Time } from '@/utils/time.ts';
+import { abortError } from '@/utils/abort.ts';
 
 interface ReqmeisterOpts {
-  client: EventStore;
+  client: NStore;
   delay?: number;
   timeout?: number;
 }
@@ -17,15 +17,13 @@ interface ReqmeisterReqOpts {
 type ReqmeisterQueueItem = [string, MicroFilter, WebSocket['url'][]];
 
 /** Batches requests to Nostr relays using microfilters. */
-class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) => any }> implements EventStore {
+class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) => any }> implements NStore {
   #debug = Debug('ditto:reqmeister');
 
   #opts: ReqmeisterOpts;
   #queue: ReqmeisterQueueItem[] = [];
   #promise!: Promise<void>;
   #resolve!: () => void;
-
-  supportedNips = [];
 
   constructor(opts: ReqmeisterOpts) {
     super();
@@ -66,11 +64,10 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
     if (filters.length) {
-      this.#debug('REQ', JSON.stringify(filters));
-      const events = await client.filter(filters, { signal: AbortSignal.timeout(timeout) });
+      const events = await client.query(filters, { signal: AbortSignal.timeout(timeout) });
 
       for (const event of events) {
-        this.add(event);
+        this.event(event);
       }
     }
 
@@ -85,7 +82,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     } = opts;
 
     if (signal.aborted) {
-      return Promise.reject(new DOMException('Aborted', 'AbortError'));
+      return Promise.reject(abortError());
     }
 
     const filterId = getFilterId(filter);
@@ -109,7 +106,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     });
   }
 
-  add(event: NostrEvent): Promise<void> {
+  event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);
@@ -121,13 +118,15 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     return this.#queue.some(([id]) => id === filterId);
   }
 
-  filter(filters: NostrFilter[], opts?: GetEventsOpts | undefined): Promise<NostrEvent[]> {
-    if (opts?.signal?.aborted) return Promise.resolve([]);
+  query(filters: NostrFilter[], opts?: NStoreOpts): Promise<NostrEvent[]> {
+    if (opts?.signal?.aborted) return Promise.reject(abortError());
+
+    this.#debug('REQ', JSON.stringify(filters));
     if (!filters.length) return Promise.resolve([]);
 
     const promises = filters.reduce<Promise<NostrEvent>[]>((result, filter) => {
       if (isMicrofilter(filter)) {
-        result.push(this.req(filter) as Promise<NostrEvent>);
+        result.push(this.req(filter, opts));
       }
       return result;
     }, []);
@@ -136,11 +135,11 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
   }
 
   count(_filters: NostrFilter[]): Promise<number> {
-    throw new Error('COUNT not implemented.');
+    return Promise.reject(new Error('COUNT not implemented.'));
   }
 
-  deleteFilters(_filters: NostrFilter[]): Promise<void> {
-    throw new Error('DELETE not implemented.');
+  remove(_filters: NostrFilter[]): Promise<void> {
+    return Promise.reject(new Error('DELETE not implemented.'));
   }
 }
 

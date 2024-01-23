@@ -7,7 +7,7 @@ import { renderStatuses } from '@/views.ts';
 const bookmarksController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
 
-  const [event10003] = await eventsDB.filter([
+  const [event10003] = await eventsDB.query([
     { kinds: [10003], authors: [pubkey], limit: 1 },
   ]);
 

@@ -65,7 +65,7 @@ async function findUser(user: Partial<User>): Promise<User | undefined> {
     }
   }
 
-  const [event] = await eventsDB.filter([filter]);
+  const [event] = await eventsDB.query([filter]);
 
   if (event) {
     return {

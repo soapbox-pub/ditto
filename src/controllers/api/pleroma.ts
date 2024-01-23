@@ -8,7 +8,7 @@ import { createAdminEvent } from '@/utils/api.ts';
 import { jsonSchema } from '@/schema.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const [event] = await eventsDB.filter([{
+  const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [Conf.pubkey],
     '#d': ['pub.ditto.pleroma.config'],
@@ -36,7 +36,7 @@ const frontendConfigController: AppController = async (c) => {
 const configController: AppController = async (c) => {
   const { pubkey } = Conf;
 
-  const [event] = await eventsDB.filter([{
+  const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],
@@ -54,7 +54,7 @@ const configController: AppController = async (c) => {
 const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
 
-  const [event] = await eventsDB.filter([{
+  const [event] = await eventsDB.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],

@@ -126,7 +126,7 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 
 /** Get the last version of the event, if any. */
 async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
-  const [prev] = await eventsDB.filter([
+  const [prev] = await eventsDB.query([
     { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
   ]);
 

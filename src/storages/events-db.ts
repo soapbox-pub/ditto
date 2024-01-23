@@ -1,6 +1,6 @@
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
-import { Debug, Kysely, type NostrEvent, type SelectQueryBuilder } from '@/deps.ts';
+import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
 import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -8,8 +8,7 @@ import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { isNostrId, isURL } from '@/utils.ts';
-
-import { type EventStore, type GetEventsOpts } from './types.ts';
+import { abortError } from '@/utils/abort.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -56,19 +55,16 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
 }>;
 
 /** SQLite database storage adapter for Nostr events. */
-class EventsDB implements EventStore {
+class EventsDB implements NStore {
   #db: Kysely<DittoDB>;
   #debug = Debug('ditto:db:events');
-
-  /** NIPs supported by this storage method. */
-  supportedNips = [1, 45, 50];
 
   constructor(db: Kysely<DittoDB>) {
     this.#db = db;
   }
 
   /** Insert an event (and its tags) into the database. */
-  async add(event: NostrEvent): Promise<void> {
+  async event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
     event = cleanEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
@@ -268,7 +264,7 @@ class EventsDB implements EventStore {
   }
 
   /** Get events for filters from the database. */
-  async filter(filters: DittoFilter[], opts: GetEventsOpts = {}): Promise<DittoEvent[]> {
+  async query(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -341,7 +337,7 @@ class EventsDB implements EventStore {
   }
 
   /** Delete events based on filters from the database. */
-  async deleteFilters(filters: DittoFilter[]): Promise<void> {
+  async remove(filters: DittoFilter[], _opts?: NStoreOpts): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -349,8 +345,10 @@ class EventsDB implements EventStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(filters: DittoFilter[]): Promise<number> {
+  async count(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<number> {
+    if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve(0);
+
     this.#debug('COUNT', JSON.stringify(filters));
     const query = this.getEventsQuery(filters);
 
