@@ -8,8 +8,8 @@ import {
   type NStoreOpts,
   type RelayPoolWorker,
 } from '@/deps.ts';
-import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
+import { dehydrateEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';
 
 interface PoolStoreOpts {
@@ -38,7 +38,7 @@ class PoolStore implements NStore {
     if (opts.signal?.aborted) return Promise.reject(abortError());
     const { relays = this.#relays } = opts;
 
-    event = cleanEvent(event);
+    event = dehydrateEvent(event);
     this.#debug('EVENT', event);
 
     this.#pool.publish(event, relays);

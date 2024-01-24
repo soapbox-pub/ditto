@@ -1,12 +1,12 @@
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
 import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
-import { cleanEvent } from '@/events.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
+import { dehydrateEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 
@@ -65,7 +65,7 @@ class EventsDB implements NStore {
 
   /** Insert an event (and its tags) into the database. */
   async event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
-    event = cleanEvent(event);
+    event = dehydrateEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
     if (isDittoInternalKind(event.kind) && event.pubkey !== Conf.pubkey) {

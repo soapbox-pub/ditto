@@ -1,4 +1,4 @@
-import { type NStore } from '@/deps.ts';
+import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 
@@ -25,4 +25,17 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
   return events;
 }
 
-export { hydrateEvents };
+/** Return a normalized event without any non-standard keys. */
+function dehydrateEvent(event: DittoEvent): NostrEvent {
+  return {
+    id: event.id,
+    pubkey: event.pubkey,
+    kind: event.kind,
+    content: event.content,
+    tags: event.tags,
+    sig: event.sig,
+    created_at: event.created_at,
+  };
+}
+
+export { dehydrateEvent, hydrateEvents };
