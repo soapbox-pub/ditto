@@ -7,6 +7,7 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { isLocallyFollowed } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
+import { dehydrateEvent } from '@/storages/hydrate.ts';
 import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
@@ -185,7 +186,7 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 
     const { pr } = await LNURL.callback(
       details.callback,
-      { amount, nostr: event, lnurl },
+      { amount, nostr: dehydrateEvent(event), lnurl },
       { fetch: fetchWorker, signal },
     );
 
