@@ -50,7 +50,7 @@ export {
 } from 'https://gitlab.com/soapbox-pub/fedisign/-/raw/v0.2.1/mod.ts';
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export * as secp from 'npm:@noble/secp256k1@^2.0.0';
-export { LRUCache } from 'npm:lru-cache@^10.0.0';
+export { LRUCache } from 'npm:lru-cache@^10.2.0';
 export {
   DB as Sqlite,
   SqliteError,
@@ -94,6 +94,6 @@ export {
   NSet,
   type NStore,
   type NStoreOpts,
-} from 'https://gitlab.com/soapbox-pub/nlib/-/raw/91ddffb8d7091286641fdc419bdde07c8037eac7/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/NLib/-/raw/852a849dc6f98450e2cea741f89cfb74838b0991/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
