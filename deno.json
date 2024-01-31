@@ -2,12 +2,12 @@
   "$schema": "https://deno.land/x/deno@v1.32.3/cli/schemas/config-file.v1.json",
   "lock": false,
   "tasks": {
-    "start": "deno run -A --unstable src/server.ts",
-    "dev": "deno run -A --unstable --watch src/server.ts",
-    "debug": "deno run -A --unstable --inspect src/server.ts",
-    "test": "DB_PATH=\":memory:\" deno test -A --unstable",
+    "start": "deno run -A --unstable-ffi src/server.ts",
+    "dev": "deno run -A --unstable-ffi --watch src/server.ts",
+    "debug": "deno run -A --unstable-ffi --inspect src/server.ts",
+    "test": "DB_PATH=\":memory:\" deno test -A --unstable-ffi",
     "check": "deno check src/server.ts",
-    "relays:sync": "deno run -A --unstable scripts/relays.ts sync"
+    "relays:sync": "deno run -A --unstable-ffi scripts/relays.ts sync"
   },
   "exclude": ["./public"],
   "imports": {
