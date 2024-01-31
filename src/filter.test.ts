@@ -1,7 +1,7 @@
 import { assertEquals } from '@/deps-test.ts';
 
-import event0 from '~/fixtures/events/event-0.json' assert { type: 'json' };
-import event1 from '~/fixtures/events/event-1.json' assert { type: 'json' };
+import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
+import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
 
 import { eventToMicroFilter, getFilterId, getFilterLimit, getMicroFilters, isMicrofilter } from './filter.ts';
 
