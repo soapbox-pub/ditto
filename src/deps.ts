@@ -93,6 +93,6 @@ export {
   NSet,
   type NStore,
   type NStoreOpts,
-} from 'https://gitlab.com/soapbox-pub/NLib/-/raw/852a849dc6f98450e2cea741f89cfb74838b0991/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/NSpec/-/raw/8ce84d9acd9925f51b51c00374eae81a5031559b/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
