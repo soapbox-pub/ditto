@@ -5,7 +5,9 @@ const activeRelays = await getActiveRelays();
 
 console.log(`pool: connecting to ${activeRelays.length} relays.`);
 
-const worker = new Worker('https://unpkg.com/nostr-relaypool@0.6.30/lib/nostr-relaypool.worker.js', { type: 'module' });
+const worker = new Worker('https://unpkg.com/nostr-relaypool2@0.6.34/lib/nostr-relaypool.worker.js', {
+  type: 'module',
+});
 
 // @ts-ignore Wrong types.
 const pool = new RelayPoolWorker(worker, activeRelays, {

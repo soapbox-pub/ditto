@@ -9,7 +9,7 @@ export {
 } from 'https://deno.land/x/hono@v3.10.1/mod.ts';
 export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.10.1/middleware.ts';
 export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
-export { RelayPoolWorker } from 'https://dev.jspm.io/nostr-relaypool@0.6.30';
+export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
 export {
   type EventTemplate,
   finishEvent,
