@@ -9,6 +9,7 @@ const worker = new Worker('https://unpkg.com/nostr-relaypool@0.6.30/lib/nostr-re
 
 // @ts-ignore Wrong types.
 const pool = new RelayPoolWorker(worker, activeRelays, {
+  autoReconnect: true,
   // The pipeline verifies events.
   skipVerification: true,
   // The logging feature overwhelms the CPU and creates too many logs.
