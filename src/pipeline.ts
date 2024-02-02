@@ -225,11 +225,15 @@ function streamOut(event: NostrEvent) {
  * Publish the event to other relays.
  * This should only be done in certain circumstances, like mentioning a user or publishing deletions.
  */
-function broadcast(event: DittoEvent, signal: AbortSignal) {
+async function broadcast(event: DittoEvent, signal: AbortSignal) {
   if (!event.user || !isFresh(event)) return;
 
   if (event.kind === 5) {
-    client.event(event, { signal });
+    try {
+      await client.event(event, { signal });
+    } catch (e) {
+      debug(e);
+    }
   }
 }
 
