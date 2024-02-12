@@ -82,7 +82,7 @@ const updateConfigController: AppController = async (c) => {
 
   await createAdminEvent({
     kind: 30078,
-    content: await await new AdminSigner().nip04.encrypt(pubkey, JSON.stringify(configs)),
+    content: await new AdminSigner().nip04.encrypt(pubkey, JSON.stringify(configs)),
     tags: [['d', 'pub.ditto.pleroma.config']],
   }, c);
 
