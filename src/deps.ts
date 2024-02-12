@@ -17,7 +17,6 @@ export {
   getPublicKey,
   matchFilter,
   matchFilters,
-  nip04,
   nip05,
   nip13,
   nip19,
