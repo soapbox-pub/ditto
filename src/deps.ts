@@ -12,10 +12,9 @@ export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
 export {
   type EventTemplate,
-  finishEvent,
+  finalizeEvent,
   getEventHash,
   getPublicKey,
-  getSignature,
   matchFilter,
   matchFilters,
   nip04,
@@ -25,8 +24,8 @@ export {
   nip21,
   type UnsignedEvent,
   type VerifiedEvent,
-  verifySignature,
-} from 'npm:nostr-tools@^1.17.0';
+  verifyEvent,
+} from 'npm:nostr-tools@^2.1.5';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
@@ -82,6 +81,7 @@ export * as Comlink from 'npm:comlink@^4.4.1';
 export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 export { default as Debug } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.2.0/debug.ts';
+export { Stickynotes } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.2.0/mod.ts';
 export {
   LNURL,
   type LNURLDetails,
@@ -89,6 +89,8 @@ export {
   NIP05,
   type NostrEvent,
   type NostrFilter,
+  type NostrSigner,
+  NSecSigner,
   NSet,
   type NStore,
   type NStoreOpts,

@@ -1,4 +1,4 @@
-import { dotenv, getPublicKey, nip19, secp, z } from '@/deps.ts';
+import { dotenv, getPublicKey, nip19, z } from '@/deps.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -32,7 +32,7 @@ const Conf = {
   get cryptoKey() {
     return crypto.subtle.importKey(
       'raw',
-      secp.etc.hexToBytes(Conf.seckey),
+      Conf.seckey,
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['sign', 'verify'],

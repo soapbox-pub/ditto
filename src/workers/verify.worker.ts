@@ -1,8 +1,8 @@
-import { Comlink, type NostrEvent, type VerifiedEvent, verifySignature } from '@/deps.ts';
+import { Comlink, type NostrEvent, type VerifiedEvent, verifyEvent } from '@/deps.ts';
 
 export const VerifyWorker = {
-  verifySignature(event: NostrEvent): event is VerifiedEvent {
-    return verifySignature(event);
+  verifyEvent(event: NostrEvent): event is VerifiedEvent {
+    return verifyEvent(event);
   },
 };
 

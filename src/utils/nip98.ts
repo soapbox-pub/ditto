@@ -50,7 +50,7 @@ function validateAuthEvent(req: Request, event: NostrEvent, opts: ParseAuthReque
 }
 
 /** Create an auth EventTemplate from a Request. */
-async function buildAuthEventTemplate(req: Request, opts: ParseAuthRequestOpts = {}): Promise<EventTemplate<27235>> {
+async function buildAuthEventTemplate(req: Request, opts: ParseAuthRequestOpts = {}): Promise<EventTemplate> {
   const { validatePayload = true } = opts;
   const { method, url } = req;
 

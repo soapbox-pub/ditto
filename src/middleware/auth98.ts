@@ -7,7 +7,7 @@ import {
   validateAuthEvent,
 } from '@/utils/nip98.ts';
 import { localRequest } from '@/utils/api.ts';
-import { signEvent } from '@/sign.ts';
+import { APISigner } from '@/signers/APISigner.ts';
 import { findUser, User } from '@/db/users.ts';
 
 /**
@@ -91,7 +91,7 @@ function withProof(
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   const req = localRequest(c);
   const reqEvent = await buildAuthEventTemplate(req, opts);
-  const resEvent = await signEvent(reqEvent, c, opts);
+  const resEvent = await new APISigner(c).signEvent(reqEvent);
   const result = await validateAuthEvent(req, resEvent, opts);
 
   if (result.success) {
