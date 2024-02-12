@@ -1,7 +1,7 @@
 import { Conf } from '@/config.ts';
 import { Debug, type NostrFilter } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
-import { signAdminEvent } from '@/sign.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { eventsDB } from '@/storages.ts';
 
 const debug = Debug('ditto:users');
@@ -15,8 +15,9 @@ interface User {
 
 function buildUserEvent(user: User) {
   const { origin, host } = Conf.url;
+  const signer = new AdminSigner();
 
-  return signAdminEvent({
+  return signer.signEvent({
     kind: 30361,
     tags: [
       ['d', user.pubkey],

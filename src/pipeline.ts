@@ -15,7 +15,7 @@ import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
-import { signAdminEvent } from '@/sign.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
 
 const debug = Debug('ditto:pipeline');
@@ -194,7 +194,9 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
       { fetch: fetchWorker, signal },
     );
 
-    const nwcRequestEvent = await signAdminEvent({
+    const signer = new AdminSigner();
+
+    const nwcRequestEvent = await signer.signEvent({
       kind: 23194,
       content: await encryptAdmin(
         event.pubkey,

@@ -12,7 +12,8 @@ import {
   z,
 } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
-import { signAdminEvent, signEvent } from '@/sign.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { APISigner } from '@/signers/APISigner.ts';
 import { eventsDB } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
@@ -29,12 +30,14 @@ async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
     throw new HTTPException(401);
   }
 
-  const event = await signEvent({
+  const signer = new APISigner(c);
+
+  const event = await signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],
     ...t,
-  }, c);
+  });
 
   return publishEvent(event, c);
 }
@@ -70,7 +73,9 @@ function updateListEvent(
 
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const event = await signAdminEvent({
+  const signer = new AdminSigner();
+
+  const event = await signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],
