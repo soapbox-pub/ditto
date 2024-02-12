@@ -1,6 +1,5 @@
-import { getEventHash, verifySignature, z } from '@/deps.ts';
-
-import { jsonSchema, safeUrlSchema } from '../schema.ts';
+import { getEventHash, verifyEvent, z } from '@/deps.ts';
+import { jsonSchema, safeUrlSchema } from '@/schema.ts';
 
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */
 const nostrIdSchema = z.string().regex(/^[0-9a-f]{64}$/);
@@ -21,7 +20,7 @@ const eventSchema = z.object({
 /** Nostr event schema that also verifies the event's signature. */
 const signedEventSchema = eventSchema
   .refine((event) => event.id === getEventHash(event), 'Event ID does not match hash')
-  .refine(verifySignature, 'Event signature is invalid');
+  .refine(verifyEvent, 'Event signature is invalid');
 
 /** Nostr relay filter schema. */
 const filterSchema = z.object({

@@ -1,7 +1,7 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
-import { Debug, type EventTemplate, finishEvent, HTTPException, type NostrEvent } from '@/deps.ts';
+import { Debug, type EventTemplate, finalizeEvent, HTTPException, type NostrEvent } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { Sub } from '@/subs.ts';
@@ -31,7 +31,7 @@ async function signEvent(
 
   if (seckey) {
     debug(`Signing Event<${event.kind}> with secret key`);
-    return finishEvent(event, seckey);
+    return finalizeEvent(event, seckey);
   }
 
   if (header) {
@@ -115,7 +115,7 @@ async function awaitSignedEvent(
 /** Sign event as the Ditto server. */
 // deno-lint-ignore require-await
 async function signAdminEvent(event: EventTemplate): Promise<NostrEvent> {
-  return finishEvent(event, Conf.seckey);
+  return finalizeEvent(event, Conf.seckey);
 }
 
 export { signAdminEvent, signEvent };

@@ -88,7 +88,7 @@ interface AppEnv extends HonoEnv {
     /** Hex pubkey for the current user. If provided, the user is considered "logged in." */
     pubkey?: string;
     /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
-    seckey?: string;
+    seckey?: Uint8Array;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
     /** User associated with the pubkey, if any. */
