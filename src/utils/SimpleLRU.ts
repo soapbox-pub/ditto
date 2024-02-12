@@ -1,6 +1,6 @@
 // deno-lint-ignore-file ban-types
 
-import { LRUCache, type MapCache } from '@/deps.ts';
+import { LRUCache } from '@/deps.ts';
 
 type FetchFn<K extends {}, V extends {}, O extends {}> = (key: K, opts: O) => Promise<V>;
 
@@ -12,7 +12,7 @@ export class SimpleLRU<
   K extends {},
   V extends {},
   O extends {} = FetchFnOpts,
-> implements MapCache<K, V, O> {
+> {
   protected cache: LRUCache<K, V, void>;
 
   constructor(fetchFn: FetchFn<K, V, { signal: AbortSignal }>, opts: LRUCache.Options<K, V, void>) {

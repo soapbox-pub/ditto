@@ -94,14 +94,6 @@ class Optimizer implements NStore {
 
     return getResults();
   }
-
-  count(_filters: DittoFilter[]): Promise<number> {
-    return Promise.reject(new Error('COUNT not implemented.'));
-  }
-
-  remove(_filters: DittoFilter[]): Promise<void> {
-    return Promise.reject(new Error('DELETE not implemented.'));
-  }
 }
 
 export { Optimizer };

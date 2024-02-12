@@ -10,9 +10,9 @@ import { EventsDB } from './events-db.ts';
 const eventsDB = new EventsDB(db);
 
 Deno.test('count filters', async () => {
-  assertEquals(await eventsDB.count([{ kinds: [1] }]), 0);
+  assertEquals((await eventsDB.count([{ kinds: [1] }])).count, 0);
   await eventsDB.event(event1);
-  assertEquals(await eventsDB.count([{ kinds: [1] }]), 1);
+  assertEquals((await eventsDB.count([{ kinds: [1] }])).count, 1);
 });
 
 Deno.test('insert and filter events', async () => {
@@ -55,11 +55,11 @@ Deno.test('query events with local filter', async () => {
 });
 
 Deno.test('inserting replaceable events', async () => {
-  assertEquals(await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }]), 0);
+  assertEquals((await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }])).count, 0);
 
   await eventsDB.event(event0);
   await assertRejects(() => eventsDB.event(event0));
-  assertEquals(await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }]), 1);
+  assertEquals((await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }])).count, 1);
 
   const changeEvent = { ...event0, id: '123', created_at: event0.created_at + 1 };
   await eventsDB.event(changeEvent);

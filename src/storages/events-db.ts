@@ -345,9 +345,9 @@ class EventsDB implements NStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<number> {
+  async count(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
-    if (!filters.length) return Promise.resolve(0);
+    if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 
     this.#debug('COUNT', JSON.stringify(filters));
     const query = this.getEventsQuery(filters);
@@ -357,7 +357,10 @@ class EventsDB implements NStore {
       .select((eb) => eb.fn.count('id').as('count'))
       .execute();
 
-    return Number(count);
+    return {
+      count: Number(count),
+      approximate: false,
+    };
   }
 }
 

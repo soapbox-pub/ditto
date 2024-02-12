@@ -85,7 +85,6 @@ export { default as Debug } from 'https://gitlab.com/soapbox-pub/stickynotes/-/r
 export {
   LNURL,
   type LNURLDetails,
-  type MapCache,
   NCache,
   NIP05,
   type NostrEvent,
@@ -93,6 +92,6 @@ export {
   NSet,
   type NStore,
   type NStoreOpts,
-} from 'https://gitlab.com/soapbox-pub/NSpec/-/raw/8ce84d9acd9925f51b51c00374eae81a5031559b/mod.ts';
+} from 'https://gitlab.com/soapbox-pub/NSpec/-/raw/v0.1.0/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
