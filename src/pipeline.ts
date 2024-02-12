@@ -46,7 +46,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
-  const preexisting = (await cache.count([{ ids: [event.id] }])) > 0;
+  const preexisting = (await cache.count([{ ids: [event.id] }])).count > 0;
   cache.event(event);
   reqmeister.event(event, { signal });
   return preexisting;
@@ -72,10 +72,10 @@ async function storeEvent(event: DittoEvent, opts: StoreEventOpts): Promise<void
   const { force = false, signal } = opts;
 
   if (force || event.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const isDeleted = await eventsDB.count(
+    const isDeleted = (await eventsDB.count(
       [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
       opts,
-    ) > 0;
+    )).count > 0;
 
     if (isDeleted) {
       return Promise.reject(new RelayError('blocked', 'event was deleted'));
@@ -145,13 +145,17 @@ function trackRelays(event: NostrEvent) {
 }
 
 /** Queue related events to fetch. */
-function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
+async function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
   if (!event.user) {
     reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
+
   for (const [name, id, relay] of event.tags) {
-    if (name === 'e' && !cache.count([{ ids: [id] }])) {
-      reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+    if (name === 'e') {
+      const { count } = await cache.count([{ ids: [id] }]);
+      if (!count) {
+        reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+      }
     }
   }
 }

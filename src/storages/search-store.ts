@@ -1,6 +1,6 @@
 import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f4fb59c90c092e5aa59c01e6556a4bec264c167/mod.ts';
 
-import { Debug, type NostrEvent, type NostrFilter, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
+import { Debug, type NostrEvent, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
@@ -67,14 +67,6 @@ class SearchStore implements NStore {
       this.#debug(`Searching for "${query}" locally...`);
       return this.#fallback.query(filters, opts);
     }
-  }
-
-  count(_filters: NostrFilter[]): Promise<number> {
-    return Promise.reject(new Error('COUNT not implemented.'));
-  }
-
-  remove(_filters: NostrFilter[]): Promise<void> {
-    return Promise.reject(new Error('DELETE not implemented.'));
   }
 }
 

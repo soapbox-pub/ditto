@@ -92,14 +92,6 @@ class PoolStore implements NStore {
       opts.signal?.addEventListener('abort', onAbort);
     });
   }
-
-  count() {
-    return Promise.reject(new Error('COUNT not implemented'));
-  }
-
-  remove() {
-    return Promise.reject(new Error('Cannot delete events from relays. Create a kind 5 event instead.'));
-  }
 }
 
 export { PoolStore };

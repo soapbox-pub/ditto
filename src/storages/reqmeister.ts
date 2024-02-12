@@ -133,14 +133,6 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
 
     return Promise.all(promises);
   }
-
-  count(_filters: NostrFilter[]): Promise<number> {
-    return Promise.reject(new Error('COUNT not implemented.'));
-  }
-
-  remove(_filters: NostrFilter[]): Promise<void> {
-    return Promise.reject(new Error('DELETE not implemented.'));
-  }
 }
 
 export { Reqmeister };
