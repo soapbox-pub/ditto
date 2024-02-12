@@ -14,7 +14,7 @@ import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
-import { verifySignatureWorker } from '@/workers/verify.ts';
+import { verifyEventWorker } from '@/workers/verify.ts';
 import { signAdminEvent } from '@/sign.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
 
@@ -25,7 +25,7 @@ const debug = Debug('ditto:pipeline');
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  if (!(await verifySignatureWorker(event))) return;
+  if (!(await verifyEventWorker(event))) return;
   const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);

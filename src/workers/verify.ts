@@ -6,8 +6,8 @@ const worker = Comlink.wrap<typeof VerifyWorker>(
   new Worker(new URL('./verify.worker.ts', import.meta.url), { type: 'module' }),
 );
 
-function verifySignatureWorker(event: NostrEvent): Promise<boolean> {
-  return worker.verifySignature(event);
+function verifyEventWorker(event: NostrEvent): Promise<boolean> {
+  return worker.verifyEvent(event);
 }
 
-export { verifySignatureWorker };
+export { verifyEventWorker };
