@@ -1,8 +1,8 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
 import { z } from '@/deps.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { eventsDB } from '@/storages.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 import { jsonSchema } from '@/schema.ts';
@@ -18,7 +18,7 @@ const frontendConfigController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await decryptAdmin(Conf.pubkey, event.content) : '',
+    event?.content ? await new AdminSigner().nip04.decrypt(Conf.pubkey, event.content) : '',
   );
 
   const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
@@ -47,7 +47,7 @@ const configController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await decryptAdmin(pubkey, event.content) : '',
+    event?.content ? await new AdminSigner().nip04.decrypt(pubkey, event.content) : '',
   );
 
   return c.json({ configs, need_reboot: false });
@@ -66,7 +66,7 @@ const updateConfigController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await decryptAdmin(pubkey, event.content) : '',
+    event?.content ? await await new AdminSigner().nip04.decrypt(pubkey, event.content) : '',
   );
 
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
@@ -82,7 +82,7 @@ const updateConfigController: AppController = async (c) => {
 
   await createAdminEvent({
     kind: 30078,
-    content: await encryptAdmin(pubkey, JSON.stringify(configs)),
+    content: await await new AdminSigner().nip04.encrypt(pubkey, JSON.stringify(configs)),
     tags: [['d', 'pub.ditto.pleroma.config']],
   }, c);
 

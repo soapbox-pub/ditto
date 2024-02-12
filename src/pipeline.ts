@@ -1,5 +1,4 @@
 import { Conf } from '@/config.ts';
-import { encryptAdmin } from '@/crypto.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
@@ -198,7 +197,7 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 
     const nwcRequestEvent = await signer.signEvent({
       kind: 23194,
-      content: await encryptAdmin(
+      content: await signer.nip04.encrypt(
         event.pubkey,
         JSON.stringify({ method: 'pay_invoice', params: { invoice: pr } }),
       ),

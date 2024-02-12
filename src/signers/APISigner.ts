@@ -1,9 +1,9 @@
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { decryptAdmin, encryptAdmin } from '@/crypto.ts';
 import { HTTPException, type NostrEvent, type NostrSigner, NSecSigner, Stickynotes } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Sub } from '@/subs.ts';
 import { eventMatchesTemplate } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/api.ts';
@@ -63,7 +63,7 @@ export class APISigner implements NostrSigner {
 
     createAdminEvent({
       kind: 24133,
-      content: await encryptAdmin(
+      content: await new AdminSigner().nip04.encrypt(
         pubkey,
         JSON.stringify({
           id: messageId,
@@ -93,7 +93,7 @@ export class APISigner implements NostrSigner {
     this.#c.req.raw.signal.addEventListener('abort', close);
 
     for await (const event of sub) {
-      const decrypted = await decryptAdmin(event.pubkey, event.content);
+      const decrypted = await new AdminSigner().nip04.decrypt(event.pubkey, event.content);
 
       const result = jsonSchema
         .pipe(connectResponseSchema)
