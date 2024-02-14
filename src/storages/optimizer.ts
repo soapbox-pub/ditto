@@ -82,9 +82,13 @@ class Optimizer implements NStore {
 
     // Finally, query the client.
     this.#debug('Querying client...');
-    for (const clientEvent of await this.#client.query(filters, opts)) {
-      results.add(clientEvent);
-      if (results.size >= limit) return getResults();
+    try {
+      for (const clientEvent of await this.#client.query(filters, opts)) {
+        results.add(clientEvent);
+        if (results.size >= limit) return getResults();
+      }
+    } catch (_e) {
+      // do nothing
     }
 
     /** Get return type from map. */

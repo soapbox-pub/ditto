@@ -64,10 +64,14 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     if (wantedAuthors.size) filters.push({ kinds: [0], authors: [...wantedAuthors] });
 
     if (filters.length) {
-      const events = await client.query(filters, { signal: AbortSignal.timeout(timeout) });
+      try {
+        const events = await client.query(filters, { signal: AbortSignal.timeout(timeout) });
 
-      for (const event of events) {
-        this.event(event);
+        for (const event of events) {
+          this.event(event);
+        }
+      } catch (_e) {
+        // do nothing
       }
     }
 
