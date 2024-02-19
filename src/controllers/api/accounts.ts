@@ -73,9 +73,9 @@ const accountController: AppController = async (c) => {
   const event = await getAuthor(pubkey);
   if (event) {
     return c.json(await renderAccount(event));
+  } else {
+    return c.json(await accountFromPubkey(pubkey));
   }
-
-  return c.json({ error: 'Could not find user.' }, 404);
 };
 
 const accountLookupController: AppController = async (c) => {
