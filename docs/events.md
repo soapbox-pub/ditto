@@ -2,7 +2,29 @@
 
 Instead of using database tables, the Ditto server publishes Nostr events that describe its state. It then reads these events using Nostr filters.
 
-## User Event (kind 30361)
+## Ditto Registration Request (kind 3036)
+
+Clients wishing to join a Ditto server should publish a kind `3036` event to the Ditto relay, mentioning the Ditto admin pubkey.
+
+The event should have the following tags:
+
+- `nip05` - desired NIP-05 username, including the domain (eg `alex@soapbox.pub`).
+- `p` - pubkey of the Ditto admin.
+
+Example:
+
+```json
+{
+  "kind": 3036,
+  "content": "I want to be a part of this community.",
+  "tags": [
+    ["nip05", "alex@soapbox.pub"],
+    ["p", "4cfc6ceb07bbe2f5e75f746f3e6f0eda53973e0374cd6bdbce7a930e10437e06"]
+  ],
+}
+```
+
+## Ditto User (kind 30361)
 
 The Ditto server publishes kind `30361` events to represent users. These events are parameterized replaceable events of kind `30361` where the `d` tag is a pubkey. These events are published by Ditto's internal admin keypair.
 
@@ -32,18 +54,6 @@ Example:
   "sig": "fc12db77b1c8f8aa86c73b617f0cd4af1e6ba244239eaf3164a292de6d39363f32d6b817ffff796ace7a103d75e1d8e6a0fb7f618819b32d81a953b4a75d7507"
 }
 ```
-
-## Invite Request Event (kind 3036)
-
-Clients wishing to join a Ditto server should publish a kind `3036` event to the Ditto relay, mentioning the admin pubkey.
-
-The event's content is NIP-44 encrypted JSON, containing the following fields:
-
-- `nip05` - desired NIP-05 username, including the domain.
-- `email` - email address of the user.
-- `reason` - reason for joining the server.
-
-Only `nip05` is always required. Other fields may be required depending on the policy of the server.
 
 ## NIP-78
 
