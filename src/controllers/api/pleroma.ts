@@ -18,7 +18,7 @@ const frontendConfigController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await new AdminSigner().nip04.decrypt(Conf.pubkey, event.content) : '',
+    event?.content ? await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content) : '',
   );
 
   const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
@@ -47,7 +47,7 @@ const configController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await new AdminSigner().nip04.decrypt(pubkey, event.content) : '',
+    event?.content ? await new AdminSigner().nip44.decrypt(pubkey, event.content) : '',
   );
 
   return c.json({ configs, need_reboot: false });
@@ -66,7 +66,7 @@ const updateConfigController: AppController = async (c) => {
   }], { signal });
 
   const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await await new AdminSigner().nip04.decrypt(pubkey, event.content) : '',
+    event?.content ? await await new AdminSigner().nip44.decrypt(pubkey, event.content) : '',
   );
 
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
@@ -82,7 +82,7 @@ const updateConfigController: AppController = async (c) => {
 
   await createAdminEvent({
     kind: 30078,
-    content: await new AdminSigner().nip04.encrypt(pubkey, JSON.stringify(configs)),
+    content: await new AdminSigner().nip44.encrypt(pubkey, JSON.stringify(configs)),
     tags: [['d', 'pub.ditto.pleroma.config']],
   }, c);
 

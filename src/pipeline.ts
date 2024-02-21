@@ -197,7 +197,7 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 
     const nwcRequestEvent = await signer.signEvent({
       kind: 23194,
-      content: await signer.nip04.encrypt(
+      content: await signer.nip44.encrypt(
         event.pubkey,
         JSON.stringify({ method: 'pay_invoice', params: { invoice: pr } }),
       ),
