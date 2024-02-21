@@ -63,7 +63,7 @@ export class APISigner implements NostrSigner {
 
     createAdminEvent({
       kind: 24133,
-      content: await new AdminSigner().nip04.encrypt(
+      content: await new AdminSigner().nip44.encrypt(
         pubkey,
         JSON.stringify({
           id: messageId,
@@ -93,7 +93,7 @@ export class APISigner implements NostrSigner {
     this.#c.req.raw.signal.addEventListener('abort', close);
 
     for await (const event of sub) {
-      const decrypted = await new AdminSigner().nip04.decrypt(event.pubkey, event.content);
+      const decrypted = await new AdminSigner().nip44.decrypt(event.pubkey, event.content);
 
       const result = jsonSchema
         .pipe(connectResponseSchema)
