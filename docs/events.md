@@ -16,11 +16,12 @@ Example:
 ```json
 {
   "kind": 3036,
+  "pubkey": "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6",
   "content": "I want to be a part of this community.",
   "tags": [
     ["nip05", "alex@soapbox.pub"],
     ["p", "4cfc6ceb07bbe2f5e75f746f3e6f0eda53973e0374cd6bdbce7a930e10437e06"]
-  ],
+  ]
 }
 ```
 
