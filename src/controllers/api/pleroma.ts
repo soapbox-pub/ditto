@@ -1,26 +1,14 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
-import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
+import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { eventsDB } from '@/storages.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 import { jsonSchema } from '@/schema.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const { signal } = c.req.raw;
-
-  const [event] = await eventsDB.query([{
-    kinds: [30078],
-    authors: [Conf.pubkey],
-    '#d': ['pub.ditto.pleroma.config'],
-    limit: 1,
-  }], { signal });
-
-  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content) : '',
-  );
-
+  const configs = await getConfigs(c.req.raw.signal);
   const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
 
   if (frontendConfig) {
@@ -36,39 +24,15 @@ const frontendConfigController: AppController = async (c) => {
 };
 
 const configController: AppController = async (c) => {
-  const { pubkey } = Conf;
-  const { signal } = c.req.raw;
-
-  const [event] = await eventsDB.query([{
-    kinds: [30078],
-    authors: [pubkey],
-    '#d': ['pub.ditto.pleroma.config'],
-    limit: 1,
-  }], { signal });
-
-  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await new AdminSigner().nip44.decrypt(pubkey, event.content) : '',
-  );
-
+  const configs = await getConfigs(c.req.raw.signal);
   return c.json({ configs, need_reboot: false });
 };
 
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
-  const { signal } = c.req.raw;
 
-  const [event] = await eventsDB.query([{
-    kinds: [30078],
-    authors: [pubkey],
-    '#d': ['pub.ditto.pleroma.config'],
-    limit: 1,
-  }], { signal });
-
-  const configs = jsonSchema.pipe(z.array(configSchema)).catch([]).parse(
-    event?.content ? await await new AdminSigner().nip44.decrypt(pubkey, event.content) : '',
-  );
-
+  const configs = await getConfigs(c.req.raw.signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   for (const { group, key, value } of newConfigs) {
@@ -97,5 +61,20 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
 
   return c.json({});
 };
+
+async function getConfigs(signal: AbortSignal): Promise<PleromaConfig[]> {
+  const { pubkey } = Conf;
+
+  const [event] = await eventsDB.query([{
+    kinds: [30078],
+    authors: [pubkey],
+    '#d': ['pub.ditto.pleroma.config'],
+    limit: 1,
+  }], { signal });
+
+  return jsonSchema.pipe(configSchema.array()).catch([]).parse(
+    await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content).catch(() => ''),
+  );
+}
 
 export { configController, frontendConfigController, pleromaAdminDeleteStatusController, updateConfigController };

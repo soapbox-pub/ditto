@@ -13,7 +13,7 @@ interface ElixirTuple {
   tuple: [string, ElixirValue];
 }
 
-interface Config {
+interface PleromaConfig {
   group: string;
   key: string;
   value: ElixirValue;
@@ -37,10 +37,10 @@ const elixirValueSchema: z.ZodType<ElixirValue> = z.union([
   elixirTupleSchema,
 ]);
 
-const configSchema: z.ZodType<Config> = z.object({
+const configSchema: z.ZodType<PleromaConfig> = z.object({
   group: z.string(),
   key: z.string(),
   value: elixirValueSchema,
 });
 
-export { type Config, configSchema, type ElixirTuple, elixirTupleSchema, type ElixirValue };
+export { configSchema, type ElixirTuple, elixirTupleSchema, type ElixirValue, type PleromaConfig };
