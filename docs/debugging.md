@@ -15,3 +15,13 @@ ssh -L 9229:localhost:9229 <user>@<host>
 ```
 
 Then, in Chromium, go to `chrome://inspect` and the Ditto server should be available.
+
+## SQLite performance
+
+To track slow queries, first set `DEBUG=ditto:sqlite.worker` in the environment so only SQLite logs are shown.
+
+Then, grep for any logs above 0.001s:
+
+```sh
+journalctl -fu ditto | grep -v '(0.00s)'
+```
