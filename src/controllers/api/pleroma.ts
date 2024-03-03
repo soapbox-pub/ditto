@@ -72,9 +72,12 @@ async function getConfigs(signal: AbortSignal): Promise<PleromaConfig[]> {
     limit: 1,
   }], { signal });
 
-  return jsonSchema.pipe(configSchema.array()).catch([]).parse(
-    await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content).catch(() => ''),
-  );
+  try {
+    const decrypted = await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content);
+    return jsonSchema.pipe(configSchema.array()).catch([]).parse(decrypted);
+  } catch (_e) {
+    return [];
+  }
 }
 
 export { configController, frontendConfigController, pleromaAdminDeleteStatusController, updateConfigController };

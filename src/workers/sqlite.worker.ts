@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-
+import { ScopedPerformance } from 'https://deno.land/x/scoped_performance@v2.0.0/mod.ts';
 import { Comlink, type CompiledQuery, Debug, DenoSqlite3, type QueryResult } from '@/deps.ts';
 import '@/sentry.ts';
 
@@ -12,12 +12,20 @@ export const SqliteWorker = {
   },
   executeQuery<R>({ sql, parameters }: CompiledQuery): QueryResult<R> {
     if (!db) throw new Error('Database not open');
-    debug(sql);
-    return {
+
+    const perf = new ScopedPerformance();
+    perf.mark('start');
+
+    const result = {
       rows: db!.prepare(sql).all(...parameters as any[]) as R[],
       numAffectedRows: BigInt(db!.changes),
       insertId: BigInt(db!.lastInsertRowId),
     };
+
+    const { duration } = perf.measure('end', 'start');
+    debug(`${sql} \x1b[90m(${(duration / 1000).toFixed(2)}s)\x1b[0m`);
+
+    return result;
   },
   destroy() {
     db?.close();
