@@ -28,13 +28,6 @@ Deno.test('insert and filter events', async () => {
   );
 });
 
-Deno.test('delete events', async () => {
-  await eventsDB.event(event1);
-  assertEquals(await eventsDB.query([{ kinds: [1] }]), [event1]);
-  await eventsDB.remove([{ kinds: [1] }]);
-  assertEquals(await eventsDB.query([{ kinds: [1] }]), []);
-});
-
 Deno.test('query events with local filter', async () => {
   await eventsDB.event(event1);
 
@@ -52,6 +45,13 @@ Deno.test('query events with local filter', async () => {
 
   assertEquals(await eventsDB.query([{ kinds: [1], local: true }]), [event1]);
   assertEquals(await eventsDB.query([{ kinds: [1], local: false }]), []);
+});
+
+Deno.test('delete events', async () => {
+  await eventsDB.event(event1);
+  assertEquals(await eventsDB.query([{ kinds: [1] }]), [event1]);
+  await eventsDB.remove([{ kinds: [1] }]);
+  assertEquals(await eventsDB.query([{ kinds: [1] }]), []);
 });
 
 Deno.test('inserting replaceable events', async () => {
