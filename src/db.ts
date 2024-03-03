@@ -38,6 +38,7 @@ interface EventRow {
   created_at: number;
   tags: string;
   sig: string;
+  deleted_at: number | null;
 }
 
 interface EventFTSRow {

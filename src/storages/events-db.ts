@@ -155,6 +155,7 @@ class EventsDB implements NStore {
         'events.created_at',
         'events.sig',
       ])
+      .where('events.deleted_at', 'is', null)
       .orderBy('events.created_at', 'desc');
 
     for (const [key, value] of Object.entries(filter)) {
@@ -329,12 +330,9 @@ class EventsDB implements NStore {
 
     const query = this.getEventsQuery(filters).clearSelect().select('id');
 
-    await db.deleteFrom('events_fts')
+    return await db.updateTable('events')
       .where('id', 'in', () => query)
-      .execute();
-
-    return db.deleteFrom('events')
-      .where('id', 'in', () => query)
+      .set({ deleted_at: Math.floor(Date.now() / 1000) })
       .execute();
   }
 
