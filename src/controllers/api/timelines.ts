@@ -4,6 +4,7 @@ import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -34,10 +35,9 @@ const hashtagTimelineController: AppController = (c) => {
 async function renderStatuses(c: AppContext, filters: DittoFilter[]) {
   const { signal } = c.req.raw;
 
-  const events = await eventsDB.query(
-    filters.map((filter) => ({ ...filter, relations: ['author', 'event_stats', 'author_stats'] })),
-    { signal },
-  );
+  const events = await eventsDB
+    .query(filters, { signal })
+    .then((events) => hydrateEvents({ events, relations: ['author'], storage: eventsDB, signal }));
 
   if (!events.length) {
     return c.json([]);
