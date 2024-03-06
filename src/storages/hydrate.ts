@@ -13,13 +13,13 @@ interface HydrateEventOpts {
 async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
   const { events, relations, storage, signal } = opts;
 
-  if (events.length === 0) {
+  if (!events.length || !relations.length) {
     return events;
   }
 
   if (relations.includes('author')) {
     const pubkeys = new Set([...events].map((event) => event.pubkey));
-    const authors = await storage.query([{ kinds: [0], authors: [...pubkeys] }], { signal });
+    const authors = await storage.query([{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }], { signal });
 
     for (const event of events) {
       event.author = authors.find((author) => author.pubkey === event.pubkey);

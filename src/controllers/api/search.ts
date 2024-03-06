@@ -8,6 +8,7 @@ import { dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
@@ -69,7 +70,6 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
   const filter: DittoFilter = {
     kinds: typeToKinds(type),
     search: q,
-    relations: ['author', 'event_stats', 'author_stats'],
     limit,
   };
 
@@ -77,7 +77,10 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
     filter.authors = [account_id];
   }
 
-  return searchStore.query([filter], { signal });
+  return searchStore.query([filter], { signal })
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: searchStore, signal })
+    );
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -95,8 +98,12 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
-  const [event] = await searchStore.query(filters, { limit: 1, signal });
-  return event;
+
+  return searchStore.query(filters, { limit: 1, signal })
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: searchStore, signal })
+    )
+    .then(([event]) => event);
 }
 
 /** Get filters to lookup the input value. */
@@ -115,19 +122,19 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
       const result = nip19.decode(q);
       switch (result.type) {
         case 'npub':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data], relations: ['author_stats'] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data] });
           break;
         case 'nprofile':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey], relations: ['author_stats'] });
+          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
           break;
         case 'note':
           if (statuses) {
-            filters.push({ kinds: [1], ids: [result.data], relations: ['author', 'event_stats', 'author_stats'] });
+            filters.push({ kinds: [1], ids: [result.data] });
           }
           break;
         case 'nevent':
           if (statuses) {
-            filters.push({ kinds: [1], ids: [result.data.id], relations: ['author', 'event_stats', 'author_stats'] });
+            filters.push({ kinds: [1], ids: [result.data.id] });
           }
           break;
       }
@@ -141,7 +148,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
     try {
       const { pubkey } = await nip05Cache.fetch(q, { signal });
       if (pubkey) {
-        filters.push({ kinds: [0], authors: [pubkey], relations: ['author_stats'] });
+        filters.push({ kinds: [0], authors: [pubkey] });
       }
     } catch (_e) {
       // do nothing
