@@ -23,7 +23,7 @@ class Optimizer implements NStore {
     this.#client = opts.client;
   }
 
-  async event(event: DittoEvent, opts?: NStoreOpts | undefined): Promise<void> {
+  async event(event: DittoEvent, opts?: NStoreOpts): Promise<void> {
     if (opts?.signal?.aborted) return Promise.reject(abortError());
 
     await Promise.all([

@@ -62,7 +62,12 @@ class SearchStore implements NStore {
         events.add(event);
       }
 
-      return hydrateEvents({ events: [...events], filters, storage: this.#hydrator, signal: opts?.signal });
+      return hydrateEvents({
+        events: [...events],
+        relations: ['author', 'event_stats', 'author_stats'],
+        storage: this.#hydrator,
+        signal: opts?.signal,
+      });
     } else {
       this.#debug(`Searching for "${query}" locally...`);
       return this.#fallback.query(filters, opts);

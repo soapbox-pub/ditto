@@ -15,6 +15,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -147,7 +148,6 @@ const accountStatusesController: AppController = async (c) => {
   const filter: DittoFilter = {
     authors: [pubkey],
     kinds: [1],
-    relations: ['author', 'event_stats', 'author_stats'],
     since,
     until,
     limit,
@@ -157,11 +157,16 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  let events = await eventsDB.query([filter], { signal });
-
-  if (exclude_replies) {
-    events = events.filter((event) => !findReplyTag(event.tags));
-  }
+  const events = await eventsDB.query([filter], { signal })
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
+    )
+    .then((events) => {
+      if (exclude_replies) {
+        return events.filter((event) => !findReplyTag(event.tags));
+      }
+      return events;
+    });
 
   const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events, statuses);
@@ -304,10 +309,10 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await eventsDB.query(
-    [{ kinds: [1], ids, relations: ['author', 'event_stats', 'author_stats'] }],
-    { signal },
-  );
+  const events1 = await eventsDB.query([{ kinds: [1], ids }], { signal })
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
+    );
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
   return paginated(c, events1, statuses);

@@ -198,49 +198,6 @@ class EventsDB implements NStore {
         .where('users.d_tag', filter.local ? 'is not' : 'is', null);
     }
 
-    if (filter.relations?.includes('author')) {
-      query = query
-        .leftJoin(
-          (eb) =>
-            eb
-              .selectFrom('events')
-              .selectAll()
-              .where('kind', '=', 0)
-              .groupBy('pubkey')
-              .as('authors'),
-          (join) => join.onRef('authors.pubkey', '=', 'events.pubkey'),
-        )
-        .select([
-          'authors.id as author_id',
-          'authors.kind as author_kind',
-          'authors.pubkey as author_pubkey',
-          'authors.content as author_content',
-          'authors.tags as author_tags',
-          'authors.created_at as author_created_at',
-          'authors.sig as author_sig',
-        ]);
-    }
-
-    if (filter.relations?.includes('author_stats')) {
-      query = query
-        .leftJoin('author_stats', 'author_stats.pubkey', 'events.pubkey')
-        .select((eb) => [
-          eb.fn.coalesce('author_stats.followers_count', eb.val(0)).as('author_stats_followers_count'),
-          eb.fn.coalesce('author_stats.following_count', eb.val(0)).as('author_stats_following_count'),
-          eb.fn.coalesce('author_stats.notes_count', eb.val(0)).as('author_stats_notes_count'),
-        ]);
-    }
-
-    if (filter.relations?.includes('event_stats')) {
-      query = query
-        .leftJoin('event_stats', 'event_stats.event_id', 'events.id')
-        .select((eb) => [
-          eb.fn.coalesce('event_stats.replies_count', eb.val(0)).as('stats_replies_count'),
-          eb.fn.coalesce('event_stats.reposts_count', eb.val(0)).as('stats_reposts_count'),
-          eb.fn.coalesce('event_stats.reactions_count', eb.val(0)).as('stats_reactions_count'),
-        ]);
-    }
-
     if (filter.search) {
       query = query
         .innerJoin('events_fts', 'events_fts.id', 'events.id')

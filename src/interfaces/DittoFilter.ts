@@ -9,6 +9,4 @@ export type DittoRelation = Exclude<keyof DittoEvent, keyof NostrEvent>;
 export interface DittoFilter extends NostrFilter {
   /** Whether the event was authored by a local user. */
   local?: boolean;
-  /** Additional fields to add to the returned event. */
-  relations?: DittoRelation[];
 }

@@ -1,9 +1,9 @@
-import { cache, eventsDB, reqmeister } from '@/storages.ts';
-import { Debug, type NostrEvent } from '@/deps.ts';
-import { type AuthorMicrofilter, type IdMicrofilter } from '@/filter.ts';
+import { eventsDB, optimizer } from '@/storages.ts';
+import { Debug, type NostrEvent, type NostrFilter } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoFilter, type DittoRelation } from '@/interfaces/DittoFilter.ts';
+import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { findReplyTag, getTagSet } from '@/tags.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const debug = Debug('ditto:queries');
 
@@ -22,76 +22,25 @@ const getEvent = async (
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
-  const { kind, relations, signal = AbortSignal.timeout(1000) } = opts;
-  const microfilter: IdMicrofilter = { ids: [id] };
+  const { kind, relations = [], signal = AbortSignal.timeout(1000) } = opts;
 
-  const [memoryEvent] = await cache.query([microfilter]) as DittoEvent[];
-
-  if (memoryEvent && !relations) {
-    debug(`getEvent: ${id.slice(0, 8)} found in memory`);
-    return memoryEvent;
-  }
-
-  const filter: DittoFilter = { ids: [id], relations, limit: 1 };
+  const filter: NostrFilter = { ids: [id], limit: 1 };
   if (kind) {
     filter.kinds = [kind];
   }
 
-  const dbEvent = await eventsDB.query([filter], { limit: 1, signal })
+  return await optimizer.query([filter], { limit: 1, signal })
+    .then(([event]) => hydrateEvents({ events: [event], relations, storage: optimizer, signal }))
     .then(([event]) => event);
-
-  // TODO: make this DRY-er.
-
-  if (dbEvent && !dbEvent.author) {
-    const [author] = await cache.query([{ kinds: [0], authors: [dbEvent.pubkey] }]);
-    dbEvent.author = author;
-  }
-
-  if (dbEvent) {
-    debug(`getEvent: ${id.slice(0, 8)} found in db`);
-    return dbEvent;
-  }
-
-  if (memoryEvent && !memoryEvent.author) {
-    const [author] = await cache.query([{ kinds: [0], authors: [memoryEvent.pubkey] }]);
-    memoryEvent.author = author;
-  }
-
-  if (memoryEvent) {
-    debug(`getEvent: ${id.slice(0, 8)} found in memory`);
-    return memoryEvent;
-  }
-
-  const reqEvent = await reqmeister.req(microfilter, opts).catch(() => undefined);
-
-  if (reqEvent) {
-    debug(`getEvent: ${id.slice(0, 8)} found by reqmeister`);
-    return reqEvent;
-  }
-
-  debug(`getEvent: ${id.slice(0, 8)} not found`);
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
-  const { relations, signal = AbortSignal.timeout(1000) } = opts;
-  const microfilter: AuthorMicrofilter = { kinds: [0], authors: [pubkey] };
+  const { relations = [], signal = AbortSignal.timeout(1000) } = opts;
 
-  const [memoryEvent] = await cache.query([microfilter]);
-
-  if (memoryEvent && !relations) {
-    return memoryEvent;
-  }
-
-  const dbEvent = await eventsDB.query(
-    [{ authors: [pubkey], relations, kinds: [0], limit: 1 }],
-    { limit: 1, signal },
-  ).then(([event]) => event);
-
-  if (dbEvent) return dbEvent;
-  if (memoryEvent) return memoryEvent;
-
-  return reqmeister.req(microfilter, opts).catch(() => undefined);
+  return await optimizer.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
+    .then(([event]) => hydrateEvents({ events: [event], relations, storage: optimizer, signal }))
+    .then(([event]) => event);
 };
 
 /** Get users the given pubkey follows. */
@@ -132,10 +81,10 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 }
 
 function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  return eventsDB.query(
-    [{ kinds: [1], '#e': [eventId], relations: ['author', 'event_stats', 'author_stats'] }],
-    { limit: 200, signal },
-  );
+  return eventsDB.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
+    );
 }
 
 /** Returns whether the pubkey is followed by a local user. */
