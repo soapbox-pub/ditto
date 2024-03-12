@@ -54,7 +54,7 @@ async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<b
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent): Promise<void> {
-  const [user] = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], limit: 1 }]);
+  const [user] = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], '#d': [event.pubkey], limit: 1 }]);
   event.user = user;
 }
 
