@@ -12,9 +12,7 @@ export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
 export {
   type EventTemplate,
-  finalizeEvent,
   getEventHash,
-  getPublicKey,
   matchFilter,
   matchFilters,
   nip05,
@@ -23,8 +21,8 @@ export {
   nip21,
   type UnsignedEvent,
   type VerifiedEvent,
-  verifyEvent,
-} from 'npm:nostr-tools@^2.1.5';
+} from 'npm:nostr-tools@^2.3.1';
+export { finalizeEvent, getPublicKey, verifyEvent } from 'npm:nostr-tools@^2.3.1/wasm';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
@@ -96,3 +94,8 @@ export {
 } from 'https://gitlab.com/soapbox-pub/NSpec/-/raw/v0.3.0/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
+
+import { setNostrWasm } from 'npm:nostr-tools@^2.3.1/wasm';
+import { initNostrWasm } from 'npm:nostr-wasm@^0.1.0';
+
+await initNostrWasm().then(setNostrWasm);
