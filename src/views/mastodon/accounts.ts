@@ -79,7 +79,7 @@ async function renderAccount(
       is_moderator: user?.admin || false,
     },
     nostr: {
-      npub,
+      pubkey,
     },
   };
 }
