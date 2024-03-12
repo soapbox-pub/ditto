@@ -37,6 +37,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     trackHashtags(event),
     fetchRelatedEvents(event, signal),
     processMedia(event),
+    registerUser(event),
     payZap(event, signal),
     streamOut(event),
     broadcast(event, signal),
@@ -70,7 +71,7 @@ async function storeEvent(event: DittoEvent, opts: StoreEventOpts): Promise<void
   if (isEphemeralKind(event.kind)) return;
   const { force = false, signal } = opts;
 
-  if (force || event.user || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
+  if (force || event.user || event.kind === 5951 || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
     const isDeleted = (await eventsDB.count(
       [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
       opts,
@@ -165,6 +166,56 @@ function processMedia({ tags, pubkey, user }: DittoEvent) {
     const urls = getTagSet(tags, 'media');
     return deleteAttachedMedia(pubkey, [...urls]);
   }
+}
+
+/** Register the user, if applicable. */
+async function registerUser(event: DittoEvent): Promise<void> {
+  if (event.kind !== 5951) return;
+  const signer = new AdminSigner();
+
+  const exists = (await eventsDB.count(
+    [{ kinds: [30361], authors: [Conf.pubkey], '#d': [event.pubkey], limit: 1 }],
+  )).count > 0;
+
+  if (exists) {
+    const feedback = await signer.signEvent({
+      kind: 7000,
+      content: '',
+      tags: [
+        ['status', 'error', 'User already exists'],
+        ['e', event.id],
+        ['p', event.pubkey],
+      ],
+      created_at: nostrNow(),
+    });
+    return handleEvent(feedback, AbortSignal.timeout(1000));
+  }
+
+  const user = await signer.signEvent({
+    kind: 30361,
+    tags: [
+      ['d', event.pubkey],
+    ],
+    content: '',
+    created_at: nostrNow(),
+  });
+
+  const resp = await signer.signEvent({
+    kind: 6951,
+    content: Conf.relay,
+    tags: [
+      ['request', JSON.stringify(event)],
+      ['i', Conf.relay, 'text'],
+      ['p', event.pubkey],
+      ['e', event.id],
+    ],
+    created_at: nostrNow(),
+  });
+
+  await Promise.all([
+    handleEvent(user, AbortSignal.timeout(1000)),
+    handleEvent(resp, AbortSignal.timeout(1000)),
+  ]);
 }
 
 /** Emit Nostr Wallet Connect event from zaps so users may pay. */
