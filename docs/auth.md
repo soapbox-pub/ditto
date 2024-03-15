@@ -12,7 +12,7 @@ The main concerns are how to **conveniently log in on multiple devices**, and **
 
 ### Current Solutions
 
-1. **Private key text.** Users copy their key between devices/apps, giving apps full control over their key. Users might email the key to themselves, or better yet use a password manager, or apps might even provide a QR code for other apps to scan. This method is convenient, but it's not secure. If the app is compromised, the key is compromised.
+1. **Private key text.** Users copy their key between devices/apps, giving apps full control over their key. Users might email the key to themselves, or better yet use a password manager, or apps might even provide a QR code for other apps to scan. This method is convenient, but it's not secure. Keys can get compromised in transit, or by a malicious or vulnerable app.
 
 2. **Browser extension.** For web clients, an extension can expose `getPublicKey` and `signEvent` functions to web-pages without exposing the private key directly. This option is secure, but it only works well for laptop/desktop devices. On mobile, only FireFox can do it, with no support from Safari or Chrome. It also offers no way to share a key across devices on its own.
 
