@@ -8,7 +8,7 @@ With keys, users have full control over their identity. They can move between se
 
 There are several ways to manage keys in Nostr, and they all come with trade-offs. It's new territory, and people are still coming up with new ideas.
 
-The main concerns are how to **conveniently log in on multiple devices**, and **who/what controls your key**.
+The main concerns are how to **conveniently log in on multiple devices**, and **who/what to trust with your key.**
 
 ### Current Solutions
 
