@@ -4,7 +4,6 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
-import { isLocallyFollowed } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
 import { dehydrateEvent } from '@/storages/hydrate.ts';
 import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
@@ -25,13 +24,12 @@ const debug = Debug('ditto:pipeline');
  */
 async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   if (!(await verifyEventWorker(event))) return;
-  const wanted = reqmeister.isWanted(event);
   if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event);
 
   await Promise.all([
-    storeEvent(event, { force: wanted, signal }),
+    storeEvent(event, signal),
     processDeletions(event, signal),
     trackRelays(event),
     trackHashtags(event),
@@ -58,35 +56,22 @@ async function hydrateEvent(event: DittoEvent): Promise<void> {
   event.user = user;
 }
 
-/** Check if the pubkey is the `DITTO_NSEC` pubkey. */
-const isAdminEvent = ({ pubkey }: NostrEvent): boolean => pubkey === Conf.pubkey;
-
-interface StoreEventOpts {
-  force: boolean;
-  signal: AbortSignal;
-}
-
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: DittoEvent, opts: StoreEventOpts): Promise<void> {
+async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
-  const { force = false, signal } = opts;
 
-  if (force || event.user || event.kind === 5951 || isAdminEvent(event) || await isLocallyFollowed(event.pubkey)) {
-    const isDeleted = (await eventsDB.count(
-      [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
-      opts,
-    )).count > 0;
+  const isDeleted = (await eventsDB.count(
+    [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
+    { signal },
+  )).count > 0;
 
-    if (isDeleted) {
-      return Promise.reject(new RelayError('blocked', 'event was deleted'));
-    } else {
-      await Promise.all([
-        eventsDB.event(event, { signal }).catch(debug),
-        updateStats(event).catch(debug),
-      ]);
-    }
+  if (isDeleted) {
+    return Promise.reject(new RelayError('blocked', 'event was deleted'));
   } else {
-    return Promise.reject(new RelayError('blocked', 'only registered users can post'));
+    await Promise.all([
+      eventsDB.event(event, { signal }).catch(debug),
+      updateStats(event).catch(debug),
+    ]);
   }
 }
 
