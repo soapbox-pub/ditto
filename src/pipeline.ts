@@ -5,7 +5,7 @@ import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { updateStats } from '@/stats.ts';
-import { dehydrateEvent } from '@/storages/hydrate.ts';
+import { purifyEvent } from '@/storages/hydrate.ts';
 import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
@@ -225,7 +225,7 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 
     const { pr } = await LNURL.callback(
       details.callback,
-      { amount, nostr: dehydrateEvent(event), lnurl },
+      { amount, nostr: purifyEvent(event), lnurl },
       { fetch: fetchWorker, signal },
     );
 
