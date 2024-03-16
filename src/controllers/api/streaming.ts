@@ -38,12 +38,8 @@ const streamingController: AppController = (c) => {
     return c.text('Please use websocket protocol', 400);
   }
 
-  if (!token) {
-    return c.json({ error: 'Missing access token' }, 401);
-  }
-
   const pubkey = token ? bech32ToPubkey(token) : undefined;
-  if (!pubkey) {
+  if (token && !pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
@@ -62,7 +58,7 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-    const filter = await topicToFilter(stream, pubkey, c.req.query());
+    const filter = await topicToFilter(stream, c.req.query(), pubkey);
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
@@ -84,8 +80,8 @@ const streamingController: AppController = (c) => {
 
 async function topicToFilter(
   topic: Stream,
-  pubkey: string,
   query: Record<string, string>,
+  pubkey: string | undefined,
 ): Promise<DittoFilter | undefined> {
   switch (topic) {
     case 'public':
@@ -102,7 +98,7 @@ async function topicToFilter(
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return { kinds: [1], authors: await getFeedPubkeys(pubkey) };
+      return pubkey ? { kinds: [1], authors: await getFeedPubkeys(pubkey) } : undefined;
   }
 }
 
