@@ -30,7 +30,7 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
 }
 
 /** Return a normalized event without any non-standard keys. */
-function purifyEvent(event: DittoEvent): NostrEvent {
+function purifyEvent(event: NostrEvent): NostrEvent {
   return {
     id: event.id,
     pubkey: event.pubkey,
