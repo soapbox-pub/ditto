@@ -1,6 +1,5 @@
-import { NiceRelay } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/5f4fb59c90c092e5aa59c01e6556a4bec264c167/mod.ts';
-
-import { Debug, type NostrEvent, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
+import { NRelay1 } from '@soapbox/nspec';
+import { Debug, type NostrEvent, type NStore, type NStoreOpts } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
@@ -18,14 +17,14 @@ class SearchStore implements NStore {
 
   #fallback: NStore;
   #hydrator: NStore;
-  #relay: NiceRelay | undefined;
+  #relay: NRelay1 | undefined;
 
   constructor(opts: SearchStoreOpts) {
     this.#fallback = opts.fallback;
     this.#hydrator = opts.hydrator ?? this;
 
     if (opts.relay) {
-      this.#relay = new NiceRelay(opts.relay);
+      this.#relay = new NRelay1(opts.relay);
     }
   }
 
@@ -45,25 +44,10 @@ class SearchStore implements NStore {
     if (this.#relay && this.#relay.socket.readyState === WebSocket.OPEN) {
       this.#debug(`Searching for "${query}" at ${this.#relay.socket.url}...`);
 
-      const sub = this.#relay.req(filters, opts);
-
-      const close = () => {
-        sub.close();
-        opts?.signal?.removeEventListener('abort', close);
-        sub.eoseSignal.removeEventListener('abort', close);
-      };
-
-      opts?.signal?.addEventListener('abort', close, { once: true });
-      sub.eoseSignal.addEventListener('abort', close, { once: true });
-
-      const events = new NSet();
-
-      for await (const event of sub) {
-        events.add(event);
-      }
+      const events = await this.#relay.query(filters, opts);
 
       return hydrateEvents({
-        events: [...events],
+        events,
         relations: ['author', 'event_stats', 'author_stats'],
         storage: this.#hydrator,
         signal: opts?.signal,
