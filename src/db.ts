@@ -14,6 +14,7 @@ interface DittoDB {
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
+  pubkey_domains: PubkeyDomainRow;
 }
 
 interface AuthorStatsRow {
@@ -64,6 +65,11 @@ interface UnattachedMediaRow {
   url: string;
   data: string;
   uploaded_at: Date;
+}
+
+interface PubkeyDomainRow {
+  pubkey: string;
+  domain: string;
 }
 
 const sqliteWorker = new SqliteWorker();

@@ -1,4 +1,6 @@
+import { NSchema as n } from '@soapbox/nspec';
 import { Conf } from '@/config.ts';
+import { db } from '@/db.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
@@ -15,6 +17,7 @@ import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -30,6 +33,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   await Promise.all([
     storeEvent(event, signal),
+    parseMetadata(event, signal),
     processDeletions(event, signal),
     trackRelays(event),
     trackHashtags(event),
@@ -72,6 +76,35 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
       updateStats(event).catch(debug),
     ]);
   }
+}
+
+/** Parse kind 0 metadata and track indexes in the database. */
+async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<void> {
+  if (event.kind !== 0) return;
+
+  // Parse metadata.
+  const metadata = n.json().pipe(n.metadata()).safeParse(event.content);
+  if (!metadata.success) return;
+
+  // Get nip05.
+  const { nip05 } = metadata.data;
+  if (!nip05) return;
+
+  // Fetch nip05.
+  const result = await nip05Cache.fetch(nip05, { signal }).catch(() => undefined);
+  if (!result) return;
+
+  // Ensure pubkey matches event.
+  const { pubkey } = result;
+  if (pubkey !== event.pubkey) return;
+
+  // Track pubkey domain.
+  const [, domain] = nip05.split('@');
+  await db
+    .insertInto('pubkey_domains')
+    .values({ pubkey, domain })
+    .execute()
+    .catch(debug);
 }
 
 /** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
