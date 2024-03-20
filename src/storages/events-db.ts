@@ -1,3 +1,4 @@
+import { NIP50 } from '@soapbox/nspec';
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
 import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
@@ -199,9 +200,12 @@ class EventsDB implements NStore {
     }
 
     if (filter.search) {
+      const tokens = NIP50.parseInput(filter.search);
+      const q = tokens.filter((t) => typeof t === 'string').join(' ');
+
       query = query
         .innerJoin('events_fts', 'events_fts.id', 'events.id')
-        .where('events_fts.content', 'match', JSON.stringify(filter.search));
+        .where('events_fts.content', 'match', JSON.stringify(q));
     }
 
     return query;

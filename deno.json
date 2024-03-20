@@ -10,7 +10,7 @@
     "relays:sync": "deno run -A --unstable-ffi scripts/relays.ts sync"
   },
   "exclude": ["./public"],
-  "imports": { "@/": "./src/", "@soapbox/nspec": "jsr:@soapbox/nspec@^0.7.0", "~/fixtures/": "./fixtures/" },
+  "imports": { "@/": "./src/", "@soapbox/nspec": "jsr:@soapbox/nspec@^0.8.0", "~/fixtures/": "./fixtures/" },
   "lint": {
     "include": ["src/", "scripts/"],
     "rules": {
