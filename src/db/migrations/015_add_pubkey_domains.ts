@@ -5,7 +5,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createTable('pubkey_domains')
     .ifNotExists()
     .addColumn('pubkey', 'text', (col) => col.primaryKey())
-    .addColumn('domain', 'text')
+    .addColumn('domain', 'text', (col) => col.notNull())
     .execute();
 
   await db.schema
