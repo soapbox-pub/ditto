@@ -11,7 +11,7 @@ import { purifyEvent } from '@/storages/hydrate.ts';
 import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
-import { eventAge, isRelay, nostrDate, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isRelay, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
@@ -99,12 +99,16 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   if (pubkey !== event.pubkey) return;
 
   // Track pubkey domain.
-  const [, domain] = nip05.split('@');
-  await db
-    .insertInto('pubkey_domains')
-    .values({ pubkey, domain })
-    .execute()
-    .catch(debug);
+  try {
+    const { domain } = parseNip05(nip05);
+    await db
+      .insertInto('pubkey_domains')
+      .values({ pubkey, domain })
+      .execute()
+      .catch(debug);
+  } catch (_e) {
+    // do nothing
+  }
 }
 
 /** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
