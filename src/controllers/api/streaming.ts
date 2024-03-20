@@ -2,7 +2,7 @@ import { NostrFilter } from '@soapbox/nspec';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Debug, z } from '@/deps.ts';
-import { getAuthor, getFeedPubkeys } from '@/queries.ts';
+import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
