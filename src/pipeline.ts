@@ -6,6 +6,7 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
+import { getAuthor } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
@@ -57,6 +58,9 @@ async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<b
 async function hydrateEvent(event: DittoEvent): Promise<void> {
   const [user] = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], '#d': [event.pubkey], limit: 1 }]);
   event.user = user;
+
+  const author = await getAuthor(event.pubkey);
+  event.author = author;
 
   const domain = await db
     .selectFrom('pubkey_domains')
