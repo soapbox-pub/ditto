@@ -1,6 +1,6 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { AppController } from '@/app.ts';
 import { nip19, type NostrEvent, z } from '@/deps.ts';
-import { type NostrFilter } from '@/interfaces/DittoFilter.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';
