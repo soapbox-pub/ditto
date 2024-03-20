@@ -18,17 +18,19 @@ const homeTimelineController: AppController = async (c) => {
 
 const publicQuerySchema = z.object({
   local: booleanParamSchema.catch(false),
+  instance: z.string().optional().catch(undefined),
 });
 
 const publicTimelineController: AppController = (c) => {
   const params = paginationSchema.parse(c.req.query());
-  const { local } = publicQuerySchema.parse(c.req.query());
-  const { host } = Conf.url;
+  const { local, instance } = publicQuerySchema.parse(c.req.query());
 
   const filter: NostrFilter = { kinds: [1], ...params };
 
   if (local) {
-    filter.search = `domain:${host}`;
+    filter.search = `domain:${Conf.url.host}`;
+  } else if (instance) {
+    filter.search = `domain:${instance}`;
   }
 
   return renderStatuses(c, [filter]);
