@@ -57,6 +57,14 @@ async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<b
 async function hydrateEvent(event: DittoEvent): Promise<void> {
   const [user] = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], '#d': [event.pubkey], limit: 1 }]);
   event.user = user;
+
+  const domain = await db
+    .selectFrom('pubkey_domains')
+    .select('domain')
+    .where('pubkey', '=', event.pubkey)
+    .executeTakeFirst();
+
+  event.author_domain = domain?.domain;
 }
 
 /** Maybe store the event, if eligible. */

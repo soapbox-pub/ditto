@@ -1,5 +1,5 @@
-import { NostrFilter } from '@soapbox/nspec';
-import { Machina, matchFilters, type NostrEvent } from '@/deps.ts';
+import { NIP50, NostrFilter } from '@soapbox/nspec';
+import { Machina, matchFilter, type NostrEvent } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 class Subscription implements AsyncIterable<NostrEvent> {
@@ -16,8 +16,25 @@ class Subscription implements AsyncIterable<NostrEvent> {
   }
 
   matches(event: DittoEvent): boolean {
-    // TODO: Match `search` field.
-    return matchFilters(this.filters, event);
+    for (const filter of this.filters) {
+      if (matchFilter(filter, event)) {
+        if (filter.search) {
+          const tokens = NIP50.parseInput(filter.search);
+
+          const domain = (tokens.find((t) =>
+            typeof t === 'object' && t.key === 'domain'
+          ) as { key: 'domain'; value: string } | undefined)?.value;
+
+          if (domain) {
+            return domain === event.author_domain;
+          }
+        }
+
+        return true;
+      }
+    }
+
+    return false;
   }
 
   close() {
