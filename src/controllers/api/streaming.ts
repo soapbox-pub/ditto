@@ -1,6 +1,7 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { type AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { Debug, z } from '@/deps.ts';
-import { DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { getAuthor, getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
@@ -82,17 +83,19 @@ async function topicToFilter(
   topic: Stream,
   query: Record<string, string>,
   pubkey: string | undefined,
-): Promise<DittoFilter | undefined> {
+): Promise<NostrFilter | undefined> {
+  const { host } = Conf.url;
+
   switch (topic) {
     case 'public':
       return { kinds: [1] };
     case 'public:local':
-      return { kinds: [1], local: true };
+      return { kinds: [1], search: `domain:${host}` };
     case 'hashtag':
       if (query.tag) return { kinds: [1], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1], '#t': [query.tag], local: true };
+      if (query.tag) return { kinds: [1], '#t': [query.tag], search: `domain:${host}` };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,

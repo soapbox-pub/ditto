@@ -1,6 +1,6 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { AppController } from '@/app.ts';
 import { nip19, type NostrEvent, z } from '@/deps.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';
@@ -67,7 +67,7 @@ const searchController: AppController = async (c) => {
 function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
-  const filter: DittoFilter = {
+  const filter: NostrFilter = {
     kinds: typeToKinds(type),
     search: q,
     limit,
@@ -107,8 +107,8 @@ async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Nos
 }
 
 /** Get filters to lookup the input value. */
-async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: AbortSignal): Promise<DittoFilter[]> {
-  const filters: DittoFilter[] = [];
+async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: AbortSignal): Promise<NostrFilter[]> {
+  const filters: NostrFilter[] = [];
 
   const accounts = !type || type === 'accounts';
   const statuses = !type || type === 'statuses';

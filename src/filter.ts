@@ -1,7 +1,4 @@
-import { Conf } from '@/config.ts';
-import { matchFilters, type NostrEvent, type NostrFilter, stringifyStable, z } from '@/deps.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { type NostrEvent, type NostrFilter, stringifyStable, z } from '@/deps.ts';
 import { isReplaceableKind } from '@/kinds.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
@@ -11,28 +8,6 @@ type IdMicrofilter = { ids: [NostrEvent['id']] };
 type AuthorMicrofilter = { kinds: [0]; authors: [NostrEvent['pubkey']] };
 /** Filter to get one specific event. */
 type MicroFilter = IdMicrofilter | AuthorMicrofilter;
-
-function matchDittoFilter(filter: DittoFilter, event: DittoEvent): boolean {
-  if (filter.local && !(event.user || event.pubkey === Conf.pubkey)) {
-    return false;
-  }
-
-  return matchFilters([filter], event);
-}
-
-/**
- * Similar to nostr-tools `matchFilters`, but supports Ditto's custom keys.
- * Database calls are needed to look up the extra data, so it's passed in as an argument.
- */
-function matchDittoFilters(filters: DittoFilter[], event: DittoEvent): boolean {
-  for (const filter of filters) {
-    if (matchDittoFilter(filter, event)) {
-      return true;
-    }
-  }
-
-  return false;
-}
 
 /** Get deterministic ID for a microfilter. */
 function getFilterId(filter: MicroFilter): string {
@@ -114,7 +89,6 @@ export {
   getMicroFilters,
   type IdMicrofilter,
   isMicrofilter,
-  matchDittoFilters,
   type MicroFilter,
   normalizeFilters,
 };

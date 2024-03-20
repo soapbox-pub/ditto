@@ -1,5 +1,4 @@
 import { db } from '@/db.ts';
-import { buildUserEvent } from '@/db/users.ts';
 import { assertEquals, assertRejects } from '@/deps-test.ts';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
@@ -28,23 +27,20 @@ Deno.test('insert and filter events', async () => {
   );
 });
 
-Deno.test('query events with local filter', async () => {
+Deno.test('query events with domain search filter', async () => {
   await eventsDB.event(event1);
 
   assertEquals(await eventsDB.query([{}]), [event1]);
-  assertEquals(await eventsDB.query([{ local: true }]), []);
-  assertEquals(await eventsDB.query([{ local: false }]), [event1]);
+  assertEquals(await eventsDB.query([{ search: 'domain:localhost:8000' }]), []);
+  assertEquals(await eventsDB.query([{ search: '' }]), [event1]);
 
-  const userEvent = await buildUserEvent({
-    username: 'alex',
-    pubkey: event1.pubkey,
-    inserted_at: new Date(),
-    admin: false,
-  });
-  await eventsDB.event(userEvent);
+  await db
+    .insertInto('pubkey_domains')
+    .values({ pubkey: event1.pubkey, domain: 'localhost:8000' })
+    .execute();
 
-  assertEquals(await eventsDB.query([{ kinds: [1], local: true }]), [event1]);
-  assertEquals(await eventsDB.query([{ kinds: [1], local: false }]), []);
+  assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:localhost:8000' }]), [event1]);
+  assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:example.com' }]), []);
 });
 
 Deno.test('delete events', async () => {

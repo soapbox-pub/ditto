@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import { eventsDB, optimizer } from '@/storages.ts';
 import { Debug, type NostrEvent, type NostrFilter } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -89,7 +90,13 @@ function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Pr
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  const [event] = await eventsDB.query([{ kinds: [3], '#p': [pubkey], local: true, limit: 1 }], { limit: 1 });
+  const { host } = Conf.url;
+
+  const [event] = await eventsDB.query(
+    [{ kinds: [3], '#p': [pubkey], search: `domain:${host}`, limit: 1 }],
+    { limit: 1 },
+  );
+
   return Boolean(event);
 }
 

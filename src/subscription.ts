@@ -1,13 +1,12 @@
-import { Machina, type NostrEvent } from '@/deps.ts';
-import { matchDittoFilters } from '@/filter.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { NostrFilter } from '@soapbox/nspec';
+import { Machina, matchFilters, type NostrEvent } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 class Subscription implements AsyncIterable<NostrEvent> {
-  filters: DittoFilter[];
+  filters: NostrFilter[];
   #machina: Machina<NostrEvent>;
 
-  constructor(filters: DittoFilter[]) {
+  constructor(filters: NostrFilter[]) {
     this.filters = filters;
     this.#machina = new Machina();
   }
@@ -17,7 +16,8 @@ class Subscription implements AsyncIterable<NostrEvent> {
   }
 
   matches(event: DittoEvent): boolean {
-    return matchDittoFilters(this.filters, event);
+    // TODO: Match `search` field.
+    return matchFilters(this.filters, event);
   }
 
   close() {

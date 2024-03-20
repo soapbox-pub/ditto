@@ -1,6 +1,7 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { type AppContext, type AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
@@ -22,7 +23,15 @@ const publicQuerySchema = z.object({
 const publicTimelineController: AppController = (c) => {
   const params = paginationSchema.parse(c.req.query());
   const { local } = publicQuerySchema.parse(c.req.query());
-  return renderStatuses(c, [{ kinds: [1], local, ...params }]);
+  const { host } = Conf.url;
+
+  const filter: NostrFilter = { kinds: [1], ...params };
+
+  if (local) {
+    filter.search = `domain:${host}`;
+  }
+
+  return renderStatuses(c, [filter]);
 };
 
 const hashtagTimelineController: AppController = (c) => {
@@ -32,7 +41,7 @@ const hashtagTimelineController: AppController = (c) => {
 };
 
 /** Render statuses for timelines. */
-async function renderStatuses(c: AppContext, filters: DittoFilter[]) {
+async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const { signal } = c.req.raw;
 
   const events = await eventsDB
