@@ -40,7 +40,7 @@ Deno.test('query events with domain search filter', async () => {
     .execute();
 
   assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:localhost:8000' }]), [event1]);
-  assertEquals(await eventsDB.query([{ kinds: [1], search: '' }]), []);
+  assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:example.com' }]), []);
 });
 
 Deno.test('delete events', async () => {
