@@ -1,3 +1,4 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { insertUser } from '@/db/users.ts';
@@ -8,13 +9,13 @@ import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
-import { lookupAccount, nostrNow } from '@/utils.ts';
+import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import { lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { NostrFilter } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const usernameSchema = z
