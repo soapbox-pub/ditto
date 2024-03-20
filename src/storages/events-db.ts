@@ -193,19 +193,28 @@ class EventsDB implements NStore {
       }
     }
 
-    if (typeof filter.local === 'boolean') {
-      query = query
-        .leftJoin(() => this.usersQuery(), (join) => join.onRef('users.d_tag', '=', 'events.pubkey'))
-        .where('users.d_tag', filter.local ? 'is not' : 'is', null);
-    }
-
     if (filter.search) {
       const tokens = NIP50.parseInput(filter.search);
-      const q = tokens.filter((t) => typeof t === 'string').join(' ');
 
-      query = query
-        .innerJoin('events_fts', 'events_fts.id', 'events.id')
-        .where('events_fts.content', 'match', JSON.stringify(q));
+      const domain = (tokens.find((t) =>
+        typeof t === 'object' && t.key === 'domain'
+      ) as { key: 'domain'; value: string } | undefined)?.value;
+
+      if (domain) {
+        query = query
+          .innerJoin('pubkey_domains', 'pubkey_domains.pubkey', 'events.pubkey')
+          .where('pubkey_domains.domain', '=', domain);
+      }
+
+      const q = tokens.filter((t) =>
+        typeof t === 'string'
+      ).join(' ');
+
+      if (q) {
+        query = query
+          .innerJoin('events_fts', 'events_fts.id', 'events.id')
+          .where('events_fts.content', 'match', JSON.stringify(q));
+      }
     }
 
     return query;
