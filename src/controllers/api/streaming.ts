@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { Debug, z } from '@/deps.ts';
-import { DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { NostrFilter } from '@/interfaces/DittoFilter.ts';
 import { getAuthor, getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
@@ -82,7 +82,7 @@ async function topicToFilter(
   topic: Stream,
   query: Record<string, string>,
   pubkey: string | undefined,
-): Promise<DittoFilter | undefined> {
+): Promise<NostrFilter | undefined> {
   switch (topic) {
     case 'public':
       return { kinds: [1] };

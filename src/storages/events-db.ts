@@ -1,10 +1,9 @@
-import { NIP50 } from '@soapbox/nspec';
+import { NIP50, NostrFilter } from '@soapbox/nspec';
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
 import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
@@ -144,7 +143,7 @@ class EventsDB implements NStore {
   }
 
   /** Build the query for a filter. */
-  getFilterQuery(db: Kysely<DittoDB>, filter: DittoFilter): EventQuery {
+  getFilterQuery(db: Kysely<DittoDB>, filter: NostrFilter): EventQuery {
     let query = db
       .selectFrom('events')
       .select([
@@ -162,7 +161,7 @@ class EventsDB implements NStore {
     for (const [key, value] of Object.entries(filter)) {
       if (value === undefined) continue;
 
-      switch (key as keyof DittoFilter) {
+      switch (key as keyof NostrFilter) {
         case 'ids':
           query = query.where('events.id', 'in', filter.ids!);
           break;
@@ -221,7 +220,7 @@ class EventsDB implements NStore {
   }
 
   /** Combine filter queries into a single union query. */
-  getEventsQuery(filters: DittoFilter[]) {
+  getEventsQuery(filters: NostrFilter[]) {
     return filters
       .map((filter) => this.#db.selectFrom(() => this.getFilterQuery(this.#db, filter).as('events')).selectAll())
       .reduce((result, query) => result.unionAll(query));
@@ -237,7 +236,7 @@ class EventsDB implements NStore {
   }
 
   /** Get events for filters from the database. */
-  async query(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
+  async query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -294,7 +293,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events from each table. Should be run in a transaction! */
-  async deleteEventsTrx(db: Kysely<DittoDB>, filters: DittoFilter[]) {
+  async deleteEventsTrx(db: Kysely<DittoDB>, filters: NostrFilter[]) {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -307,7 +306,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: DittoFilter[], _opts?: NStoreOpts): Promise<void> {
+  async remove(filters: NostrFilter[], _opts?: NStoreOpts): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -315,7 +314,7 @@ class EventsDB implements NStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<{ count: number; approximate: boolean }> {
+  async count(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 

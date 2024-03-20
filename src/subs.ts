@@ -1,6 +1,6 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { Debug } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { Subscription } from '@/subscription.ts';
 
 const debug = Debug('ditto:subs');
@@ -21,7 +21,7 @@ class SubscriptionStore {
    * }
    * ```
    */
-  sub(socket: unknown, id: string, filters: DittoFilter[]): Subscription {
+  sub(socket: unknown, id: string, filters: NostrFilter[]): Subscription {
     debug('sub', id, JSON.stringify(filters));
     let subs = this.#store.get(socket);
 

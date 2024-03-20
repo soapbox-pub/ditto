@@ -128,10 +128,10 @@ function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined 
   const firstEvent = events[0];
   const lastEvent = events[events.length - 1];
 
-  const { localDomain } = Conf;
+  const { origin } = Conf.url;
   const { pathname, search } = new URL(url);
-  const next = new URL(pathname + search, localDomain);
-  const prev = new URL(pathname + search, localDomain);
+  const next = new URL(pathname + search, origin);
+  const prev = new URL(pathname + search, origin);
 
   next.searchParams.set('until', String(lastEvent.created_at));
   prev.searchParams.set('since', String(firstEvent.created_at));

@@ -1,6 +1,6 @@
 import { type AppContext, type AppController } from '@/app.ts';
 import { z } from '@/deps.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { type NostrFilter } from '@/interfaces/DittoFilter.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
@@ -32,7 +32,7 @@ const hashtagTimelineController: AppController = (c) => {
 };
 
 /** Render statuses for timelines. */
-async function renderStatuses(c: AppContext, filters: DittoFilter[]) {
+async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const { signal } = c.req.raw;
 
   const events = await eventsDB

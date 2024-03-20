@@ -1,7 +1,7 @@
+import { NostrFilter } from '@soapbox/nspec';
 import { Debug, NSet, type NStore, type NStoreOpts } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoFilter } from '@/interfaces/DittoFilter.ts';
 import { abortError } from '@/utils/abort.ts';
 
 interface OptimizerOpts {
@@ -32,7 +32,7 @@ class Optimizer implements NStore {
     ]);
   }
 
-  async query(filters: DittoFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
+  async query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
     if (opts?.signal?.aborted) return Promise.reject(abortError());
 
     filters = normalizeFilters(filters);

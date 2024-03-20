@@ -14,7 +14,7 @@ import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts'
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { DittoFilter } from '@/interfaces/DittoFilter.ts';
+import { NostrFilter } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const usernameSchema = z
@@ -145,7 +145,7 @@ const accountStatusesController: AppController = async (c) => {
     }
   }
 
-  const filter: DittoFilter = {
+  const filter: NostrFilter = {
     authors: [pubkey],
     kinds: [1],
     since,

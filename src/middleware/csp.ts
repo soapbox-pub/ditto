@@ -3,13 +3,13 @@ import { Conf } from '@/config.ts';
 
 const csp = (): AppMiddleware => {
   return async (c, next) => {
-    const { host, protocol } = Conf.url;
+    const { host, protocol, origin } = Conf.url;
     const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
 
     const policies = [
       'upgrade-insecure-requests',
       `script-src 'self'`,
-      `connect-src 'self' blob: ${Conf.localDomain} ${wsProtocol}//${host}`,
+      `connect-src 'self' blob: ${origin} ${wsProtocol}//${host}`,
       `media-src 'self' https:`,
       `img-src 'self' data: blob: https:`,
       `default-src 'none'`,
