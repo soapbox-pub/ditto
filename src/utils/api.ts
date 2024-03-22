@@ -115,7 +115,7 @@ async function parseBody(req: Request): Promise<unknown> {
 /** Schema to parse pagination query params. */
 const paginationSchema = z.object({
   since: z.coerce.number().optional().catch(undefined),
-  until: z.lazy(() => z.coerce.number().catch(nostrNow())),
+  until: z.coerce.number().optional().catch(undefined),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
