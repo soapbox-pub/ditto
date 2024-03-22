@@ -200,9 +200,8 @@ class EventsDB implements NStore {
       ) as { key: 'domain'; value: string } | undefined)?.value;
 
       if (domain) {
-        query = query
-          .innerJoin('pubkey_domains', 'pubkey_domains.pubkey', 'events.pubkey')
-          .where('pubkey_domains.domain', '=', domain);
+        query = query.where('events.pubkey', 'in', (eb) =>
+          eb.selectFrom('pubkey_domains').select('pubkey').where('domain', '=', domain));
       }
 
       const q = tokens.filter((t) =>
