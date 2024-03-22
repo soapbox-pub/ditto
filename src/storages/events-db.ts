@@ -193,26 +193,9 @@ class EventsDB implements NStore {
     }
 
     if (filter.search) {
-      const tokens = NIP50.parseInput(filter.search);
-
-      const domain = (tokens.find((t) =>
-        typeof t === 'object' && t.key === 'domain'
-      ) as { key: 'domain'; value: string } | undefined)?.value;
-
-      if (domain) {
-        query = query.where('events.pubkey', 'in', (eb) =>
-          eb.selectFrom('pubkey_domains').select('pubkey').where('domain', '=', domain));
-      }
-
-      const q = tokens.filter((t) =>
-        typeof t === 'string'
-      ).join(' ');
-
-      if (q) {
-        query = query
-          .innerJoin('events_fts', 'events_fts.id', 'events.id')
-          .where('events_fts.content', 'match', JSON.stringify(q));
-      }
+      query = query
+        .innerJoin('events_fts', 'events_fts.id', 'events.id')
+        .where('events_fts.content', 'match', JSON.stringify(filter.search));
     }
 
     return query;
@@ -234,9 +217,47 @@ class EventsDB implements NStore {
       .as('users');
   }
 
+  /** Converts filters to more performant, simpler filters that are better for SQLite. */
+  async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
+    filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
+
+    for (const filter of filters) {
+      if (filter.search) {
+        const tokens = NIP50.parseInput(filter.search);
+
+        const domain = (tokens.find((t) =>
+          typeof t === 'object' && t.key === 'domain'
+        ) as { key: 'domain'; value: string } | undefined)?.value;
+
+        if (domain) {
+          const query = this.#db
+            .selectFrom('pubkey_domains')
+            .select('pubkey')
+            .where('domain', '=', domain);
+
+          if (filter.authors) {
+            query.where('pubkey', 'in', filter.authors);
+          }
+
+          const pubkeys = await query
+            .execute()
+            .then((rows) =>
+              rows.map((row) => row.pubkey)
+            );
+
+          filter.authors = pubkeys;
+        }
+
+        filter.search = tokens.filter((t) => typeof t === 'string').join(' ');
+      }
+    }
+
+    return filters;
+  }
+
   /** Get events for filters from the database. */
   async query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
-    filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
+    filters = await this.expandFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
