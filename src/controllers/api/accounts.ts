@@ -181,11 +181,11 @@ const updateCredentialsSchema = z.object({
   locked: z.boolean().optional(),
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
+  nip05: z.string().optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
-  const user = c.get('user')!;
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
 
@@ -201,6 +201,7 @@ const updateCredentialsController: AppController = async (c) => {
     header: headerFile,
     display_name,
     note,
+    nip05,
   } = result.data;
 
   const [avatar, header] = await Promise.all([
@@ -212,7 +213,7 @@ const updateCredentialsController: AppController = async (c) => {
   meta.about = note ?? meta.about;
   meta.picture = avatar?.url ?? meta.picture;
   meta.banner = header?.url ?? meta.banner;
-  meta.nip05 = `${user.username}@${Conf.url.host}` ?? meta.nip05;
+  meta.nip05 = nip05 ?? meta.nip05;
 
   const event = await createEvent({
     kind: 0,

@@ -143,11 +143,7 @@ app.get('/oauth/authorize', oauthController);
 
 app.post('/api/v1/accounts', requireProof({ pow: 20 }), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
-app.patch(
-  '/api/v1/accounts/update_credentials',
-  requireRole('user', { validatePayload: false }),
-  updateCredentialsController,
-);
+app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', relationshipsController);

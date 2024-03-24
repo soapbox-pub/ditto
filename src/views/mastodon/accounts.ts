@@ -65,6 +65,9 @@ async function renderAccount(
         privacy: 'public',
         sensitive: false,
         follow_requests_count: 0,
+        nostr: {
+          nip05: parsed05?.value,
+        },
       }
       : undefined,
     statuses_count: event.author_stats?.notes_count ?? 0,

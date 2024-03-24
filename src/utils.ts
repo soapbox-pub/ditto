@@ -34,6 +34,8 @@ interface Nip05 {
   handle: string;
   /** The localpart, if available and not `_`. Otherwise the domain. */
   nickname: string;
+  /** The full NIP-05 identifier. */
+  value: string;
 }
 
 /**
@@ -50,6 +52,7 @@ function parseNip05(value: string): Nip05 {
     domain,
     handle: local === '_' ? domain : value,
     nickname: (local && local !== '_') ? local : domain,
+    value,
   };
 }
 
