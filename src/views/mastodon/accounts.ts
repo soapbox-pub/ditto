@@ -66,7 +66,7 @@ async function renderAccount(
         sensitive: false,
         follow_requests_count: 0,
         nostr: {
-          nip05: parsed05?.value,
+          nip05,
         },
       }
       : undefined,
