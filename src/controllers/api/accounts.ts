@@ -221,7 +221,7 @@ const updateCredentialsController: AppController = async (c) => {
     tags: [],
   }, c);
 
-  const account = await renderAccount(event);
+  const account = await renderAccount(event, { withSource: true });
   return c.json(account);
 };
 
