@@ -20,11 +20,6 @@ export class DVM {
 
   static async nameRegistration(event: NostrEvent): Promise<void> {
     const admin = await new AdminSigner().getPublicKey();
-
-    if (event.kind !== 5950 && event.pubkey !== admin) {
-      throw new Error('Only NIP-05 job requests are permitted');
-    }
-
     const input = event.tags.find(([name]) => name === 'i')?.[1];
     const tagged = !!event.tags.find(([name, value]) => name === 'p' && value === admin);
 
