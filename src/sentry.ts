@@ -6,6 +6,6 @@ if (Conf.sentryDsn) {
   console.log('Sentry enabled');
   Sentry.init({
     dsn: Conf.sentryDsn,
-    tracesSampleRate: .2,
+    tracesSampleRate: 1.0,
   });
 }
