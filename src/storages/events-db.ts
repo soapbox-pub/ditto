@@ -181,13 +181,15 @@ class EventsDB implements NStore {
           query = query.limit(filter.limit!);
           break;
       }
+    }
 
-      if (key.startsWith('#')) {
-        const tag = key.replace(/^#/, '');
-        const value = filter[key as `#${string}`] as string[];
-        query = query
-          .leftJoin('tags', 'tags.event_id', 'events.id')
-          .where('tags.tag', '=', tag)
+    const joinedQuery = query.leftJoin('tags', 'tags.event_id', 'events.id');
+
+    for (const [key, value] of Object.entries(filter)) {
+      if (key.startsWith('#') && Array.isArray(value)) {
+        const name = key.replace(/^#/, '');
+        query = joinedQuery
+          .where('tags.tag', '=', name)
           .where('tags.value', 'in', value);
       }
     }

@@ -6,6 +6,7 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
+import { DVM } from '@/pipeline/DVM.ts';
 import { getAuthor } from '@/queries.ts';
 import { updateStats } from '@/stats.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
@@ -36,6 +37,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     storeEvent(event, signal),
     parseMetadata(event, signal),
     processDeletions(event, signal),
+    DVM.event(event),
     trackRelays(event),
     trackHashtags(event),
     fetchRelatedEvents(event, signal),

@@ -85,6 +85,7 @@ function connectStream(socket: WebSocket) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
+        console.error(e);
       }
     }
   }
