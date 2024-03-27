@@ -7,10 +7,6 @@ import { eventsDB } from '@/storages.ts';
 
 export class DVM {
   static async event(event: NostrEvent): Promise<void> {
-    if (event.kind < 5000 || event.kind > 5999) {
-      throw new Error('Unsupported event kind');
-    }
-
     switch (event.kind) {
       case 5950:
         await DVM.nameRegistration(event);
