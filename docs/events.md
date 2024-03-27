@@ -2,29 +2,6 @@
 
 Instead of using database tables, the Ditto server publishes Nostr events that describe its state. It then reads these events using Nostr filters.
 
-## Ditto Registration Request (kind 3036)
-
-Clients wishing to join a Ditto server should publish a kind `3036` event to the Ditto relay, mentioning the Ditto admin pubkey.
-
-The event should have the following tags:
-
-- `nip05` - desired NIP-05 username, including the domain (eg `alex@soapbox.pub`).
-- `p` - pubkey of the Ditto admin.
-
-Example:
-
-```json
-{
-  "kind": 3036,
-  "pubkey": "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6",
-  "content": "I want to be a part of this community.",
-  "tags": [
-    ["nip05", "alex@soapbox.pub"],
-    ["p", "4cfc6ceb07bbe2f5e75f746f3e6f0eda53973e0374cd6bdbce7a930e10437e06"]
-  ]
-}
-```
-
 ## Ditto User (kind 30361)
 
 The Ditto server publishes kind `30361` events to represent users. These events are parameterized replaceable events of kind `30361` where the `d` tag is a pubkey. These events are published by Ditto's internal admin keypair.
@@ -47,10 +24,9 @@ Example:
   "created_at": 1691568245,
   "tags": [
     ["d", "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6"],
-    ["name", "alex"],
     ["role", "user"],
     ["origin", "https://ditto.ngrok.app"],
-    ["alt", "@alex@ditto.ngrok.app's account was updated by the admins of ditto.ngrok.app"]
+    ["alt", "User's account was updated by the admins of ditto.ngrok.app"]
   ],
   "sig": "fc12db77b1c8f8aa86c73b617f0cd4af1e6ba244239eaf3164a292de6d39363f32d6b817ffff796ace7a103d75e1d8e6a0fb7f618819b32d81a953b4a75d7507"
 }

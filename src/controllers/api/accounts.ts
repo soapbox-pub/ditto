@@ -39,23 +39,18 @@ const createAccountController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
 
-  try {
-    await insertUser({
-      pubkey,
-      username: result.data.username,
-      inserted_at: new Date(),
-      admin: false,
-    });
+  await insertUser({
+    pubkey,
+    inserted_at: new Date(),
+    admin: false,
+  });
 
-    return c.json({
-      access_token: nip19.npubEncode(pubkey),
-      token_type: 'Bearer',
-      scope: 'read write follow push',
-      created_at: nostrNow(),
-    });
-  } catch (_e) {
-    return c.json({ error: 'Username already taken.' }, 422);
-  }
+  return c.json({
+    access_token: nip19.npubEncode(pubkey),
+    token_type: 'Bearer',
+    scope: 'read write follow push',
+    created_at: nostrNow(),
+  });
 };
 
 const verifyCredentialsController: AppController = async (c) => {
