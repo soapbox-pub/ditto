@@ -1,7 +1,6 @@
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';
-import { eventsDB } from '@/storages.ts';
+import { localNip05Lookup } from '@/utils/nip05.ts';
 
 const nameSchema = z.string().min(1).regex(/^\w+$/);
 
@@ -12,30 +11,20 @@ const nameSchema = z.string().min(1).regex(/^\w+$/);
 const nostrController: AppController = async (c) => {
   const result = nameSchema.safeParse(c.req.query('name'));
   const name = result.success ? result.data : undefined;
+  const pointer = name ? await localNip05Lookup(name) : undefined;
 
-  if (!name) {
+  if (!name || !pointer) {
     return c.json({ names: {}, relays: {} });
   }
 
-  const [label] = await eventsDB.query([{
-    kinds: [1985],
-    authors: [Conf.pubkey],
-    '#L': ['nip05'],
-    '#l': [`${name}@${Conf.url.host}`],
-  }]);
-
-  const pubkey = label?.tags.find(([name]) => name === 'p')?.[1];
-
-  if (!label || !pubkey) {
-    return c.json({ names: {}, relays: {} });
-  }
+  const { pubkey, relays } = pointer;
 
   return c.json({
     names: {
       [name]: pubkey,
     },
     relays: {
-      [pubkey]: [Conf.relay],
+      [pubkey]: relays,
     },
   });
 };

@@ -3,6 +3,7 @@ import { Debug, NIP05, nip19 } from '@/deps.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { eventsDB } from '@/storages.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 
 const debug = Debug('ditto:nip05');
 
@@ -12,9 +13,15 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
     const [name, domain] = key.split('@');
     try {
       if (domain === Conf.url.host) {
-        return localNip05Lookup(name);
+        const pointer = await localNip05Lookup(name);
+        if (pointer) {
+          debug(`Found: ${key} is ${pointer.pubkey}`);
+          return pointer;
+        } else {
+          throw new Error(`Not found: ${key}`);
+        }
       } else {
-        const result = await NIP05.lookup(key, { fetch, signal });
+        const result = await NIP05.lookup(key, { fetch: fetchWorker, signal });
         debug(`Found: ${key} is ${result.pubkey}`);
         return result;
       }
@@ -23,28 +30,23 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
       throw e;
     }
   },
-  { max: 5000, ttl: Time.hours(1) },
+  { max: 500, ttl: Time.hours(1) },
 );
 
-async function localNip05Lookup(name: string): Promise<nip19.ProfilePointer> {
-  const { host } = Conf.url;
-
+async function localNip05Lookup(name: string): Promise<nip19.ProfilePointer | undefined> {
   const [label] = await eventsDB.query([{
     kinds: [1985],
     authors: [Conf.pubkey],
     '#L': ['nip05'],
-    '#l': [`${name}@${host}`],
+    '#l': [`${name}@${Conf.url.host}`],
+    limit: 1,
   }]);
 
   const pubkey = label?.tags.find(([name]) => name === 'p')?.[1];
 
   if (pubkey) {
-    debug(`Found: ${name} is ${pubkey}`);
     return { pubkey, relays: [Conf.relay] };
   }
-
-  debug(`Not found: ${name}`);
-  throw new Error('Not found');
 }
 
-export { nip05Cache };
+export { localNip05Lookup, nip05Cache };
