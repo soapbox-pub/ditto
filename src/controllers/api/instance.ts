@@ -18,7 +18,7 @@ const instanceController: AppController = async (c) => {
     title: meta.name ?? 'Ditto',
     description: meta.about ?? 'Nostr and the Fediverse',
     short_description: meta.tagline ?? meta.about ?? 'Nostr and the Fediverse',
-    registrations: Conf.registrations,
+    registrations: true,
     max_toot_chars: Conf.postCharLimit,
     configuration: {
       media_attachments: {

@@ -1,7 +1,6 @@
 import { NostrFilter } from '@soapbox/nspec';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { insertUser } from '@/db/users.ts';
 import { nip19, z } from '@/deps.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
@@ -28,22 +27,12 @@ const createAccountSchema = z.object({
 });
 
 const createAccountController: AppController = async (c) => {
-  if (!Conf.registrations) {
-    return c.json({ error: 'Registrations are disabled.' }, 403);
-  }
-
   const pubkey = c.get('pubkey')!;
   const result = createAccountSchema.safeParse(await c.req.json());
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
-
-  await insertUser({
-    pubkey,
-    inserted_at: new Date(),
-    admin: false,
-  });
 
   return c.json({
     access_token: nip19.npubEncode(pubkey),

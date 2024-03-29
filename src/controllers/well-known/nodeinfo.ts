@@ -33,7 +33,7 @@ const nodeInfoSchemaController: AppController = (c) => {
       inbound: [],
       outbound: [],
     },
-    openRegistrations: false,
+    openRegistrations: true,
     usage: {
       users: {
         total: 0,
