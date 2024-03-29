@@ -126,10 +126,6 @@ const Conf = {
       'system',
     ];
   },
-  /** Whether registrations are open or closed. */
-  get registrations() {
-    return optionalBooleanSchema.parse(Deno.env.get('DITTO_REGISTRATIONS')) ?? false;
-  },
   /** Proof-of-work configuration. */
   pow: {
     get registrations() {
