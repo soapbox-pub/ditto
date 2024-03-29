@@ -44,16 +44,13 @@ TODO
 ## Development
 
 1. Install [Deno](https://deno.land).
-2. Install [nak](https://github.com/fiatjaf/nak).
-3. Clone this repo.
-4. Download [Soapbox](https://dl.soapbox.pub/) or another web-based Mastodon client of your choice.
-5. Put the frontend files inside the `public` directory.
-6. If you decided to use [Soapbox](https://dl.soapbox.pub/), remove the `meta http-equiv="content-security-policy"` from the `index.html` file.
-7. If you decided to use [Soapbox](https://dl.soapbox.pub/), rename the `soapbox.example.json` inside the `public/instance` directory to `soapbox.json`
-8. Create an `.env` file.
-9. Define `DITTO_REGISTRATIONS=true` in your .env file.
-10. Define `DITTO_NSEC=<value>` in your .env file. The \<value\> can be obtained with `nak key generate | nak encode nsec`. 
-11. Run `deno task dev`
+2. Clone this repo.
+3. Download [Soapbox](https://dl.soapbox.pub/) or another web-based Mastodon client of your choice.
+4. Put the frontend files inside the `public` directory.
+5. If you decided to use [Soapbox](https://dl.soapbox.pub/), remove the `meta http-equiv="content-security-policy"` from the `index.html` file.
+6. Create an `.env` file.
+7. Define `DITTO_NSEC=<value>` in your .env file. You can generate an nsec by installing [nak](https://github.com/fiatjaf/nak) and running `nak key generate | nak encode nse`.
+8. Run `deno task dev`
 
 ## License
 
