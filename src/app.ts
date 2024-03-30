@@ -147,7 +147,7 @@ app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsC
 app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
-app.get('/api/v1/accounts/relationships', relationshipsController);
+app.get('/api/v1/accounts/relationships', requirePubkey, relationshipsController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requirePubkey, blockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requirePubkey, unblockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requirePubkey, followController);
