@@ -7,7 +7,8 @@
     "debug": "deno run -A --unstable-ffi --inspect src/server.ts",
     "test": "DB_PATH=\":memory:\" deno test -A --unstable-ffi",
     "check": "deno check src/server.ts",
-    "relays:sync": "deno run -A --unstable-ffi scripts/relays.ts sync"
+    "relays:sync": "deno run -A --unstable-ffi scripts/relays.ts sync",
+    "nsec": "deno run scripts/nsec.ts"
   },
   "exclude": ["./public"],
   "imports": { "@/": "./src/", "@soapbox/nspec": "jsr:@soapbox/nspec@^0.8.1", "~/fixtures/": "./fixtures/" },
