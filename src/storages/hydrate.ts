@@ -17,13 +17,25 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
     return events;
   }
 
-  if (relations.includes('author')) {
-    const pubkeys = new Set([...events].map((event) => event.pubkey));
-    const authors = await storage.query([{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }], { signal });
-
-    for (const event of events) {
-      event.author = authors.find((author) => author.pubkey === event.pubkey);
+  for (const relation in relations) {
+    switch (relation) {
+      case 'author':
+        await hydrateAuthors({ events, storage, signal });
+        break;
     }
+  }
+
+  return events;
+}
+
+async function hydrateAuthors(opts: Omit<HydrateEventOpts, 'relations'>): Promise<DittoEvent[]> {
+  const { events, storage, signal } = opts;
+
+  const pubkeys = new Set([...events].map((event) => event.pubkey));
+  const authors = await storage.query([{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }], { signal });
+
+  for (const event of events) {
+    event.author = authors.find((author) => author.pubkey === event.pubkey);
   }
 
   return events;
