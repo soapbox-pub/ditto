@@ -19,7 +19,6 @@ export {
   nip13,
   nip19,
   nip21,
-  generateSecretKey,
   type UnsignedEvent,
   type VerifiedEvent,
 } from 'npm:nostr-tools@^2.3.1';

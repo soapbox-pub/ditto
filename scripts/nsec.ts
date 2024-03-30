@@ -1,12 +1,7 @@
-import { generateSecretKey, nip19 } from '@/deps.ts';
+import { generateSecretKey, nip19 } from 'npm:nostr-tools';
 
-switch (Deno.args[0]) {
-  default: {
-    const encodedNsec = generateEncodedPrivateKey();
-    console.log(encodedNsec);
-    Deno.exit(0);
-  }
-}
+const encodedNsec = generateEncodedPrivateKey();
+console.log(encodedNsec);
 
 function generateEncodedPrivateKey(): string {
   const sk = generateSecretKey();
