@@ -17,7 +17,7 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
     return events;
   }
 
-  for (const relation in relations) {
+  for (const relation of relations) {
     switch (relation) {
       case 'author':
         await hydrateAuthors({ events, storage, signal });
