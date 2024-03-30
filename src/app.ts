@@ -57,6 +57,7 @@ import {
   bookmarkController,
   contextController,
   createStatusController,
+  deleteStatusController,
   favouriteController,
   favouritedByController,
   pinController,
@@ -167,6 +168,7 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requirePubkey, pinController)
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requirePubkey, unpinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requirePubkey, zapController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
+app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusController);
 
 app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);
 app.post('/api/v2/media', requireRole('user', { validatePayload: false }), mediaController);

@@ -96,6 +96,29 @@ const createStatusController: AppController = async (c) => {
   return c.json(await renderStatus({ ...event, author }, c.get('pubkey')));
 };
 
+const deleteStatusController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const pubkey = c.get('pubkey');
+
+  const event = await getEvent(id, { signal: c.req.raw.signal });
+
+  if (event) {
+    if (event.pubkey === pubkey) {
+      await createEvent({
+        kind: 5,
+        tags: [['e', id]],
+      }, c);
+
+      const author = await getAuthor(event.pubkey);
+      return c.json(await renderStatus({ ...event, author }, pubkey));
+    } else {
+      return c.json({ error: 'Unauthorized' }, 403);
+    }
+  }
+
+  return c.json({ error: 'Event not found.' }, 404);
+};
+
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
   const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
@@ -312,6 +335,7 @@ export {
   bookmarkController,
   contextController,
   createStatusController,
+  deleteStatusController,
   favouriteController,
   favouritedByController,
   pinController,
