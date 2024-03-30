@@ -1,11 +1,6 @@
 import { generateSecretKey, nip19 } from 'npm:nostr-tools';
 
-const encodedNsec = generateEncodedPrivateKey();
-console.log(encodedNsec);
+const sk = generateSecretKey();
+const nsec = nip19.nsecEncode(sk);
 
-function generateEncodedPrivateKey(): string {
-  const sk = generateSecretKey();
-  const nsec = nip19.nsecEncode(sk);
-
-  return nsec;
-}
+console.log(nsec);
