@@ -1,3 +1,4 @@
+import { db } from '@/db.ts';
 import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
@@ -22,6 +23,12 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
       case 'author':
         await hydrateAuthors({ events, storage, signal });
         break;
+      case 'author_stats':
+        await hydrateAuthorStats(events);
+        break;
+      case 'event_stats':
+        await hydrateEventStats(events);
+        break;
     }
   }
 
@@ -36,6 +43,48 @@ async function hydrateAuthors(opts: Omit<HydrateEventOpts, 'relations'>): Promis
 
   for (const event of events) {
     event.author = authors.find((author) => author.pubkey === event.pubkey);
+  }
+
+  return events;
+}
+
+async function hydrateAuthorStats(events: DittoEvent[]): Promise<DittoEvent[]> {
+  const results = await db
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', 'in', events.map((event) => event.pubkey))
+    .execute();
+
+  for (const event of events) {
+    const stat = results.find((result) => result.pubkey === event.pubkey);
+    if (stat) {
+      event.author_stats = {
+        followers_count: Math.max(stat.followers_count, 0) || 0,
+        following_count: Math.max(stat.following_count, 0) || 0,
+        notes_count: Math.max(stat.notes_count, 0) || 0,
+      };
+    }
+  }
+
+  return events;
+}
+
+async function hydrateEventStats(events: DittoEvent[]): Promise<DittoEvent[]> {
+  const results = await db
+    .selectFrom('event_stats')
+    .selectAll()
+    .where('event_id', 'in', events.map((event) => event.id))
+    .execute();
+
+  for (const event of events) {
+    const stat = results.find((result) => result.event_id === event.id);
+    if (stat) {
+      event.event_stats = {
+        replies_count: Math.max(stat.replies_count, 0) || 0,
+        reposts_count: Math.max(stat.reposts_count, 0) || 0,
+        reactions_count: Math.max(stat.reactions_count, 0) || 0,
+      };
+    }
   }
 
   return events;

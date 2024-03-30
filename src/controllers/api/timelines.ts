@@ -48,7 +48,9 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
 
   const events = await eventsDB
     .query(filters, { signal })
-    .then((events) => hydrateEvents({ events, relations: ['author'], storage: eventsDB, signal }));
+    .then((events) =>
+      hydrateEvents({ events, relations: ['author', 'author_stats', 'event_stats'], storage: eventsDB, signal })
+    );
 
   if (!events.length) {
     return c.json([]);
