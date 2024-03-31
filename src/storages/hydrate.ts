@@ -1,3 +1,4 @@
+import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -29,6 +30,9 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
       case 'event_stats':
         await hydrateEventStats(events);
         break;
+      case 'user':
+        await hydrateUsers({ events, storage, signal });
+        break;
     }
   }
 
@@ -43,6 +47,23 @@ async function hydrateAuthors(opts: Omit<HydrateEventOpts, 'relations'>): Promis
 
   for (const event of events) {
     event.author = authors.find((author) => author.pubkey === event.pubkey);
+  }
+
+  return events;
+}
+
+async function hydrateUsers(opts: Omit<HydrateEventOpts, 'relations'>): Promise<DittoEvent[]> {
+  const { events, storage, signal } = opts;
+
+  const pubkeys = new Set([...events].map((event) => event.pubkey));
+
+  const users = await storage.query(
+    [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+
+  for (const event of events) {
+    event.user = users.find((user) => user.tags.find(([name]) => name === 'd')?.[1] === event.pubkey);
   }
 
   return events;

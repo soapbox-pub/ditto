@@ -1,5 +1,4 @@
 import { Conf } from '@/config.ts';
-import { findUser } from '@/db/users.ts';
 import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
@@ -30,11 +29,8 @@ async function renderAccount(
   } = jsonMetaContentSchema.parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
-
-  const [user, parsed05] = await Promise.all([
-    findUser({ pubkey }),
-    parseAndVerifyNip05(nip05, pubkey),
-  ]);
+  const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
+  const role = event.user?.tags.find(([name]) => name === 'role')?.[1] ?? 'user';
 
   return {
     id: pubkey,
@@ -42,7 +38,7 @@ async function renderAccount(
     avatar: picture,
     avatar_static: picture,
     bot: false,
-    created_at: user ? user.inserted_at.toISOString() : nostrDate(event.created_at).toISOString(),
+    created_at: nostrDate(event.user?.created_at ?? event.created_at).toISOString(),
     discoverable: true,
     display_name: name,
     emojis: renderEmojis(event),
@@ -75,11 +71,11 @@ async function renderAccount(
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
-      is_registered: Boolean(user),
+      is_registered: Boolean(event.user),
     },
     pleroma: {
-      is_admin: user?.admin || false,
-      is_moderator: user?.admin || false,
+      is_admin: role === 'admin',
+      is_moderator: ['admin', 'moderator'].includes(role),
     },
     nostr: {
       pubkey,
