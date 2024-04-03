@@ -9,7 +9,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { cache, client, eventsDB, reqmeister } from '@/storages.ts';
+import { cache, eventsDB, reqmeister } from '@/storages.ts';
 import { Sub } from '@/subs.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
@@ -43,7 +43,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     processMedia(event),
     payZap(event, signal),
     streamOut(event),
-    broadcast(event, signal),
   ]);
 }
 
@@ -254,22 +253,6 @@ function streamOut(event: NostrEvent) {
 
   for (const sub of Sub.matches(event)) {
     sub.stream(event);
-  }
-}
-
-/**
- * Publish the event to other relays.
- * This should only be done in certain circumstances, like mentioning a user or publishing deletions.
- */
-async function broadcast(event: DittoEvent, signal: AbortSignal) {
-  if (!event.user || !isFresh(event)) return;
-
-  if (event.kind === 5) {
-    try {
-      await client.event(event, { signal });
-    } catch (e) {
-      debug(e);
-    }
   }
 }
 
