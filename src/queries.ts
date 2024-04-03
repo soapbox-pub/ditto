@@ -40,7 +40,7 @@ const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<Nostr
   const { relations = [], signal = AbortSignal.timeout(1000) } = opts;
 
   return await optimizer.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
-    .then(([event]) => hydrateEvents({ events: [event], relations, storage: optimizer, signal }))
+    .then((events) => hydrateEvents({ events, relations, storage: optimizer, signal }))
     .then(([event]) => event);
 };
 
