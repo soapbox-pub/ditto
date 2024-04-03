@@ -14,7 +14,7 @@ import {
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { APISigner } from '@/signers/APISigner.ts';
-import { eventsDB } from '@/storages.ts';
+import { client, eventsDB } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
 const debug = Debug('ditto:api');
@@ -89,7 +89,10 @@ async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await pipeline.handleEvent(event, c.req.raw.signal);
+    await Promise.all([
+      pipeline.handleEvent(event, c.req.raw.signal),
+      client.event(event),
+    ]);
   } catch (e) {
     if (e instanceof pipeline.RelayError) {
       throw new HTTPException(422, {

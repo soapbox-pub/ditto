@@ -11,6 +11,8 @@ import {
 import { normalizeFilters } from '@/filter.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';
+import { getRelays } from '@/utils/outbox.ts';
+import { Conf } from '@/config.ts';
 
 interface PoolStoreOpts {
   pool: InstanceType<typeof RelayPoolWorker>;
@@ -34,12 +36,16 @@ class PoolStore implements NStore {
     this.#publisher = opts.publisher;
   }
 
-  event(event: NostrEvent, opts: NStoreOpts = {}): Promise<void> {
+  async event(event: NostrEvent, opts: NStoreOpts = {}): Promise<void> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
-    const { relays = this.#relays } = opts;
+
+    const relaySet = await getRelays(event.pubkey);
+    relaySet.delete(Conf.relay);
+
+    const relays = [...relaySet].slice(0, 4);
 
     event = purifyEvent(event);
-    this.#debug('EVENT', event);
+    this.#debug('EVENT', event, relays);
 
     this.#pool.publish(event, relays);
     return Promise.resolve();
