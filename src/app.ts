@@ -17,7 +17,7 @@ import {
 import '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
-import { actorController } from './controllers/activitypub/actor.ts';
+import { actorController } from '@/controllers/activitypub/actor.ts';
 import {
   accountController,
   accountLookupController,
@@ -34,25 +34,25 @@ import {
   unfollowController,
   updateCredentialsController,
   verifyCredentialsController,
-} from './controllers/api/accounts.ts';
-import { adminAccountsController } from './controllers/api/admin.ts';
-import { appCredentialsController, createAppController } from './controllers/api/apps.ts';
-import { blocksController } from './controllers/api/blocks.ts';
-import { bookmarksController } from './controllers/api/bookmarks.ts';
-import { emptyArrayController, emptyObjectController, notImplementedController } from './controllers/api/fallback.ts';
-import { instanceController } from './controllers/api/instance.ts';
-import { mediaController } from './controllers/api/media.ts';
-import { notificationsController } from './controllers/api/notifications.ts';
-import { createTokenController, oauthAuthorizeController, oauthController } from './controllers/api/oauth.ts';
+} from '@/controllers/api/accounts.ts';
+import { adminAccountsController } from '@/controllers/api/admin.ts';
+import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
+import { blocksController } from '@/controllers/api/blocks.ts';
+import { bookmarksController } from '@/controllers/api/bookmarks.ts';
+import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
+import { instanceController } from '@/controllers/api/instance.ts';
+import { mediaController } from '@/controllers/api/media.ts';
+import { notificationsController } from '@/controllers/api/notifications.ts';
+import { createTokenController, oauthAuthorizeController, oauthController } from '@/controllers/api/oauth.ts';
 import {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
   updateConfigController,
-} from './controllers/api/pleroma.ts';
-import { preferencesController } from './controllers/api/preferences.ts';
-import { relayController } from './controllers/nostr/relay.ts';
-import { searchController } from './controllers/api/search.ts';
+} from '@/controllers/api/pleroma.ts';
+import { preferencesController } from '@/controllers/api/preferences.ts';
+import { relayController } from '@/controllers/nostr/relay.ts';
+import { searchController } from '@/controllers/api/search.ts';
 import {
   bookmarkController,
   contextController,
@@ -66,23 +66,23 @@ import {
   unbookmarkController,
   unpinController,
   zapController,
-} from './controllers/api/statuses.ts';
-import { streamingController } from './controllers/api/streaming.ts';
+} from '@/controllers/api/statuses.ts';
+import { streamingController } from '@/controllers/api/streaming.ts';
 import {
   hashtagTimelineController,
   homeTimelineController,
   publicTimelineController,
-} from './controllers/api/timelines.ts';
-import { trendingTagsController } from './controllers/api/trends.ts';
-import { indexController } from './controllers/site.ts';
-import { hostMetaController } from './controllers/well-known/host-meta.ts';
-import { nodeInfoController, nodeInfoSchemaController } from './controllers/well-known/nodeinfo.ts';
-import { nostrController } from './controllers/well-known/nostr.ts';
-import { webfingerController } from './controllers/well-known/webfinger.ts';
-import { auth19, requirePubkey } from './middleware/auth19.ts';
-import { auth98, requireProof, requireRole } from './middleware/auth98.ts';
-import { cache } from './middleware/cache.ts';
-import { csp } from './middleware/csp.ts';
+} from '@/controllers/api/timelines.ts';
+import { trendingTagsController } from '@/controllers/api/trends.ts';
+import { indexController } from '@/controllers/site.ts';
+import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
+import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
+import { nostrController } from '@/controllers/well-known/nostr.ts';
+import { webfingerController } from '@/controllers/well-known/webfinger.ts';
+import { auth19, requirePubkey } from '@/middleware/auth19.ts';
+import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
+import { cache } from '@/middleware/cache.ts';
+import { csp } from '@/middleware/csp.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
