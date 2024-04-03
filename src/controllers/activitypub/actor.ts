@@ -1,7 +1,7 @@
-import { findUser } from '@/db/users.ts';
 import { getAuthor } from '@/queries.ts';
 import { activityJson } from '@/utils/api.ts';
 import { renderActor } from '@/views/activitypub/actor.ts';
+import { localNip05Lookup } from '@/utils/nip05.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 
@@ -9,13 +9,13 @@ const actorController: AppController = async (c) => {
   const username = c.req.param('username');
   const { signal } = c.req.raw;
 
-  const user = await findUser({ username }, signal);
-  if (!user) return notFound(c);
+  const pointer = await localNip05Lookup(username);
+  if (!pointer) return notFound(c);
 
-  const event = await getAuthor(user.pubkey, { signal });
+  const event = await getAuthor(pointer.pubkey, { signal });
   if (!event) return notFound(c);
 
-  const actor = await renderActor(event, user.username);
+  const actor = await renderActor(event, username);
   if (!actor) return notFound(c);
 
   return activityJson(c, actor);

@@ -1,6 +1,6 @@
 import { Conf } from '@/config.ts';
-import { findUser } from '@/db/users.ts';
 import { nip19, z } from '@/deps.ts';
+import { localNip05Lookup } from '@/utils/nip05.ts';
 
 import type { AppContext, AppController } from '@/app.ts';
 import type { Webfinger } from '@/schemas/webfinger.ts';
@@ -43,15 +43,15 @@ async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
   }
 
   const [username, host] = result.data;
-  const user = await findUser({ username });
+  const pointer = await localNip05Lookup(username);
 
-  if (!user) {
+  if (!pointer) {
     return c.json({ error: 'Not found' }, 404);
   }
 
   const json = renderWebfinger({
-    pubkey: user.pubkey,
-    username: user.username,
+    pubkey: pointer.pubkey,
+    username,
     subject: `acct:${username}@${host}`,
   });
 
