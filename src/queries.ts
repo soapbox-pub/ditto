@@ -31,7 +31,7 @@ const getEvent = async (
   }
 
   return await optimizer.query([filter], { limit: 1, signal })
-    .then(([event]) => hydrateEvents({ events: [event], relations, storage: optimizer, signal }))
+    .then((events) => hydrateEvents({ events, relations, storage: optimizer, signal }))
     .then(([event]) => event);
 };
 
