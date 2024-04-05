@@ -12,7 +12,7 @@ import { createAdminEvent } from '@/utils/api.ts';
  * Sign Nostr event using the app context.
  *
  * - If a secret key is provided, it will be used to sign the event.
- * - If `X-Nostr-Sign` is passed, it will use NIP-46 to sign the event.
+ * - Otherwise, it will use NIP-46 to sign the event.
  */
 export class APISigner implements NostrSigner {
   #c: AppContext;
@@ -34,21 +34,14 @@ export class APISigner implements NostrSigner {
 
   async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
     const seckey = this.#c.get('seckey');
-    const header = this.#c.req.header('x-nostr-sign');
 
     if (seckey) {
       this.#console.debug(`Signing Event<${event.kind}> with secret key`);
       return new NSecSigner(seckey).signEvent(event);
     }
 
-    if (header) {
-      this.#console.debug(`Signing Event<${event.kind}> with NIP-46`);
-      return await this.#signNostrConnect(event);
-    }
-
-    throw new HTTPException(400, {
-      res: this.#c.json({ id: 'ditto.sign', error: 'Unable to sign event' }, 400),
-    });
+    this.#console.debug(`Signing Event<${event.kind}> with NIP-46`);
+    return await this.#signNostrConnect(event);
   }
 
   /** Sign event with NIP-46, waiting in the background for the signed event. */
