@@ -7,13 +7,13 @@ import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
-import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const homeTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const pubkey = c.get('pubkey')!;
   const authors = await getFeedPubkeys(pubkey);
-  return renderStatuses(c, [{ authors, kinds: [1], ...params }]);
+  return renderStatuses(c, [{ authors, kinds: [1, 6], ...params }]);
 };
 
 const publicQuerySchema = z.object({
@@ -25,7 +25,7 @@ const publicTimelineController: AppController = (c) => {
   const params = paginationSchema.parse(c.req.query());
   const { local, instance } = publicQuerySchema.parse(c.req.query());
 
-  const filter: NostrFilter = { kinds: [1], ...params };
+  const filter: NostrFilter = { kinds: [1, 6], ...params };
 
   if (local) {
     filter.search = `domain:${Conf.url.host}`;
@@ -56,7 +56,12 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     return c.json([]);
   }
 
-  const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events.map((event) => {
+    if (event.kind == 6) {
+      return renderReblog(event, c.get('pubkey'));
+    }
+    return renderStatus(event, c.get('pubkey'));
+  }));
   return paginated(c, events, statuses);
 }
 

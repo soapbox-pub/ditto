@@ -98,6 +98,18 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
   };
 }
 
+async function renderReblog(event: DittoEvent, viewerPubkey?: string) {
+  if (event.author == undefined) return;
+
+  const reblog = await renderStatus(JSON.parse(event.content), viewerPubkey);
+  return {
+    id: event.id,
+    account: await renderAccount(event.author),
+    reblogged: true,
+    reblog,
+  };
+}
+
 async function toMention(pubkey: string) {
   const author = await getAuthor(pubkey);
   const account = author ? await renderAccount(author) : undefined;
@@ -134,4 +146,4 @@ function buildInlineRecipients(mentions: Mention[]): string {
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
 }
 
-export { renderStatus };
+export { renderStatus, renderReblog };
