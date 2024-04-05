@@ -146,4 +146,4 @@ function buildInlineRecipients(mentions: Mention[]): string {
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
 }
 
-export { renderStatus, renderReblog };
+export { renderReblog, renderStatus };
