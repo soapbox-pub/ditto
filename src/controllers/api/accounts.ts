@@ -5,7 +5,7 @@ import { nip19, z } from '@/deps.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { eventsDB } from '@/storages.ts';
+import { eventsDB, searchStore } from '@/storages.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { nostrNow } from '@/utils.ts';
@@ -86,12 +86,22 @@ const accountSearchController: AppController = async (c) => {
     return c.json({ error: 'Missing `q` query parameter.' }, 422);
   }
 
-  const event = await lookupAccount(decodeURIComponent(q));
-  if (event) {
-    return c.json([await renderAccount(event)]);
-  }
+  const query = decodeURIComponent(q);
 
-  return c.json([]);
+  const [event, events] = await Promise.all([
+    lookupAccount(query),
+    searchStore.query([{ kinds: [0], search: query, limit: 20 }], { signal: c.req.raw.signal }),
+  ]);
+
+  const results = await hydrateEvents({
+    events: event ? [event, ...events] : events,
+    relations: ['author_stats'],
+    storage: eventsDB,
+    signal: c.req.raw.signal,
+  });
+
+  const accounts = await Promise.all(results.map((event) => renderAccount(event)));
+  return c.json(accounts);
 };
 
 const relationshipsController: AppController = async (c) => {
