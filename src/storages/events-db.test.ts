@@ -36,7 +36,7 @@ Deno.test('query events with domain search filter', async () => {
 
   await db
     .insertInto('pubkey_domains')
-    .values({ pubkey: event1.pubkey, domain: 'localhost:8000' })
+    .values({ pubkey: event1.pubkey, domain: 'localhost:8000', last_updated_at: event1.created_at })
     .execute();
 
   assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:localhost:8000' }]), [event1]);

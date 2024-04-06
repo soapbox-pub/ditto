@@ -3,7 +3,7 @@ import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
-import { Debug, LNURL, type NostrEvent } from '@/deps.ts';
+import { Debug, LNURL, type NostrEvent, sql } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
@@ -109,11 +109,15 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   // Track pubkey domain.
   try {
     const { domain } = parseNip05(nip05);
-    await db
-      .insertInto('pubkey_domains')
-      .values({ pubkey, domain })
-      .execute()
-      .catch(debug);
+
+    await sql`
+    INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
+    VALUES (${pubkey}, ${domain}, ${event.created_at})
+    ON CONFLICT(pubkey) DO UPDATE SET
+      domain = excluded.domain,
+      last_updated_at = excluded.last_updated_at
+    WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
+    `.execute(db);
   } catch (_e) {
     // do nothing
   }

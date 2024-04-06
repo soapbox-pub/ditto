@@ -70,6 +70,7 @@ interface UnattachedMediaRow {
 interface PubkeyDomainRow {
   pubkey: string;
   domain: string;
+  last_updated_at: number;
 }
 
 const sqliteWorker = new SqliteWorker();
