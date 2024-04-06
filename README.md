@@ -1,20 +1,15 @@
 # Ditto
 
-Ditto is a tiny but powerful social media server for the decentralized web. With Ditto you will be able to interact across protocols and networks, and build your own social media experience.
+Ditto is a Nostr server for building resilient communities online.
+With Ditto, you can create your own social network that is decentralized, customizable, and free from ads and tracking.
 
 <img width="400" src="ditto-planet.png">
 
 ⚠️ This software is a work in progress.
 
-## Supported protocols
-
-- [x] Nostr
-- [ ] ActivityPub
-
 ## Features
 
-- [ ] Follow users across networks
-- [ ] Post to multiple networks at once
+- [x] Built-in Nostr relay
 - [x] Log in with any Mastodon app
 - [x] Like and comment on posts
 - [x] Share posts
@@ -30,16 +25,6 @@ Ditto is a tiny but powerful social media server for the decentralized web. With
 - [x] No ads
 - [x] No tracking
 - [x] No censorship
-
-## Federation
-
-Ditto is primarily a Nostr client, using a Nostr relay as its database. ActivityPub objects are translated into Nostr events in realtime and cached by the Ditto server. When you submit a post, it sends it to your Nostr relay and then fans it out to the ActivityPub network.
-
-The main way to use Ditto is with a Mastodon app. Or you can connect directly to the Nostr relay with a Nostr client.
-
-## Installation
-
-TODO
 
 ## Development
 
