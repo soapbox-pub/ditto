@@ -56,12 +56,17 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     return c.json([]);
   }
 
-  const statuses = await Promise.all(events.map((event) => {
+  const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {
       return renderReblog(event);
     }
     return renderStatus(event, c.get('pubkey'));
-  }));
+  }))).filter((boolean) => boolean);
+
+  if (!statuses.length) {
+    return c.json([]);
+  }
+
   return paginated(c, events, statuses);
 }
 
