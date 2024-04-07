@@ -5,7 +5,7 @@ import { Debug, z } from '@/deps.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
-import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -63,6 +63,13 @@ const streamingController: AppController = (c) => {
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
+        if (event.kind == 6) {
+          const status = await renderReblog(event);
+          if (status) {
+            send('update', status);
+          }
+          return;
+        }
         const status = await renderStatus(event, pubkey);
         if (status) {
           send('update', status);
@@ -87,20 +94,20 @@ async function topicToFilter(
 
   switch (topic) {
     case 'public':
-      return { kinds: [1] };
+      return { kinds: [1, 6] };
     case 'public:local':
-      return { kinds: [1], search: `domain:${host}` };
+      return { kinds: [1, 6], search: `domain:${host}` };
     case 'hashtag':
-      if (query.tag) return { kinds: [1], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1, 6], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1], '#t': [query.tag], search: `domain:${host}` };
+      if (query.tag) return { kinds: [1, 6], '#t': [query.tag], search: `domain:${host}` };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1], authors: await getFeedPubkeys(pubkey) } : undefined;
+      return pubkey ? { kinds: [1, 6], authors: await getFeedPubkeys(pubkey) } : undefined;
   }
 }
 
