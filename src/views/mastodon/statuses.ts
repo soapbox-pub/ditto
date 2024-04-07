@@ -101,12 +101,12 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
 async function renderReblog(event: DittoEvent) {
   if (!event.author) return;
 
-   for (let i = 0; i < event.tags.length; i++) {
-     if (event.tags[i][0] === 'e') {
-       event.repost = await getEvent(event.tags[i][1], {kind:1})
-       break
-     }
-   }
+  for (let i = 0; i < event.tags.length; i++) {
+    if (event.tags[i][0] === 'e') {
+      event.repost = await getEvent(event.tags[i][1], { kind: 1 });
+      break;
+    }
+  }
 
   if (!event.repost) return;
 
@@ -115,7 +115,7 @@ async function renderReblog(event: DittoEvent) {
     id: event.id,
     account: await renderAccount(event.author),
     reblogged: true,
-    reblog
+    reblog,
   };
 }
 
