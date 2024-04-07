@@ -57,8 +57,8 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   }
 
   const statuses = await Promise.all(events.map((event) => {
-    if (event.kind == 6) {
-      return renderReblog(event, c.get('pubkey'));
+    if (event.kind === 6) {
+      return renderReblog(event)
     }
     return renderStatus(event, c.get('pubkey'));
   }));

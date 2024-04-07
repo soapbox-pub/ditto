@@ -181,7 +181,7 @@ const reblogStatusController: AppController = async (c) => {
     kind: 1,
   });
 
-  if (event == undefined) {
+  if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
   }
 
@@ -189,11 +189,10 @@ const reblogStatusController: AppController = async (c) => {
 
   const reblogEvent = await createEvent({
     kind: 6,
-    content: JSON.stringify(event),
     tags,
   }, c);
 
-  const status = await renderReblog(reblogEvent, reblogEvent.pubkey);
+  const status = await renderReblog(reblogEvent);
 
   return c.json(status);
 };

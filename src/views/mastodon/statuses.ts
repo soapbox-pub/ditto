@@ -4,7 +4,7 @@ import { Conf } from '@/config.ts';
 import { nip19 } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
-import { getAuthor } from '@/queries.ts';
+import { getAuthor, getEvent } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
@@ -98,15 +98,24 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
   };
 }
 
-async function renderReblog(event: DittoEvent, viewerPubkey?: string) {
-  if (event.author == undefined) return;
+async function renderReblog(event: DittoEvent) {
+  if (!event.author) return;
 
-  const reblog = await renderStatus(JSON.parse(event.content), viewerPubkey);
+   for (let i = 0; i < event.tags.length; i++) {
+     if (event.tags[i][0] === 'e') {
+       event.repost = await getEvent(event.tags[i][1], {kind:1})
+       break
+     }
+   }
+
+  if (!event.repost) return;
+
+  const reblog = await renderStatus(event.repost);
   return {
     id: event.id,
     account: await renderAccount(event.author),
     reblogged: true,
-    reblog,
+    reblog
   };
 }
 
