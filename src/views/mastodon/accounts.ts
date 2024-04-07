@@ -76,6 +76,7 @@ async function renderAccount(
     pleroma: {
       is_admin: role === 'admin',
       is_moderator: ['admin', 'moderator'].includes(role),
+      is_local: parsed05?.domain === Conf.url.host,
     },
     nostr: {
       pubkey,
