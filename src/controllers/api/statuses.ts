@@ -112,6 +112,10 @@ const createStatusController: AppController = async (c) => {
     return match;
   });
 
+  for (const match of content.matchAll(/#(\w+)/g)) {
+    tags.push(['t', match[1]]);
+  }
+
   const event = await createEvent({
     kind: 1,
     content,
