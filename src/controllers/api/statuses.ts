@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
-import { ISO6391, type NostrEvent, z } from '@/deps.ts';
+import { ISO6391, NIP05, nip19, type NostrEvent, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
@@ -9,6 +9,8 @@ import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/uti
 import { renderEventAccounts } from '@/views.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
+import { asyncReplaceAll } from '@/utils/text.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -86,9 +88,37 @@ const createStatusController: AppController = async (c) => {
     tags.push(...media);
   }
 
+  const content = await asyncReplaceAll(data.status ?? '', /@([\w@+._]+)/g, async (match, username) => {
+    try {
+      const result = nip19.decode(username);
+      if (result.type === 'npub') {
+        tags.push(['p', result.data]);
+        return `nostr:${username}`;
+      } else {
+        return match;
+      }
+    } catch (_e) {
+      // do nothing
+    }
+
+    if (NIP05.regex().test(username)) {
+      const pointer = await nip05Cache.fetch(username);
+      if (pointer) {
+        tags.push(['p', pointer.pubkey]);
+        return `nostr:${nip19.npubEncode(pointer.pubkey)}`;
+      }
+    }
+
+    return match;
+  });
+
+  for (const match of content.matchAll(/#(\w+)/g)) {
+    tags.push(['t', match[1]]);
+  }
+
   const event = await createEvent({
     kind: 1,
-    content: data.status ?? '',
+    content,
     tags,
   }, c);
 
