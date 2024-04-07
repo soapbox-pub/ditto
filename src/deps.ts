@@ -31,7 +31,7 @@ export { default as linkifyStr } from 'npm:linkify-string@^4.1.1';
 import 'npm:linkify-plugin-hashtag@^4.1.1';
 // @deno-types="npm:@types/mime@3.0.0"
 export { default as mime } from 'npm:mime@^3.0.0';
-export { unfurl } from 'npm:unfurl.js@^6.3.2';
+export { unfurl } from 'npm:unfurl.js@^6.4.0';
 export { default as TTLCache } from 'npm:@isaacs/ttlcache@^1.4.1';
 // @deno-types="npm:@types/sanitize-html@2.9.0"
 export { default as sanitizeHtml } from 'npm:sanitize-html@^2.11.0';
