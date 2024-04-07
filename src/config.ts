@@ -48,6 +48,10 @@ class Conf {
   static get localDomain() {
     return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
   }
+  /** URL to an external Nostr viewer. */
+  static get externalDomain() {
+    return Deno.env.get('NOSTR_EXTERNAL') || Conf.localDomain;
+  }
   /** Path to the main SQLite database which stores users, events, and more. */
   static get dbPath() {
     return Deno.env.get('DB_PATH') || 'data/db.sqlite3';
@@ -137,6 +141,10 @@ class Conf {
   /** Merges the path with the localDomain. */
   static local(path: string): string {
     return mergePaths(Conf.localDomain, path);
+  }
+  /** Get an external URL for the NIP-19 identifier. */
+  static external(nip19: string): string {
+    return new URL(`/${nip19}`, Conf.externalDomain).toString();
   }
   /** URL to send Sentry errors to. */
   static get sentryDsn() {

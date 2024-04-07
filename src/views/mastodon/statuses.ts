@@ -15,6 +15,8 @@ import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
+  const note = nip19.noteEncode(event.id);
+
   const account = event.author
     ? await renderAccount({ ...event.author, author_stats: event.author_stats })
     : await accountFromPubkey(event.pubkey);
@@ -92,8 +94,8 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
-    uri: Conf.local(`/posts/${event.id}`),
-    url: Conf.local(`/posts/${event.id}`),
+    uri: Conf.external(note),
+    url: Conf.external(note),
     zapped: Boolean(zapEvent),
   };
 }
