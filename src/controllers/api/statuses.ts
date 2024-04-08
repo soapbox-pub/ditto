@@ -7,7 +7,7 @@ import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { renderEventAccounts } from '@/views.ts';
-import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
@@ -203,6 +203,28 @@ const favouritedByController: AppController = (c) => {
   return renderEventAccounts(c, [{ kinds: [7], '#e': [id], ...params }]);
 };
 
+/** https://docs.joinmastodon.org/methods/statuses/#boost */
+const reblogStatusController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+  });
+
+  if (!event) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+
+  const reblogEvent = await createEvent({
+    kind: 6,
+    tags: [['e', event.id], ['p', event.pubkey]],
+  }, c);
+
+  const status = await renderReblog(reblogEvent);
+
+  return c.json(status);
+};
+
 const rebloggedByController: AppController = (c) => {
   const id = c.req.param('id');
   const params = paginationSchema.parse(c.req.query());
@@ -370,6 +392,7 @@ export {
   favouritedByController,
   pinController,
   rebloggedByController,
+  reblogStatusController,
   statusController,
   unbookmarkController,
   unpinController,

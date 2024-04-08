@@ -4,7 +4,7 @@ import { Conf } from '@/config.ts';
 import { nip19 } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
-import { getAuthor } from '@/queries.ts';
+import { getAuthor, getEvent } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
@@ -100,6 +100,24 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
   };
 }
 
+async function renderReblog(event: DittoEvent) {
+  if (!event.author) return;
+
+  const repostId = event.tags.find(([name]) => name === 'p')?.[1];
+  event.repost = await getEvent(repostId, { kind: 1 });
+
+  if (!event.repost) return;
+
+  const reblog = await renderStatus(event.repost);
+  reblog.reblogged = true;
+  return {
+    id: event.id,
+    account: await renderAccount(event.author),
+    reblogged: true,
+    reblog,
+  };
+}
+
 async function toMention(pubkey: string) {
   const author = await getAuthor(pubkey);
   const account = author ? await renderAccount(author) : undefined;
@@ -136,4 +154,4 @@ function buildInlineRecipients(mentions: Mention[]): string {
   return `<span class="recipients-inline">${elements.join(' ')} </span>`;
 }
 
-export { renderStatus };
+export { renderReblog, renderStatus };
