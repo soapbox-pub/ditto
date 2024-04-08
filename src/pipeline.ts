@@ -48,10 +48,10 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
-  const preexisting = (await cache.count([{ ids: [event.id] }])).count > 0;
+  const [existing] = await cache.query([{ ids: [event.id], limit: 1 }]);
   cache.event(event);
   reqmeister.event(event, { signal });
-  return preexisting;
+  return !!existing;
 }
 
 /** Hydrate the event with the user, if applicable. */
@@ -71,12 +71,12 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
 
-  const isDeleted = (await eventsDB.count(
+  const [deletion] = await eventsDB.query(
     [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
     { signal },
-  )).count > 0;
+  );
 
-  if (isDeleted) {
+  if (deletion) {
     return Promise.reject(new RelayError('blocked', 'event was deleted'));
   } else {
     await Promise.all([
