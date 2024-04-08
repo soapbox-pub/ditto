@@ -27,7 +27,12 @@ export const SqliteWorker = {
 
     if (perf) {
       const { duration } = perf.measure('end', 'start');
-      console.debug(`${sql} \x1b[90m(${(duration / 1000).toFixed(2)}s)\x1b[0m`);
+
+      console.debug(
+        sql.replace(/\s+/g, ' '),
+        JSON.stringify(parameters),
+        `\x1b[90m(${(duration / 1000).toFixed(2)}s)\x1b[0m`,
+      );
 
       perf.clearMarks();
       perf.clearMeasures();
