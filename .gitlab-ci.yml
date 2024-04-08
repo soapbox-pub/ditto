@@ -14,6 +14,10 @@ lint:
   stage: test
   script: deno lint
 
+check:
+  stage: test
+  script: deno task check
+
 test:
   stage: test
   script: deno task test
