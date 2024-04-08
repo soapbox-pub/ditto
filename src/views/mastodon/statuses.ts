@@ -107,10 +107,12 @@ async function renderReblog(event: DittoEvent) {
   if (!repostId) return;
   event.repost = await getEvent(repostId, { kind: 1 });
 
+  event.repost = await getEvent(repostId, { kind: 1 });
   if (!event.repost) return;
 
   const reblog = await renderStatus(event.repost);
   reblog.reblogged = true;
+
   return {
     id: event.id,
     account: await renderAccount(event.author),

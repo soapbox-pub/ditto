@@ -28,25 +28,27 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       fetch: (url) => fetchWorker(url, { signal }),
     });
 
+    const { oEmbed, title, description, canonical_url, open_graph } = result;
+
     return {
-      type: result.oEmbed?.type || 'link',
-      url: result.canonical_url || url,
-      title: result.oEmbed?.title || result.title || '',
-      description: result.open_graph?.description || result.description || '',
-      author_name: result.oEmbed?.author_name || '',
-      author_url: result.oEmbed?.author_url || '',
-      provider_name: result.oEmbed?.provider_name || '',
-      provider_url: result.oEmbed?.provider_url || '',
+      type: oEmbed?.type || 'link',
+      url: canonical_url || url,
+      title: oEmbed?.title || title || '',
+      description: open_graph?.description || description || '',
+      author_name: oEmbed?.author_name || '',
+      author_url: oEmbed?.author_url || '',
+      provider_name: oEmbed?.provider_name || '',
+      provider_url: oEmbed?.provider_url || '',
       // @ts-expect-error `html` does in fact exist on oEmbed.
-      html: sanitizeHtml(result.oEmbed?.html || '', {
+      html: sanitizeHtml(oEmbed?.html || '', {
         allowedTags: ['iframe'],
         allowedAttributes: {
           iframe: ['width', 'height', 'src', 'frameborder', 'allowfullscreen'],
         },
       }),
-      width: result.oEmbed?.width || 0,
-      height: result.oEmbed?.height || 0,
-      image: result.oEmbed?.thumbnails?.[0].url || result.open_graph?.images?.[0].url || null,
+      width: ((oEmbed && oEmbed.type !== 'link') ? oEmbed.width : 0) || 0,
+      height: ((oEmbed && oEmbed.type !== 'link') ? oEmbed.height : 0) || 0,
+      image: oEmbed?.thumbnails?.[0].url || open_graph?.images?.[0].url || null,
       embed_url: '',
       blurhash: null,
     };
