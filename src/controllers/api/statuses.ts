@@ -185,11 +185,9 @@ const reblogStatusController: AppController = async (c) => {
     return c.json({ error: 'Event not found.' }, 404);
   }
 
-  const tags: string[][] = [['e', event.id], ['p', event.pubkey]];
-
   const reblogEvent = await createEvent({
     kind: 6,
-    tags,
+    tags: [['e', event.id], ['p', event.pubkey]],
   }, c);
 
   const status = await renderReblog(reblogEvent);

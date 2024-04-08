@@ -63,7 +63,7 @@ const streamingController: AppController = (c) => {
 
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
-        if (event.kind == 6) {
+        if (event.kind === 6) {
           const status = await renderReblog(event);
           if (status) {
             send('update', status);
