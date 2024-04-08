@@ -25,6 +25,9 @@ export const SqliteWorker = {
     const { duration } = perf.measure('end', 'start');
     debug(`${sql} \x1b[90m(${(duration / 1000).toFixed(2)}s)\x1b[0m`);
 
+    perf.clearMarks();
+    perf.clearMeasures();
+
     return result;
   },
   destroy() {
