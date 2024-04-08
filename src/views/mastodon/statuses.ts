@@ -103,7 +103,8 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
 async function renderReblog(event: DittoEvent) {
   if (!event.author) return;
 
-  const repostId = event.tags.find(([name]) => name === 'p')?.[1];
+  const repostId = event.tags.find(([name]) => name === 'e')?.[1];
+  if (!repostId) return;
   event.repost = await getEvent(repostId, { kind: 1 });
 
   if (!event.repost) return;
