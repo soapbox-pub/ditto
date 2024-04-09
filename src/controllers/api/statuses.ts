@@ -1,7 +1,7 @@
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
-import { ISO6391, NIP05, nip19, type NostrEvent, z } from '@/deps.ts';
+import { ISO6391, NIP05, nip19, type NostrEvent, NostrFilter, z } from '@/deps.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
@@ -11,6 +11,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
+import { eventsDB } from '@/storages.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -225,6 +226,29 @@ const reblogStatusController: AppController = async (c) => {
   return c.json(status);
 };
 
+/** https://docs.joinmastodon.org/methods/statuses/#unreblog */
+const unreblogStatusController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const pubkey = c.get('pubkey');
+  if (!pubkey) return c.json({ error: 'Unauthorized' }, 403);
+
+  const event = await getEvent(eventId, {
+    kind: 1,
+  });
+  if (!event) return c.json({ error: 'Event not found.' }, 404);
+
+  const filters: NostrFilter[] = [{ kinds: [6], authors: [pubkey], '#e': [event.id] }];
+  const repostedEvent = (await eventsDB.query(filters, { limit: 1 }))[0];
+  if (!repostedEvent) return c.json({ error: 'Event not found.' }, 404);
+
+  await createEvent({
+    kind: 5,
+    tags: [['e', repostedEvent.id]],
+  }, c);
+
+  return c.json(await renderStatus(event));
+};
+
 const rebloggedByController: AppController = (c) => {
   const id = c.req.param('id');
   const params = paginationSchema.parse(c.req.query());
@@ -396,5 +420,6 @@ export {
   statusController,
   unbookmarkController,
   unpinController,
+  unreblogStatusController,
   zapController,
 };

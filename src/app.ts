@@ -66,6 +66,7 @@ import {
   statusController,
   unbookmarkController,
   unpinController,
+  unreblogStatusController,
   zapController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
@@ -169,6 +170,7 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requirePubkey, pinController)
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requirePubkey, unpinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requirePubkey, zapController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requirePubkey, reblogStatusController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requirePubkey, unreblogStatusController);
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusController);
 
