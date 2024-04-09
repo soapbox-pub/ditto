@@ -229,7 +229,7 @@ const reblogStatusController: AppController = async (c) => {
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
-  const pubkey = c.get('pubkey')!;
+  const pubkey = c.get('pubkey') as string;
 
   const event = await getEvent(eventId, {
     kind: 1,
