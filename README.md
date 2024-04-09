@@ -13,7 +13,7 @@ With Ditto, you can create your own social network that is decentralized, custom
 - [x] Log in with any Mastodon app
 - [x] Like and comment on posts
 - [x] Share posts
-- [ ] Reposts
+- [x] Reposts
 - [ ] Notifications
 - [x] Profiles
 - [ ] Search
