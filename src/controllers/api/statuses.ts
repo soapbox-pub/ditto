@@ -229,8 +229,7 @@ const reblogStatusController: AppController = async (c) => {
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
-  const pubkey = c.get('pubkey');
-  if (!pubkey) return c.json({ error: 'Unauthorized' }, 403);
+  const pubkey = c.get('pubkey')!;
 
   const event = await getEvent(eventId, {
     kind: 1,
@@ -238,7 +237,7 @@ const unreblogStatusController: AppController = async (c) => {
   if (!event) return c.json({ error: 'Event not found.' }, 404);
 
   const filters: NostrFilter[] = [{ kinds: [6], authors: [pubkey], '#e': [event.id] }];
-  const repostedEvent = (await eventsDB.query(filters, { limit: 1 }))[0];
+  const [repostedEvent] = await eventsDB.query(filters, { limit: 1 });
   if (!repostedEvent) return c.json({ error: 'Event not found.' }, 404);
 
   await createEvent({
