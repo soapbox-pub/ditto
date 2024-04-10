@@ -1,5 +1,5 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import { Debug, type InsertQueryBuilder, type NostrEvent } from '@/deps.ts';
+import { Debug, type InsertQueryBuilder, type NostrEvent, NostrFilter } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
@@ -26,10 +26,10 @@ async function updateStats(event: NostrEvent) {
   }
 
   const statDiffs = getStatsDiff(event, prev);
-  const pubkeyDiffs = statDiffs.filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
-  const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
+  const pubkeyDiffs = (await statDiffs).filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
+  const eventDiffs = (await statDiffs).filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
-  if (statDiffs.length) {
+  if ((await statDiffs).length) {
     debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
@@ -42,7 +42,7 @@ async function updateStats(event: NostrEvent) {
 }
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
-function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): StatDiff[] {
+async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Promise<StatDiff[]> {
   const statDiffs: StatDiff[] = [];
 
   const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
@@ -58,6 +58,36 @@ function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): StatDiff
     case 3:
       statDiffs.push(...getFollowDiff(event, prev));
       break;
+    case 5: {
+      if (!firstTaggedId) break;
+
+      let filters: NostrFilter[] = [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }];
+      const [repostedEvent] = await eventsDB.query(filters, { limit: 1 });
+      // Check if the event being deleted is of kind 6,
+      // if it is then proceed, else just break
+      if (!repostedEvent) break;
+
+      let eventBeingRepostedPubkey = '';
+      let eventBeingRepostedId = '';
+
+      for (const tag of repostedEvent.tags) {
+        switch (tag[0]) {
+          case 'e':
+            eventBeingRepostedId = tag[1];
+            break;
+          case 'p':
+            eventBeingRepostedPubkey = tag[1];
+            break;
+        }
+      }
+
+      filters = [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }];
+      const [eventBeingReposted] = await eventsDB.query(filters, { limit: 1 });
+      if (!eventBeingReposted) break;
+
+      statDiffs.push(['event_stats', eventBeingRepostedId, 'reposts_count', -1]);
+      break;
+    }
     case 6:
       if (firstTaggedId) {
         statDiffs.push(['event_stats', firstTaggedId, 'reposts_count', 1]);
