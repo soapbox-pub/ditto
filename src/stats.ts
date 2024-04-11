@@ -1,5 +1,5 @@
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import { Debug, type InsertQueryBuilder, type NostrEvent, NostrFilter } from '@/deps.ts';
+import { Debug, type InsertQueryBuilder, type NostrEvent } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
@@ -61,28 +61,22 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
     case 5: {
       if (!firstTaggedId) break;
 
-      let filters: NostrFilter[] = [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }];
-      const [repostedEvent] = await eventsDB.query(filters, { limit: 1 });
+      const [repostedEvent] = await eventsDB.query(
+        [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }],
+        { limit: 1 },
+      );
       // Check if the event being deleted is of kind 6,
       // if it is then proceed, else just break
       if (!repostedEvent) break;
 
-      let eventBeingRepostedPubkey = '';
-      let eventBeingRepostedId = '';
+      const eventBeingRepostedId = repostedEvent.tags.find(([name]) => name === 'e')?.[1];
+      const eventBeingRepostedPubkey = repostedEvent.tags.find(([name]) => name === 'p')?.[1];
+      if (!eventBeingRepostedId || !eventBeingRepostedPubkey) break;
 
-      for (const tag of repostedEvent.tags) {
-        switch (tag[0]) {
-          case 'e':
-            eventBeingRepostedId = tag[1];
-            break;
-          case 'p':
-            eventBeingRepostedPubkey = tag[1];
-            break;
-        }
-      }
-
-      filters = [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }];
-      const [eventBeingReposted] = await eventsDB.query(filters, { limit: 1 });
+      const [eventBeingReposted] = await eventsDB.query(
+        [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }],
+        { limit: 1 },
+      );
       if (!eventBeingReposted) break;
 
       statDiffs.push(['event_stats', eventBeingRepostedId, 'reposts_count', -1]);
