@@ -28,6 +28,7 @@ const createStatusSchema = z.object({
   spoiler_text: z.string().nullish(),
   status: z.string().nullish(),
   visibility: z.enum(['public', 'unlisted', 'private', 'direct']).nullish(),
+  quote_id: z.string().nullish(),
 }).refine(
   (data) => Boolean(data.status || data.media_ids?.length),
   { message: 'Status must contain text or media.' },
@@ -68,6 +69,10 @@ const createStatusController: AppController = async (c) => {
   }
 
   const tags: string[][] = [];
+
+  if (data.quote_id) {
+    tags.push(['q', data.quote_id]);
+  }
 
   if (data.in_reply_to_id) {
     tags.push(['e', data.in_reply_to_id, 'reply']);
