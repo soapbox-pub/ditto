@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects } from '@/deps-test.ts';
 
-import { fetchWorker } from './fetch.ts';
+import { fetchWorker } from '@/workers/fetch.ts';
 
 Deno.test({
   name: 'fetchWorker',
