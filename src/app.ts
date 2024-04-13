@@ -134,7 +134,7 @@ app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
-app.get('/api/v1/instance', cache({ expires: Time.seconds(3) }), instanceController);
+app.get('/api/v1/instance', cache({ expires: Time.minutes(5) }), instanceController);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
