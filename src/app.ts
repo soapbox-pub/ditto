@@ -134,7 +134,7 @@ app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
-app.get('/api/v1/instance', cache({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
+app.get('/api/v1/instance', cache({ expires: Time.seconds(3) }), instanceController);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
@@ -185,10 +185,10 @@ app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
 app.get('/api/v2/search', searchController);
 
-app.get('/api/pleroma/frontend_configurations', frontendConfigController);
+app.get('/api/pleroma/frontend_configurations', cache({ expires: Time.minutes(5) }), frontendConfigController);
 
-app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
-app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+app.get('/api/v1/trends/tags', cache({ expires: Time.minutes(15) }), trendingTagsController);
+app.get('/api/v1/trends', cache({ expires: Time.minutes(15) }), trendingTagsController);
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
