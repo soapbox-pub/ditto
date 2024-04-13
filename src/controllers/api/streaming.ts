@@ -6,6 +6,8 @@ import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { eventsDB } from '@/storages.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -64,6 +66,13 @@ const streamingController: AppController = (c) => {
     if (filter) {
       for await (const event of Sub.sub(socket, '1', [filter])) {
         if (event.kind === 6) {
+          await hydrateEvents({
+            events: [event],
+            relations: ['repost', 'author'],
+            storage: eventsDB,
+            signal: AbortSignal.timeout(1000),
+          });
+
           const status = await renderReblog(event);
           if (status) {
             send('update', status);
