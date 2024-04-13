@@ -19,7 +19,9 @@ export const cache = (opts: CacheOpts): MiddlewareHandler => {
       await next();
       const res = c.res.clone();
       if (res.status < 500) {
+        const old = response;
         response = res;
+        old?.text(); // Prevent memory leaks.
       }
       return res;
     }
