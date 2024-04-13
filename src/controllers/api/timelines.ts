@@ -49,7 +49,12 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const events = await eventsDB
     .query(filters, { signal })
     .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'author_stats', 'event_stats'], storage: eventsDB, signal })
+      hydrateEvents({
+        events,
+        relations: ['author', 'author_stats', 'event_stats', 'repost'],
+        storage: eventsDB,
+        signal,
+      })
     );
 
   if (!events.length) {
@@ -58,7 +63,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
 
   const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {
-      return renderReblog(event);
+      return renderReblog(event, {});
     }
     return renderStatus(event, c.get('pubkey'));
   }))).filter((boolean) => boolean);

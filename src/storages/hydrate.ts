@@ -3,6 +3,7 @@ import { db } from '@/db.ts';
 import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
+import { eventsDB } from '@/storages.ts';
 
 interface HydrateEventOpts {
   events: DittoEvent[];
@@ -32,6 +33,9 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
         break;
       case 'user':
         await hydrateUsers({ events, storage, signal });
+        break;
+      case 'repost':
+        await hydrateRepostEvents(events);
         break;
     }
   }
@@ -105,6 +109,24 @@ async function hydrateEventStats(events: DittoEvent[]): Promise<DittoEvent[]> {
         reposts_count: Math.max(stat.reposts_count, 0) || 0,
         reactions_count: Math.max(stat.reactions_count, 0) || 0,
       };
+    }
+  }
+
+  return events;
+}
+
+async function hydrateRepostEvents(events: DittoEvent[]): Promise<DittoEvent[]> {
+  const results = await eventsDB.query([{ kinds: [1], ids: events.map((event) => event.id) }]);
+
+  for (const event of events) {
+    if (event.kind === 6) {
+      const originalPostId = event.tags.find(([name]) => name === 'e')?.[1];
+      if (!originalPostId) continue;
+
+      const originalPostEvent = results.find((event) => event.id === originalPostId);
+      if (!originalPostEvent) continue;
+
+      event.repost = originalPostEvent;
     }
   }
 

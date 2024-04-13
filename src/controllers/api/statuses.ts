@@ -226,7 +226,7 @@ const reblogStatusController: AppController = async (c) => {
     tags: [['e', event.id], ['p', event.pubkey]],
   }, c);
 
-  const status = await renderReblog(reblogEvent);
+  const status = await renderReblog(reblogEvent, { loadOriginalPostEvent: true });
 
   return c.json(status);
 };
