@@ -12,6 +12,7 @@ import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { eventsDB } from '@/storages.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -212,6 +213,7 @@ const favouritedByController: AppController = (c) => {
 /** https://docs.joinmastodon.org/methods/statuses/#boost */
 const reblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
+  const { signal } = c.req.raw;
 
   const event = await getEvent(eventId, {
     kind: 1,
@@ -226,7 +228,14 @@ const reblogStatusController: AppController = async (c) => {
     tags: [['e', event.id], ['p', event.pubkey]],
   }, c);
 
-  const status = await renderReblog(reblogEvent, { loadOriginalPostEvent: true });
+  await hydrateEvents({
+    events: [reblogEvent, event],
+    relations: ['repost', 'author'],
+    storage: eventsDB,
+    signal: signal,
+  });
+
+  const status = await renderReblog(reblogEvent);
 
   return c.json(status);
 };

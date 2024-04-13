@@ -3,7 +3,6 @@ import { db } from '@/db.ts';
 import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
-import { eventsDB } from '@/storages.ts';
 
 interface HydrateEventOpts {
   events: DittoEvent[];
@@ -35,7 +34,7 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
         await hydrateUsers({ events, storage, signal });
         break;
       case 'repost':
-        await hydrateRepostEvents(events);
+        await hydrateRepostEvents({ events, storage, signal });
         break;
     }
   }
@@ -115,8 +114,19 @@ async function hydrateEventStats(events: DittoEvent[]): Promise<DittoEvent[]> {
   return events;
 }
 
-async function hydrateRepostEvents(events: DittoEvent[]): Promise<DittoEvent[]> {
-  const results = await eventsDB.query([{ kinds: [1], ids: events.map((event) => event.id) }]);
+async function hydrateRepostEvents(opts: Omit<HydrateEventOpts, 'relations'>): Promise<DittoEvent[]> {
+  const { events, storage, signal } = opts;
+  const results = await storage.query([{
+    kinds: [1],
+    ids: events.map((event) => {
+      if (event.kind === 6) {
+        const originalPostId = event.tags.find(([name]) => name === 'e')?.[1];
+        if (!originalPostId) return event.id;
+        else return originalPostId;
+      }
+      return event.id;
+    }),
+  }]);
 
   for (const event of events) {
     if (event.kind === 6) {
@@ -126,6 +136,7 @@ async function hydrateRepostEvents(events: DittoEvent[]): Promise<DittoEvent[]> 
       const originalPostEvent = results.find((event) => event.id === originalPostId);
       if (!originalPostEvent) continue;
 
+      await hydrateAuthors({ events: [originalPostEvent], storage: storage, signal: signal });
       event.repost = originalPostEvent;
     }
   }
