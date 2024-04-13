@@ -229,7 +229,7 @@ const reblogStatusController: AppController = async (c) => {
   }, c);
 
   await hydrateEvents({
-    events: [reblogEvent, event],
+    events: [reblogEvent],
     relations: ['repost', 'author'],
     storage: eventsDB,
     signal: signal,
