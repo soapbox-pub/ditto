@@ -129,7 +129,7 @@ async function hydrateRepostEvents(opts: Omit<HydrateEventOpts, 'relations'>): P
       }
       return event.id;
     }),
-  }]);
+  }], { signal });
 
   for (const event of events) {
     if (event.kind === 6) {
