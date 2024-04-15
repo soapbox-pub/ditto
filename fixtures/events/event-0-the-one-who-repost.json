@@ -1,0 +1,9 @@
+{
+  "id": "343e756c454d1fe623e0ea5a7653e5d0cb643fee49acef4b4e8df7645d27c8e4",
+  "pubkey": "82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2",
+  "created_at": 1712835974,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"lud16\":\"jack@primal.net\",\"about\":\"bitcoin & chill\",\"picture\":\"https:\\/\\/nostr.build\\/i\\/p\\/nostr.build_6b9909bccf0f4fdaf7aacd9bc01e4ce70dab86f7d90395f2ce925e6ea06ed7cd.jpeg\",\"display_name\":\"\",\"lud06\":\"\",\"banner\":\"https:\\/\\/upload.wikimedia.org\\/wikipedia\\/commons\\/b\\/b4\\/The_Sun_by_the_Atmospheric_Imaging_Assembly_of_NASA%27s_Solar_Dynamics_Observatory_-_20100819.jpg\",\"website\":\"\",\"nip05\":\"\",\"name\":\"jack\"}",
+  "sig": "f3a896b67145eeca606c30375a146055c424ce1216f3e894d720733912aba3a90cf70e018d131246977c85b4ed9491fa43843e7728caab6b28da5d80decf9045"
+}

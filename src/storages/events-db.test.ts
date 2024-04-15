@@ -4,7 +4,7 @@ import { assertEquals, assertRejects } from '@/deps-test.ts';
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
 
-import { EventsDB } from './events-db.ts';
+import { EventsDB } from '@/storages/events-db.ts';
 
 const eventsDB = new EventsDB(db);
 
