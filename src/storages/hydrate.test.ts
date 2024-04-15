@@ -9,6 +9,7 @@ import event0madeRepost from '~/fixtures/events/event-0-the-one-who-repost.json'
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
 import event1reposted from '~/fixtures/events/event-1-reposted.json' with { type: 'json' };
 import event6 from '~/fixtures/events/event-6.json' with { type: 'json' };
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 const eventsDB = new EventsDB(db);
 
@@ -17,7 +18,7 @@ Deno.test('hydrate author', async () => {
   await eventsDB.event(event0);
   await eventsDB.event(event1);
 
-  assertEquals((event1 as any).author, undefined, "Event hasn't been hydrated yet");
+  assertEquals((event1 as DittoEvent).author, undefined, "Event hasn't been hydrated yet");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1000);
@@ -45,8 +46,8 @@ Deno.test('hydrate repost', async () => {
   await eventsDB.event(event1reposted);
   await eventsDB.event(event6);
 
-  assertEquals((event6 as any).author, undefined, "Event hasn't been hydrated author yet");
-  assertEquals((event6 as any).repost, undefined, "Event hasn't been hydrated repost yet");
+  assertEquals((event6 as DittoEvent).author, undefined, "Event hasn't been hydrated author yet");
+  assertEquals((event6 as DittoEvent).repost, undefined, "Event hasn't been hydrated repost yet");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1000);
