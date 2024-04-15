@@ -14,7 +14,16 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
+interface statusOpts {
+  viewerPubkey?: string;
+  depth?: number;
+}
+
+async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
+  const { viewerPubkey, depth = 1 } = opts;
+
+  if (depth > 2 || depth < 0) return null;
+
   const note = nip19.noteEncode(event.id);
 
   const account = event.author
@@ -67,6 +76,8 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
 
   const media = [...mediaLinks, ...mediaTags];
 
+  const quoteStatus = !event.quote_repost ? null : await renderStatus(event.quote_repost, { depth: depth + 1 });
+
   return {
     id: event.id,
     account,
@@ -94,6 +105,8 @@ async function renderStatus(event: DittoEvent, viewerPubkey?: string) {
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
+    quote: quoteStatus,
+    quote_id: quoteStatus ? quoteStatus.id : null,
     uri: Conf.external(note),
     url: Conf.external(note),
     zapped: Boolean(zapEvent),
@@ -108,7 +121,7 @@ async function renderReblog(event: DittoEvent) {
 
   if (!event.repost) return;
 
-  const reblog = await renderStatus(event.repost);
+  const reblog = await renderStatus(event.repost, {});
   reblog.reblogged = true;
 
   return {

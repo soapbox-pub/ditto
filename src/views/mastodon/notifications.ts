@@ -13,7 +13,7 @@ function renderNotification(event: NostrEvent, viewerPubkey?: string) {
 
 async function renderNotificationMention(event: NostrEvent, viewerPubkey?: string) {
   const author = await getAuthor(event.pubkey);
-  const status = await renderStatus({ ...event, author }, viewerPubkey);
+  const status = await renderStatus({ ...event, author }, { viewerPubkey: viewerPubkey });
   if (!status) return;
 
   return {

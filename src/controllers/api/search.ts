@@ -52,7 +52,7 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event) => event.kind === 1)
-        .map((event) => renderStatus(event, c.get('pubkey'))),
+        .map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })),
     ),
   ]);
 
