@@ -136,7 +136,7 @@ async function hydrateRepostEvents(opts: Omit<HydrateEventOpts, 'relations'>): P
       const originalPostEvent = results.find((event) => event.id === originalPostId);
       if (!originalPostEvent) continue;
 
-      await hydrateAuthors({ events: [originalPostEvent], storage: storage, signal: signal });
+      await hydrateEvents({ events: [originalPostEvent], storage: storage, signal: signal, relations: ['author'] });
       event.repost = originalPostEvent;
     }
   }
