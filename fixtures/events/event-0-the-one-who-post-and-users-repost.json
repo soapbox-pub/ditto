@@ -1,0 +1,9 @@
+{
+  "id": "155ee53d9319d427ac0d5a8f0089654d8db66d0f1b31d8bd0d389b7a5417992f",
+  "pubkey": "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9",
+  "created_at": 1712507673,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"displayName\":\"ODELL\",\"pubkey\":\"04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9\",\"npub\":\"npub1qny3tkh0acurzla8x3zy4nhrjz5zd8l9sy9jys09umwng00manysew95gx\",\"created_at\":1712419265,\"display_name\":\"ODELL\",\"name\":\"ODELL\",\"website\":\"https://odell.xyz\",\"about\":\"FREEDOM TECH IS HOPE 🫡 | COFOUNDER - OPENSATS AND BITCOIN PARK | MANAGING PARTNER - TEN31 |\",\"lud16\":\"odell@vlt.ge\",\"nip05\":\"odell@werunbtc.com\",\"picture\":\"https://m.primal.net/Hrsv.webp\",\"banner\":\"https://m.primal.net/HqQz.jpg\"}",
+  "sig": "355663a38ebd1cb31b5d2864357c4fdbeecfaedd602133638cf255ea30e6e532e3c927495c5eb5dfc0e77046d2e1d4e8be271f279c2c7eb9c9273028bfc033f4"
+}

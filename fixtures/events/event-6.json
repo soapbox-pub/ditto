@@ -1,0 +1,18 @@
+{
+  "id": "863185c0b3a18316f438b7920a1f5217ac5a0f2a078dc003f9969512e8c8a5de",
+  "pubkey": "82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2",
+  "created_at": 1713045438,
+  "kind": 6,
+  "tags": [
+    [
+      "e",
+      "b460c8eb16ce7b3ebe3079240c47bb7cace5ad2bd0246fab1ed36a12fb816b1e"
+    ],
+    [
+      "p",
+      "04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9"
+    ]
+  ],
+  "content": "{\"content\":\"BITCOIN IS THE ONLY GLOBAL FREE MARKET. 24\\/7\\/365 LIQUIDITY. NO CIRCUIT BREAKERS. FEATURE NOT A BUG. STAY HUMBLE AND STACK SATS.\",\"id\":\"b460c8eb16ce7b3ebe3079240c47bb7cace5ad2bd0246fab1ed36a12fb816b1e\",\"tags\":[],\"sig\":\"b56ddd466d00de591f371b1933e73deeeba2f56f4b0ee8179b3f6a6b4e45f6bb850a6802d6be17055d13c699b733f610b69fbfbbfbcd609c526b8c5097b28505\",\"created_at\":1713045404,\"kind\":1,\"pubkey\":\"04c915daefee38317fa734444acee390a8269fe5810b2241e5e6dd343dfbecc9\"}",
+  "sig": "3bf75ad219c87194679ac08c2d90c1845cb0352633d73e1cf1b7e83e7be61a18a47dcb4746b4b9dfc1d640b7578a4a602d2f68eec605494a335c0732b3b61f37"
+}
