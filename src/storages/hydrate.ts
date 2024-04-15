@@ -177,14 +177,12 @@ async function hydrateQuoteRepostEvents(opts: Omit<HydrateEventOpts, 'relations'
         event.quote_repost = originalPostEvent;
         continue;
       }
-
       if (!originalPostEvent.author) {
         await hydrateEvents({ events: [originalPostEvent], storage: storage, signal: signal, relations: ['author'] });
 
         event.quote_repost = originalPostEvent;
         continue;
       }
-
       event.quote_repost = originalPostEvent;
     }
   }
