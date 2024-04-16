@@ -73,7 +73,11 @@ Deno.test('hydrate repost', async () => {
     signal: controller.signal,
   });
 
-  const expectedEvent6 = { ...event6copy, author: event0madeRepostCopy, repost: { ...event1repostedCopy, author: event0madePostCopy } };
+  const expectedEvent6 = {
+    ...event6copy,
+    author: event0madeRepostCopy,
+    repost: { ...event1repostedCopy, author: event0madePostCopy },
+  };
   assertEquals(event6copy, expectedEvent6);
 
   await db.remove([{ kinds: [0, 1, 6] }]);
