@@ -1,0 +1,15 @@
+{
+  "id": "e0c2b45143717d62f85880aa7e26f2c3f4b10ada9ef547ae2479cfdd94ea2ce6",
+  "pubkey": "47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4",
+  "created_at": 1713217672,
+  "kind": 1,
+  "tags": [
+    [
+      "q",
+      "826b28986cbe8196faaddb502bbcfb9d5521981d24e858ad1924a178e18f570f",
+      "wss://relay.mostr.pub/"
+    ]
+  ],
+  "content": "I like this lottery.\nnostr:nevent1qqsgy6egnpktaqvkl2kak5pthnae64fpnqwjf6zc45vjfgtcux84wrcpzemhxue69uhhyetvv9ujumt0wd68ytnsw43z7q3q08pv4cg5ag52nq082kd5leu9ffrn2gdg6g4xdwatn73y36uzplmqxpqqqqqqzrvwgz7",
+  "sig": "5a40475e719ad4cf98dd685a268158995c25050057632564d38789ce39a66e9d34b2d4ec9bef650b60bcfe8106415385f28ba291e168a1d02e32e092b8b86615"
+}

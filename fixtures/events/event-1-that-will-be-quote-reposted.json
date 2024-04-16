@@ -1,0 +1,27 @@
+{
+  "id": "826b28986cbe8196faaddb502bbcfb9d5521981d24e858ad1924a178e18f570f",
+  "pubkey": "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6",
+  "created_at": 1711675519,
+  "kind": 1,
+  "tags": [
+    [
+      "zap",
+      "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6",
+      "wss://relay.mostr.pub",
+      "0.915"
+    ],
+    [
+      "zap",
+      "6be38f8c63df7dbf84db7ec4a6e6fbbd8d19dca3b980efad18585c46f04b26f9",
+      "wss://relay.mostr.pub",
+      "0.085"
+    ],
+    [
+      "proxy",
+      "https://gleasonator.com/objects/66216159-a709-431b-81e9-e4e1f86e20e4",
+      "activitypub"
+    ]
+  ],
+  "content": "The Bitcoin Lottery is free to play, and you can win millions! Unlimited tries!\n\nJust guess 12 words mnemonic seed phrase words.",
+  "sig": "b76264f9a7ec0860a9dd3b72f94e81ed6c0d848eee2bc5cc89b78b1cb1b4e00243f0f354c0185824fe16eb16cfcab511275388b6acd29e0d05d97dea1564d5be"
+}
