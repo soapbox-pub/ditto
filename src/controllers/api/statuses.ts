@@ -130,6 +130,16 @@ const createStatusController: AppController = async (c) => {
   }, c);
 
   const author = await getAuthor(event.pubkey);
+
+  if (data.quote_id) {
+    await hydrateEvents({
+      events: [event],
+      relations: ['quote_repost'],
+      storage: eventsDB,
+      signal: c.req.raw.signal,
+    });
+  }
+
   return c.json(await renderStatus({ ...event, author }, { viewerPubkey: c.get('pubkey') }));
 };
 

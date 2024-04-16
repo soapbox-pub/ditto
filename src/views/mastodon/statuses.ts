@@ -76,8 +76,6 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
 
   const media = [...mediaLinks, ...mediaTags];
 
-  const quoteStatus = !event.quote_repost ? null : await renderStatus(event.quote_repost, { depth: depth + 1 });
-
   return {
     id: event.id,
     account,
@@ -105,8 +103,8 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
-    quote: quoteStatus,
-    quote_id: quoteStatus ? quoteStatus.id : null,
+    quote: !event.quote_repost ? null : await renderStatus(event.quote_repost, { depth: depth + 1 }),
+    quote_id: event.tags.find(([name]) => name === 'q')?.[1] ?? null,
     uri: Conf.external(note),
     url: Conf.external(note),
     zapped: Boolean(zapEvent),
