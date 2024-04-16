@@ -51,7 +51,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     .then((events) =>
       hydrateEvents({
         events,
-        relations: ['author', 'author_stats', 'event_stats', 'repost'],
+        relations: ['author', 'author_stats', 'event_stats', 'repost', 'quote_repost'],
         storage: eventsDB,
         signal,
       })
@@ -65,7 +65,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     if (event.kind === 6) {
       return renderReblog(event);
     }
-    return renderStatus(event, c.get('pubkey'));
+    return renderStatus(event, { viewerPubkey: c.get('pubkey') });
   }))).filter((boolean) => boolean);
 
   if (!statuses.length) {

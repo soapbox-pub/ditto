@@ -163,7 +163,7 @@ const accountStatusesController: AppController = async (c) => {
       return events;
     });
 
-  const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
   return paginated(c, events, statuses);
 };
 
@@ -310,7 +310,7 @@ const favouritesController: AppController = async (c) => {
       hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
     );
 
-  const statuses = await Promise.all(events1.map((event) => renderStatus(event, c.get('pubkey'))));
+  const statuses = await Promise.all(events1.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
   return paginated(c, events1, statuses);
 };
 

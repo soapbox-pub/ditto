@@ -40,12 +40,12 @@ const statusController: AppController = async (c) => {
 
   const event = await getEvent(id, {
     kind: 1,
-    relations: ['author', 'event_stats', 'author_stats'],
+    relations: ['author', 'event_stats', 'author_stats', 'quote_repost'],
     signal: AbortSignal.timeout(1500),
   });
 
   if (event) {
-    return c.json(await renderStatus(event, c.get('pubkey')));
+    return c.json(await renderStatus(event, { viewerPubkey: c.get('pubkey') }));
   }
 
   return c.json({ error: 'Event not found.' }, 404);
@@ -130,7 +130,7 @@ const createStatusController: AppController = async (c) => {
   }, c);
 
   const author = await getAuthor(event.pubkey);
-  return c.json(await renderStatus({ ...event, author }, c.get('pubkey')));
+  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: c.get('pubkey') }));
 };
 
 const deleteStatusController: AppController = async (c) => {
@@ -147,7 +147,7 @@ const deleteStatusController: AppController = async (c) => {
       }, c);
 
       const author = await getAuthor(event.pubkey);
-      return c.json(await renderStatus({ ...event, author }, pubkey));
+      return c.json(await renderStatus({ ...event, author }, { viewerPubkey: pubkey }));
     } else {
       return c.json({ error: 'Unauthorized' }, 403);
     }
@@ -161,7 +161,7 @@ const contextController: AppController = async (c) => {
   const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
 
   async function renderStatuses(events: NostrEvent[]) {
-    const statuses = await Promise.all(events.map((event) => renderStatus(event, c.get('pubkey'))));
+    const statuses = await Promise.all(events.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
     return statuses.filter(Boolean);
   }
 
@@ -191,7 +191,7 @@ const favouriteController: AppController = async (c) => {
       ],
     }, c);
 
-    const status = await renderStatus(target, c.get('pubkey'));
+    const status = await renderStatus(target, { viewerPubkey: c.get('pubkey') });
 
     if (status) {
       status.favourited = true;
@@ -259,7 +259,7 @@ const unreblogStatusController: AppController = async (c) => {
     tags: [['e', repostedEvent.id]],
   }, c);
 
-  return c.json(await renderStatus(event));
+  return c.json(await renderStatus(event, {}));
 };
 
 const rebloggedByController: AppController = (c) => {
@@ -285,7 +285,7 @@ const bookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, pubkey);
+    const status = await renderStatus(event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = true;
     }
@@ -312,7 +312,7 @@ const unbookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, pubkey);
+    const status = await renderStatus(event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = false;
     }
@@ -339,7 +339,7 @@ const pinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, pubkey);
+    const status = await renderStatus(event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = true;
     }
@@ -368,7 +368,7 @@ const unpinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, pubkey);
+    const status = await renderStatus(event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = false;
     }
@@ -411,7 +411,7 @@ const zapController: AppController = async (c) => {
       ],
     }, c);
 
-    const status = await renderStatus(target, c.get('pubkey'));
+    const status = await renderStatus(target, { viewerPubkey: c.get('pubkey') });
     status.zapped = true;
 
     return c.json(status);

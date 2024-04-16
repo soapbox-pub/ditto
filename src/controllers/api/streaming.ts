@@ -79,7 +79,7 @@ const streamingController: AppController = (c) => {
           }
           continue;
         }
-        const status = await renderStatus(event, pubkey);
+        const status = await renderStatus(event, { viewerPubkey: pubkey });
         if (status) {
           send('update', status);
         }

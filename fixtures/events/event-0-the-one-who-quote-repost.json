@@ -1,0 +1,9 @@
+{
+  "id": "6bc9ca44feb5a261841873def54a81cc328737391dc10f7eada31173a399517d",
+  "pubkey": "47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4",
+  "created_at": 1712851917,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"name\":\"patrickReiis\",\"picture\":\"https://void.cat/d/EMs8Qdn5wsAMrZ5T9T44sz.webp\"}",
+  "sig": "cedbd2585c18c9ee8cbafa4e3b1fefbe68cc15deeabcb0519791c6d715f92d1439ca9ac7584185a94d521709f9023fcbafab47a074a7ce8a247d3ce4dfce8af3"
+}
