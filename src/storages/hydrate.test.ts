@@ -6,7 +6,12 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event0madePost from '~/fixtures/events/event-0-the-one-who-post-and-users-repost.json' with { type: 'json' };
 import event0madeRepost from '~/fixtures/events/event-0-the-one-who-repost.json' with { type: 'json' };
+import event0madeQuoteRepost from '~/fixtures/events/event-0-the-one-who-quote-repost.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
+import event1quoteRepost from '~/fixtures/events/event-1-quote-repost.json' with { type: 'json' };
+import event1willBeQuoteReposted from '~/fixtures/events/event-1-that-will-be-quote-reposted.json' with {
+  type: 'json',
+};
 import event1reposted from '~/fixtures/events/event-1-reposted.json' with { type: 'json' };
 import event6 from '~/fixtures/events/event-6.json' with { type: 'json' };
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -64,6 +69,37 @@ Deno.test('hydrate repost', async () => {
 
   await eventsDB.remove([{ kinds: [0, 1, 6] }]);
   assertEquals(await eventsDB.query([{ kinds: [0, 1, 6] }]), []);
+
+  clearTimeout(timeoutId);
+});
+
+Deno.test('hydrate quote repost with hydrate author', async () => {
+  // Save events to database
+  await eventsDB.event(event0madeQuoteRepost);
+  await eventsDB.event(event0);
+  await eventsDB.event(event1quoteRepost);
+  await eventsDB.event(event1willBeQuoteReposted);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1000);
+
+  await hydrateEvents({
+    events: [event1quoteRepost],
+    relations: ['author', 'quote_repost'], // if author is called first the performance will be better
+    storage: eventsDB,
+    signal: controller.signal,
+  });
+
+  const expectedEvent1quoteRepost = {
+    ...event1quoteRepost,
+    author: event0madeQuoteRepost,
+    quote_repost: { ...event1willBeQuoteReposted, author: event0 },
+  };
+
+  assertEquals(event1quoteRepost, expectedEvent1quoteRepost);
+
+  await eventsDB.remove([{ kinds: [0, 1] }]);
+  assertEquals(await eventsDB.query([{ kinds: [0, 1] }]), []);
 
   clearTimeout(timeoutId);
 });
