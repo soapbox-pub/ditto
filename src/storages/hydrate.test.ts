@@ -124,6 +124,44 @@ Deno.test('hydrate quote repost with hydrate author', async () => {
   clearTimeout(timeoutId);
 });
 
+Deno.test('hydrate quote repost and original post with hydrate author ', async () => {
+  const db = new NCache({ max: 100 });
+
+  const event0madeQuoteRepostCopy = structuredClone(event0madeQuoteRepost);
+  const event0copy = structuredClone(event0);
+  const event1quoteRepostCopy = structuredClone(event1quoteRepost);
+  const event1willBeQuoteRepostedCopy = structuredClone(event1willBeQuoteReposted);
+
+  // Save events to database
+  await db.event(event0madeQuoteRepostCopy);
+  await db.event(event0copy);
+  await db.event(event1quoteRepostCopy);
+  await db.event(event1willBeQuoteRepostedCopy);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 1000);
+
+  await hydrateEvents({
+    events: [event1quoteRepostCopy, event1willBeQuoteRepostedCopy],
+    relations: ['author', 'quote_repost'], // if author is called first the performance will be better
+    storage: db,
+    signal: controller.signal,
+  });
+
+  const expectedEvent1quoteRepost = {
+    ...event1quoteRepostCopy,
+    author: event0madeQuoteRepostCopy,
+    quote_repost: { ...event1willBeQuoteRepostedCopy, author: event0copy },
+  };
+
+  assertEquals(event1quoteRepostCopy, expectedEvent1quoteRepost);
+
+  await db.remove([{ kinds: [0, 1] }]);
+  assertEquals(await db.query([{ kinds: [0, 1] }]), []);
+
+  clearTimeout(timeoutId);
+});
+
 Deno.test('hydrate quote repost WITHOUT hydrate author', async () => {
   const db = new NCache({ max: 100 });
 
