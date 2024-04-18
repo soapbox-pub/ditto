@@ -25,11 +25,11 @@ async function updateStats(event: NostrEvent) {
     }
   }
 
-  const statDiffs = getStatsDiff(event, prev);
-  const pubkeyDiffs = (await statDiffs).filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
-  const eventDiffs = (await statDiffs).filter(([table]) => table === 'event_stats') as EventStatDiff[];
+  const statDiffs = await getStatsDiff(event, prev);
+  const pubkeyDiffs = statDiffs.filter(([table]) => table === 'author_stats') as AuthorStatDiff[];
+  const eventDiffs = statDiffs.filter(([table]) => table === 'event_stats') as EventStatDiff[];
 
-  if ((await statDiffs).length) {
+  if (statDiffs.length) {
     debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
