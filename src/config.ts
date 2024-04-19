@@ -1,3 +1,5 @@
+import url from 'node:url';
+
 import { dotenv, getPublicKey, nip19, z } from '@/deps.ts';
 
 /** Load environment config from `.env` */
@@ -54,7 +56,37 @@ class Conf {
   }
   /** Path to the main SQLite database which stores users, events, and more. */
   static get dbPath() {
-    return Deno.env.get('DB_PATH') || 'data/db.sqlite3';
+    if (Deno.env.get('DATABASE_URL') === 'sqlite://:memory:') {
+      return ':memory:';
+    }
+
+    const { host, pathname } = Conf.databaseUrl;
+
+    if (!pathname) return '';
+
+    // Get relative path.
+    if (host === '') {
+      return pathname;
+    } else if (host === '.') {
+      return pathname;
+    } else if (host) {
+      return host + pathname;
+    }
+
+    return '';
+  }
+  /**
+   * Heroku-style database URL. This is used in production to connect to the
+   * database.
+   *
+   * Follows the format:
+   *
+   * ```txt
+   * protocol://username:password@host:port/database_name
+   * ```
+   */
+  static get databaseUrl(): url.UrlWithStringQuery {
+    return url.parse(Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3');
   }
   /** Character limit to enforce for posts made through Mastodon API. */
   static get postCharLimit() {
