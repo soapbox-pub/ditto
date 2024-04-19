@@ -1,6 +1,6 @@
 import { NIP50, NostrFilter } from '@soapbox/nspec';
 import { Conf } from '@/config.ts';
-import { type DittoDB } from '@/db.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -33,7 +33,7 @@ const tagConditions: Record<string, TagCondition> = {
   'role': ({ event, count }) => event.kind === 30361 && count === 0,
 };
 
-type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
+type EventQuery = SelectQueryBuilder<DittoTables, 'events', {
   id: string;
   tags: string;
   kind: number;
@@ -58,10 +58,10 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
 
 /** SQLite database storage adapter for Nostr events. */
 class EventsDB implements NStore {
-  #db: Kysely<DittoDB>;
+  #db: Kysely<DittoTables>;
   #debug = Debug('ditto:db:events');
 
-  constructor(db: Kysely<DittoDB>) {
+  constructor(db: Kysely<DittoTables>) {
     this.#db = db;
   }
 
@@ -143,7 +143,7 @@ class EventsDB implements NStore {
   }
 
   /** Build the query for a filter. */
-  getFilterQuery(db: Kysely<DittoDB>, filter: NostrFilter): EventQuery {
+  getFilterQuery(db: Kysely<DittoTables>, filter: NostrFilter): EventQuery {
     let query = db
       .selectFrom('events')
       .select([
@@ -315,7 +315,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events from each table. Should be run in a transaction! */
-  async deleteEventsTrx(db: Kysely<DittoDB>, filters: NostrFilter[]) {
+  async deleteEventsTrx(db: Kysely<DittoTables>, filters: NostrFilter[]) {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
