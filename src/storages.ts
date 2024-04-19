@@ -1,6 +1,6 @@
+import { NCache } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import { NCache } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { EventsDB } from '@/storages/events-db.ts';

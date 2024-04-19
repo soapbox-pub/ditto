@@ -1,4 +1,4 @@
-import { NIP05, NostrEvent } from '@soapbox/nspec';
+import { NIP05, NostrEvent } from '@nostrify/nostrify';
 
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';

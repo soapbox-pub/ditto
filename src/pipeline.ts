@@ -1,9 +1,9 @@
-import { NSchema as n } from '@soapbox/nspec';
+import { LNURL, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
-import { Debug, LNURL, type NostrEvent, sql } from '@/deps.ts';
+import { Debug, sql } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';

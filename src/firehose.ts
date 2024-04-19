@@ -1,4 +1,5 @@
-import { Debug, type NostrEvent } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
+import { Debug } from '@/deps.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { nostrNow } from '@/utils.ts';
 

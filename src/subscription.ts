@@ -1,5 +1,5 @@
-import { NIP50, NostrFilter } from '@soapbox/nspec';
-import { Machina, matchFilter, type NostrEvent } from '@/deps.ts';
+import { NIP50, NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { Machina, matchFilter } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 class Subscription implements AsyncIterable<NostrEvent> {

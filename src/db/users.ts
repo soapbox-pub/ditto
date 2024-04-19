@@ -1,5 +1,6 @@
+import { NostrFilter } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
-import { Debug, type NostrFilter } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { eventsDB } from '@/storages.ts';

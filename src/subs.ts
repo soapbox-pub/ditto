@@ -1,4 +1,4 @@
-import { NostrFilter } from '@soapbox/nspec';
+import { NostrFilter } from '@nostrify/nostrify';
 import { Debug } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Subscription } from '@/subscription.ts';

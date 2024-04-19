@@ -1,6 +1,7 @@
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { eventsDB, optimizer } from '@/storages.ts';
-import { Debug, type NostrEvent, type NostrFilter } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { findReplyTag, getTagSet } from '@/tags.ts';

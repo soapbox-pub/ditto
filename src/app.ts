@@ -1,3 +1,5 @@
+import { NostrEvent } from '@nostrify/nostrify';
+
 import { Conf } from '@/config.ts';
 import '@/cron.ts';
 import { type User } from '@/db/users.ts';
@@ -10,7 +12,6 @@ import {
   type HonoEnv,
   logger,
   type MiddlewareHandler,
-  type NostrEvent,
   sentryMiddleware,
   serveStatic,
 } from '@/deps.ts';
