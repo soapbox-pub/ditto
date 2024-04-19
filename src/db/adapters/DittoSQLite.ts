@@ -1,7 +1,6 @@
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Kysely, PolySqliteDialect } from '@/deps.ts';
-import { setPragma } from '@/pragma.ts';
+import { Kysely, PolySqliteDialect, sql } from '@/deps.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {
@@ -20,9 +19,9 @@ export class DittoSQLite {
 
       // Set PRAGMA values.
       await Promise.all([
-        setPragma(this.db, 'synchronous', 'normal'),
-        setPragma(this.db, 'temp_store', 'memory'),
-        setPragma(this.db, 'mmap_size', Conf.sqlite.mmapSize),
+        sql`PRAGMA synchronous = normal`.execute(this.db),
+        sql`PRAGMA temp_store = memory`.execute(this.db),
+        sql.raw(`PRAGMA mmap_size = ${Conf.sqlite.mmapSize}`).execute(this.db),
       ]);
     }
     return this.db;
