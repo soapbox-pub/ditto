@@ -1,45 +1,26 @@
 import { Debug, type MiddlewareHandler } from '@/deps.ts';
+import ExpiringCache from '@/utils/expiring-cache.ts';
 
 const debug = Debug('ditto:middleware:cache');
 
-interface CacheOpts {
-  expires: number;
-}
-
-/** In-memory cache middleware. */
-export const cache = (opts: CacheOpts): MiddlewareHandler => {
-  let response: Response | undefined;
-  let expires = Date.now() + opts.expires;
-
+export const cache = (options: {
+  cacheName: string;
+  expires?: number;
+}): MiddlewareHandler => {
   return async (c, next) => {
-    const now = Date.now();
-    const expired = now > expires;
-
-    async function updateCache() {
-      await next();
-      const res = c.res.clone();
-      if (res.status < 500) {
-        const old = response;
-        response = res;
-        old?.text(); // Prevent memory leaks.
-      }
-      return res;
-    }
-
-    if (response && !expired) {
-      debug('Serving page from cache', c.req.url);
-      return response.clone();
-    } else {
-      expires = Date.now() + opts.expires;
-      if (response && expired) {
-        debug('Serving stale cache, rebuilding', c.req.url);
-        const stale = response.clone();
-        updateCache();
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        return stale;
-      }
+    const key = c.req.url.replace('http://', 'https://');
+    const cache = new ExpiringCache(await caches.open(options.cacheName));
+    const response = await cache.match(key);
+    if (!response) {
       debug('Building cache for page', c.req.url);
-      return await updateCache();
+      await next();
+      const response = c.res.clone();
+      if (response.status < 500) {
+        await cache.putExpiring(key, response, options.expires ?? 0);
+      }
+    } else {
+      debug('Serving page from cache', c.req.url);
+      return response;
     }
   };
 };
