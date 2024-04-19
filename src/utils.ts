@@ -151,4 +151,4 @@ export {
   sha256,
 };
 
-export { Time } from './utils/time.ts';
+export { Time } from '@/utils/time.ts';
