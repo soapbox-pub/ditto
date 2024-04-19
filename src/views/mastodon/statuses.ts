@@ -111,7 +111,9 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
   };
 }
 
-async function renderReblog(event: DittoEvent) {
+async function renderReblog(event: DittoEvent, opts: statusOpts) {
+  const { viewerPubkey } = opts;
+
   if (!event.author) return;
 
   const repostId = event.tags.find(([name]) => name === 'e')?.[1];
@@ -119,8 +121,7 @@ async function renderReblog(event: DittoEvent) {
 
   if (!event.repost) return;
 
-  const reblog = await renderStatus(event.repost, {});
-  reblog.reblogged = true;
+  const reblog = await renderStatus(event.repost, { viewerPubkey });
 
   return {
     id: event.id,
