@@ -11,7 +11,13 @@
     "nsec": "deno run scripts/nsec.ts"
   },
   "exclude": ["./public"],
-  "imports": { "@/": "./src/", "@soapbox/nspec": "jsr:@soapbox/nspec@^0.8.1", "~/fixtures/": "./fixtures/" },
+  "imports": {
+    "@/": "./src/",
+    "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.9.7",
+    "@soapbox/nspec": "jsr:@soapbox/nspec@^0.8.1",
+    "~/fixtures/": "./fixtures/",
+    "kysely": "npm:kysely@^0.26.3"
+  },
   "lint": {
     "include": ["src/", "scripts/"],
     "rules": {
