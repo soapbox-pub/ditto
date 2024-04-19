@@ -1,6 +1,6 @@
+import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import { type NostrEvent, type NStore } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 

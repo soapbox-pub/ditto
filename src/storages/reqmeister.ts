@@ -1,4 +1,5 @@
-import { Debug, EventEmitter, type NostrEvent, type NostrFilter, type NStore, type NStoreOpts } from '@/deps.ts';
+import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
+import { Debug, EventEmitter } from '@/deps.ts';
 import { eventToMicroFilter, getFilterId, isMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
 import { abortError } from '@/utils/abort.ts';
@@ -110,7 +111,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     });
   }
 
-  event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
+  event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     const filterId = getFilterId(eventToMicroFilter(event));
     this.#queue = this.#queue.filter(([id]) => id !== filterId);
     this.emit(filterId, event);
@@ -122,7 +123,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     return this.#queue.some(([id]) => id === filterId);
   }
 
-  query(filters: NostrFilter[], opts?: NStoreOpts): Promise<NostrEvent[]> {
+  query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
     if (opts?.signal?.aborted) return Promise.reject(abortError());
 
     this.#debug('REQ', JSON.stringify(filters));

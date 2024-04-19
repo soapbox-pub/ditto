@@ -79,19 +79,6 @@ export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 export { default as Debug } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.3.0/debug.ts';
 export { Stickynotes } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.3.0/mod.ts';
-export {
-  LNURL,
-  type LNURLDetails,
-  NCache,
-  NIP05,
-  type NostrEvent,
-  type NostrFilter,
-  type NostrSigner,
-  NSecSigner,
-  NSet,
-  type NStore,
-  type NStoreOpts,
-} from 'https://gitlab.com/soapbox-pub/NSpec/-/raw/v0.3.0/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
 

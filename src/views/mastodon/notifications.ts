@@ -1,4 +1,4 @@
-import { type NostrEvent } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
 import { getAuthor } from '@/queries.ts';
 import { nostrDate } from '@/utils.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';

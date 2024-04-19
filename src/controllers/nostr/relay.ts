@@ -1,3 +1,4 @@
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
@@ -13,7 +14,6 @@ import {
 import { Sub } from '@/subs.ts';
 
 import type { AppController } from '@/app.ts';
-import type { NostrEvent, NostrFilter } from '@/deps.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;

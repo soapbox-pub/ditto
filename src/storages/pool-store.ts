@@ -1,13 +1,5 @@
-import {
-  Debug,
-  matchFilters,
-  type NostrEvent,
-  type NostrFilter,
-  NSet,
-  type NStore,
-  type NStoreOpts,
-  type RelayPoolWorker,
-} from '@/deps.ts';
+import { NostrEvent, NostrFilter, NSet, NStore } from '@nostrify/nostrify';
+import { Debug, matchFilters, type RelayPoolWorker } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';
@@ -36,7 +28,7 @@ class PoolStore implements NStore {
     this.#publisher = opts.publisher;
   }
 
-  async event(event: NostrEvent, opts: NStoreOpts = {}): Promise<void> {
+  async event(event: NostrEvent, opts: { signal?: AbortSignal } = {}): Promise<void> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
     const relaySet = await getRelays(event.pubkey);
@@ -51,7 +43,7 @@ class PoolStore implements NStore {
     return Promise.resolve();
   }
 
-  query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<NostrEvent[]> {
+  query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
     filters = normalizeFilters(filters);
@@ -63,7 +55,7 @@ class PoolStore implements NStore {
 
       const unsub = this.#pool.subscribe(
         filters,
-        opts.relays ?? this.#relays,
+        this.#relays,
         (event: NostrEvent | null) => {
           if (event && matchFilters(filters, event)) {
             this.#publisher.handleEvent(event, AbortSignal.timeout(1000)).catch(() => {});

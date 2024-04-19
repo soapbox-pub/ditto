@@ -1,4 +1,5 @@
-import { type EventTemplate, getEventHash, nip19, type NostrEvent, z } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
+import { type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
 /** Get the current time in Nostr format. */
@@ -150,4 +151,4 @@ export {
   sha256,
 };
 
-export { Time } from './utils/time.ts';
+export { Time } from '@/utils/time.ts';
