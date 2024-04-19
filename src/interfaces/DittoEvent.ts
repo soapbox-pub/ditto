@@ -1,4 +1,4 @@
-import { type NostrEvent } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
 
 /** Ditto internal stats for the event's author. */
 export interface AuthorStats {

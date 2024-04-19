@@ -1,7 +1,7 @@
-import { NIP50, NostrFilter } from '@soapbox/nspec';
+import { NIP50, NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { type DittoDB } from '@/db.ts';
-import { Debug, Kysely, type NostrEvent, type NStore, type NStoreOpts, type SelectQueryBuilder } from '@/deps.ts';
+import { Debug, Kysely, type SelectQueryBuilder } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
@@ -66,7 +66,7 @@ class EventsDB implements NStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
+  async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     event = purifyEvent(event);
     this.#debug('EVENT', JSON.stringify(event));
 
@@ -258,7 +258,7 @@ class EventsDB implements NStore {
   }
 
   /** Get events for filters from the database. */
-  async query(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<DittoEvent[]> {
+  async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<DittoEvent[]> {
     filters = await this.expandFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -328,7 +328,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: NostrFilter[], _opts?: NStoreOpts): Promise<void> {
+  async remove(filters: NostrFilter[], _opts?: { signal?: AbortSignal }): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 
@@ -336,7 +336,10 @@ class EventsDB implements NStore {
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(filters: NostrFilter[], opts: NStoreOpts = {}): Promise<{ count: number; approximate: boolean }> {
+  async count(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal } = {},
+  ): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 

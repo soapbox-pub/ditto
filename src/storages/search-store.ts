@@ -1,5 +1,5 @@
-import { NostrFilter, NRelay1 } from '@soapbox/nspec';
-import { Debug, type NostrEvent, type NStore, type NStoreOpts } from '@/deps.ts';
+import { NostrEvent, NostrFilter, NRelay1, NStore } from '@nostrify/nostrify';
+import { Debug } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -27,11 +27,11 @@ class SearchStore implements NStore {
     }
   }
 
-  event(_event: NostrEvent, _opts?: NStoreOpts): Promise<void> {
+  event(_event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     return Promise.reject(new Error('EVENT not implemented.'));
   }
 
-  async query(filters: NostrFilter[], opts?: NStoreOpts): Promise<DittoEvent[]> {
+  async query(filters: NostrFilter[], opts?: { signal?: AbortSignal; limit?: number }): Promise<DittoEvent[]> {
     filters = normalizeFilters(filters);
 
     if (opts?.signal?.aborted) return Promise.reject(abortError());

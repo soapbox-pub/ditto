@@ -1,4 +1,4 @@
-import { NostrFilter } from '@soapbox/nspec';
+import { NostrFilter } from '@nostrify/nostrify';
 import { type AppContext, type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { z } from '@/deps.ts';

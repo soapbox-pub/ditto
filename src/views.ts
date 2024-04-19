@@ -1,5 +1,5 @@
+import { NostrFilter } from '@nostrify/nostrify';
 import { AppContext } from '@/app.ts';
-import { type NostrFilter } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';

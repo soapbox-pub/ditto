@@ -1,4 +1,4 @@
-import { type NostrEvent } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
 import { getAuthor } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';

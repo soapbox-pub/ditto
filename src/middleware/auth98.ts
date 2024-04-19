@@ -1,5 +1,6 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { type AppContext, type AppMiddleware } from '@/app.ts';
-import { HTTPException, type NostrEvent } from '@/deps.ts';
+import { HTTPException } from '@/deps.ts';
 import {
   buildAuthEventTemplate,
   parseAuthRequest,

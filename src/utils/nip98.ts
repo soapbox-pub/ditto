@@ -1,4 +1,5 @@
-import { type EventTemplate, nip13, type NostrEvent } from '@/deps.ts';
+import { NostrEvent } from '@nostrify/nostrify';
+import { type EventTemplate, nip13 } from '@/deps.ts';
 import { decode64Schema, jsonSchema } from '@/schema.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
 import { eventAge, findTag, nostrNow, sha256 } from '@/utils.ts';

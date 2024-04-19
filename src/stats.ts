@@ -1,5 +1,6 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
-import { Debug, type InsertQueryBuilder, type NostrEvent } from '@/deps.ts';
+import { Debug, type InsertQueryBuilder } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
