@@ -245,7 +245,7 @@ const reblogStatusController: AppController = async (c) => {
     signal: signal,
   });
 
-  const status = await renderReblog(reblogEvent);
+  const status = await renderReblog(reblogEvent, { viewerPubkey: c.get('pubkey') });
 
   return c.json(status);
 };

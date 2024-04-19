@@ -73,7 +73,7 @@ const streamingController: AppController = (c) => {
             signal: AbortSignal.timeout(1000),
           });
 
-          const status = await renderReblog(event);
+          const status = await renderReblog(event, { viewerPubkey: c.get('pubkey') });
           if (status) {
             send('update', status);
           }
