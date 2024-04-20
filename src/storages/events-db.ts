@@ -1,6 +1,6 @@
 import { NIP50, NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
-import { type DittoDB } from '@/db.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { Debug, Kysely, type SelectQueryBuilder } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -33,7 +33,7 @@ const tagConditions: Record<string, TagCondition> = {
   'role': ({ event, count }) => event.kind === 30361 && count === 0,
 };
 
-type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
+type EventQuery = SelectQueryBuilder<DittoTables, 'events', {
   id: string;
   tags: string;
   kind: number;
@@ -58,10 +58,11 @@ type EventQuery = SelectQueryBuilder<DittoDB, 'events', {
 
 /** SQLite database storage adapter for Nostr events. */
 class EventsDB implements NStore {
-  #db: Kysely<DittoDB>;
+  #db: Kysely<DittoTables>;
   #debug = Debug('ditto:db:events');
+  private protocol = Conf.databaseUrl.protocol;
 
-  constructor(db: Kysely<DittoDB>) {
+  constructor(db: Kysely<DittoTables>) {
     this.#db = db;
   }
 
@@ -82,8 +83,10 @@ class EventsDB implements NStore {
           .execute();
       }
 
+      const protocol = this.protocol;
       /** Add search data to the FTS table. */
       async function indexSearch() {
+        if (protocol !== 'sqlite:') return;
         const searchContent = buildSearchContent(event);
         if (!searchContent) return;
         await trx.insertInto('events_fts')
@@ -143,7 +146,7 @@ class EventsDB implements NStore {
   }
 
   /** Build the query for a filter. */
-  getFilterQuery(db: Kysely<DittoDB>, filter: NostrFilter): EventQuery {
+  getFilterQuery(db: Kysely<DittoTables>, filter: NostrFilter): EventQuery {
     let query = db
       .selectFrom('events')
       .select([
@@ -194,7 +197,7 @@ class EventsDB implements NStore {
       }
     }
 
-    if (filter.search) {
+    if (filter.search && this.protocol === 'sqlite:') {
       query = query
         .innerJoin('events_fts', 'events_fts.id', 'events.id')
         .where('events_fts.content', 'match', JSON.stringify(filter.search));
@@ -315,7 +318,7 @@ class EventsDB implements NStore {
   }
 
   /** Delete events from each table. Should be run in a transaction! */
-  async deleteEventsTrx(db: Kysely<DittoDB>, filters: NostrFilter[]) {
+  async deleteEventsTrx(db: Kysely<DittoTables>, filters: NostrFilter[]) {
     if (!filters.length) return Promise.resolve();
     this.#debug('DELETE', JSON.stringify(filters));
 

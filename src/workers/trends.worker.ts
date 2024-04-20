@@ -28,7 +28,7 @@ export const TrendsWorker = {
       CREATE TABLE IF NOT EXISTS tag_usages (
         tag TEXT NOT NULL COLLATE NOCASE,
         pubkey8 TEXT NOT NULL,
-        inserted_at DATETIME NOT NULL
+        inserted_at INTEGER NOT NULL
       );
 
       CREATE INDEX IF NOT EXISTS idx_time_tag ON tag_usages(inserted_at, tag);

@@ -7,14 +7,14 @@ interface UnattachedMedia {
   pubkey: string;
   url: string;
   data: MediaData;
-  uploaded_at: Date;
+  uploaded_at: number;
 }
 
 /** Add unattached media into the database. */
 async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
   const result = {
     id: uuid62.v4(),
-    uploaded_at: new Date(),
+    uploaded_at: Date.now(),
     ...media,
   };
 
@@ -41,7 +41,7 @@ function selectUnattachedMediaQuery() {
 function getUnattachedMedia(until: Date) {
   return selectUnattachedMediaQuery()
     .leftJoin('tags', 'unattached_media.url', 'tags.value')
-    .where('uploaded_at', '<', until)
+    .where('uploaded_at', '<', until.getTime())
     .execute();
 }
 

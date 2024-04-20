@@ -1,93 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { FileMigrationProvider, Kysely, Migrator, PolySqliteDialect } from '@/deps.ts';
-import { Conf } from '@/config.ts';
-import { setPragma } from '@/pragma.ts';
-import SqliteWorker from '@/workers/sqlite.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
+import { FileMigrationProvider, Migrator } from '@/deps.ts';
 
-interface DittoDB {
-  events: EventRow;
-  events_fts: EventFTSRow;
-  tags: TagRow;
-  relays: RelayRow;
-  unattached_media: UnattachedMediaRow;
-  author_stats: AuthorStatsRow;
-  event_stats: EventStatsRow;
-  pubkey_domains: PubkeyDomainRow;
-}
-
-interface AuthorStatsRow {
-  pubkey: string;
-  followers_count: number;
-  following_count: number;
-  notes_count: number;
-}
-
-interface EventStatsRow {
-  event_id: string;
-  replies_count: number;
-  reposts_count: number;
-  reactions_count: number;
-}
-
-interface EventRow {
-  id: string;
-  kind: number;
-  pubkey: string;
-  content: string;
-  created_at: number;
-  tags: string;
-  sig: string;
-  deleted_at: number | null;
-}
-
-interface EventFTSRow {
-  id: string;
-  content: string;
-}
-
-interface TagRow {
-  tag: string;
-  value: string;
-  event_id: string;
-}
-
-interface RelayRow {
-  url: string;
-  domain: string;
-  active: boolean;
-}
-
-interface UnattachedMediaRow {
-  id: string;
-  pubkey: string;
-  url: string;
-  data: string;
-  uploaded_at: Date;
-}
-
-interface PubkeyDomainRow {
-  pubkey: string;
-  domain: string;
-  last_updated_at: number;
-}
-
-const sqliteWorker = new SqliteWorker();
-await sqliteWorker.open(Conf.dbPath);
-
-const db = new Kysely<DittoDB>({
-  dialect: new PolySqliteDialect({
-    database: sqliteWorker,
-  }),
-});
-
-// Set PRAGMA values.
-await Promise.all([
-  setPragma(db, 'synchronous', 'normal'),
-  setPragma(db, 'temp_store', 'memory'),
-  setPragma(db, 'mmap_size', Conf.sqlite.mmapSize),
-]);
+const db = await DittoDB.getInstance();
 
 const migrator = new Migrator({
   db,
@@ -120,4 +37,4 @@ async function migrate() {
 
 await migrate();
 
-export { type AuthorStatsRow, db, type DittoDB, type EventRow, type EventStatsRow, type TagRow };
+export { db };

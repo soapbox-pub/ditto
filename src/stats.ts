@@ -1,11 +1,12 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { type AuthorStatsRow, db, type DittoDB, type EventStatsRow } from '@/db.ts';
+import { db } from '@/db.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { Debug, type InsertQueryBuilder } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
-type AuthorStat = keyof Omit<AuthorStatsRow, 'pubkey'>;
-type EventStat = keyof Omit<EventStatsRow, 'event_id'>;
+type AuthorStat = keyof Omit<DittoTables['author_stats'], 'pubkey'>;
+type EventStat = keyof Omit<DittoTables['event_stats'], 'event_id'>;
 
 type AuthorStatDiff = ['author_stats', pubkey: string, stat: AuthorStat, diff: number];
 type EventStatDiff = ['event_stats', eventId: string, stat: EventStat, diff: number];
@@ -16,7 +17,7 @@ const debug = Debug('ditto:stats');
 /** Store stats for the event in LMDB. */
 async function updateStats(event: NostrEvent) {
   let prev: NostrEvent | undefined;
-  const queries: InsertQueryBuilder<DittoDB, any, unknown>[] = [];
+  const queries: InsertQueryBuilder<DittoTables, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
@@ -99,8 +100,8 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
 
 /** Create an author stats query from the list of diffs. */
 function authorStatsQuery(diffs: AuthorStatDiff[]) {
-  const values: AuthorStatsRow[] = diffs.map(([_, pubkey, stat, diff]) => {
-    const row: AuthorStatsRow = {
+  const values: DittoTables['author_stats'][] = diffs.map(([_, pubkey, stat, diff]) => {
+    const row: DittoTables['author_stats'] = {
       pubkey,
       followers_count: 0,
       following_count: 0,
@@ -125,8 +126,8 @@ function authorStatsQuery(diffs: AuthorStatDiff[]) {
 
 /** Create an event stats query from the list of diffs. */
 function eventStatsQuery(diffs: EventStatDiff[]) {
-  const values: EventStatsRow[] = diffs.map(([_, event_id, stat, diff]) => {
-    const row: EventStatsRow = {
+  const values: DittoTables['event_stats'][] = diffs.map(([_, event_id, stat, diff]) => {
+    const row: DittoTables['event_stats'] = {
       event_id,
       replies_count: 0,
       reposts_count: 0,

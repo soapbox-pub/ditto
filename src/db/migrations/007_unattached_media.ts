@@ -1,4 +1,4 @@
-import { Kysely, sql } from '@/deps.ts';
+import { Kysely } from '@/deps.ts';
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
@@ -7,7 +7,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('pubkey', 'text', (c) => c.notNull())
     .addColumn('url', 'text', (c) => c.notNull())
     .addColumn('data', 'text', (c) => c.notNull())
-    .addColumn('uploaded_at', 'datetime', (c) => c.notNull().defaultTo(sql`CURRENT_TIMESTAMP`))
+    .addColumn('uploaded_at', 'bigint', (c) => c.notNull())
     .execute();
 
   await db.schema
