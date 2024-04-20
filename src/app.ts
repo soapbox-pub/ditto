@@ -10,6 +10,7 @@ import {
   type Handler,
   Hono,
   type HonoEnv,
+  Input,
   logger,
   type MiddlewareHandler,
   sentryMiddleware,
@@ -102,7 +103,7 @@ interface AppEnv extends HonoEnv {
 
 type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
-type AppController = Handler<AppEnv>;
+type AppController = Handler<AppEnv, any, Input, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>();
 
