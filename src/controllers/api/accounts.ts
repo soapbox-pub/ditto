@@ -16,6 +16,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { decode } from 'npm:nostr-tools@^2.5.0/nip19';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -99,6 +100,17 @@ const accountSearchController: AppController = async (c) => {
     storage: eventsDB,
     signal: c.req.raw.signal,
   });
+
+  if ((results.length < 1) && query.match(/npub1\w+/)) {
+    const possibleNpub = query;
+    try {
+      const npubHex = decode(possibleNpub);
+      return c.json([await accountFromPubkey(String(npubHex.data))]);
+    } catch (e) {
+      console.log(e);
+      return c.json([]);
+    }
+  }
 
   const accounts = await Promise.all(results.map((event) => renderAccount(event)));
   return c.json(accounts);
