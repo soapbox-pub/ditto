@@ -16,8 +16,7 @@
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.9.7",
     "~/fixtures/": "./fixtures/",
     "kysely": "npm:kysely@^0.26.3",
-    "pg": "npm:pg@^8.11.5",
-    "pg-pool": "npm:pg-pool@^3.6.2"
+    "kysely_deno_postgres": "https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts"
   },
   "lint": {
     "include": ["src/", "scripts/"],

@@ -1,7 +1,7 @@
 import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely';
+import { PostgreSQLDriver } from 'kysely_deno_postgres';
 
 import { DittoTables } from '@/db/DittoTables.ts';
-import { PostgreSQLDriver } from 'https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts';
 
 export class DittoPostgres {
   static db: Kysely<DittoTables> | undefined;
