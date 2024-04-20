@@ -1,4 +1,4 @@
-import type { Context } from '@/deps.ts';
+import type { Context } from 'hono';
 
 const emptyArrayController = (c: Context) => c.json([]);
 const emptyObjectController = (c: Context) => c.json({});

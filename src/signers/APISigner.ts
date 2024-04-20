@@ -1,7 +1,8 @@
 import { NostrEvent, NostrSigner, NSecSigner } from '@nostrify/nostrify';
+import { HTTPException } from 'hono';
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { HTTPException, Stickynotes } from '@/deps.ts';
+import { Stickynotes } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
