@@ -12,6 +12,7 @@ export class DittoDB {
       case 'sqlite:':
         return DittoSQLite.getInstance();
       case 'postgres:':
+      case 'postgresql:':
         return DittoPostgres.getInstance();
       default:
         throw new Error('Unsupported database URL.');
