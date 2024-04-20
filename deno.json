@@ -15,7 +15,9 @@
     "@/": "./src/",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.9.7",
     "~/fixtures/": "./fixtures/",
-    "kysely": "npm:kysely@^0.26.3"
+    "kysely": "npm:kysely@^0.26.3",
+    "pg": "npm:pg@^8.11.5",
+    "pg-pool": "npm:pg-pool@^3.6.2"
   },
   "lint": {
     "include": ["src/", "scripts/"],

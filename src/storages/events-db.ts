@@ -60,6 +60,7 @@ type EventQuery = SelectQueryBuilder<DittoTables, 'events', {
 class EventsDB implements NStore {
   #db: Kysely<DittoTables>;
   #debug = Debug('ditto:db:events');
+  private protocol = Conf.databaseUrl.protocol;
 
   constructor(db: Kysely<DittoTables>) {
     this.#db = db;
@@ -82,8 +83,10 @@ class EventsDB implements NStore {
           .execute();
       }
 
+      const protocol = this.protocol;
       /** Add search data to the FTS table. */
       async function indexSearch() {
+        if (protocol !== 'sqlite:') return;
         const searchContent = buildSearchContent(event);
         if (!searchContent) return;
         await trx.insertInto('events_fts')
@@ -194,7 +197,7 @@ class EventsDB implements NStore {
       }
     }
 
-    if (filter.search) {
+    if (filter.search && this.protocol === 'sqlite:') {
       query = query
         .innerJoin('events_fts', 'events_fts.id', 'events.id')
         .where('events_fts.content', 'match', JSON.stringify(filter.search));

@@ -21,6 +21,9 @@ export class DittoSQLite {
       await Promise.all([
         sql`PRAGMA synchronous = normal`.execute(this.db),
         sql`PRAGMA temp_store = memory`.execute(this.db),
+        sql`PRAGMA foreign_keys = ON`.execute(this.db),
+        sql`PRAGMA auto_vacuum = FULL`.execute(this.db),
+        sql`PRAGMA journal_mode = WAL`.execute(this.db),
         sql.raw(`PRAGMA mmap_size = ${Conf.sqlite.mmapSize}`).execute(this.db),
       ]);
     }

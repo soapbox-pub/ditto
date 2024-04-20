@@ -56,7 +56,7 @@ interface UnattachedMediaRow {
   pubkey: string;
   url: string;
   data: string;
-  uploaded_at: Date;
+  uploaded_at: number;
 }
 
 interface PubkeyDomainRow {
