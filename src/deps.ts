@@ -5,6 +5,7 @@ export {
   type Handler,
   Hono,
   HTTPException,
+  type Input,
   type MiddlewareHandler,
 } from 'https://deno.land/x/hono@v3.10.1/mod.ts';
 export { cors, logger, serveStatic } from 'https://deno.land/x/hono@v3.10.1/middleware.ts';
