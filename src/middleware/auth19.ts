@@ -1,5 +1,6 @@
+import { HTTPException } from 'hono';
 import { type AppMiddleware } from '@/app.ts';
-import { getPublicKey, HTTPException, nip19 } from '@/deps.ts';
+import { getPublicKey, nip19 } from '@/deps.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);

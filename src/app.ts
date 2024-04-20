@@ -1,21 +1,11 @@
 import { NostrEvent } from '@nostrify/nostrify';
+import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
+import { cors, logger, serveStatic } from 'hono/middleware';
 
 import { Conf } from '@/config.ts';
 import '@/cron.ts';
 import { type User } from '@/db/users.ts';
-import {
-  type Context,
-  cors,
-  Debug,
-  type Handler,
-  Hono,
-  type HonoEnv,
-  Input,
-  logger,
-  type MiddlewareHandler,
-  sentryMiddleware,
-  serveStatic,
-} from '@/deps.ts';
+import { Debug, sentryMiddleware } from '@/deps.ts';
 import '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
@@ -103,7 +93,7 @@ interface AppEnv extends HonoEnv {
 
 type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
-type AppController = Handler<AppEnv, any, Input, Response | Promise<Response>>;
+type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>();
 
