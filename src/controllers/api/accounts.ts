@@ -100,6 +100,17 @@ const accountSearchController: AppController = async (c) => {
     signal: c.req.raw.signal,
   });
 
+  if ((results.length < 1) && query.match(/npub1\w+/)) {
+    const possibleNpub = query;
+    try {
+      const npubHex = nip19.decode(possibleNpub);
+      return c.json([await accountFromPubkey(String(npubHex.data))]);
+    } catch (e) {
+      console.log(e);
+      return c.json([]);
+    }
+  }
+
   const accounts = await Promise.all(results.map((event) => renderAccount(event)));
   return c.json(accounts);
 };

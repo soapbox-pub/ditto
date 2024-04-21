@@ -6,7 +6,7 @@ import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
-import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 
@@ -47,18 +47,30 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event) => event.kind === 0)
-        .map((event) => renderAccount(event)),
+        .map((event) => renderAccount(event))
+        .filter(Boolean),
     ),
     Promise.all(
       results
         .filter((event) => event.kind === 1)
-        .map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })),
+        .map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') }))
+        .filter(Boolean),
     ),
   ]);
 
+  if ((result.data.type === 'accounts') && (accounts.length < 1) && (result.data.q.match(/npub1\w+/))) {
+    const possibleNpub = result.data.q;
+    try {
+      const npubHex = nip19.decode(possibleNpub);
+      accounts.push(await accountFromPubkey(String(npubHex.data)));
+    } catch (e) {
+      console.log(e);
+    }
+  }
+
   return c.json({
-    accounts: accounts.filter(Boolean),
-    statuses: statuses.filter(Boolean),
+    accounts,
+    statuses,
     hashtags: [],
   });
 };
