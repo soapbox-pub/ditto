@@ -9,7 +9,6 @@ import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { decode } from 'npm:nostr-tools@^2.5.0/nip19';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
@@ -62,7 +61,7 @@ const searchController: AppController = async (c) => {
   if ((result.data.type === 'accounts') && (accounts.length < 1) && (result.data.q.match(/npub1\w+/))) {
     const possibleNpub = result.data.q;
     try {
-      const npubHex = decode(possibleNpub);
+      const npubHex = nip19.decode(possibleNpub);
       accounts.push(await accountFromPubkey(String(npubHex.data)));
     } catch (e) {
       console.log(e);
@@ -70,8 +69,8 @@ const searchController: AppController = async (c) => {
   }
 
   return c.json({
-    accounts: accounts,
-    statuses: statuses,
+    accounts,
+    statuses,
     hashtags: [],
   });
 };
