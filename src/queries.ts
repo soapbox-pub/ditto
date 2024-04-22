@@ -24,7 +24,7 @@ const getEvent = async (
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
-  const { kind, relations = [], signal = AbortSignal.timeout(1000) } = opts;
+  const { kind, signal = AbortSignal.timeout(1000) } = opts;
 
   const filter: NostrFilter = { ids: [id], limit: 1 };
   if (kind) {
@@ -32,16 +32,16 @@ const getEvent = async (
   }
 
   return await optimizer.query([filter], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, relations, storage: optimizer, signal }))
+    .then((events) => hydrateEvents({ events, storage: optimizer, signal }))
     .then(([event]) => event);
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
-  const { relations = [], signal = AbortSignal.timeout(1000) } = opts;
+  const { signal = AbortSignal.timeout(1000) } = opts;
 
   return await optimizer.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, relations, storage: optimizer, signal }))
+    .then((events) => hydrateEvents({ events, storage: optimizer, signal }))
     .then(([event]) => event);
 };
 
@@ -70,7 +70,7 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const parentEvent = await getEvent(inReplyTo, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+      const parentEvent = await getEvent(inReplyTo, { kind: 1 });
 
       if (parentEvent) {
         result.push(parentEvent);
@@ -84,9 +84,7 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 
 function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
   return eventsDB.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
-    );
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
 }
 
 /** Returns whether the pubkey is followed by a local user. */

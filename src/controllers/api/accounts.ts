@@ -95,7 +95,6 @@ const accountSearchController: AppController = async (c) => {
 
   const results = await hydrateEvents({
     events: event ? [event, ...events] : events,
-    relations: ['author_stats'],
     storage: eventsDB,
     signal: c.req.raw.signal,
   });
@@ -164,9 +163,7 @@ const accountStatusesController: AppController = async (c) => {
   }
 
   const events = await eventsDB.query([filter], { signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
-    )
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }))
     .then((events) => {
       if (exclude_replies) {
         return events.filter((event) => !findReplyTag(event.tags));
@@ -317,9 +314,7 @@ const favouritesController: AppController = async (c) => {
     .filter((id): id is string => !!id);
 
   const events1 = await eventsDB.query([{ kinds: [1], ids }], { signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
-    );
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
   return paginated(c, events1, statuses);

@@ -47,7 +47,6 @@ class SearchStore implements NStore {
 
       return hydrateEvents({
         events,
-        relations: ['author', 'event_stats', 'author_stats'],
         storage: this.#hydrator,
         signal: opts?.signal,
       });
