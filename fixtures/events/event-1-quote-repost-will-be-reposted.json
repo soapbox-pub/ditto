@@ -1,0 +1,14 @@
+{
+  "id": "00b325bba6de17030091558f439d41d4c08b82e60fbcaee3e0331c4c690ef205",
+  "pubkey": "2894578b2c8570825f48dc647e746e690f83f92d19446b3051f59cd0196a7991",
+  "created_at": 1713735562,
+  "kind": 1,
+  "tags": [
+    [
+      "q",
+      "f7b82508931bbeeadb901931e3dea8c4f96f0f9e353ba6cf1ec3a93eb8ad7e05"
+    ]
+  ],
+  "content": "Deus futurus est deus aquae deiectus!",
+  "sig": "72d8365f3c6b6de89fdfd005798c242629145fdc97bfc25e57bb78a4444c2a297bf41a47d7d0e2ee819d77f73fa3fcfcc4b455928ede7fca715e261c567b0b3b"
+}
