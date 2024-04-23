@@ -1,15 +1,16 @@
 {
-  "$schema": "https://deno.land/x/deno@v1.32.3/cli/schemas/config-file.v1.json",
+  "$schema": "https://deno.land/x/deno@v1.41.0/cli/schemas/config-file.v1.json",
   "lock": false,
   "tasks": {
-    "start": "deno run -A --unstable-ffi src/server.ts",
-    "dev": "deno run -A --unstable-ffi --watch src/server.ts",
-    "debug": "deno run -A --unstable-ffi --inspect src/server.ts",
-    "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A --unstable-ffi",
+    "start": "deno run -A src/server.ts",
+    "dev": "deno run -A --watch src/server.ts",
+    "debug": "deno run -A --inspect src/server.ts",
+    "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A",
     "check": "deno check src/server.ts",
-    "relays:sync": "deno run -A --unstable-ffi scripts/relays.ts sync",
+    "relays:sync": "deno run -A scripts/relays.ts sync",
     "nsec": "deno run scripts/nsec.ts"
   },
+  "unstable": ["ffi", "kv"],
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
