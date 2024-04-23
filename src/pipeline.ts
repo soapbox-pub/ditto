@@ -43,7 +43,9 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await hydrateEvent(event, signal);
 
   if (UserPolicy) {
-    const [_, _eventId, ok, reason] = await new UserPolicy().call(event, signal);
+    const result = await new UserPolicy().call(event, signal);
+    debug(JSON.stringify(result));
+    const [_, _eventId, ok, reason] = result;
     if (!ok) {
       const [prefix, ...rest] = reason.split(': ');
       throw new RelayError(prefix, rest.join(': '));
