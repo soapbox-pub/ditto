@@ -9,7 +9,8 @@
     "check": "deno check src/server.ts",
     "relays:sync": "deno run -A scripts/relays.ts sync",
     "nsec": "deno run scripts/nsec.ts",
-    "admin:event": "deno run -A scripts/admin-event.ts"
+    "admin:event": "deno run -A scripts/admin-event.ts",
+    "admin:role": "deno run -A scripts/admin-role.ts"
   },
   "unstable": ["ffi", "kv"],
   "exclude": ["./public"],
