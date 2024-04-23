@@ -1,5 +1,6 @@
+import { z } from 'zod';
+
 import { AppController } from '@/app.ts';
-import { z } from '@/deps.ts';
 import { localNip05Lookup } from '@/utils/nip05.ts';
 
 const nameSchema = z.string().min(1).regex(/^\w+$/);

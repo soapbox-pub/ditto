@@ -1,6 +1,8 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { z } from 'zod';
+
 import { AppController } from '@/app.ts';
-import { nip19, z } from '@/deps.ts';
+import { nip19 } from '@/deps.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { searchStore } from '@/storages.ts';

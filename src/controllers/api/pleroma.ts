@@ -1,6 +1,7 @@
+import { z } from 'zod';
+
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { eventsDB } from '@/storages.ts';

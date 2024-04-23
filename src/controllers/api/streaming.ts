@@ -1,7 +1,9 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import { z } from 'zod';
+
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Debug, z } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';

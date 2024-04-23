@@ -1,5 +1,6 @@
+import { z } from 'zod';
+
 import { Conf } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
 import type { Uploader } from './types.ts';

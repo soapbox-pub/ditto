@@ -1,6 +1,7 @@
 import url from 'node:url';
+import { z } from 'zod';
 
-import { dotenv, getPublicKey, nip19, z } from '@/deps.ts';
+import { dotenv, getPublicKey, nip19 } from '@/deps.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({

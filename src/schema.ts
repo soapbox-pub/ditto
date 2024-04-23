@@ -1,4 +1,4 @@
-import { z } from '@/deps.ts';
+import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
 function filteredArray<T extends z.ZodTypeAny>(schema: T) {

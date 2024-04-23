@@ -1,4 +1,6 @@
-import { lodash, nip19, z } from '@/deps.ts';
+import { z } from 'zod';
+
+import { lodash, nip19 } from '@/deps.ts';
 import { AppController } from '@/app.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';

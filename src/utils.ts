@@ -1,5 +1,7 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { type EventTemplate, getEventHash, nip19, z } from '@/deps.ts';
+import { z } from 'zod';
+
+import { type EventTemplate, getEventHash, nip19 } from '@/deps.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
 /** Get the current time in Nostr format. */
