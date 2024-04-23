@@ -16,7 +16,9 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
     return events;
   }
 
-  const allEvents: DittoEvent[] = structuredClone(events);
+  const allEventsMap: Map<string, DittoEvent> = new Map(events.map((event) => {
+    return [event.id, structuredClone(event)];
+  }));
 
   const childrenEventsIds = (events.map((event) => {
     if (event.kind === 1) return event.tags.find(([name]) => name === 'q')?.[1]; // possible quote repost
@@ -26,7 +28,9 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
 
   if (childrenEventsIds.length > 0) {
     const childrenEvents = await storage.query([{ ids: childrenEventsIds }], { signal });
-    allEvents.push(...childrenEvents);
+    childrenEvents.forEach((event) => {
+      allEventsMap.set(event.id, structuredClone(event));
+    });
 
     if (childrenEvents.length > 0) {
       const grandChildrenEventsIds = (childrenEvents.map((event) => {
@@ -35,16 +39,18 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
       }).filter(Boolean)) as string[];
       if (grandChildrenEventsIds.length > 0) {
         const grandChildrenEvents = await storage.query([{ ids: grandChildrenEventsIds }], { signal });
-        allEvents.push(...grandChildrenEvents);
+        grandChildrenEvents.forEach((event) => {
+          allEventsMap.set(event.id, structuredClone(event));
+        });
       }
     }
   }
-  await hydrateAuthors({ events: allEvents, storage, signal });
-  await hydrateAuthorStats(allEvents);
-  await hydrateEventStats(allEvents);
+  await hydrateAuthors({ events: [...allEventsMap.values()], storage, signal });
+  await hydrateAuthorStats([...allEventsMap.values()]);
+  await hydrateEventStats([...allEventsMap.values()]);
 
   events.forEach((event) => {
-    const correspondingEvent = allEvents.find((element) => element.id === event.id);
+    const correspondingEvent = allEventsMap.get(event.id);
     if (correspondingEvent?.author) event.author = correspondingEvent.author;
     if (correspondingEvent?.author_stats) event.author_stats = correspondingEvent.author_stats;
     if (correspondingEvent?.event_stats) event.event_stats = correspondingEvent.event_stats;
@@ -52,25 +58,24 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
     if (event.kind === 1) {
       const quoteId = event.tags.find(([name]) => name === 'q')?.[1];
       if (quoteId) {
-        event.quote_repost = allEvents.find((element) => element.id === quoteId);
+        event.quote_repost = allEventsMap.get(quoteId);
       }
     } else if (event.kind === 6) {
       const repostedId = event.tags.find(([name]) => name === 'e')?.[1];
       if (repostedId) {
-        const repostedEvent = allEvents.find((element) => element.id === repostedId);
+        const repostedEvent = allEventsMap.get(repostedId);
         if (repostedEvent && repostedEvent.tags.find(([name]) => name === 'q')?.[1]) { // The repost is a repost of a quote repost
           const postBeingQuoteRepostedId = repostedEvent.tags.find(([name]) => name === 'q')?.[1];
           event.repost = {
-            quote_repost: allEvents.find((element) => element.id === postBeingQuoteRepostedId),
-            ...allEvents.find((element) => element.id === repostedId) as DittoEvent,
+            quote_repost: allEventsMap.get(postBeingQuoteRepostedId!),
+            ...allEventsMap.get(repostedId)!,
           };
         } else { // The repost is a repost of a normal post
-          event.repost = allEvents.find((element) => element.id === repostedId);
+          event.repost = allEventsMap.get(repostedId);
         }
       }
     }
   });
-
   return events;
 }
 
