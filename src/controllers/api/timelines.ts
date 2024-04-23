@@ -1,7 +1,8 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import { z } from 'zod';
+
 import { type AppContext, type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';

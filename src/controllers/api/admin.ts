@@ -1,6 +1,7 @@
+import { z } from 'zod';
+
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { eventsDB } from '@/storages.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';

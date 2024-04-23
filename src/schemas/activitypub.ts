@@ -1,4 +1,4 @@
-import { z } from '@/deps.ts';
+import { z } from 'zod';
 
 const apId = z.string().url();
 const recipients = z.array(z.string()).catch([]);

@@ -1,5 +1,6 @@
+import { z } from 'zod';
+
 import { AppController } from '@/app.ts';
-import { z } from '@/deps.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';

@@ -1,5 +1,4 @@
 import 'https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts';
-export { z } from 'https://deno.land/x/zod@v3.21.4/mod.ts';
 export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
 export {
   type EventTemplate,

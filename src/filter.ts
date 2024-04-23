@@ -1,5 +1,7 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { stringifyStable, z } from '@/deps.ts';
+import { z } from 'zod';
+
+import { stringifyStable } from '@/deps.ts';
 import { isReplaceableKind } from '@/kinds.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 

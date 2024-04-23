@@ -1,6 +1,7 @@
+import { z } from 'zod';
+
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { z } from '@/deps.ts';
 import { Time } from '@/utils.ts';
 import { stripTime } from '@/utils/time.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
