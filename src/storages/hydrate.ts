@@ -46,8 +46,8 @@ async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
     }
   }
   await hydrateAuthors({ events: [...allEventsMap.values()], storage, signal });
-  await hydrateAuthorStats([...allEventsMap.values()]);
-  await hydrateEventStats([...allEventsMap.values()]);
+  await hydrateAuthorStats([...allEventsMap.values()].filter((e) => e.kind === 0));
+  await hydrateEventStats([...allEventsMap.values()].filter((e) => e.kind === 1));
 
   events.forEach((event) => {
     const correspondingEvent = allEventsMap.get(event.id);
