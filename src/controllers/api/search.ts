@@ -92,9 +92,7 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
   }
 
   return searchStore.query([filter], { signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: searchStore, signal })
-    );
+    .then((events) => hydrateEvents({ events, storage: searchStore, signal }));
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -114,9 +112,7 @@ async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Nos
   const filters = await getLookupFilters(query, signal);
 
   return searchStore.query(filters, { limit: 1, signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: searchStore, signal })
-    )
+    .then((events) => hydrateEvents({ events, storage: searchStore, signal }))
     .then(([event]) => event);
 }
 

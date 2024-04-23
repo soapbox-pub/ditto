@@ -70,7 +70,6 @@ const streamingController: AppController = (c) => {
         if (event.kind === 6) {
           await hydrateEvents({
             events: [event],
-            relations: ['repost', 'author'],
             storage: eventsDB,
             signal: AbortSignal.timeout(1000),
           });

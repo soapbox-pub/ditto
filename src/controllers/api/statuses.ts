@@ -43,7 +43,6 @@ const statusController: AppController = async (c) => {
 
   const event = await getEvent(id, {
     kind: 1,
-    relations: ['author', 'event_stats', 'author_stats', 'quote_repost'],
     signal: AbortSignal.timeout(1500),
   });
 
@@ -137,7 +136,6 @@ const createStatusController: AppController = async (c) => {
   if (data.quote_id) {
     await hydrateEvents({
       events: [event],
-      relations: ['quote_repost'],
       storage: eventsDB,
       signal: c.req.raw.signal,
     });
@@ -243,7 +241,6 @@ const reblogStatusController: AppController = async (c) => {
 
   await hydrateEvents({
     events: [reblogEvent],
-    relations: ['repost', 'author'],
     storage: eventsDB,
     signal: signal,
   });

@@ -20,7 +20,7 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
   }
 
   const authors = await eventsDB.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
-    .then((events) => hydrateEvents({ events, relations: ['author_stats'], storage: eventsDB, signal }));
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
 
   const accounts = await Promise.all(
     authors.map((event) => renderAccount(event)),
@@ -33,7 +33,7 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
   const { since, until, limit } = paginationSchema.parse(c.req.query());
 
   const events = await eventsDB.query([{ kinds: [0], authors, since, until, limit }], { signal })
-    .then((events) => hydrateEvents({ events, relations: ['author_stats'], storage: eventsDB, signal }));
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
 
   const accounts = await Promise.all(
     events.map((event) => renderAccount(event)),
@@ -51,9 +51,7 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
   const { limit } = paginationSchema.parse(c.req.query());
 
   const events = await eventsDB.query([{ kinds: [1], ids, limit }], { signal })
-    .then((events) =>
-      hydrateEvents({ events, relations: ['author', 'event_stats', 'author_stats'], storage: eventsDB, signal })
-    );
+    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
 
   if (!events.length) {
     return c.json([]);

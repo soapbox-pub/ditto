@@ -76,7 +76,7 @@ async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<b
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  await hydrateEvents({ events: [event], relations: ['author', 'user'], storage: eventsDB, signal });
+  await hydrateEvents({ events: [event], storage: eventsDB, signal });
 
   const domain = await db
     .selectFrom('pubkey_domains')

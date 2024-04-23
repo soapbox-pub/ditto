@@ -52,7 +52,6 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     .then((events) =>
       hydrateEvents({
         events,
-        relations: ['author', 'author_stats', 'event_stats', 'repost', 'quote_repost'],
         storage: eventsDB,
         signal,
       })

@@ -1,0 +1,9 @@
+{
+  "id": "4acbf01269a2b09aaa4559b6d950ceffe37985dc3eb56c3d1bb3200ca93fae3d",
+  "pubkey": "2894578b2c8570825f48dc647e746e690f83f92d19446b3051f59cd0196a7991",
+  "created_at": 1713452168,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"name\":\"me\",\"about\":\"\",\"nip05\":\"\"}",
+  "sig": "373ca965fc3772804cf448db8da3add6f59653cb1ba8ba89b8d8fc88e4ed326b446e2641ed675dcaab886eb2678cca5293c6312e03ed9e73ccebca14ef47eaaa"
+}
