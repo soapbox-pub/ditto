@@ -22,6 +22,16 @@ import { nip05Cache } from '@/utils/nip05.ts';
 
 const debug = Debug('ditto:pipeline');
 
+let UserPolicy: any;
+
+try {
+  UserPolicy = (await import('../data/policy.ts')).default;
+  debug('policy loaded from data/policy.ts');
+} catch (_e) {
+  // do nothing
+  debug('policy not found');
+}
+
 /**
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
@@ -31,6 +41,14 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event, signal);
+
+  if (UserPolicy) {
+    const [_, _eventId, ok, reason] = await new UserPolicy().call(event, signal);
+    if (!ok) {
+      const [prefix, ...rest] = reason.split(': ');
+      throw new RelayError(prefix, rest.join(': '));
+    }
+  }
 
   await Promise.all([
     storeEvent(event, signal),
