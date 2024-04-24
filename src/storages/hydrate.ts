@@ -1,6 +1,7 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 
 import { db } from '@/db.ts';
+import { matchFilter } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
@@ -37,14 +38,9 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
-  const [authorStats, eventStats] = await Promise.all([
-    gatherAuthorStats(cache),
-    gatherEventStats(cache),
-  ]);
-
   const stats = {
-    authors: authorStats,
-    events: eventStats,
+    authors: await gatherAuthorStats(cache),
+    events: await gatherEventStats(cache),
   };
 
   // Dedupe events.
@@ -66,23 +62,25 @@ function assembleEvents(
   const admin = Conf.pubkey;
 
   for (const event of a) {
+    event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
+    event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
+
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
-      event.repost = b.find((e) => e.kind === 1 && id === e.id);
+      if (id) {
+        event.repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
     }
 
     if (event.kind === 1) {
       const id = event.tags.find(([name]) => name === 'q')?.[1];
-      event.quote_repost = b.find((e) => e.kind === 1 && id === e.id);
+      if (id) {
+        event.quote_repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
     }
 
-    event.author = b.find((e) => e.kind === 0 && e.pubkey === event.pubkey);
     event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
     event.event_stats = stats.events.find((stats) => stats.event_id === event.id);
-
-    event.user = b.find((e) =>
-      e.kind === 30361 && e.pubkey === admin && e.tags.find(([name]) => name === 'd')?.[1] === event.pubkey
-    );
   }
 
   return a;
