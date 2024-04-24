@@ -21,33 +21,43 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 
   const cache = [...events];
 
-  for (const event of await gatherReposts({ events, storage, signal })) {
+  for (const event of await gatherReposts({ events: cache, storage, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherQuotes({ events, storage, signal })) {
+  for (const event of await gatherQuotes({ events: cache, storage, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherAuthors({ events, storage, signal })) {
+  for (const event of await gatherAuthors({ events: cache, storage, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherUsers({ events, storage, signal })) {
+  for (const event of await gatherUsers({ events: cache, storage, signal })) {
     cache.push(event);
   }
+
+  const [authorStats, eventStats] = await Promise.all([
+    gatherAuthorStats(cache),
+    gatherEventStats(cache),
+  ]);
 
   const stats = {
-    authors: await gatherAuthorStats(cache),
-    events: await gatherEventStats(cache),
+    authors: authorStats,
+    events: eventStats,
   };
 
-  assembleEvents(cache, cache, stats);
-  assembleEvents(events, cache, stats);
+  // Dedupe events.
+  const results = [...new Map(cache.map((event) => [event.id, event])).values()];
+
+  // First connect all the events to each-other, then connect the connected events to the original list.
+  assembleEvents(results, results, stats);
+  assembleEvents(events, results, stats);
 
   return events;
 }
 
+/** Connect the events in list `b` to the DittoEvent fields in list `a`. */
 function assembleEvents(
   a: DittoEvent[],
   b: DittoEvent[],
@@ -78,6 +88,7 @@ function assembleEvents(
   return a;
 }
 
+/** Collect reposts from the events. */
 function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
@@ -96,6 +107,7 @@ function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoE
   );
 }
 
+/** Collect quotes from the events. */
 function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
@@ -114,6 +126,7 @@ function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEv
   );
 }
 
+/** Collect authors from the events. */
 function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
@@ -123,6 +136,7 @@ function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoE
   );
 }
 
+/** Collect users from the events. */
 function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
@@ -132,6 +146,7 @@ function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEve
   );
 }
 
+/** Collect author stats from the events. */
 function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
   const pubkeys = new Set<string>(
     events
@@ -146,6 +161,7 @@ function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_st
     .execute();
 }
 
+/** Collect event stats from the events. */
 function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
   const ids = new Set<string>(
     events
