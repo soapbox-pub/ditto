@@ -39,6 +39,11 @@ class Conf {
       ['sign', 'verify'],
     );
   }
+
+  static get localPort() {
+    return parseInt(Deno.env.get('DITTO_LISTEN_ON') || '8000');
+  }
+
   static get relay(): `wss://${string}` | `ws://${string}` {
     const { protocol, host } = Conf.url;
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
