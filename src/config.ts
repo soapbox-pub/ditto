@@ -40,8 +40,8 @@ class Conf {
     );
   }
 
-  static get localPort() {
-    return parseInt(Deno.env.get('DITTO_LISTEN_ON') || '8000');
+  static get port() {
+    return parseInt(Deno.env.get('PORT') || '8000');
   }
 
   static get relay(): `wss://${string}` | `ws://${string}` {
