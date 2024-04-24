@@ -99,6 +99,10 @@ function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoE
     }
   }
 
+  if (!ids.size) {
+    return Promise.resolve([]);
+  }
+
   return storage.query(
     [{ ids: [...ids], limit: ids.size }],
     { signal },
@@ -118,6 +122,10 @@ function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEv
     }
   }
 
+  if (!ids.size) {
+    return Promise.resolve([]);
+  }
+
   return storage.query(
     [{ ids: [...ids], limit: ids.size }],
     { signal },
@@ -128,6 +136,10 @@ function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEv
 function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
+  if (!pubkeys.size) {
+    return Promise.resolve([]);
+  }
+
   return storage.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
     { signal },
@@ -137,6 +149,10 @@ function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoE
 /** Collect users from the events. */
 function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
+
+  if (!pubkeys.size) {
+    return Promise.resolve([]);
+  }
 
   return storage.query(
     [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
@@ -152,6 +168,10 @@ function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_st
       .map((event) => event.pubkey),
   );
 
+  if (!pubkeys.size) {
+    return Promise.resolve([]);
+  }
+
   return db
     .selectFrom('author_stats')
     .selectAll()
@@ -166,6 +186,10 @@ function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stat
       .filter((event) => event.kind === 1)
       .map((event) => event.id),
   );
+
+  if (!ids.size) {
+    return Promise.resolve([]);
+  }
 
   return db
     .selectFrom('event_stats')
