@@ -77,6 +77,7 @@ import { auth19, requirePubkey } from '@/middleware/auth19.ts';
 import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
 import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
+import { adminRelaysController } from '@/controllers/api/ditto.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -187,10 +188,13 @@ app.get('/api/v1/favourites', requirePubkey, favouritesController);
 app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 
-app.get('/api/v1/admin/accounts', adminAccountsController);
+app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
 app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
 app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
 app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAdminDeleteStatusController);
+
+app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
+app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
