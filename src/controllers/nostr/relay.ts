@@ -11,6 +11,7 @@ import {
   clientMsgSchema,
   type ClientREQ,
 } from '@/schemas/nostr.ts';
+import { purifyEvent } from '@/storages/hydrate.ts';
 import { Sub } from '@/subs.ts';
 
 import type { AppController } from '@/app.ts';
@@ -70,7 +71,7 @@ function connectStream(socket: WebSocket) {
     send(['EOSE', subId]);
 
     for await (const event of Sub.sub(socket, subId, filters)) {
-      send(['EVENT', subId, event]);
+      send(['EVENT', subId, purifyEvent(event)]);
     }
   }
 

@@ -35,22 +35,13 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 
   assertEquals((event1copy as DittoEvent).author, undefined, "Event hasn't been hydrated yet");
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000);
-
   await hydrateEvents({
     events: [event1copy],
     storage: db,
-    signal: controller.signal,
   });
 
   const expectedEvent = { ...event1copy, author: event0copy };
   assertEquals(event1copy, expectedEvent);
-
-  await db.remove([{ kinds: [0, 1] }]);
-  assertEquals(await db.query([{ kinds: [0, 1] }]), []);
-
-  clearTimeout(timeoutId);
 });
 
 Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
@@ -67,16 +58,12 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
   await db.event(event1repostedCopy);
   await db.event(event6copy);
 
-  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't been hydrated author yet");
-  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't been hydrated repost yet");
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000);
+  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't hydrated author yet");
+  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't hydrated repost yet");
 
   await hydrateEvents({
     events: [event6copy],
     storage: db,
-    signal: controller.signal,
   });
 
   const expectedEvent6 = {
@@ -85,11 +72,6 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
     repost: { ...event1repostedCopy, author: event0madePostCopy },
   };
   assertEquals(event6copy, expectedEvent6);
-
-  await db.remove([{ kinds: [0, 1, 6] }]);
-  assertEquals(await db.query([{ kinds: [0, 1, 6] }]), []);
-
-  clearTimeout(timeoutId);
 });
 
 Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
@@ -106,13 +88,9 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   await db.event(event1quoteRepostCopy);
   await db.event(event1willBeQuoteRepostedCopy);
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000);
-
   await hydrateEvents({
     events: [event1quoteRepostCopy],
     storage: db,
-    signal: controller.signal,
   });
 
   const expectedEvent1quoteRepost = {
@@ -122,11 +100,6 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   };
 
   assertEquals(event1quoteRepostCopy, expectedEvent1quoteRepost);
-
-  await db.remove([{ kinds: [0, 1] }]);
-  assertEquals(await db.query([{ kinds: [0, 1] }]), []);
-
-  clearTimeout(timeoutId);
 });
 
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
@@ -143,16 +116,12 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   await db.event(event1quoteCopy);
   await db.event(event6copy);
 
-  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't been hydrated author yet");
-  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't been hydrated repost yet");
-
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 1000);
+  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't hydrated author yet");
+  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't hydrated repost yet");
 
   await hydrateEvents({
     events: [event6copy],
     storage: db,
-    signal: controller.signal,
   });
 
   const expectedEvent6 = {
@@ -161,9 +130,4 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
     repost: { ...event1quoteCopy, author: event0copy, quote_repost: { author: event0copy, ...event1copy } },
   };
   assertEquals(event6copy, expectedEvent6);
-
-  await db.remove([{ kinds: [0, 1, 6] }]);
-  assertEquals(await db.query([{ kinds: [0, 1, 6] }]), []);
-
-  clearTimeout(timeoutId);
 });
