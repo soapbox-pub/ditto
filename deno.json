@@ -8,19 +8,24 @@
     "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A",
     "check": "deno check src/server.ts",
     "relays:sync": "deno run -A scripts/relays.ts sync",
-    "nsec": "deno run scripts/nsec.ts"
+    "nsec": "deno run scripts/nsec.ts",
+    "admin:event": "deno run -A scripts/admin-event.ts",
+    "admin:role": "deno run -A scripts/admin-role.ts"
   },
   "unstable": ["ffi", "kv"],
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.12.1",
-    "~/fixtures/": "./fixtures/",
+    "@std/cli": "jsr:@std/cli@^0.223.0",
+    "@std/json": "jsr:@std/json@^0.223.0",
+    "@std/streams": "jsr:@std/streams@^0.223.0",
     "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",
     "hono/middleware": "https://deno.land/x/hono@v3.10.1/middleware.ts",
     "kysely": "npm:kysely@^0.26.3",
     "kysely_deno_postgres": "https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts",
-    "zod": "npm:zod@^3.23.4"
+    "zod": "npm:zod@^3.23.4",
+    "~/fixtures/": "./fixtures/"
   },
   "lint": {
     "include": ["src/", "scripts/"],
