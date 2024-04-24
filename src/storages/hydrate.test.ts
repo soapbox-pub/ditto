@@ -67,8 +67,8 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
   await db.event(event1repostedCopy);
   await db.event(event6copy);
 
-  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't been hydrated author yet");
-  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't been hydrated repost yet");
+  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't hydrated author yet");
+  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't hydrated repost yet");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1000);
@@ -143,8 +143,8 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   await db.event(event1quoteCopy);
   await db.event(event6copy);
 
-  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't been hydrated author yet");
-  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't been hydrated repost yet");
+  assertEquals((event6copy as DittoEvent).author, undefined, "Event hasn't hydrated author yet");
+  assertEquals((event6copy as DittoEvent).repost, undefined, "Event hasn't hydrated repost yet");
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 1000);

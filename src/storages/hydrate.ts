@@ -1,137 +1,163 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
+
 import { db } from '@/db.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
+import { Conf } from '@/config.ts';
 
-interface HydrateEventOpts {
+interface HydrateOpts {
   events: DittoEvent[];
   storage: NStore;
   signal?: AbortSignal;
 }
 
 /** Hydrate events using the provided storage. */
-async function hydrateEvents(opts: HydrateEventOpts): Promise<DittoEvent[]> {
+async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   const { events, storage, signal } = opts;
 
   if (!events.length) {
     return events;
   }
 
-  const allEventsMap: Map<string, DittoEvent> = new Map(events.map((event) => {
-    return [event.id, structuredClone(event)];
-  }));
+  const cache = [...events];
 
-  const childrenEventsIds = (events.map((event) => {
-    if (event.kind === 1) return event.tags.find(([name]) => name === 'q')?.[1]; // possible quote repost
-    if (event.kind === 6) return event.tags.find(([name]) => name === 'e')?.[1]; // possible repost
-    return;
-  }).filter(Boolean)) as string[];
-
-  if (childrenEventsIds.length > 0) {
-    const childrenEvents = await storage.query([{ ids: childrenEventsIds }], { signal });
-    childrenEvents.forEach((event) => {
-      allEventsMap.set(event.id, structuredClone(event));
-    });
-
-    if (childrenEvents.length > 0) {
-      const grandChildrenEventsIds = (childrenEvents.map((event) => {
-        if (event.kind === 1) return event.tags.find(([name]) => name === 'q')?.[1]; // possible quote repost
-        return;
-      }).filter(Boolean)) as string[];
-      if (grandChildrenEventsIds.length > 0) {
-        const grandChildrenEvents = await storage.query([{ ids: grandChildrenEventsIds }], { signal });
-        grandChildrenEvents.forEach((event) => {
-          allEventsMap.set(event.id, structuredClone(event));
-        });
-      }
-    }
+  for (const event of await gatherReposts({ events, storage, signal })) {
+    cache.push(event);
   }
-  await hydrateAuthors({ events: [...allEventsMap.values()], storage, signal });
-  await hydrateAuthorStats([...allEventsMap.values()].filter((e) => e.kind === 0));
-  await hydrateEventStats([...allEventsMap.values()].filter((e) => e.kind === 1));
 
-  events.forEach((event) => {
-    const correspondingEvent = allEventsMap.get(event.id);
-    if (correspondingEvent?.author) event.author = correspondingEvent.author;
-    if (correspondingEvent?.author_stats) event.author_stats = correspondingEvent.author_stats;
-    if (correspondingEvent?.event_stats) event.event_stats = correspondingEvent.event_stats;
+  for (const event of await gatherQuotes({ events, storage, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherAuthors({ events, storage, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherUsers({ events, storage, signal })) {
+    cache.push(event);
+  }
+
+  const stats = {
+    authors: await gatherAuthorStats(cache),
+    events: await gatherEventStats(cache),
+  };
+
+  assembleEvents(cache, cache, stats);
+  assembleEvents(events, cache, stats);
+
+  return events;
+}
+
+function assembleEvents(
+  a: DittoEvent[],
+  b: DittoEvent[],
+  stats: { authors: DittoTables['author_stats'][]; events: DittoTables['event_stats'][] },
+): DittoEvent[] {
+  const admin = Conf.pubkey;
+
+  for (const event of a) {
+    if (event.kind === 6) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      event.repost = b.find((e) => e.kind === 1 && id === e.id);
+    }
 
     if (event.kind === 1) {
-      const quoteId = event.tags.find(([name]) => name === 'q')?.[1];
-      if (quoteId) {
-        event.quote_repost = allEventsMap.get(quoteId);
-      }
-    } else if (event.kind === 6) {
-      const repostedId = event.tags.find(([name]) => name === 'e')?.[1];
-      if (repostedId) {
-        const repostedEvent = allEventsMap.get(repostedId);
-        if (repostedEvent && repostedEvent.tags.find(([name]) => name === 'q')?.[1]) { // The repost is a repost of a quote repost
-          const postBeingQuoteRepostedId = repostedEvent.tags.find(([name]) => name === 'q')?.[1];
-          event.repost = {
-            quote_repost: allEventsMap.get(postBeingQuoteRepostedId!),
-            ...allEventsMap.get(repostedId)!,
-          };
-        } else { // The repost is a repost of a normal post
-          event.repost = allEventsMap.get(repostedId);
-        }
-      }
+      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      event.quote_repost = b.find((e) => e.kind === 1 && id === e.id);
     }
-  });
-  return events;
-}
 
-async function hydrateAuthors(opts: Omit<HydrateEventOpts, 'relations'>): Promise<DittoEvent[]> {
-  const { events, storage, signal } = opts;
+    event.author = b.find((e) => e.kind === 0 && e.pubkey === event.pubkey);
+    event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
+    event.event_stats = stats.events.find((stats) => stats.event_id === event.id);
 
-  const pubkeys = new Set([...events].map((event) => event.pubkey));
-  const authors = await storage.query([{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }], { signal });
-
-  for (const event of events) {
-    event.author = authors.find((author) => author.pubkey === event.pubkey);
+    event.user = b.find((e) =>
+      e.kind === 30361 && e.pubkey === admin && e.tags.find(([name]) => name === 'd')?.[1] === event.pubkey
+    );
   }
 
-  return events;
+  return a;
 }
 
-async function hydrateAuthorStats(events: DittoEvent[]): Promise<DittoEvent[]> {
-  const results = await db
+function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 6) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return storage.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 1) {
+      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return storage.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set(events.map((event) => event.pubkey));
+
+  return storage.query(
+    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
+function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set(events.map((event) => event.pubkey));
+
+  return storage.query(
+    [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
+function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
+  const pubkeys = new Set<string>(
+    events
+      .filter((event) => event.kind === 0)
+      .map((event) => event.pubkey),
+  );
+
+  return db
     .selectFrom('author_stats')
     .selectAll()
-    .where('pubkey', 'in', events.map((event) => event.pubkey))
+    .where('pubkey', 'in', [...pubkeys])
     .execute();
-
-  for (const event of events) {
-    const stat = results.find((result) => result.pubkey === event.pubkey);
-    if (stat) {
-      event.author_stats = {
-        followers_count: Math.max(stat.followers_count, 0) || 0,
-        following_count: Math.max(stat.following_count, 0) || 0,
-        notes_count: Math.max(stat.notes_count, 0) || 0,
-      };
-    }
-  }
-
-  return events;
 }
 
-async function hydrateEventStats(events: DittoEvent[]): Promise<DittoEvent[]> {
-  const results = await db
+function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
+  const ids = new Set<string>(
+    events
+      .filter((event) => event.kind === 1)
+      .map((event) => event.id),
+  );
+
+  return db
     .selectFrom('event_stats')
     .selectAll()
-    .where('event_id', 'in', events.map((event) => event.id))
+    .where('event_id', 'in', [...ids])
     .execute();
-
-  for (const event of events) {
-    const stat = results.find((result) => result.event_id === event.id);
-    if (stat) {
-      event.event_stats = {
-        replies_count: Math.max(stat.replies_count, 0) || 0,
-        reposts_count: Math.max(stat.reposts_count, 0) || 0,
-        reactions_count: Math.max(stat.reactions_count, 0) || 0,
-      };
-    }
-  }
-
-  return events;
 }
 
 /** Return a normalized event without any non-standard keys. */
