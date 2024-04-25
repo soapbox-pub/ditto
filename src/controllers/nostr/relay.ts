@@ -1,8 +1,7 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
-import { jsonSchema } from '@/schema.ts';
 import {
   type ClientCLOSE,
   type ClientCOUNT,
@@ -32,7 +31,7 @@ function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
 
   socket.onmessage = (e) => {
-    const result = jsonSchema.pipe(clientMsgSchema).safeParse(e.data);
+    const result = n.json().pipe(clientMsgSchema).safeParse(e.data);
     if (result.success) {
       handleMsg(result.data);
     } else {
