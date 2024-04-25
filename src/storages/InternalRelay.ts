@@ -12,6 +12,7 @@ import {
 
 import { matchFilter } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { purifyEvent } from '@/storages/hydrate.ts';
 
 /**
  * PubSub event store for streaming events within the application.
@@ -20,9 +21,12 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 export class InternalRelay implements NRelay {
   private subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
 
-  async *req(filters: NostrFilter[]): AsyncGenerator<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
+  async *req(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal },
+  ): AsyncGenerator<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
     const id = crypto.randomUUID();
-    const machina = new Machina<NostrEvent>();
+    const machina = new Machina<NostrEvent>(opts?.signal);
 
     yield ['EOSE', id];
 
@@ -49,10 +53,10 @@ export class InternalRelay implements NRelay {
             ) as { key: 'domain'; value: string } | undefined)?.value;
 
             if (domain === event.author_domain) {
-              return machina.push(event);
+              return machina.push(purifyEvent(event));
             }
           } else {
-            return machina.push(event);
+            return machina.push(purifyEvent(event));
           }
         }
       }

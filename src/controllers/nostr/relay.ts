@@ -11,8 +11,7 @@ import {
   clientMsgSchema,
   type ClientREQ,
 } from '@/schemas/nostr.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
-import { Sub } from '@/subs.ts';
+import { Storages } from '@/storages.ts';
 
 import type { AppController } from '@/app.ts';
 
@@ -29,6 +28,8 @@ type RelayMsg =
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
+  const controllers = new Map<string, AbortController>();
+
   socket.onmessage = (e) => {
     const result = jsonSchema.pipe(clientMsgSchema).safeParse(e.data);
     if (result.success) {
@@ -39,7 +40,9 @@ function connectStream(socket: WebSocket) {
   };
 
   socket.onclose = () => {
-    Sub.close(socket);
+    for (const controller of controllers.values()) {
+      controller.abort();
+    }
   };
 
   /** Handle client message. */
@@ -64,14 +67,20 @@ function connectStream(socket: WebSocket) {
   async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
     const filters = prepareFilters(rest);
 
+    const controller = new AbortController();
+    controllers.get(subId)?.abort();
+    controllers.set(subId, controller);
+
     for (const event of await eventsDB.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
     send(['EOSE', subId]);
 
-    for await (const event of Sub.sub(socket, subId, filters)) {
-      send(['EVENT', subId, purifyEvent(event)]);
+    for await (const msg of Storages.pubsub.req(filters, { signal: controller.signal })) {
+      if (msg[0] === 'EVENT') {
+        send(['EVENT', subId, msg[2]]);
+      }
     }
   }
 
@@ -93,7 +102,11 @@ function connectStream(socket: WebSocket) {
 
   /** Handle CLOSE. Close the subscription. */
   function handleClose([_, subId]: ClientCLOSE): void {
-    Sub.unsub(socket, subId);
+    const controller = controllers.get(subId);
+    if (controller) {
+      controller.abort();
+      controllers.delete(subId);
+    }
   }
 
   /** Handle COUNT. Return the number of events matching the filters. */
