@@ -14,6 +14,7 @@ import {
 import { Storages } from '@/storages.ts';
 
 import type { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -129,11 +130,12 @@ function connectStream(socket: WebSocket) {
 
 /** Enforce the filters with certain criteria. */
 function prepareFilters(filters: ClientREQ[2][]): NostrFilter[] {
-  return filters.map((filter) => ({
-    ...filter,
+  return filters.map((filter) => {
+    const narrow = Boolean(filter.ids?.length || filter.authors?.length);
+    const search = narrow ? filter.search : `domain:${Conf.url.host} ${filter.search ?? ''}`;
     // Return only local events unless the query is already narrow.
-    local: (filter.ids?.length || filter.authors?.length) ? undefined : true,
-  }));
+    return { ...filter, search };
+  });
 }
 
 const relayController: AppController = (c, next) => {
