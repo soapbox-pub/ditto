@@ -167,8 +167,8 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requirePubkey, unreblogS
 app.post('/api/v1/statuses', requirePubkey, createStatusController);
 app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusController);
 
-app.post('/api/v1/media', requireRole('user', { validatePayload: false }), mediaController);
-app.post('/api/v2/media', requireRole('user', { validatePayload: false }), mediaController);
+app.post('/api/v1/media', mediaController);
+app.post('/api/v2/media', mediaController);
 
 app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
