@@ -77,10 +77,14 @@ function connectStream(socket: WebSocket) {
 
     send(['EOSE', subId]);
 
-    for await (const msg of Storages.pubsub.req(filters, { signal: controller.signal })) {
-      if (msg[0] === 'EVENT') {
-        send(['EVENT', subId, msg[2]]);
+    try {
+      for await (const msg of Storages.pubsub.req(filters, { signal: controller.signal })) {
+        if (msg[0] === 'EVENT') {
+          send(['EVENT', subId, msg[2]]);
+        }
       }
+    } catch (_e) {
+      controllers.delete(subId);
     }
   }
 

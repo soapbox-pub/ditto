@@ -68,28 +68,32 @@ const streamingController: AppController = (c) => {
     const filter = await topicToFilter(stream, c.req.query(), pubkey);
     if (!filter) return;
 
-    for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
-      if (msg[0] === 'EVENT') {
-        const [event] = await hydrateEvents({
-          events: [msg[2]],
-          storage: eventsDB,
-          signal: AbortSignal.timeout(1000),
-        });
+    try {
+      for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
+        if (msg[0] === 'EVENT') {
+          const [event] = await hydrateEvents({
+            events: [msg[2]],
+            storage: eventsDB,
+            signal: AbortSignal.timeout(1000),
+          });
 
-        if (event.kind === 1) {
-          const status = await renderStatus(event, { viewerPubkey: pubkey });
-          if (status) {
-            send('update', status);
+          if (event.kind === 1) {
+            const status = await renderStatus(event, { viewerPubkey: pubkey });
+            if (status) {
+              send('update', status);
+            }
           }
-        }
 
-        if (event.kind === 6) {
-          const status = await renderReblog(event, { viewerPubkey: pubkey });
-          if (status) {
-            send('update', status);
+          if (event.kind === 6) {
+            const status = await renderReblog(event, { viewerPubkey: pubkey });
+            if (status) {
+              send('update', status);
+            }
           }
         }
       }
+    } catch (e) {
+      debug('streaming error:', e);
     }
   };
 
