@@ -9,8 +9,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { cache, eventsDB, reqmeister } from '@/storages.ts';
-import { Sub } from '@/subs.ts';
+import { cache, eventsDB, reqmeister, Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
@@ -269,14 +268,14 @@ async function payZap(event: DittoEvent, signal: AbortSignal) {
 }
 
 /** Determine if the event is being received in a timely manner. */
-const isFresh = (event: NostrEvent): boolean => eventAge(event) < Time.seconds(10);
+function isFresh(event: NostrEvent): boolean {
+  return eventAge(event) < Time.seconds(10);
+}
 
 /** Distribute the event through active subscriptions. */
-function streamOut(event: NostrEvent) {
-  if (!isFresh(event)) return;
-
-  for (const sub of Sub.matches(event)) {
-    sub.stream(event);
+async function streamOut(event: NostrEvent): Promise<void> {
+  if (isFresh(event)) {
+    await Storages.pubsub.event(event);
   }
 }
 
