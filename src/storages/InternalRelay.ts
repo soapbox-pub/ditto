@@ -53,10 +53,12 @@ export class InternalRelay implements NRelay {
             ) as { key: 'domain'; value: string } | undefined)?.value;
 
             if (domain === event.author_domain) {
-              return machina.push(purifyEvent(event));
+              machina.push(purifyEvent(event));
+              break;
             }
           } else {
-            return machina.push(purifyEvent(event));
+            machina.push(purifyEvent(event));
+            break;
           }
         }
       }
