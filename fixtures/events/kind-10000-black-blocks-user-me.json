@@ -1,0 +1,14 @@
+{
+  "id": "4aa67b0b7829d555a42b1f57f8033e6f0cda87a63b5bf5a0d5e10fbb9e7ab107",
+  "pubkey": "32b8276794dec3934fd7ddd2a97b5ee10ecef493441a55e83d838ccd98c58b7a",
+  "created_at": 1713997559,
+  "kind": 10000,
+  "tags": [
+    [
+      "p",
+      "2894578b2c8570825f48dc647e746e690f83f92d19446b3051f59cd0196a7991"
+    ]
+  ],
+  "content": "",
+  "sig": "9fa697cf5353cc82a7d1b3304c3d41e51e30547035a4c8fb25d3f5c9f378d43a30935b523c0a9671a2c61d36eff530f3f3fcfbb77440589649e5f2aa306df039"
+}
