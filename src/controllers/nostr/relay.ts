@@ -1,8 +1,7 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
-import { jsonSchema } from '@/schema.ts';
 import {
   type ClientCLOSE,
   type ClientCOUNT,
@@ -14,6 +13,7 @@ import {
 import { Storages } from '@/storages.ts';
 
 import type { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -31,7 +31,7 @@ function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
 
   socket.onmessage = (e) => {
-    const result = jsonSchema.pipe(clientMsgSchema).safeParse(e.data);
+    const result = n.json().pipe(clientMsgSchema).safeParse(e.data);
     if (result.success) {
       handleMsg(result.data);
     } else {
@@ -129,11 +129,12 @@ function connectStream(socket: WebSocket) {
 
 /** Enforce the filters with certain criteria. */
 function prepareFilters(filters: ClientREQ[2][]): NostrFilter[] {
-  return filters.map((filter) => ({
-    ...filter,
+  return filters.map((filter) => {
+    const narrow = Boolean(filter.ids?.length || filter.authors?.length);
+    const search = narrow ? filter.search : `domain:${Conf.url.host} ${filter.search ?? ''}`;
     // Return only local events unless the query is already narrow.
-    local: (filter.ids?.length || filter.authors?.length) ? undefined : true,
-  }));
+    return { ...filter, search };
+  });
 }
 
 const relayController: AppController = (c, next) => {

@@ -45,14 +45,14 @@ const searchStore = new SearchStore({
 });
 
 export class Storages {
-  private static _subsub: InternalRelay | undefined;
+  private static _pubsub: InternalRelay | undefined;
 
   static get pubsub(): InternalRelay {
-    if (!this._subsub) {
-      this._subsub = new InternalRelay();
+    if (!this._pubsub) {
+      this._pubsub = new InternalRelay();
     }
 
-    return this._subsub;
+    return this._pubsub;
   }
 }
 

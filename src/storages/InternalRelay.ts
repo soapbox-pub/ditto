@@ -23,7 +23,7 @@ export class InternalRelay implements NRelay {
 
   async *req(
     filters: NostrFilter[],
-    opts: { signal?: AbortSignal },
+    opts?: { signal?: AbortSignal },
   ): AsyncGenerator<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
     const id = crypto.randomUUID();
     const machina = new Machina<NostrEvent>(opts?.signal);
