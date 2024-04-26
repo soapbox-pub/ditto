@@ -1,0 +1,9 @@
+{
+  "id": "5f2236e745f47116ee8d869658ebc732a8a35fdeb30a876f46c8c0fef9ae0309",
+  "pubkey": "32b8276794dec3934fd7ddd2a97b5ee10ecef493441a55e83d838ccd98c58b7a",
+  "created_at": 1713966213,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"name\":\"black\",\"about\":\"\",\"nip05\":\"\"}",
+  "sig": "bab454ca68332663c4c17591eb8ea993f78be7787da9e0c5ed140b21059e9fe3c12a5998fcefa94b1129934f798a649bac222b6051a9ea1ce8a01f9620c825e0"
+}
