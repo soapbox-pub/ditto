@@ -6,7 +6,7 @@ import { Stickynotes } from '@/deps.ts';
 import { connectResponseSchema } from '@/schemas/nostr.ts';
 import { jsonSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { Sub } from '@/subs.ts';
+import { Storages } from '@/storages.ts';
 import { eventMatchesTemplate } from '@/utils.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 
@@ -78,27 +78,25 @@ export class APISigner implements NostrSigner {
     messageId: string,
     template: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>,
   ): Promise<NostrEvent> {
-    const sub = Sub.sub(messageId, '1', [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }]);
+    const sub = Storages.pubsub.req(
+      [{ kinds: [24133], authors: [pubkey], '#p': [Conf.pubkey] }],
+      { signal: this.#c.req.raw.signal },
+    );
 
-    const close = (): void => {
-      Sub.close(messageId);
-      this.#c.req.raw.signal.removeEventListener('abort', close);
-    };
+    for await (const msg of sub) {
+      if (msg[0] === 'EVENT') {
+        const event = msg[2];
+        const decrypted = await new AdminSigner().nip04.decrypt(event.pubkey, event.content);
 
-    this.#c.req.raw.signal.addEventListener('abort', close);
+        const result = jsonSchema
+          .pipe(connectResponseSchema)
+          .refine((msg) => msg.id === messageId, 'Message ID mismatch')
+          .refine((msg) => eventMatchesTemplate(msg.result, template), 'Event template mismatch')
+          .safeParse(decrypted);
 
-    for await (const event of sub) {
-      const decrypted = await new AdminSigner().nip04.decrypt(event.pubkey, event.content);
-
-      const result = jsonSchema
-        .pipe(connectResponseSchema)
-        .refine((msg) => msg.id === messageId, 'Message ID mismatch')
-        .refine((msg) => eventMatchesTemplate(msg.result, template), 'Event template mismatch')
-        .safeParse(decrypted);
-
-      if (result.success) {
-        close();
-        return result.data.result;
+        if (result.success) {
+          return result.data.result;
+        }
       }
     }
 

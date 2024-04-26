@@ -5,11 +5,11 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Debug } from '@/deps.ts';
 import { getFeedPubkeys } from '@/queries.ts';
-import { Sub } from '@/subs.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -38,6 +38,7 @@ const streamingController: AppController = (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
+  const controller = new AbortController();
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
@@ -63,33 +64,41 @@ const streamingController: AppController = (c) => {
 
   socket.onopen = async () => {
     if (!stream) return;
-    const filter = await topicToFilter(stream, c.req.query(), pubkey);
 
-    if (filter) {
-      for await (const event of Sub.sub(socket, '1', [filter])) {
-        if (event.kind === 6) {
-          await hydrateEvents({
-            events: [event],
+    const filter = await topicToFilter(stream, c.req.query(), pubkey);
+    if (!filter) return;
+
+    try {
+      for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
+        if (msg[0] === 'EVENT') {
+          const [event] = await hydrateEvents({
+            events: [msg[2]],
             storage: eventsDB,
             signal: AbortSignal.timeout(1000),
           });
 
-          const status = await renderReblog(event, { viewerPubkey: c.get('pubkey') });
-          if (status) {
-            send('update', status);
+          if (event.kind === 1) {
+            const status = await renderStatus(event, { viewerPubkey: pubkey });
+            if (status) {
+              send('update', status);
+            }
           }
-          continue;
-        }
-        const status = await renderStatus(event, { viewerPubkey: pubkey });
-        if (status) {
-          send('update', status);
+
+          if (event.kind === 6) {
+            const status = await renderReblog(event, { viewerPubkey: pubkey });
+            if (status) {
+              send('update', status);
+            }
+          }
         }
       }
+    } catch (e) {
+      debug('streaming error:', e);
     }
   };
 
   socket.onclose = () => {
-    Sub.close(socket);
+    controller.abort();
   };
 
   return response;

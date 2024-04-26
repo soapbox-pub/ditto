@@ -8,6 +8,7 @@ import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
 import { Reqmeister } from '@/storages/reqmeister.ts';
 import { SearchStore } from '@/storages/search-store.ts';
+import { InternalRelay } from '@/storages/InternalRelay.ts';
 import { Time } from '@/utils/time.ts';
 
 /** Relay pool storage. */
@@ -42,5 +43,17 @@ const searchStore = new SearchStore({
   relay: Conf.searchRelay,
   fallback: optimizer,
 });
+
+export class Storages {
+  private static _pubsub: InternalRelay | undefined;
+
+  static get pubsub(): InternalRelay {
+    if (!this._pubsub) {
+      this._pubsub = new InternalRelay();
+    }
+
+    return this._pubsub;
+  }
+}
 
 export { cache, client, eventsDB, optimizer, reqmeister, searchStore };

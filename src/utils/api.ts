@@ -18,12 +18,6 @@ type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 
 
 /** Publish an event through the pipeline. */
 async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const pubkey = c.get('pubkey');
-
-  if (!pubkey) {
-    throw new HTTPException(401);
-  }
-
   const signer = new APISigner(c);
 
   const event = await signer.signEvent({
