@@ -1,6 +1,5 @@
 // deno-lint-ignore-file require-await
 import {
-  Machina,
   NIP50,
   NostrEvent,
   NostrFilter,
@@ -9,6 +8,7 @@ import {
   NostrRelayEVENT,
   NRelay,
 } from '@nostrify/nostrify';
+import { Machina } from '@nostrify/nostrify/utils';
 
 import { matchFilter } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';

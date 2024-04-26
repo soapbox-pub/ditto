@@ -1,4 +1,5 @@
-import { LNURL, NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { LNURL } from '@nostrify/nostrify/ln';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { addRelays } from '@/db/relays.ts';

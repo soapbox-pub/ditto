@@ -1,6 +1,6 @@
 import { assertEquals } from '@/deps-test.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { NCache } from 'jsr:@nostrify/nostrify';
+import { MockRelay } from '@nostrify/nostrify/test';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event0madePost from '~/fixtures/events/event-0-the-one-who-post-and-users-repost.json' with { type: 'json' };
@@ -24,7 +24,7 @@ import event6ofQuoteRepost from '~/fixtures/events/event-6-of-quote-repost.json'
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
-  const db = new NCache({ max: 100 });
+  const db = new MockRelay();
 
   const event0copy = structuredClone(event0);
   const event1copy = structuredClone(event1);
@@ -45,7 +45,7 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
-  const db = new NCache({ max: 100 });
+  const db = new MockRelay();
 
   const event0madePostCopy = structuredClone(event0madePost);
   const event0madeRepostCopy = structuredClone(event0madeRepost);
@@ -75,7 +75,7 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
-  const db = new NCache({ max: 100 });
+  const db = new MockRelay();
 
   const event0madeQuoteRepostCopy = structuredClone(event0madeQuoteRepost);
   const event0copy = structuredClone(event0);
@@ -103,7 +103,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
-  const db = new NCache({ max: 100 });
+  const db = new MockRelay();
 
   const event0copy = structuredClone(event0madeRepostWithQuoteRepost);
   const event1copy = structuredClone(event1futureIsMine);
