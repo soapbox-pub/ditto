@@ -1,4 +1,4 @@
-import { LNURL, LNURLDetails } from '@nostrify/nostrify';
+import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
 import { Debug } from '@/deps.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
