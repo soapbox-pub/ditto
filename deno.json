@@ -16,7 +16,7 @@
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
-    "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.12.1",
+    "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.14.3",
     "@std/cli": "jsr:@std/cli@^0.223.0",
     "@std/json": "jsr:@std/json@^0.223.0",
     "@std/streams": "jsr:@std/streams@^0.223.0",

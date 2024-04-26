@@ -1,8 +1,7 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
-import { jsonSchema } from '@/schema.ts';
 import {
   type ClientCLOSE,
   type ClientCOUNT,
@@ -11,10 +10,10 @@ import {
   clientMsgSchema,
   type ClientREQ,
 } from '@/schemas/nostr.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
-import { Sub } from '@/subs.ts';
+import { Storages } from '@/storages.ts';
 
 import type { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -29,8 +28,10 @@ type RelayMsg =
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
+  const controllers = new Map<string, AbortController>();
+
   socket.onmessage = (e) => {
-    const result = jsonSchema.pipe(clientMsgSchema).safeParse(e.data);
+    const result = n.json().pipe(clientMsgSchema).safeParse(e.data);
     if (result.success) {
       handleMsg(result.data);
     } else {
@@ -39,7 +40,9 @@ function connectStream(socket: WebSocket) {
   };
 
   socket.onclose = () => {
-    Sub.close(socket);
+    for (const controller of controllers.values()) {
+      controller.abort();
+    }
   };
 
   /** Handle client message. */
@@ -64,14 +67,24 @@ function connectStream(socket: WebSocket) {
   async function handleReq([_, subId, ...rest]: ClientREQ): Promise<void> {
     const filters = prepareFilters(rest);
 
+    const controller = new AbortController();
+    controllers.get(subId)?.abort();
+    controllers.set(subId, controller);
+
     for (const event of await eventsDB.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
     send(['EOSE', subId]);
 
-    for await (const event of Sub.sub(socket, subId, filters)) {
-      send(['EVENT', subId, purifyEvent(event)]);
+    try {
+      for await (const msg of Storages.pubsub.req(filters, { signal: controller.signal })) {
+        if (msg[0] === 'EVENT') {
+          send(['EVENT', subId, msg[2]]);
+        }
+      }
+    } catch (_e) {
+      controllers.delete(subId);
     }
   }
 
@@ -93,7 +106,11 @@ function connectStream(socket: WebSocket) {
 
   /** Handle CLOSE. Close the subscription. */
   function handleClose([_, subId]: ClientCLOSE): void {
-    Sub.unsub(socket, subId);
+    const controller = controllers.get(subId);
+    if (controller) {
+      controller.abort();
+      controllers.delete(subId);
+    }
   }
 
   /** Handle COUNT. Return the number of events matching the filters. */
@@ -112,11 +129,12 @@ function connectStream(socket: WebSocket) {
 
 /** Enforce the filters with certain criteria. */
 function prepareFilters(filters: ClientREQ[2][]): NostrFilter[] {
-  return filters.map((filter) => ({
-    ...filter,
+  return filters.map((filter) => {
+    const narrow = Boolean(filter.ids?.length || filter.authors?.length);
+    const search = narrow ? filter.search : `domain:${Conf.url.host} ${filter.search ?? ''}`;
     // Return only local events unless the query is already narrow.
-    local: (filter.ids?.length || filter.authors?.length) ? undefined : true,
-  }));
+    return { ...filter, search };
+  });
 }
 
 const relayController: AppController = (c, next) => {
