@@ -1,4 +1,4 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
@@ -78,6 +78,7 @@ import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
 import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
 import { adminRelaysController } from '@/controllers/api/ditto.ts';
+import { setUserStore } from '@/middleware/userStore.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -89,6 +90,8 @@ interface AppEnv extends HonoEnv {
     proof?: NostrEvent;
     /** User associated with the pubkey, if any. */
     user?: User;
+    /** User Store (pubkey has to be set to use it). */
+    userStore?: NStore;
   };
 }
 
@@ -170,7 +173,7 @@ app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusCont
 app.post('/api/v1/media', mediaController);
 app.post('/api/v2/media', mediaController);
 
-app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
+app.get('/api/v1/timelines/home', requirePubkey, setUserStore, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
 app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
 
