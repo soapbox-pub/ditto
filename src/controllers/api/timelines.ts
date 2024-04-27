@@ -5,7 +5,6 @@ import { type AppContext, type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { eventsDB } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
@@ -46,10 +45,7 @@ const hashtagTimelineController: AppController = (c) => {
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const { signal } = c.req.raw;
-  const userStore = c.get('userStore');
-
-  let store: NStore = eventsDB;
-  if (userStore) store = userStore;
+  const store = c.get('store') as NStore;
 
   const events = await store
     .query(filters, { signal })
