@@ -1,4 +1,4 @@
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrFilter, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppContext, type AppController } from '@/app.ts';
@@ -46,13 +46,17 @@ const hashtagTimelineController: AppController = (c) => {
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const { signal } = c.req.raw;
+  const userStore = c.get('userStore');
 
-  const events = await eventsDB
+  let store: NStore = eventsDB;
+  if (userStore) store = userStore;
+
+  const events = await store
     .query(filters, { signal })
     .then((events) =>
       hydrateEvents({
         events,
-        storage: eventsDB,
+        storage: store,
         signal,
       })
     );
