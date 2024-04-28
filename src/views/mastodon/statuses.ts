@@ -1,12 +1,12 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 
 import { Conf } from '@/config.ts';
 import { nip19 } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
-import { getAuthor } from '@/queries.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
-import { eventsDB } from '@/storages.ts';
+import { eventsDB, optimizer } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
@@ -40,11 +40,17 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
     ),
   ];
 
+  const mentionedProfiles = await optimizer.query(
+    [{ authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
+  );
+
   const { html, links, firstUrl } = parseNoteContent(event.content);
 
   const [mentions, card, relatedEvents] = await Promise
     .all([
-      Promise.all(mentionedPubkeys.map(toMention)),
+      Promise.all(
+        mentionedPubkeys.map((pubkey) => toMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
+      ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
         ? await eventsDB.query([
@@ -131,9 +137,8 @@ async function renderReblog(event: DittoEvent, opts: statusOpts) {
   };
 }
 
-async function toMention(pubkey: string) {
-  const author = await getAuthor(pubkey);
-  const account = author ? await renderAccount(author) : undefined;
+async function toMention(pubkey: string, event?: NostrEvent) {
+  const account = event ? await renderAccount(event) : undefined;
 
   if (account) {
     return {
