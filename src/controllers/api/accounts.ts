@@ -18,6 +18,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { APISigner } from '@/signers/APISigner.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -186,6 +187,7 @@ const updateCredentialsSchema = z.object({
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
   nip05: z.string().optional(),
+  pleroma_settings_store: z.object({ soapbox_fe: z.object({ themeMode: z.string() }).passthrough() }).optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
@@ -224,6 +226,16 @@ const updateCredentialsController: AppController = async (c) => {
     content: JSON.stringify(meta),
     tags: [],
   }, c);
+
+  const soapbox_fe = result.data.pleroma_settings_store?.soapbox_fe;
+  if (soapbox_fe) {
+    const signer = new APISigner(c);
+    await createEvent({
+      kind: 30078,
+      tags: [['d', 'pub.ditto.preferences']],
+      content: await signer.nip44.encrypt(pubkey, JSON.stringify(soapbox_fe)),
+    }, c);
+  }
 
   const account = await renderAccount(event, { withSource: true });
   return c.json(account);
