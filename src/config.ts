@@ -139,6 +139,10 @@ class Conf {
   static get uploader() {
     return Deno.env.get('DITTO_UPLOADER');
   }
+  /** Location to use for local uploads. */
+  static get uploadsDir() {
+    return Deno.env.get('UPLOADS_DIR') || 'data/uploads';
+  }
   /** Media base URL for uploads. */
   static get mediaDomain() {
     const value = Deno.env.get('MEDIA_DOMAIN');

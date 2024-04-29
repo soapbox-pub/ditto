@@ -1,7 +1,8 @@
 import { Conf } from '@/config.ts';
 
-import { ipfsUploader } from './ipfs.ts';
-import { s3Uploader } from './s3.ts';
+import { ipfsUploader } from '@/uploaders/ipfs.ts';
+import { localUploader } from '@/uploaders/local.ts';
+import { s3Uploader } from '@/uploaders/s3.ts';
 
 import type { Uploader } from './types.ts';
 
@@ -10,8 +11,8 @@ const configUploader: Uploader = {
   upload(file, opts) {
     return uploader().upload(file, opts);
   },
-  delete(cid, opts) {
-    return uploader().delete(cid, opts);
+  delete(id, opts) {
+    return uploader().delete(id, opts);
   },
 };
 
@@ -22,8 +23,10 @@ function uploader() {
       return s3Uploader;
     case 'ipfs':
       return ipfsUploader;
+    case 'local':
+      return localUploader;
     default:
-      return ipfsUploader;
+      throw new Error('No `DITTO_UPLOADER` configured. Uploads are disabled.');
   }
 }
 
