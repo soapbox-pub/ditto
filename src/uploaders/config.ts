@@ -7,11 +7,11 @@ import type { Uploader } from './types.ts';
 
 /** Meta-uploader determined from configuration. */
 const configUploader: Uploader = {
-  upload(file, signal) {
-    return uploader().upload(file, signal);
+  upload(file, opts) {
+    return uploader().upload(file, opts);
   },
-  delete(cid, signal) {
-    return uploader().delete(cid, signal);
+  delete(cid, opts) {
+    return uploader().delete(cid, opts);
   },
 };
 
