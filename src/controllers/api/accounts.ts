@@ -50,7 +50,21 @@ const verifyCredentialsController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey, { relations: ['author_stats'] });
   if (event) {
-    return c.json(await renderAccount(event, { withSource: true }));
+    const account = await renderAccount(event, { withSource: true });
+
+    const [userPreferencesEvent] = await eventsDB.query([{
+      authors: [pubkey],
+      kinds: [30078],
+      '#d': ['pub.ditto.pleroma_settings_store'],
+      limit: 1,
+    }]);
+    if (userPreferencesEvent) {
+      const signer = new APISigner(c);
+      const userPreference = JSON.parse(await signer.nip44.decrypt(pubkey, userPreferencesEvent.content));
+      (account.pleroma as any).settings_store = userPreference;
+    }
+
+    return c.json(account);
   } else {
     return c.json(await accountFromPubkey(pubkey, { withSource: true }));
   }
@@ -187,7 +201,7 @@ const updateCredentialsSchema = z.object({
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
   nip05: z.string().optional(),
-  pleroma_settings_store: z.object({ soapbox_fe: z.object({ themeMode: z.string() }).passthrough() }).optional(),
+  pleroma_settings_store: z.object({ soapbox_fe: z.record(z.string(), z.unknown()) }).optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
@@ -227,17 +241,30 @@ const updateCredentialsController: AppController = async (c) => {
     tags: [],
   }, c);
 
-  const soapbox_fe = result.data.pleroma_settings_store?.soapbox_fe;
-  if (soapbox_fe) {
+  const pleroma_frontend = result.data.pleroma_settings_store;
+  if (pleroma_frontend) {
     const signer = new APISigner(c);
     await createEvent({
       kind: 30078,
-      tags: [['d', 'pub.ditto.preferences']],
-      content: await signer.nip44.encrypt(pubkey, JSON.stringify(soapbox_fe)),
+      tags: [['d', 'pub.ditto.pleroma_settings_store']],
+      content: await signer.nip44.encrypt(pubkey, JSON.stringify(pleroma_frontend)),
     }, c);
   }
 
   const account = await renderAccount(event, { withSource: true });
+
+  const [userPreferencesEvent] = await eventsDB.query([{
+    authors: [pubkey],
+    kinds: [30078],
+    '#d': ['pub.ditto.pleroma_settings_store'],
+    limit: 1,
+  }]);
+  if (userPreferencesEvent) {
+    const signer = new APISigner(c);
+    const userPreference = JSON.parse(await signer.nip44.decrypt(pubkey, userPreferencesEvent.content));
+    (account.pleroma as any).settings_store = userPreference;
+  }
+
   return c.json(account);
 };
 
