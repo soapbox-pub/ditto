@@ -8,8 +8,14 @@ interface Uploader {
 
 /** Return value from the uploader after uploading a file. */
 interface UploadResult {
-  /** IPFS CID for the file. */
-  cid: string;
+  /** File ID specific to the uploader, so it can later be referenced or deleted. */
+  id: string;
+  /** URL where the file can be accessed. */
+  url: string;
+  /** SHA-256 hash of the file. */
+  sha256?: string;
+  /** IPFS CID of the file. */
+  cid?: string;
 }
 
 export type { Uploader };

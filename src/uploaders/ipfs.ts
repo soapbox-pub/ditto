@@ -30,10 +30,12 @@ const ipfsUploader: Uploader = {
       signal: opts?.signal,
     });
 
-    const { Hash } = ipfsAddResponseSchema.parse(await response.json());
+    const { Hash: cid } = ipfsAddResponseSchema.parse(await response.json());
 
     return {
-      cid: Hash,
+      id: cid,
+      cid,
+      url: new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString(),
     };
   },
   async delete(cid, opts) {

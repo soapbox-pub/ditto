@@ -1,30 +1,39 @@
+import { join } from 'node:path';
+
+import { crypto } from '@std/crypto';
+import { encodeHex } from '@std/encoding/hex';
+import { extensionsByType } from '@std/media-types';
+
 import { Conf } from '@/config.ts';
-import { IpfsHash, S3Client } from '@/deps.ts';
+import { S3Client } from '@/deps.ts';
 
 import type { Uploader } from './types.ts';
 
-/**
- * S3-compatible uploader for AWS, Wasabi, DigitalOcean Spaces, and more.
- * Files are named by their IPFS CID and exposed at `/ipfs/<cid>`, letting it
- * take advantage of IPFS features while not really using IPFS.
- */
+/** S3-compatible uploader for AWS, Wasabi, DigitalOcean Spaces, and more. */
 const s3Uploader: Uploader = {
   async upload(file) {
-    const cid = await IpfsHash.of(file.stream()) as string;
+    const sha256 = encodeHex(await crypto.subtle.digest('SHA-256', file.stream()));
+    const ext = extensionsByType(file.type)?.[0] ?? 'bin';
+    const filename = `${sha256}.${ext}`;
 
-    await client().putObject(`ipfs/${cid}`, file.stream(), {
+    await client().putObject(filename, file.stream(), {
       metadata: {
         'Content-Type': file.type,
         'x-amz-acl': 'public-read',
       },
     });
 
+    const { pathStyle, bucket } = Conf.s3;
+    const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
+
     return {
-      cid,
+      id: filename,
+      sha256,
+      url: new URL(path, Conf.mediaDomain).toString(),
     };
   },
-  async delete(cid) {
-    await client().deleteObject(`ipfs/${cid}`);
+  async delete(id) {
+    await client().deleteObject(id);
   },
 };
 

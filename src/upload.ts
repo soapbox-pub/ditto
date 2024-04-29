@@ -16,8 +16,7 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal) {
     throw new Error('File size is too large.');
   }
 
-  const { cid } = await uploader.upload(file, signal);
-  const url = new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString();
+  const { url } = await uploader.upload(file, { signal });
 
   return insertUnattachedMedia({
     pubkey,
