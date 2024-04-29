@@ -4,7 +4,7 @@ import { eventsDB } from '@/storages.ts';
 
 /** Store middleware. */
 const storeMiddleware: AppMiddleware = async (c, next) => {
-  const pubkey = c.get('pubkey') as string;
+  const pubkey = c.get('pubkey');
 
   if (pubkey) {
     const store = new UserStore(pubkey, eventsDB);
