@@ -91,7 +91,7 @@ interface AppEnv extends HonoEnv {
     /** User associated with the pubkey, if any. */
     user?: User;
     /** Store */
-    store?: NStore;
+    store: NStore;
   };
 }
 
@@ -119,7 +119,7 @@ app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 app.get('/relay', relayController);
 
-app.use('*', csp(), cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98());
+app.use('*', csp(), cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98(), storeMiddleware);
 
 app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
@@ -173,8 +173,8 @@ app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusCont
 app.post('/api/v1/media', mediaController);
 app.post('/api/v2/media', mediaController);
 
-app.get('/api/v1/timelines/home', requirePubkey, storeMiddleware, homeTimelineController);
-app.get('/api/v1/timelines/public', storeMiddleware, publicTimelineController);
+app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
+app.get('/api/v1/timelines/public', publicTimelineController);
 app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
 
 app.get('/api/v1/preferences', preferencesController);
