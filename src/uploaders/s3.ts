@@ -9,10 +9,9 @@ import type { Uploader } from './types.ts';
  * take advantage of IPFS features while not really using IPFS.
  */
 const s3Uploader: Uploader = {
-  async upload(file, _signal) {
+  async upload(file) {
     const cid = await IpfsHash.of(file.stream()) as string;
 
-    // FIXME: Can't cancel S3 requests: https://github.com/bradenmacdonald/deno-s3-lite-client/issues/24
     await client().putObject(`ipfs/${cid}`, file.stream(), {
       metadata: {
         'Content-Type': file.type,
@@ -24,8 +23,7 @@ const s3Uploader: Uploader = {
       cid,
     };
   },
-  async delete(cid, _signal) {
-    // FIXME: Can't cancel S3 requests: https://github.com/bradenmacdonald/deno-s3-lite-client/issues/24
+  async delete(cid) {
     await client().deleteObject(`ipfs/${cid}`);
   },
 };
