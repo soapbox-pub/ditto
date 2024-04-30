@@ -37,7 +37,7 @@ const publicTimelineController: AppController = (c) => {
 };
 
 const hashtagTimelineController: AppController = (c) => {
-  const hashtag = c.req.param('hashtag')!;
+  const hashtag = c.req.param('hashtag')!.toLowerCase();
   const params = paginationSchema.parse(c.req.query());
   return renderStatuses(c, [{ kinds: [1], '#t': [hashtag], ...params }]);
 };
