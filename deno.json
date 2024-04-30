@@ -17,7 +17,7 @@
   "imports": {
     "@/": "./src/",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.15.0",
-    "@sentry/deno": "npm:@sentry/deno@^7.112.2",
+    "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
     "@std/cli": "jsr:@std/cli@^0.223.0",
     "@std/crypto": "jsr:@std/crypto@^0.224.0",
     "@std/encoding": "jsr:@std/encoding@^0.224.0",
