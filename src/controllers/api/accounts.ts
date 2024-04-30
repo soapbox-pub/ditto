@@ -1,9 +1,9 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { nip19 } from '@/deps.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';

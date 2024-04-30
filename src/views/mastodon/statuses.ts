@@ -1,8 +1,8 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
+import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { nip19 } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';

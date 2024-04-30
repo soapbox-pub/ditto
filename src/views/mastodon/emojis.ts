@@ -1,4 +1,5 @@
-import { UnsignedEvent } from '@/deps.ts';
+import { UnsignedEvent } from 'nostr-tools';
+
 import { EmojiTag, emojiTagSchema } from '@/schemas/nostr.ts';
 import { filteredArray } from '@/schema.ts';
 

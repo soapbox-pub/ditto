@@ -1,5 +1,7 @@
+import { nip19, UnsignedEvent } from 'nostr-tools';
+
 import { Conf } from '@/config.ts';
-import { lodash, nip19, type UnsignedEvent } from '@/deps.ts';
+import { lodash } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
