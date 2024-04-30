@@ -1,13 +1,5 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
-import {
-  type Context,
-  Env as HonoEnv,
-  type Handler,
-  Hono,
-  HTTPException,
-  Input as HonoInput,
-  type MiddlewareHandler,
-} from 'hono';
+import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
 import { Conf } from '@/config.ts';
