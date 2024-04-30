@@ -103,7 +103,7 @@ const app = new Hono<AppEnv>();
 
 if (Conf.sentryDsn) {
   // @ts-ignore Mismatched hono types.
-  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn }));
+  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn, ignoreErrors: 'HTTPException' }));
 }
 
 const debug = Debug('ditto:http');
