@@ -82,9 +82,9 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
   return result.reverse();
 }
 
-function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  return eventsDB.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
+  const events = await eventsDB.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
+  return hydrateEvents({ events, storage: eventsDB, signal });
 }
 
 /** Returns whether the pubkey is followed by a local user. */
