@@ -1,5 +1,13 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
-import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
+import {
+  type Context,
+  Env as HonoEnv,
+  type Handler,
+  Hono,
+  HTTPException,
+  Input as HonoInput,
+  type MiddlewareHandler,
+} from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
 import { Conf } from '@/config.ts';
@@ -103,8 +111,15 @@ const app = new Hono<AppEnv>();
 
 if (Conf.sentryDsn) {
   // @ts-ignore Mismatched hono types.
-  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn, ignoreErrors: 'HTTPException' }));
+  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn }));
 }
+
+app.onError((err) => {
+  if (err instanceof HTTPException) {
+    return err.getResponse();
+  }
+  throw err;
+});
 
 const debug = Debug('ditto:http');
 
