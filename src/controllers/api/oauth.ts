@@ -1,6 +1,7 @@
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
-import { lodash, nip19 } from '@/deps.ts';
+import { lodash } from '@/deps.ts';
 import { AppController } from '@/app.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';

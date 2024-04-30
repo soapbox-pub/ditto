@@ -1,5 +1,8 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { Comlink, type VerifiedEvent, verifyEvent } from '@/deps.ts';
+import { VerifiedEvent, verifyEvent } from 'nostr-tools';
+
+import { Comlink } from '@/deps.ts';
+import '@/nostr-wasm.ts';
 
 export const VerifyWorker = {
   verifyEvent(event: NostrEvent): event is VerifiedEvent {
