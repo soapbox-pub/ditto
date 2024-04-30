@@ -111,15 +111,14 @@ const app = new Hono<AppEnv>();
 
 if (Conf.sentryDsn) {
   // @ts-ignore Mismatched hono types.
-  app.use('*', sentryMiddleware({ dsn: Conf.sentryDsn }));
+  app.use(
+    '*',
+    sentryMiddleware({
+      dsn: Conf.sentryDsn,
+      ignoreErrors: ['No pubkey provided'],
+    }),
+  );
 }
-
-app.onError((err) => {
-  if (err instanceof HTTPException) {
-    return err.getResponse();
-  }
-  throw err;
-});
 
 const debug = Debug('ditto:http');
 
