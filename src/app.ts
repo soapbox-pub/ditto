@@ -2,10 +2,9 @@ import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
-import { Conf } from '@/config.ts';
 import '@/cron.ts';
 import { type User } from '@/db/users.ts';
-import { Debug, sentryMiddleware } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
@@ -100,17 +99,6 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>();
-
-if (Conf.sentryDsn) {
-  // @ts-ignore Mismatched hono types.
-  app.use(
-    '*',
-    sentryMiddleware({
-      dsn: Conf.sentryDsn,
-      ignoreErrors: ['No pubkey provided'],
-    }),
-  );
-}
 
 const debug = Debug('ditto:http');
 
