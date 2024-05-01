@@ -11,7 +11,6 @@ export { unfurl } from 'npm:unfurl.js@^6.4.0';
 export { default as TTLCache } from 'npm:@isaacs/ttlcache@^1.4.1';
 // @deno-types="npm:@types/sanitize-html@2.9.0"
 export { default as sanitizeHtml } from 'npm:sanitize-html@^2.11.0';
-export { default as ISO6391 } from 'npm:iso-639-1@2.1.15';
 export { createPentagon } from 'https://deno.land/x/pentagon@v0.1.4/mod.ts';
 export {
   type ParsedSignature,
@@ -34,6 +33,5 @@ export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
 export { default as uuid62 } from 'npm:uuid62@^1.0.2';
-export { Machina } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/08a157d39f2741c9a3a4364cb97db36e71d8c03a/mod.ts';
 export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
