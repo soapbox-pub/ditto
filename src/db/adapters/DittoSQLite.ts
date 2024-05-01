@@ -1,8 +1,8 @@
+import { PolySqliteDialect } from '@soapbox/kysely-deno-sqlite';
 import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { PolySqliteDialect } from '@/deps.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {
