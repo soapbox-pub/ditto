@@ -25,5 +25,5 @@ async function cleanupMedia() {
   console.info(`Removed ${media?.length ?? 0} orphaned media files.`);
 }
 
-await cleanupMedia();
+cleanupMedia();
 cron.every15Minute(cleanupMedia);
