@@ -26,6 +26,8 @@
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",
     "hono/middleware": "https://deno.land/x/hono@v3.10.1/middleware.ts",
+    "nostr-tools": "npm:nostr-tools@^2.5.1",
+    "nostr-wasm": "npm:nostr-wasm@^0.1.0",
     "kysely": "npm:kysely@^0.26.3",
     "kysely_deno_postgres": "https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts",
     "zod": "npm:zod@^3.23.4",

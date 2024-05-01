@@ -1,7 +1,7 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { matchFilter } from 'nostr-tools';
 
 import { db } from '@/db.ts';
-import { matchFilter } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';

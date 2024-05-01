@@ -1,6 +1,6 @@
+import { getEventHash, verifyEvent } from 'nostr-tools';
 import { z } from 'zod';
 
-import { getEventHash, verifyEvent } from '@/deps.ts';
 import { jsonSchema, safeUrlSchema } from '@/schema.ts';
 
 /** Schema to validate Nostr hex IDs such as event IDs and pubkeys. */

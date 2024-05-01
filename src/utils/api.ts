@@ -1,10 +1,11 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { type Context, HTTPException } from 'hono';
+import { EventTemplate } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Debug, EventTemplate, parseFormData, type TypeFest } from '@/deps.ts';
+import { Debug, parseFormData, type TypeFest } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { APISigner } from '@/signers/APISigner.ts';

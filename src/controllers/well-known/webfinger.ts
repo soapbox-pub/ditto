@@ -1,7 +1,7 @@
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
-import { nip19 } from '@/deps.ts';
 import { localNip05Lookup } from '@/utils/nip05.ts';
 
 import type { AppContext, AppController } from '@/app.ts';

@@ -1,7 +1,9 @@
 import url from 'node:url';
+
+import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
-import { dotenv, getPublicKey, nip19 } from '@/deps.ts';
+import { dotenv } from '@/deps.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({

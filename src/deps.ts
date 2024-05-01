@@ -1,18 +1,5 @@
 import 'https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts';
 export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
-export {
-  type EventTemplate,
-  getEventHash,
-  matchFilter,
-  matchFilters,
-  nip05,
-  nip13,
-  nip19,
-  nip21,
-  type UnsignedEvent,
-  type VerifiedEvent,
-} from 'npm:nostr-tools@^2.3.1';
-export { finalizeEvent, getPublicKey, verifyEvent } from 'npm:nostr-tools@^2.3.1/wasm';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
@@ -69,8 +56,3 @@ export { default as Debug } from 'https://gitlab.com/soapbox-pub/stickynotes/-/r
 export { Stickynotes } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.3.0/mod.ts';
 
 export type * as TypeFest from 'npm:type-fest@^4.3.0';
-
-import { setNostrWasm } from 'npm:nostr-tools@^2.3.1/wasm';
-import { initNostrWasm } from 'npm:nostr-wasm@^0.1.0';
-
-await initNostrWasm().then(setNostrWasm);

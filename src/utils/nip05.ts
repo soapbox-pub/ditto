@@ -1,6 +1,8 @@
 import { NIP05 } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
+
 import { Conf } from '@/config.ts';
-import { Debug, nip19 } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { eventsDB } from '@/storages.ts';
