@@ -29,7 +29,7 @@ export class UserStore implements NStore {
     const mutedPubkeys = getTagSet(mutedPubkeysEvent.tags, 'p');
 
     return allEvents.filter((event) => {
-      return mutedPubkeys.has(event.pubkey) === false;
+      return event.kind === 0 || mutedPubkeys.has(event.pubkey) === false;
     });
   }
 
