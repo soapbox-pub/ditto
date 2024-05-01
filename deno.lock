@@ -62,7 +62,8 @@
       "npm:uuid62@^1.0.2": "npm:uuid62@1.0.2",
       "npm:websocket-ts@^2.1.5": "npm:websocket-ts@2.1.5",
       "npm:zod@^3.21.0": "npm:zod@3.23.4",
-      "npm:zod@^3.23.4": "npm:zod@3.23.4"
+      "npm:zod@^3.23.4": "npm:zod@3.23.4",
+      "npm:zod@^3.23.5": "npm:zod@3.23.5"
     },
     "jsr": {
       "@bradenmacdonald/s3-lite-client@0.7.4": {
@@ -1279,6 +1280,10 @@
       "zod@3.23.4": {
         "integrity": "sha512-/AtWOKbBgjzEYYQRNfoGKHObgfAZag6qUJX1VbHo2PRBgS+wfWagEY2mizjfyAPcGesrJOcx/wcl0L9WnVrHFw==",
         "dependencies": {}
+      },
+      "zod@3.23.5": {
+        "integrity": "sha512-fkwiq0VIQTksNNA131rDOsVJcns0pfVUjHzLrNBiF/O/Xxb5lQyEXkhZWcJ7npWsYlvs+h0jFWXXy4X46Em1JA==",
+        "dependencies": {}
       }
     }
   },
@@ -1618,7 +1623,7 @@
       "npm:type-fest@^4.3.0",
       "npm:unfurl.js@^6.4.0",
       "npm:uuid62@^1.0.2",
-      "npm:zod@^3.23.4"
+      "npm:zod@^3.23.5"
     ]
   }
 }

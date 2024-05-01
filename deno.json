@@ -49,9 +49,9 @@
     "tldts": "npm:tldts@^6.0.14",
     "tseep": "npm:tseep@^1.2.1",
     "type-fest": "npm:type-fest@^4.3.0",
-    "unfurl": "npm:unfurl.js@^6.4.0",
+    "unfurl.js": "npm:unfurl.js@^6.4.0",
     "uuid62": "npm:uuid62@^1.0.2",
-    "zod": "npm:zod@^3.23.4",
+    "zod": "npm:zod@^3.23.5",
     "~/fixtures/": "./fixtures/"
   },
   "lint": {
