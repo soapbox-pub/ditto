@@ -28,7 +28,6 @@ export {
 } from 'https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts';
 export { Database as DenoSqlite3 } from 'https://deno.land/x/sqlite3@0.9.1/mod.ts';
 export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
-export { default as tldts } from 'npm:tldts@^6.0.14';
 export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
