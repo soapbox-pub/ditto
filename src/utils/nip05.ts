@@ -5,7 +5,7 @@ import { Conf } from '@/config.ts';
 import { Debug } from '@/deps.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
 const debug = Debug('ditto:nip05');
@@ -37,7 +37,7 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
 );
 
 async function localNip05Lookup(name: string): Promise<nip19.ProfilePointer | undefined> {
-  const [label] = await eventsDB.query([{
+  const [label] = await Storages.db.query([{
     kinds: [1985],
     authors: [Conf.pubkey],
     '#L': ['nip05'],

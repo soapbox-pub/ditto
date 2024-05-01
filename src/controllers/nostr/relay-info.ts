@@ -1,11 +1,11 @@
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { jsonServerMetaSchema } from '@/schemas/nostr.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 
 const relayInfoController: AppController = async (c) => {
   const { signal } = c.req.raw;
-  const [event] = await eventsDB.query([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }], { signal });
+  const [event] = await Storages.db.query([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }], { signal });
   const meta = jsonServerMetaSchema.parse(event?.content);
 
   return c.json({

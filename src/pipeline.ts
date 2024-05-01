@@ -12,7 +12,7 @@ import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { cache, eventsDB, reqmeister, Storages } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, isRelay, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
@@ -70,15 +70,15 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
-  const [existing] = await cache.query([{ ids: [event.id], limit: 1 }]);
-  cache.event(event);
-  reqmeister.event(event, { signal });
+  const [existing] = await Storages.cache.query([{ ids: [event.id], limit: 1 }]);
+  Storages.cache.event(event);
+  Storages.reqmeister.event(event, { signal });
   return !!existing;
 }
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  await hydrateEvents({ events: [event], storage: eventsDB, signal });
+  await hydrateEvents({ events: [event], storage: Storages.db, signal });
 
   const domain = await db
     .selectFrom('pubkey_domains')
@@ -93,7 +93,7 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
 
-  const [deletion] = await eventsDB.query(
+  const [deletion] = await Storages.db.query(
     [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
     { signal },
   );
@@ -102,7 +102,7 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
     return Promise.reject(new RelayError('blocked', 'event was deleted'));
   } else {
     await Promise.all([
-      eventsDB.event(event, { signal }).catch(debug),
+      Storages.db.event(event, { signal }).catch(debug),
       updateStats(event).catch(debug),
     ]);
   }
@@ -151,15 +151,15 @@ async function processDeletions(event: NostrEvent, signal: AbortSignal): Promise
     const ids = getTagSet(event.tags, 'e');
 
     if (event.pubkey === Conf.pubkey) {
-      await eventsDB.remove([{ ids: [...ids] }], { signal });
+      await Storages.db.remove([{ ids: [...ids] }], { signal });
     } else {
-      const events = await eventsDB.query(
+      const events = await Storages.db.query(
         [{ ids: [...ids], authors: [event.pubkey] }],
         { signal },
       );
 
       const deleteIds = events.map(({ id }) => id);
-      await eventsDB.remove([{ ids: deleteIds }], { signal });
+      await Storages.db.remove([{ ids: deleteIds }], { signal });
     }
   }
 }
@@ -202,14 +202,14 @@ function trackRelays(event: NostrEvent) {
 /** Queue related events to fetch. */
 async function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
   if (!event.user) {
-    reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
+    Storages.reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
   }
 
   for (const [name, id, relay] of event.tags) {
     if (name === 'e') {
-      const { count } = await cache.count([{ ids: [id] }]);
+      const { count } = await Storages.cache.count([{ ids: [id] }]);
       if (!count) {
-        reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+        Storages.reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
       }
     }
   }

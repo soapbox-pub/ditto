@@ -1,6 +1,5 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { eventsDB } from '@/storages.ts';
 import * as pipeline from '@/pipeline.ts';
 import {
   type ClientCLOSE,
@@ -71,7 +70,7 @@ function connectStream(socket: WebSocket) {
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
 
-    for (const event of await eventsDB.query(filters, { limit: FILTER_LIMIT })) {
+    for (const event of await Storages.db.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
@@ -115,7 +114,7 @@ function connectStream(socket: WebSocket) {
 
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...rest]: ClientCOUNT): Promise<void> {
-    const { count } = await eventsDB.count(prepareFilters(rest));
+    const { count } = await Storages.db.count(prepareFilters(rest));
     send(['COUNT', subId, { count, approximate: false }]);
   }
 

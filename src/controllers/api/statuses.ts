@@ -15,7 +15,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const createStatusSchema = z.object({
@@ -137,7 +137,7 @@ const createStatusController: AppController = async (c) => {
   if (data.quote_id) {
     await hydrateEvents({
       events: [event],
-      storage: eventsDB,
+      storage: Storages.db,
       signal: c.req.raw.signal,
     });
   }
@@ -242,7 +242,7 @@ const reblogStatusController: AppController = async (c) => {
 
   await hydrateEvents({
     events: [reblogEvent],
-    storage: eventsDB,
+    storage: Storages.db,
     signal: signal,
   });
 
@@ -262,7 +262,7 @@ const unreblogStatusController: AppController = async (c) => {
   if (!event) return c.json({ error: 'Event not found.' }, 404);
 
   const filters: NostrFilter[] = [{ kinds: [6], authors: [pubkey], '#e': [event.id] }];
-  const [repostedEvent] = await eventsDB.query(filters, { limit: 1 });
+  const [repostedEvent] = await Storages.db.query(filters, { limit: 1 });
   if (!repostedEvent) return c.json({ error: 'Event not found.' }, 404);
 
   await createEvent({

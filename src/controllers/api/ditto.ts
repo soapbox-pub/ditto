@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 
 const relaySchema = z.object({
@@ -15,7 +15,7 @@ const relaySchema = z.object({
 type RelayEntity = z.infer<typeof relaySchema>;
 
 export const adminRelaysController: AppController = async (c) => {
-  const [event] = await eventsDB.query([
+  const [event] = await Storages.db.query([
     { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
   ]);
 
@@ -36,7 +36,7 @@ export const adminSetRelaysController: AppController = async (c) => {
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  await eventsDB.event(event);
+  await Storages.db.event(event);
 
   return c.json(renderRelays(event));
 };

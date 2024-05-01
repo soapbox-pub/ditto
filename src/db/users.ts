@@ -3,7 +3,7 @@ import { Conf } from '@/config.ts';
 import { Debug } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 
 const debug = Debug('ditto:users');
 
@@ -59,7 +59,7 @@ async function findUser(user: Partial<User>, signal?: AbortSignal): Promise<User
     }
   }
 
-  const [event] = await eventsDB.query([filter], { signal });
+  const [event] = await Storages.db.query([filter], { signal });
 
   if (event) {
     return {

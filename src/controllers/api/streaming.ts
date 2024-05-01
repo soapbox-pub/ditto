@@ -10,7 +10,6 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { UserStore } from '@/storages/UserStore.ts';
-import { getAdminStore } from '@/storages/adminStore.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -69,11 +68,11 @@ const streamingController: AppController = (c) => {
     const filter = await topicToFilter(stream, c.req.query(), pubkey);
     if (!filter) return;
 
+    const store = pubkey ? new UserStore(pubkey, Storages.admin) : Storages.admin;
+
     try {
       for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
-          const store = new UserStore(pubkey as string, getAdminStore());
-
           const [event] = await store.query([{ ids: [msg[2].id] }]);
           if (!event) continue;
 

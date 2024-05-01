@@ -1,6 +1,6 @@
 import { NostrFilter } from '@nostrify/nostrify';
 import { AppContext } from '@/app.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
@@ -12,15 +12,15 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
     return c.json([]);
   }
 
-  const events = await eventsDB.query(filters, { signal });
+  const events = await Storages.db.query(filters, { signal });
   const pubkeys = new Set(events.map(({ pubkey }) => pubkey));
 
   if (!pubkeys.size) {
     return c.json([]);
   }
 
-  const authors = await eventsDB.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+  const authors = await Storages.db.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
 
   const accounts = await Promise.all(
     authors.map((event) => renderAccount(event)),
@@ -32,8 +32,8 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
 async function renderAccounts(c: AppContext, authors: string[], signal = AbortSignal.timeout(1000)) {
   const { since, until, limit } = paginationSchema.parse(c.req.query());
 
-  const events = await eventsDB.query([{ kinds: [0], authors, since, until, limit }], { signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+  const events = await Storages.db.query([{ kinds: [0], authors, since, until, limit }], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
 
   const accounts = await Promise.all(
     events.map((event) => renderAccount(event)),
@@ -50,8 +50,8 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
 
   const { limit } = paginationSchema.parse(c.req.query());
 
-  const events = await eventsDB.query([{ kinds: [1], ids, limit }], { signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+  const events = await Storages.db.query([{ kinds: [1], ids, limit }], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
 
   if (!events.length) {
     return c.json([]);

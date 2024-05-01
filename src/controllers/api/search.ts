@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { searchStore } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -91,8 +91,8 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
     filter.authors = [account_id];
   }
 
-  return searchStore.query([filter], { signal })
-    .then((events) => hydrateEvents({ events, storage: searchStore, signal }));
+  return Storages.search.query([filter], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.search, signal }));
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -111,8 +111,8 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
 
-  return searchStore.query(filters, { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: searchStore, signal }))
+  return Storages.search.query(filters, { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.search, signal }))
     .then(([event]) => event);
 }
 

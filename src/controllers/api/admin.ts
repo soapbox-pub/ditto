@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 
@@ -41,9 +41,9 @@ const adminAccountsController: AppController = async (c) => {
   const { since, until, limit } = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events = await eventsDB.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
+  const events = await Storages.db.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
-  const authors = await eventsDB.query([{ kinds: [0], authors: pubkeys }], { signal });
+  const authors = await Storages.db.query([{ kinds: [0], authors: pubkeys }], { signal });
 
   for (const event of events) {
     const d = event.tags.find(([name]) => name === 'd')?.[1];
