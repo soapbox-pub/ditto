@@ -1,5 +1,6 @@
+import { RelayPoolWorker } from 'nostr-relaypool';
+
 import { getActiveRelays } from '@/db/relays.ts';
-import { RelayPoolWorker } from '@/deps.ts';
 
 const activeRelays = await getActiveRelays();
 

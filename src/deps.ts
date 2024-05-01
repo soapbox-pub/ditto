@@ -1,5 +1,4 @@
 import 'https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts';
-export { RelayPoolWorker } from 'npm:nostr-relaypool2@0.6.34';
 export { parseFormData } from 'npm:formdata-helper@^0.3.0';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
