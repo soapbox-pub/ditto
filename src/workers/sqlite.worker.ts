@@ -1,8 +1,9 @@
 /// <reference lib="webworker" />
 import { ScopedPerformance } from 'https://deno.land/x/scoped_performance@v2.0.0/mod.ts';
+import * as Comlink from 'comlink';
 import { CompiledQuery, QueryResult } from 'kysely';
 
-import { Comlink, DenoSqlite3, Stickynotes } from '@/deps.ts';
+import { DenoSqlite3, Stickynotes } from '@/deps.ts';
 import '@/sentry.ts';
 
 let db: DenoSqlite3 | undefined;

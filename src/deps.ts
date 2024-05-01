@@ -36,7 +36,6 @@ export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
 export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 export { Machina } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/08a157d39f2741c9a3a4364cb97db36e71d8c03a/mod.ts';
-export * as Comlink from 'npm:comlink@^4.4.1';
 export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
 export { default as Debug } from 'https://gitlab.com/soapbox-pub/stickynotes/-/raw/v0.3.0/debug.ts';

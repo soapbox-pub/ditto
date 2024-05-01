@@ -1,4 +1,6 @@
-import { Comlink, Debug } from '@/deps.ts';
+import * as Comlink from 'comlink';
+
+import { Debug } from '@/deps.ts';
 
 import './handlers/abortsignal.ts';
 

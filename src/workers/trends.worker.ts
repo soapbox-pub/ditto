@@ -1,4 +1,6 @@
-import { Comlink, Sqlite } from '@/deps.ts';
+import * as Comlink from 'comlink';
+
+import { Sqlite } from '@/deps.ts';
 import { hashtagSchema } from '@/schema.ts';
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
