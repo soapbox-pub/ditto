@@ -1,13 +1,11 @@
 import { AppMiddleware } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { UserStore } from '@/storages/UserStore.ts';
-import { eventsDB } from '@/storages.ts';
+import { getAdminStore } from '@/storages/adminStore.ts';
 
 /** Store middleware. */
 const storeMiddleware: AppMiddleware = async (c, next) => {
   const pubkey = c.get('pubkey');
-  const adminStore = new UserStore(Conf.pubkey, eventsDB);
-
+  const adminStore = getAdminStore();
   if (pubkey) {
     const store = new UserStore(pubkey, adminStore);
     c.set('store', store);
