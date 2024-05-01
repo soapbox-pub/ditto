@@ -31,6 +31,4 @@ export * as dotenv from 'https://deno.land/std@0.198.0/dotenv/mod.ts';
 export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
 export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
 export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
-export { default as uuid62 } from 'npm:uuid62@^1.0.2';
-export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';

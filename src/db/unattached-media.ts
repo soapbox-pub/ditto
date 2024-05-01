@@ -1,5 +1,6 @@
+import { uuid62 } from 'uuid62';
+
 import { db } from '@/db.ts';
-import { uuid62 } from '@/deps.ts';
 import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
