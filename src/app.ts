@@ -77,6 +77,7 @@ import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
 import { adminRelaysController } from '@/controllers/api/ditto.ts';
 import { storeMiddleware } from '@/middleware/store.ts';
+import { reportsController } from '@/controllers/api/reports.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -191,6 +192,8 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
+
+app.post('/api/v1/reports', requirePubkey, reportsController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
