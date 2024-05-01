@@ -14,7 +14,6 @@ export {
   verifyRequest,
 } from 'https://gitlab.com/soapbox-pub/fedisign/-/raw/v0.2.1/mod.ts';
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
-export * as secp from 'npm:@noble/secp256k1@^2.0.0';
 export {
   DB as Sqlite,
   SqliteError,

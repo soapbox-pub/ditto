@@ -1543,6 +1543,7 @@
       "jsr:@std/media-types@^0.224.0",
       "jsr:@std/streams@^0.223.0",
       "npm:@isaacs/ttlcache@^1.4.1",
+      "npm:@noble/secp256k1@^2.0.0",
       "npm:comlink@^4.4.1",
       "npm:fast-stable-stringify@^1.0.0",
       "npm:iso-639-1@2.1.15",

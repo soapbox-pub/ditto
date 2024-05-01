@@ -17,6 +17,7 @@
     "@/": "./src/",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
+    "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.15.0",
     "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
     "@soapbox/kysely-deno-sqlite": "jsr:@soapbox/kysely-deno-sqlite@^2.0.2",
