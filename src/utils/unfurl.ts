@@ -1,6 +1,8 @@
+import TTLCache from '@isaacs/ttlcache';
 import Debug from '@soapbox/stickynotes/debug';
+import { unfurl } from 'unfurl';
 
-import { sanitizeHtml, TTLCache, unfurl } from '@/deps.ts';
+import { sanitizeHtml } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
