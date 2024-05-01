@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { FileMigrationProvider, Migrator } from 'kysely';
+
 import { DittoDB } from '@/db/DittoDB.ts';
-import { FileMigrationProvider, Migrator } from '@/deps.ts';
 
 const db = await DittoDB.getInstance();
 

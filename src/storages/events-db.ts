@@ -1,7 +1,9 @@
 import { NIP50, NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
+import { Kysely, type SelectQueryBuilder } from 'kysely';
+
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Debug, Kysely, type SelectQueryBuilder } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';

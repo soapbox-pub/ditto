@@ -1,6 +1,8 @@
+import { Kysely, sql } from 'kysely';
+
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Kysely, PolySqliteDialect, sql } from '@/deps.ts';
+import { PolySqliteDialect } from '@/deps.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {

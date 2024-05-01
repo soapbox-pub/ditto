@@ -1,10 +1,12 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
+import { sql } from 'kysely';
+
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
 import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
-import { Debug, sql } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
