@@ -1,4 +1,4 @@
-import { uuid62 } from 'uuid62';
+import uuid62 from 'uuid62';
 
 import { db } from '@/db.ts';
 import { type MediaData } from '@/schemas/nostr.ts';

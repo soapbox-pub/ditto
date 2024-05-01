@@ -1,5 +1,5 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { stringifyStable } from 'fast-stable-stringify';
+import stringifyStable from 'fast-stable-stringify';
 import { z } from 'zod';
 
 import { isReplaceableKind } from '@/kinds.ts';
