@@ -1,7 +1,8 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
-import { Debug } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { findReplyTag, getTagSet } from '@/tags.ts';

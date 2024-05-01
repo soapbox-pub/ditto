@@ -1,4 +1,5 @@
-import { tldts } from '@/deps.ts';
+import tldts from 'tldts';
+
 import { db } from '@/db.ts';
 
 interface AddRelaysOpts {

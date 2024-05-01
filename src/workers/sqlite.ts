@@ -1,6 +1,5 @@
-import type { CompiledQuery, QueryResult } from 'kysely';
-
-import { Comlink } from '@/deps.ts';
+import * as Comlink from 'comlink';
+import { CompiledQuery, QueryResult } from 'kysely';
 
 import type { SqliteWorker as _SqliteWorker } from './sqlite.worker.ts';
 

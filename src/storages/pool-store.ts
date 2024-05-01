@@ -1,7 +1,8 @@
 import { NostrEvent, NostrFilter, NSet, NStore } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
+import { RelayPoolWorker } from 'nostr-relaypool';
 import { matchFilters } from 'nostr-tools';
 
-import { Debug, type RelayPoolWorker } from '@/deps.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';

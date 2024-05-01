@@ -1,5 +1,7 @@
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
-import { Debug, EventEmitter } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+import { EventEmitter } from 'tseep';
+
 import { eventToMicroFilter, getFilterId, isMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
 import { abortError } from '@/utils/abort.ts';

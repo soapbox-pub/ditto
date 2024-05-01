@@ -1,5 +1,6 @@
+import Debug from '@soapbox/stickynotes/debug';
 import { type MiddlewareHandler } from 'hono';
-import { Debug } from '@/deps.ts';
+
 import ExpiringCache from '@/utils/expiring-cache.ts';
 
 const debug = Debug('ditto:middleware:cache');

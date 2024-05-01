@@ -1,6 +1,7 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { Conf } from '@/config.ts';
-import { Debug } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';

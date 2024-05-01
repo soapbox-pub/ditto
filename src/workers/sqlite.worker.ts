@@ -1,16 +1,18 @@
 /// <reference lib="webworker" />
-import { ScopedPerformance } from 'https://deno.land/x/scoped_performance@v2.0.0/mod.ts';
+import { Database as SQLite } from '@db/sqlite';
+import { Stickynotes } from '@soapbox/stickynotes';
+import * as Comlink from 'comlink';
 import { CompiledQuery, QueryResult } from 'kysely';
+import { ScopedPerformance } from 'scoped_performance';
 
-import { Comlink, DenoSqlite3, Stickynotes } from '@/deps.ts';
 import '@/sentry.ts';
 
-let db: DenoSqlite3 | undefined;
+let db: SQLite | undefined;
 const console = new Stickynotes('ditto:sqlite.worker');
 
 export const SqliteWorker = {
   open(path: string): void {
-    db = new DenoSqlite3(path);
+    db = new SQLite(path);
   },
   executeQuery<R>({ sql, parameters }: CompiledQuery): QueryResult<R> {
     if (!db) throw new Error('Database not open');

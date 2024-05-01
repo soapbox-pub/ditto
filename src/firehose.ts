@@ -1,5 +1,6 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { activeRelays, pool } from '@/pool.ts';
 import { nostrNow } from '@/utils.ts';
 

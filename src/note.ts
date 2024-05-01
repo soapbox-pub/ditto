@@ -1,7 +1,10 @@
+import 'linkify-plugin-hashtag';
+import linkifyStr from 'linkify-string';
+import linkify from 'linkifyjs';
 import { nip19, nip21 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { linkify, linkifyStr, mime } from '@/deps.ts';
+import { mime } from '@/deps.ts';
 import { type DittoAttachment } from '@/views/mastodon/attachments.ts';
 
 linkify.registerCustomProtocol('nostr', true);
