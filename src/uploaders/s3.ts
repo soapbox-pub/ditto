@@ -1,11 +1,11 @@
 import { join } from 'node:path';
 
+import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
 
 import { Conf } from '@/config.ts';
-import { S3Client } from '@/deps.ts';
 
 import type { Uploader } from './types.ts';
 

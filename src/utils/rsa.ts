@@ -1,5 +1,7 @@
+import { LRUCache } from 'lru-cache';
+
 import { Conf } from '@/config.ts';
-import { generateSeededRsa, LRUCache, publicKeyToPem, secp } from '@/deps.ts';
+import { generateSeededRsa, publicKeyToPem, secp } from '@/deps.ts';
 
 const opts = {
   bits: 2048,

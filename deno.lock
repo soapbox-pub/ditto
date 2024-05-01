@@ -2,13 +2,17 @@
   "version": "3",
   "packages": {
     "specifiers": {
+      "jsr:@bradenmacdonald/s3-lite-client@^0.7.4": "jsr:@bradenmacdonald/s3-lite-client@0.7.4",
       "jsr:@nostrify/nostrify@^0.15.0": "jsr:@nostrify/nostrify@0.15.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.0.2": "jsr:@soapbox/kysely-deno-sqlite@2.0.2",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
+      "jsr:@std/assert@^0.218.2": "jsr:@std/assert@0.218.2",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
+      "jsr:@std/bytes@^0.218.2": "jsr:@std/bytes@0.218.2",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
       "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.0",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.0",
+      "jsr:@std/io@^0.218": "jsr:@std/io@0.218.2",
       "jsr:@std/media-types@^0.224.0": "jsr:@std/media-types@0.224.0",
       "npm:@isaacs/ttlcache@^1.4.1": "npm:@isaacs/ttlcache@1.4.1",
       "npm:@noble/hashes@^1.4.0": "npm:@noble/hashes@1.4.0",
@@ -32,6 +36,7 @@
       "npm:linkify-string@^4.1.1": "npm:linkify-string@4.1.3_linkifyjs@4.1.3",
       "npm:linkifyjs@^4.1.1": "npm:linkifyjs@4.1.3",
       "npm:lru-cache@^10.2.0": "npm:lru-cache@10.2.0",
+      "npm:lru-cache@^10.2.2": "npm:lru-cache@10.2.2",
       "npm:mime@^3.0.0": "npm:mime@3.0.0",
       "npm:node-forge@^1.3.1": "npm:node-forge@1.3.1",
       "npm:nostr-relaypool2@0.6.34": "npm:nostr-relaypool2@0.6.34",
@@ -42,6 +47,7 @@
       "npm:sanitize-html@^2.11.0": "npm:sanitize-html@2.13.0",
       "npm:tldts@^6.0.14": "npm:tldts@6.1.18",
       "npm:tseep@^1.1.3": "npm:tseep@1.2.1",
+      "npm:tseep@^1.2.1": "npm:tseep@1.2.1",
       "npm:type-fest@^4.3.0": "npm:type-fest@4.15.0",
       "npm:unfurl.js@^6.4.0": "npm:unfurl.js@6.4.0",
       "npm:uuid62@^1.0.2": "npm:uuid62@1.0.2",
@@ -50,6 +56,12 @@
       "npm:zod@^3.23.4": "npm:zod@3.23.4"
     },
     "jsr": {
+      "@bradenmacdonald/s3-lite-client@0.7.4": {
+        "integrity": "602666ef40d09621d35aa3ea8813e0bfd58b3558e3f0a1d20404b0e61aa0b37e",
+        "dependencies": [
+          "jsr:@std/io@^0.218"
+        ]
+      },
       "@nostrify/nostrify@0.15.0": {
         "integrity": "51c2fe9ac7264d22567cd1919a5bf5101a5207f651e65bc00b3de43f9038dfc8",
         "dependencies": [
@@ -73,8 +85,14 @@
       "@soapbox/stickynotes@0.4.0": {
         "integrity": "60bfe61ab3d7e04bf708273b1e2d391a59534bdf29e54160e98d7afd328ca1ec"
       },
+      "@std/assert@0.218.2": {
+        "integrity": "7f0a5a1a8cf86607cd6c2c030584096e1ffad27fc9271429a8cb48cfbdee5eaf"
+      },
       "@std/assert@0.224.0": {
         "integrity": "8643233ec7aec38a940a8264a6e3eed9bfa44e7a71cc6b3c8874213ff401967f"
+      },
+      "@std/bytes@0.218.2": {
+        "integrity": "91fe54b232dcca73856b79a817247f4a651dbb60d51baafafb6408c137241670"
       },
       "@std/crypto@0.224.0": {
         "integrity": "154ef3ff08ef535562ef1a718718c5b2c5fc3808f0f9100daad69e829bfcdf2d",
@@ -88,6 +106,13 @@
       },
       "@std/encoding@0.224.0": {
         "integrity": "efb6dca97d3e9c31392bd5c8cfd9f9fc9decf5a1f4d1f78af7900a493bcf89b5"
+      },
+      "@std/io@0.218.2": {
+        "integrity": "c64fbfa087b7c9d4d386c5672f291f607d88cb7d44fc299c20c713e345f2785f",
+        "dependencies": [
+          "jsr:@std/assert@^0.218.2",
+          "jsr:@std/bytes@^0.218.2"
+        ]
       },
       "@std/media-types@0.224.0": {
         "integrity": "5ac87989393f8cb1c81bee02aef6f5d4c8289b416deabc04f9ad25dff292d0b0"
@@ -684,6 +709,10 @@
       },
       "lru-cache@10.2.0": {
         "integrity": "sha512-2bIM8x+VAf6JT4bKAljS1qUWgMsqZRPGJS6FSahIMPVvctcNhyVp7AJu7quxOW9jwkryBReKZY5tY5JYv2n/7Q==",
+        "dependencies": {}
+      },
+      "lru-cache@10.2.2": {
+        "integrity": "sha512-9hp3Vp2/hFQUiIwKo8XCeFVnrg8Pk3TYNPIR7tJADKi5YfcF7vEaK7avFHTlSy3kOKYaJQaalfEo6YuXdceBOQ==",
         "dependencies": {}
       },
       "lru-cache@6.0.0": {
@@ -1502,6 +1531,7 @@
   },
   "workspace": {
     "dependencies": [
+      "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@nostrify/nostrify@^0.15.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.0.2",
       "jsr:@soapbox/stickynotes@^0.4.0",
@@ -1513,12 +1543,15 @@
       "jsr:@std/media-types@^0.224.0",
       "jsr:@std/streams@^0.223.0",
       "npm:comlink@^4.4.1",
+      "npm:fast-stable-stringify@^1.0.0",
       "npm:iso-639-1@2.1.15",
       "npm:kysely@^0.27.3",
+      "npm:lru-cache@^10.2.2",
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@^2.5.1",
       "npm:nostr-wasm@^0.1.0",
       "npm:tldts@^6.0.14",
+      "npm:tseep@^1.2.1",
       "npm:type-fest@^4.3.0",
       "npm:uuid62@^1.0.2",
       "npm:zod@^3.23.4"

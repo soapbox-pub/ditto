@@ -1,6 +1,6 @@
 // deno-lint-ignore-file ban-types
 
-import { LRUCache } from '@/deps.ts';
+import { LRUCache } from 'lru-cache';
 
 type FetchFn<K extends {}, V extends {}, O extends {}> = (key: K, opts: O) => Promise<V>;
 

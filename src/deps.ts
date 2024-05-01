@@ -21,13 +21,9 @@ export {
 } from 'https://gitlab.com/soapbox-pub/fedisign/-/raw/v0.2.1/mod.ts';
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export * as secp from 'npm:@noble/secp256k1@^2.0.0';
-export { LRUCache } from 'npm:lru-cache@^10.2.0';
 export {
   DB as Sqlite,
   SqliteError,
 } from 'https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts';
 export { Database as DenoSqlite3 } from 'https://deno.land/x/sqlite3@0.9.1/mod.ts';
 export * as cron from 'https://deno.land/x/deno_cron@v1.0.0/cron.ts';
-export { S3Client } from 'https://deno.land/x/s3_lite_client@0.6.1/mod.ts';
-export { default as IpfsHash } from 'npm:ipfs-only-hash@^4.0.0';
-export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
