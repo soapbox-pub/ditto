@@ -31,6 +31,7 @@
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
+    "formdata-helper": "npm:formdata-helper@^0.3.0",
     "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",
     "hono/middleware": "https://deno.land/x/hono@v3.10.1/middleware.ts",
     "iso-639-1": "npm:iso-639-1@2.1.15",

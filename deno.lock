@@ -1546,6 +1546,7 @@
       "npm:@noble/secp256k1@^2.0.0",
       "npm:comlink@^4.4.1",
       "npm:fast-stable-stringify@^1.0.0",
+      "npm:formdata-helper@^0.3.0",
       "npm:iso-639-1@2.1.15",
       "npm:kysely@^0.27.3",
       "npm:linkify-plugin-hashtag@^4.1.1",

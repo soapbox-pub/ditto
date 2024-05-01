@@ -1,13 +1,13 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { type Context, HTTPException } from 'hono';
+import { parseFormData } from 'formdata-helper';
 import { EventTemplate } from 'nostr-tools';
 import * as TypeFest from 'type-fest';
 import { z } from 'zod';
 
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { parseFormData } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { APISigner } from '@/signers/APISigner.ts';
