@@ -7,6 +7,7 @@
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
+      "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.0",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.0",
       "jsr:@std/media-types@^0.224.0": "jsr:@std/media-types@0.224.0",
       "npm:@isaacs/ttlcache@^1.4.1": "npm:@isaacs/ttlcache@1.4.1",
@@ -81,6 +82,9 @@
           "jsr:@std/assert@^0.224.0",
           "jsr:@std/encoding@^0.224.0"
         ]
+      },
+      "@std/dotenv@0.224.0": {
+        "integrity": "d9234cdf551507dcda60abb6c474289843741d8c07ee8ce540c60f5c1b220a1d"
       },
       "@std/encoding@0.224.0": {
         "integrity": "efb6dca97d3e9c31392bd5c8cfd9f9fc9decf5a1f4d1f78af7900a493bcf89b5"
@@ -1503,6 +1507,7 @@
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/cli@^0.223.0",
       "jsr:@std/crypto@^0.224.0",
+      "jsr:@std/dotenv@^0.224.0",
       "jsr:@std/encoding@^0.224.0",
       "jsr:@std/json@^0.223.0",
       "jsr:@std/media-types@^0.224.0",
@@ -1513,7 +1518,9 @@
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@^2.5.1",
       "npm:nostr-wasm@^0.1.0",
+      "npm:tldts@^6.0.14",
       "npm:type-fest@^4.3.0",
+      "npm:uuid62@^1.0.2",
       "npm:zod@^3.23.4"
     ]
   }
