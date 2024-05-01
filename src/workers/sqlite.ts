@@ -33,6 +33,10 @@ class SqliteWorker {
     return this.#client.executeQuery(query) as Promise<QueryResult<R>>;
   }
 
+  streamQuery<R>(): AsyncIterableIterator<R> {
+    throw new Error('Streaming queries are not supported in the web worker');
+  }
+
   destroy(): Promise<void> {
     return this.#client.destroy();
   }
