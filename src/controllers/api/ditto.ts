@@ -6,10 +6,11 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 
+const markerSchema = z.enum(['read', 'write']);
+
 const relaySchema = z.object({
   url: z.string().url(),
-  read: z.boolean(),
-  write: z.boolean(),
+  marker: markerSchema.optional(),
 });
 
 type RelayEntity = z.infer<typeof relaySchema>;
@@ -31,7 +32,7 @@ export const adminSetRelaysController: AppController = async (c) => {
 
   const event = await new AdminSigner().signEvent({
     kind: 10002,
-    tags: relays.map(({ url, read, write }) => ['r', url, read && write ? '' : read ? 'read' : 'write']),
+    tags: relays.map(({ url, marker }) => marker ? ['r', url, marker] : ['r', url]),
     content: '',
     created_at: Math.floor(Date.now() / 1000),
   });
@@ -47,8 +48,7 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
     if (name === 'r') {
       const relay: RelayEntity = {
         url,
-        read: !marker || marker === 'read',
-        write: !marker || marker === 'write',
+        marker: markerSchema.safeParse(marker).success ? marker as 'read' | 'write' : undefined,
       };
       acc.push(relay);
     }
