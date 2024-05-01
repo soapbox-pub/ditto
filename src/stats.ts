@@ -1,9 +1,9 @@
 import { NostrEvent } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder } from 'kysely';
 
 import { db } from '@/db.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Debug } from '@/deps.ts';
 import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 

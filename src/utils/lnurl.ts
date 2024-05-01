@@ -1,5 +1,6 @@
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
-import { Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';

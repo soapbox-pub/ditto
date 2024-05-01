@@ -1,9 +1,9 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Debug } from '@/deps.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';

@@ -1,5 +1,6 @@
 import { NostrFilter, NSet, NStore } from '@nostrify/nostrify';
-import { Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { abortError } from '@/utils/abort.ts';

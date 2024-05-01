@@ -1,5 +1,6 @@
 import { NostrEvent, NostrFilter, NRelay1, NStore } from '@nostrify/nostrify';
-import { Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
