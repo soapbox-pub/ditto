@@ -1,7 +1,9 @@
 import { NostrEvent } from '@nostrify/nostrify';
+import { InsertQueryBuilder } from 'kysely';
+
 import { db } from '@/db.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Debug, type InsertQueryBuilder } from '@/deps.ts';
+import { Debug } from '@/deps.ts';
 import { eventsDB } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
