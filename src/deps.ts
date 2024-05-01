@@ -37,5 +37,3 @@ export { default as uuid62 } from 'npm:uuid62@^1.0.2';
 export { Machina } from 'https://gitlab.com/soapbox-pub/nostr-machina/-/raw/08a157d39f2741c9a3a4364cb97db36e71d8c03a/mod.ts';
 export { EventEmitter } from 'npm:tseep@^1.1.3';
 export { default as stringifyStable } from 'npm:fast-stable-stringify@^1.0.0';
-
-export type * as TypeFest from 'npm:type-fest@^4.3.0';

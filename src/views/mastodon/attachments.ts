@@ -1,5 +1,6 @@
+import * as TypeFest from 'type-fest';
+
 import { UnattachedMedia } from '@/db/unattached-media.ts';
-import { type TypeFest } from '@/deps.ts';
 
 type DittoAttachment = TypeFest.SetOptional<UnattachedMedia, 'id' | 'pubkey' | 'uploaded_at'>;
 
