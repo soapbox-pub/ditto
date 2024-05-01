@@ -16,6 +16,7 @@
   "imports": {
     "@/": "./src/",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
+    "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.15.0",
@@ -44,6 +45,7 @@
     "nostr-relaypool": "npm:nostr-relaypool2@0.6.34",
     "nostr-tools": "npm:nostr-tools@^2.5.1",
     "nostr-wasm": "npm:nostr-wasm@^0.1.0",
+    "scoped_performance" :"https://deno.land/x/scoped_performance@v2.0.0/mod.ts",
     "tldts": "npm:tldts@^6.0.14",
     "tseep": "npm:tseep@^1.2.1",
     "type-fest": "npm:type-fest@^4.3.0",

@@ -15,6 +15,4 @@ export {
 export { generateSeededRsa } from 'https://gitlab.com/soapbox-pub/seeded-rsa/-/raw/v1.0.0/mod.ts';
 export {
   DB as Sqlite,
-  SqliteError,
 } from 'https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts';
-export { Database as DenoSqlite3 } from 'https://deno.land/x/sqlite3@0.9.1/mod.ts';
