@@ -1,5 +1,6 @@
+import { Kysely, sql } from 'kysely';
+
 import { Conf } from '@/config.ts';
-import { Kysely, sql } from '@/deps.ts';
 
 export async function up(db: Kysely<any>): Promise<void> {
   if (Conf.databaseUrl.protocol === 'sqlite:') {
