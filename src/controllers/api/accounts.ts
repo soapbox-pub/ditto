@@ -7,7 +7,7 @@ import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
-import { eventsDB, searchStore } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
 import { nostrNow } from '@/utils.ts';
@@ -92,12 +92,12 @@ const accountSearchController: AppController = async (c) => {
 
   const [event, events] = await Promise.all([
     lookupAccount(query),
-    searchStore.query([{ kinds: [0], search: query, limit: 20 }], { signal: c.req.raw.signal }),
+    Storages.search.query([{ kinds: [0], search: query, limit: 20 }], { signal: c.req.raw.signal }),
   ]);
 
   const results = await hydrateEvents({
     events: event ? [event, ...events] : events,
-    storage: eventsDB,
+    storage: Storages.db,
     signal: c.req.raw.signal,
   });
 
@@ -143,7 +143,7 @@ const accountStatusesController: AppController = async (c) => {
   const { signal } = c.req.raw;
 
   if (pinned) {
-    const [pinEvent] = await eventsDB.query([{ kinds: [10001], authors: [pubkey], limit: 1 }], { signal });
+    const [pinEvent] = await Storages.db.query([{ kinds: [10001], authors: [pubkey], limit: 1 }], { signal });
     if (pinEvent) {
       const pinnedEventIds = getTagSet(pinEvent.tags, 'e');
       return renderStatuses(c, [...pinnedEventIds].reverse());
@@ -164,8 +164,8 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  const events = await eventsDB.query([filter], { signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }))
+  const events = await Storages.db.query([filter], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }))
     .then((events) => {
       if (exclude_replies) {
         return events.filter((event) => !findReplyTag(event.tags));
@@ -306,7 +306,7 @@ const favouritesController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events7 = await eventsDB.query(
+  const events7 = await Storages.db.query(
     [{ kinds: [7], authors: [pubkey], ...params }],
     { signal },
   );
@@ -315,8 +315,8 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await eventsDB.query([{ kinds: [1], ids }], { signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+  const events1 = await Storages.db.query([{ kinds: [1], ids }], { signal })
+    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
 
   const statuses = await Promise.all(events1.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
   return paginated(c, events1, statuses);

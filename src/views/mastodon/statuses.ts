@@ -6,7 +6,7 @@ import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
-import { eventsDB, optimizer } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
@@ -40,7 +40,7 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
     ),
   ];
 
-  const mentionedProfiles = await optimizer.query(
+  const mentionedProfiles = await Storages.optimizer.query(
     [{ authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
@@ -53,7 +53,7 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
       ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
-        ? await eventsDB.query([
+        ? await Storages.db.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },

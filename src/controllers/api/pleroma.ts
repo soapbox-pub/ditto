@@ -4,7 +4,7 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 import { jsonSchema } from '@/schema.ts';
 
@@ -66,7 +66,7 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
 async function getConfigs(signal: AbortSignal): Promise<PleromaConfig[]> {
   const { pubkey } = Conf;
 
-  const [event] = await eventsDB.query([{
+  const [event] = await Storages.db.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],

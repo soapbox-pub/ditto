@@ -9,7 +9,7 @@ import { Debug, parseFormData, type TypeFest } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { APISigner } from '@/signers/APISigner.ts';
-import { client, eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
 const debug = Debug('ditto:api');
@@ -43,7 +43,7 @@ async function updateEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await eventsDB.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
   return createEvent(fn(prev), c);
 }
 
@@ -80,7 +80,7 @@ async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEven
   try {
     await Promise.all([
       pipeline.handleEvent(event, c.req.raw.signal),
-      client.event(event),
+      Storages.client.event(event),
     ]);
   } catch (e) {
     if (e instanceof pipeline.RelayError) {

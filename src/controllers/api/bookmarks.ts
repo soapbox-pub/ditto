@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { renderStatuses } from '@/views.ts';
 
@@ -8,7 +8,7 @@ const bookmarksController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const { signal } = c.req.raw;
 
-  const [event10003] = await eventsDB.query(
+  const [event10003] = await Storages.db.query(
     [{ kinds: [10003], authors: [pubkey], limit: 1 }],
     { signal },
   );

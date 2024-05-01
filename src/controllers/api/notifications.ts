@@ -1,5 +1,5 @@
 import { type AppController } from '@/app.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
@@ -8,7 +8,7 @@ const notificationsController: AppController = async (c) => {
   const { since, until } = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events = await eventsDB.query(
+  const events = await Storages.db.query(
     [{ kinds: [1], '#p': [pubkey], since, until }],
     { signal },
   );

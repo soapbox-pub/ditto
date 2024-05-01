@@ -4,7 +4,7 @@ import { InsertQueryBuilder } from 'kysely';
 import { db } from '@/db.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Debug } from '@/deps.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 
 type AuthorStat = keyof Omit<DittoTables['author_stats'], 'pubkey'>;
@@ -65,7 +65,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
     case 5: {
       if (!firstTaggedId) break;
 
-      const [repostedEvent] = await eventsDB.query(
+      const [repostedEvent] = await Storages.db.query(
         [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }],
         { limit: 1 },
       );
@@ -77,7 +77,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
       const eventBeingRepostedPubkey = repostedEvent.tags.find(([name]) => name === 'p')?.[1];
       if (!eventBeingRepostedId || !eventBeingRepostedPubkey) break;
 
-      const [eventBeingReposted] = await eventsDB.query(
+      const [eventBeingReposted] = await Storages.db.query(
         [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }],
         { limit: 1 },
       );
@@ -154,7 +154,7 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 
 /** Get the last version of the event, if any. */
 async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
-  const [prev] = await eventsDB.query([
+  const [prev] = await Storages.db.query([
     { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
   ]);
 
