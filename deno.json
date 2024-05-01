@@ -1,5 +1,6 @@
 {
   "$schema": "https://deno.land/x/deno@v1.41.0/cli/schemas/config-file.v1.json",
+  "lock": false,
   "tasks": {
     "start": "deno run -A src/server.ts",
     "dev": "deno run -A --watch src/server.ts",
@@ -21,7 +22,7 @@
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.15.0",
     "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
-    "@soapbox/kysely-deno-sqlite": "jsr:@soapbox/kysely-deno-sqlite@^2.0.2",
+    "@soapbox/kysely-deno-sqlite": "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
     "@soapbox/stickynotes": "jsr:@soapbox/stickynotes@^0.4.0",
     "@std/cli": "jsr:@std/cli@^0.223.0",
     "@std/crypto": "jsr:@std/crypto@^0.224.0",
@@ -49,9 +50,9 @@
     "tldts": "npm:tldts@^6.0.14",
     "tseep": "npm:tseep@^1.2.1",
     "type-fest": "npm:type-fest@^4.3.0",
-    "unfurl": "npm:unfurl.js@^6.4.0",
+    "unfurl.js": "npm:unfurl.js@^6.4.0",
     "uuid62": "npm:uuid62@^1.0.2",
-    "zod": "npm:zod@^3.23.4",
+    "zod": "npm:zod@^3.23.5",
     "~/fixtures/": "./fixtures/"
   },
   "lint": {

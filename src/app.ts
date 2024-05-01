@@ -75,7 +75,7 @@ import { auth19, requirePubkey } from '@/middleware/auth19.ts';
 import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
 import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
-import { adminRelaysController } from '@/controllers/api/ditto.ts';
+import { adminRelaysController, adminSetRelaysController } from '@/controllers/api/ditto.ts';
 import { storeMiddleware } from '@/middleware/store.ts';
 import { reportsController } from '@/controllers/api/reports.ts';
 
@@ -191,7 +191,7 @@ app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigContr
 app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAdminDeleteStatusController);
 
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
-app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
+app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
 app.post('/api/v1/reports', requirePubkey, reportsController);
 
