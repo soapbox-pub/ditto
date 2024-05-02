@@ -272,6 +272,16 @@ const followingController: AppController = async (c) => {
   return renderAccounts(c, pubkeys);
 };
 
+/** https://docs.joinmastodon.org/methods/accounts/#block */
+const blockController: AppController = (c) => {
+  return c.json({ error: 'Blocking is not supported by Nostr' }, 422);
+};
+
+/** https://docs.joinmastodon.org/methods/accounts/#unblock */
+const unblockController: AppController = (c) => {
+  return c.json({ error: 'Blocking is not supported by Nostr' }, 422);
+};
+
 /** https://docs.joinmastodon.org/methods/accounts/#mute */
 const muteController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
@@ -328,6 +338,7 @@ export {
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  blockController,
   createAccountController,
   favouritesController,
   followController,
@@ -335,6 +346,7 @@ export {
   followingController,
   muteController,
   relationshipsController,
+  unblockController,
   unfollowController,
   unmuteController,
   updateCredentialsController,

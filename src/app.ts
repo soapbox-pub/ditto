@@ -27,6 +27,7 @@ import {
 } from '@/controllers/api/accounts.ts';
 import { adminAccountsController } from '@/controllers/api/admin.ts';
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
+import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
@@ -77,6 +78,8 @@ import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
 import { adminRelaysController, adminSetRelaysController } from '@/controllers/api/ditto.ts';
 import { storeMiddleware } from '@/middleware/store.ts';
+import { blockController } from '@/controllers/api/accounts.ts';
+import { unblockController } from '@/controllers/api/accounts.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -139,6 +142,8 @@ app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredential
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', requirePubkey, relationshipsController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requirePubkey, blockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requirePubkey, unblockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/mute', requirePubkey, muteController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unmute', requirePubkey, unmuteController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requirePubkey, followController);
@@ -182,6 +187,7 @@ app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) })
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
 app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
+app.get('/api/v1/blocks', requirePubkey, blocksController);
 app.get('/api/v1/mutes', requirePubkey, mutesController);
 
 app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
