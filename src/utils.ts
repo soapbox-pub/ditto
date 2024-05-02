@@ -82,12 +82,6 @@ async function sha256(message: string): Promise<string> {
   return hashHex;
 }
 
-/** Schema to parse a relay URL. */
-const relaySchema = z.string().max(255).startsWith('wss://').url();
-
-/** Check whether the value is a valid relay URL. */
-const isRelay = (relay: string): relay is `wss://${string}` => relaySchema.safeParse(relay).success;
-
 /** Deduplicate events by ID. */
 function dedupeEvents(events: NostrEvent[]): NostrEvent[] {
   return [...new Map(events.map((event) => [event.id, event])).values()];
@@ -143,13 +137,11 @@ export {
   eventMatchesTemplate,
   findTag,
   isNostrId,
-  isRelay,
   isURL,
   type Nip05,
   nostrDate,
   nostrNow,
   parseNip05,
-  relaySchema,
   sha256,
 };
 

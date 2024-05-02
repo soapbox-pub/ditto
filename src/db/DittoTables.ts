@@ -2,7 +2,6 @@ export interface DittoTables {
   events: EventRow;
   events_fts: EventFTSRow;
   tags: TagRow;
-  relays: RelayRow;
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
@@ -43,12 +42,6 @@ interface TagRow {
   tag: string;
   value: string;
   event_id: string;
-}
-
-interface RelayRow {
-  url: string;
-  domain: string;
-  active: boolean;
 }
 
 interface UnattachedMediaRow {
