@@ -1,4 +1,4 @@
-import { NIP50, NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
+import { NIP50, NostrEvent, NostrFilter, NSchema as n, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { Kysely, type SelectQueryBuilder } from 'kysely';
 
@@ -7,7 +7,6 @@ import { DittoTables } from '@/db/DittoTables.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isDittoInternalKind, isParameterizedReplaceableKind, isReplaceableKind } from '@/kinds.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
@@ -412,7 +411,7 @@ function buildSearchContent(event: NostrEvent): string {
 
 /** Build search content for a user. */
 function buildUserSearchContent(event: NostrEvent): string {
-  const { name, nip05, about } = jsonMetaContentSchema.parse(event.content);
+  const { name, nip05, about } = n.json().pipe(n.metadata()).parse(event.content);
   return [name, nip05, about].filter(Boolean).join('\n');
 }
 

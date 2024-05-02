@@ -1,9 +1,9 @@
+import { NSchema as n } from '@nostrify/nostrify';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { lodash } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
@@ -28,7 +28,7 @@ async function renderAccount(
     about,
     lud06,
     lud16,
-  } = jsonMetaContentSchema.parse(event.content);
+  } = n.json().pipe(n.metadata()).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);

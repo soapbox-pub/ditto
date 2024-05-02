@@ -1,4 +1,4 @@
-import { NIP05, NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NIP05, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -7,7 +7,6 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { addTag, deleteTag } from '@/tags.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { renderEventAccounts } from '@/views.ts';
@@ -406,7 +405,7 @@ const zapController: AppController = async (c) => {
 
   const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'], signal });
   const author = target?.author;
-  const meta = jsonMetaContentSchema.parse(author?.content);
+  const meta = n.json().pipe(n.metadata()).parse(author?.content);
   const lnurl = getLnurl(meta);
 
   if (target && lnurl) {

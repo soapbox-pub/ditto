@@ -1,4 +1,4 @@
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -6,7 +6,6 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { Storages } from '@/storages.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/upload.ts';
@@ -198,7 +197,7 @@ const updateCredentialsController: AppController = async (c) => {
   }
 
   const author = await getAuthor(pubkey);
-  const meta = author ? jsonMetaContentSchema.parse(author.content) : {};
+  const meta = author ? n.json().pipe(n.metadata()).parse(author.content) : {};
 
   const {
     avatar: avatarFile,

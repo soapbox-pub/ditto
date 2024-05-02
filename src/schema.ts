@@ -11,16 +11,6 @@ function filteredArray<T extends z.ZodTypeAny>(schema: T) {
     ));
 }
 
-/** Parses a JSON string into its native type. */
-const jsonSchema = z.string().transform((value, ctx) => {
-  try {
-    return JSON.parse(value) as unknown;
-  } catch (_e) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid JSON' });
-    return z.NEVER;
-  }
-});
-
 /** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
 const decode64Schema = z.string().transform((value, ctx) => {
   try {
@@ -48,4 +38,4 @@ const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value 
 /** Schema for `File` objects. */
 const fileSchema = z.custom<File>((value) => value instanceof File);
 
-export { booleanParamSchema, decode64Schema, fileSchema, filteredArray, hashtagSchema, jsonSchema, safeUrlSchema };
+export { booleanParamSchema, decode64Schema, fileSchema, filteredArray, hashtagSchema, safeUrlSchema };
