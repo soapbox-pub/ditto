@@ -1,4 +1,4 @@
-import { Kysely } from '@/deps.ts';
+import { Kysely } from 'kysely';
 
 export async function up(_db: Kysely<any>): Promise<void> {
 }
