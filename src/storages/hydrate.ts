@@ -26,6 +26,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  for (const event of await gatherReacted({ events: cache, storage, signal })) {
+    cache.push(event);
+  }
+
   for (const event of await gatherQuotes({ events: cache, storage, signal })) {
     cache.push(event);
   }
@@ -92,6 +96,25 @@ function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoE
 
   for (const event of events) {
     if (event.kind === 6) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return storage.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect events being reacted to by the events. */
+function gatherReacted({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 7) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
         ids.add(id);

@@ -24,4 +24,5 @@ export interface DittoEvent extends NostrEvent {
   user?: DittoEvent;
   repost?: DittoEvent;
   quote_repost?: DittoEvent;
+  reacted?: DittoEvent;
 }

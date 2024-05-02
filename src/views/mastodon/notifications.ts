@@ -1,19 +1,34 @@
-import { NostrEvent } from '@nostrify/nostrify';
-import { getAuthor } from '@/queries.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
-import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-function renderNotification(event: NostrEvent, viewerPubkey?: string) {
-  switch (event.kind) {
-    case 1:
-      return renderNotificationMention(event, viewerPubkey);
+interface RenderNotificationOpts {
+  viewerPubkey: string;
+}
+
+function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
+  const mentioned = !!event.tags.find(([name, value]) => name === 'p' && value === opts.viewerPubkey);
+
+  if (event.kind === 1 && mentioned) {
+    return renderMention(event, opts);
+  }
+
+  if (event.kind === 6) {
+    return renderReblog(event, opts);
+  }
+
+  if (event.kind === 7 && event.content === '+') {
+    return renderFavourite(event, opts);
+  }
+
+  if (event.kind === 7) {
+    return renderReaction(event, opts);
   }
 }
 
-async function renderNotificationMention(event: NostrEvent, viewerPubkey?: string) {
-  const author = await getAuthor(event.pubkey);
-  const status = await renderStatus({ ...event, author }, { viewerPubkey: viewerPubkey });
+async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
+  const status = await renderStatus(event, opts);
   if (!status) return;
 
   return {
@@ -25,4 +40,50 @@ async function renderNotificationMention(event: NostrEvent, viewerPubkey?: strin
   };
 }
 
-export { accountFromPubkey, renderNotification };
+async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
+  if (event.repost?.kind !== 1) return;
+  const status = await renderStatus(event.repost, opts);
+  if (!status) return;
+  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+
+  return {
+    id: event.id,
+    type: 'reblog',
+    created_at: nostrDate(event.created_at).toISOString(),
+    account,
+    status,
+  };
+}
+
+async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) {
+  if (event.reacted?.kind !== 1) return;
+  const status = await renderStatus(event.reacted, opts);
+  if (!status) return;
+  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+
+  return {
+    id: event.id,
+    type: 'favourite',
+    created_at: nostrDate(event.created_at).toISOString(),
+    account,
+    status,
+  };
+}
+
+async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
+  if (event.reacted?.kind !== 1) return;
+  const status = await renderStatus(event.reacted, opts);
+  if (!status) return;
+  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+
+  return {
+    id: event.id,
+    type: 'pleroma:emoji_reaction',
+    emoji: event.content,
+    created_at: nostrDate(event.created_at).toISOString(),
+    account,
+    status,
+  };
+}
+
+export { renderNotification };

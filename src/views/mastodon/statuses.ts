@@ -14,12 +14,12 @@ import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 import { mediaDataSchema } from '@/schemas/nostr.ts';
 
-interface statusOpts {
+interface RenderStatusOpts {
   viewerPubkey?: string;
   depth?: number;
 }
 
-async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
+async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<any> {
   const { viewerPubkey, depth = 1 } = opts;
 
   if (depth > 2 || depth < 0) return null;
@@ -117,7 +117,7 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
   };
 }
 
-async function renderReblog(event: DittoEvent, opts: statusOpts) {
+async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
   const { viewerPubkey } = opts;
 
   if (!event.author) return;
