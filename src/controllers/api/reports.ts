@@ -1,13 +1,14 @@
 import { type AppController } from '@/app.ts';
-import { z } from 'zod';
 import { createEvent, parseBody } from '@/utils/api.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { renderReports } from '@/views/mastodon/reports.ts';
+import { NSchema as n } from '@nostrify/nostrify';
+import { renderReport } from '@/views/mastodon/reports.ts';
+import { z } from 'zod';
 
 const reportsSchema = z.object({
-  account_id: z.string(),
-  status_ids: z.string().array().default([]),
+  account_id: n.id(),
+  status_ids: n.id().array().default([]),
   comment: z.string().max(1000).default(''),
   forward: z.boolean().default(false),
   category: z.string().default('other'),
@@ -32,12 +33,10 @@ const reportsController: AppController = async (c) => {
     category,
   } = result.data;
 
-  const [personBeingReported] = await store.query([{ kinds: [0], authors: [account_id] }]);
-  if (!personBeingReported) {
-    return c.json({ error: 'Record not found' }, 404);
+  const [profile] = await store.query([{ kinds: [0], authors: [account_id] }]);
+  if (profile) {
+    await hydrateEvents({ events: [profile], storage: store });
   }
-
-  await hydrateEvents({ events: [personBeingReported], storage: store });
 
   const event = await createEvent({
     kind: 1984,
@@ -48,7 +47,7 @@ const reportsController: AppController = async (c) => {
     ],
   }, c);
 
-  return c.json(await renderReports(event, personBeingReported, {}));
+  return c.json(await renderReport(event, profile));
 };
 
 export { reportsController };

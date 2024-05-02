@@ -42,6 +42,7 @@ import {
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
+import { reportsController } from '@/controllers/api/reports.ts';
 import { searchController } from '@/controllers/api/search.ts';
 import {
   bookmarkController,
@@ -77,7 +78,6 @@ import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
 import { adminRelaysController, adminSetRelaysController } from '@/controllers/api/ditto.ts';
 import { storeMiddleware } from '@/middleware/store.ts';
-import { reportsController } from '@/controllers/api/reports.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
