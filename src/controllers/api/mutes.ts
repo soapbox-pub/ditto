@@ -3,8 +3,8 @@ import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { renderAccounts } from '@/views.ts';
 
-/** https://docs.joinmastodon.org/methods/blocks/#get */
-const blocksController: AppController = async (c) => {
+/** https://docs.joinmastodon.org/methods/mutes/#get */
+const mutesController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
   const { signal } = c.req.raw;
 
@@ -21,4 +21,4 @@ const blocksController: AppController = async (c) => {
   }
 };
 
-export { blocksController };
+export { mutesController };
