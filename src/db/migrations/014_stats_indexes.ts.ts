@@ -1,4 +1,4 @@
-import { Kysely } from '@/deps.ts';
+import { Kysely } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema.createIndex('idx_author_stats_pubkey').on('author_stats').column('pubkey').execute();

@@ -1,8 +1,20 @@
 import { RelayPoolWorker } from 'nostr-relaypool';
 
-import { getActiveRelays } from '@/db/relays.ts';
+import { Storages } from '@/storages.ts';
+import { Conf } from '@/config.ts';
 
-const activeRelays = await getActiveRelays();
+const [relayList] = await Storages.db.query([
+  { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
+]);
+
+const tags = relayList?.tags ?? [];
+
+const activeRelays = tags.reduce((acc, [name, url, marker]) => {
+  if (name === 'r' && !marker) {
+    acc.push(url);
+  }
+  return acc;
+}, []);
 
 console.log(`pool: connecting to ${activeRelays.length} relays.`);
 

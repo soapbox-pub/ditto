@@ -1,4 +1,4 @@
-import { Kysely } from '@/deps.ts';
+import { Kysely } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema.alterTable('events').addColumn('deleted_at', 'integer').execute();
