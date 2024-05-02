@@ -273,7 +273,17 @@ const followingController: AppController = async (c) => {
 };
 
 /** https://docs.joinmastodon.org/methods/accounts/#block */
-const blockController: AppController = async (c) => {
+const blockController: AppController = (c) => {
+  return c.json({ error: 'Blocking is not supported by Nostr' }, 422);
+};
+
+/** https://docs.joinmastodon.org/methods/accounts/#unblock */
+const unblockController: AppController = (c) => {
+  return c.json({ error: 'Blocking is not supported by Nostr' }, 422);
+};
+
+/** https://docs.joinmastodon.org/methods/accounts/#mute */
+const muteController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
 
@@ -287,8 +297,8 @@ const blockController: AppController = async (c) => {
   return c.json(relationship);
 };
 
-/** https://docs.joinmastodon.org/methods/accounts/#unblock */
-const unblockController: AppController = async (c) => {
+/** https://docs.joinmastodon.org/methods/accounts/#unmute */
+const unmuteController: AppController = async (c) => {
   const sourcePubkey = c.get('pubkey')!;
   const targetPubkey = c.req.param('pubkey');
 
@@ -334,9 +344,11 @@ export {
   followController,
   followersController,
   followingController,
+  muteController,
   relationshipsController,
   unblockController,
   unfollowController,
+  unmuteController,
   updateCredentialsController,
   verifyCredentialsController,
 };
