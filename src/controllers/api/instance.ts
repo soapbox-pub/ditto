@@ -10,7 +10,7 @@ const instanceController: AppController = async (c) => {
   const { signal } = c.req.raw;
 
   const [event] = await Storages.db.query([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }], { signal });
-  const meta = n.json().pipe(serverMetaSchema).parse(event?.content);
+  const meta = n.json().pipe(serverMetaSchema).catch({}).parse(event?.content);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';

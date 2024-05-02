@@ -111,7 +111,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   if (event.kind !== 0) return;
 
   // Parse metadata.
-  const metadata = n.json().pipe(n.metadata()).safeParse(event.content);
+  const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
   // Get nip05.

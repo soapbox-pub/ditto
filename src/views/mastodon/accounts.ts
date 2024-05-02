@@ -28,7 +28,7 @@ async function renderAccount(
     about,
     lud06,
     lud16,
-  } = n.json().pipe(n.metadata()).parse(event.content);
+  } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);

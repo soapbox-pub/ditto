@@ -197,7 +197,7 @@ const updateCredentialsController: AppController = async (c) => {
   }
 
   const author = await getAuthor(pubkey);
-  const meta = author ? n.json().pipe(n.metadata()).parse(author.content) : {};
+  const meta = author ? n.json().pipe(n.metadata()).catch({}).parse(author.content) : {};
 
   const {
     avatar: avatarFile,

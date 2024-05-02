@@ -405,7 +405,7 @@ const zapController: AppController = async (c) => {
 
   const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'], signal });
   const author = target?.author;
-  const meta = n.json().pipe(n.metadata()).parse(author?.content);
+  const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
 
   if (target && lnurl) {

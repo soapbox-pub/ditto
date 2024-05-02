@@ -8,7 +8,7 @@ import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
 async function renderActor(event: NostrEvent, username: string): Promise<Actor | undefined> {
-  const content = n.json().pipe(n.metadata()).parse(event.content);
+  const content = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   return {
     type: 'Person',

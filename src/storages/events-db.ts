@@ -411,7 +411,7 @@ function buildSearchContent(event: NostrEvent): string {
 
 /** Build search content for a user. */
 function buildUserSearchContent(event: NostrEvent): string {
-  const { name, nip05, about } = n.json().pipe(n.metadata()).parse(event.content);
+  const { name, nip05, about } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
   return [name, nip05, about].filter(Boolean).join('\n');
 }
 
