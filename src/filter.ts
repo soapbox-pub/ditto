@@ -1,9 +1,8 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import stringifyStable from 'fast-stable-stringify';
 import { z } from 'zod';
 
 import { isReplaceableKind } from '@/kinds.ts';
-import { nostrIdSchema } from '@/schemas/nostr.ts';
 
 /** Microfilter to get one specific event by ID. */
 type IdMicrofilter = { ids: [NostrEvent['id']] };
@@ -42,8 +41,8 @@ function getMicroFilters(event: NostrEvent): MicroFilter[] {
 
 /** Microfilter schema. */
 const microFilterSchema = z.union([
-  z.object({ ids: z.tuple([nostrIdSchema]) }).strict(),
-  z.object({ kinds: z.tuple([z.literal(0)]), authors: z.tuple([nostrIdSchema]) }).strict(),
+  z.object({ ids: z.tuple([n.id()]) }).strict(),
+  z.object({ kinds: z.tuple([z.literal(0)]), authors: z.tuple([n.id()]) }).strict(),
 ]);
 
 /** Checks whether the filter is a microfilter. */

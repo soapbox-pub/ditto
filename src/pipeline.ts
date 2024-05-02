@@ -5,7 +5,6 @@ import { sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import { addRelays } from '@/db/relays.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
@@ -14,7 +13,7 @@ import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
-import { eventAge, isRelay, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
+import { eventAge, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
@@ -59,7 +58,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     parseMetadata(event, signal),
     processDeletions(event, signal),
     DVM.event(event),
-    trackRelays(event),
     trackHashtags(event),
     fetchRelatedEvents(event, signal),
     processMedia(event),
@@ -113,7 +111,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   if (event.kind !== 0) return;
 
   // Parse metadata.
-  const metadata = n.json().pipe(n.metadata()).safeParse(event.content);
+  const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
   // Get nip05.
@@ -181,22 +179,6 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
   } catch (_e) {
     // do nothing
   }
-}
-
-/** Tracks known relays in the database. */
-function trackRelays(event: NostrEvent) {
-  const relays = new Set<`wss://${string}`>();
-
-  event.tags.forEach((tag) => {
-    if (['p', 'e', 'a'].includes(tag[0]) && isRelay(tag[2])) {
-      relays.add(tag[2]);
-    }
-    if (event.kind === 10002 && tag[0] === 'r' && isRelay(tag[1])) {
-      relays.add(tag[1]);
-    }
-  });
-
-  return addRelays([...relays]);
 }
 
 /** Queue related events to fetch. */

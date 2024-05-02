@@ -1,3 +1,4 @@
+import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -6,7 +7,6 @@ import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/p
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { createAdminEvent } from '@/utils/api.ts';
-import { jsonSchema } from '@/schema.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const configs = await getConfigs(c.req.raw.signal);
@@ -75,7 +75,7 @@ async function getConfigs(signal: AbortSignal): Promise<PleromaConfig[]> {
 
   try {
     const decrypted = await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content);
-    return jsonSchema.pipe(configSchema.array()).catch([]).parse(decrypted);
+    return n.json().pipe(configSchema.array()).catch([]).parse(decrypted);
   } catch (_e) {
     return [];
   }
