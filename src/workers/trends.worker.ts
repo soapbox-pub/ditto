@@ -1,8 +1,8 @@
+import { NSchema } from '@nostrify/nostrify';
 import * as Comlink from 'comlink';
 
 import { Sqlite } from '@/deps.ts';
 import { hashtagSchema } from '@/schema.ts';
-import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
 
 interface GetTrendingTagsOpts {
@@ -102,7 +102,7 @@ export const TrendsWorker = {
   },
 
   addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
-    const pubkey8 = nostrIdSchema.parse(pubkey).substring(0, 8);
+    const pubkey8 = NSchema.id().parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
     db.query(

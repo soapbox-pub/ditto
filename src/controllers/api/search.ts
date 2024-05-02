@@ -1,10 +1,9 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { nostrIdSchema } from '@/schemas/nostr.ts';
 import { Storages } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
@@ -20,7 +19,7 @@ const searchQuerySchema = z.object({
   type: z.enum(['accounts', 'statuses', 'hashtags']).optional(),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  account_id: nostrIdSchema.optional(),
+  account_id: n.id().optional(),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
