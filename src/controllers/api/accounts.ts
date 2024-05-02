@@ -240,6 +240,8 @@ const followController: AppController = async (c) => {
   );
 
   const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  relationship.following = true;
+
   return c.json(relationship);
 };
 
