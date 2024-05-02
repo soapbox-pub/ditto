@@ -1,6 +1,5 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { EventTemplate, getEventHash, nip19 } from 'nostr-tools';
-import { z } from 'zod';
 
 import { nostrIdSchema } from '@/schemas/nostr.ts';
 
