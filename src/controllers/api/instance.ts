@@ -45,6 +45,7 @@ const instanceController: AppController = async (c) => {
           'mastodon_api_streaming',
           'exposable_reactions',
           'quote_posting',
+          'v2_suggestions',
         ],
       },
     },
