@@ -9,7 +9,6 @@ import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { UserStore } from '@/storages/UserStore.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -68,17 +67,14 @@ const streamingController: AppController = (c) => {
     const filter = await topicToFilter(stream, c.req.query(), pubkey);
     if (!filter) return;
 
-    const store = pubkey ? new UserStore(pubkey, Storages.admin) : Storages.admin;
-
     try {
       for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
-          const [event] = await store.query([{ ids: [msg[2].id] }]);
-          if (!event) continue;
+          const event = msg[2];
 
           await hydrateEvents({
             events: [event],
-            storage: store,
+            storage: Storages.admin,
             signal: AbortSignal.timeout(1000),
           });
 
