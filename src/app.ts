@@ -43,6 +43,7 @@ import {
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
+import { reportsController } from '@/controllers/api/reports.ts';
 import { searchController } from '@/controllers/api/search.ts';
 import {
   bookmarkController,
@@ -197,6 +198,8 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
+
+app.post('/api/v1/reports', requirePubkey, reportsController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
