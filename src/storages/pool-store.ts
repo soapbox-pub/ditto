@@ -12,11 +12,10 @@ import Debug from '@soapbox/stickynotes/debug';
 import { RelayPoolWorker } from 'nostr-relaypool';
 import { getFilterLimit, matchFilters } from 'nostr-tools';
 
-import { normalizeFilters } from '@/filter.ts';
+import { Conf } from '@/config.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';
 import { getRelays } from '@/utils/outbox.ts';
-import { Conf } from '@/config.ts';
 
 interface PoolStoreOpts {
   pool: InstanceType<typeof RelayPoolWorker>;
@@ -52,11 +51,6 @@ class PoolStore implements NRelay {
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; limit?: number } = {},
   ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
-    if (opts.signal?.aborted) return;
-
-    filters = normalizeFilters(filters);
-    if (!filters.length) return;
-
     this.debug('REQ', JSON.stringify(filters));
 
     const uuid = crypto.randomUUID();
