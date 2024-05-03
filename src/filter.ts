@@ -1,8 +1,7 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import stringifyStable from 'fast-stable-stringify';
+import { getFilterLimit } from 'nostr-tools';
 import { z } from 'zod';
-
-import { isReplaceableKind } from '@/kinds.ts';
 
 /** Microfilter to get one specific event by ID. */
 type IdMicrofilter = { ids: [NostrEvent['id']] };
@@ -48,22 +47,6 @@ const microFilterSchema = z.union([
 /** Checks whether the filter is a microfilter. */
 function isMicrofilter(filter: NostrFilter): filter is MicroFilter {
   return microFilterSchema.safeParse(filter).success;
-}
-
-/** Calculate the intrinsic limit of a filter. */
-function getFilterLimit(filter: NostrFilter): number {
-  if (filter.ids && !filter.ids.length) return 0;
-  if (filter.kinds && !filter.kinds.length) return 0;
-  if (filter.authors && !filter.authors.length) return 0;
-
-  return Math.min(
-    Math.max(0, filter.limit ?? Infinity),
-    filter.ids?.length ?? Infinity,
-    filter.authors?.length &&
-      filter.kinds?.every((kind) => isReplaceableKind(kind))
-      ? filter.authors.length * filter.kinds.length
-      : Infinity,
-  );
 }
 
 /** Returns true if the filter could potentially return any stored events at all. */
