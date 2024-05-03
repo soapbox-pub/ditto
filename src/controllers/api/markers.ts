@@ -5,6 +5,8 @@ import { parseBody } from '@/utils/api.ts';
 
 const kv = await Deno.openKv();
 
+type Timeline = 'home' | 'notifications';
+
 interface Marker {
   last_read_id: string;
   version: number;
@@ -36,8 +38,8 @@ const markerDataSchema = z.object({
 
 export const updateMarkersController: AppController = async (c) => {
   const pubkey = c.get('pubkey')!;
-  const record = z.record(z.string(), markerDataSchema).parse(await parseBody(c.req.raw));
-  const timelines = Object.keys(record);
+  const record = z.record(z.enum(['home', 'notifications']), markerDataSchema).parse(await parseBody(c.req.raw));
+  const timelines = Object.keys(record) as Timeline[];
 
   const markers: Record<string, Marker> = {};
 
@@ -49,7 +51,7 @@ export const updateMarkersController: AppController = async (c) => {
     const last = entries.find(({ key }) => key[key.length - 1] === timeline);
 
     const marker: Marker = {
-      last_read_id: record[timeline].last_read_id,
+      last_read_id: record[timeline]!.last_read_id,
       version: last?.value ? last.value.version + 1 : 1,
       updated_at: new Date().toISOString(),
     };
