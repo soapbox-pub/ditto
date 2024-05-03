@@ -33,10 +33,11 @@ async function renderSuggestedAccounts(store: NStore, signal?: AbortSignal) {
     { signal },
   );
 
-  const pubkeys = [...getTagSet(follows?.tags ?? [], 'p')];
+  // TODO: pagination
+  const pubkeys = [...getTagSet(follows?.tags ?? [], 'p')].slice(0, 20);
 
   const profiles = await store.query(
-    [{ kinds: [1], authors: pubkeys }],
+    [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
     { signal },
   )
     .then((events) => hydrateEvents({ events, storage: store, signal }));
