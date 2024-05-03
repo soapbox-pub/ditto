@@ -183,15 +183,19 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
 
 /** Queue related events to fetch. */
 async function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
-  if (!event.user) {
-    Storages.reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
+  if (!event.author) {
+    Storages.reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal })
+      .then((event) => handleEvent(event, AbortSignal.timeout(1000)))
+      .catch(() => {});
   }
 
   for (const [name, id, relay] of event.tags) {
     if (name === 'e') {
       const { count } = await Storages.cache.count([{ ids: [id] }]);
       if (!count) {
-        Storages.reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+        Storages.reqmeister.req({ ids: [id] }, { relays: [relay] })
+          .then((event) => handleEvent(event, AbortSignal.timeout(1000)))
+          .catch(() => {});
       }
     }
   }

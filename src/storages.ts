@@ -1,7 +1,6 @@
 import { NCache } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import * as pipeline from '@/pipeline.ts';
 import { activeRelays, pool } from '@/pool.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
@@ -52,7 +51,6 @@ export class Storages {
       this._client = new PoolStore({
         pool,
         relays: activeRelays,
-        publisher: pipeline,
       });
     }
     return this._client;
