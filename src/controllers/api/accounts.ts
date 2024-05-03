@@ -17,6 +17,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { bech32ToPubkey } from '@/utils.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -76,8 +77,13 @@ const accountLookupController: AppController = async (c) => {
   if (event) {
     return c.json(await renderAccount(event));
   }
-
-  return c.json({ error: 'Could not find user.' }, 404);
+  try {
+    const pubkey = bech32ToPubkey(decodeURIComponent(acct)) as string;
+    return c.json(await accountFromPubkey(pubkey));
+  } catch (e) {
+    console.log(e);
+    return c.json({ error: 'Could not find user.' }, 404);
+  }
 };
 
 const accountSearchController: AppController = async (c) => {
