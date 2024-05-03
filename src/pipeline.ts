@@ -59,7 +59,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     processDeletions(event, signal),
     DVM.event(event),
     trackHashtags(event),
-    fetchRelatedEvents(event, signal),
+    fetchRelatedEvents(event),
     processMedia(event),
     payZap(event, signal),
     streamOut(event),
@@ -182,16 +182,22 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
 }
 
 /** Queue related events to fetch. */
-async function fetchRelatedEvents(event: DittoEvent, signal: AbortSignal) {
-  if (!event.user) {
-    Storages.reqmeister.req({ kinds: [0], authors: [event.pubkey] }, { signal }).catch(() => {});
+async function fetchRelatedEvents(event: DittoEvent) {
+  if (!event.author) {
+    const signal = AbortSignal.timeout(3000);
+    Storages.reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
+      .then((events) => events.forEach((event) => handleEvent(event, signal)))
+      .catch(() => {});
   }
 
-  for (const [name, id, relay] of event.tags) {
+  for (const [name, id] of event.tags) {
     if (name === 'e') {
       const { count } = await Storages.cache.count([{ ids: [id] }]);
       if (!count) {
-        Storages.reqmeister.req({ ids: [id] }, { relays: [relay] }).catch(() => {});
+        const signal = AbortSignal.timeout(3000);
+        Storages.reqmeister.query([{ ids: [id] }], { signal })
+          .then((events) => events.forEach((event) => handleEvent(event, signal)))
+          .catch(() => {});
       }
     }
   }
