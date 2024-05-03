@@ -208,9 +208,7 @@ app.post('/api/v1/reports', requirePubkey, reportsController);
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
-app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
-app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
