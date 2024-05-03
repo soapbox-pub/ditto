@@ -63,6 +63,7 @@ import {
   zapController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
+import { suggestionsV1Controller, suggestionsV2Controller } from '@/controllers/api/suggestions.ts';
 import {
   hashtagTimelineController,
   homeTimelineController,
@@ -185,6 +186,9 @@ app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
 app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+
+app.get('/api/v1/suggestions', suggestionsV1Controller);
+app.get('/api/v2/suggestions', suggestionsV2Controller);
 
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
