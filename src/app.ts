@@ -31,6 +31,7 @@ import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
+import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
 import { mediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
 import { notificationsController } from '@/controllers/api/notifications.ts';
@@ -190,6 +191,9 @@ app.get('/api/v1/favourites', requirePubkey, favouritesController);
 app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 app.get('/api/v1/mutes', requirePubkey, mutesController);
+
+app.get('/api/v1/markers', requireProof(), markersController);
+app.post('/api/v1/markers', requireProof(), updateMarkersController);
 
 app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
 app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
