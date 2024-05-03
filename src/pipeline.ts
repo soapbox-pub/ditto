@@ -186,7 +186,7 @@ async function fetchRelatedEvents(event: DittoEvent) {
   if (!event.author) {
     const signal = AbortSignal.timeout(3000);
     Storages.reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
-      .then((events) => events.forEach((event) => handleEvent(event, signal)))
+      .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
       .catch(() => {});
   }
 
@@ -196,7 +196,7 @@ async function fetchRelatedEvents(event: DittoEvent) {
       if (!count) {
         const signal = AbortSignal.timeout(3000);
         Storages.reqmeister.query([{ ids: [id] }], { signal })
-          .then((events) => events.forEach((event) => handleEvent(event, signal)))
+          .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
           .catch(() => {});
       }
     }
