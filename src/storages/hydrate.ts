@@ -76,6 +76,13 @@ function assembleEvents(
       }
     }
 
+    if (event.kind === 7) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        event.reacted = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
+    }
+
     if (event.kind === 1) {
       const id = event.tags.find(([name]) => name === 'q')?.[1];
       if (id) {
