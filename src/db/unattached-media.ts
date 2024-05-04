@@ -54,15 +54,18 @@ function deleteUnattachedMediaByUrl(url: string) {
 }
 
 /** Get unattached media by IDs. */
-function getUnattachedMediaByIds(ids: string[]) {
+// deno-lint-ignore require-await
+async function getUnattachedMediaByIds(ids: string[]) {
+  if (!ids.length) return [];
   return selectUnattachedMediaQuery()
     .where('id', 'in', ids)
     .execute();
 }
 
 /** Delete rows as an event with media is being created. */
-function deleteAttachedMedia(pubkey: string, urls: string[]) {
-  return db.deleteFrom('unattached_media')
+async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
+  if (!urls.length) return;
+  await db.deleteFrom('unattached_media')
     .where('pubkey', '=', pubkey)
     .where('url', 'in', urls)
     .execute();

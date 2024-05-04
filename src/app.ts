@@ -31,6 +31,7 @@ import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
+import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
 import { mediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
 import { notificationsController } from '@/controllers/api/notifications.ts';
@@ -62,6 +63,7 @@ import {
   zapController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
+import { suggestionsV1Controller, suggestionsV2Controller } from '@/controllers/api/suggestions.ts';
 import {
   hashtagTimelineController,
   homeTimelineController,
@@ -185,11 +187,17 @@ app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 
+app.get('/api/v1/suggestions', suggestionsV1Controller);
+app.get('/api/v2/suggestions', suggestionsV2Controller);
+
 app.get('/api/v1/notifications', requirePubkey, notificationsController);
 app.get('/api/v1/favourites', requirePubkey, favouritesController);
 app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
 app.get('/api/v1/blocks', requirePubkey, blocksController);
 app.get('/api/v1/mutes', requirePubkey, mutesController);
+
+app.get('/api/v1/markers', requireProof(), markersController);
+app.post('/api/v1/markers', requireProof(), updateMarkersController);
 
 app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
 app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
@@ -205,9 +213,7 @@ app.get('/api/v1/admin/reports', requirePubkey, requireRole('admin'), viewAllRep
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
-app.get('/api/v1/mutes', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
-app.get('/api/v1/markers', emptyObjectController);
 app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
