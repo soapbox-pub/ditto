@@ -5,6 +5,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { NSchema as n } from '@nostrify/nostrify';
 import { renderReport } from '@/views/mastodon/reports.ts';
 import { z } from 'zod';
+import { renderAdminReport } from '@/views/mastodon/reports.ts';
 
 const reportsSchema = z.object({
   account_id: n.id(),
@@ -50,4 +51,20 @@ const reportsController: AppController = async (c) => {
   return c.json(await renderReport(event, profile));
 };
 
-export { reportsController };
+/** https://docs.joinmastodon.org/methods/admin/reports/#get */
+const viewAllReportsController: AppController = async (c) => {
+  const store = c.get('store');
+  const allMastodonReports = [];
+
+  const allReports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }]);
+
+  await hydrateEvents({ storage: store, events: allReports, signal: AbortSignal.timeout(2000) });
+
+  for (const report of allReports) {
+    allMastodonReports.push(await renderAdminReport(report, { viewerPubkey: c.get('pubkey') }));
+  }
+
+  return c.json(allMastodonReports);
+};
+
+export { reportsController, viewAllReportsController };
