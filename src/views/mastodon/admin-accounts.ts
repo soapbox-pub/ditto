@@ -1,7 +1,7 @@
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 
-import { accountFromPubkey, renderAccount } from './accounts.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 async function renderAdminAccount(event: DittoEvent) {
   const d = event.tags.find(([name]) => name === 'd')?.[1]!;
