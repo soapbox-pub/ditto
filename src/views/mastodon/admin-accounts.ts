@@ -7,7 +7,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 async function renderAdminAccount(event: DittoEvent) {
   let account;
 
-  if (event.kind === 0 && event.user) {
+  if (event && event.kind === 0 && event.user) {
     account = await renderAccount(event);
   } else {
     const d = event.tags.find(([name]) => name === 'd')?.[1]!;
