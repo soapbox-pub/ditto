@@ -2,6 +2,7 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { NostrEvent } from '@nostrify/nostrify';
 
 interface RenderNotificationOpts {
   viewerPubkey: string;
@@ -32,7 +33,7 @@ async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
   if (!status) return;
 
   return {
-    id: event.id,
+    id: notificationId(event),
     type: 'mention',
     created_at: nostrDate(event.created_at).toISOString(),
     account: status.account,
@@ -47,7 +48,7 @@ async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
   const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
 
   return {
-    id: event.id,
+    id: notificationId(event),
     type: 'reblog',
     created_at: nostrDate(event.created_at).toISOString(),
     account,
@@ -62,7 +63,7 @@ async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) 
   const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
 
   return {
-    id: event.id,
+    id: notificationId(event),
     type: 'favourite',
     created_at: nostrDate(event.created_at).toISOString(),
     account,
@@ -77,13 +78,18 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
   const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
 
   return {
-    id: event.id,
+    id: notificationId(event),
     type: 'pleroma:emoji_reaction',
     emoji: event.content,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
     status,
   };
+}
+
+/** This helps notifications be sorted in the correct order. */
+function notificationId({ id, created_at }: NostrEvent): string {
+  return `${created_at}-${id}`;
 }
 
 export { renderNotification };
