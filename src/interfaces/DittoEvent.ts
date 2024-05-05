@@ -25,14 +25,13 @@ export interface DittoEvent extends NostrEvent {
   repost?: DittoEvent;
   quote_repost?: DittoEvent;
   reacted?: DittoEvent;
-  /** The account being reported.
+  /** The profile being reported.
    * Must be a kind 0 hydrated.
    * https://github.com/nostr-protocol/nips/blob/master/56.md
    */
-  target_account?: DittoEvent;
-  /** The statuses being reported.
-   * Nostr only support reporting one note, the array of reported notes can be found in the `status_ids` field after JSON.parsing the `content` of a kind 1984.
+  reported_profile?: DittoEvent;
+  /** The notes being reported.
    * https://github.com/nostr-protocol/nips/blob/master/56.md
    */
-  reported_statuses?: DittoEvent[];
+  reported_notes?: DittoEvent[];
 }

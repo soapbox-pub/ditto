@@ -42,11 +42,11 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
-  for (const event of await gatherTargetAccounts({ events: cache, storage, signal })) {
+  for (const event of await gatherReportedProfiles({ events: cache, storage, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherReportedStatuses({ events: cache, storage, signal })) {
+  for (const event of await gatherReportedNotes({ events: cache, storage, signal })) {
     cache.push(event);
   }
 
@@ -101,12 +101,7 @@ function assembleEvents(
     if (event.kind === 1984) {
       const targetAccountId = event.tags.find(([name]) => name === 'p')?.[1];
       if (targetAccountId) {
-        event.target_account = b.find((e) => matchFilter({ kinds: [0], authors: [targetAccountId] }, e));
-        if (event.target_account) {
-          event.target_account.user = b.find((e) =>
-            matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e)
-          );
-        }
+        event.reported_profile = b.find((e) => matchFilter({ kinds: [0], authors: [targetAccountId] }, e));
       }
       const reportedEvents: DittoEvent[] = [];
 
@@ -118,7 +113,7 @@ function assembleEvents(
             if (reportedEvent) reportedEvents.push(reportedEvent);
           }
         }
-        event.reported_statuses = reportedEvents;
+        event.reported_notes = reportedEvents;
       }
     }
 
@@ -206,8 +201,8 @@ function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEve
   );
 }
 
-/** Collect reported statuses from the events. */
-function gatherReportedStatuses({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+/** Collect reported notes from the events. */
+function gatherReportedNotes({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
   for (const event of events) {
     if (event.kind === 1984) {
@@ -226,8 +221,8 @@ function gatherReportedStatuses({ events, storage, signal }: HydrateOpts): Promi
   );
 }
 
-/** Collect target accounts (the ones being reported) from the events. */
-function gatherTargetAccounts({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+/** Collect reported profiles from the events. */
+function gatherReportedProfiles({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set<string>();
 
   for (const event of events) {

@@ -45,8 +45,8 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
   } = JSON.parse(reportEvent.content);
 
   const statuses = [];
-  if (reportEvent.reported_statuses) {
-    for (const status of reportEvent.reported_statuses) {
+  if (reportEvent.reported_notes) {
+    for (const status of reportEvent.reported_notes) {
       statuses.push(await renderStatus(status, { viewerPubkey }));
     }
   }
@@ -60,7 +60,7 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     forwarded: forward,
     created_at: nostrDate(reportEvent.created_at).toISOString(),
     account: await renderAdminAccount(reportEvent.author as DittoEvent),
-    target_account: await renderAdminAccount(reportEvent.target_account as DittoEvent),
+    target_account: await renderAdminAccount(reportEvent.reported_profile as DittoEvent),
     assigned_account: null,
     action_taken_by_account: null,
     statuses,

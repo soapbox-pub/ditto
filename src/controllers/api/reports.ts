@@ -1,11 +1,12 @@
-import { type AppController } from '@/app.ts';
-import { createEvent, parseBody } from '@/utils/api.ts';
-import { Conf } from '@/config.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
 import { NSchema as n } from '@nostrify/nostrify';
-import { renderReport } from '@/views/mastodon/reports.ts';
 import { z } from 'zod';
+
+import { type AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
+import { createEvent, parseBody } from '@/utils/api.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
+import { renderReport } from '@/views/mastodon/reports.ts';
 
 const reportsSchema = z.object({
   account_id: n.id(),
@@ -54,17 +55,11 @@ const reportsController: AppController = async (c) => {
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
 const viewAllReportsController: AppController = async (c) => {
   const store = c.get('store');
-  const allMastodonReports = [];
+  const reports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }])
+    .then((events) => hydrateEvents({ storage: store, events: events, signal: c.req.raw.signal }))
+    .then((events) => Promise.all(events.map((event) => renderAdminReport(event, { viewerPubkey: c.get('pubkey') }))));
 
-  const allReports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }]);
-
-  await hydrateEvents({ storage: store, events: allReports, signal: AbortSignal.timeout(2000) });
-
-  for (const report of allReports) {
-    allMastodonReports.push(await renderAdminReport(report, { viewerPubkey: c.get('pubkey') }));
-  }
-
-  return c.json(allMastodonReports);
+  return c.json(reports);
 };
 
 export { reportsController, viewAllReportsController };
