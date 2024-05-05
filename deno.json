@@ -5,7 +5,7 @@
     "start": "deno run -A src/server.ts",
     "dev": "deno run -A --watch src/server.ts",
     "debug": "deno run -A --inspect src/server.ts",
-    "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A",
+    "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A --junit-path=./deno-test.xml",
     "check": "deno check src/server.ts",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A scripts/admin-event.ts",
