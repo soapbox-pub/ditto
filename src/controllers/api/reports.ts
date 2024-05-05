@@ -12,7 +12,6 @@ const reportsSchema = z.object({
   account_id: n.id(),
   status_ids: n.id().array().default([]),
   comment: z.string().max(1000).default(''),
-  forward: z.boolean().default(false),
   category: z.string().default('other'),
   // TODO: rules_ids[] is not implemented
 });
@@ -31,7 +30,6 @@ const reportsController: AppController = async (c) => {
     account_id,
     status_ids,
     comment,
-    forward,
     category,
   } = result.data;
 
@@ -40,13 +38,19 @@ const reportsController: AppController = async (c) => {
     await hydrateEvents({ events: [profile], storage: store });
   }
 
+  const tags = [
+    ['p', account_id, category],
+    ['P', Conf.pubkey],
+  ];
+
+  for (const status of status_ids) {
+    tags.push(['e', status, category]);
+  }
+
   const event = await createEvent({
     kind: 1984,
-    content: JSON.stringify({ account_id, status_ids, comment, forward, category }),
-    tags: [
-      ['p', account_id, category],
-      ['P', Conf.pubkey],
-    ],
+    content: comment,
+    tags,
   }, c);
 
   return c.json(await renderReport(event, profile));

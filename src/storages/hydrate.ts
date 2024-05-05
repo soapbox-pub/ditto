@@ -105,13 +105,11 @@ function assembleEvents(
       }
       const reportedEvents: DittoEvent[] = [];
 
-      const { status_ids } = JSON.parse(event.content);
-      if (status_ids && Array.isArray(status_ids)) {
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
         for (const id of status_ids) {
-          if (typeof id === 'string') {
-            const reportedEvent = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
-            if (reportedEvent) reportedEvents.push(reportedEvent);
-          }
+          const reportedEvent = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+          if (reportedEvent) reportedEvents.push(reportedEvent);
         }
         event.reported_notes = reportedEvents;
       }
@@ -206,10 +204,10 @@ function gatherReportedNotes({ events, storage, signal }: HydrateOpts): Promise<
   const ids = new Set<string>();
   for (const event of events) {
     if (event.kind === 1984) {
-      const { status_ids } = JSON.parse(event.content);
-      if (status_ids && Array.isArray(status_ids)) {
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
         for (const id of status_ids) {
-          if (typeof id === 'string') ids.add(id);
+          ids.add(id);
         }
       }
     }

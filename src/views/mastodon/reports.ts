@@ -6,25 +6,24 @@ import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
 async function renderReport(reportEvent: DittoEvent, profile: DittoEvent) {
-  const {
-    account_id,
-    status_ids,
-    comment,
-    forward,
-    category,
-  } = JSON.parse(reportEvent.content);
+  // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
+  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2] as string;
+
+  const status_ids = reportEvent.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
+
+  const reported_profile_pubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1] as string;
 
   return {
-    id: account_id,
+    id: reportEvent.id,
     action_taken: false,
     action_taken_at: null,
     category,
-    comment,
-    forwarded: forward,
+    comment: reportEvent.content,
+    forwarded: false,
     created_at: nostrDate(reportEvent.created_at).toISOString(),
     status_ids,
     rules_ids: null,
-    target_account: profile ? await renderAccount(profile) : await accountFromPubkey(account_id),
+    target_account: profile ? await renderAccount(profile) : await accountFromPubkey(reported_profile_pubkey),
   };
 }
 
@@ -38,11 +37,8 @@ interface RenderAdminReportOpts {
 async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminReportOpts) {
   const { viewerPubkey } = opts;
 
-  const {
-    comment,
-    forward,
-    category,
-  } = JSON.parse(reportEvent.content);
+  // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
+  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2] as string;
 
   const statuses = [];
   if (reportEvent.reported_notes) {
@@ -56,8 +52,8 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     action_taken: false,
     action_taken_at: null,
     category,
-    comment,
-    forwarded: forward,
+    comment: reportEvent.content,
+    forwarded: false,
     created_at: nostrDate(reportEvent.created_at).toISOString(),
     account: await renderAdminAccount(reportEvent.author as DittoEvent),
     target_account: await renderAdminAccount(reportEvent.reported_profile as DittoEvent),
