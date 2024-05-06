@@ -11,7 +11,8 @@ async function renderReport(reportEvent: DittoEvent, profile: DittoEvent) {
 
   const statusIds = reportEvent.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
 
-  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1]!;
+  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1];
+  if (!reportedPubkey) return;
 
   return {
     id: reportEvent.id,
