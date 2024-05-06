@@ -16,9 +16,10 @@ export class DittoPostgres {
           },
           // @ts-ignore mismatched kysely versions probably
           createDriver() {
-            return new PostgreSQLDriver({
-              connectionString: Deno.env.get('DATABASE_URL'),
-            });
+            return new PostgreSQLDriver(
+              { connectionString: Deno.env.get('DATABASE_URL') },
+              navigator.hardwareConcurrency,
+            );
           },
           createIntrospector(db: Kysely<unknown>) {
             return new PostgresIntrospector(db);
