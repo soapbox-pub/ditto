@@ -25,4 +25,13 @@ export interface DittoEvent extends NostrEvent {
   repost?: DittoEvent;
   quote_repost?: DittoEvent;
   reacted?: DittoEvent;
+  /** The profile being reported.
+   * Must be a kind 0 hydrated.
+   * https://github.com/nostr-protocol/nips/blob/master/56.md
+   */
+  reported_profile?: DittoEvent;
+  /** The notes being reported.
+   * https://github.com/nostr-protocol/nips/blob/master/56.md
+   */
+  reported_notes?: DittoEvent[];
 }

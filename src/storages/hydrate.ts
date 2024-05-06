@@ -42,6 +42,14 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  for (const event of await gatherReportedProfiles({ events: cache, storage, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherReportedNotes({ events: cache, storage, signal })) {
+    cache.push(event);
+  }
+
   const stats = {
     authors: await gatherAuthorStats(cache),
     events: await gatherEventStats(cache),
@@ -69,6 +77,13 @@ function assembleEvents(
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
     event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
 
+    if (event.kind === 1) {
+      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      if (id) {
+        event.quote_repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
+    }
+
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
@@ -83,10 +98,20 @@ function assembleEvents(
       }
     }
 
-    if (event.kind === 1) {
-      const id = event.tags.find(([name]) => name === 'q')?.[1];
-      if (id) {
-        event.quote_repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+    if (event.kind === 1984) {
+      const targetAccountId = event.tags.find(([name]) => name === 'p')?.[1];
+      if (targetAccountId) {
+        event.reported_profile = b.find((e) => matchFilter({ kinds: [0], authors: [targetAccountId] }, e));
+      }
+      const reportedEvents: DittoEvent[] = [];
+
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
+        for (const id of status_ids) {
+          const reportedEvent = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+          if (reportedEvent) reportedEvents.push(reportedEvent);
+        }
+        event.reported_notes = reportedEvents;
       }
     }
 
@@ -170,6 +195,45 @@ function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEve
 
   return storage.query(
     [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
+/** Collect reported notes from the events. */
+function gatherReportedNotes({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+  for (const event of events) {
+    if (event.kind === 1984) {
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
+        for (const id of status_ids) {
+          ids.add(id);
+        }
+      }
+    }
+  }
+
+  return storage.query(
+    [{ kinds: [1], ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect reported profiles from the events. */
+function gatherReportedProfiles({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 1984) {
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) {
+        pubkeys.add(pubkey);
+      }
+    }
+  }
+
+  return storage.query(
+    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
 }

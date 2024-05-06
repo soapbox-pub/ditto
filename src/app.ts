@@ -44,7 +44,7 @@ import {
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
-import { reportsController } from '@/controllers/api/reports.ts';
+import { adminReportsController, reportsController } from '@/controllers/api/reports.ts';
 import { searchController } from '@/controllers/api/search.ts';
 import {
   bookmarkController,
@@ -208,6 +208,7 @@ app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysControlle
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
 app.post('/api/v1/reports', requirePubkey, reportsController);
+app.get('/api/v1/admin/reports', requirePubkey, requireRole('admin'), adminReportsController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);

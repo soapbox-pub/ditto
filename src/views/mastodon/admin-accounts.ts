@@ -1,11 +1,11 @@
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 
-import { accountFromPubkey, renderAccount } from './accounts.ts';
+import { renderAccount } from '@/views/mastodon/accounts.ts';
 
+/** Expects a kind 0 fully hydrated or a kind 30361 hydrated with `d_author` */
 async function renderAdminAccount(event: DittoEvent) {
-  const d = event.tags.find(([name]) => name === 'd')?.[1]!;
-  const account = event.d_author ? await renderAccount({ ...event.d_author, user: event }) : await accountFromPubkey(d);
+  const account = await renderAccount(event);
 
   return {
     id: account.id,
