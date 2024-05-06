@@ -57,7 +57,7 @@ const reportsController: AppController = async (c) => {
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
-const viewAllReportsController: AppController = async (c) => {
+const adminReportsController: AppController = async (c) => {
   const store = c.get('store');
   const reports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }])
     .then((events) => hydrateEvents({ storage: store, events: events, signal: c.req.raw.signal }))
@@ -66,4 +66,4 @@ const viewAllReportsController: AppController = async (c) => {
   return c.json(reports);
 };
 
-export { reportsController, viewAllReportsController };
+export { adminReportsController, reportsController };

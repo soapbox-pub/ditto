@@ -7,11 +7,11 @@ import { renderStatus } from '@/views/mastodon/statuses.ts';
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
 async function renderReport(reportEvent: DittoEvent, profile: DittoEvent) {
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
-  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2] as string;
+  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2];
 
-  const status_ids = reportEvent.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
+  const statusIds = reportEvent.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
 
-  const reported_profile_pubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1] as string;
+  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1]!;
 
   return {
     id: reportEvent.id,
@@ -21,9 +21,9 @@ async function renderReport(reportEvent: DittoEvent, profile: DittoEvent) {
     comment: reportEvent.content,
     forwarded: false,
     created_at: nostrDate(reportEvent.created_at).toISOString(),
-    status_ids,
+    status_ids: statusIds,
     rules_ids: null,
-    target_account: profile ? await renderAccount(profile) : await accountFromPubkey(reported_profile_pubkey),
+    target_account: profile ? await renderAccount(profile) : await accountFromPubkey(reportedPubkey),
   };
 }
 
@@ -38,7 +38,7 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
   const { viewerPubkey } = opts;
 
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
-  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2] as string;
+  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2];
 
   const statuses = [];
   if (reportEvent.reported_notes) {
