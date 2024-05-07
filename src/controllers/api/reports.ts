@@ -67,7 +67,7 @@ const adminReportsController: AppController = async (c) => {
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get-one */
-const singleAdminReportsController: AppController = async (c) => {
+const adminReportController: AppController = async (c) => {
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
   const store = c.get('store');
@@ -88,4 +88,4 @@ const singleAdminReportsController: AppController = async (c) => {
   return c.json(await renderAdminReport(event, { viewerPubkey: pubkey }));
 };
 
-export { adminReportsController, reportsController, singleAdminReportsController };
+export { adminReportController, adminReportsController, reportsController };
