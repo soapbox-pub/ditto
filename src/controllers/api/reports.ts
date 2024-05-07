@@ -88,4 +88,32 @@ const adminReportController: AppController = async (c) => {
   return c.json(await renderAdminReport(event, { viewerPubkey: pubkey }));
 };
 
-export { adminReportController, adminReportsController, reportsController };
+/** https://docs.joinmastodon.org/methods/admin/reports/#resolve */
+const adminReportResolveController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const { signal } = c.req.raw;
+  const store = c.get('store');
+  const pubkey = c.get('pubkey');
+
+  const [event] = await store.query([{
+    kinds: [1984],
+    ids: [eventId],
+    limit: 1,
+  }], { signal });
+
+  if (!event) {
+    return c.json({ error: 'This action is not allowed' }, 403);
+  }
+
+  await hydrateEvents({ events: [event], storage: store, signal });
+
+  await createEvent({
+    kind: 5,
+    tags: [['e', event.id]],
+    content: 'Report closed.',
+  }, c);
+
+  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, action_taken: true }));
+};
+
+export { adminReportController, adminReportResolveController, adminReportsController, reportsController };
