@@ -1,0 +1,3 @@
+{
+  "*.{ts,tsx,md}": "deno fmt"
+}
