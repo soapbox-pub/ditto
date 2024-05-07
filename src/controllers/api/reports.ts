@@ -16,7 +16,7 @@ const reportsSchema = z.object({
   // TODO: rules_ids[] is not implemented
 });
 
-/** https://docs.joinmastodon.org/methods/reports/ */
+/** https://docs.joinmastodon.org/methods/reports/#post */
 const reportsController: AppController = async (c) => {
   const store = c.get('store');
   const body = await parseBody(c.req.raw);
@@ -66,4 +66,26 @@ const adminReportsController: AppController = async (c) => {
   return c.json(reports);
 };
 
-export { adminReportsController, reportsController };
+/** https://docs.joinmastodon.org/methods/admin/reports/#get-one */
+const singleAdminReportsController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const { signal } = c.req.raw;
+  const store = c.get('store');
+  const pubkey = c.get('pubkey');
+
+  const [event] = await store.query([{
+    kinds: [1984],
+    ids: [eventId],
+    limit: 1,
+  }], { signal });
+
+  if (!event) {
+    return c.json({ error: 'This action is not allowed' }, 403);
+  }
+
+  await hydrateEvents({ events: [event], storage: store, signal });
+
+  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey }));
+};
+
+export { adminReportsController, reportsController, singleAdminReportsController };
