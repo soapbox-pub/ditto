@@ -235,8 +235,6 @@ class EventsDB implements NStore {
 
   /** Converts filters to more performant, simpler filters that are better for SQLite. */
   async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
-    filters = normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
-
     for (const filter of filters) {
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
@@ -268,7 +266,7 @@ class EventsDB implements NStore {
       }
     }
 
-    return filters;
+    return normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
   }
 
   /** Get events for filters from the database. */
