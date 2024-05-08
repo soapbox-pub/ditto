@@ -48,7 +48,7 @@ import {
   adminReportController,
   adminReportResolveController,
   adminReportsController,
-  reportsController,
+  reportController,
 } from '@/controllers/api/reports.ts';
 import { searchController } from '@/controllers/api/search.ts';
 import {
@@ -212,7 +212,7 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
-app.post('/api/v1/reports', requirePubkey, reportsController);
+app.post('/api/v1/reports', requirePubkey, reportController);
 app.get('/api/v1/admin/reports', requirePubkey, requireRole('admin'), adminReportsController);
 app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', requirePubkey, requireRole('admin'), adminReportController);
 app.post(

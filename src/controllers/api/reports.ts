@@ -8,7 +8,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
 
-const reportsSchema = z.object({
+const reportSchema = z.object({
   account_id: n.id(),
   status_ids: n.id().array().default([]),
   comment: z.string().max(1000).default(''),
@@ -17,10 +17,10 @@ const reportsSchema = z.object({
 });
 
 /** https://docs.joinmastodon.org/methods/reports/#post */
-const reportsController: AppController = async (c) => {
+const reportController: AppController = async (c) => {
   const store = c.get('store');
   const body = await parseBody(c.req.raw);
-  const result = reportsSchema.safeParse(body);
+  const result = reportSchema.safeParse(body);
 
   if (!result.success) {
     return c.json(result.error, 422);
@@ -32,11 +32,6 @@ const reportsController: AppController = async (c) => {
     comment,
     category,
   } = result.data;
-
-  const [profile] = await store.query([{ kinds: [0], authors: [account_id] }]);
-  if (profile) {
-    await hydrateEvents({ events: [profile], storage: store });
-  }
 
   const tags = [
     ['p', account_id, category],
@@ -53,7 +48,8 @@ const reportsController: AppController = async (c) => {
     tags,
   }, c);
 
-  return c.json(await renderReport(event, profile));
+  await hydrateEvents({ events: [event], storage: store });
+  return c.json(await renderReport(event));
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
@@ -113,7 +109,7 @@ const adminReportResolveController: AppController = async (c) => {
     content: 'Report closed.',
   }, c);
 
-  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, action_taken: true }));
+  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, actionTaken: true }));
 };
 
-export { adminReportController, adminReportResolveController, adminReportsController, reportsController };
+export { adminReportController, adminReportResolveController, adminReportsController, reportController };
