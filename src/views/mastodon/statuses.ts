@@ -109,7 +109,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
-    quote: !event.quote_repost ? null : await renderStatus(event.quote_repost, { depth: depth + 1 }),
+    quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
     quote_id: event.tags.find(([name]) => name === 'q')?.[1] ?? null,
     uri: Conf.external(note),
     url: Conf.external(note),

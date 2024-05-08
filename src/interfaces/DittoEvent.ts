@@ -23,7 +23,7 @@ export interface DittoEvent extends NostrEvent {
   d_author?: DittoEvent;
   user?: DittoEvent;
   repost?: DittoEvent;
-  quote_repost?: DittoEvent;
+  quote?: DittoEvent;
   reacted?: DittoEvent;
   /** The profile being reported.
    * Must be a kind 0 hydrated.

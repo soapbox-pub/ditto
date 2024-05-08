@@ -80,7 +80,7 @@ function assembleEvents(
     if (event.kind === 1) {
       const id = event.tags.find(([name]) => name === 'q')?.[1];
       if (id) {
-        event.quote_repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.quote = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
       }
     }
 
