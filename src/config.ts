@@ -208,6 +208,13 @@ class Conf {
       }
     },
   };
+  /** Postgres settings. */
+  static pg = {
+    /** Number of connections to use in the pool. */
+    get poolSize(): number {
+      return Number(Deno.env.get('PG_POOL_SIZE') ?? 10);
+    },
+  };
 }
 
 const optionalBooleanSchema = z
