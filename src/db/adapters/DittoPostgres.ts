@@ -3,6 +3,7 @@ import { PostgreSQLDriver } from 'kysely_deno_postgres';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
   static db: Kysely<DittoTables> | undefined;
@@ -29,6 +30,7 @@ export class DittoPostgres {
             return new PostgresQueryCompiler();
           },
         },
+        log: KyselyLogger,
       });
     }
 
