@@ -76,6 +76,29 @@ async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent
   return publishEvent(event, c);
 }
 
+/** Fetch existing event, update its tags, then publish the new admin event. */
+function updateListAdminEvent(
+  filter: UpdateEventFilter,
+  fn: (tags: string[][]) => string[][],
+  c: AppContext,
+): Promise<NostrEvent> {
+  return updateAdminEvent(filter, (prev) => ({
+    kind: filter.kinds[0],
+    content: prev?.content ?? '',
+    tags: fn(prev?.tags ?? []),
+  }), c);
+}
+
+/** Fetch existing event, update it, then publish the new admin event. */
+async function updateAdminEvent<E extends EventStub>(
+  filter: UpdateEventFilter,
+  fn: (prev: NostrEvent | undefined) => E,
+  c: AppContext,
+): Promise<NostrEvent> {
+  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
+  return createAdminEvent(fn(prev), c);
+}
+
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
@@ -185,5 +208,6 @@ export {
   paginationSchema,
   parseBody,
   updateEvent,
+  updateListAdminEvent,
   updateListEvent,
 };
