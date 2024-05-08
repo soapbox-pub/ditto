@@ -5,26 +5,24 @@ import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
-async function renderReport(reportEvent: DittoEvent, profile: DittoEvent) {
+async function renderReport(event: DittoEvent) {
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
-  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2];
-
-  const statusIds = reportEvent.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
-
-  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1];
+  const category = event.tags.find(([name]) => name === 'p')?.[2];
+  const statusIds = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
+  const reportedPubkey = event.tags.find(([name]) => name === 'p')?.[1];
   if (!reportedPubkey) return;
 
   return {
-    id: reportEvent.id,
+    id: event.id,
     action_taken: false,
     action_taken_at: null,
     category,
-    comment: reportEvent.content,
+    comment: event.content,
     forwarded: false,
-    created_at: nostrDate(reportEvent.created_at).toISOString(),
+    created_at: nostrDate(event.created_at).toISOString(),
     status_ids: statusIds,
     rules_ids: null,
-    target_account: profile ? await renderAccount(profile) : await accountFromPubkey(reportedPubkey),
+    target_account: event.author ? await renderAccount(event.author) : await accountFromPubkey(reportedPubkey),
   };
 }
 

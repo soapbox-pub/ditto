@@ -33,11 +33,6 @@ const reportController: AppController = async (c) => {
     category,
   } = result.data;
 
-  const [profile] = await store.query([{ kinds: [0], authors: [account_id] }]);
-  if (profile) {
-    await hydrateEvents({ events: [profile], storage: store });
-  }
-
   const tags = [
     ['p', account_id, category],
     ['P', Conf.pubkey],
@@ -53,7 +48,8 @@ const reportController: AppController = async (c) => {
     tags,
   }, c);
 
-  return c.json(await renderReport(event, profile));
+  await hydrateEvents({ events: [event], storage: store });
+  return c.json(await renderReport(event));
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
@@ -113,7 +109,7 @@ const adminReportResolveController: AppController = async (c) => {
     content: 'Report closed.',
   }, c);
 
-  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, action_taken: true }));
+  return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, actionTaken: true }));
 };
 
 export { adminReportController, adminReportResolveController, adminReportsController, reportController };
