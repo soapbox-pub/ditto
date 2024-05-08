@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, parseBody } from '@/utils/api.ts';
+import { createAdminEvent, createEvent, parseBody } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
@@ -107,7 +107,7 @@ const adminReportResolveController: AppController = async (c) => {
 
   await hydrateEvents({ events: [event], storage: store, signal });
 
-  await createEvent({
+  await createAdminEvent({
     kind: 5,
     tags: [['e', event.id]],
     content: 'Report closed.',
