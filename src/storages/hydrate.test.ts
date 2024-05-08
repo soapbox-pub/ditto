@@ -96,7 +96,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   const expectedEvent1quoteRepost = {
     ...event1quoteRepostCopy,
     author: event0madeQuoteRepostCopy,
-    quote_repost: { ...event1willBeQuoteRepostedCopy, author: event0copy },
+    quote: { ...event1willBeQuoteRepostedCopy, author: event0copy },
   };
 
   assertEquals(event1quoteRepostCopy, expectedEvent1quoteRepost);
@@ -127,7 +127,7 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   const expectedEvent6 = {
     ...event6copy,
     author: event0copy,
-    repost: { ...event1quoteCopy, author: event0copy, quote_repost: { author: event0copy, ...event1copy } },
+    repost: { ...event1quoteCopy, author: event0copy, quote: { author: event0copy, ...event1copy } },
   };
   assertEquals(event6copy, expectedEvent6);
 });
