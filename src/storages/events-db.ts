@@ -1,6 +1,7 @@
 import { NIP50, NostrEvent, NostrFilter, NSchema as n, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { Kysely, type SelectQueryBuilder } from 'kysely';
+import { sortEvents } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -159,8 +160,17 @@ class EventsDB implements NStore {
         'events.created_at',
         'events.sig',
       ])
-      .where('events.deleted_at', 'is', null)
-      .orderBy('events.created_at', 'desc');
+      .where('events.deleted_at', 'is', null);
+
+    /** Whether we are querying for replaceable events by author. */
+    const isAddrQuery = filter.authors &&
+      filter.kinds &&
+      filter.kinds.every((kind) => isReplaceableKind(kind) || isParameterizedReplaceableKind(kind));
+
+    // Avoid ORDER BY when querying for replaceable events by author.
+    if (!isAddrQuery) {
+      query = query.orderBy('events.created_at', 'desc');
+    }
 
     for (const [key, value] of Object.entries(filter)) {
       if (value === undefined) continue;
@@ -275,7 +285,7 @@ class EventsDB implements NStore {
       query = query.limit(opts.limit);
     }
 
-    return (await query.execute()).map((row) => {
+    const events = (await query.execute()).map((row) => {
       const event: DittoEvent = {
         id: row.id,
         kind: row.kind,
@@ -316,6 +326,8 @@ class EventsDB implements NStore {
 
       return event;
     });
+
+    return sortEvents(events);
   }
 
   /** Delete events from each table. Should be run in a transaction! */
