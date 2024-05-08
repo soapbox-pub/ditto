@@ -22,7 +22,9 @@ async function renderReport(event: DittoEvent) {
     created_at: nostrDate(event.created_at).toISOString(),
     status_ids: statusIds,
     rules_ids: null,
-    target_account: event.author ? await renderAccount(event.author) : await accountFromPubkey(reportedPubkey),
+    target_account: event.reported_profile
+      ? await renderAccount(event.reported_profile)
+      : await accountFromPubkey(reportedPubkey),
   };
 }
 
