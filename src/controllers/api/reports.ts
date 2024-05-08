@@ -8,7 +8,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
 
-const reportsSchema = z.object({
+const reportSchema = z.object({
   account_id: n.id(),
   status_ids: n.id().array().default([]),
   comment: z.string().max(1000).default(''),
@@ -17,10 +17,10 @@ const reportsSchema = z.object({
 });
 
 /** https://docs.joinmastodon.org/methods/reports/#post */
-const reportsController: AppController = async (c) => {
+const reportController: AppController = async (c) => {
   const store = c.get('store');
   const body = await parseBody(c.req.raw);
-  const result = reportsSchema.safeParse(body);
+  const result = reportSchema.safeParse(body);
 
   if (!result.success) {
     return c.json(result.error, 422);
@@ -116,4 +116,4 @@ const adminReportResolveController: AppController = async (c) => {
   return c.json(await renderAdminReport(event, { viewerPubkey: pubkey, action_taken: true }));
 };
 
-export { adminReportController, adminReportResolveController, adminReportsController, reportsController };
+export { adminReportController, adminReportResolveController, adminReportsController, reportController };
