@@ -3,6 +3,7 @@ import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {
@@ -17,6 +18,7 @@ export class DittoSQLite {
         dialect: new PolySqliteDialect({
           database: sqliteWorker,
         }),
+        log: KyselyLogger,
       });
 
       // Set PRAGMA values.
