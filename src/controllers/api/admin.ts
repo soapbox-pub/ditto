@@ -66,8 +66,6 @@ const adminAccountAction: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = adminAccountActionSchema.safeParse(body);
   const authorId = c.req.param('id');
-  const store = c.get('store');
-  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'This action is not allowed' }, 403);
@@ -79,14 +77,9 @@ const adminAccountAction: AppController = async (c) => {
     return c.json({ error: 'Record invalid' }, 422);
   }
 
-  const [event] = await store.query([{ kinds: [0], authors: [authorId], limit: 1 }], { signal });
-  if (!event) {
-    return c.json({ error: 'Record not found' }, 404);
-  }
-
   await updateListAdminEvent(
     { kinds: [10000], authors: [Conf.pubkey] },
-    (tags) => addTag(tags, ['p', event.pubkey]),
+    (tags) => addTag(tags, ['p', authorId]),
     c,
   );
 
