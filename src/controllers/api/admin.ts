@@ -5,7 +5,8 @@ import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
-import { paginated, paginationSchema } from '@/utils/api.ts';
+import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
+import { addTag } from '@/tags.ts';
 
 const adminAccountQuerySchema = z.object({
   local: booleanParamSchema.optional(),
@@ -57,4 +58,32 @@ const adminAccountsController: AppController = async (c) => {
   return paginated(c, events, accounts);
 };
 
-export { adminAccountsController };
+const adminAccountActionSchema = z.object({
+  type: z.enum(['none', 'sensitive', 'disable', 'silence', 'suspend']),
+});
+
+const adminAccountAction: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = adminAccountActionSchema.safeParse(body);
+  const authorId = c.req.param('id');
+
+  if (!result.success) {
+    return c.json({ error: 'This action is not allowed' }, 403);
+  }
+
+  const { data } = result;
+
+  if (data.type !== 'disable') {
+    return c.json({ error: 'Record invalid' }, 422);
+  }
+
+  await updateListAdminEvent(
+    { kinds: [10000], authors: [Conf.pubkey] },
+    (tags) => addTag(tags, ['p', authorId]),
+    c,
+  );
+
+  return c.json({}, 200);
+};
+
+export { adminAccountAction, adminAccountsController };
