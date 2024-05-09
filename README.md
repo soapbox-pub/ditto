@@ -3,6 +3,8 @@
 Ditto is a Nostr server for building resilient communities online.
 With Ditto, you can create your own social network that is decentralized, customizable, and free from ads and tracking.
 
+For more info see: https://docs.soapbox.pub/ditto/
+
 <img width="400" src="ditto-planet.png">
 
 ⚠️ This software is a work in progress.
@@ -38,7 +40,7 @@ With Ditto, you can create your own social network that is decentralized, custom
 
 ## License
 
-© Alex Gleason & other Ditto contributors  
+© Alex Gleason & other Ditto contributors
 
 Ditto is free software: you can redistribute it and/or modify
 it under the terms of the GNU Affero General Public License as published by
