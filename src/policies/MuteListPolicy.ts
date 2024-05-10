@@ -3,10 +3,7 @@ import { NostrEvent, NostrRelayOK, NPolicy, NStore } from '@nostrify/nostrify';
 import { getTagSet } from '@/tags.ts';
 
 export class MuteListPolicy implements NPolicy {
-  constructor(private pubkey: string, private store: NStore) {
-    this.store = store;
-    this.pubkey = pubkey;
-  }
+  constructor(private pubkey: string, private store: NStore) {}
 
   async call(event: NostrEvent): Promise<NostrRelayOK> {
     const allowEvent = ['OK', event.id, true, ''] as NostrRelayOK;
