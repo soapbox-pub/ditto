@@ -49,7 +49,7 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     }
   }
 
-  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')![1];
+  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1];
   if (!reportedPubkey) {
     return;
   }
