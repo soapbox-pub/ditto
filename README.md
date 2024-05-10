@@ -20,6 +20,7 @@ For more info see: https://docs.soapbox.pub/ditto/
 - [x] Profiles
 - [ ] Search
 - [ ] Moderation
+- [ ] Zaps
 - [x] Customizable
 - [x] Open source
 - [x] Self-hosted
