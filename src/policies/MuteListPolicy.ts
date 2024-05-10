@@ -6,15 +6,13 @@ export class MuteListPolicy implements NPolicy {
   constructor(private pubkey: string, private store: NStore) {}
 
   async call(event: NostrEvent): Promise<NostrRelayOK> {
-    const allowEvent: NostrRelayOK = ['OK', event.id, true, ''];
-    const blockEvent: NostrRelayOK = ['OK', event.id, false, 'You are banned in this server.'];
-
     const [muteList] = await this.store.query([{ authors: [this.pubkey], kinds: [10000], limit: 1 }]);
-    if (!muteList) return allowEvent;
+    const pubkeys = getTagSet(muteList?.tags ?? [], 'p');
 
-    const mutedPubkeys = getTagSet(muteList.tags, 'p');
-    if (mutedPubkeys.has(event.pubkey)) return blockEvent;
+    if (pubkeys.has(event.pubkey)) {
+      return ['OK', event.id, false, 'You are banned in this server.'];
+    }
 
-    return allowEvent;
+    return ['OK', event.id, true, ''];
   }
 }
