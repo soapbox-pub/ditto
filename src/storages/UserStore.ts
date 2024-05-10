@@ -30,11 +30,6 @@ export class UserStore implements NStore {
     });
   }
 
-  async isMuted(pubkey: string): Promise<boolean> {
-    const mutedPubkeys = await this.getMutedPubkeys();
-    return mutedPubkeys.has(pubkey);
-  }
-
   private async getMuteList(): Promise<DittoEvent | undefined> {
     const [muteList] = await this.store.query([{ authors: [this.pubkey], kinds: [10000], limit: 1 }]);
     return muteList;
