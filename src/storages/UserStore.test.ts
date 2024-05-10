@@ -24,7 +24,6 @@ Deno.test('query events of users that are not muted', async () => {
   await store.event(event1authorUserMeCopy);
 
   assertEquals(await store.query([{ kinds: [1] }], { limit: 1 }), []);
-  assertEquals(await store.isMuted(userMeCopy.pubkey), true);
 });
 
 Deno.test('user never muted anyone', async () => {
@@ -38,5 +37,5 @@ Deno.test('user never muted anyone', async () => {
   await store.event(userBlackCopy);
   await store.event(userMeCopy);
 
-  assertEquals(await store.isMuted(userMeCopy.pubkey), false);
+  assertEquals(await store.query([{ kinds: [0], authors: [userMeCopy.pubkey] }], { limit: 1 }), [userMeCopy]);
 });
