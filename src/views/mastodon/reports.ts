@@ -49,6 +49,11 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     }
   }
 
+  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')![1];
+  if (!reportedPubkey) {
+    return;
+  }
+
   return {
     id: reportEvent.id,
     action_taken: actionTaken,
@@ -62,7 +67,7 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
       : await renderAdminAccountFromPubkey(reportEvent.pubkey),
     target_account: reportEvent.reported_profile
       ? await renderAdminAccount(reportEvent.reported_profile)
-      : await renderAdminAccountFromPubkey(reportEvent.tags.find(([name]) => name === 'p')![1]),
+      : await renderAdminAccountFromPubkey(reportedPubkey),
     assigned_account: null,
     action_taken_by_account: null,
     statuses,
