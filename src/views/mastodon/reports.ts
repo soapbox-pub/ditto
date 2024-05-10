@@ -1,7 +1,7 @@
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { nostrDate } from '@/utils.ts';
-import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
+import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
@@ -49,6 +49,11 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     }
   }
 
+  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1];
+  if (!reportedPubkey) {
+    return;
+  }
+
   return {
     id: reportEvent.id,
     action_taken: actionTaken,
@@ -57,8 +62,12 @@ async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminRepor
     comment: reportEvent.content,
     forwarded: false,
     created_at: nostrDate(reportEvent.created_at).toISOString(),
-    account: await renderAdminAccount(reportEvent.author as DittoEvent),
-    target_account: await renderAdminAccount(reportEvent.reported_profile as DittoEvent),
+    account: reportEvent.author
+      ? await renderAdminAccount(reportEvent.author)
+      : await renderAdminAccountFromPubkey(reportEvent.pubkey),
+    target_account: reportEvent.reported_profile
+      ? await renderAdminAccount(reportEvent.reported_profile)
+      : await renderAdminAccountFromPubkey(reportedPubkey),
     assigned_account: null,
     action_taken_by_account: null,
     statuses,
