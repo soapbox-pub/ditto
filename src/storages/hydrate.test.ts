@@ -2,13 +2,12 @@ import { assertEquals } from '@/deps-test.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { MockRelay } from '@nostrify/nostrify/test';
 
-import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { eventFixture } from '@/test.ts';
+
 import event0madePost from '~/fixtures/events/event-0-the-one-who-post-and-users-repost.json' with { type: 'json' };
 import event0madeRepost from '~/fixtures/events/event-0-the-one-who-repost.json' with { type: 'json' };
 import event0madeQuoteRepost from '~/fixtures/events/event-0-the-one-who-quote-repost.json' with { type: 'json' };
-import event0madeRepostWithQuoteRepost from '~/fixtures/events/event-0-makes-repost-with-quote-repost.json' with {
-  type: 'json',
-};
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
 import event1quoteRepost from '~/fixtures/events/event-1-quote-repost.json' with { type: 'json' };
 import event1futureIsMine from '~/fixtures/events/event-1-will-be-reposted-with-quote-repost.json' with {
@@ -21,16 +20,15 @@ import event1willBeQuoteReposted from '~/fixtures/events/event-1-that-will-be-qu
 import event1reposted from '~/fixtures/events/event-1-reposted.json' with { type: 'json' };
 import event6 from '~/fixtures/events/event-6.json' with { type: 'json' };
 import event6ofQuoteRepost from '~/fixtures/events/event-6-of-quote-repost.json' with { type: 'json' };
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
   const db = new MockRelay();
 
-  const event0copy = structuredClone(event0);
+  const event0 = await eventFixture('event-0');
   const event1copy = structuredClone(event1);
 
   // Save events to database
-  await db.event(event0copy);
+  await db.event(event0);
   await db.event(event1copy);
 
   assertEquals((event1copy as DittoEvent).author, undefined, "Event hasn't been hydrated yet");
@@ -40,7 +38,7 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
     storage: db,
   });
 
-  const expectedEvent = { ...event1copy, author: event0copy };
+  const expectedEvent = { ...event1copy, author: event0 };
   assertEquals(event1copy, expectedEvent);
 });
 
@@ -78,13 +76,13 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   const db = new MockRelay();
 
   const event0madeQuoteRepostCopy = structuredClone(event0madeQuoteRepost);
-  const event0copy = structuredClone(event0);
+  const event0 = await eventFixture('event-0');
   const event1quoteRepostCopy = structuredClone(event1quoteRepost);
   const event1willBeQuoteRepostedCopy = structuredClone(event1willBeQuoteReposted);
 
   // Save events to database
   await db.event(event0madeQuoteRepostCopy);
-  await db.event(event0copy);
+  await db.event(event0);
   await db.event(event1quoteRepostCopy);
   await db.event(event1willBeQuoteRepostedCopy);
 
@@ -96,7 +94,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   const expectedEvent1quoteRepost = {
     ...event1quoteRepostCopy,
     author: event0madeQuoteRepostCopy,
-    quote: { ...event1willBeQuoteRepostedCopy, author: event0copy },
+    quote: { ...event1willBeQuoteRepostedCopy, author: event0 },
   };
 
   assertEquals(event1quoteRepostCopy, expectedEvent1quoteRepost);
@@ -105,13 +103,13 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
   const db = new MockRelay();
 
-  const event0copy = structuredClone(event0madeRepostWithQuoteRepost);
+  const author = await eventFixture('event-0-makes-repost-with-quote-repost');
   const event1copy = structuredClone(event1futureIsMine);
   const event1quoteCopy = structuredClone(event1quoteRepostLatin);
   const event6copy = structuredClone(event6ofQuoteRepost);
 
   // Save events to database
-  await db.event(event0copy);
+  await db.event(author);
   await db.event(event1copy);
   await db.event(event1quoteCopy);
   await db.event(event6copy);
@@ -126,8 +124,8 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
 
   const expectedEvent6 = {
     ...event6copy,
-    author: event0copy,
-    repost: { ...event1quoteCopy, author: event0copy, quote: { author: event0copy, ...event1copy } },
+    author,
+    repost: { ...event1quoteCopy, author, quote: { author, ...event1copy } },
   };
   assertEquals(event6copy, expectedEvent6);
 });
