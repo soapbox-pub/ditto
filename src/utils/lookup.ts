@@ -1,18 +1,31 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NIP05, NostrEvent } from '@nostrify/nostrify';
+
 import { getAuthor } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 
 /** Resolve a bech32 or NIP-05 identifier to an account. */
-async function lookupAccount(value: string, signal = AbortSignal.timeout(3000)): Promise<NostrEvent | undefined> {
-  console.log(`Looking up ${value}`);
-
-  const pubkey = bech32ToPubkey(value) ||
-    await nip05Cache.fetch(value, { signal }).then(({ pubkey }) => pubkey).catch(() => undefined);
+export async function lookupAccount(
+  value: string,
+  signal = AbortSignal.timeout(3000),
+): Promise<NostrEvent | undefined> {
+  const pubkey = await lookupPubkey(value, signal);
 
   if (pubkey) {
     return getAuthor(pubkey);
   }
 }
 
-export { lookupAccount };
+/** Resolve a bech32 or NIP-05 identifier to a pubkey. */
+export async function lookupPubkey(value: string, signal?: AbortSignal): Promise<string | undefined> {
+  if (NIP05.regex().test(value)) {
+    try {
+      const { pubkey } = await nip05Cache.fetch(value, { signal });
+      return pubkey;
+    } catch {
+      return;
+    }
+  }
+
+  return bech32ToPubkey(value);
+}

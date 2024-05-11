@@ -1,6 +1,5 @@
-import { NIP05, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
-import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -12,10 +11,10 @@ import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/uti
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
-import { nip05Cache } from '@/utils/nip05.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { lookupPubkey } from '@/utils/lookup.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -31,6 +30,7 @@ const createStatusSchema = z.object({
   sensitive: z.boolean().nullish(),
   spoiler_text: z.string().nullish(),
   status: z.string().nullish(),
+  to: z.string().array().nullish(),
   visibility: z.enum(['public', 'unlisted', 'private', 'direct']).nullish(),
   quote_id: z.string().nullish(),
 }).refine(
@@ -97,29 +97,31 @@ const createStatusController: AppController = async (c) => {
     tags.push(...media);
   }
 
+  const pubkeys = new Set<string>();
+
   const content = await asyncReplaceAll(data.status ?? '', /@([\w@+._]+)/g, async (match, username) => {
-    try {
-      const result = nip19.decode(username);
-      if (result.type === 'npub') {
-        tags.push(['p', result.data]);
-        return `nostr:${username}`;
-      } else {
-        return match;
-      }
-    } catch (_e) {
-      // do nothing
+    const pubkey = await lookupPubkey(username);
+    if (!pubkey) return match;
+
+    // Content addressing (default)
+    if (!data.to) {
+      pubkeys.add(pubkey);
     }
 
-    if (NIP05.regex().test(username)) {
-      const pointer = await nip05Cache.fetch(username);
-      if (pointer) {
-        tags.push(['p', pointer.pubkey]);
-        return `nostr:${nip19.npubEncode(pointer.pubkey)}`;
-      }
-    }
-
-    return match;
+    return `nostr:${pubkey}`;
   });
+
+  // Explicit addressing
+  for (const to of data.to ?? []) {
+    const pubkey = await lookupPubkey(to);
+    if (pubkey) {
+      pubkeys.add(pubkey);
+    }
+  }
+
+  for (const pubkey of pubkeys) {
+    tags.push(['p', pubkey]);
+  }
 
   for (const match of content.matchAll(/#(\w+)/g)) {
     tags.push(['t', match[1]]);
