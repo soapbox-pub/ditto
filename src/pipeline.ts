@@ -21,17 +21,9 @@ import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
+
 const debug = Debug('ditto:pipeline');
-
-let UserPolicy: any;
-
-try {
-  UserPolicy = (await import('../data/policy.ts')).default;
-  debug('policy loaded from data/policy.ts');
-} catch (_e) {
-  // do nothing
-  debug('policy not found');
-}
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -43,17 +35,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event, signal);
 
-  if (UserPolicy) {
-    const result = await new UserPolicy().call(event, signal);
-    debug(JSON.stringify(result));
-    const [_, _eventId, ok, reason] = result;
-    if (!ok) {
-      const [prefix, ...rest] = reason.split(': ');
-      throw new RelayError(prefix, rest.join(': '));
-    }
-  }
-
   await Promise.all([
+    policyFilter(event),
     storeEvent(event, signal),
     parseMetadata(event, signal),
     processDeletions(event, signal),
@@ -64,6 +47,25 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     payZap(event, signal),
     streamOut(event),
   ]);
+}
+
+async function policyFilter(event: NostrEvent): Promise<void> {
+  const UserPolicy = new MuteListPolicy(Conf.pubkey, Storages.admin);
+  const result = await UserPolicy.call(event);
+
+  debug(JSON.stringify(result));
+
+  const [_, _eventId, ok, reason] = result;
+  if (!ok) {
+    const [prefix, ...rest] = reason.split(': ');
+    if (['duplicate', 'pow', 'blocked', 'rate-limited', 'invalid'].includes(prefix)) {
+      const error = new RelayError(prefix as any, rest.join(': '));
+      return Promise.reject(error);
+    } else {
+      const error = new RelayError('error', rest.join(': '));
+      return Promise.reject(error);
+    }
+  }
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
