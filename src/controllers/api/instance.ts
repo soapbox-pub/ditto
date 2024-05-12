@@ -1,25 +1,19 @@
-import { NSchema as n } from '@nostrify/nostrify';
-
-import { type AppController } from '@/app.ts';
+import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { serverMetaSchema } from '@/schemas/nostr.ts';
-import { Storages } from '@/storages.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const instanceController: AppController = async (c) => {
   const { host, protocol } = Conf.url;
-  const { signal } = c.req.raw;
-
-  const [event] = await Storages.db.query([{ kinds: [0], authors: [Conf.pubkey], limit: 1 }], { signal });
-  const meta = n.json().pipe(serverMetaSchema).catch({}).parse(event?.content);
+  const meta = await getInstanceMetadata(c.req.raw.signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
 
   return c.json({
     uri: host,
-    title: meta.name ?? 'Ditto',
-    description: meta.about ?? 'Nostr and the Fediverse',
-    short_description: meta.tagline ?? meta.about ?? 'Nostr and the Fediverse',
+    title: meta.name,
+    description: meta.about,
+    short_description: meta.tagline,
     registrations: true,
     max_toot_chars: Conf.postCharLimit,
     configuration: {
@@ -59,7 +53,7 @@ const instanceController: AppController = async (c) => {
       streaming_api: `${wsProtocol}//${host}`,
     },
     version: '0.0.0 (compatible; Ditto 0.0.1)',
-    email: meta.email ?? `postmaster@${host}`,
+    email: meta.email,
     nostr: {
       pubkey: Conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
