@@ -2,10 +2,11 @@ import { encodeBase64 } from '@std/encoding/base64';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
-import { lodash } from '@/deps.ts';
 import { AppController } from '@/app.ts';
+import { lodash } from '@/deps.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
+import { getClientConnectUri } from '@/utils/connect.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -68,6 +69,7 @@ const oauthController: AppController = async (c) => {
   }
 
   const redirectUri = maybeDecodeUri(encodedUri);
+  const connectUri = await getClientConnectUri(c.req.raw.signal);
 
   const script = `
       window.addEventListener('load', function() {
@@ -101,6 +103,8 @@ const oauthController: AppController = async (c) => {
       <input type="hidden" name="redirect_uri" id="redirect_uri" value="${lodash.escape(redirectUri)}">
       <button type="submit">Authorize</button>
     </form>
+    <br>
+    <a href="${lodash.escape(connectUri)}">Nostr Connect</a>
   </body>
 </html>
 `);
