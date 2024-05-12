@@ -1,3 +1,4 @@
+import { encodeBase64 } from '@std/encoding/base64';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -60,7 +61,7 @@ const createTokenController: AppController = async (c) => {
 };
 
 /** Display the OAuth form. */
-const oauthController: AppController = (c) => {
+const oauthController: AppController = async (c) => {
   const encodedUri = c.req.query('redirect_uri');
   if (!encodedUri) {
     return c.text('Missing `redirect_uri` query param.', 422);
@@ -68,17 +69,7 @@ const oauthController: AppController = (c) => {
 
   const redirectUri = maybeDecodeUri(encodedUri);
 
-  c.res.headers.set(
-    'content-security-policy',
-    "default-src 'self' 'sha256-m2qD6rbE2Ixbo2Bjy2dgQebcotRIAawW7zbmXItIYAM='",
-  );
-
-  return c.html(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <title>Log in with Ditto</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <script>
+  const script = `
       window.addEventListener('load', function() {
         if ('nostr' in window) {
           nostr.getPublicKey().then(function(pubkey) {
@@ -87,7 +78,21 @@ const oauthController: AppController = (c) => {
           });
         }
       });
-    </script>
+    `;
+
+  const hash = encodeBase64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(script)));
+
+  c.res.headers.set(
+    'content-security-policy',
+    `default-src 'self' 'sha256-${hash}'`,
+  );
+
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Log in with Ditto</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <script>${script}</script>
   </head>
   <body>
     <form id="oauth_form" action="/oauth/authorize" method="post">
