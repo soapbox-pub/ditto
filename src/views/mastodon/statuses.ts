@@ -41,7 +41,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   ];
 
   const mentionedProfiles = await Storages.optimizer.query(
-    [{ authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
+    [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
   const { html, links, firstUrl } = parseNoteContent(event.content);
