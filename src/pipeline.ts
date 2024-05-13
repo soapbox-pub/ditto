@@ -1,4 +1,4 @@
-import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
 import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
@@ -55,10 +55,18 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
-  const policy = new PipePolicy([
+  const policies: NPolicy[] = [
     new MuteListPolicy(Conf.pubkey, Storages.admin),
-    // put custom policy here
-  ]);
+  ];
+
+  try {
+    const customPolicy = (await import('../data/policy.ts')).default;
+    policies.push(new customPolicy());
+  } catch (_e) {
+    debug('policy not found - https://docs.soapbox.pub/ditto/policies/');
+  }
+
+  const policy = new PipePolicy(policies.reverse());
 
   const result = await policy.call(event);
   debug(JSON.stringify(result));
