@@ -129,3 +129,31 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   };
   assertEquals(event6copy, expectedEvent6);
 });
+
+Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stats', async () => {
+  const db = new MockRelay();
+
+  const authorDictator = await eventFixture('kind-0-dictator');
+  const authorVictim = await eventFixture('kind-0-george-orwell');
+  const reportEvent = await eventFixture('kind-1984-dictator-reports-george-orwell');
+  const event1 = await eventFixture('kind-1-author-george-orwell');
+
+  // Save events to database
+  await db.event(authorDictator);
+  await db.event(authorVictim);
+  await db.event(reportEvent);
+  await db.event(event1);
+
+  await hydrateEvents({
+    events: [reportEvent],
+    storage: db,
+  });
+
+  const expectedEvent: DittoEvent = {
+    ...reportEvent,
+    author: authorDictator,
+    reported_notes: [event1],
+    reported_profile: authorVictim,
+  };
+  assertEquals(reportEvent, expectedEvent);
+});
