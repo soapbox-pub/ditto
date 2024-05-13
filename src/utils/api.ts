@@ -103,10 +103,8 @@ async function updateAdminEvent<E extends EventStub>(
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await Promise.all([
-      pipeline.handleEvent(event, c.req.raw.signal),
-      Storages.client.event(event),
-    ]);
+    await pipeline.handleEvent(event, c.req.raw.signal);
+    await Storages.client.event(event);
   } catch (e) {
     if (e instanceof pipeline.RelayError) {
       throw new HTTPException(422, {

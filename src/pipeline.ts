@@ -35,8 +35,9 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   await hydrateEvent(event, signal);
 
+  await policyFilter(event);
+
   await Promise.all([
-    policyFilter(event),
     storeEvent(event, signal),
     parseMetadata(event, signal),
     processDeletions(event, signal),
@@ -50,8 +51,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
-  const UserPolicy = new MuteListPolicy(Conf.pubkey, Storages.admin);
-  const result = await UserPolicy.call(event);
+  const policy = new MuteListPolicy(Conf.pubkey, Storages.admin);
+  const result = await policy.call(event);
 
   debug(JSON.stringify(result));
 
@@ -59,11 +60,9 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   if (!ok) {
     const [prefix, ...rest] = reason.split(': ');
     if (['duplicate', 'pow', 'blocked', 'rate-limited', 'invalid'].includes(prefix)) {
-      const error = new RelayError(prefix as any, rest.join(': '));
-      return Promise.reject(error);
+      throw new RelayError(prefix as RelayErrorPrefix, rest.join(': '));
     } else {
-      const error = new RelayError('error', rest.join(': '));
-      return Promise.reject(error);
+      throw new RelayError('error', rest.join(': '));
     }
   }
 }
@@ -272,9 +271,11 @@ async function streamOut(event: NostrEvent): Promise<void> {
   }
 }
 
+type RelayErrorPrefix = 'duplicate' | 'pow' | 'blocked' | 'rate-limited' | 'invalid' | 'error';
+
 /** NIP-20 command line result. */
 class RelayError extends Error {
-  constructor(prefix: 'duplicate' | 'pow' | 'blocked' | 'rate-limited' | 'invalid' | 'error', message: string) {
+  constructor(prefix: RelayErrorPrefix, message: string) {
     super(`${prefix}: ${message}`);
   }
 }
