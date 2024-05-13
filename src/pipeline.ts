@@ -1,5 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
+import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 
@@ -33,9 +34,12 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (!(await verifyEventWorker(event))) return;
   if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
-  await hydrateEvent(event, signal);
 
-  await policyFilter(event);
+  if (event.kind !== 24133) {
+    await policyFilter(event);
+  }
+
+  await hydrateEvent(event, signal);
 
   await Promise.all([
     storeEvent(event, signal),
@@ -51,9 +55,12 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
-  const policy = new MuteListPolicy(Conf.pubkey, Storages.admin);
-  const result = await policy.call(event);
+  const policy = new PipePolicy([
+    new MuteListPolicy(Conf.pubkey, Storages.admin),
+    // put custom policy here
+  ]);
 
+  const result = await policy.call(event);
   debug(JSON.stringify(result));
 
   const [_, _eventId, ok, reason] = result;
