@@ -81,12 +81,12 @@ import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { webfingerController } from '@/controllers/well-known/webfinger.ts';
-import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
-import { cache } from '@/middleware/cache.ts';
-import { csp } from '@/middleware/csp.ts';
+import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
+import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
-import { storeMiddleware } from '@/middleware/store.ts';
+import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { blockController } from '@/controllers/api/accounts.ts';
 import { unblockController } from '@/controllers/api/accounts.ts';
 
@@ -124,10 +124,10 @@ app.get('/relay', relayController);
 
 app.use(
   '*',
-  csp(),
+  cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
-  auth98(),
+  auth98Middleware(),
   storeMiddleware,
 );
 
@@ -140,7 +140,7 @@ app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
-app.get('/api/v1/instance', cache({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
+app.get('/api/v1/instance', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
@@ -195,8 +195,12 @@ app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
-app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
-app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+app.get(
+  '/api/v1/trends/tags',
+  cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }),
+  trendingTagsController,
+);
+app.get('/api/v1/trends', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);

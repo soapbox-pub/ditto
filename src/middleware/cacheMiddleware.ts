@@ -5,7 +5,7 @@ import ExpiringCache from '@/utils/expiring-cache.ts';
 
 const debug = Debug('ditto:middleware:cache');
 
-export const cache = (options: {
+export const cacheMiddleware = (options: {
   cacheName: string;
   expires?: number;
 }): MiddlewareHandler => {

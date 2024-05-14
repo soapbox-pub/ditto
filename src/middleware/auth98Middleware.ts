@@ -16,7 +16,7 @@ import {
  * NIP-98 auth.
  * https://github.com/nostr-protocol/nips/blob/master/98.md
  */
-function auth98(opts: ParseAuthRequestOpts = {}): AppMiddleware {
+function auth98Middleware(opts: ParseAuthRequestOpts = {}): AppMiddleware {
   return async (c, next) => {
     const req = localRequest(c);
     const result = await parseAuthRequest(req, opts);
@@ -108,4 +108,4 @@ async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   }
 }
 
-export { auth98, requireProof, requireRole };
+export { auth98Middleware, requireProof, requireRole };

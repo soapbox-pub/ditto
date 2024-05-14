@@ -3,7 +3,7 @@ import { UserStore } from '@/storages/UserStore.ts';
 import { Storages } from '@/storages.ts';
 
 /** Store middleware. */
-const storeMiddleware: AppMiddleware = async (c, next) => {
+export const storeMiddleware: AppMiddleware = async (c, next) => {
   const pubkey = await c.get('signer')?.getPublicKey();
 
   if (pubkey) {
@@ -14,5 +14,3 @@ const storeMiddleware: AppMiddleware = async (c, next) => {
   }
   await next();
 };
-
-export { storeMiddleware };
