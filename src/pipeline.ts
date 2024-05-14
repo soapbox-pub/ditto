@@ -1,5 +1,6 @@
-import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
+import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 
@@ -9,6 +10,7 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
+import { RelayError } from '@/RelayError.ts';
 import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
@@ -21,17 +23,9 @@ import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
+
 const debug = Debug('ditto:pipeline');
-
-let UserPolicy: any;
-
-try {
-  UserPolicy = (await import('../data/policy.ts')).default;
-  debug('policy loaded from data/policy.ts');
-} catch (_e) {
-  // do nothing
-  debug('policy not found');
-}
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -41,17 +35,12 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (!(await verifyEventWorker(event))) return;
   if (await encounterEvent(event, signal)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
-  await hydrateEvent(event, signal);
 
-  if (UserPolicy) {
-    const result = await new UserPolicy().call(event, signal);
-    debug(JSON.stringify(result));
-    const [_, _eventId, ok, reason] = result;
-    if (!ok) {
-      const [prefix, ...rest] = reason.split(': ');
-      throw new RelayError(prefix, rest.join(': '));
-    }
+  if (event.kind !== 24133) {
+    await policyFilter(event);
   }
+
+  await hydrateEvent(event, signal);
 
   await Promise.all([
     storeEvent(event, signal),
@@ -64,6 +53,25 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     payZap(event, signal),
     streamOut(event),
   ]);
+}
+
+async function policyFilter(event: NostrEvent): Promise<void> {
+  const policies: NPolicy[] = [
+    new MuteListPolicy(Conf.pubkey, Storages.admin),
+  ];
+
+  try {
+    const CustomPolicy = (await import('../data/policy.ts')).default;
+    policies.push(new CustomPolicy());
+  } catch (_e) {
+    debug('policy not found - https://docs.soapbox.pub/ditto/policies/');
+  }
+
+  const policy = new PipePolicy(policies.reverse());
+
+  const result = await policy.call(event);
+  debug(JSON.stringify(result));
+  RelayError.assert(result);
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
@@ -270,11 +278,4 @@ async function streamOut(event: NostrEvent): Promise<void> {
   }
 }
 
-/** NIP-20 command line result. */
-class RelayError extends Error {
-  constructor(prefix: 'duplicate' | 'pow' | 'blocked' | 'rate-limited' | 'invalid' | 'error', message: string) {
-    super(`${prefix}: ${message}`);
-  }
-}
-
-export { handleEvent, RelayError };
+export { handleEvent };

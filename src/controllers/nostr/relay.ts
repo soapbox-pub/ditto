@@ -10,6 +10,7 @@ import {
 } from '@nostrify/nostrify';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import * as pipeline from '@/pipeline.ts';
+import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 
 import type { AppController } from '@/app.ts';
@@ -95,7 +96,7 @@ function connectStream(socket: WebSocket) {
       await pipeline.handleEvent(event, AbortSignal.timeout(1000));
       send(['OK', event.id, true, '']);
     } catch (e) {
-      if (e instanceof pipeline.RelayError) {
+      if (e instanceof RelayError) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
