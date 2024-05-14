@@ -10,7 +10,7 @@ export class MuteListPolicy implements NPolicy {
     const pubkeys = getTagSet(muteList?.tags ?? [], 'p');
 
     if (pubkeys.has(event.pubkey)) {
-      return ['OK', event.id, false, 'You are banned in this server.'];
+      return ['OK', event.id, false, 'blocked: Your account has been deactivated.'];
     }
 
     return ['OK', event.id, true, ''];
