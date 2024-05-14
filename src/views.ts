@@ -59,8 +59,10 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
 
   const sortedEvents = [...events].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
   const statuses = await Promise.all(
-    sortedEvents.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })),
+    sortedEvents.map((event) => renderStatus(event, { viewerPubkey })),
   );
 
   // TODO: pagination with min_id and max_id based on the order of `ids`.

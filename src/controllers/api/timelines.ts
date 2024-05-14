@@ -11,7 +11,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const homeTimelineController: AppController = async (c) => {
   const params = paginationSchema.parse(c.req.query());
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const authors = await getFeedPubkeys(pubkey);
   return renderStatuses(c, [{ authors, kinds: [1, 6], ...params }]);
 };
@@ -61,11 +61,13 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
     return c.json([]);
   }
 
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
   const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {
-      return renderReblog(event, { viewerPubkey: c.get('pubkey') });
+      return renderReblog(event, { viewerPubkey });
     }
-    return renderStatus(event, { viewerPubkey: c.get('pubkey') });
+    return renderStatus(event, { viewerPubkey });
   }))).filter((boolean) => boolean);
 
   if (!statuses.length) {

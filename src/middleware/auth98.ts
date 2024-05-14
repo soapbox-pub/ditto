@@ -8,7 +8,6 @@ import {
   validateAuthEvent,
 } from '@/utils/nip98.ts';
 import { localRequest } from '@/utils/api.ts';
-import { APISigner } from '@/signers/APISigner.ts';
 import { findUser, User } from '@/db/users.ts';
 
 /**
@@ -70,7 +69,7 @@ function withProof(
   opts?: ParseAuthRequestOpts,
 ): AppMiddleware {
   return async (c, next) => {
-    const pubkey = c.get('pubkey');
+    const pubkey = await c.get('signer')?.getPublicKey();
     const proof = c.get('proof') || await obtainProof(c, opts);
 
     // Prevent people from accidentally using the wrong account. This has no other security implications.
@@ -90,9 +89,16 @@ function withProof(
 
 /** Get the proof over Nostr Connect. */
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
+  const signer = c.get('signer');
+  if (!signer) {
+    throw new HTTPException(401, {
+      res: c.json({ error: 'No way to sign Nostr event' }, 401),
+    });
+  }
+
   const req = localRequest(c);
   const reqEvent = await buildAuthEventTemplate(req, opts);
-  const resEvent = await new APISigner(c).signEvent(reqEvent);
+  const resEvent = await signer.signEvent(reqEvent);
   const result = await validateAuthEvent(req, resEvent, opts);
 
   if (result.success) {
