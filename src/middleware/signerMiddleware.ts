@@ -1,8 +1,11 @@
 import { NSecSigner } from '@nostrify/nostrify';
+import { Stickynotes } from '@soapbox/stickynotes';
 import { nip19 } from 'nostr-tools';
 
 import { AppMiddleware } from '@/app.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
+
+const console = new Stickynotes('ditto:signerMiddleware');
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
@@ -30,7 +33,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
           break;
       }
     } catch {
-      // the user is not logged in
+      console.debug('The user is not logged in');
     }
   }
 
