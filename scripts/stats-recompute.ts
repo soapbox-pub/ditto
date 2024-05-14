@@ -1,6 +1,6 @@
 import { nip19 } from 'nostr-tools';
 
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Storages } from '@/storages.ts';
 
@@ -17,16 +17,19 @@ try {
   Deno.exit(1);
 }
 
-const [followList] = await Storages.db.query([{ kinds: [3], authors: [pubkey], limit: 1 }]);
+const store = await Storages.db();
+const kysely = await DittoDB.getInstance();
+
+const [followList] = await store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]);
 
 const authorStats: DittoTables['author_stats'] = {
   pubkey,
-  followers_count: (await Storages.db.count([{ kinds: [3], '#p': [pubkey] }])).count,
+  followers_count: (await store.count([{ kinds: [3], '#p': [pubkey] }])).count,
   following_count: followList?.tags.filter(([name]) => name === 'p')?.length ?? 0,
-  notes_count: (await Storages.db.count([{ kinds: [1], authors: [pubkey] }])).count,
+  notes_count: (await store.count([{ kinds: [1], authors: [pubkey] }])).count,
 };
 
-await db.insertInto('author_stats')
+await kysely.insertInto('author_stats')
   .values(authorStats)
   .onConflict((oc) =>
     oc
