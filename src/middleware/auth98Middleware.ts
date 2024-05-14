@@ -34,9 +34,8 @@ type UserRole = 'user' | 'admin';
 
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
-  return withProof(async (c, proof, next) => {
+  return withProof(async (_c, proof, next) => {
     const user = await findUser({ pubkey: proof.pubkey });
-    c.set('user', user);
 
     if (user && matchesRole(user, role)) {
       await next();

@@ -96,8 +96,6 @@ interface AppEnv extends HonoEnv {
     signer?: NostrSigner;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** User associated with the pubkey, if any. */
-    user?: User;
     /** Store */
     store: NStore;
   };
