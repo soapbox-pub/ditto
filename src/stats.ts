@@ -119,9 +119,9 @@ function authorStatsQuery(diffs: AuthorStatDiff[]) {
       oc
         .column('pubkey')
         .doUpdateSet((eb) => ({
-          followers_count: eb('followers_count', '+', eb.ref('excluded.followers_count')),
-          following_count: eb('following_count', '+', eb.ref('excluded.following_count')),
-          notes_count: eb('notes_count', '+', eb.ref('excluded.notes_count')),
+          followers_count: eb('author_stats.followers_count', '+', eb.ref('excluded.followers_count')),
+          following_count: eb('author_stats.following_count', '+', eb.ref('excluded.following_count')),
+          notes_count: eb('author_stats.notes_count', '+', eb.ref('excluded.notes_count')),
         }))
     );
 }
@@ -145,9 +145,9 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
       oc
         .column('event_id')
         .doUpdateSet((eb) => ({
-          replies_count: eb('replies_count', '+', eb.ref('excluded.replies_count')),
-          reposts_count: eb('reposts_count', '+', eb.ref('excluded.reposts_count')),
-          reactions_count: eb('reactions_count', '+', eb.ref('excluded.reactions_count')),
+          replies_count: eb('event_stats.replies_count', '+', eb.ref('excluded.replies_count')),
+          reposts_count: eb('event_stats.reposts_count', '+', eb.ref('excluded.reposts_count')),
+          reactions_count: eb('event_stats.reactions_count', '+', eb.ref('excluded.reactions_count')),
         }))
     );
 }
