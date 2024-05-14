@@ -47,6 +47,7 @@ async function updateStats(event: NostrEvent) {
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
 async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Promise<StatDiff[]> {
+  const store = await Storages.db();
   const statDiffs: StatDiff[] = [];
 
   const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
@@ -65,7 +66,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
     case 5: {
       if (!firstTaggedId) break;
 
-      const [repostedEvent] = await Storages.db.query(
+      const [repostedEvent] = await store.query(
         [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }],
         { limit: 1 },
       );
@@ -77,7 +78,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
       const eventBeingRepostedPubkey = repostedEvent.tags.find(([name]) => name === 'p')?.[1];
       if (!eventBeingRepostedId || !eventBeingRepostedPubkey) break;
 
-      const [eventBeingReposted] = await Storages.db.query(
+      const [eventBeingReposted] = await store.query(
         [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }],
         { limit: 1 },
       );
@@ -155,7 +156,9 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 /** Get the last version of the event, if any. */
 async function getPrevEvent(event: NostrEvent): Promise<NostrEvent | undefined> {
   if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
-    const [prev] = await Storages.db.query([
+    const store = await Storages.db();
+
+    const [prev] = await store.query([
       { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
     ]);
 

@@ -2,7 +2,6 @@
 import { NCache } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { db } from '@/db.ts';
-import { activeRelays, pool } from '@/pool.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
@@ -49,12 +48,42 @@ export class Storages {
   /** Relay pool storage. */
   public static async client(): Promise<PoolStore> {
     if (!this._client) {
-      this._client = Promise.resolve(
-        new PoolStore({
+      this._client = (async () => {
+        const db = await this.db();
+
+        const [relayList] = await db.query([
+          { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
+        ]);
+
+        const tags = relayList?.tags ?? [];
+
+        const activeRelays = tags.reduce((acc, [name, url, marker]) => {
+          if (name === 'r' && !marker) {
+            acc.push(url);
+          }
+          return acc;
+        }, []);
+
+        console.log(`pool: connecting to ${activeRelays.length} relays.`);
+
+        const worker = new Worker('https://unpkg.com/nostr-relaypool2@0.6.34/lib/nostr-relaypool.worker.js', {
+          type: 'module',
+        });
+
+        // @ts-ignore Wrong types.
+        const pool = new RelayPoolWorker(worker, activeRelays, {
+          autoReconnect: true,
+          // The pipeline verifies events.
+          skipVerification: true,
+          // The logging feature overwhelms the CPU and creates too many logs.
+          logErrorsAndNotices: false,
+        });
+
+        return new PoolStore({
           pool,
           relays: activeRelays,
-        }),
-      );
+        });
+      })();
     }
     return this._client;
   }
