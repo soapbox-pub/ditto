@@ -61,8 +61,8 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   ];
 
   try {
-    const customPolicy = (await import('../data/policy.ts')).default;
-    policies.push(new customPolicy());
+    const CustomPolicy = (await import('../data/policy.ts')).default;
+    policies.push(new CustomPolicy());
   } catch (_e) {
     debug('policy not found - https://docs.soapbox.pub/ditto/policies/');
   }
@@ -71,7 +71,6 @@ async function policyFilter(event: NostrEvent): Promise<void> {
 
   const result = await policy.call(event);
   debug(JSON.stringify(result));
-
   RelayError.assert(result);
 }
 
