@@ -9,7 +9,7 @@ const actorController: AppController = async (c) => {
   const username = c.req.param('username');
   const { signal } = c.req.raw;
 
-  const pointer = await localNip05Lookup(username);
+  const pointer = await localNip05Lookup(c.get('store'), username);
   if (!pointer) return notFound(c);
 
   const event = await getAuthor(pointer.pubkey, { signal });

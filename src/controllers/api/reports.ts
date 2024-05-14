@@ -48,7 +48,7 @@ const reportController: AppController = async (c) => {
     tags,
   }, c);
 
-  await hydrateEvents({ events: [event], storage: store });
+  await hydrateEvents({ events: [event], store });
   return c.json(await renderReport(event));
 };
 
@@ -58,7 +58,7 @@ const adminReportsController: AppController = async (c) => {
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const reports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }])
-    .then((events) => hydrateEvents({ storage: store, events: events, signal: c.req.raw.signal }))
+    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }))
     .then((events) =>
       Promise.all(
         events.map((event) => renderAdminReport(event, { viewerPubkey })),
@@ -85,7 +85,7 @@ const adminReportController: AppController = async (c) => {
     return c.json({ error: 'This action is not allowed' }, 403);
   }
 
-  await hydrateEvents({ events: [event], storage: store, signal });
+  await hydrateEvents({ events: [event], store, signal });
 
   return c.json(await renderAdminReport(event, { viewerPubkey: pubkey }));
 };
@@ -107,7 +107,7 @@ const adminReportResolveController: AppController = async (c) => {
     return c.json({ error: 'This action is not allowed' }, 403);
   }
 
-  await hydrateEvents({ events: [event], storage: store, signal });
+  await hydrateEvents({ events: [event], store, signal });
 
   await createAdminEvent({
     kind: 5,

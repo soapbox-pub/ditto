@@ -13,6 +13,7 @@ import { RelayPoolWorker } from 'nostr-relaypool';
 import { getFilterLimit, matchFilters } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
+import { Storages } from '@/storages.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { abortError } from '@/utils/abort.ts';
 import { getRelays } from '@/utils/outbox.ts';
@@ -35,7 +36,7 @@ class PoolStore implements NRelay {
   async event(event: NostrEvent, opts: { signal?: AbortSignal } = {}): Promise<void> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
-    const relaySet = await getRelays(event.pubkey);
+    const relaySet = await getRelays(await Storages.db(), event.pubkey);
     relaySet.delete(Conf.relay);
 
     const relays = [...relaySet].slice(0, 4);

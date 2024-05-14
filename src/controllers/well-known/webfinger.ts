@@ -45,7 +45,7 @@ async function handleAcct(c: AppContext, resource: URL): Promise<Response> {
   }
 
   const [username, host] = result.data;
-  const pointer = await localNip05Lookup(username);
+  const pointer = await localNip05Lookup(c.get('store'), username);
 
   if (!pointer) {
     return c.json({ error: 'Not found' }, 404);

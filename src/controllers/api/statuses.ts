@@ -140,7 +140,7 @@ const createStatusController: AppController = async (c) => {
   if (data.quote_id) {
     await hydrateEvents({
       events: [event],
-      storage: Storages.db,
+      store: await Storages.db(),
       signal: c.req.raw.signal,
     });
   }
@@ -248,7 +248,7 @@ const reblogStatusController: AppController = async (c) => {
 
   await hydrateEvents({
     events: [reblogEvent],
-    storage: Storages.db,
+    store: await Storages.db(),
     signal: signal,
   });
 
@@ -260,23 +260,30 @@ const reblogStatusController: AppController = async (c) => {
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
-  const pubkey = await c.get('signer')?.getPublicKey() as string;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-  });
-  if (!event) return c.json({ error: 'Event not found.' }, 404);
+  const event = await getEvent(eventId, { kind: 1 });
 
-  const filters: NostrFilter[] = [{ kinds: [6], authors: [pubkey], '#e': [event.id] }];
-  const [repostedEvent] = await Storages.db.query(filters, { limit: 1 });
-  if (!repostedEvent) return c.json({ error: 'Event not found.' }, 404);
+  if (!event) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+
+  const store = await Storages.db();
+
+  const [repostedEvent] = await store.query(
+    [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
+  );
+
+  if (!repostedEvent) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
 
   await createEvent({
     kind: 5,
     tags: [['e', repostedEvent.id]],
   }, c);
 
-  return c.json(await renderStatus(event, {}));
+  return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
 };
 
 const rebloggedByController: AppController = (c) => {
@@ -297,7 +304,7 @@ const bookmarkController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10003], authors: [pubkey] },
+      { kinds: [10003], authors: [pubkey], limit: 1 },
       (tags) => addTag(tags, ['e', eventId]),
       c,
     );
@@ -324,7 +331,7 @@ const unbookmarkController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10003], authors: [pubkey] },
+      { kinds: [10003], authors: [pubkey], limit: 1 },
       (tags) => deleteTag(tags, ['e', eventId]),
       c,
     );
@@ -351,7 +358,7 @@ const pinController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10001], authors: [pubkey] },
+      { kinds: [10001], authors: [pubkey], limit: 1 },
       (tags) => addTag(tags, ['e', eventId]),
       c,
     );
@@ -380,7 +387,7 @@ const unpinController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10001], authors: [pubkey] },
+      { kinds: [10001], authors: [pubkey], limit: 1 },
       (tags) => deleteTag(tags, ['e', eventId]),
       c,
     );

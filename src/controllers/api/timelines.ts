@@ -49,13 +49,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
 
   const events = await store
     .query(filters, { signal })
-    .then((events) =>
-      hydrateEvents({
-        events,
-        storage: store,
-        signal,
-      })
-    );
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   if (!events.length) {
     return c.json([]);

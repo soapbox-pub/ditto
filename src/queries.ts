@@ -25,6 +25,7 @@ const getEvent = async (
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
+  const store = await Storages.optimizer();
   const { kind, signal = AbortSignal.timeout(1000) } = opts;
 
   const filter: NostrFilter = { ids: [id], limit: 1 };
@@ -32,23 +33,25 @@ const getEvent = async (
     filter.kinds = [kind];
   }
 
-  return await Storages.optimizer.query([filter], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.optimizer, signal }))
+  return await store.query([filter], { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
+  const store = await Storages.optimizer();
   const { signal = AbortSignal.timeout(1000) } = opts;
 
-  return await Storages.optimizer.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.optimizer, signal }))
+  return await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 };
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
-  const [event] = await Storages.db.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+  const store = await Storages.db();
+  const [event] = await store.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
@@ -84,15 +87,18 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 }
 
 async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  const events = await Storages.db.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
-  return hydrateEvents({ events, storage: Storages.db, signal });
+  const store = await Storages.db();
+  const events = await store.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
+  return hydrateEvents({ events, store, signal });
 }
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   const { host } = Conf.url;
 
-  const [event] = await Storages.db.query(
+  const store = await Storages.db();
+
+  const [event] = await store.query(
     [{ kinds: [3], '#p': [pubkey], search: `domain:${host}`, limit: 1 }],
     { limit: 1 },
   );

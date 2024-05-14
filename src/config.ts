@@ -215,6 +215,10 @@ class Conf {
       return Number(Deno.env.get('PG_POOL_SIZE') ?? 10);
     },
   };
+  /** Whether to enable requesting events from known relays. */
+  static get firehoseEnabled(): boolean {
+    return optionalBooleanSchema.parse(Deno.env.get('FIREHOSE_ENABLED')) ?? true;
+  }
 }
 
 const optionalBooleanSchema = z

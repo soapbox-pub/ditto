@@ -42,7 +42,7 @@ async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
 /** Filter for fetching an existing event to update. */
 interface UpdateEventFilter extends NostrFilter {
   kinds: [number];
-  limit?: 1;
+  limit: 1;
 }
 
 /** Fetch existing event, update it, then publish the new event. */
@@ -51,7 +51,8 @@ async function updateEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { signal: c.req.raw.signal });
   return createEvent(fn(prev), c);
 }
 
@@ -101,7 +102,8 @@ async function updateAdminEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { limit: 1, signal: c.req.raw.signal });
   return createAdminEvent(fn(prev), c);
 }
 
@@ -110,7 +112,8 @@ async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEven
   debug('EVENT', event);
   try {
     await pipeline.handleEvent(event, c.req.raw.signal);
-    await Storages.client.event(event);
+    const client = await Storages.client();
+    await client.event(event);
   } catch (e) {
     if (e instanceof RelayError) {
       throw new HTTPException(422, {

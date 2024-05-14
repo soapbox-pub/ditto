@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { NConnectSigner } from '@nostrify/nostrify';
+import { NConnectSigner, NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
@@ -9,24 +9,55 @@ import { Storages } from '@/storages.ts';
  *
  * Simple extension of nostrify's `NConnectSigner`, with our options to keep it DRY.
  */
-export class ConnectSigner extends NConnectSigner {
-  private _pubkey: string;
+export class ConnectSigner implements NostrSigner {
+  private signer: Promise<NConnectSigner>;
 
-  constructor(pubkey: string, private relays?: string[]) {
-    super({
-      pubkey,
+  constructor(private pubkey: string, private relays?: string[]) {
+    this.signer = this.init();
+  }
+
+  async init(): Promise<NConnectSigner> {
+    return new NConnectSigner({
+      pubkey: this.pubkey,
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
-      relay: Storages.pubsub,
+      relay: await Storages.pubsub(),
       signer: new AdminSigner(),
       timeout: 60000,
     });
-
-    this._pubkey = pubkey;
   }
+
+  async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
+    const signer = await this.signer;
+    return signer.signEvent(event);
+  }
+
+  readonly nip04 = {
+    encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
+      const signer = await this.signer;
+      return signer.nip04.encrypt(pubkey, plaintext);
+    },
+
+    decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
+      const signer = await this.signer;
+      return signer.nip04.decrypt(pubkey, ciphertext);
+    },
+  };
+
+  readonly nip44 = {
+    encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
+      const signer = await this.signer;
+      return signer.nip44.encrypt(pubkey, plaintext);
+    },
+
+    decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
+      const signer = await this.signer;
+      return signer.nip44.decrypt(pubkey, ciphertext);
+    },
+  };
 
   // Prevent unnecessary NIP-46 round-trips.
   async getPublicKey(): Promise<string> {
-    return this._pubkey;
+    return this.pubkey;
   }
 
   /** Get the user's relays if they passed in an `nprofile` auth token. */
