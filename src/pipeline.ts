@@ -57,7 +57,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
 async function policyFilter(event: NostrEvent): Promise<void> {
   const policies: NPolicy[] = [
-    new MuteListPolicy(Conf.pubkey, Storages.admin),
+    new MuteListPolicy(Conf.pubkey, await Storages.admin()),
   ];
 
   try {
@@ -76,15 +76,20 @@ async function policyFilter(event: NostrEvent): Promise<void> {
 
 /** Encounter the event, and return whether it has already been encountered. */
 async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<boolean> {
-  const [existing] = await Storages.cache.query([{ ids: [event.id], limit: 1 }]);
-  Storages.cache.event(event);
-  Storages.reqmeister.event(event, { signal });
+  const cache = await Storages.cache();
+  const reqmeister = await Storages.reqmeister();
+
+  const [existing] = await cache.query([{ ids: [event.id], limit: 1 }]);
+
+  cache.event(event);
+  reqmeister.event(event, { signal });
+
   return !!existing;
 }
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  await hydrateEvents({ events: [event], storage: Storages.db, signal });
+  await hydrateEvents({ events: [event], store: await Storages.db(), signal });
 
   const domain = await db
     .selectFrom('pubkey_domains')
@@ -98,8 +103,9 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
   if (isEphemeralKind(event.kind)) return;
+  const store = await Storages.db();
 
-  const [deletion] = await Storages.db.query(
+  const [deletion] = await store.query(
     [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
     { signal },
   );
@@ -108,7 +114,7 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
     return Promise.reject(new RelayError('blocked', 'event was deleted'));
   } else {
     await updateStats(event).catch(debug);
-    await Storages.db.event(event, { signal }).catch(debug);
+    await store.event(event, { signal }).catch(debug);
   }
 }
 
@@ -153,17 +159,18 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 async function processDeletions(event: NostrEvent, signal: AbortSignal): Promise<void> {
   if (event.kind === 5) {
     const ids = getTagSet(event.tags, 'e');
+    const store = await Storages.db();
 
     if (event.pubkey === Conf.pubkey) {
-      await Storages.db.remove([{ ids: [...ids] }], { signal });
+      await store.remove([{ ids: [...ids] }], { signal });
     } else {
-      const events = await Storages.db.query(
+      const events = await store.query(
         [{ ids: [...ids], authors: [event.pubkey] }],
         { signal },
       );
 
       const deleteIds = events.map(({ id }) => id);
-      await Storages.db.remove([{ ids: deleteIds }], { signal });
+      await store.remove([{ ids: deleteIds }], { signal });
     }
   }
 }
@@ -189,19 +196,22 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
 
 /** Queue related events to fetch. */
 async function fetchRelatedEvents(event: DittoEvent) {
+  const cache = await Storages.cache();
+  const reqmeister = await Storages.reqmeister();
+
   if (!event.author) {
     const signal = AbortSignal.timeout(3000);
-    Storages.reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
+    reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
       .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
       .catch(() => {});
   }
 
   for (const [name, id] of event.tags) {
     if (name === 'e') {
-      const { count } = await Storages.cache.count([{ ids: [id] }]);
+      const { count } = await cache.count([{ ids: [id] }]);
       if (!count) {
         const signal = AbortSignal.timeout(3000);
-        Storages.reqmeister.query([{ ids: [id] }], { signal })
+        reqmeister.query([{ ids: [id] }], { signal })
           .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
           .catch(() => {});
       }
@@ -272,7 +282,8 @@ function isFresh(event: NostrEvent): boolean {
 /** Distribute the event through active subscriptions. */
 async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
-    await Storages.pubsub.event(event);
+    const pubsub = await Storages.pubsub();
+    await pubsub.event(event);
   }
 }
 

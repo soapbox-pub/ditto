@@ -1,10 +1,11 @@
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
+import { NStore } from '@nostrify/nostrify';
 
-export async function getRelays(pubkey: string): Promise<Set<string>> {
+import { Conf } from '@/config.ts';
+
+export async function getRelays(store: NStore, pubkey: string): Promise<Set<string>> {
   const relays = new Set<`wss://${string}`>();
 
-  const events = await Storages.db.query([
+  const events = await store.query([
     { kinds: [10002], authors: [pubkey, Conf.pubkey], limit: 2 },
   ]);
 

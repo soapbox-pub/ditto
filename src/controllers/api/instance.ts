@@ -1,10 +1,11 @@
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const instanceController: AppController = async (c) => {
   const { host, protocol } = Conf.url;
-  const meta = await getInstanceMetadata(c.req.raw.signal);
+  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';

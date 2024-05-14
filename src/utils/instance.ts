@@ -1,8 +1,7 @@
-import { NostrEvent, NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NostrMetadata, NSchema as n, NStore } from '@nostrify/nostrify';
 
 import { Conf } from '@/config.ts';
 import { serverMetaSchema } from '@/schemas/nostr.ts';
-import { Storages } from '@/storages.ts';
 
 /** Like NostrMetadata, but some fields are required and also contains some extra fields. */
 export interface InstanceMetadata extends NostrMetadata {
@@ -14,8 +13,8 @@ export interface InstanceMetadata extends NostrMetadata {
 }
 
 /** Get and parse instance metadata from the kind 0 of the admin user. */
-export async function getInstanceMetadata(signal?: AbortSignal): Promise<InstanceMetadata> {
-  const [event] = await Storages.db.query(
+export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): Promise<InstanceMetadata> {
+  const [event] = await store.query(
     [{ kinds: [0], authors: [Conf.pubkey], limit: 1 }],
     { signal },
   );

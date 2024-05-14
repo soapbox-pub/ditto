@@ -72,14 +72,17 @@ function connectStream(socket: WebSocket) {
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
 
-    for (const event of await Storages.db.query(filters, { limit: FILTER_LIMIT })) {
+    const db = await Storages.db();
+    const pubsub = await Storages.pubsub();
+
+    for (const event of await db.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
     send(['EOSE', subId]);
 
     try {
-      for await (const msg of Storages.pubsub.req(filters, { signal: controller.signal })) {
+      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           send(['EVENT', subId, msg[2]]);
         }
@@ -116,7 +119,8 @@ function connectStream(socket: WebSocket) {
 
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...rest]: NostrClientCOUNT): Promise<void> {
-    const { count } = await Storages.db.count(prepareFilters(rest));
+    const store = await Storages.db();
+    const { count } = await store.count(prepareFilters(rest));
     send(['COUNT', subId, { count, approximate: false }]);
   }
 

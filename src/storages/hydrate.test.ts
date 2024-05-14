@@ -17,7 +17,7 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event1],
-    storage: db,
+    store: db,
   });
 
   const expectedEvent = { ...event1, author: event0 };
@@ -40,7 +40,7 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event6],
-    storage: db,
+    store: db,
   });
 
   const expectedEvent6 = {
@@ -67,7 +67,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event1quoteRepost],
-    storage: db,
+    store: db,
   });
 
   const expectedEvent1quoteRepost = {
@@ -95,7 +95,7 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
 
   await hydrateEvents({
     events: [event6],
-    storage: db,
+    store: db,
   });
 
   const expectedEvent6 = {
@@ -122,7 +122,7 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
 
   await hydrateEvents({
     events: [reportEvent],
-    storage: db,
+    store: db,
   });
 
   const expectedEvent: DittoEvent = {

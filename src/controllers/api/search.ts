@@ -78,7 +78,7 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
+async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
   const filter: NostrFilter = {
@@ -91,8 +91,10 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
     filter.authors = [account_id];
   }
 
-  return Storages.search.query([filter], { signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.search, signal }));
+  const store = await Storages.search();
+
+  return store.query([filter], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -110,9 +112,10 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
+  const store = await Storages.search();
 
-  return Storages.search.query(filters, { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.search, signal }))
+  return store.query(filters, { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 }
 

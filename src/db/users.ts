@@ -60,7 +60,8 @@ async function findUser(user: Partial<User>, signal?: AbortSignal): Promise<User
     }
   }
 
-  const [event] = await Storages.db.query([filter], { signal });
+  const store = await Storages.db();
+  const [event] = await store.query([filter], { signal });
 
   if (event) {
     return {

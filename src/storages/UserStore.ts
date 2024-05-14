@@ -4,13 +4,7 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getTagSet } from '@/tags.ts';
 
 export class UserStore implements NStore {
-  private store: NStore;
-  private pubkey: string;
-
-  constructor(pubkey: string, store: NStore) {
-    this.pubkey = pubkey;
-    this.store = store;
-  }
+  constructor(private pubkey: string, private store: NStore) {}
 
   async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
     return await this.store.event(event, opts);
@@ -21,12 +15,11 @@ export class UserStore implements NStore {
    * https://github.com/nostr-protocol/nips/blob/master/51.md#standard-lists
    */
   async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<DittoEvent[]> {
-    const allEvents = await this.store.query(filters, opts);
+    const events = await this.store.query(filters, opts);
+    const pubkeys = await this.getMutedPubkeys();
 
-    const mutedPubkeys = await this.getMutedPubkeys();
-
-    return allEvents.filter((event) => {
-      return event.kind === 0 || mutedPubkeys.has(event.pubkey) === false;
+    return events.filter((event) => {
+      return event.kind === 0 || !pubkeys.has(event.pubkey);
     });
   }
 

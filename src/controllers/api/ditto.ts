@@ -16,7 +16,9 @@ const relaySchema = z.object({
 type RelayEntity = z.infer<typeof relaySchema>;
 
 export const adminRelaysController: AppController = async (c) => {
-  const [event] = await Storages.db.query([
+  const store = await Storages.db();
+
+  const [event] = await store.query([
     { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
   ]);
 
@@ -28,6 +30,7 @@ export const adminRelaysController: AppController = async (c) => {
 };
 
 export const adminSetRelaysController: AppController = async (c) => {
+  const store = await Storages.db();
   const relays = relaySchema.array().parse(await c.req.json());
 
   const event = await new AdminSigner().signEvent({
@@ -37,7 +40,7 @@ export const adminSetRelaysController: AppController = async (c) => {
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  await Storages.db.event(event);
+  await store.event(event);
 
   return c.json(renderRelays(event));
 };
