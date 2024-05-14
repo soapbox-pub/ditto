@@ -1,4 +1,4 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NKinds, NostrEvent } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder } from 'kysely';
 
@@ -16,14 +16,14 @@ type StatDiff = AuthorStatDiff | EventStatDiff;
 
 const debug = Debug('ditto:stats');
 
-/** Store stats for the event in LMDB. */
+/** Store stats for the event. */
 async function updateStats(event: NostrEvent) {
   let prev: NostrEvent | undefined;
   const queries: InsertQueryBuilder<DittoTables, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
-    prev = await maybeGetPrev(event);
+    prev = await getPrevEvent(event);
     if (!prev || event.created_at >= prev.created_at) {
       queries.push(updateFollowingCountQuery(event));
     }
@@ -153,12 +153,14 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
 }
 
 /** Get the last version of the event, if any. */
-async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([
-    { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
-  ]);
+async function getPrevEvent(event: NostrEvent): Promise<NostrEvent | undefined> {
+  if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
+    const [prev] = await Storages.db.query([
+      { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
+    ]);
 
-  return prev;
+    return prev;
+  }
 }
 
 /** Set the following count to the total number of unique "p" tags in the follow list. */

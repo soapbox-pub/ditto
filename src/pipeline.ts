@@ -107,10 +107,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   if (deletion) {
     return Promise.reject(new RelayError('blocked', 'event was deleted'));
   } else {
-    await Promise.all([
-      Storages.db.event(event, { signal }).catch(debug),
-      updateStats(event).catch(debug),
-    ]);
+    await updateStats(event).catch(debug);
+    await Storages.db.event(event, { signal }).catch(debug);
   }
 }
 
