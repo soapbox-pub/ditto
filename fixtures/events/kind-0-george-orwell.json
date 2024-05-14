@@ -1,0 +1,9 @@
+{
+  "id": "da4e1e727c6456cee2b0341a1d7a2356e4263523374a2570a7dd318ab5d73f93",
+  "pubkey": "e4d96e951739787e62ada74ee06a9a185af22791a899a6166ec23aab58c5d700",
+  "created_at": 1715517565,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"name\":\"george orwell\",\"about\":\"\",\"nip05\":\"\"}",
+  "sig": "cd375e2065cf452d3bfefa9951b04ab63018ab7c253803256cca1d89d03b38e454c71ed36fdd3c28a8ff2723cc19b21371ce0f9bbd39a92b1d1aa946137237bd"
+}

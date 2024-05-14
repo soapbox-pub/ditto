@@ -1,0 +1,9 @@
+{
+  "id": "2238893aee54bbe9188498a5aa124d62870d5757894bf52cdb362d1a0874ed18",
+  "pubkey": "c9f5508526e213c3bc5468161f1b738a86063a2ece540730f9412e7becd5f0b2",
+  "created_at": 1715517440,
+  "kind": 0,
+  "tags": [],
+  "content": "{\"name\":\"dictator\",\"about\":\"\",\"nip05\":\"\"}",
+  "sig": "a630ba158833eea10289fe077087ccad22c71ddfbe475153958cfc158ae94fb0a5f7b7626e62da6a3ef8bfbe67321e8f993517ed7f1578a45aff11bc2bec484c"
+}
