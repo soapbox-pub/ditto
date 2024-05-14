@@ -3,7 +3,6 @@ import Debug from '@soapbox/stickynotes/debug';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
-import { type User } from '@/db/users.ts';
 import '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
