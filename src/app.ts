@@ -126,9 +126,9 @@ app.use(
   '*',
   csp(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
+  signerMiddleware,
   auth98(),
   storeMiddleware,
-  signerMiddleware,
 );
 
 app.get('/.well-known/webfinger', webfingerController);

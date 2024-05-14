@@ -1,9 +1,8 @@
-import { NConnectSigner, NSecSigner } from '@nostrify/nostrify';
+import { NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { AppMiddleware } from '@/app.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { Storages } from '@/storages.ts';
+import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
@@ -21,15 +20,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
 
       switch (decoded.type) {
         case 'npub':
-          c.set(
-            'signer',
-            new NConnectSigner({
-              pubkey: decoded.data,
-              relay: Storages.pubsub,
-              signer: new AdminSigner(),
-              timeout: 60000,
-            }),
-          );
+          c.set('signer', new ConnectSigner(decoded.data));
           break;
         case 'nsec':
           c.set('signer', new NSecSigner(decoded.data));

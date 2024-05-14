@@ -1,14 +1,16 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { HTTPException } from 'hono';
+
 import { type AppContext, type AppMiddleware } from '@/app.ts';
+import { findUser, User } from '@/db/users.ts';
+import { ConnectSigner } from '@/signers/ConnectSigner.ts';
+import { localRequest } from '@/utils/api.ts';
 import {
   buildAuthEventTemplate,
   parseAuthRequest,
   type ParseAuthRequestOpts,
   validateAuthEvent,
 } from '@/utils/nip98.ts';
-import { localRequest } from '@/utils/api.ts';
-import { findUser, User } from '@/db/users.ts';
 
 /**
  * NIP-98 auth.
@@ -20,7 +22,7 @@ function auth98(opts: ParseAuthRequestOpts = {}): AppMiddleware {
     const result = await parseAuthRequest(req, opts);
 
     if (result.success) {
-      c.set('pubkey', result.data.pubkey);
+      c.set('signer', new ConnectSigner(result.data.pubkey));
       c.set('proof', result.data);
     }
 
@@ -78,7 +80,7 @@ function withProof(
     }
 
     if (proof) {
-      c.set('pubkey', proof.pubkey);
+      c.set('signer', new ConnectSigner(proof.pubkey));
       c.set('proof', proof);
       await handler(c, proof, next);
     } else {
