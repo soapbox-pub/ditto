@@ -11,7 +11,6 @@ import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { APISigner } from '@/signers/APISigner.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
@@ -22,7 +21,13 @@ type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 
 
 /** Publish an event through the pipeline. */
 async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const signer = new APISigner(c);
+  const signer = c.get('signer');
+
+  if (!signer) {
+    throw new HTTPException(401, {
+      res: c.json({ error: 'No way to sign Nostr event' }, 401),
+    });
+  }
 
   const event = await signer.signEvent({
     content: '',

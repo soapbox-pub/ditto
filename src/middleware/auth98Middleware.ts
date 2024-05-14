@@ -1,27 +1,28 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { HTTPException } from 'hono';
+
 import { type AppContext, type AppMiddleware } from '@/app.ts';
+import { findUser, User } from '@/db/users.ts';
+import { ConnectSigner } from '@/signers/ConnectSigner.ts';
+import { localRequest } from '@/utils/api.ts';
 import {
   buildAuthEventTemplate,
   parseAuthRequest,
   type ParseAuthRequestOpts,
   validateAuthEvent,
 } from '@/utils/nip98.ts';
-import { localRequest } from '@/utils/api.ts';
-import { APISigner } from '@/signers/APISigner.ts';
-import { findUser, User } from '@/db/users.ts';
 
 /**
  * NIP-98 auth.
  * https://github.com/nostr-protocol/nips/blob/master/98.md
  */
-function auth98(opts: ParseAuthRequestOpts = {}): AppMiddleware {
+function auth98Middleware(opts: ParseAuthRequestOpts = {}): AppMiddleware {
   return async (c, next) => {
     const req = localRequest(c);
     const result = await parseAuthRequest(req, opts);
 
     if (result.success) {
-      c.set('pubkey', result.data.pubkey);
+      c.set('signer', new ConnectSigner(result.data.pubkey));
       c.set('proof', result.data);
     }
 
@@ -33,9 +34,8 @@ type UserRole = 'user' | 'admin';
 
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
-  return withProof(async (c, proof, next) => {
+  return withProof(async (_c, proof, next) => {
     const user = await findUser({ pubkey: proof.pubkey });
-    c.set('user', user);
 
     if (user && matchesRole(user, role)) {
       await next();
@@ -70,7 +70,7 @@ function withProof(
   opts?: ParseAuthRequestOpts,
 ): AppMiddleware {
   return async (c, next) => {
-    const pubkey = c.get('pubkey');
+    const pubkey = await c.get('signer')?.getPublicKey();
     const proof = c.get('proof') || await obtainProof(c, opts);
 
     // Prevent people from accidentally using the wrong account. This has no other security implications.
@@ -79,7 +79,7 @@ function withProof(
     }
 
     if (proof) {
-      c.set('pubkey', proof.pubkey);
+      c.set('signer', new ConnectSigner(proof.pubkey));
       c.set('proof', proof);
       await handler(c, proof, next);
     } else {
@@ -90,9 +90,16 @@ function withProof(
 
 /** Get the proof over Nostr Connect. */
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
+  const signer = c.get('signer');
+  if (!signer) {
+    throw new HTTPException(401, {
+      res: c.json({ error: 'No way to sign Nostr event' }, 401),
+    });
+  }
+
   const req = localRequest(c);
   const reqEvent = await buildAuthEventTemplate(req, opts);
-  const resEvent = await new APISigner(c).signEvent(reqEvent);
+  const resEvent = await signer.signEvent(reqEvent);
   const result = await validateAuthEvent(req, resEvent, opts);
 
   if (result.success) {
@@ -100,4 +107,4 @@ async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   }
 }
 
-export { auth98, requireProof, requireRole };
+export { auth98Middleware, requireProof, requireRole };

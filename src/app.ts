@@ -1,9 +1,8 @@
-import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NostrSigner, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
-import { type User } from '@/db/users.ts';
 import '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
@@ -29,6 +28,7 @@ import { adminAccountAction, adminAccountsController } from '@/controllers/api/a
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
+import { adminRelaysController, adminSetRelaysController } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
@@ -80,25 +80,21 @@ import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { webfingerController } from '@/controllers/well-known/webfinger.ts';
-import { auth19, requirePubkey } from '@/middleware/auth19.ts';
-import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
-import { cache } from '@/middleware/cache.ts';
-import { csp } from '@/middleware/csp.ts';
-import { adminRelaysController, adminSetRelaysController } from '@/controllers/api/ditto.ts';
-import { storeMiddleware } from '@/middleware/store.ts';
+import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
+import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
+import { requireSigner } from '@/middleware/requireSigner.ts';
+import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
+import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { blockController } from '@/controllers/api/accounts.ts';
 import { unblockController } from '@/controllers/api/accounts.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
-    /** Hex pubkey for the current user. If provided, the user is considered "logged in." */
-    pubkey?: string;
-    /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
-    seckey?: Uint8Array;
+    /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
+    signer?: NostrSigner;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** User associated with the pubkey, if any. */
-    user?: User;
     /** Store */
     store: NStore;
   };
@@ -123,7 +119,14 @@ app.get('/api/v1/streaming', streamingController);
 app.get('/api/v1/streaming/', streamingController);
 app.get('/relay', relayController);
 
-app.use('*', csp(), cors({ origin: '*', exposeHeaders: ['link'] }), auth19, auth98(), storeMiddleware);
+app.use(
+  '*',
+  cspMiddleware(),
+  cors({ origin: '*', exposeHeaders: ['link'] }),
+  signerMiddleware,
+  auth98Middleware(),
+  storeMiddleware,
+);
 
 app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
@@ -134,7 +137,7 @@ app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
-app.get('/api/v1/instance', cache({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
+app.get('/api/v1/instance', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
@@ -145,17 +148,17 @@ app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
 app.post('/api/v1/accounts', requireProof({ pow: 20 }), createAccountController);
-app.get('/api/v1/accounts/verify_credentials', requirePubkey, verifyCredentialsController);
-app.patch('/api/v1/accounts/update_credentials', requirePubkey, updateCredentialsController);
+app.get('/api/v1/accounts/verify_credentials', requireSigner, verifyCredentialsController);
+app.patch('/api/v1/accounts/update_credentials', requireSigner, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
-app.get('/api/v1/accounts/relationships', requirePubkey, relationshipsController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requirePubkey, blockController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requirePubkey, unblockController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/mute', requirePubkey, muteController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unmute', requirePubkey, unmuteController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requirePubkey, followController);
-app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requirePubkey, unfollowController);
+app.get('/api/v1/accounts/relationships', requireSigner, relationshipsController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requireSigner, blockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requireSigner, unblockController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/mute', requireSigner, muteController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unmute', requireSigner, unmuteController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requireSigner, followController);
+app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requireSigner, unfollowController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
@@ -165,21 +168,21 @@ app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/favourited_by', favouritedByControll
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/reblogged_by', rebloggedByController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/context', contextController);
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}', statusController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', requirePubkey, favouriteController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requirePubkey, bookmarkController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requirePubkey, unbookmarkController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requirePubkey, pinController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requirePubkey, unpinController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requirePubkey, zapController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requirePubkey, reblogStatusController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requirePubkey, unreblogStatusController);
-app.post('/api/v1/statuses', requirePubkey, createStatusController);
-app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requirePubkey, deleteStatusController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/favourite', requireSigner, favouriteController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requireSigner, bookmarkController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requireSigner, unbookmarkController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requireSigner, pinController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requireSigner, unpinController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requireSigner, zapController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requireSigner, reblogStatusController);
+app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requireSigner, unreblogStatusController);
+app.post('/api/v1/statuses', requireSigner, createStatusController);
+app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requireSigner, deleteStatusController);
 
 app.post('/api/v1/media', mediaController);
 app.post('/api/v2/media', mediaController);
 
-app.get('/api/v1/timelines/home', requirePubkey, homeTimelineController);
+app.get('/api/v1/timelines/home', requireSigner, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
 app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
 
@@ -189,17 +192,21 @@ app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
-app.get('/api/v1/trends/tags', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
-app.get('/api/v1/trends', cache({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+app.get(
+  '/api/v1/trends/tags',
+  cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }),
+  trendingTagsController,
+);
+app.get('/api/v1/trends', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
 
-app.get('/api/v1/notifications', requirePubkey, notificationsController);
-app.get('/api/v1/favourites', requirePubkey, favouritesController);
-app.get('/api/v1/bookmarks', requirePubkey, bookmarksController);
-app.get('/api/v1/blocks', requirePubkey, blocksController);
-app.get('/api/v1/mutes', requirePubkey, mutesController);
+app.get('/api/v1/notifications', requireSigner, notificationsController);
+app.get('/api/v1/favourites', requireSigner, favouritesController);
+app.get('/api/v1/bookmarks', requireSigner, bookmarksController);
+app.get('/api/v1/blocks', requireSigner, blocksController);
+app.get('/api/v1/mutes', requireSigner, mutesController);
 
 app.get('/api/v1/markers', requireProof(), markersController);
 app.post('/api/v1/markers', requireProof(), updateMarkersController);
@@ -212,17 +219,17 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
-app.post('/api/v1/reports', requirePubkey, reportController);
-app.get('/api/v1/admin/reports', requirePubkey, requireRole('admin'), adminReportsController);
-app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', requirePubkey, requireRole('admin'), adminReportController);
+app.post('/api/v1/reports', requireSigner, reportController);
+app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
+app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', requireSigner, requireRole('admin'), adminReportController);
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/resolve',
-  requirePubkey,
+  requireSigner,
   requireRole('admin'),
   adminReportResolveController,
 );
 
-app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requirePubkey, requireRole('admin'), adminAccountAction);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminAccountAction);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);

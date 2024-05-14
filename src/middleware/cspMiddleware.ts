@@ -1,7 +1,7 @@
 import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
 
-const csp = (): AppMiddleware => {
+export const cspMiddleware = (): AppMiddleware => {
   return async (c, next) => {
     const { host, protocol, origin } = Conf.url;
     const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -26,5 +26,3 @@ const csp = (): AppMiddleware => {
     await next();
   };
 };
-
-export { csp };

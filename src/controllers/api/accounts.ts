@@ -29,7 +29,7 @@ const createAccountSchema = z.object({
 });
 
 const createAccountController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const result = createAccountSchema.safeParse(await c.req.json());
 
   if (!result.success) {
@@ -45,7 +45,7 @@ const createAccountController: AppController = async (c) => {
 };
 
 const verifyCredentialsController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
 
   const event = await getAuthor(pubkey, { relations: ['author_stats'] });
   if (event) {
@@ -122,7 +122,7 @@ const accountSearchController: AppController = async (c) => {
 };
 
 const relationshipsController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const ids = z.array(z.string()).safeParse(c.req.queries('id[]'));
 
   if (!ids.success) {
@@ -178,7 +178,11 @@ const accountStatusesController: AppController = async (c) => {
       return events;
     });
 
-  const statuses = await Promise.all(events.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
+  const statuses = await Promise.all(
+    events.map((event) => renderStatus(event, { viewerPubkey })),
+  );
   return paginated(c, events, statuses);
 };
 
@@ -194,7 +198,7 @@ const updateCredentialsSchema = z.object({
 });
 
 const updateCredentialsController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
 
@@ -236,7 +240,7 @@ const updateCredentialsController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#follow */
 const followController: AppController = async (c) => {
-  const sourcePubkey = c.get('pubkey')!;
+  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -253,7 +257,7 @@ const followController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#unfollow */
 const unfollowController: AppController = async (c) => {
-  const sourcePubkey = c.get('pubkey')!;
+  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -290,7 +294,7 @@ const unblockController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#mute */
 const muteController: AppController = async (c) => {
-  const sourcePubkey = c.get('pubkey')!;
+  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -305,7 +309,7 @@ const muteController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#unmute */
 const unmuteController: AppController = async (c) => {
-  const sourcePubkey = c.get('pubkey')!;
+  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -319,7 +323,7 @@ const unmuteController: AppController = async (c) => {
 };
 
 const favouritesController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const params = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
@@ -335,7 +339,11 @@ const favouritesController: AppController = async (c) => {
   const events1 = await Storages.db.query([{ kinds: [1], ids }], { signal })
     .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
 
-  const statuses = await Promise.all(events1.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
+  const statuses = await Promise.all(
+    events1.map((event) => renderStatus(event, { viewerPubkey })),
+  );
   return paginated(c, events1, statuses);
 };
 

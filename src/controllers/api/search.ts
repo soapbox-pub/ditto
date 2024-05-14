@@ -43,6 +43,7 @@ const searchController: AppController = async (c) => {
   }
 
   const results = dedupeEvents(events);
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -54,7 +55,7 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event) => event.kind === 1)
-        .map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') }))
+        .map((event) => renderStatus(event, { viewerPubkey }))
         .filter(Boolean),
     ),
   ]);
