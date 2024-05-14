@@ -9,6 +9,7 @@ import { z } from 'zod';
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
+import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { APISigner } from '@/signers/APISigner.ts';
 import { Storages } from '@/storages.ts';
@@ -106,7 +107,7 @@ async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEven
     await pipeline.handleEvent(event, c.req.raw.signal);
     await Storages.client.event(event);
   } catch (e) {
-    if (e instanceof pipeline.RelayError) {
+    if (e instanceof RelayError) {
       throw new HTTPException(422, {
         res: c.json({ error: e.message }, 422),
       });

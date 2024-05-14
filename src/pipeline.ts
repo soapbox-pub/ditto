@@ -10,6 +10,7 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
+import { RelayError } from '@/RelayError.ts';
 import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
@@ -71,15 +72,7 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   const result = await policy.call(event);
   debug(JSON.stringify(result));
 
-  const [_, _eventId, ok, reason] = result;
-  if (!ok) {
-    const [prefix, ...rest] = reason.split(': ');
-    if (['duplicate', 'pow', 'blocked', 'rate-limited', 'invalid'].includes(prefix)) {
-      throw new RelayError(prefix as RelayErrorPrefix, rest.join(': '));
-    } else {
-      throw new RelayError('error', rest.join(': '));
-    }
-  }
+  RelayError.assert(result);
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
@@ -286,13 +279,4 @@ async function streamOut(event: NostrEvent): Promise<void> {
   }
 }
 
-type RelayErrorPrefix = 'duplicate' | 'pow' | 'blocked' | 'rate-limited' | 'invalid' | 'error';
-
-/** NIP-20 command line result. */
-class RelayError extends Error {
-  constructor(prefix: RelayErrorPrefix, message: string) {
-    super(`${prefix}: ${message}`);
-  }
-}
-
-export { handleEvent, RelayError };
+export { handleEvent };
