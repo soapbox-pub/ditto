@@ -1,4 +1,4 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NKinds, NostrEvent } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder } from 'kysely';
 
@@ -16,14 +16,14 @@ type StatDiff = AuthorStatDiff | EventStatDiff;
 
 const debug = Debug('ditto:stats');
 
-/** Store stats for the event in LMDB. */
+/** Store stats for the event. */
 async function updateStats(event: NostrEvent) {
   let prev: NostrEvent | undefined;
   const queries: InsertQueryBuilder<DittoTables, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
-    prev = await maybeGetPrev(event);
+    prev = await getPrevEvent(event);
     if (!prev || event.created_at >= prev.created_at) {
       queries.push(updateFollowingCountQuery(event));
     }
@@ -119,9 +119,9 @@ function authorStatsQuery(diffs: AuthorStatDiff[]) {
       oc
         .column('pubkey')
         .doUpdateSet((eb) => ({
-          followers_count: eb('followers_count', '+', eb.ref('excluded.followers_count')),
-          following_count: eb('following_count', '+', eb.ref('excluded.following_count')),
-          notes_count: eb('notes_count', '+', eb.ref('excluded.notes_count')),
+          followers_count: eb('author_stats.followers_count', '+', eb.ref('excluded.followers_count')),
+          following_count: eb('author_stats.following_count', '+', eb.ref('excluded.following_count')),
+          notes_count: eb('author_stats.notes_count', '+', eb.ref('excluded.notes_count')),
         }))
     );
 }
@@ -145,20 +145,22 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
       oc
         .column('event_id')
         .doUpdateSet((eb) => ({
-          replies_count: eb('replies_count', '+', eb.ref('excluded.replies_count')),
-          reposts_count: eb('reposts_count', '+', eb.ref('excluded.reposts_count')),
-          reactions_count: eb('reactions_count', '+', eb.ref('excluded.reactions_count')),
+          replies_count: eb('event_stats.replies_count', '+', eb.ref('excluded.replies_count')),
+          reposts_count: eb('event_stats.reposts_count', '+', eb.ref('excluded.reposts_count')),
+          reactions_count: eb('event_stats.reactions_count', '+', eb.ref('excluded.reactions_count')),
         }))
     );
 }
 
 /** Get the last version of the event, if any. */
-async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([
-    { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
-  ]);
+async function getPrevEvent(event: NostrEvent): Promise<NostrEvent | undefined> {
+  if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
+    const [prev] = await Storages.db.query([
+      { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
+    ]);
 
-  return prev;
+    return prev;
+  }
 }
 
 /** Set the following count to the total number of unique "p" tags in the follow list. */
