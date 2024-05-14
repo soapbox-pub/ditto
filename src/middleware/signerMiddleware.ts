@@ -22,6 +22,9 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
         case 'npub':
           c.set('signer', new ConnectSigner(decoded.data));
           break;
+        case 'nprofile':
+          c.set('signer', new ConnectSigner(decoded.data.pubkey, decoded.data.relays));
+          break;
         case 'nsec':
           c.set('signer', new NSecSigner(decoded.data));
           break;
