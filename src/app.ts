@@ -81,7 +81,7 @@ import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { webfingerController } from '@/controllers/well-known/webfinger.ts';
-import { auth19, requirePubkey } from '@/middleware/auth19.ts';
+import { requirePubkey } from '@/middleware/auth19.ts';
 import { auth98, requireProof, requireRole } from '@/middleware/auth98.ts';
 import { cache } from '@/middleware/cache.ts';
 import { csp } from '@/middleware/csp.ts';
@@ -94,10 +94,6 @@ interface AppEnv extends HonoEnv {
   Variables: {
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
-    /** Hex pubkey for the current user. If provided, the user is considered "logged in." */
-    pubkey?: string;
-    /** Hex secret key for the current user. Optional, but easiest way to use legacy Mastodon apps. */
-    seckey?: Uint8Array;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
     /** User associated with the pubkey, if any. */
@@ -130,7 +126,6 @@ app.use(
   '*',
   csp(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
-  auth19,
   auth98(),
   storeMiddleware,
   signerMiddleware,
