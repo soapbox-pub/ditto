@@ -1,5 +1,6 @@
 // deno-lint-ignore-file require-await
 import { NCache } from '@nostrify/nostrify';
+import { RelayPoolWorker } from 'nostr-relaypool';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
