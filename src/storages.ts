@@ -1,7 +1,8 @@
 // deno-lint-ignore-file require-await
 import { NCache } from '@nostrify/nostrify';
+
 import { Conf } from '@/config.ts';
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
@@ -24,7 +25,10 @@ export class Storages {
   /** SQLite database to store events this Ditto server cares about. */
   public static async db(): Promise<EventsDB> {
     if (!this._db) {
-      this._db = Promise.resolve(new EventsDB(db));
+      this._db = (async () => {
+        const kysely = await DittoDB.getInstance();
+        return new EventsDB(kysely);
+      })();
     }
     return this._db;
   }

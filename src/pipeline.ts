@@ -5,7 +5,7 @@ import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { isEphemeralKind } from '@/kinds.ts';
@@ -91,7 +91,8 @@ async function encounterEvent(event: NostrEvent, signal: AbortSignal): Promise<b
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   await hydrateEvents({ events: [event], store: await Storages.db(), signal });
 
-  const domain = await db
+  const kysely = await DittoDB.getInstance();
+  const domain = await kysely
     .selectFrom('pubkey_domains')
     .select('domain')
     .where('pubkey', '=', event.pubkey)
@@ -140,6 +141,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Track pubkey domain.
   try {
+    const kysely = await DittoDB.getInstance();
     const { domain } = parseNip05(nip05);
 
     await sql`
@@ -149,7 +151,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
       domain = excluded.domain,
       last_updated_at = excluded.last_updated_at
     WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
-    `.execute(db);
+    `.execute(kysely);
   } catch (_e) {
     // do nothing
   }

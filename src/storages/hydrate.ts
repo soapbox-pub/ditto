@@ -1,7 +1,7 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
@@ -239,7 +239,7 @@ function gatherReportedProfiles({ events, store, signal }: HydrateOpts): Promise
 }
 
 /** Collect author stats from the events. */
-function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
+async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
   const pubkeys = new Set<string>(
     events
       .filter((event) => event.kind === 0)
@@ -250,7 +250,8 @@ function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_st
     return Promise.resolve([]);
   }
 
-  return db
+  const kysely = await DittoDB.getInstance();
+  return kysely
     .selectFrom('author_stats')
     .selectAll()
     .where('pubkey', 'in', [...pubkeys])
@@ -258,7 +259,7 @@ function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_st
 }
 
 /** Collect event stats from the events. */
-function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
+async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
   const ids = new Set<string>(
     events
       .filter((event) => event.kind === 1)
@@ -269,7 +270,8 @@ function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stat
     return Promise.resolve([]);
   }
 
-  return db
+  const kysely = await DittoDB.getInstance();
+  return kysely
     .selectFrom('event_stats')
     .selectAll()
     .where('event_id', 'in', [...ids])
