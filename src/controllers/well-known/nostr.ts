@@ -12,7 +12,7 @@ const nameSchema = z.string().min(1).regex(/^\w+$/);
 const nostrController: AppController = async (c) => {
   const result = nameSchema.safeParse(c.req.query('name'));
   const name = result.success ? result.data : undefined;
-  const pointer = name ? await localNip05Lookup(name) : undefined;
+  const pointer = name ? await localNip05Lookup(c.get('store'), name) : undefined;
 
   if (!name || !pointer) {
     return c.json({ names: {}, relays: {} });

@@ -1,4 +1,4 @@
-import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
 import { z } from 'zod';
 
@@ -47,7 +47,7 @@ const statusController: AppController = async (c) => {
   });
 
   if (event) {
-    return c.json(await renderStatus(event, { viewerPubkey: c.get('pubkey') }));
+    return c.json(await renderStatus(event, { viewerPubkey: await c.get('signer')?.getPublicKey() }));
   }
 
   return c.json({ error: 'Event not found.' }, 404);
@@ -89,9 +89,11 @@ const createStatusController: AppController = async (c) => {
     tags.push(['subject', data.spoiler_text]);
   }
 
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
   if (data.media_ids?.length) {
     const media = await getUnattachedMediaByIds(data.media_ids)
-      .then((media) => media.filter(({ pubkey }) => pubkey === c.get('pubkey')))
+      .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
       .then((media) => media.map(({ url, data }) => ['media', url, data]));
 
     tags.push(...media);
@@ -138,17 +140,17 @@ const createStatusController: AppController = async (c) => {
   if (data.quote_id) {
     await hydrateEvents({
       events: [event],
-      storage: Storages.db,
+      store: await Storages.db(),
       signal: c.req.raw.signal,
     });
   }
 
-  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: c.get('pubkey') }));
+  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: await c.get('signer')?.getPublicKey() }));
 };
 
 const deleteStatusController: AppController = async (c) => {
   const id = c.req.param('id');
-  const pubkey = c.get('pubkey');
+  const pubkey = await c.get('signer')?.getPublicKey();
 
   const event = await getEvent(id, { signal: c.req.raw.signal });
 
@@ -172,9 +174,12 @@ const deleteStatusController: AppController = async (c) => {
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
   const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   async function renderStatuses(events: NostrEvent[]) {
-    const statuses = await Promise.all(events.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })));
+    const statuses = await Promise.all(
+      events.map((event) => renderStatus(event, { viewerPubkey })),
+    );
     return statuses.filter(Boolean);
   }
 
@@ -204,7 +209,7 @@ const favouriteController: AppController = async (c) => {
       ],
     }, c);
 
-    const status = await renderStatus(target, { viewerPubkey: c.get('pubkey') });
+    const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
 
     if (status) {
       status.favourited = true;
@@ -243,11 +248,11 @@ const reblogStatusController: AppController = async (c) => {
 
   await hydrateEvents({
     events: [reblogEvent],
-    storage: Storages.db,
+    store: await Storages.db(),
     signal: signal,
   });
 
-  const status = await renderReblog(reblogEvent, { viewerPubkey: c.get('pubkey') });
+  const status = await renderReblog(reblogEvent, { viewerPubkey: await c.get('signer')?.getPublicKey() });
 
   return c.json(status);
 };
@@ -255,23 +260,30 @@ const reblogStatusController: AppController = async (c) => {
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
-  const pubkey = c.get('pubkey') as string;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-  });
-  if (!event) return c.json({ error: 'Event not found.' }, 404);
+  const event = await getEvent(eventId, { kind: 1 });
 
-  const filters: NostrFilter[] = [{ kinds: [6], authors: [pubkey], '#e': [event.id] }];
-  const [repostedEvent] = await Storages.db.query(filters, { limit: 1 });
-  if (!repostedEvent) return c.json({ error: 'Event not found.' }, 404);
+  if (!event) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+
+  const store = await Storages.db();
+
+  const [repostedEvent] = await store.query(
+    [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
+  );
+
+  if (!repostedEvent) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
 
   await createEvent({
     kind: 5,
     tags: [['e', repostedEvent.id]],
   }, c);
 
-  return c.json(await renderStatus(event, {}));
+  return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
 };
 
 const rebloggedByController: AppController = (c) => {
@@ -282,7 +294,7 @@ const rebloggedByController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#bookmark */
 const bookmarkController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
   const event = await getEvent(eventId, {
@@ -292,7 +304,7 @@ const bookmarkController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10003], authors: [pubkey] },
+      { kinds: [10003], authors: [pubkey], limit: 1 },
       (tags) => addTag(tags, ['e', eventId]),
       c,
     );
@@ -309,7 +321,7 @@ const bookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unbookmark */
 const unbookmarkController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
   const event = await getEvent(eventId, {
@@ -319,7 +331,7 @@ const unbookmarkController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10003], authors: [pubkey] },
+      { kinds: [10003], authors: [pubkey], limit: 1 },
       (tags) => deleteTag(tags, ['e', eventId]),
       c,
     );
@@ -336,7 +348,7 @@ const unbookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#pin */
 const pinController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
   const event = await getEvent(eventId, {
@@ -346,7 +358,7 @@ const pinController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10001], authors: [pubkey] },
+      { kinds: [10001], authors: [pubkey], limit: 1 },
       (tags) => addTag(tags, ['e', eventId]),
       c,
     );
@@ -363,7 +375,7 @@ const pinController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unpin */
 const unpinController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
 
@@ -375,7 +387,7 @@ const unpinController: AppController = async (c) => {
 
   if (event) {
     await updateListEvent(
-      { kinds: [10001], authors: [pubkey] },
+      { kinds: [10001], authors: [pubkey], limit: 1 },
       (tags) => deleteTag(tags, ['e', eventId]),
       c,
     );
@@ -423,7 +435,7 @@ const zapController: AppController = async (c) => {
       ],
     }, c);
 
-    const status = await renderStatus(target, { viewerPubkey: c.get('pubkey') });
+    const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
     status.zapped = true;
 
     return c.json(status);

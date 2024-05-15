@@ -1,4 +1,4 @@
-import { assertEquals } from '@/deps-test.ts';
+import { assertEquals } from '@std/assert';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };

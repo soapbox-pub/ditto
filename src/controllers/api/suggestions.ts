@@ -40,7 +40,7 @@ async function renderSuggestedAccounts(store: NStore, signal?: AbortSignal) {
     [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
     { signal },
   )
-    .then((events) => hydrateEvents({ events, storage: store, signal }));
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(pubkeys.map((pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);

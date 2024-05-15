@@ -1,6 +1,6 @@
 import uuid62 from 'uuid62';
 
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
@@ -19,7 +19,8 @@ async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'upload
     ...media,
   };
 
-  await db.insertInto('unattached_media')
+  const kysely = await DittoDB.getInstance();
+  await kysely.insertInto('unattached_media')
     .values({ ...result, data: JSON.stringify(media.data) })
     .execute();
 
@@ -27,8 +28,9 @@ async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'upload
 }
 
 /** Select query for unattached media. */
-function selectUnattachedMediaQuery() {
-  return db.selectFrom('unattached_media')
+async function selectUnattachedMediaQuery() {
+  const kysely = await DittoDB.getInstance();
+  return kysely.selectFrom('unattached_media')
     .select([
       'unattached_media.id',
       'unattached_media.pubkey',
@@ -39,25 +41,27 @@ function selectUnattachedMediaQuery() {
 }
 
 /** Find attachments that exist but aren't attached to any events. */
-function getUnattachedMedia(until: Date) {
-  return selectUnattachedMediaQuery()
+async function getUnattachedMedia(until: Date) {
+  const query = await selectUnattachedMediaQuery();
+  return query
     .leftJoin('tags', 'unattached_media.url', 'tags.value')
     .where('uploaded_at', '<', until.getTime())
     .execute();
 }
 
 /** Delete unattached media by URL. */
-function deleteUnattachedMediaByUrl(url: string) {
-  return db.deleteFrom('unattached_media')
+async function deleteUnattachedMediaByUrl(url: string) {
+  const kysely = await DittoDB.getInstance();
+  return kysely.deleteFrom('unattached_media')
     .where('url', '=', url)
     .execute();
 }
 
 /** Get unattached media by IDs. */
-// deno-lint-ignore require-await
 async function getUnattachedMediaByIds(ids: string[]) {
   if (!ids.length) return [];
-  return selectUnattachedMediaQuery()
+  const query = await selectUnattachedMediaQuery();
+  return query
     .where('id', 'in', ids)
     .execute();
 }
@@ -65,7 +69,8 @@ async function getUnattachedMediaByIds(ids: string[]) {
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
-  await db.deleteFrom('unattached_media')
+  const kysely = await DittoDB.getInstance();
+  await kysely.deleteFrom('unattached_media')
     .where('pubkey', '=', pubkey)
     .where('url', 'in', urls)
     .execute();

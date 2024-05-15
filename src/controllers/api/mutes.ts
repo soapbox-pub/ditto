@@ -5,10 +5,11 @@ import { renderAccounts } from '@/views.ts';
 
 /** https://docs.joinmastodon.org/methods/mutes/#get */
 const mutesController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const store = await Storages.db();
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const { signal } = c.req.raw;
 
-  const [event10000] = await Storages.db.query(
+  const [event10000] = await store.query(
     [{ kinds: [10000], authors: [pubkey], limit: 1 }],
     { signal },
   );

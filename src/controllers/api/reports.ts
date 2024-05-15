@@ -48,16 +48,22 @@ const reportController: AppController = async (c) => {
     tags,
   }, c);
 
-  await hydrateEvents({ events: [event], storage: store });
+  await hydrateEvents({ events: [event], store });
   return c.json(await renderReport(event));
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
 const adminReportsController: AppController = async (c) => {
   const store = c.get('store');
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
   const reports = await store.query([{ kinds: [1984], '#P': [Conf.pubkey] }])
-    .then((events) => hydrateEvents({ storage: store, events: events, signal: c.req.raw.signal }))
-    .then((events) => Promise.all(events.map((event) => renderAdminReport(event, { viewerPubkey: c.get('pubkey') }))));
+    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }))
+    .then((events) =>
+      Promise.all(
+        events.map((event) => renderAdminReport(event, { viewerPubkey })),
+      )
+    );
 
   return c.json(reports);
 };
@@ -67,7 +73,7 @@ const adminReportController: AppController = async (c) => {
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
   const store = c.get('store');
-  const pubkey = c.get('pubkey');
+  const pubkey = await c.get('signer')?.getPublicKey();
 
   const [event] = await store.query([{
     kinds: [1984],
@@ -79,7 +85,7 @@ const adminReportController: AppController = async (c) => {
     return c.json({ error: 'This action is not allowed' }, 403);
   }
 
-  await hydrateEvents({ events: [event], storage: store, signal });
+  await hydrateEvents({ events: [event], store, signal });
 
   return c.json(await renderAdminReport(event, { viewerPubkey: pubkey }));
 };
@@ -89,7 +95,7 @@ const adminReportResolveController: AppController = async (c) => {
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
   const store = c.get('store');
-  const pubkey = c.get('pubkey');
+  const pubkey = await c.get('signer')?.getPublicKey();
 
   const [event] = await store.query([{
     kinds: [1984],
@@ -101,7 +107,7 @@ const adminReportResolveController: AppController = async (c) => {
     return c.json({ error: 'This action is not allowed' }, 403);
   }
 
-  await hydrateEvents({ events: [event], storage: store, signal });
+  await hydrateEvents({ events: [event], store, signal });
 
   await createAdminEvent({
     kind: 5,

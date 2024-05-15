@@ -12,15 +12,16 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
     return c.json([]);
   }
 
-  const events = await Storages.db.query(filters, { signal });
+  const store = await Storages.db();
+  const events = await store.query(filters, { signal });
   const pubkeys = new Set(events.map(({ pubkey }) => pubkey));
 
   if (!pubkeys.size) {
     return c.json([]);
   }
 
-  const authors = await Storages.db.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
+  const authors = await store.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
     authors.map((event) => renderAccount(event)),
@@ -32,8 +33,10 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
 async function renderAccounts(c: AppContext, authors: string[], signal = AbortSignal.timeout(1000)) {
   const { since, until, limit } = paginationSchema.parse(c.req.query());
 
-  const events = await Storages.db.query([{ kinds: [0], authors, since, until, limit }], { signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
+  const store = await Storages.db();
+
+  const events = await store.query([{ kinds: [0], authors, since, until, limit }], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
     events.map((event) => renderAccount(event)),
@@ -48,10 +51,11 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
     return c.json([]);
   }
 
+  const store = await Storages.db();
   const { limit } = paginationSchema.parse(c.req.query());
 
-  const events = await Storages.db.query([{ kinds: [1], ids, limit }], { signal })
-    .then((events) => hydrateEvents({ events, storage: Storages.db, signal }));
+  const events = await store.query([{ kinds: [1], ids, limit }], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   if (!events.length) {
     return c.json([]);
@@ -59,8 +63,10 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
 
   const sortedEvents = [...events].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
   const statuses = await Promise.all(
-    sortedEvents.map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') })),
+    sortedEvents.map((event) => renderStatus(event, { viewerPubkey })),
   );
 
   // TODO: pagination with min_id and max_id based on the order of `ids`.

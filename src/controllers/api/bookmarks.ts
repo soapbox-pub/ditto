@@ -5,10 +5,11 @@ import { renderStatuses } from '@/views.ts';
 
 /** https://docs.joinmastodon.org/methods/bookmarks/#get */
 const bookmarksController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const store = await Storages.db();
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const { signal } = c.req.raw;
 
-  const [event10003] = await Storages.db.query(
+  const [event10003] = await store.query(
     [{ kinds: [10003], authors: [pubkey], limit: 1 }],
     { signal },
   );

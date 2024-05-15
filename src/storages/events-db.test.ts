@@ -1,12 +1,14 @@
-import { db } from '@/db.ts';
-import { assertEquals, assertRejects } from '@/deps-test.ts';
+import { assertEquals, assertRejects } from '@std/assert';
+
+import { DittoDB } from '@/db/DittoDB.ts';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
 
 import { EventsDB } from '@/storages/events-db.ts';
 
-const eventsDB = new EventsDB(db);
+const kysely = await DittoDB.getInstance();
+const eventsDB = new EventsDB(kysely);
 
 Deno.test('count filters', async () => {
   assertEquals((await eventsDB.count([{ kinds: [1] }])).count, 0);
@@ -34,7 +36,7 @@ Deno.test('query events with domain search filter', async () => {
   assertEquals(await eventsDB.query([{ search: 'domain:localhost:8000' }]), []);
   assertEquals(await eventsDB.query([{ search: '' }]), [event1]);
 
-  await db
+  await kysely
     .insertInto('pubkey_domains')
     .values({ pubkey: event1.pubkey, domain: 'localhost:8000', last_updated_at: event1.created_at })
     .execute();

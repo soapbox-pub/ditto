@@ -14,7 +14,7 @@ const mediaBodySchema = z.object({
 });
 
 const mediaController: AppController = async (c) => {
-  const pubkey = c.get('pubkey')!;
+  const pubkey = await c.get('signer')?.getPublicKey()!;
   const result = mediaBodySchema.safeParse(await parseBody(c.req.raw));
   const { signal } = c.req.raw;
 

@@ -9,8 +9,8 @@ import { z } from 'zod';
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
+import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { APISigner } from '@/signers/APISigner.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
@@ -21,7 +21,13 @@ type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 
 
 /** Publish an event through the pipeline. */
 async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const signer = new APISigner(c);
+  const signer = c.get('signer');
+
+  if (!signer) {
+    throw new HTTPException(401, {
+      res: c.json({ error: 'No way to sign Nostr event' }, 401),
+    });
+  }
 
   const event = await signer.signEvent({
     content: '',
@@ -36,7 +42,7 @@ async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
 /** Filter for fetching an existing event to update. */
 interface UpdateEventFilter extends NostrFilter {
   kinds: [number];
-  limit?: 1;
+  limit: 1;
 }
 
 /** Fetch existing event, update it, then publish the new event. */
@@ -45,7 +51,8 @@ async function updateEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { signal: c.req.raw.signal });
   return createEvent(fn(prev), c);
 }
 
@@ -95,7 +102,8 @@ async function updateAdminEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await Storages.db.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { limit: 1, signal: c.req.raw.signal });
   return createAdminEvent(fn(prev), c);
 }
 
@@ -103,12 +111,11 @@ async function updateAdminEvent<E extends EventStub>(
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await Promise.all([
-      pipeline.handleEvent(event, c.req.raw.signal),
-      Storages.client.event(event),
-    ]);
+    await pipeline.handleEvent(event, c.req.raw.signal);
+    const client = await Storages.client();
+    await client.event(event);
   } catch (e) {
-    if (e instanceof pipeline.RelayError) {
+    if (e instanceof RelayError) {
       throw new HTTPException(422, {
         res: c.json({ error: e.message }, 422),
       });

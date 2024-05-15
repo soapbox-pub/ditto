@@ -3,16 +3,14 @@ import { UserStore } from '@/storages/UserStore.ts';
 import { Storages } from '@/storages.ts';
 
 /** Store middleware. */
-const storeMiddleware: AppMiddleware = async (c, next) => {
-  const pubkey = c.get('pubkey');
+export const storeMiddleware: AppMiddleware = async (c, next) => {
+  const pubkey = await c.get('signer')?.getPublicKey();
 
   if (pubkey) {
-    const store = new UserStore(pubkey, Storages.admin);
+    const store = new UserStore(pubkey, await Storages.admin());
     c.set('store', store);
   } else {
-    c.set('store', Storages.admin);
+    c.set('store', await Storages.admin());
   }
   await next();
 };
-
-export { storeMiddleware };

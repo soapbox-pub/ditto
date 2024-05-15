@@ -48,7 +48,7 @@ class SearchStore implements NStore {
 
       return hydrateEvents({
         events,
-        storage: this.#hydrator,
+        store: this.#hydrator,
         signal: opts?.signal,
       });
     } else {

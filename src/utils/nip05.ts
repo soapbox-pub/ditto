@@ -1,4 +1,4 @@
-import { NIP05 } from '@nostrify/nostrify';
+import { NIP05, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { nip19 } from 'nostr-tools';
 
@@ -16,7 +16,8 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
     const [name, domain] = key.split('@');
     try {
       if (domain === Conf.url.host) {
-        const pointer = await localNip05Lookup(name);
+        const store = await Storages.db();
+        const pointer = await localNip05Lookup(store, name);
         if (pointer) {
           debug(`Found: ${key} is ${pointer.pubkey}`);
           return pointer;
@@ -36,8 +37,8 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   { max: 500, ttl: Time.hours(1) },
 );
 
-async function localNip05Lookup(name: string): Promise<nip19.ProfilePointer | undefined> {
-  const [label] = await Storages.db.query([{
+async function localNip05Lookup(store: NStore, name: string): Promise<nip19.ProfilePointer | undefined> {
+  const [label] = await store.query([{
     kinds: [1985],
     authors: [Conf.pubkey],
     '#L': ['nip05'],

@@ -22,7 +22,7 @@ interface RenderStatusOpts {
 async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<any> {
   const { viewerPubkey, depth = 1 } = opts;
 
-  if (depth > 2 || depth < 0) return null;
+  if (depth > 2 || depth < 0) return;
 
   const note = nip19.noteEncode(event.id);
 
@@ -40,7 +40,10 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     ),
   ];
 
-  const mentionedProfiles = await Storages.optimizer.query(
+  const db = await Storages.db();
+  const optimizer = await Storages.optimizer();
+
+  const mentionedProfiles = await optimizer.query(
     [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
@@ -53,7 +56,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
       ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
-        ? await Storages.db.query([
+        ? await db.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
