@@ -4,7 +4,7 @@ import { RelayPoolWorker } from 'nostr-relaypool';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { EventsDB } from '@/storages/events-db.ts';
+import { EventsDB } from '@/storages/EventsDB.ts';
 import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
 import { Reqmeister } from '@/storages/reqmeister.ts';

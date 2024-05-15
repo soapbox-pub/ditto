@@ -3,7 +3,7 @@ import { TextLineStream } from '@std/streams/text-line-stream';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { EventsDB } from '@/storages/events-db.ts';
+import { EventsDB } from '@/storages/EventsDB.ts';
 import { type EventStub } from '@/utils/api.ts';
 import { nostrNow } from '@/utils.ts';
 

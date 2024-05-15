@@ -3,7 +3,7 @@ import { NSchema } from '@nostrify/nostrify';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { Conf } from '@/config.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { EventsDB } from '@/storages/events-db.ts';
+import { EventsDB } from '@/storages/EventsDB.ts';
 import { nostrNow } from '@/utils.ts';
 
 const kysely = await DittoDB.getInstance();
