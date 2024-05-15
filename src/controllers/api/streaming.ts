@@ -77,7 +77,7 @@ const streamingController: AppController = (c) => {
           const event = msg[2];
 
           if (pubkey) {
-            const policy = new MuteListPolicy(pubkey, Storages.admin);
+            const policy = new MuteListPolicy(pubkey, await Storages.admin());
             const ok = await policy.call(event);
             if (ok[2] === false) {
               continue;
