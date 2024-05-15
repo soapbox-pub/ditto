@@ -44,7 +44,7 @@ async function selectUnattachedMediaQuery() {
 async function getUnattachedMedia(until: Date) {
   const query = await selectUnattachedMediaQuery();
   return query
-    .leftJoin('tags', 'unattached_media.url', 'tags.value')
+    .leftJoin('nostr_tags', 'unattached_media.url', 'nostr_tags.value')
     .where('uploaded_at', '<', until.getTime())
     .execute();
 }
