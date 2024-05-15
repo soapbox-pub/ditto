@@ -10,7 +10,8 @@
     "check": "deno check src/server.ts",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A scripts/admin-event.ts",
-    "admin:role": "deno run -A scripts/admin-role.ts"
+    "admin:role": "deno run -A scripts/admin-role.ts",
+    "stats:recompute": "deno run -A scripts/stats-recompute.ts"
   },
   "unstable": ["ffi", "kv"],
   "exclude": ["./public"],
