@@ -1,4 +1,4 @@
-import { assert } from '@/deps-test.ts';
+import { assert } from '@std/assert';
 
 import ExpiringCache from './expiring-cache.ts';
 
