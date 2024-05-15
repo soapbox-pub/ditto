@@ -20,7 +20,7 @@ async function renderNotifications(c: AppContext, filters: NostrFilter[]) {
   const events = await store
     .query(filters, { signal })
     .then((events) => events.filter((event) => event.pubkey !== pubkey))
-    .then((events) => hydrateEvents({ events, storage: store, signal }));
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   if (!events.length) {
     return c.json([]);

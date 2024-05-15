@@ -1,4 +1,4 @@
-import { NSchema as n } from '@nostrify/nostrify';
+import { NSchema as n, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -9,7 +9,8 @@ import { Storages } from '@/storages.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const configs = await getConfigs(c.req.raw.signal);
+  const store = await Storages.db();
+  const configs = await getConfigs(store, c.req.raw.signal);
   const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
 
   if (frontendConfig) {
@@ -25,7 +26,8 @@ const frontendConfigController: AppController = async (c) => {
 };
 
 const configController: AppController = async (c) => {
-  const configs = await getConfigs(c.req.raw.signal);
+  const store = await Storages.db();
+  const configs = await getConfigs(store, c.req.raw.signal);
   return c.json({ configs, need_reboot: false });
 };
 
@@ -33,7 +35,8 @@ const configController: AppController = async (c) => {
 const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
 
-  const configs = await getConfigs(c.req.raw.signal);
+  const store = await Storages.db();
+  const configs = await getConfigs(store, c.req.raw.signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   for (const { group, key, value } of newConfigs) {
@@ -63,10 +66,10 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
   return c.json({});
 };
 
-async function getConfigs(signal: AbortSignal): Promise<PleromaConfig[]> {
+async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaConfig[]> {
   const { pubkey } = Conf;
 
-  const [event] = await Storages.db.query([{
+  const [event] = await store.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],

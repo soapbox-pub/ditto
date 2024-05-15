@@ -1,12 +1,13 @@
 import { NSchema } from '@nostrify/nostrify';
 
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { Conf } from '@/config.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { nostrNow } from '@/utils.ts';
 
-const eventsDB = new EventsDB(db);
+const kysely = await DittoDB.getInstance();
+const eventsDB = new EventsDB(kysely);
 
 const [pubkey, role] = Deno.args;
 

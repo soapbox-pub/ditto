@@ -39,12 +39,13 @@ const adminAccountsController: AppController = async (c) => {
     return c.json([]);
   }
 
+  const store = await Storages.db();
   const { since, until, limit } = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events = await Storages.db.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
+  const events = await store.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
-  const authors = await Storages.db.query([{ kinds: [0], authors: pubkeys }], { signal });
+  const authors = await store.query([{ kinds: [0], authors: pubkeys }], { signal });
 
   for (const event of events) {
     const d = event.tags.find(([name]) => name === 'd')?.[1];
@@ -78,7 +79,7 @@ const adminAccountAction: AppController = async (c) => {
   }
 
   await updateListAdminEvent(
-    { kinds: [10000], authors: [Conf.pubkey] },
+    { kinds: [10000], authors: [Conf.pubkey], limit: 1 },
     (tags) => addTag(tags, ['p', authorId]),
     c,
   );

@@ -3,7 +3,8 @@ import Debug from '@soapbox/stickynotes/debug';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
 
-import '@/firehose.ts';
+import { Conf } from '@/config.ts';
+import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
 import { actorController } from '@/controllers/activitypub/actor.ts';
@@ -107,6 +108,10 @@ type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response
 const app = new Hono<AppEnv>();
 
 const debug = Debug('ditto:http');
+
+if (Conf.firehoseEnabled) {
+  startFirehose();
+}
 
 app.use('/api/*', logger(debug));
 app.use('/relay/*', logger(debug));

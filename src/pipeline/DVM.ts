@@ -34,7 +34,9 @@ export class DVM {
       return DVM.feedback(event, 'error', `Forbidden user: ${user}`);
     }
 
-    const [label] = await Storages.db.query([{
+    const store = await Storages.db();
+
+    const [label] = await store.query([{
       kinds: [1985],
       authors: [admin],
       '#L': ['nip05'],
