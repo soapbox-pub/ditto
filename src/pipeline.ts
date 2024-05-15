@@ -60,7 +60,7 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   ];
 
   try {
-    const CustomPolicy = (await import('../data/policy.ts')).default;
+    const CustomPolicy = (await import(Conf.policy)).default;
     policies.push(new CustomPolicy());
   } catch (_e) {
     debug('policy not found - https://docs.soapbox.pub/ditto/policies/');
