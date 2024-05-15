@@ -219,7 +219,7 @@ class Conf {
   static get firehoseEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('FIREHOSE_ENABLED')) ?? true;
   }
-  /** Path to the custom policy module. Supports any value Deno's `import()` accepts, including relative path, absolute path, https:, npm:, and jsr:. */
+  /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   static get policy(): string {
     return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).toString();
   }
