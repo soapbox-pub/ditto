@@ -68,15 +68,16 @@ const streamingController: AppController = (c) => {
     if (!filter) return;
 
     try {
-      const store = await Storages.pubsub();
+      const db = await Storages.db();
+      const pubsub = await Storages.pubsub();
 
-      for await (const msg of store.req([filter], { signal: controller.signal })) {
+      for await (const msg of pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
           await hydrateEvents({
             events: [event],
-            store,
+            store: db,
             signal: AbortSignal.timeout(1000),
           });
 
