@@ -2,11 +2,12 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
-import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
 import { addTag } from '@/tags.ts';
+import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
+import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
 
 const adminAccountQuerySchema = z.object({
   local: booleanParamSchema.optional(),
@@ -49,7 +50,7 @@ const adminAccountsController: AppController = async (c) => {
 
   for (const event of events) {
     const d = event.tags.find(([name]) => name === 'd')?.[1];
-    event.d_author = authors.find((author) => author.pubkey === d);
+    (event as DittoEvent).d_author = authors.find((author) => author.pubkey === d);
   }
 
   const accounts = await Promise.all(
