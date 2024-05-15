@@ -9,6 +9,7 @@ import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -74,6 +75,14 @@ const streamingController: AppController = (c) => {
       for await (const msg of pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
+
+          if (pubkey) {
+            const policy = new MuteListPolicy(pubkey, await Storages.admin());
+            const ok = await policy.call(event);
+            if (ok[2] === false) {
+              continue;
+            }
+          }
 
           await hydrateEvents({
             events: [event],
