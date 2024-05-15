@@ -35,7 +35,7 @@ const tagConditions: Record<string, TagCondition> = {
   'role': ({ event, count }) => event.kind === 30361 && count === 0,
 };
 
-type EventQuery = SelectQueryBuilder<DittoTables, 'events', {
+type EventQuery = SelectQueryBuilder<DittoTables, 'nostr_events', {
   id: string;
   tags: string;
   kind: number;
@@ -80,7 +80,7 @@ class EventsDB implements NStore {
     return await this.#db.transaction().execute(async (trx) => {
       /** Insert the event into the database. */
       async function addEvent() {
-        await trx.insertInto('events')
+        await trx.insertInto('nostr_events')
           .values({ ...event, tags: JSON.stringify(event.tags) })
           .execute();
       }
@@ -91,18 +91,18 @@ class EventsDB implements NStore {
         if (protocol !== 'sqlite:') return;
         const searchContent = buildSearchContent(event);
         if (!searchContent) return;
-        await trx.insertInto('events_fts')
-          .values({ id: event.id, content: searchContent.substring(0, 1000) })
+        await trx.insertInto('nostr_fts5')
+          .values({ event_id: event.id, content: searchContent.substring(0, 1000) })
           .execute();
       }
 
       /** Index event tags depending on the conditions defined above. */
       async function indexTags() {
         const tags = filterIndexableTags(event);
-        const rows = tags.map(([tag, value]) => ({ event_id: event.id, tag, value }));
+        const rows = tags.map(([name, value]) => ({ event_id: event.id, name, value }));
 
         if (!tags.length) return;
-        await trx.insertInto('tags')
+        await trx.insertInto('nostr_tags')
           .values(rows)
           .execute();
       }
@@ -150,17 +150,17 @@ class EventsDB implements NStore {
   /** Build the query for a filter. */
   getFilterQuery(db: Kysely<DittoTables>, filter: NostrFilter): EventQuery {
     let query = db
-      .selectFrom('events')
+      .selectFrom('nostr_events')
       .select([
-        'events.id',
-        'events.kind',
-        'events.pubkey',
-        'events.content',
-        'events.tags',
-        'events.created_at',
-        'events.sig',
+        'nostr_events.id',
+        'nostr_events.kind',
+        'nostr_events.pubkey',
+        'nostr_events.content',
+        'nostr_events.tags',
+        'nostr_events.created_at',
+        'nostr_events.sig',
       ])
-      .where('events.deleted_at', 'is', null);
+      .where('nostr_events.deleted_at', 'is', null);
 
     /** Whether we are querying for replaceable events by author. */
     const isAddrQuery = filter.authors &&
@@ -169,7 +169,7 @@ class EventsDB implements NStore {
 
     // Avoid ORDER BY when querying for replaceable events by author.
     if (!isAddrQuery) {
-      query = query.orderBy('events.created_at', 'desc');
+      query = query.orderBy('nostr_events.created_at', 'desc');
     }
 
     for (const [key, value] of Object.entries(filter)) {
@@ -177,19 +177,19 @@ class EventsDB implements NStore {
 
       switch (key as keyof NostrFilter) {
         case 'ids':
-          query = query.where('events.id', 'in', filter.ids!);
+          query = query.where('nostr_events.id', 'in', filter.ids!);
           break;
         case 'kinds':
-          query = query.where('events.kind', 'in', filter.kinds!);
+          query = query.where('nostr_events.kind', 'in', filter.kinds!);
           break;
         case 'authors':
-          query = query.where('events.pubkey', 'in', filter.authors!);
+          query = query.where('nostr_events.pubkey', 'in', filter.authors!);
           break;
         case 'since':
-          query = query.where('events.created_at', '>=', filter.since!);
+          query = query.where('nostr_events.created_at', '>=', filter.since!);
           break;
         case 'until':
-          query = query.where('events.created_at', '<=', filter.until!);
+          query = query.where('nostr_events.created_at', '<=', filter.until!);
           break;
         case 'limit':
           query = query.limit(filter.limit!);
@@ -197,21 +197,21 @@ class EventsDB implements NStore {
       }
     }
 
-    const joinedQuery = query.leftJoin('tags', 'tags.event_id', 'events.id');
+    const joinedQuery = query.leftJoin('nostr_tags', 'nostr_tags.event_id', 'nostr_events.id');
 
     for (const [key, value] of Object.entries(filter)) {
       if (key.startsWith('#') && Array.isArray(value)) {
         const name = key.replace(/^#/, '');
         query = joinedQuery
-          .where('tags.tag', '=', name)
-          .where('tags.value', 'in', value);
+          .where('nostr_tags.name', '=', name)
+          .where('nostr_tags.value', 'in', value);
       }
     }
 
     if (filter.search && this.protocol === 'sqlite:') {
       query = query
-        .innerJoin('events_fts', 'events_fts.id', 'events.id')
-        .where('events_fts.content', 'match', JSON.stringify(filter.search));
+        .innerJoin('nostr_fts5', 'nostr_fts5.event_id', 'nostr_events.id')
+        .where('nostr_fts5.content', 'match', JSON.stringify(filter.search));
     }
 
     return query;
@@ -227,9 +227,9 @@ class EventsDB implements NStore {
   /** Query to get user events, joined by tags. */
   usersQuery() {
     return this.getFilterQuery(this.#db, { kinds: [30361], authors: [Conf.pubkey] })
-      .leftJoin('tags', 'tags.event_id', 'events.id')
-      .where('tags.tag', '=', 'd')
-      .select('tags.value as d_tag')
+      .leftJoin('nostr_tags', 'nostr_tags.event_id', 'nostr_events.id')
+      .where('nostr_tags.name', '=', 'd')
+      .select('nostr_tags.value as d_tag')
       .as('users');
   }
 
@@ -335,7 +335,7 @@ class EventsDB implements NStore {
 
     const query = this.getEventsQuery(filters).clearSelect().select('id');
 
-    return await db.updateTable('events')
+    return await db.updateTable('nostr_events')
       .where('id', 'in', () => query)
       .set({ deleted_at: Math.floor(Date.now() / 1000) })
       .execute();

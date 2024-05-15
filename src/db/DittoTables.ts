@@ -1,7 +1,7 @@
 export interface DittoTables {
-  events: EventRow;
-  events_fts: EventFTSRow;
-  tags: TagRow;
+  nostr_events: EventRow;
+  nostr_tags: TagRow;
+  nostr_fts5: EventFTSRow;
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
@@ -34,14 +34,14 @@ interface EventRow {
 }
 
 interface EventFTSRow {
-  id: string;
+  event_id: string;
   content: string;
 }
 
 interface TagRow {
-  tag: string;
-  value: string;
   event_id: string;
+  name: string;
+  value: string;
 }
 
 interface UnattachedMediaRow {
