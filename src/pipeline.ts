@@ -1,4 +1,4 @@
-import { NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
+import { NKinds, NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
 import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
@@ -8,7 +8,6 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { isEphemeralKind } from '@/kinds.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { RelayError } from '@/RelayError.ts';
 import { updateStats } from '@/stats.ts';
@@ -103,7 +102,7 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
-  if (isEphemeralKind(event.kind)) return;
+  if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
 
   const [deletion] = await store.query(
