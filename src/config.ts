@@ -42,7 +42,7 @@ class Conf {
   }
 
   static get port() {
-    return parseInt(Deno.env.get('PORT') || '8000');
+    return parseInt(Deno.env.get('PORT') || '4036');
   }
 
   static get relay(): `wss://${string}` | `ws://${string}` {
