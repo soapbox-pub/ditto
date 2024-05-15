@@ -1,4 +1,4 @@
-import { assertEquals } from '@/deps-test.ts';
+import { assertEquals } from '@std/assert';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { MockRelay } from '@nostrify/nostrify/test';
 

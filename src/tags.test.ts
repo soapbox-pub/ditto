@@ -1,4 +1,4 @@
-import { assertEquals } from '@/deps-test.ts';
+import { assertEquals } from '@std/assert';
 
 import { addTag, deleteTag, getTagSet } from './tags.ts';
 

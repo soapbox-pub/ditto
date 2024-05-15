@@ -1,6 +1,6 @@
 import { MockRelay } from '@nostrify/nostrify/test';
 
-import { assertEquals } from '@/deps-test.ts';
+import { assertEquals } from '@std/assert';
 import { UserStore } from '@/storages/UserStore.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 
