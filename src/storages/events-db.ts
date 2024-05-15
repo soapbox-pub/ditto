@@ -7,14 +7,13 @@ import { Kysely } from 'kysely';
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { normalizeFilters } from '@/filter.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
-  event: DittoEvent;
+  event: NostrEvent;
   count: number;
   value: string;
 }) => boolean;
@@ -27,10 +26,10 @@ class EventsDB implements NStore {
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
-    'e': ({ event, count, value }) => ((event.user && event.kind === 10003) || count < 15) && isNostrId(value),
+    'e': ({ event, count, value }) => ((event.kind === 10003) || count < 15) && isNostrId(value),
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
-    'media': ({ event, count, value }) => (event.user || count < 4) && isURL(value),
+    'media': ({ count, value }) => (count < 4) && isURL(value),
     'P': ({ count, value }) => count === 0 && isNostrId(value),
     'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
     'proxy': ({ count, value }) => count === 0 && isURL(value),
@@ -56,7 +55,7 @@ class EventsDB implements NStore {
   }
 
   /** Get events for filters from the database. */
-  async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<DittoEvent[]> {
+  async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
 
     if (opts.signal?.aborted) return Promise.resolve([]);
@@ -89,7 +88,7 @@ class EventsDB implements NStore {
   }
 
   /** Return only the tags that should be indexed. */
-  static indexTags(event: DittoEvent): string[][] {
+  static indexTags(event: NostrEvent): string[][] {
     const tagCounts: Record<string, number> = {};
 
     function getCount(name: string) {
