@@ -16,7 +16,7 @@ export class RelayError extends Error {
 
   /** Throw a new RelayError if the OK message is false. */
   static assert(msg: NostrRelayOK): void {
-    const [_, _eventId, ok, reason] = msg;
+    const [, , ok, reason] = msg;
     if (!ok) {
       throw RelayError.fromReason(reason);
     }

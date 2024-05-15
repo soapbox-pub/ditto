@@ -4,12 +4,12 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
-import { bech32ToPubkey } from '@/utils.ts';
-import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
+import { bech32ToPubkey } from '@/utils.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -78,8 +78,8 @@ const streamingController: AppController = (c) => {
 
           if (pubkey) {
             const policy = new MuteListPolicy(pubkey, await Storages.admin());
-            const ok = await policy.call(event);
-            if (ok[2] === false) {
+            const [, , ok] = await policy.call(event);
+            if (!ok) {
               continue;
             }
           }
