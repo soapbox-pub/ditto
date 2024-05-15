@@ -1,4 +1,4 @@
-import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
 import { z } from 'zod';
 

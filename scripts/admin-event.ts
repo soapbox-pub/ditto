@@ -1,7 +1,7 @@
 import { JsonParseStream } from '@std/json/json-parse-stream';
 import { TextLineStream } from '@std/streams/text-line-stream';
 
-import { db } from '@/db.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/events-db.ts';
 import { type EventStub } from '@/utils/api.ts';
@@ -9,7 +9,8 @@ import { nostrNow } from '@/utils.ts';
 
 const signer = new AdminSigner();
 
-const eventsDB = new EventsDB(db);
+const kysely = await DittoDB.getInstance();
+const eventsDB = new EventsDB(kysely);
 
 const readable = Deno.stdin.readable
   .pipeThrough(new TextDecoderStream())

@@ -62,7 +62,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
       return renderReblog(event, { viewerPubkey });
     }
     return renderStatus(event, { viewerPubkey });
-  }))).filter((boolean) => boolean);
+  }))).filter(Boolean);
 
   if (!statuses.length) {
     return c.json([]);
