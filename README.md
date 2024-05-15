@@ -16,10 +16,10 @@ For more info see: https://docs.soapbox.pub/ditto/
 - [x] Like and comment on posts
 - [x] Share posts
 - [x] Reposts
-- [ ] Notifications
+- [x] Notifications
 - [x] Profiles
 - [ ] Search
-- [ ] Moderation
+- [x] Moderation
 - [ ] Zaps
 - [x] Customizable
 - [x] Open source
