@@ -1,6 +1,6 @@
 import { NKinds, NostrEvent } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { InsertQueryBuilder } from 'kysely';
+import { InsertQueryBuilder, Kysely } from 'kysely';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -37,8 +37,10 @@ async function updateStats(event: NostrEvent) {
     debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
-  if (pubkeyDiffs.length) queries.push(await authorStatsQuery(pubkeyDiffs));
-  if (eventDiffs.length) queries.push(await eventStatsQuery(eventDiffs));
+  const kysely = await DittoDB.getInstance();
+
+  if (pubkeyDiffs.length) queries.push(authorStatsQuery(kysely, pubkeyDiffs));
+  if (eventDiffs.length) queries.push(eventStatsQuery(kysely, eventDiffs));
 
   if (queries.length) {
     await Promise.all(queries.map((query) => query.execute()));
@@ -102,7 +104,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
 }
 
 /** Create an author stats query from the list of diffs. */
-async function authorStatsQuery(diffs: AuthorStatDiff[]) {
+function authorStatsQuery(kysely: Kysely<DittoTables>, diffs: AuthorStatDiff[]) {
   const values: DittoTables['author_stats'][] = diffs.map(([_, pubkey, stat, diff]) => {
     const row: DittoTables['author_stats'] = {
       pubkey,
@@ -114,7 +116,6 @@ async function authorStatsQuery(diffs: AuthorStatDiff[]) {
     return row;
   });
 
-  const kysely = await DittoDB.getInstance();
   return kysely.insertInto('author_stats')
     .values(values)
     .onConflict((oc) =>
@@ -129,7 +130,7 @@ async function authorStatsQuery(diffs: AuthorStatDiff[]) {
 }
 
 /** Create an event stats query from the list of diffs. */
-async function eventStatsQuery(diffs: EventStatDiff[]) {
+function eventStatsQuery(kysely: Kysely<DittoTables>, diffs: EventStatDiff[]) {
   const values: DittoTables['event_stats'][] = diffs.map(([_, event_id, stat, diff]) => {
     const row: DittoTables['event_stats'] = {
       event_id,
@@ -141,7 +142,6 @@ async function eventStatsQuery(diffs: EventStatDiff[]) {
     return row;
   });
 
-  const kysely = await DittoDB.getInstance();
   return kysely.insertInto('event_stats')
     .values(values)
     .onConflict((oc) =>
