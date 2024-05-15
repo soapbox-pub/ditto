@@ -50,6 +50,16 @@ const streamingController: AppController = async (c) => {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
+  const mutedUsersSet = new Set();
+  if (pubkey) {
+    const [mutedUsers] = await Storages.admin.query([{ authors: [pubkey], kinds: [10000], limit: 1 }], { signal });
+    if (mutedUsers) {
+      for (const pubkey of getTagSet(mutedUsers.tags, 'p')) {
+        mutedUsersSet.add(pubkey);
+      }
+    }
+  }
+
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
 
   function send(name: string, payload: object) {
@@ -60,16 +70,6 @@ const streamingController: AppController = async (c) => {
         payload: JSON.stringify(payload),
         stream: [stream],
       }));
-    }
-  }
-
-  const mutedUsersSet = new Set();
-  if (pubkey) {
-    const [mutedUsers] = await Storages.admin.query([{ authors: [pubkey], kinds: [10000], limit: 1 }], { signal });
-    if (mutedUsers) {
-      for (const pubkey of getTagSet(mutedUsers.tags, 'p')) {
-        mutedUsersSet.add(pubkey);
-      }
     }
   }
 
