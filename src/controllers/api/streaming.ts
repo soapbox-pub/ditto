@@ -9,7 +9,7 @@ import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { getTagSet } from '@/tags.ts';
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -34,12 +34,11 @@ const streamSchema = z.enum([
 
 type Stream = z.infer<typeof streamSchema>;
 
-const streamingController: AppController = async (c) => {
+const streamingController: AppController = (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
   const controller = new AbortController();
-  const signal = c.req.raw.signal;
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
@@ -48,16 +47,6 @@ const streamingController: AppController = async (c) => {
   const pubkey = token ? bech32ToPubkey(token) : undefined;
   if (token && !pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
-  }
-
-  const mutedUsersSet = new Set();
-  if (pubkey) {
-    const [mutedUsers] = await Storages.admin.query([{ authors: [pubkey], kinds: [10000], limit: 1 }], { signal });
-    if (mutedUsers) {
-      for (const pubkey of getTagSet(mutedUsers.tags, 'p')) {
-        mutedUsersSet.add(pubkey);
-      }
-    }
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
@@ -84,8 +73,12 @@ const streamingController: AppController = async (c) => {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
-          if (mutedUsersSet.has(event.pubkey)) {
-            continue;
+          if (pubkey) {
+            const policy = new MuteListPolicy(pubkey, Storages.admin);
+            const ok = await policy.call(event);
+            if (ok[2] === false) {
+              continue;
+            }
           }
 
           await hydrateEvents({
