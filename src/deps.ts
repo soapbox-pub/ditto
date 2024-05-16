@@ -1,4 +1,4 @@
-import 'https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts';
+import 'deno-safe-fetch';
 // @deno-types="npm:@types/lodash@4.14.194"
 export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
 // @deno-types="npm:@types/mime@3.0.0"

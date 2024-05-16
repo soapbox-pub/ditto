@@ -16,6 +16,7 @@ import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+import { policyWorker } from '@/workers/policy.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
@@ -55,22 +56,39 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
+  const debug = Debug('ditto:policy');
+
   const policies: NPolicy[] = [
     new MuteListPolicy(Conf.pubkey, await Storages.admin()),
   ];
 
   try {
-    const CustomPolicy = (await import('../data/policy.ts')).default;
-    policies.push(new CustomPolicy());
-  } catch (_e) {
-    debug('policy not found - https://docs.soapbox.pub/ditto/policies/');
+    await policyWorker.import(Conf.policy);
+    policies.push(policyWorker);
+    debug(`Using custom policy: ${Conf.policy}`);
+  } catch (e) {
+    if (e.message.includes('Module not found')) {
+      debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
+    } else {
+      console.error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);
+      throw new RelayError('blocked', 'policy could not be loaded');
+    }
   }
 
   const policy = new PipePolicy(policies.reverse());
 
-  const result = await policy.call(event);
-  debug(JSON.stringify(result));
-  RelayError.assert(result);
+  try {
+    const result = await policy.call(event);
+    debug(JSON.stringify(result));
+    RelayError.assert(result);
+  } catch (e) {
+    if (e instanceof RelayError) {
+      throw e;
+    } else {
+      console.error('POLICY ERROR:', e);
+      throw new RelayError('blocked', 'policy error');
+    }
+  }
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
