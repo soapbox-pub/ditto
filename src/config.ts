@@ -221,7 +221,7 @@ class Conf {
   }
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   static get policy(): string {
-    return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).toString();
+    return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
   }
 }
 

@@ -16,6 +16,7 @@ import { Storages } from '@/storages.ts';
 import { getTagSet } from '@/tags.ts';
 import { eventAge, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+import { policyWorker } from '@/workers/policy.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
@@ -62,11 +63,11 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   ];
 
   try {
-    const CustomPolicy = (await import(Conf.policy)).default;
-    policies.push(new CustomPolicy());
+    await policyWorker.import(Conf.policy);
+    policies.push(policyWorker);
     debug(`Using custom policy: ${Conf.policy}`);
   } catch (e) {
-    if (e.code === 'ERR_MODULE_NOT_FOUND') {
+    if (e.message.includes('Module not found')) {
       debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
     } else {
       console.error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);

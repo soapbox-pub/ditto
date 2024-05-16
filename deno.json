@@ -13,7 +13,7 @@
     "admin:role": "deno run -A scripts/admin-role.ts",
     "stats:recompute": "deno run -A scripts/stats-recompute.ts"
   },
-  "unstable": ["ffi", "kv"],
+  "unstable": ["ffi", "kv", "worker-options"],
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
