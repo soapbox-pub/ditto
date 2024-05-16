@@ -2,6 +2,7 @@ import { Database as Sqlite } from '@db/sqlite';
 import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { assertEquals, assertRejects } from '@std/assert';
 import { Kysely } from 'kysely';
+import { generateSecretKey } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -12,7 +13,6 @@ import { genEvent } from '@/test.ts';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
-import { generateSecretKey } from 'nostr-tools';
 
 /** Create in-memory database for testing. */
 const createDB = async () => {
