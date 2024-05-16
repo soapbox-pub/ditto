@@ -122,17 +122,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
 
-  const [deletion] = await store.query(
-    [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
-    { signal },
-  );
-
-  if (deletion) {
-    return Promise.reject(new RelayError('blocked', 'event was deleted'));
-  } else {
-    await updateStats(event).catch(debug);
-    await store.event(event, { signal }).catch(debug);
-  }
+  await updateStats(event).catch(debug);
+  await store.event(event, { signal });
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */

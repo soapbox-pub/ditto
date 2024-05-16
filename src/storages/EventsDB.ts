@@ -11,6 +11,7 @@ import { purifyEvent } from '@/storages/hydrate.ts';
 import { getTagSet } from '@/tags.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
+import { RelayError } from '@/RelayError.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -52,12 +53,36 @@ class EventsDB implements NStore {
   async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
+
+    if (await this.isDeletedAdmin(event)) {
+      throw new RelayError('blocked', 'event deleted by admin');
+    }
+
     await this.deleteEventsAdmin(event);
-    return this.store.event(event);
+
+    try {
+      await this.store.event(event);
+    } catch (e) {
+      if (e.message === 'Cannot add a deleted event') {
+        throw new RelayError('blocked', 'event deleted by user');
+      } else if (e.message === 'Cannot replace an event with an older event') {
+        return;
+      } else {
+        this.console.debug('ERROR', e.message);
+      }
+    }
+  }
+
+  /** Check if an event has been deleted by the admin. */
+  private async isDeletedAdmin(event: NostrEvent): Promise<boolean> {
+    const [deletion] = await this.query([
+      { kinds: [5], authors: [Conf.pubkey], '#e': [event.id], limit: 1 },
+    ]);
+    return !!deletion;
   }
 
   /** The DITTO_NSEC can delete any event from the database. NDatabase already handles user deletions. */
-  async deleteEventsAdmin(event: NostrEvent): Promise<void> {
+  private async deleteEventsAdmin(event: NostrEvent): Promise<void> {
     if (event.kind === 5 && event.pubkey === Conf.pubkey) {
       const ids = getTagSet(event.tags, 'e');
       await this.remove([{ ids: [...ids] }]);

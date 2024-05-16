@@ -6,10 +6,13 @@ import { Kysely } from 'kysely';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { RelayError } from '@/RelayError.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
+import { genEvent } from '@/test.ts';
 
 import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
 import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
+import { generateSecretKey } from 'nostr-tools';
 
 /** Create in-memory database for testing. */
 const createDB = async () => {
@@ -140,16 +143,51 @@ Deno.test('admin can delete any event', async () => {
   assertEquals(await eventsDB.query([{ kinds: [1] }]), [two]);
 });
 
+Deno.test('throws a RelayError when inserting an event deleted by the admin', async () => {
+  const { eventsDB } = await createDB();
+
+  const event = genEvent();
+  await eventsDB.event(event);
+
+  const deletion = genEvent({ kind: 5, tags: [['e', event.id]] }, Conf.seckey);
+  await eventsDB.event(deletion);
+
+  await assertRejects(
+    () => eventsDB.event(event),
+    RelayError,
+    'event deleted by admin',
+  );
+});
+
+Deno.test('throws a RelayError when inserting an event deleted by a user', async () => {
+  const { eventsDB } = await createDB();
+
+  const sk = generateSecretKey();
+
+  const event = genEvent({}, sk);
+  await eventsDB.event(event);
+
+  const deletion = genEvent({ kind: 5, tags: [['e', event.id]] }, sk);
+  await eventsDB.event(deletion);
+
+  await assertRejects(
+    () => eventsDB.event(event),
+    RelayError,
+    'event deleted by user',
+  );
+});
+
 Deno.test('inserting replaceable events', async () => {
   const { eventsDB } = await createDB();
 
-  assertEquals((await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }])).count, 0);
+  const event = event0;
+  await eventsDB.event(event);
 
-  await eventsDB.event(event0);
-  await assertRejects(() => eventsDB.event(event0));
-  assertEquals((await eventsDB.count([{ kinds: [0], authors: [event0.pubkey] }])).count, 1);
+  const olderEvent = { ...event, id: '123', created_at: event.created_at - 1 };
+  await eventsDB.event(olderEvent);
+  assertEquals(await eventsDB.query([{ kinds: [0], authors: [event.pubkey] }]), [event]);
 
-  const changeEvent = { ...event0, id: '123', created_at: event0.created_at + 1 };
-  await eventsDB.event(changeEvent);
-  assertEquals(await eventsDB.query([{ kinds: [0] }]), [changeEvent]);
+  const newerEvent = { ...event, id: '123', created_at: event.created_at + 1 };
+  await eventsDB.event(newerEvent);
+  assertEquals(await eventsDB.query([{ kinds: [0] }]), [newerEvent]);
 });
