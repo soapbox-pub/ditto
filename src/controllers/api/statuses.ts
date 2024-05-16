@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { addTag, deleteTag } from '@/tags.ts';
@@ -56,6 +57,7 @@ const statusController: AppController = async (c) => {
 const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
+  const kysely = await DittoDB.getInstance();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -92,7 +94,7 @@ const createStatusController: AppController = async (c) => {
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   if (data.media_ids?.length) {
-    const media = await getUnattachedMediaByIds(data.media_ids)
+    const media = await getUnattachedMediaByIds(kysely, data.media_ids)
       .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
       .then((media) => media.map(({ url, data }) => ['media', url, data]));
 

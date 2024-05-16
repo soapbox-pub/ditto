@@ -1,6 +1,8 @@
+import { Kysely } from 'kysely';
 import uuid62 from 'uuid62';
 
 import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
@@ -28,8 +30,7 @@ async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'upload
 }
 
 /** Select query for unattached media. */
-async function selectUnattachedMediaQuery() {
-  const kysely = await DittoDB.getInstance();
+function selectUnattachedMediaQuery(kysely: Kysely<DittoTables>) {
   return kysely.selectFrom('unattached_media')
     .select([
       'unattached_media.id',
@@ -41,9 +42,8 @@ async function selectUnattachedMediaQuery() {
 }
 
 /** Find attachments that exist but aren't attached to any events. */
-async function getUnattachedMedia(until: Date) {
-  const query = await selectUnattachedMediaQuery();
-  return query
+function getUnattachedMedia(kysely: Kysely<DittoTables>, until: Date) {
+  return selectUnattachedMediaQuery(kysely)
     .leftJoin('nostr_tags', 'unattached_media.url', 'nostr_tags.value')
     .where('uploaded_at', '<', until.getTime())
     .execute();
@@ -58,10 +58,9 @@ async function deleteUnattachedMediaByUrl(url: string) {
 }
 
 /** Get unattached media by IDs. */
-async function getUnattachedMediaByIds(ids: string[]) {
+async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[]) {
   if (!ids.length) return [];
-  const query = await selectUnattachedMediaQuery();
-  return query
+  return await selectUnattachedMediaQuery(kysely)
     .where('id', 'in', ids)
     .execute();
 }
