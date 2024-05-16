@@ -2,7 +2,6 @@ import { NKinds, NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
 import { LNURL } from '@nostrify/nostrify/ln';
 import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
-import { Stickynotes } from '@soapbox/stickynotes';
 import { sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
@@ -56,7 +55,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
-  const console = new Stickynotes('ditto:policy');
+  const debug = Debug('ditto:policy');
 
   const policies: NPolicy[] = [
     new MuteListPolicy(Conf.pubkey, await Storages.admin()),
@@ -65,17 +64,30 @@ async function policyFilter(event: NostrEvent): Promise<void> {
   try {
     const CustomPolicy = (await import(Conf.policy)).default;
     policies.push(new CustomPolicy());
-    console.info(`Using custom policy: ${Conf.policy}`);
-  } catch {
-    console.info('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
+    debug(`Using custom policy: ${Conf.policy}`);
+  } catch (e) {
+    if (e.code === 'ERR_MODULE_NOT_FOUND') {
+      debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
+    } else {
+      console.error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);
+      throw new RelayError('blocked', 'policy could not be loaded');
+    }
   }
 
   const policy = new PipePolicy(policies.reverse());
 
-  const result = await policy.call(event);
-  console.debug(JSON.stringify(result));
-
-  RelayError.assert(result);
+  try {
+    const result = await policy.call(event);
+    debug(JSON.stringify(result));
+    RelayError.assert(result);
+  } catch (e) {
+    if (e instanceof RelayError) {
+      throw e;
+    } else {
+      console.error('POLICY ERROR:', e);
+      throw new RelayError('blocked', 'policy error');
+    }
+  }
 }
 
 /** Encounter the event, and return whether it has already been encountered. */
