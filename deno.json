@@ -34,6 +34,7 @@
     "@std/media-types": "jsr:@std/media-types@^0.224.0",
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
+    "deno-safe-fetch": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
     "formdata-helper": "npm:formdata-helper@^0.3.0",
     "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",

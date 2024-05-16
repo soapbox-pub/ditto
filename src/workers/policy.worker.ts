@@ -1,3 +1,4 @@
+import 'deno-safe-fetch';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/nostrify/policies';
 import * as Comlink from 'comlink';
