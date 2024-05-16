@@ -8,6 +8,7 @@ import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { normalizeFilters } from '@/filter.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
+import { getTagSet } from '@/tags.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 
@@ -51,7 +52,16 @@ class EventsDB implements NStore {
   async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
+    await this.deleteEventsAdmin(event);
     return this.store.event(event);
+  }
+
+  /** The DITTO_NSEC can delete any event from the database. NDatabase already handles user deletions. */
+  async deleteEventsAdmin(event: NostrEvent): Promise<void> {
+    if (event.kind === 5 && event.pubkey === Conf.pubkey) {
+      const ids = getTagSet(event.tags, 'e');
+      await this.remove([{ ids: [...ids] }]);
+    }
   }
 
   /** Get events for filters from the database. */

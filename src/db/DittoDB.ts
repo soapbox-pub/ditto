@@ -41,7 +41,7 @@ export class DittoDB {
   }
 
   /** Migrate the database to the latest version. */
-  private static async migrate(kysely: Kysely<DittoTables>) {
+  static async migrate(kysely: Kysely<DittoTables>) {
     const migrator = new Migrator({
       db: kysely,
       provider: new FileMigrationProvider({
