@@ -45,7 +45,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await Promise.all([
     storeEvent(event, signal),
     parseMetadata(event, signal),
-    processDeletions(event, signal),
     DVM.event(event),
     trackHashtags(event),
     fetchRelatedEvents(event),
@@ -123,17 +122,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
 
-  const [deletion] = await store.query(
-    [{ kinds: [5], authors: [Conf.pubkey, event.pubkey], '#e': [event.id], limit: 1 }],
-    { signal },
-  );
-
-  if (deletion) {
-    return Promise.reject(new RelayError('blocked', 'event was deleted'));
-  } else {
-    await updateStats(event).catch(debug);
-    await store.event(event, { signal }).catch(debug);
-  }
+  await updateStats(event).catch(debug);
+  await store.event(event, { signal });
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
@@ -171,26 +161,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     `.execute(kysely);
   } catch (_e) {
     // do nothing
-  }
-}
-
-/** Query to-be-deleted events, ensure their pubkey matches, then delete them from the database. */
-async function processDeletions(event: NostrEvent, signal: AbortSignal): Promise<void> {
-  if (event.kind === 5) {
-    const ids = getTagSet(event.tags, 'e');
-    const store = await Storages.db();
-
-    if (event.pubkey === Conf.pubkey) {
-      await store.remove([{ ids: [...ids] }], { signal });
-    } else {
-      const events = await store.query(
-        [{ ids: [...ids], authors: [event.pubkey] }],
-        { signal },
-      );
-
-      const deleteIds = events.map(({ id }) => id);
-      await store.remove([{ ids: deleteIds }], { signal });
-    }
   }
 }
 
