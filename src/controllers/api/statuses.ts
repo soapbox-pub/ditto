@@ -261,21 +261,19 @@ const reblogStatusController: AppController = async (c) => {
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
   const pubkey = await c.get('signer')?.getPublicKey()!;
-
-  const event = await getEvent(eventId, { kind: 1 });
-
-  if (!event) {
-    return c.json({ error: 'Event not found.' }, 404);
-  }
-
   const store = await Storages.db();
+
+  const [event] = await store.query([{ ids: [eventId], kinds: [1] }]);
+  if (!event) {
+    return c.json({ error: 'Record not found' }, 404);
+  }
 
   const [repostedEvent] = await store.query(
     [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
   );
 
   if (!repostedEvent) {
-    return c.json({ error: 'Event not found.' }, 404);
+    return c.json({ error: 'Record not found' }, 404);
   }
 
   await createEvent({
