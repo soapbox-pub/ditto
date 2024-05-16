@@ -33,15 +33,15 @@ Deno.test('query events with domain search filter', async () => {
   await eventsDB.event(event1);
 
   assertEquals(await eventsDB.query([{}]), [event1]);
-  assertEquals(await eventsDB.query([{ search: 'domain:localhost:8000' }]), []);
+  assertEquals(await eventsDB.query([{ search: 'domain:localhost:4036' }]), []);
   assertEquals(await eventsDB.query([{ search: '' }]), [event1]);
 
   await kysely
     .insertInto('pubkey_domains')
-    .values({ pubkey: event1.pubkey, domain: 'localhost:8000', last_updated_at: event1.created_at })
+    .values({ pubkey: event1.pubkey, domain: 'localhost:4036', last_updated_at: event1.created_at })
     .execute();
 
-  assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:localhost:8000' }]), [event1]);
+  assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:localhost:4036' }]), [event1]);
   assertEquals(await eventsDB.query([{ kinds: [1], search: 'domain:example.com' }]), []);
 });
 

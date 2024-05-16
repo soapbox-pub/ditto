@@ -55,7 +55,7 @@ class Conf {
   }
   /** Origin of the Ditto server, including the protocol and port. */
   static get localDomain() {
-    return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
+    return Deno.env.get('LOCAL_DOMAIN') || `http://localhost:${Conf.port}`;
   }
   /** URL to an external Nostr viewer. */
   static get externalDomain() {
