@@ -1,11 +1,12 @@
-import { NKinds, NostrEvent } from '@nostrify/nostrify';
+import { NKinds, NostrEvent, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder, Kysely } from 'kysely';
+import { SetRequired } from 'type-fest';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Storages } from '@/storages.ts';
-import { findReplyTag } from '@/tags.ts';
+import { findReplyTag, getTagSet } from '@/tags.ts';
 
 type AuthorStat = keyof Omit<DittoTables['author_stats'], 'pubkey'>;
 type EventStat = keyof Omit<DittoTables['event_stats'], 'event_id'>;
@@ -216,4 +217,35 @@ function getFollowDiff(event: NostrEvent, prev?: NostrEvent): AuthorStatDiff[] {
   ];
 }
 
-export { updateStats };
+/** Refresh the author's stats in the database. */
+async function refreshAuthorStats(pubkey: string): Promise<void> {
+  const store = await Storages.db();
+  const stats = await countAuthorStats(store, pubkey);
+
+  const kysely = await DittoDB.getInstance();
+  await kysely.insertInto('author_stats')
+    .values(stats)
+    .onConflict((oc) => oc.column('pubkey').doUpdateSet(stats))
+    .execute();
+}
+
+/** Calculate author stats from the database. */
+async function countAuthorStats(
+  store: SetRequired<NStore, 'count'>,
+  pubkey: string,
+): Promise<DittoTables['author_stats']> {
+  const [{ count: followers_count }, { count: notes_count }, [followList]] = await Promise.all([
+    store.count([{ kinds: [3], '#p': [pubkey] }]),
+    store.count([{ kinds: [1], authors: [pubkey] }]),
+    store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
+  ]);
+
+  return {
+    pubkey,
+    followers_count,
+    following_count: getTagSet(followList?.tags ?? [], 'p').size,
+    notes_count,
+  };
+}
+
+export { refreshAuthorStats, updateStats };
