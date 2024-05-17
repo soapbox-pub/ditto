@@ -39,6 +39,8 @@ async function updateStats(event: NostrEvent) {
     debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
+  pubkeyDiffs.forEach(([_, pubkey]) => refreshAuthorStatsDebounced(pubkey));
+
   const kysely = await DittoDB.getInstance();
 
   if (pubkeyDiffs.length) queries.push(authorStatsQuery(kysely, pubkeyDiffs));
