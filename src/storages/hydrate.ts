@@ -5,6 +5,7 @@ import { DittoDB } from '@/db/DittoDB.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
+import { refreshAuthorStatsDebounced } from '@/stats.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];
@@ -54,6 +55,8 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     authors: await gatherAuthorStats(cache),
     events: await gatherEventStats(cache),
   };
+
+  refreshMissingAuthorStats(events, stats.authors);
 
   // Dedupe events.
   const results = [...new Map(cache.map((event) => [event.id, event])).values()];
@@ -264,6 +267,22 @@ async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['aut
     following_count: Math.max(0, row.following_count),
     notes_count: Math.max(0, row.notes_count),
   }));
+}
+
+function refreshMissingAuthorStats(events: NostrEvent[], stats: DittoTables['author_stats'][]) {
+  const pubkeys = new Set<string>(
+    events
+      .filter((event) => event.kind === 0)
+      .map((event) => event.pubkey),
+  );
+
+  const missing = pubkeys.difference(
+    new Set(stats.map((stat) => stat.pubkey)),
+  );
+
+  for (const pubkey of missing) {
+    refreshAuthorStatsDebounced(pubkey);
+  }
 }
 
 /** Collect event stats from the events. */
