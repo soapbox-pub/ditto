@@ -6,7 +6,14 @@ export interface DittoTables {
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
+  trends_tag_usages: TagUsageRow;
 }
+
+interface TagUsageRow {
+  tag: string,
+  pubkey8: string,
+  inserted_at: number
+};
 
 interface AuthorStatsRow {
   pubkey: string;
