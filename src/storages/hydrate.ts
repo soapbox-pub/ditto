@@ -251,11 +251,19 @@ async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['aut
   }
 
   const kysely = await DittoDB.getInstance();
-  return kysely
+
+  const rows = await kysely
     .selectFrom('author_stats')
     .selectAll()
     .where('pubkey', 'in', [...pubkeys])
     .execute();
+
+  return rows.map((row) => ({
+    pubkey: row.pubkey,
+    followers_count: Math.max(0, row.followers_count),
+    following_count: Math.max(0, row.following_count),
+    notes_count: Math.max(0, row.notes_count),
+  }));
 }
 
 /** Collect event stats from the events. */
@@ -271,11 +279,19 @@ async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['even
   }
 
   const kysely = await DittoDB.getInstance();
-  return kysely
+
+  const rows = await kysely
     .selectFrom('event_stats')
     .selectAll()
     .where('event_id', 'in', [...ids])
     .execute();
+
+  return rows.map((row) => ({
+    event_id: row.event_id,
+    reposts_count: Math.max(0, row.reposts_count),
+    reactions_count: Math.max(0, row.reactions_count),
+    replies_count: Math.max(0, row.replies_count),
+  }));
 }
 
 /** Return a normalized event without any non-standard keys. */
