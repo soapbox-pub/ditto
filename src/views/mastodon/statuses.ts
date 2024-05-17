@@ -123,8 +123,6 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
   const { viewerPubkey } = opts;
 
-  if (!event.author) return;
-
   const repostId = event.tags.find(([name]) => name === 'e')?.[1];
   if (!repostId) return;
 
@@ -134,7 +132,7 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
 
   return {
     id: event.id,
-    account: await renderAccount(event.author),
+    account: event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey),
     reblogged: true,
     reblog,
   };
