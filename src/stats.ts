@@ -1,6 +1,7 @@
 import { NKinds, NostrEvent, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder, Kysely } from 'kysely';
+import { LRUCache } from 'lru-cache';
 import { SetRequired } from 'type-fest';
 
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -250,4 +251,13 @@ async function countAuthorStats(
   };
 }
 
-export { refreshAuthorStats, updateStats };
+const lru = new LRUCache<string, true>({ max: 1000 });
+
+/** Calls `refreshAuthorStats` only once per author. */
+function refreshAuthorStatsDebounced(pubkey: string): void {
+  if (lru.get(pubkey)) return;
+  lru.set(pubkey, true);
+  refreshAuthorStats(pubkey).catch(() => {});
+}
+
+export { refreshAuthorStats, refreshAuthorStatsDebounced, updateStats };
