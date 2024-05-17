@@ -218,7 +218,7 @@ function getFollowDiff(event: NostrEvent, prev?: NostrEvent): AuthorStatDiff[] {
 }
 
 /** Refresh the author's stats in the database. */
-async function refreshAuthorStats(pubkey: string): Promise<void> {
+async function refreshAuthorStats(pubkey: string): Promise<DittoTables['author_stats']> {
   const store = await Storages.db();
   const stats = await countAuthorStats(store, pubkey);
 
@@ -227,6 +227,8 @@ async function refreshAuthorStats(pubkey: string): Promise<void> {
     .values(stats)
     .onConflict((oc) => oc.column('pubkey').doUpdateSet(stats))
     .execute();
+
+  return stats;
 }
 
 /** Calculate author stats from the database. */
