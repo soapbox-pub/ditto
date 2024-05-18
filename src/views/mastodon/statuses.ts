@@ -76,13 +76,11 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   const cw = event.tags.find(isCWTag);
   const subject = event.tags.find((tag) => tag[0] === 'subject');
 
-  const mediaLinks = getMediaLinks(links);
-
   const imeta: string[][][] = event.tags
     .filter(([name]) => name === 'imeta')
     .map(([_, ...entries]) => entries.map((entry) => entry.split(' ')));
 
-  const media = [...mediaLinks, ...imeta];
+  const media = imeta.length ? imeta : getMediaLinks(links);
 
   return {
     id: event.id,
