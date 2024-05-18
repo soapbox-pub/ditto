@@ -18,7 +18,7 @@ const linkifyOpts: linkify.Opts = {
       return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
     },
     url: ({ content }) => {
-      if (nip21.test(content)) {
+      try {
         const { decoded } = nip21.parse(content);
         const pubkey = getDecodedPubkey(decoded);
         if (pubkey) {
@@ -28,7 +28,7 @@ const linkifyOpts: linkify.Opts = {
         } else {
           return '';
         }
-      } else {
+      } catch {
         return `<a href="${content}">${content}</a>`;
       }
     },
