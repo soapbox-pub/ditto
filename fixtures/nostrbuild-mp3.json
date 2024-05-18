@@ -1,0 +1,29 @@
+{
+  "status": "success",
+  "message": "Upload successful.",
+  "data": [
+    {
+      "id": 0,
+      "input_name": "APIv2",
+      "name": "f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+      "url": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+      "thumbnail": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+      "responsive": {
+        "240p": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+        "360p": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+        "480p": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+        "720p": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3",
+        "1080p": "https://media.nostr.build/av/f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725.mp3"
+      },
+      "blurhash": "",
+      "sha256": "f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725",
+      "original_sha256": "f94665e6877741feb3fa3031342f95ae2ee00caae1cc651ce31ed6d524e05725",
+      "type": "video",
+      "mime": "audio/mpeg",
+      "size": 1519616,
+      "metadata": [],
+      "dimensions": [],
+      "dimensionsString": "0x0"
+    }
+  ]
+}
