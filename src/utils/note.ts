@@ -57,6 +57,32 @@ function parseNoteContent(content: string): ParsedNoteContent {
   };
 }
 
+/** Remove imeta links. */
+function stripimeta(content: string, tags: string[][]): string {
+  const imeta = tags.filter(([name]) => name === 'imeta');
+
+  if (!imeta.length) {
+    return content;
+  }
+
+  const urls = new Set(
+    imeta.map(([, ...values]) => values.map((v) => v.split(' ')).find(([name]) => name === 'url')?.[1]),
+  );
+
+  const lines = content.split('\n').reverse();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === '' || urls.has(line)) {
+      lines.splice(i, 1);
+    } else {
+      break;
+    }
+  }
+
+  return lines.reverse().join('\n');
+}
+
 /** Returns a matrix of tags. Each item is a list of NIP-94 tags representing a file. */
 function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
   return links.reduce<string[][][]>((acc, link) => {
@@ -93,4 +119,4 @@ function getDecodedPubkey(decoded: nip19.DecodeResult): string | undefined {
   }
 }
 
-export { getMediaLinks, parseNoteContent };
+export { getMediaLinks, parseNoteContent, stripimeta };

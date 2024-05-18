@@ -7,7 +7,7 @@ import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
-import { getMediaLinks, parseNoteContent } from '@/utils/note.ts';
+import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
@@ -46,7 +46,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
-  const { html, links, firstUrl } = parseNoteContent(event.content);
+  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags));
 
   const [mentions, card, relatedEvents] = await Promise
     .all([
