@@ -2,6 +2,7 @@ import { Conf } from '@/config.ts';
 
 import { ipfsUploader } from '@/uploaders/ipfs.ts';
 import { localUploader } from '@/uploaders/local.ts';
+import { nostrbuildUploader } from '@/uploaders/nostrbuild.ts';
 import { s3Uploader } from '@/uploaders/s3.ts';
 
 import type { Uploader } from './types.ts';
@@ -25,6 +26,8 @@ function uploader() {
       return ipfsUploader;
     case 'local':
       return localUploader;
+    case 'nostrbuild':
+      return nostrbuildUploader;
     default:
       throw new Error('No `DITTO_UPLOADER` configured. Uploads are disabled.');
   }

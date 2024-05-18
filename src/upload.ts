@@ -16,7 +16,7 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
     throw new Error('File size is too large.');
   }
 
-  const { url, sha256, cid } = await uploader.upload(file, { signal });
+  const { url, sha256, cid, blurhash } = await uploader.upload(file, { signal });
 
   const data: string[][] = [
     ['url', url],
@@ -30,6 +30,10 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
 
   if (cid) {
     data.push(['cid', cid]);
+  }
+
+  if (blurhash) {
+    data.push(['blurhash', blurhash]);
   }
 
   if (description) {
