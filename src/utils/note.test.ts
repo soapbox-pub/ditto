@@ -17,12 +17,8 @@ Deno.test('getMediaLinks', () => {
     { href: 'https://example.com/' },
   ];
   const mediaLinks = getMediaLinks(links);
-  assertEquals(mediaLinks, [
-    {
-      url: 'https://example.com/image.png',
-      data: {
-        mime: 'image/png',
-      },
-    },
-  ]);
+  assertEquals(mediaLinks, [[
+    ['url', 'https://example.com/image.png'],
+    ['m', 'image/png'],
+  ]]);
 });
