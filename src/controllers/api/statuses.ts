@@ -91,15 +91,14 @@ const createStatusController: AppController = async (c) => {
     tags.push(['subject', data.spoiler_text]);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const media = data.media_ids?.length ? await getUnattachedMediaByIds(kysely, data.media_ids) : [];
 
-  if (data.media_ids?.length) {
-    const media = await getUnattachedMediaByIds(kysely, data.media_ids)
-      .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
-      .then((media) => media.map(({ url, data }) => ['media', url, data]));
+  const imeta: string[][] = media.map(({ data }) => {
+    const values: string[] = data.map((tag) => tag.join(' '));
+    return ['imeta', ...values];
+  });
 
-    tags.push(...media);
-  }
+  tags.push(...imeta);
 
   const pubkeys = new Set<string>();
 
@@ -131,9 +130,15 @@ const createStatusController: AppController = async (c) => {
     tags.push(['t', match[1]]);
   }
 
+  const mediaUrls: string[] = media
+    .map(({ data }) => data.find(([name]) => name === 'url')?.[1])
+    .filter((url): url is string => Boolean(url));
+
+  const mediaCompat: string = mediaUrls.length ? ['', '', ...mediaUrls].join('\n') : '';
+
   const event = await createEvent({
     kind: 1,
-    content,
+    content: content + mediaCompat,
     tags,
   }, c);
 

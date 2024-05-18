@@ -4,8 +4,7 @@ import linkify from 'linkifyjs';
 import { nip19, nip21 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { mime } from '@/deps.ts';
-import { type DittoAttachment } from '@/views/mastodon/attachments.ts';
+import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
@@ -58,20 +57,17 @@ function parseNoteContent(content: string): ParsedNoteContent {
   };
 }
 
-function getMediaLinks(links: Link[]): DittoAttachment[] {
-  return links.reduce<DittoAttachment[]>((acc, link) => {
-    const mimeType = getUrlMimeType(link.href);
-    if (!mimeType) return acc;
+/** Returns a matrix of tags. Each item is a list of NIP-94 tags representing a file. */
+function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
+  return links.reduce<string[][][]>((acc, link) => {
+    const mediaType = getUrlMediaType(link.href);
+    if (!mediaType) return acc;
 
-    const [baseType, _subType] = mimeType.split('/');
-
-    if (['audio', 'image', 'video'].includes(baseType)) {
-      acc.push({
-        url: link.href,
-        data: {
-          mime: mimeType,
-        },
-      });
+    if (isPermittedMediaType(mediaType, ['audio', 'image', 'video'])) {
+      acc.push([
+        ['url', link.href],
+        ['m', mediaType],
+      ]);
     }
 
     return acc;
@@ -79,22 +75,12 @@ function getMediaLinks(links: Link[]): DittoAttachment[] {
 }
 
 function isNonMediaLink({ href }: Link): boolean {
-  return /^https?:\/\//.test(href) && !getUrlMimeType(href);
+  return /^https?:\/\//.test(href) && !getUrlMediaType(href);
 }
 
 /** Ensures the Link is a URL so it can be parsed. */
 function isLinkURL(link: Link): boolean {
   return link.type === 'url';
-}
-
-/** `npm:mime` treats `.com` as a file extension, so parse the full URL to get its path first. */
-function getUrlMimeType(url: string): string | undefined {
-  try {
-    const { pathname } = new URL(url);
-    return mime.getType(pathname) || undefined;
-  } catch (_e) {
-    return undefined;
-  }
 }
 
 /** Get pubkey from decoded bech32 entity, or undefined if not applicable. */

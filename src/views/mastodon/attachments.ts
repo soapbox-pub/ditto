@@ -1,20 +1,24 @@
-import * as TypeFest from 'type-fest';
+/** Render Mastodon media attachment. */
+function renderAttachment(media: { id?: string; data: string[][] }) {
+  const { id, data: tags } = media;
 
-import { UnattachedMedia } from '@/db/unattached-media.ts';
+  const m = tags.find(([name]) => name === 'm')?.[1];
+  const url = tags.find(([name]) => name === 'url')?.[1];
+  const alt = tags.find(([name]) => name === 'alt')?.[1];
+  const cid = tags.find(([name]) => name === 'cid')?.[1];
+  const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
 
-type DittoAttachment = TypeFest.SetOptional<UnattachedMedia, 'id' | 'pubkey' | 'uploaded_at'>;
+  if (!url) return;
 
-function renderAttachment(media: DittoAttachment) {
-  const { id, data, url } = media;
   return {
-    id: id ?? url ?? data.cid,
-    type: getAttachmentType(data.mime ?? ''),
+    id: id ?? url,
+    type: getAttachmentType(m ?? ''),
     url,
     preview_url: url,
     remote_url: null,
-    description: data.description ?? '',
-    blurhash: data.blurhash || null,
-    cid: data.cid,
+    description: alt ?? '',
+    blurhash: blurhash || null,
+    cid: cid,
   };
 }
 
@@ -32,4 +36,4 @@ function getAttachmentType(mime: string): string {
   }
 }
 
-export { type DittoAttachment, renderAttachment };
+export { renderAttachment };

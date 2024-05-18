@@ -1,18 +1,17 @@
-import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent } from '@nostrify/nostrify';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
+import { getMediaLinks, parseNoteContent } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
+import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
-import { mediaDataSchema } from '@/schemas/nostr.ts';
 
 interface RenderStatusOpts {
   viewerPubkey?: string;
@@ -79,11 +78,11 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const mediaLinks = getMediaLinks(links);
 
-  const mediaTags: DittoAttachment[] = event.tags
-    .filter((tag) => tag[0] === 'media')
-    .map(([_, url, json]) => ({ url, data: n.json().pipe(mediaDataSchema).parse(json) }));
+  const imeta: string[][][] = event.tags
+    .filter(([name]) => name === 'imeta')
+    .map(([_, ...entries]) => entries.map((entry) => entry.split(' ')));
 
-  const media = [...mediaLinks, ...mediaTags];
+  const media = [...mediaLinks, ...imeta];
 
   return {
     id: event.id,
@@ -107,7 +106,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
-    media_attachments: media.map(renderAttachment),
+    media_attachments: media.map((m) => renderAttachment({ data: m })).filter(Boolean),
     mentions,
     tags: [],
     emojis: renderEmojis(event),

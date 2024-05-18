@@ -32,7 +32,7 @@
     "@std/dotenv": "jsr:@std/dotenv@^0.224.0",
     "@std/encoding": "jsr:@std/encoding@^0.224.0",
     "@std/json": "jsr:@std/json@^0.223.0",
-    "@std/media-types": "jsr:@std/media-types@^0.224.0",
+    "@std/media-types": "jsr:@std/media-types@^0.224.1",
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
     "deno-safe-fetch": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
@@ -54,7 +54,6 @@
     "tseep": "npm:tseep@^1.2.1",
     "type-fest": "npm:type-fest@^4.3.0",
     "unfurl.js": "npm:unfurl.js@^6.4.0",
-    "uuid62": "npm:uuid62@^1.0.2",
     "zod": "npm:zod@^3.23.5",
     "~/fixtures/": "./fixtures/"
   },

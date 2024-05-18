@@ -1,32 +1,25 @@
 import { Kysely } from 'kysely';
-import uuid62 from 'uuid62';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
   id: string;
   pubkey: string;
   url: string;
-  data: MediaData;
+  /** NIP-94 tags. */
+  data: string[][];
   uploaded_at: number;
 }
 
 /** Add unattached media into the database. */
-async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
-  const result = {
-    id: uuid62.v4(),
-    uploaded_at: Date.now(),
-    ...media,
-  };
-
+async function insertUnattachedMedia(media: UnattachedMedia) {
   const kysely = await DittoDB.getInstance();
   await kysely.insertInto('unattached_media')
-    .values({ ...result, data: JSON.stringify(media.data) })
+    .values({ ...media, data: JSON.stringify(media.data) })
     .execute();
 
-  return result;
+  return media;
 }
 
 /** Select query for unattached media. */
@@ -58,11 +51,17 @@ async function deleteUnattachedMediaByUrl(url: string) {
 }
 
 /** Get unattached media by IDs. */
-async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[]) {
+async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[]): Promise<UnattachedMedia[]> {
   if (!ids.length) return [];
-  return await selectUnattachedMediaQuery(kysely)
+
+  const results = await selectUnattachedMediaQuery(kysely)
     .where('id', 'in', ids)
     .execute();
+
+  return results.map((row) => ({
+    ...row,
+    data: JSON.parse(row.data),
+  }));
 }
 
 /** Delete rows as an event with media is being created. */
