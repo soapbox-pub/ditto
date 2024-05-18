@@ -5,15 +5,15 @@ import { UnattachedMedia } from '@/db/unattached-media.ts';
 type DittoAttachment = TypeFest.SetOptional<UnattachedMedia, 'id' | 'pubkey' | 'uploaded_at'>;
 
 function renderAttachment(tags: string[][]) {
-  const url = tags.find(([name]) => name === 'url')?.[1];
-
   const m = tags.find(([name]) => name === 'm')?.[1];
+  const url = tags.find(([name]) => name === 'url')?.[1];
   const alt = tags.find(([name]) => name === 'alt')?.[1];
   const cid = tags.find(([name]) => name === 'cid')?.[1];
+  const uuid = tags.find(([name]) => name === 'uuid')?.[1];
   const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
 
   return {
-    id: url,
+    id: uuid,
     type: getAttachmentType(m ?? ''),
     url,
     preview_url: url,

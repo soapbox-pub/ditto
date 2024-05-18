@@ -29,8 +29,6 @@ async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
     });
   }
 
-  console.log(t);
-
   const event = await signer.signEvent({
     content: '',
     created_at: nostrNow(),

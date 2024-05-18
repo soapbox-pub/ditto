@@ -36,7 +36,16 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
     data.push(['alt', description]);
   }
 
-  await insertUnattachedMedia({ pubkey, url, data });
+  const uuid = crypto.randomUUID();
+  data.push(['uuid', uuid]);
+
+  await insertUnattachedMedia({
+    id: uuid,
+    pubkey,
+    url,
+    data,
+    uploaded_at: Date.now(),
+  });
 
   return data;
 }

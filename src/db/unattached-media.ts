@@ -1,5 +1,4 @@
 import { Kysely } from 'kysely';
-import uuid62 from 'uuid62';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -8,24 +7,19 @@ interface UnattachedMedia {
   id: string;
   pubkey: string;
   url: string;
-  data: string[][]; // NIP-94 tags
+  /** NIP-94 tags. */
+  data: string[][];
   uploaded_at: number;
 }
 
 /** Add unattached media into the database. */
-async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
-  const result = {
-    id: uuid62.v4(),
-    uploaded_at: Date.now(),
-    ...media,
-  };
-
+async function insertUnattachedMedia(media: UnattachedMedia) {
   const kysely = await DittoDB.getInstance();
   await kysely.insertInto('unattached_media')
-    .values({ ...result, data: JSON.stringify(media.data) })
+    .values({ ...media, data: JSON.stringify(media.data) })
     .execute();
 
-  return result;
+  return media;
 }
 
 /** Select query for unattached media. */
@@ -64,14 +58,6 @@ async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[
     .execute();
 }
 
-/** Get unattached media by URLs. */
-async function getUnattachedMediaByUrls(kysely: Kysely<DittoTables>, urls: string[]) {
-  if (!urls.length) return [];
-  return await selectUnattachedMediaQuery(kysely)
-    .where('url', 'in', urls)
-    .execute();
-}
-
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
@@ -87,7 +73,6 @@ export {
   deleteUnattachedMediaByUrl,
   getUnattachedMedia,
   getUnattachedMediaByIds,
-  getUnattachedMediaByUrls,
   insertUnattachedMedia,
   type UnattachedMedia,
 };
