@@ -3,13 +3,12 @@ import uuid62 from 'uuid62';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { type MediaData } from '@/schemas/nostr.ts';
 
 interface UnattachedMedia {
   id: string;
   pubkey: string;
   url: string;
-  data: MediaData;
+  data: string[][]; // NIP-94 tags
   uploaded_at: number;
 }
 

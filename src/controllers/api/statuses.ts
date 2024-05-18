@@ -96,7 +96,7 @@ const createStatusController: AppController = async (c) => {
   if (data.media_ids?.length) {
     const media = await getUnattachedMediaByIds(kysely, data.media_ids)
       .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
-      .then((media) => media.map(({ url, data }) => ['media', url, data]));
+      .then((media) => media.map(({ data }) => ['imeta', ...data]));
 
     tags.push(...media);
   }

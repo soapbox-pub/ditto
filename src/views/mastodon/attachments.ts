@@ -6,15 +6,21 @@ type DittoAttachment = TypeFest.SetOptional<UnattachedMedia, 'id' | 'pubkey' | '
 
 function renderAttachment(media: DittoAttachment) {
   const { id, data, url } = media;
+
+  const m = data.find(([name]) => name === 'm')?.[1];
+  const alt = data.find(([name]) => name === 'alt')?.[1];
+  const cid = data.find(([name]) => name === 'cid')?.[1];
+  const blurhash = data.find(([name]) => name === 'blurhash')?.[1];
+
   return {
-    id: id ?? url ?? data.cid,
-    type: getAttachmentType(data.mime ?? ''),
+    id: id ?? url,
+    type: getAttachmentType(m ?? ''),
     url,
     preview_url: url,
     remote_url: null,
-    description: data.description ?? '',
-    blurhash: data.blurhash || null,
-    cid: data.cid,
+    description: alt ?? '',
+    blurhash: blurhash || null,
+    cid: cid,
   };
 }
 
