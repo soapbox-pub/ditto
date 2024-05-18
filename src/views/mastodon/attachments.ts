@@ -12,8 +12,10 @@ function renderAttachment(tags: string[][]) {
   const uuid = tags.find(([name]) => name === 'uuid')?.[1];
   const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
 
+  if (!url) return;
+
   return {
-    id: uuid,
+    id: uuid ?? url,
     type: getAttachmentType(m ?? ''),
     url,
     preview_url: url,
