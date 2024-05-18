@@ -58,7 +58,7 @@ function parseNoteContent(content: string): ParsedNoteContent {
   };
 }
 
-function getMediaLinks(links: Link[]): DittoAttachment[] {
+function getMediaLinks(links: Pick<Link, 'href'>[]): DittoAttachment[] {
   return links.reduce<DittoAttachment[]>((acc, link) => {
     const mediaType = getUrlMediaType(link.href);
     if (!mediaType) return acc;
