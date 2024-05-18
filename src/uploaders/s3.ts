@@ -25,12 +25,14 @@ const s3Uploader: Uploader = {
 
     const { pathStyle, bucket } = Conf.s3;
     const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
+    const url = new URL(path, Conf.mediaDomain).toString();
 
-    return {
-      id: filename,
-      sha256,
-      url: new URL(path, Conf.mediaDomain).toString(),
-    };
+    return [
+      ['url', url],
+      ['m', file.type],
+      ['x', sha256],
+      ['size', file.size.toString()],
+    ];
   },
   async delete(id) {
     await client().deleteObject(id);

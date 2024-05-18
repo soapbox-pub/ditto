@@ -32,11 +32,12 @@ const ipfsUploader: Uploader = {
 
     const { Hash: cid } = ipfsAddResponseSchema.parse(await response.json());
 
-    return {
-      id: cid,
-      cid,
-      url: new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString(),
-    };
+    return [
+      ['url', new URL(`/ipfs/${cid}`, Conf.mediaDomain).toString()],
+      ['m', file.type],
+      ['cid', cid],
+      ['size', file.size.toString()],
+    ];
   },
   async delete(cid, opts) {
     const url = new URL('/api/v0/pin/rm', Conf.ipfs.apiUrl);

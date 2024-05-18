@@ -12,8 +12,8 @@ const configUploader: Uploader = {
   upload(file, opts) {
     return uploader().upload(file, opts);
   },
-  delete(id, opts) {
-    return uploader().delete(id, opts);
+  async delete(id, opts) {
+    return await uploader().delete?.(id, opts);
   },
 };
 

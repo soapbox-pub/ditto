@@ -9,46 +9,24 @@ interface FileMeta {
 
 /** Upload a file, track it in the database, and return the resulting media object. */
 async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Promise<UnattachedMedia> {
-  const { type, size } = file;
   const { pubkey, description } = meta;
 
   if (file.size > Conf.maxUploadSize) {
     throw new Error('File size is too large.');
   }
 
-  const { url, sha256, cid, blurhash, width, height } = await uploader.upload(file, { signal });
-
-  const data: string[][] = [
-    ['url', url],
-    ['m', type],
-    ['size', size.toString()],
-  ];
-
-  if (typeof width === 'number' && typeof height === 'number') {
-    data.push(['dim', `${width}x${height}`]);
-  }
-
-  if (sha256) {
-    data.push(['x', sha256]);
-  }
-
-  if (cid) {
-    data.push(['cid', cid]);
-  }
-
-  if (blurhash) {
-    data.push(['blurhash', blurhash]);
-  }
+  const tags = await uploader.upload(file, { signal });
+  const url = tags[0][1];
 
   if (description) {
-    data.push(['alt', description]);
+    tags.push(['alt', description]);
   }
 
   return insertUnattachedMedia({
     id: crypto.randomUUID(),
     pubkey,
     url,
-    data,
+    data: tags,
     uploaded_at: Date.now(),
   });
 }

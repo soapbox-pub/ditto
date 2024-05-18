@@ -22,11 +22,12 @@ const localUploader: Uploader = {
     const url = new URL(mediaDomain);
     const path = url.pathname === '/' ? filename : join(url.pathname, filename);
 
-    return {
-      id: filename,
-      sha256,
-      url: new URL(path, url).toString(),
-    };
+    return [
+      ['url', new URL(path, url).toString()],
+      ['m', file.type],
+      ['x', sha256],
+      ['size', file.size.toString()],
+    ];
   },
   async delete(id) {
     await Deno.remove(join(Conf.uploadsDir, id));
