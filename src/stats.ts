@@ -264,6 +264,7 @@ function refreshAuthorStatsDebounced(pubkey: string): void {
   }
 
   refreshedAuthors.set(pubkey, true);
+  debug('refreshing author stats:', pubkey);
 
   authorStatsSemaphore
     .lock(() => refreshAuthorStats(pubkey).catch(() => {}));
