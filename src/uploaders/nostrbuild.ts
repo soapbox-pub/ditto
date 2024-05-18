@@ -17,17 +17,19 @@ export const nostrbuildUploader: Uploader = {
     const json = await response.json();
     const [data] = nostrbuildSchema.parse(json).data;
 
-    return {
-      id: data.url,
-      sha256: data.sha256,
-      url: data.url,
-      blurhash: data.blurhash,
-      width: data.dimensions?.width,
-      height: data.dimensions?.height,
-    };
-  },
-  // deno-lint-ignore require-await
-  async delete(): Promise<void> {
-    return;
+    const tags: [['url', string], ...string[][]] = [
+      ['url', data.url],
+      ['m', data.mime],
+      ['x', data.sha256],
+      ['ox', data.original_sha256],
+      ['size', file.size.toString()],
+      ['blurhash', data.blurhash],
+    ];
+
+    if (data.dimensions) {
+      tags.push(['dim', `${data.dimensions.width}x${data.dimensions.height}`]);
+    }
+
+    return tags;
   },
 };
