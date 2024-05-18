@@ -4,10 +4,10 @@ import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { getMediaLinks, parseNoteContent } from '@/note.ts';
 import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
+import { getMediaLinks, parseNoteContent } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
