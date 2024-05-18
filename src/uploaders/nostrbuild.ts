@@ -15,8 +15,6 @@ export const nostrbuildUploader: Uploader = {
     });
 
     const json = await response.json();
-    console.log(JSON.stringify(json));
-
     const [data] = nostrbuildSchema.parse(json).data;
 
     return {
@@ -24,6 +22,8 @@ export const nostrbuildUploader: Uploader = {
       sha256: data.sha256,
       url: data.url,
       blurhash: data.blurhash,
+      width: data.dimensions?.width,
+      height: data.dimensions?.height,
     };
   },
   // deno-lint-ignore require-await

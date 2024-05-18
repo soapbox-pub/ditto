@@ -16,13 +16,17 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
     throw new Error('File size is too large.');
   }
 
-  const { url, sha256, cid, blurhash } = await uploader.upload(file, { signal });
+  const { url, sha256, cid, blurhash, width, height } = await uploader.upload(file, { signal });
 
   const data: string[][] = [
     ['url', url],
     ['m', type],
     ['size', size.toString()],
   ];
+
+  if (typeof width === 'number' && typeof height === 'number') {
+    data.push(['dim', `${width}x${height}`]);
+  }
 
   if (sha256) {
     data.push(['x', sha256]);

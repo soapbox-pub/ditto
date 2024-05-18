@@ -6,9 +6,22 @@ function renderAttachment(media: { id?: string; data: string[][] }) {
   const url = tags.find(([name]) => name === 'url')?.[1];
   const alt = tags.find(([name]) => name === 'alt')?.[1];
   const cid = tags.find(([name]) => name === 'cid')?.[1];
+  const dim = tags.find(([name]) => name === 'dim')?.[1];
   const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
 
   if (!url) return;
+
+  const [width, height] = dim?.split('x').map(Number) ?? [null, null];
+
+  const meta = (typeof width === 'number' && typeof height === 'number')
+    ? {
+      original: {
+        width,
+        height,
+        aspect: width / height,
+      },
+    }
+    : undefined;
 
   return {
     id: id ?? url,
@@ -18,6 +31,7 @@ function renderAttachment(media: { id?: string; data: string[][] }) {
     remote_url: null,
     description: alt ?? '',
     blurhash: blurhash || null,
+    meta,
     cid: cid,
   };
 }

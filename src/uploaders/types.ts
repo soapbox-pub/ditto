@@ -18,6 +18,10 @@ interface UploadResult {
   blurhash?: string;
   /** IPFS CID of the file. */
   cid?: string;
+  /** Width of the file, if applicable. */
+  width?: number;
+  /** Height of the file, if applicable. */
+  height?: number;
 }
 
 export type { Uploader };
