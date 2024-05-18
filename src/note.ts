@@ -1,10 +1,10 @@
+import { typeByExtension } from '@std/media-types';
 import 'linkify-plugin-hashtag';
 import linkifyStr from 'linkify-string';
 import linkify from 'linkifyjs';
 import { nip19, nip21 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { mime } from '@/deps.ts';
 import { type DittoAttachment } from '@/views/mastodon/attachments.ts';
 
 linkify.registerCustomProtocol('nostr', true);
@@ -87,12 +87,13 @@ function isLinkURL(link: Link): boolean {
   return link.type === 'url';
 }
 
-/** `npm:mime` treats `.com` as a file extension, so parse the full URL to get its path first. */
+/** Get the extension from the URL, then get its type. */
 function getUrlMimeType(url: string): string | undefined {
   try {
     const { pathname } = new URL(url);
-    return mime.getType(pathname) || undefined;
-  } catch (_e) {
+    const ext = pathname.split('.').pop() ?? '';
+    return typeByExtension(ext);
+  } catch {
     return undefined;
   }
 }
