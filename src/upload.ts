@@ -1,5 +1,5 @@
 import { Conf } from '@/config.ts';
-import { insertUnattachedMedia } from '@/db/unattached-media.ts';
+import { insertUnattachedMedia, UnattachedMedia } from '@/db/unattached-media.ts';
 import { configUploader as uploader } from '@/uploaders/config.ts';
 
 interface FileMeta {
@@ -8,7 +8,7 @@ interface FileMeta {
 }
 
 /** Upload a file, track it in the database, and return the resulting media object. */
-async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Promise<string[][]> {
+async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Promise<UnattachedMedia> {
   const { type, size } = file;
   const { pubkey, description } = meta;
 
@@ -36,18 +36,13 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
     data.push(['alt', description]);
   }
 
-  const uuid = crypto.randomUUID();
-  data.push(['uuid', uuid]);
-
-  await insertUnattachedMedia({
-    id: uuid,
+  return insertUnattachedMedia({
+    id: crypto.randomUUID(),
     pubkey,
     url,
     data,
     uploaded_at: Date.now(),
   });
-
-  return data;
 }
 
 export { uploadFile };

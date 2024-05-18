@@ -106,7 +106,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
-    media_attachments: media.map(renderAttachment).filter(Boolean),
+    media_attachments: media.map((m) => renderAttachment({ data: m })).filter(Boolean),
     mentions,
     tags: [],
     emojis: renderEmojis(event),
