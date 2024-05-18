@@ -10,7 +10,7 @@ import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
+import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 interface RenderStatusOpts {
@@ -78,16 +78,11 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const mediaLinks = getMediaLinks(links);
 
-  const mediaTags: DittoAttachment[] = event.tags
+  const imeta: string[][][] = event.tags
     .filter(([name]) => name === 'imeta')
-    .map(([_, ...entries]) => {
-      const data = entries.map((entry) => entry.split(' '));
-      const url = data.find(([name]) => name === 'url')?.[1];
-      return { url, data };
-    })
-    .filter((media): media is DittoAttachment => !!media.url);
+    .map(([_, ...entries]) => entries.map((entry) => entry.split(' ')));
 
-  const media = [...mediaLinks, ...mediaTags];
+  const media = [...mediaLinks, ...imeta];
 
   return {
     id: event.id,

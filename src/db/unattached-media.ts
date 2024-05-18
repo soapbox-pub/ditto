@@ -64,6 +64,14 @@ async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[
     .execute();
 }
 
+/** Get unattached media by URLs. */
+async function getUnattachedMediaByUrls(kysely: Kysely<DittoTables>, urls: string[]) {
+  if (!urls.length) return [];
+  return await selectUnattachedMediaQuery(kysely)
+    .where('url', 'in', urls)
+    .execute();
+}
+
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
@@ -79,6 +87,7 @@ export {
   deleteUnattachedMediaByUrl,
   getUnattachedMedia,
   getUnattachedMediaByIds,
+  getUnattachedMediaByUrls,
   insertUnattachedMedia,
   type UnattachedMedia,
 };

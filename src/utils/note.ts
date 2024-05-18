@@ -5,7 +5,6 @@ import { nip19, nip21 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
-import { type DittoAttachment } from '@/views/mastodon/attachments.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
@@ -58,18 +57,17 @@ function parseNoteContent(content: string): ParsedNoteContent {
   };
 }
 
-function getMediaLinks(links: Pick<Link, 'href'>[]): DittoAttachment[] {
-  return links.reduce<DittoAttachment[]>((acc, link) => {
+/** Returns a matrix of tags. Each item is a list of NIP-94 tags representing a file. */
+function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
+  return links.reduce<string[][][]>((acc, link) => {
     const mediaType = getUrlMediaType(link.href);
     if (!mediaType) return acc;
 
     if (isPermittedMediaType(mediaType, ['audio', 'image', 'video'])) {
-      acc.push({
-        url: link.href,
-        data: {
-          mime: mediaType,
-        },
-      });
+      acc.push([
+        ['url', link.href],
+        ['m', mediaType],
+      ]);
     }
 
     return acc;

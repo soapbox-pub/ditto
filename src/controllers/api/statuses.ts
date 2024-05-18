@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
+import { getUnattachedMediaByUrls } from '@/db/unattached-media.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { addTag, deleteTag } from '@/tags.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
@@ -94,9 +94,15 @@ const createStatusController: AppController = async (c) => {
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   if (data.media_ids?.length) {
-    const media = await getUnattachedMediaByIds(kysely, data.media_ids)
+    const media = await getUnattachedMediaByUrls(kysely, data.media_ids)
       .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
-      .then((media) => media.map(({ data }) => ['imeta', ...data]));
+      .then((media) =>
+        media.map(({ data }) => {
+          const tags: string[][] = JSON.parse(data);
+          const values: string[] = tags.map((tag) => tag.join(' '));
+          return ['imeta', ...values];
+        })
+      );
 
     tags.push(...media);
   }
