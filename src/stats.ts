@@ -1,3 +1,4 @@
+import { Semaphore } from '@lambdalisue/async';
 import { NKinds, NostrEvent, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { InsertQueryBuilder, Kysely } from 'kysely';
@@ -253,13 +254,19 @@ async function countAuthorStats(
   };
 }
 
-const lru = new LRUCache<string, true>({ max: 1000 });
+const authorStatsSemaphore = new Semaphore(10);
+const refreshedAuthors = new LRUCache<string, true>({ max: 1000 });
 
 /** Calls `refreshAuthorStats` only once per author. */
 function refreshAuthorStatsDebounced(pubkey: string): void {
-  if (lru.get(pubkey)) return;
-  lru.set(pubkey, true);
-  refreshAuthorStats(pubkey).catch(() => {});
+  if (refreshedAuthors.get(pubkey)) {
+    return;
+  }
+
+  refreshedAuthors.set(pubkey, true);
+
+  authorStatsSemaphore
+    .lock(() => refreshAuthorStats(pubkey).catch(() => {}));
 }
 
 export { refreshAuthorStats, refreshAuthorStatsDebounced, updateStats };
