@@ -9,15 +9,19 @@ export interface NostrBuildUploaderOpts {
 
 /** Upload files to nostr.build or another compatible server. */
 export class NostrBuildUploader implements DittoUploader {
-  constructor(private opts: NostrBuildUploaderOpts) {}
+  private endpoint: string;
+  private fetch: typeof fetch;
+
+  constructor(opts: NostrBuildUploaderOpts) {
+    this.endpoint = opts.endpoint ?? 'https://nostr.build/api/v2/upload/files';
+    this.fetch = opts.fetch ?? globalThis.fetch;
+  }
 
   async upload(file: File, opts?: { signal?: AbortSignal }): Promise<[['url', string], ...string[][]]> {
-    const { endpoint = 'https://nostr.build/api/v2/upload/files', fetch = globalThis.fetch } = this.opts;
-
     const formData = new FormData();
     formData.append('fileToUpload', file);
 
-    const response = await fetch(endpoint, {
+    const response = await this.fetch(this.endpoint, {
       method: 'POST',
       body: formData,
       signal: opts?.signal,

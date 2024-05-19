@@ -13,19 +13,23 @@ export interface DenoUploaderOpts {
 
 /** Local Deno filesystem uploader. */
 export class DenoUploader implements DittoUploader {
-  constructor(private opts: DenoUploaderOpts) {}
+  baseUrl: string;
+  dir: string;
+
+  constructor(opts: DenoUploaderOpts) {
+    this.baseUrl = opts.baseUrl;
+    this.dir = opts.dir;
+  }
 
   async upload(file: File): Promise<[['url', string], ...string[][]]> {
-    const { dir, baseUrl } = this.opts;
-
     const sha256 = encodeHex(await crypto.subtle.digest('SHA-256', file.stream()));
     const ext = extensionsByType(file.type)?.[0] ?? 'bin';
     const filename = `${sha256}.${ext}`;
 
-    await Deno.mkdir(dir, { recursive: true });
-    await Deno.writeFile(join(dir, filename), file.stream());
+    await Deno.mkdir(this.dir, { recursive: true });
+    await Deno.writeFile(join(this.dir, filename), file.stream());
 
-    const url = new URL(baseUrl);
+    const url = new URL(this.baseUrl);
     const path = url.pathname === '/' ? filename : join(url.pathname, filename);
 
     return [
@@ -37,8 +41,7 @@ export class DenoUploader implements DittoUploader {
   }
 
   async delete(filename: string) {
-    const { dir } = this.opts;
-    const path = join(dir, filename);
+    const path = join(this.dir, filename);
     await Deno.remove(path);
   }
 }
