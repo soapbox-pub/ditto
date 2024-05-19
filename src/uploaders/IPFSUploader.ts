@@ -60,7 +60,7 @@ export class IPFSUploader implements DittoUploader {
   }
 
   /** Response schema for POST `/api/v0/add`. */
-  static schema() {
+  private static schema() {
     return z.object({
       Name: z.string(),
       Hash: z.string(),
