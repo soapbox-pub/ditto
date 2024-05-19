@@ -1,5 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -111,7 +112,11 @@ const createStatusController: AppController = async (c) => {
       pubkeys.add(pubkey);
     }
 
-    return `nostr:${pubkey}`;
+    try {
+      return `nostr:${nip19.npubEncode(pubkey)}`;
+    } catch {
+      return match;
+    }
   });
 
   // Explicit addressing
