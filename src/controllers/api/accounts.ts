@@ -86,25 +86,35 @@ const accountLookupController: AppController = async (c) => {
   }
 };
 
-const accountSearchController: AppController = async (c) => {
-  const q = c.req.query('q');
+const accountSearchQuerySchema = z.object({
+  q: z.string().transform(decodeURIComponent),
+  resolve: booleanParamSchema.optional().transform(Boolean),
+  following: z.boolean().default(false),
+  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+});
 
-  if (!q) {
-    return c.json({ error: 'Missing `q` query parameter.' }, 422);
+const accountSearchController: AppController = async (c) => {
+  const result = accountSearchQuerySchema.safeParse(c.req.query());
+  const { signal } = c.req.raw;
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
+
+  const { q, limit } = result.data;
 
   const query = decodeURIComponent(q);
   const store = await Storages.search();
 
   const [event, events] = await Promise.all([
     lookupAccount(query),
-    store.query([{ kinds: [0], search: query, limit: 20 }], { signal: c.req.raw.signal }),
+    store.query([{ kinds: [0], search: query, limit }], { signal }),
   ]);
 
   const results = await hydrateEvents({
     events: event ? [event, ...events] : events,
     store,
-    signal: c.req.raw.signal,
+    signal,
   });
 
   if ((results.length < 1) && query.match(/npub1\w+/)) {
