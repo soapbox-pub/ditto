@@ -5,12 +5,13 @@ import { Conf } from '@/config.ts';
 import { Time } from '@/utils.ts';
 import { stripTime } from '@/utils/time.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
+import { Context } from 'hono';
 
-await TrendsWorker.open('data/trends.sqlite3');
+await TrendsWorker.setupCleanupJob();
 
 const limitSchema = z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20));
 
-const trendingTagsController: AppController = async (c) => {
+const trendingTagsController: AppController = async (c: Context) => {
   const limit = limitSchema.parse(c.req.query('limit'));
   if (limit < 1) return c.json([]);
 
@@ -26,9 +27,9 @@ const trendingTagsController: AppController = async (c) => {
   });
 
   return c.json(
-    await Promise.all(tags.map(async ({ name, uses, accounts }) => ({
-      name,
-      url: Conf.local(`/tags/${name}`),
+    await Promise.all(tags.map(async ({ tag, uses, accounts }) => ({
+      tag,
+      url: Conf.local(`/tags/${tag}`),
       history: [
         // Use the full 24h query for the current day. Then use `offset: 1` to adjust for this below.
         // This result is more accurate than what Mastodon returns.
@@ -38,7 +39,7 @@ const trendingTagsController: AppController = async (c) => {
           uses: String(uses),
         },
         ...(await TrendsWorker.getTagHistory({
-          tag: name,
+          tag,
           since: lastWeek,
           until: now,
           limit: 6,

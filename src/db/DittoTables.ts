@@ -10,10 +10,10 @@ export interface DittoTables {
 }
 
 interface TagUsageRow {
-  tag: string,
-  pubkey8: string,
-  inserted_at: number
-};
+  tag: string;
+  pubkey8: string;
+  inserted_at: number;
+}
 
 interface AuthorStatsRow {
   pubkey: string;

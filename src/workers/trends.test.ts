@@ -1,8 +1,5 @@
 import { assertEquals } from '@std/assert';
-
 import { TrendsWorker } from './trends.ts';
-
-await TrendsWorker.open(':memory:');
 
 const p8 = (pubkey8: string) => `${pubkey8}00000000000000000000000000000000000000000000000000000000`;
 
@@ -19,9 +16,9 @@ Deno.test('getTrendingTags', async () => {
   });
 
   const expected = [
-    { name: 'ditto', accounts: 3, uses: 3 },
-    { name: 'hello', accounts: 2, uses: 3 },
-    { name: 'yolo', accounts: 1, uses: 1 },
+    { tag: 'ditto', accounts: 3, uses: 3 },
+    { tag: 'hello', accounts: 2, uses: 3 },
+    { tag: 'yolo', accounts: 1, uses: 1 },
   ];
 
   assertEquals(result, expected);
