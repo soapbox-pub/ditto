@@ -1,9 +1,12 @@
+import { getUrlMediaType } from '@/utils/media.ts';
+
 /** Render Mastodon media attachment. */
 function renderAttachment(media: { id?: string; data: string[][] }) {
   const { id, data: tags } = media;
 
-  const m = tags.find(([name]) => name === 'm')?.[1];
   const url = tags.find(([name]) => name === 'url')?.[1];
+
+  const m = tags.find(([name]) => name === 'm')?.[1] ?? getUrlMediaType(url!);
   const alt = tags.find(([name]) => name === 'alt')?.[1];
   const cid = tags.find(([name]) => name === 'cid')?.[1];
   const dim = tags.find(([name]) => name === 'dim')?.[1];
