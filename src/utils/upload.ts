@@ -1,6 +1,7 @@
+import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { insertUnattachedMedia, UnattachedMedia } from '@/db/unattached-media.ts';
-import { DittoUploader } from '@/interfaces/DittoUploader.ts';
+import { HTTPException } from 'hono';
 interface FileMeta {
   pubkey: string;
   description?: string;
@@ -8,11 +9,18 @@ interface FileMeta {
 
 /** Upload a file, track it in the database, and return the resulting media object. */
 export async function uploadFile(
-  uploader: DittoUploader,
+  c: AppContext,
   file: File,
   meta: FileMeta,
   signal?: AbortSignal,
 ): Promise<UnattachedMedia> {
+  const uploader = c.get('uploader');
+  if (!uploader) {
+    throw new HTTPException(500, {
+      res: c.json({ error: 'No uploader configured.' }),
+    });
+  }
+
   const { pubkey, description } = meta;
 
   if (file.size > Conf.maxUploadSize) {

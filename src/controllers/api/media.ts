@@ -4,7 +4,7 @@ import { AppController } from '@/app.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
-import { uploadFile } from '@/upload.ts';
+import { uploadFile } from '@/utils/upload.ts';
 
 const mediaBodySchema = z.object({
   file: fileSchema,
@@ -14,11 +14,6 @@ const mediaBodySchema = z.object({
 });
 
 const mediaController: AppController = async (c) => {
-  const uploader = c.get('uploader');
-  if (!uploader) {
-    return c.json({ error: 'No uploader configured.' }, 500);
-  }
-
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const result = mediaBodySchema.safeParse(await parseBody(c.req.raw));
   const { signal } = c.req.raw;
@@ -29,7 +24,7 @@ const mediaController: AppController = async (c) => {
 
   try {
     const { file, description } = result.data;
-    const media = await uploadFile(uploader, file, { pubkey, description }, signal);
+    const media = await uploadFile(c, file, { pubkey, description }, signal);
     return c.json(renderAttachment(media));
   } catch (e) {
     console.error(e);
