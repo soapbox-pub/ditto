@@ -47,7 +47,7 @@ const createAccountController: AppController = async (c) => {
 const verifyCredentialsController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
 
-  const event = await getAuthor(pubkey, { relations: ['author_stats'] });
+  const event = await getAuthor(pubkey, { signal: AbortSignal.timeout(5000) });
   if (event) {
     return c.json(await renderAccount(event, { withSource: true }));
   } else {
