@@ -1,10 +1,9 @@
 import { join } from 'node:path';
 
+import { NUploader } from '@nostrify/nostrify';
 import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
-
-import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 
 export interface DenoUploaderOpts {
   baseUrl: string;
@@ -12,7 +11,7 @@ export interface DenoUploaderOpts {
 }
 
 /** Local Deno filesystem uploader. */
-export class DenoUploader implements DittoUploader {
+export class DenoUploader implements NUploader {
   baseUrl: string;
   dir: string;
 

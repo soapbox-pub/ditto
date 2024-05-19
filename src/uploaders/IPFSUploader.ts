@@ -1,6 +1,5 @@
+import { NUploader } from '@nostrify/nostrify';
 import { z } from 'zod';
-
-import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 
 export interface IPFSUploaderOpts {
   baseUrl: string;
@@ -13,7 +12,7 @@ export interface IPFSUploaderOpts {
  * It will try to connect to `http://localhost:5001` by default,
  * and upload the file using the REST API.
  */
-export class IPFSUploader implements DittoUploader {
+export class IPFSUploader implements NUploader {
   private baseUrl: string;
   private apiUrl: string;
   private fetch: typeof fetch;

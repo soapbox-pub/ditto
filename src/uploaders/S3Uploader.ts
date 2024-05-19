@@ -1,12 +1,12 @@
 import { join } from 'node:path';
 
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
+import { NUploader } from '@nostrify/nostrify';
 import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
 
 import { Conf } from '@/config.ts';
-import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 
 export interface S3UploaderOpts {
   endPoint: string;
@@ -21,7 +21,7 @@ export interface S3UploaderOpts {
 }
 
 /** S3-compatible uploader for AWS, Wasabi, DigitalOcean Spaces, and more. */
-export class S3Uploader implements DittoUploader {
+export class S3Uploader implements NUploader {
   private client: S3Client;
 
   constructor(opts: S3UploaderOpts) {
