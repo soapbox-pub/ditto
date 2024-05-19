@@ -1,3 +1,5 @@
+import { BlossomUploader } from '@nostrify/nostrify/uploaders';
+
 import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DenoUploader } from '@/uploaders/DenoUploader.ts';
@@ -8,6 +10,8 @@ import { fetchWorker } from '@/workers/fetch.ts';
 
 /** Set an uploader for the user. */
 export const uploaderMiddleware: AppMiddleware = async (c, next) => {
+  const signer = c.get('signer');
+
   switch (Conf.uploader) {
     case 's3':
       c.set('uploader', new S3Uploader(Conf.s3));
@@ -20,6 +24,11 @@ export const uploaderMiddleware: AppMiddleware = async (c, next) => {
       break;
     case 'nostrbuild':
       c.set('uploader', new NostrBuildUploader({ endpoint: Conf.nostrbuildEndpoint, fetch: fetchWorker }));
+      break;
+    case 'blossom':
+      if (signer) {
+        c.set('uploader', new BlossomUploader({ servers: Conf.blossomServers, signer, fetch: fetchWorker }));
+      }
       break;
   }
 
