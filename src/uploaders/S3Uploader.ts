@@ -6,17 +6,34 @@ import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
 
 import { Conf } from '@/config.ts';
+import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 
-import type { Uploader } from './types.ts';
+export interface S3UploaderOpts {
+  endPoint: string;
+  region: string;
+  accessKey?: string;
+  secretKey?: string;
+  bucket?: string;
+  pathStyle?: boolean;
+  port?: number;
+  sessionToken?: string;
+  useSSL?: boolean;
+}
 
 /** S3-compatible uploader for AWS, Wasabi, DigitalOcean Spaces, and more. */
-const s3Uploader: Uploader = {
-  async upload(file) {
+export class S3Uploader implements DittoUploader {
+  private client: S3Client;
+
+  constructor(opts: S3UploaderOpts) {
+    this.client = new S3Client(opts);
+  }
+
+  async upload(file: File): Promise<[['url', string], ...string[][]]> {
     const sha256 = encodeHex(await crypto.subtle.digest('SHA-256', file.stream()));
     const ext = extensionsByType(file.type)?.[0] ?? 'bin';
     const filename = `${sha256}.${ext}`;
 
-    await client().putObject(filename, file.stream(), {
+    await this.client.putObject(filename, file.stream(), {
       metadata: {
         'Content-Type': file.type,
         'x-amz-acl': 'public-read',
@@ -24,6 +41,7 @@ const s3Uploader: Uploader = {
     });
 
     const { pathStyle, bucket } = Conf.s3;
+
     const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
     const url = new URL(path, Conf.mediaDomain).toString();
 
@@ -33,15 +51,9 @@ const s3Uploader: Uploader = {
       ['x', sha256],
       ['size', file.size.toString()],
     ];
-  },
-  async delete(id) {
-    await client().deleteObject(id);
-  },
-};
+  }
 
-/** Build S3 client from config. */
-function client() {
-  return new S3Client({ ...Conf.s3 });
+  async delete(objectName: string) {
+    await this.client.deleteObject(objectName);
+  }
 }
-
-export { s3Uploader };

@@ -1,14 +1,18 @@
 import { Conf } from '@/config.ts';
 import { insertUnattachedMedia, UnattachedMedia } from '@/db/unattached-media.ts';
-import { configUploader as uploader } from '@/uploaders/config.ts';
-
+import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 interface FileMeta {
   pubkey: string;
   description?: string;
 }
 
 /** Upload a file, track it in the database, and return the resulting media object. */
-async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Promise<UnattachedMedia> {
+export async function uploadFile(
+  uploader: DittoUploader,
+  file: File,
+  meta: FileMeta,
+  signal?: AbortSignal,
+): Promise<UnattachedMedia> {
   const { pubkey, description } = meta;
 
   if (file.size > Conf.maxUploadSize) {
@@ -30,5 +34,3 @@ async function uploadFile(file: File, meta: FileMeta, signal?: AbortSignal): Pro
     uploaded_at: Date.now(),
   });
 }
-
-export { uploadFile };
