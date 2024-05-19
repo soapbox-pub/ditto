@@ -177,7 +177,7 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
 
   try {
     debug('tracking tags:', JSON.stringify(tags));
-    await TrendsWorker.addTagUsages(event.pubkey, tags, date);
+    await TrendsWorker.addTagUsages(event.pubkey, tags, date.valueOf());
   } catch (_e) {
     // do nothing
   }
@@ -192,7 +192,7 @@ async function fetchRelatedEvents(event: DittoEvent) {
     const signal = AbortSignal.timeout(3000);
     reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
       .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
-      .catch(() => {});
+      .catch(() => { });
   }
 
   for (const [name, id] of event.tags) {
@@ -202,7 +202,7 @@ async function fetchRelatedEvents(event: DittoEvent) {
         const signal = AbortSignal.timeout(3000);
         reqmeister.query([{ ids: [id] }], { signal })
           .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
-          .catch(() => {});
+          .catch(() => { });
       }
     }
   }
