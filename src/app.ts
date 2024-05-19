@@ -81,6 +81,7 @@ import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { webfingerController } from '@/controllers/well-known/webfinger.ts';
+import { DittoUploader } from '@/interfaces/DittoUploader.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
@@ -89,11 +90,14 @@ import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { blockController } from '@/controllers/api/accounts.ts';
 import { unblockController } from '@/controllers/api/accounts.ts';
+import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
+    /** Uploader for the user to upload files. */
+    uploader?: DittoUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
     /** Store */
@@ -129,6 +133,7 @@ app.use(
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
+  uploaderMiddleware,
   auth98Middleware(),
   storeMiddleware,
 );

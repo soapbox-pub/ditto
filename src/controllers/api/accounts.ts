@@ -8,7 +8,7 @@ import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
-import { uploadFile } from '@/upload.ts';
+import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { lookupAccount } from '@/utils/lookup.ts';
@@ -221,8 +221,8 @@ const updateCredentialsController: AppController = async (c) => {
   } = result.data;
 
   const [avatar, header] = await Promise.all([
-    avatarFile ? uploadFile(avatarFile, { pubkey }) : undefined,
-    headerFile ? uploadFile(headerFile, { pubkey }) : undefined,
+    avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
+    headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
   ]);
 
   meta.name = display_name ?? meta.name;
