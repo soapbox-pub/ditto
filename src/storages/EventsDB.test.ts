@@ -9,10 +9,7 @@ import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { RelayError } from '@/RelayError.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
-import { genEvent } from '@/test.ts';
-
-import event0 from '~/fixtures/events/event-0.json' with { type: 'json' };
-import event1 from '~/fixtures/events/event-1.json' with { type: 'json' };
+import { eventFixture, genEvent } from '@/test.ts';
 
 /** Create in-memory database for testing. */
 const createDB = async () => {
@@ -28,6 +25,7 @@ const createDB = async () => {
 
 Deno.test('count filters', async () => {
   const { eventsDB } = await createDB();
+  const event1 = await eventFixture('event-1');
 
   assertEquals((await eventsDB.count([{ kinds: [1] }])).count, 0);
   await eventsDB.event(event1);
@@ -37,6 +35,7 @@ Deno.test('count filters', async () => {
 Deno.test('insert and filter events', async () => {
   const { eventsDB } = await createDB();
 
+  const event1 = await eventFixture('event-1');
   await eventsDB.event(event1);
 
   assertEquals(await eventsDB.query([{ kinds: [1] }]), [event1]);
@@ -52,6 +51,7 @@ Deno.test('insert and filter events', async () => {
 Deno.test('query events with domain search filter', async () => {
   const { eventsDB, kysely } = await createDB();
 
+  const event1 = await eventFixture('event-1');
   await eventsDB.event(event1);
 
   assertEquals(await eventsDB.query([{}]), [event1]);
@@ -180,7 +180,7 @@ Deno.test('throws a RelayError when inserting an event deleted by a user', async
 Deno.test('inserting replaceable events', async () => {
   const { eventsDB } = await createDB();
 
-  const event = event0;
+  const event = await eventFixture('event-0');
   await eventsDB.event(event);
 
   const olderEvent = { ...event, id: '123', created_at: event.created_at - 1 };
