@@ -1,20 +1,21 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { matchFilter } from 'nostr-tools';
 
-import { db } from '@/db.ts';
-import { matchFilter } from '@/deps.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
+import { refreshAuthorStatsDebounced } from '@/stats.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];
-  storage: NStore;
+  store: NStore;
   signal?: AbortSignal;
 }
 
 /** Hydrate events using the provided storage. */
 async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
-  const { events, storage, signal } = opts;
+  const { events, store, signal } = opts;
 
   if (!events.length) {
     return events;
@@ -22,19 +23,31 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 
   const cache = [...events];
 
-  for (const event of await gatherReposts({ events: cache, storage, signal })) {
+  for (const event of await gatherReposts({ events: cache, store, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherQuotes({ events: cache, storage, signal })) {
+  for (const event of await gatherReacted({ events: cache, store, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherAuthors({ events: cache, storage, signal })) {
+  for (const event of await gatherQuotes({ events: cache, store, signal })) {
     cache.push(event);
   }
 
-  for (const event of await gatherUsers({ events: cache, storage, signal })) {
+  for (const event of await gatherAuthors({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherUsers({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherReportedProfiles({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherReportedNotes({ events: cache, store, signal })) {
     cache.push(event);
   }
 
@@ -42,6 +55,8 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     authors: await gatherAuthorStats(cache),
     events: await gatherEventStats(cache),
   };
+
+  refreshMissingAuthorStats(events, stats.authors);
 
   // Dedupe events.
   const results = [...new Map(cache.map((event) => [event.id, event])).values()];
@@ -65,6 +80,13 @@ function assembleEvents(
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
     event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
 
+    if (event.kind === 1) {
+      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      if (id) {
+        event.quote = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
+    }
+
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
@@ -72,10 +94,27 @@ function assembleEvents(
       }
     }
 
-    if (event.kind === 1) {
-      const id = event.tags.find(([name]) => name === 'q')?.[1];
+    if (event.kind === 7) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
-        event.quote_repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.reacted = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
+    }
+
+    if (event.kind === 1984) {
+      const targetAccountId = event.tags.find(([name]) => name === 'p')?.[1];
+      if (targetAccountId) {
+        event.reported_profile = b.find((e) => matchFilter({ kinds: [0], authors: [targetAccountId] }, e));
+      }
+      const reportedEvents: DittoEvent[] = [];
+
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
+        for (const id of status_ids) {
+          const reportedEvent = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+          if (reportedEvent) reportedEvents.push(reportedEvent);
+        }
+        event.reported_notes = reportedEvents;
       }
     }
 
@@ -87,7 +126,7 @@ function assembleEvents(
 }
 
 /** Collect reposts from the events. */
-function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+function gatherReposts({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
   for (const event of events) {
@@ -99,14 +138,33 @@ function gatherReposts({ events, storage, signal }: HydrateOpts): Promise<DittoE
     }
   }
 
-  return storage.query(
+  return store.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect events being reacted to by the events. */
+function gatherReacted({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 7) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return store.query(
     [{ ids: [...ids], limit: ids.size }],
     { signal },
   );
 }
 
 /** Collect quotes from the events. */
-function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
   for (const event of events) {
@@ -118,34 +176,73 @@ function gatherQuotes({ events, storage, signal }: HydrateOpts): Promise<DittoEv
     }
   }
 
-  return storage.query(
+  return store.query(
     [{ ids: [...ids], limit: ids.size }],
     { signal },
   );
 }
 
 /** Collect authors from the events. */
-function gatherAuthors({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
-  return storage.query(
+  return store.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
 }
 
 /** Collect users from the events. */
-function gatherUsers({ events, storage, signal }: HydrateOpts): Promise<DittoEvent[]> {
+function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
-  return storage.query(
+  return store.query(
     [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
 }
 
+/** Collect reported notes from the events. */
+function gatherReportedNotes({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+  for (const event of events) {
+    if (event.kind === 1984) {
+      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
+      if (status_ids.length > 0) {
+        for (const id of status_ids) {
+          ids.add(id);
+        }
+      }
+    }
+  }
+
+  return store.query(
+    [{ kinds: [1], ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect reported profiles from the events. */
+function gatherReportedProfiles({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 1984) {
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) {
+        pubkeys.add(pubkey);
+      }
+    }
+  }
+
+  return store.query(
+    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
 /** Collect author stats from the events. */
-function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
+async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
   const pubkeys = new Set<string>(
     events
       .filter((event) => event.kind === 0)
@@ -156,15 +253,40 @@ function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_st
     return Promise.resolve([]);
   }
 
-  return db
+  const kysely = await DittoDB.getInstance();
+
+  const rows = await kysely
     .selectFrom('author_stats')
     .selectAll()
     .where('pubkey', 'in', [...pubkeys])
     .execute();
+
+  return rows.map((row) => ({
+    pubkey: row.pubkey,
+    followers_count: Math.max(0, row.followers_count),
+    following_count: Math.max(0, row.following_count),
+    notes_count: Math.max(0, row.notes_count),
+  }));
+}
+
+function refreshMissingAuthorStats(events: NostrEvent[], stats: DittoTables['author_stats'][]) {
+  const pubkeys = new Set<string>(
+    events
+      .filter((event) => event.kind === 0)
+      .map((event) => event.pubkey),
+  );
+
+  const missing = pubkeys.difference(
+    new Set(stats.map((stat) => stat.pubkey)),
+  );
+
+  for (const pubkey of missing) {
+    refreshAuthorStatsDebounced(pubkey);
+  }
 }
 
 /** Collect event stats from the events. */
-function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
+async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
   const ids = new Set<string>(
     events
       .filter((event) => event.kind === 1)
@@ -175,11 +297,20 @@ function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stat
     return Promise.resolve([]);
   }
 
-  return db
+  const kysely = await DittoDB.getInstance();
+
+  const rows = await kysely
     .selectFrom('event_stats')
     .selectAll()
     .where('event_id', 'in', [...ids])
     .execute();
+
+  return rows.map((row) => ({
+    event_id: row.event_id,
+    reposts_count: Math.max(0, row.reposts_count),
+    reactions_count: Math.max(0, row.reactions_count),
+    replies_count: Math.max(0, row.replies_count),
+  }));
 }
 
 /** Return a normalized event without any non-standard keys. */

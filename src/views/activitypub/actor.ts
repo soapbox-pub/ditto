@@ -1,5 +1,6 @@
+import { NSchema as n } from '@nostrify/nostrify';
+
 import { Conf } from '@/config.ts';
-import { jsonMetaContentSchema } from '@/schemas/nostr.ts';
 import { getPublicKeyPem } from '@/utils/rsa.ts';
 
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -7,7 +8,7 @@ import type { Actor } from '@/schemas/activitypub.ts';
 
 /** Nostr metadata event to ActivityPub actor. */
 async function renderActor(event: NostrEvent, username: string): Promise<Actor | undefined> {
-  const content = jsonMetaContentSchema.parse(event.content);
+  const content = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   return {
     type: 'Person',

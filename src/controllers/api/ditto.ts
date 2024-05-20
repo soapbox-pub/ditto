@@ -3,19 +3,22 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+
+const markerSchema = z.enum(['read', 'write']);
 
 const relaySchema = z.object({
   url: z.string().url(),
-  read: z.boolean(),
-  write: z.boolean(),
+  marker: markerSchema.optional(),
 });
 
 type RelayEntity = z.infer<typeof relaySchema>;
 
 export const adminRelaysController: AppController = async (c) => {
-  const [event] = await eventsDB.query([
+  const store = await Storages.db();
+
+  const [event] = await store.query([
     { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
   ]);
 
@@ -27,16 +30,17 @@ export const adminRelaysController: AppController = async (c) => {
 };
 
 export const adminSetRelaysController: AppController = async (c) => {
+  const store = await Storages.db();
   const relays = relaySchema.array().parse(await c.req.json());
 
   const event = await new AdminSigner().signEvent({
     kind: 10002,
-    tags: relays.map(({ url, read, write }) => ['r', url, read && write ? '' : read ? 'read' : 'write']),
+    tags: relays.map(({ url, marker }) => marker ? ['r', url, marker] : ['r', url]),
     content: '',
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  await eventsDB.event(event);
+  await store.event(event);
 
   return c.json(renderRelays(event));
 };
@@ -47,8 +51,7 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
     if (name === 'r') {
       const relay: RelayEntity = {
         url,
-        read: !marker || marker === 'read',
-        write: !marker || marker === 'write',
+        marker: markerSchema.safeParse(marker).success ? marker as 'read' | 'write' : undefined,
       };
       acc.push(relay);
     }

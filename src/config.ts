@@ -1,7 +1,8 @@
 import url from 'node:url';
-import { z } from 'zod';
 
-import { dotenv, getPublicKey, nip19 } from '@/deps.ts';
+import * as dotenv from '@std/dotenv';
+import { getPublicKey, nip19 } from 'nostr-tools';
+import { z } from 'zod';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -41,7 +42,7 @@ class Conf {
   }
 
   static get port() {
-    return parseInt(Deno.env.get('PORT') || '8000');
+    return parseInt(Deno.env.get('PORT') || '4036');
   }
 
   static get relay(): `wss://${string}` | `ws://${string}` {
@@ -54,7 +55,7 @@ class Conf {
   }
   /** Origin of the Ditto server, including the protocol and port. */
   static get localDomain() {
-    return Deno.env.get('LOCAL_DOMAIN') || 'http://localhost:8000';
+    return Deno.env.get('LOCAL_DOMAIN') || `http://localhost:${Conf.port}`;
   }
   /** URL to an external Nostr viewer. */
   static get externalDomain() {
@@ -135,9 +136,21 @@ class Conf {
       return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
     },
   };
+  /** nostr.build API endpoint when the `nostrbuild` uploader is used. */
+  static get nostrbuildEndpoint(): string {
+    return Deno.env.get('NOSTRBUILD_ENDPOINT') || 'https://nostr.build/api/v2/upload/files';
+  }
+  /** Default Blossom servers to use when the `blossom` uploader is set. */
+  static get blossomServers(): string[] {
+    return Deno.env.get('BLOSSOM_SERVERS')?.split(',') || ['https://blossom.primal.net/'];
+  }
   /** Module to upload files with. */
   static get uploader() {
     return Deno.env.get('DITTO_UPLOADER');
+  }
+  /** Location to use for local uploads. */
+  static get uploadsDir() {
+    return Deno.env.get('UPLOADS_DIR') || 'data/uploads';
   }
   /** Media base URL for uploads. */
   static get mediaDomain() {
@@ -203,6 +216,21 @@ class Conf {
       }
     },
   };
+  /** Postgres settings. */
+  static pg = {
+    /** Number of connections to use in the pool. */
+    get poolSize(): number {
+      return Number(Deno.env.get('PG_POOL_SIZE') ?? 10);
+    },
+  };
+  /** Whether to enable requesting events from known relays. */
+  static get firehoseEnabled(): boolean {
+    return optionalBooleanSchema.parse(Deno.env.get('FIREHOSE_ENABLED')) ?? true;
+  }
+  /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
+  static get policy(): string {
+    return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
+  }
 }
 
 const optionalBooleanSchema = z

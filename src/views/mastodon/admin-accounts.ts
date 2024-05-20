@@ -1,23 +1,21 @@
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { nostrDate } from '@/utils.ts';
 
-import { accountFromPubkey, renderAccount } from './accounts.ts';
-
+/** Expects a kind 0 fully hydrated */
 async function renderAdminAccount(event: DittoEvent) {
-  const d = event.tags.find(([name]) => name === 'd')?.[1]!;
-  const account = event.d_author ? await renderAccount({ ...event.d_author, user: event }) : await accountFromPubkey(d);
+  const account = await renderAccount(event);
 
   return {
     id: account.id,
-    username: event.tags.find(([name]) => name === 'name')?.[1]!,
+    username: account.username,
     domain: account.acct.split('@')[1] || null,
-    created_at: nostrDate(event.created_at).toISOString(),
+    created_at: account.created_at,
     email: '',
     ip: null,
     ips: [],
     locale: '',
     invite_request: null,
-    role: event.tags.find(([name]) => name === 'role')?.[1] || 'user',
+    role: event.tags.find(([name]) => name === 'role')?.[1],
     confirmed: true,
     approved: true,
     disabled: false,
@@ -27,4 +25,28 @@ async function renderAdminAccount(event: DittoEvent) {
   };
 }
 
-export { renderAdminAccount };
+/** Expects a target pubkey */
+async function renderAdminAccountFromPubkey(pubkey: string) {
+  const account = await accountFromPubkey(pubkey);
+
+  return {
+    id: account.id,
+    username: account.username,
+    domain: account.acct.split('@')[1] || null,
+    created_at: account.created_at,
+    email: '',
+    ip: null,
+    ips: [],
+    locale: '',
+    invite_request: null,
+    role: 'user',
+    confirmed: true,
+    approved: true,
+    disabled: false,
+    silenced: false,
+    suspended: false,
+    account,
+  };
+}
+
+export { renderAdminAccount, renderAdminAccountFromPubkey };

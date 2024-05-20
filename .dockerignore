@@ -1,0 +1,6 @@
+.env
+*.cpuprofile
+*.swp
+deno-test.xml
+
+/data

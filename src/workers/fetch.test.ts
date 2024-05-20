@@ -1,4 +1,4 @@
-import { assertEquals, assertRejects } from '@/deps-test.ts';
+import { assertEquals, assertRejects } from '@std/assert';
 
 import { fetchWorker } from '@/workers/fetch.ts';
 

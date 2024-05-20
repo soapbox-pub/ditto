@@ -1,7 +1,7 @@
-import { Comlink } from '@/deps.ts';
+import * as Comlink from 'comlink';
+import { CompiledQuery, QueryResult } from 'kysely';
 
 import type { SqliteWorker as _SqliteWorker } from './sqlite.worker.ts';
-import type { CompiledQuery, QueryResult } from '@/deps.ts';
 
 class SqliteWorker {
   #worker: Worker;
@@ -31,6 +31,10 @@ class SqliteWorker {
   async executeQuery<R>(query: CompiledQuery): Promise<QueryResult<R>> {
     await this.#ready;
     return this.#client.executeQuery(query) as Promise<QueryResult<R>>;
+  }
+
+  streamQuery<R>(): AsyncIterableIterator<R> {
+    throw new Error('Streaming queries are not supported in the web worker');
   }
 
   destroy(): Promise<void> {

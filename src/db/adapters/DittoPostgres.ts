@@ -1,7 +1,9 @@
 import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely';
 import { PostgreSQLDriver } from 'kysely_deno_postgres';
 
+import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
   static db: Kysely<DittoTables> | undefined;
@@ -16,9 +18,10 @@ export class DittoPostgres {
           },
           // @ts-ignore mismatched kysely versions probably
           createDriver() {
-            return new PostgreSQLDriver({
-              connectionString: Deno.env.get('DATABASE_URL'),
-            });
+            return new PostgreSQLDriver(
+              { connectionString: Deno.env.get('DATABASE_URL') },
+              Conf.pg.poolSize,
+            );
           },
           createIntrospector(db: Kysely<unknown>) {
             return new PostgresIntrospector(db);
@@ -27,6 +30,7 @@ export class DittoPostgres {
             return new PostgresQueryCompiler();
           },
         },
+        log: KyselyLogger,
       });
     }
 

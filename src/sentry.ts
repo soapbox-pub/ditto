@@ -1,5 +1,6 @@
-import { Conf } from './config.ts';
-import { Sentry } from './deps.ts';
+import * as Sentry from '@sentry/deno';
+
+import { Conf } from '@/config.ts';
 
 // Sentry
 if (Conf.sentryDsn) {

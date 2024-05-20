@@ -1,5 +1,6 @@
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
-import { Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
@@ -27,8 +28,12 @@ function getLnurl({ lud06, lud16 }: { lud06?: string; lud16?: string }, limit?: 
   if (lud16) {
     const [name, host] = lud16.split('@');
     if (name && host) {
-      const url = new URL(`/.well-known/lnurlp/${name}`, `https://${host}`);
-      return LNURL.encode(url, limit);
+      try {
+        const url = new URL(`/.well-known/lnurlp/${name}`, `https://${host}`);
+        return LNURL.encode(url, limit);
+      } catch {
+        return;
+      }
     }
   }
 }

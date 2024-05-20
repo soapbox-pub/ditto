@@ -1,5 +1,8 @@
+import * as secp from '@noble/secp256k1';
+import { LRUCache } from 'lru-cache';
+
 import { Conf } from '@/config.ts';
-import { generateSeededRsa, LRUCache, publicKeyToPem, secp } from '@/deps.ts';
+import { generateSeededRsa, publicKeyToPem } from '@/deps.ts';
 
 const opts = {
   bits: 2048,

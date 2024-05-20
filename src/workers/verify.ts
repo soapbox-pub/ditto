@@ -1,5 +1,5 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { Comlink } from '@/deps.ts';
+import * as Comlink from 'comlink';
 
 import type { VerifyWorker } from './verify.worker.ts';
 

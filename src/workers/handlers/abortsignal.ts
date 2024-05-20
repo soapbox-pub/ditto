@@ -1,4 +1,4 @@
-import { Comlink } from '@/deps.ts';
+import * as Comlink from 'comlink';
 
 const signalFinalizers = new FinalizationRegistry((port: MessagePort) => {
   port.postMessage(null);

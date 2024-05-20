@@ -3,7 +3,7 @@ import { NIP05, NostrEvent } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 
 export class DVM {
   static async event(event: NostrEvent): Promise<void> {
@@ -34,7 +34,9 @@ export class DVM {
       return DVM.feedback(event, 'error', `Forbidden user: ${user}`);
     }
 
-    const [label] = await eventsDB.query([{
+    const store = await Storages.db();
+
+    const [label] = await store.query([{
       kinds: [1985],
       authors: [admin],
       '#L': ['nip05'],

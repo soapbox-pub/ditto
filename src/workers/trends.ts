@@ -1,4 +1,4 @@
-import { Comlink } from '@/deps.ts';
+import * as Comlink from 'comlink';
 
 import type { TrendsWorker as _TrendsWorker } from '@/workers/trends.worker.ts';
 

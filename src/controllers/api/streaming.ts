@@ -1,15 +1,15 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Debug } from '@/deps.ts';
+import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { Storages } from '@/storages.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventsDB } from '@/storages.ts';
-import { Storages } from '@/storages.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -69,11 +69,24 @@ const streamingController: AppController = (c) => {
     if (!filter) return;
 
     try {
-      for await (const msg of Storages.pubsub.req([filter], { signal: controller.signal })) {
+      const pubsub = await Storages.pubsub();
+      const optimizer = await Storages.optimizer();
+
+      for await (const msg of pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
-          const [event] = await hydrateEvents({
-            events: [msg[2]],
-            storage: eventsDB,
+          const event = msg[2];
+
+          if (pubkey) {
+            const policy = new MuteListPolicy(pubkey, await Storages.admin());
+            const [, , ok] = await policy.call(event);
+            if (!ok) {
+              continue;
+            }
+          }
+
+          await hydrateEvents({
+            events: [event],
+            store: optimizer,
             signal: AbortSignal.timeout(1000),
           });
 

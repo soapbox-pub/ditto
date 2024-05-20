@@ -1,28 +1,28 @@
-import { NostrEvent } from '@nostrify/nostrify';
-import { Debug } from '@/deps.ts';
-import { activeRelays, pool } from '@/pool.ts';
+import { Stickynotes } from '@soapbox/stickynotes';
+
+import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
 import * as pipeline from './pipeline.ts';
 
-const debug = Debug('ditto:firehose');
+const console = new Stickynotes('ditto:firehose');
 
-// This file watches events on all known relays and performs
-// side-effects based on them, such as trending hashtag tracking
-// and storing events for notifications and the home feed.
-pool.subscribe(
-  [{ kinds: [0, 1, 3, 5, 6, 7, 9735, 10002], limit: 0, since: nostrNow() }],
-  activeRelays,
-  handleEvent,
-  undefined,
-  undefined,
-);
+/**
+ * This function watches events on all known relays and performs
+ * side-effects based on them, such as trending hashtag tracking
+ * and storing events for notifications and the home feed.
+ */
+export async function startFirehose() {
+  const store = await Storages.client();
 
-/** Handle events through the firehose pipeline. */
-function handleEvent(event: NostrEvent): Promise<void> {
-  debug(`NostrEvent<${event.kind}> ${event.id}`);
+  for await (const msg of store.req([{ kinds: [0, 1, 3, 5, 6, 7, 9735, 10002], limit: 0, since: nostrNow() }])) {
+    if (msg[0] === 'EVENT') {
+      const event = msg[2];
+      console.debug(`NostrEvent<${event.kind}> ${event.id}`);
 
-  return pipeline
-    .handleEvent(event, AbortSignal.timeout(5000))
-    .catch(() => {});
+      pipeline
+        .handleEvent(event, AbortSignal.timeout(5000))
+        .catch(() => {});
+    }
+  }
 }

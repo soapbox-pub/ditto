@@ -1,7 +1,8 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
+
 import { Conf } from '@/config.ts';
-import { eventsDB, optimizer } from '@/storages.ts';
-import { Debug } from '@/deps.ts';
+import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { findReplyTag, getTagSet } from '@/tags.ts';
@@ -24,6 +25,7 @@ const getEvent = async (
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
+  const store = await Storages.optimizer();
   const { kind, signal = AbortSignal.timeout(1000) } = opts;
 
   const filter: NostrFilter = { ids: [id], limit: 1 };
@@ -31,23 +33,25 @@ const getEvent = async (
     filter.kinds = [kind];
   }
 
-  return await optimizer.query([filter], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: optimizer, signal }))
+  return await store.query([filter], { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 };
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
+  const store = await Storages.optimizer();
   const { signal = AbortSignal.timeout(1000) } = opts;
 
-  return await optimizer.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: optimizer, signal }))
+  return await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 };
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
-  const [event] = await eventsDB.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+  const store = await Storages.db();
+  const [event] = await store.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
   return event;
 };
 
@@ -82,16 +86,19 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
   return result.reverse();
 }
 
-function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  return eventsDB.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
-    .then((events) => hydrateEvents({ events, storage: eventsDB, signal }));
+async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
+  const store = await Storages.db();
+  const events = await store.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
+  return hydrateEvents({ events, store, signal });
 }
 
 /** Returns whether the pubkey is followed by a local user. */
 async function isLocallyFollowed(pubkey: string): Promise<boolean> {
   const { host } = Conf.url;
 
-  const [event] = await eventsDB.query(
+  const store = await Storages.db();
+
+  const [event] = await store.query(
     [{ kinds: [3], '#p': [pubkey], search: `domain:${host}`, limit: 1 }],
     { limit: 1 },
   );

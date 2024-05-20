@@ -1,11 +1,10 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { nip19 } from '@/deps.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { nostrIdSchema } from '@/schemas/nostr.ts';
-import { searchStore } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -20,7 +19,7 @@ const searchQuerySchema = z.object({
   type: z.enum(['accounts', 'statuses', 'hashtags']).optional(),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  account_id: nostrIdSchema.optional(),
+  account_id: n.id().optional(),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
@@ -44,6 +43,7 @@ const searchController: AppController = async (c) => {
   }
 
   const results = dedupeEvents(events);
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -55,7 +55,7 @@ const searchController: AppController = async (c) => {
     Promise.all(
       results
         .filter((event) => event.kind === 1)
-        .map((event) => renderStatus(event, { viewerPubkey: c.get('pubkey') }))
+        .map((event) => renderStatus(event, { viewerPubkey }))
         .filter(Boolean),
     ),
   ]);
@@ -78,7 +78,7 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
+async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
   const filter: NostrFilter = {
@@ -91,8 +91,10 @@ function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: Abort
     filter.authors = [account_id];
   }
 
-  return searchStore.query([filter], { signal })
-    .then((events) => hydrateEvents({ events, storage: searchStore, signal }));
+  const store = await Storages.search();
+
+  return store.query([filter], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -110,9 +112,10 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
+  const store = await Storages.search();
 
-  return searchStore.query(filters, { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, storage: searchStore, signal }))
+  return store.query(filters, { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, store, signal }))
     .then(([event]) => event);
 }
 

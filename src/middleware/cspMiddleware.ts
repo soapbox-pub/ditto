@@ -1,0 +1,28 @@
+import { AppMiddleware } from '@/app.ts';
+import { Conf } from '@/config.ts';
+
+export const cspMiddleware = (): AppMiddleware => {
+  return async (c, next) => {
+    const { host, protocol, origin } = Conf.url;
+    const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
+
+    const policies = [
+      'upgrade-insecure-requests',
+      `script-src 'self'`,
+      `connect-src 'self' blob: ${origin} ${wsProtocol}//${host}`,
+      `media-src 'self' https:`,
+      `img-src 'self' data: blob: https:`,
+      `default-src 'none'`,
+      `base-uri 'self'`,
+      `frame-ancestors 'none'`,
+      `style-src 'self' 'unsafe-inline'`,
+      `font-src 'self'`,
+      `manifest-src 'self'`,
+      `frame-src 'self' https:`,
+    ];
+
+    c.res.headers.set('content-security-policy', policies.join('; '));
+
+    await next();
+  };
+};

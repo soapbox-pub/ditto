@@ -1,10 +1,10 @@
-import { Kysely } from '@/deps.ts';
+import { Kysely } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createIndex('idx_events_kind_pubkey_created_at')
     .on('events')
-    .columns(['kind', 'pubkey', 'created_at'])
+    .columns(['kind', 'pubkey', 'created_at desc'])
     .execute();
 }
 

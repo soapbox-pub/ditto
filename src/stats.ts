@@ -1,9 +1,14 @@
-import { NostrEvent } from '@nostrify/nostrify';
-import { db } from '@/db.ts';
+import { Semaphore } from '@lambdalisue/async';
+import { NKinds, NostrEvent, NStore } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
+import { InsertQueryBuilder, Kysely } from 'kysely';
+import { LRUCache } from 'lru-cache';
+import { SetRequired } from 'type-fest';
+
+import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Debug, type InsertQueryBuilder } from '@/deps.ts';
-import { eventsDB } from '@/storages.ts';
-import { findReplyTag } from '@/tags.ts';
+import { Storages } from '@/storages.ts';
+import { findReplyTag, getTagSet } from '@/tags.ts';
 
 type AuthorStat = keyof Omit<DittoTables['author_stats'], 'pubkey'>;
 type EventStat = keyof Omit<DittoTables['event_stats'], 'event_id'>;
@@ -14,16 +19,16 @@ type StatDiff = AuthorStatDiff | EventStatDiff;
 
 const debug = Debug('ditto:stats');
 
-/** Store stats for the event in LMDB. */
+/** Store stats for the event. */
 async function updateStats(event: NostrEvent) {
   let prev: NostrEvent | undefined;
   const queries: InsertQueryBuilder<DittoTables, any, unknown>[] = [];
 
   // Kind 3 is a special case - replace the count with the new list.
   if (event.kind === 3) {
-    prev = await maybeGetPrev(event);
+    prev = await getPrevEvent(event);
     if (!prev || event.created_at >= prev.created_at) {
-      queries.push(updateFollowingCountQuery(event));
+      queries.push(await updateFollowingCountQuery(event));
     }
   }
 
@@ -35,8 +40,12 @@ async function updateStats(event: NostrEvent) {
     debug(JSON.stringify({ id: event.id, pubkey: event.pubkey, kind: event.kind, tags: event.tags, statDiffs }));
   }
 
-  if (pubkeyDiffs.length) queries.push(authorStatsQuery(pubkeyDiffs));
-  if (eventDiffs.length) queries.push(eventStatsQuery(eventDiffs));
+  pubkeyDiffs.forEach(([_, pubkey]) => refreshAuthorStatsDebounced(pubkey));
+
+  const kysely = await DittoDB.getInstance();
+
+  if (pubkeyDiffs.length) queries.push(authorStatsQuery(kysely, pubkeyDiffs));
+  if (eventDiffs.length) queries.push(eventStatsQuery(kysely, eventDiffs));
 
   if (queries.length) {
     await Promise.all(queries.map((query) => query.execute()));
@@ -45,6 +54,7 @@ async function updateStats(event: NostrEvent) {
 
 /** Calculate stats changes ahead of time so we can build an efficient query. */
 async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Promise<StatDiff[]> {
+  const store = await Storages.db();
   const statDiffs: StatDiff[] = [];
 
   const firstTaggedId = event.tags.find(([name]) => name === 'e')?.[1];
@@ -63,7 +73,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
     case 5: {
       if (!firstTaggedId) break;
 
-      const [repostedEvent] = await eventsDB.query(
+      const [repostedEvent] = await store.query(
         [{ kinds: [6], ids: [firstTaggedId], authors: [event.pubkey] }],
         { limit: 1 },
       );
@@ -75,7 +85,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
       const eventBeingRepostedPubkey = repostedEvent.tags.find(([name]) => name === 'p')?.[1];
       if (!eventBeingRepostedId || !eventBeingRepostedPubkey) break;
 
-      const [eventBeingReposted] = await eventsDB.query(
+      const [eventBeingReposted] = await store.query(
         [{ kinds: [1], ids: [eventBeingRepostedId], authors: [eventBeingRepostedPubkey] }],
         { limit: 1 },
       );
@@ -99,7 +109,7 @@ async function getStatsDiff(event: NostrEvent, prev: NostrEvent | undefined): Pr
 }
 
 /** Create an author stats query from the list of diffs. */
-function authorStatsQuery(diffs: AuthorStatDiff[]) {
+function authorStatsQuery(kysely: Kysely<DittoTables>, diffs: AuthorStatDiff[]) {
   const values: DittoTables['author_stats'][] = diffs.map(([_, pubkey, stat, diff]) => {
     const row: DittoTables['author_stats'] = {
       pubkey,
@@ -111,21 +121,21 @@ function authorStatsQuery(diffs: AuthorStatDiff[]) {
     return row;
   });
 
-  return db.insertInto('author_stats')
+  return kysely.insertInto('author_stats')
     .values(values)
     .onConflict((oc) =>
       oc
         .column('pubkey')
         .doUpdateSet((eb) => ({
-          followers_count: eb('followers_count', '+', eb.ref('excluded.followers_count')),
-          following_count: eb('following_count', '+', eb.ref('excluded.following_count')),
-          notes_count: eb('notes_count', '+', eb.ref('excluded.notes_count')),
+          followers_count: eb('author_stats.followers_count', '+', eb.ref('excluded.followers_count')),
+          following_count: eb('author_stats.following_count', '+', eb.ref('excluded.following_count')),
+          notes_count: eb('author_stats.notes_count', '+', eb.ref('excluded.notes_count')),
         }))
     );
 }
 
 /** Create an event stats query from the list of diffs. */
-function eventStatsQuery(diffs: EventStatDiff[]) {
+function eventStatsQuery(kysely: Kysely<DittoTables>, diffs: EventStatDiff[]) {
   const values: DittoTables['event_stats'][] = diffs.map(([_, event_id, stat, diff]) => {
     const row: DittoTables['event_stats'] = {
       event_id,
@@ -137,37 +147,42 @@ function eventStatsQuery(diffs: EventStatDiff[]) {
     return row;
   });
 
-  return db.insertInto('event_stats')
+  return kysely.insertInto('event_stats')
     .values(values)
     .onConflict((oc) =>
       oc
         .column('event_id')
         .doUpdateSet((eb) => ({
-          replies_count: eb('replies_count', '+', eb.ref('excluded.replies_count')),
-          reposts_count: eb('reposts_count', '+', eb.ref('excluded.reposts_count')),
-          reactions_count: eb('reactions_count', '+', eb.ref('excluded.reactions_count')),
+          replies_count: eb('event_stats.replies_count', '+', eb.ref('excluded.replies_count')),
+          reposts_count: eb('event_stats.reposts_count', '+', eb.ref('excluded.reposts_count')),
+          reactions_count: eb('event_stats.reactions_count', '+', eb.ref('excluded.reactions_count')),
         }))
     );
 }
 
 /** Get the last version of the event, if any. */
-async function maybeGetPrev(event: NostrEvent): Promise<NostrEvent> {
-  const [prev] = await eventsDB.query([
-    { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
-  ]);
+async function getPrevEvent(event: NostrEvent): Promise<NostrEvent | undefined> {
+  if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
+    const store = await Storages.db();
 
-  return prev;
+    const [prev] = await store.query([
+      { kinds: [event.kind], authors: [event.pubkey], limit: 1 },
+    ]);
+
+    return prev;
+  }
 }
 
 /** Set the following count to the total number of unique "p" tags in the follow list. */
-function updateFollowingCountQuery({ pubkey, tags }: NostrEvent) {
+async function updateFollowingCountQuery({ pubkey, tags }: NostrEvent) {
   const following_count = new Set(
     tags
       .filter(([name]) => name === 'p')
       .map(([_, value]) => value),
   ).size;
 
-  return db.insertInto('author_stats')
+  const kysely = await DittoDB.getInstance();
+  return kysely.insertInto('author_stats')
     .values({
       pubkey,
       following_count,
@@ -206,4 +221,53 @@ function getFollowDiff(event: NostrEvent, prev?: NostrEvent): AuthorStatDiff[] {
   ];
 }
 
-export { updateStats };
+/** Refresh the author's stats in the database. */
+async function refreshAuthorStats(pubkey: string): Promise<DittoTables['author_stats']> {
+  const store = await Storages.db();
+  const stats = await countAuthorStats(store, pubkey);
+
+  const kysely = await DittoDB.getInstance();
+  await kysely.insertInto('author_stats')
+    .values(stats)
+    .onConflict((oc) => oc.column('pubkey').doUpdateSet(stats))
+    .execute();
+
+  return stats;
+}
+
+/** Calculate author stats from the database. */
+async function countAuthorStats(
+  store: SetRequired<NStore, 'count'>,
+  pubkey: string,
+): Promise<DittoTables['author_stats']> {
+  const [{ count: followers_count }, { count: notes_count }, [followList]] = await Promise.all([
+    store.count([{ kinds: [3], '#p': [pubkey] }]),
+    store.count([{ kinds: [1], authors: [pubkey] }]),
+    store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
+  ]);
+
+  return {
+    pubkey,
+    followers_count,
+    following_count: getTagSet(followList?.tags ?? [], 'p').size,
+    notes_count,
+  };
+}
+
+const authorStatsSemaphore = new Semaphore(10);
+const refreshedAuthors = new LRUCache<string, true>({ max: 1000 });
+
+/** Calls `refreshAuthorStats` only once per author. */
+function refreshAuthorStatsDebounced(pubkey: string): void {
+  if (refreshedAuthors.get(pubkey)) {
+    return;
+  }
+
+  refreshedAuthors.set(pubkey, true);
+  debug('refreshing author stats:', pubkey);
+
+  authorStatsSemaphore
+    .lock(() => refreshAuthorStats(pubkey).catch(() => {}));
+}
+
+export { refreshAuthorStats, refreshAuthorStatsDebounced, updateStats };

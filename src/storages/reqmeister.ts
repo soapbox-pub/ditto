@@ -1,5 +1,7 @@
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
-import { Debug, EventEmitter } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+import { EventEmitter } from 'tseep';
+
 import { eventToMicroFilter, getFilterId, isMicrofilter, type MicroFilter } from '@/filter.ts';
 import { Time } from '@/utils/time.ts';
 import { abortError } from '@/utils/abort.ts';
@@ -80,7 +82,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     this.#perform();
   }
 
-  req(filter: MicroFilter, opts: ReqmeisterReqOpts = {}): Promise<NostrEvent> {
+  private fetch(filter: MicroFilter, opts: ReqmeisterReqOpts = {}): Promise<NostrEvent> {
     const {
       relays = [],
       signal = AbortSignal.timeout(this.#opts.timeout ?? 1000),
@@ -118,12 +120,7 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
     return Promise.resolve();
   }
 
-  isWanted(event: NostrEvent): boolean {
-    const filterId = getFilterId(eventToMicroFilter(event));
-    return this.#queue.some(([id]) => id === filterId);
-  }
-
-  query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
+  async query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
     if (opts?.signal?.aborted) return Promise.reject(abortError());
 
     this.#debug('REQ', JSON.stringify(filters));
@@ -131,12 +128,16 @@ class Reqmeister extends EventEmitter<{ [filterId: string]: (event: NostrEvent) 
 
     const promises = filters.reduce<Promise<NostrEvent>[]>((result, filter) => {
       if (isMicrofilter(filter)) {
-        result.push(this.req(filter, opts));
+        result.push(this.fetch(filter, opts));
       }
       return result;
     }, []);
 
-    return Promise.all(promises);
+    const results = await Promise.allSettled(promises);
+
+    return results
+      .filter((result): result is PromiseFulfilledResult<NostrEvent> => result.status === 'fulfilled')
+      .map((result) => result.value);
   }
 }
 

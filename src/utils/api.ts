@@ -1,14 +1,17 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import Debug from '@soapbox/stickynotes/debug';
 import { type Context, HTTPException } from 'hono';
+import { parseFormData } from 'formdata-helper';
+import { EventTemplate } from 'nostr-tools';
+import * as TypeFest from 'type-fest';
 import { z } from 'zod';
 
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Debug, EventTemplate, parseFormData, type TypeFest } from '@/deps.ts';
 import * as pipeline from '@/pipeline.ts';
+import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { APISigner } from '@/signers/APISigner.ts';
-import { client, eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
 const debug = Debug('ditto:api');
@@ -18,7 +21,13 @@ type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 
 
 /** Publish an event through the pipeline. */
 async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const signer = new APISigner(c);
+  const signer = c.get('signer');
+
+  if (!signer) {
+    throw new HTTPException(401, {
+      res: c.json({ error: 'No way to sign Nostr event' }, 401),
+    });
+  }
 
   const event = await signer.signEvent({
     content: '',
@@ -33,7 +42,7 @@ async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
 /** Filter for fetching an existing event to update. */
 interface UpdateEventFilter extends NostrFilter {
   kinds: [number];
-  limit?: 1;
+  limit: 1;
 }
 
 /** Fetch existing event, update it, then publish the new event. */
@@ -42,7 +51,8 @@ async function updateEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const [prev] = await eventsDB.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { signal: c.req.raw.signal });
   return createEvent(fn(prev), c);
 }
 
@@ -73,16 +83,39 @@ async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent
   return publishEvent(event, c);
 }
 
+/** Fetch existing event, update its tags, then publish the new admin event. */
+function updateListAdminEvent(
+  filter: UpdateEventFilter,
+  fn: (tags: string[][]) => string[][],
+  c: AppContext,
+): Promise<NostrEvent> {
+  return updateAdminEvent(filter, (prev) => ({
+    kind: filter.kinds[0],
+    content: prev?.content ?? '',
+    tags: fn(prev?.tags ?? []),
+  }), c);
+}
+
+/** Fetch existing event, update it, then publish the new admin event. */
+async function updateAdminEvent<E extends EventStub>(
+  filter: UpdateEventFilter,
+  fn: (prev: NostrEvent | undefined) => E,
+  c: AppContext,
+): Promise<NostrEvent> {
+  const store = await Storages.db();
+  const [prev] = await store.query([filter], { limit: 1, signal: c.req.raw.signal });
+  return createAdminEvent(fn(prev), c);
+}
+
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await Promise.all([
-      pipeline.handleEvent(event, c.req.raw.signal),
-      client.event(event),
-    ]);
+    await pipeline.handleEvent(event, c.req.raw.signal);
+    const client = await Storages.client();
+    await client.event(event);
   } catch (e) {
-    if (e instanceof pipeline.RelayError) {
+    if (e instanceof RelayError) {
       throw new HTTPException(422, {
         res: c.json({ error: e.message }, 422),
       });
@@ -182,5 +215,6 @@ export {
   paginationSchema,
   parseBody,
   updateEvent,
+  updateListAdminEvent,
   updateListEvent,
 };

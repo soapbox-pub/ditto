@@ -1,4 +1,4 @@
-image: denoland/deno:1.41.3
+image: denoland/deno:1.43.3
 
 default:
   interruptible: true
@@ -23,3 +23,9 @@ test:
   script: deno task test
   variables:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
+  artifacts:
+    when: always
+    paths:
+      - deno-test.xml
+    reports:
+      junit: deno-test.xml

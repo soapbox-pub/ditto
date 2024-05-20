@@ -1,6 +1,9 @@
+import { PolySqliteDialect } from '@soapbox/kysely-deno-sqlite';
+import { Kysely, sql } from 'kysely';
+
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { Kysely, PolySqliteDialect, sql } from '@/deps.ts';
+import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {
@@ -15,6 +18,7 @@ export class DittoSQLite {
         dialect: new PolySqliteDialect({
           database: sqliteWorker,
         }),
+        log: KyselyLogger,
       });
 
       // Set PRAGMA values.

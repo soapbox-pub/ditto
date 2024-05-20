@@ -9,8 +9,8 @@ import {
   NRelay,
 } from '@nostrify/nostrify';
 import { Machina } from '@nostrify/nostrify/utils';
+import { matchFilter } from 'nostr-tools';
 
-import { matchFilter } from '@/deps.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 

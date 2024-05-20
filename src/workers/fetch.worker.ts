@@ -1,4 +1,5 @@
-import { Comlink, Debug } from '@/deps.ts';
+import Debug from '@soapbox/stickynotes/debug';
+import * as Comlink from 'comlink';
 
 import './handlers/abortsignal.ts';
 

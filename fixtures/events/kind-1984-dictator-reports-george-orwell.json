@@ -1,0 +1,24 @@
+{
+  "id": "129b2749330a7f1189d3e74c6764a955851f1e4017a818dfd51ab8e24192b0f3",
+  "pubkey": "c9f5508526e213c3bc5468161f1b738a86063a2ece540730f9412e7becd5f0b2",
+  "created_at": 1715636348,
+  "kind": 1984,
+  "tags": [
+    [
+      "p",
+      "e4d96e951739787e62ada74ee06a9a185af22791a899a6166ec23aab58c5d700",
+      "other"
+    ],
+    [
+      "P",
+      "e724b1c1b90eab9cc0f5976b380b80dda050de1820dc143e62d9e4f27a9a0b2c"
+    ],
+    [
+      "e",
+      "44f19148f5af60b0f43ed8c737fbda31b165e05bb55562003c45d9a9f02e8228",
+      "other"
+    ]
+  ],
+  "content": "freedom of speech not freedom of reach",
+  "sig": "cd05a14749cdf0c7664d056e2c02518740000387732218dacd0c71de5b96c0c3c99a0b927b0cd0778f25a211525fa03b4ed4f4f537bb1221c73467780d4ee1bc"
+}

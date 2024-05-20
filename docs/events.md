@@ -9,9 +9,7 @@ The Ditto server publishes kind `30361` events to represent users. These events 
 User events have the following tags:
 
 - `d` - pubkey of the user.
-- `name` - NIP-05 username granted to the user, without the domain.
 - `role` - one of `admin` or `user`.
-- `origin` - the origin of the user's NIP-05, at the time the event was published.
 
 Example:
 
@@ -25,7 +23,6 @@ Example:
   "tags": [
     ["d", "79c2cae114ea28a981e7559b4fe7854a473521a8d22a66bbab9fa248eb820ff6"],
     ["role", "user"],
-    ["origin", "https://ditto.ngrok.app"],
     ["alt", "User's account was updated by the admins of ditto.ngrok.app"]
   ],
   "sig": "fc12db77b1c8f8aa86c73b617f0cd4af1e6ba244239eaf3164a292de6d39363f32d6b817ffff796ace7a103d75e1d8e6a0fb7f618819b32d81a953b4a75d7507"

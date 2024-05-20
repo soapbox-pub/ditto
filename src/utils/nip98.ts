@@ -1,12 +1,13 @@
-import { NostrEvent } from '@nostrify/nostrify';
-import { type EventTemplate, nip13 } from '@/deps.ts';
-import { decode64Schema, jsonSchema } from '@/schema.ts';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { EventTemplate, nip13 } from 'nostr-tools';
+
+import { decode64Schema } from '@/schema.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
 import { eventAge, findTag, nostrNow, sha256 } from '@/utils.ts';
 import { Time } from '@/utils/time.ts';
 
 /** Decode a Nostr event from a base64 encoded string. */
-const decode64EventSchema = decode64Schema.pipe(jsonSchema).pipe(signedEventSchema);
+const decode64EventSchema = decode64Schema.pipe(n.json()).pipe(signedEventSchema);
 
 interface ParseAuthRequestOpts {
   /** Max event age (in ms). */

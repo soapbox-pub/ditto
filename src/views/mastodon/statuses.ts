@@ -1,28 +1,27 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
+import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { nip19 } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { getMediaLinks, parseNoteContent } from '@/note.ts';
-import { getAuthor } from '@/queries.ts';
-import { jsonMediaDataSchema } from '@/schemas/nostr.ts';
-import { eventsDB } from '@/storages.ts';
+import { Storages } from '@/storages.ts';
 import { findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
+import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { DittoAttachment, renderAttachment } from '@/views/mastodon/attachments.ts';
+import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-interface statusOpts {
+interface RenderStatusOpts {
   viewerPubkey?: string;
   depth?: number;
 }
 
-async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
+async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<any> {
   const { viewerPubkey, depth = 1 } = opts;
 
-  if (depth > 2 || depth < 0) return null;
+  if (depth > 2 || depth < 0) return;
 
   const note = nip19.noteEncode(event.id);
 
@@ -40,14 +39,23 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
     ),
   ];
 
-  const { html, links, firstUrl } = parseNoteContent(event.content);
+  const db = await Storages.db();
+  const optimizer = await Storages.optimizer();
+
+  const mentionedProfiles = await optimizer.query(
+    [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
+  );
+
+  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags));
 
   const [mentions, card, relatedEvents] = await Promise
     .all([
-      Promise.all(mentionedPubkeys.map(toMention)),
+      Promise.all(
+        mentionedPubkeys.map((pubkey) => toMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
+      ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
-        ? await eventsDB.query([
+        ? await db.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
@@ -68,13 +76,11 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
   const cw = event.tags.find(isCWTag);
   const subject = event.tags.find((tag) => tag[0] === 'subject');
 
-  const mediaLinks = getMediaLinks(links);
+  const imeta: string[][][] = event.tags
+    .filter(([name]) => name === 'imeta')
+    .map(([_, ...entries]) => entries.map((entry) => entry.split(' ')));
 
-  const mediaTags: DittoAttachment[] = event.tags
-    .filter((tag) => tag[0] === 'media')
-    .map(([_, url, json]) => ({ url, data: jsonMediaDataSchema.parse(json) }));
-
-  const media = [...mediaLinks, ...mediaTags];
+  const media = imeta.length ? imeta : getMediaLinks(links);
 
   return {
     id: event.id,
@@ -98,12 +104,12 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
     pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
-    media_attachments: media.map(renderAttachment),
+    media_attachments: media.map((m) => renderAttachment({ data: m })).filter(Boolean),
     mentions,
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
-    quote: !event.quote_repost ? null : await renderStatus(event.quote_repost, { depth: depth + 1 }),
+    quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
     quote_id: event.tags.find(([name]) => name === 'q')?.[1] ?? null,
     uri: Conf.external(note),
     url: Conf.external(note),
@@ -111,10 +117,8 @@ async function renderStatus(event: DittoEvent, opts: statusOpts): Promise<any> {
   };
 }
 
-async function renderReblog(event: DittoEvent, opts: statusOpts) {
+async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
   const { viewerPubkey } = opts;
-
-  if (!event.author) return;
 
   const repostId = event.tags.find(([name]) => name === 'e')?.[1];
   if (!repostId) return;
@@ -125,15 +129,14 @@ async function renderReblog(event: DittoEvent, opts: statusOpts) {
 
   return {
     id: event.id,
-    account: await renderAccount(event.author),
+    account: event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey),
     reblogged: true,
     reblog,
   };
 }
 
-async function toMention(pubkey: string) {
-  const author = await getAuthor(pubkey);
-  const account = author ? await renderAccount(author) : undefined;
+async function toMention(pubkey: string, event?: NostrEvent) {
+  const account = event ? await renderAccount(event) : undefined;
 
   if (account) {
     return {
