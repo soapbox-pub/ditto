@@ -45,14 +45,32 @@ const createAccountController: AppController = async (c) => {
 };
 
 const verifyCredentialsController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
 
-  const event = await getAuthor(pubkey, { signal: AbortSignal.timeout(5000) });
-  if (event) {
-    return c.json(await renderAccount(event, { withSource: true }));
-  } else {
-    return c.json(await accountFromPubkey(pubkey, { withSource: true }));
+  const eventsDB = await Storages.db();
+
+  const [author, [settingsStore]] = await Promise.all([
+    getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
+
+    eventsDB.query([{
+      authors: [pubkey],
+      kinds: [30078],
+      '#d': ['pub.ditto.pleroma_settings_store'],
+      limit: 1,
+    }]),
+  ]);
+
+  const account = author
+    ? await renderAccount(author, { withSource: true })
+    : await accountFromPubkey(pubkey, { withSource: true });
+
+  if (settingsStore) {
+    const data = await signer.nip44!.decrypt(pubkey, settingsStore.content);
+    account.pleroma.settings_store = JSON.parse(data);
   }
+
+  return c.json(account);
 };
 
 const accountController: AppController = async (c) => {
@@ -208,10 +226,12 @@ const updateCredentialsSchema = z.object({
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
   nip05: z.string().optional(),
+  pleroma_settings_store: z.unknown().optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
 
@@ -248,6 +268,18 @@ const updateCredentialsController: AppController = async (c) => {
   }, c);
 
   const account = await renderAccount(event, { withSource: true });
+  const settingsStore = result.data.pleroma_settings_store;
+
+  if (settingsStore) {
+    await createEvent({
+      kind: 30078,
+      tags: [['d', 'pub.ditto.pleroma_settings_store']],
+      content: await signer.nip44!.encrypt(pubkey, JSON.stringify(settingsStore)),
+    }, c);
+  }
+
+  account.pleroma.settings_store = settingsStore;
+
   return c.json(account);
 };
 
