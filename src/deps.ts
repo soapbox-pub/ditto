@@ -1,6 +1,4 @@
 import 'deno-safe-fetch';
-// @deno-types="npm:@types/lodash@4.14.194"
-export { default as lodash } from 'https://esm.sh/lodash@4.17.21';
 // @deno-types="npm:@types/sanitize-html@2.9.0"
 export { default as sanitizeHtml } from 'npm:sanitize-html@^2.11.0';
 export {
