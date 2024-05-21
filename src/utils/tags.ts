@@ -31,18 +31,40 @@ function addTag(tags: readonly string[][], tag: string[]): string[][] {
   }
 }
 
-const isReplyTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'reply';
-const isRootTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'root';
-const isLegacyReplyTag = (tag: string[]) => tag[0] === 'e' && !tag[3];
+/** Tag is a NIP-10 root tag. */
+function isRootTag(tag: string[]): tag is ['e', string, string, 'root', ...string[]] {
+  return tag[0] === 'e' && tag[3] === 'root';
+}
 
-const isQuoteTag = (tag: string[]) => tag[0] === 'q';
-const isLegacyQuoteTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'mention';
+/** Tag is a NIP-10 reply tag. */
+function isReplyTag(tag: string[]): tag is ['e', string, string, 'reply', ...string[]] {
+  return tag[0] === 'e' && tag[3] === 'reply';
+}
 
-function findReplyTag(tags: string[][]): string[] | undefined {
+/** Tag is a legacy "e" tag with a "mention" marker. */
+function isLegacyQuoteTag(tag: string[]): tag is ['e', string, string, 'mention', ...string[]] {
+  return tag[0] === 'e' && tag[3] === 'mention';
+}
+
+/** Tag is an "e" tag without a NIP-10 marker. */
+function isLegacyReplyTag(tag: string[]): tag is ['e', string, string] {
+  return tag[0] === 'e' && !tag[3];
+}
+
+/** Tag is a "q" tag. */
+function isQuoteTag(tag: string[]): tag is ['q', ...string[]] {
+  return tag[0] === 'q';
+}
+
+/** Get the "e" tag for the event being replied to, first according to the NIPs then falling back to the legacy way. */
+function findReplyTag(tags: string[][]): ['e', ...string[]] | undefined {
   return tags.find(isReplyTag) || tags.find(isRootTag) || tags.findLast(isLegacyReplyTag);
 }
 
-function findQuoteTag(tags: string[][]): string[] | undefined {
+/** Get the "q" tag, falling back to the legacy "e" tag with a "mention" marker. */
+function findQuoteTag(
+  tags: string[][],
+): ['q', ...string[]] | ['e', string, string, 'mention', ...string[]] | undefined {
   return tags.find(isQuoteTag) || tags.find(isLegacyQuoteTag);
 }
 
