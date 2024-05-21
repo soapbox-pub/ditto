@@ -1,0 +1,20 @@
+{
+  "id": "1264cc4051db59af9a21f7fd001fdf5213424f558ea9ab16a1b014fca2250af5",
+  "pubkey": "6be38f8c63df7dbf84db7ec4a6e6fbbd8d19dca3b980efad18585c46f04b26f9",
+  "created_at": 1716306470,
+  "kind": 1,
+  "tags": [
+    [
+      "imeta",
+      "url https://image.nostr.build/258d978b91e7424cfa43b31f3cfc077d7172ae10b3b45ac956feff9e72175126.png",
+      "m image/png",
+      "x b1ceee58405ef05a41190a0946ca6b6511dff426c68013cdd165514c1ef301f9",
+      "ox 258d978b91e7424cfa43b31f3cfc077d7172ae10b3b45ac956feff9e72175126",
+      "size 114350",
+      "dim 1414x594",
+      "blurhash LDRfkC.8_4_N_3NGR*t8%gIVWBxt"
+    ]
+  ],
+  "content": "Today we were made aware of multiple Fediverse blog posts incorrectly attributing “vote Trump” spam on Bluesky to the Mostr.pub Bridge. \n\nThis spam is NOT coming from Mostr. From the screenshots used in these blogs, it's clear the spam is coming from an entirely different bridge called momostr.pink. This bridge is not affiliated with Mostr, and is not even a fork of Mostr. We appreciate that the authors of these posts responded quickly to us and have since corrected the blogs. \n\nMostr.pub uses stirfry policies for anti-spam filtering. This includes an anti-duplication policy that prevents spam like the recent “vote Trump” posts we’ve seen repeated over and over. \n\nIt is important to note WHY there are multiple bridges, though. \n\nWhen Mostr.pub launched, multiple major servers immediately blocked Mostr, including Mastodon.social. The moderators of Mastodon.social claimed that this was because Nostr was unregulated, and suggested to one user that if they want to bridge their account they should host their own bridge.\n\nThat is exactly what momostr.pink, the source of this spam, has done. \n\nThe obvious response to the censorship of the Mostr Bridge is to build more bridges. \n\nWhile we have opted for pro-social policies that aim to reduce spam and build better connections between decentralized platforms, other bridges built to get around censorship of the Mostr Bridge may not — as we’re already seeing.\n\nThere will inevitably be multiple bridges, and we’re working on creating solutions to the problems that arise from that. In the meantime, if the Fediverse could do itself a favor and chill with the censorship for two seconds, we might not have so many problems. \n\n\nhttps://image.nostr.build/258d978b91e7424cfa43b31f3cfc077d7172ae10b3b45ac956feff9e72175126.png",
+  "sig": "b950e6e2ff1dc786ef344e7dad3edf8aa315a1053ede146725bde181acf7c2c1a5fcf1e0c796552b743607d6ae161a3ff4eb3af5033ffbfd314e68213d315215"
+}

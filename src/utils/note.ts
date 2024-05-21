@@ -71,10 +71,9 @@ function stripimeta(content: string, tags: string[][]): string {
 
   const lines = content.split('\n').reverse();
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+  for (const line of [...lines]) {
     if (line === '' || urls.has(line)) {
-      lines.splice(i, 1);
+      lines.splice(0, 1);
     } else {
       break;
     }
