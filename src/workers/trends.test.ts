@@ -1,6 +1,8 @@
 import { assertEquals } from '@std/assert';
 import { TrendsWorker } from './trends.ts';
 
+await TrendsWorker.open(':memory:');
+
 const p8 = (pubkey8: string) => `${pubkey8}00000000000000000000000000000000000000000000000000000000`;
 
 Deno.test('getTrendingTags', async () => {

@@ -1,11 +1,12 @@
+/// <reference lib="webworker" />
+import { Database as Sqlite } from '@db/sqlite';
 import { NSchema } from '@nostrify/nostrify';
+import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
+import { Kysely, sql } from 'kysely';
 import * as Comlink from 'comlink';
-import { DB as Sqlite } from 'deno-sqlite';
 
 import { hashtagSchema } from '@/schema.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
-import { sql } from 'kysely';
 
 interface GetTrendingTagsOpts {
   since: Date;
@@ -22,10 +23,40 @@ interface GetTagHistoryOpts {
   offset?: number;
 }
 
-const kysely = await DittoDB.getInstance();
+interface TagsDB {
+  tag_usages: {
+    tag: string;
+    pubkey8: string;
+    inserted_at: number;
+  };
+}
+
+let kysely: Kysely<TagsDB>;
 
 export const TrendsWorker = {
-  setupCleanupJob() {
+  async open(path: string) {
+    kysely = new Kysely({
+      dialect: new DenoSqlite3Dialect({
+        database: new Sqlite(path),
+      }),
+    });
+
+    await kysely.schema
+      .createTable('tag_usages')
+      .ifNotExists()
+      .addColumn('tag', 'text', (c) => c.notNull().modifyEnd(sql`collate nocase`))
+      .addColumn('pubkey8', 'text', (c) => c.notNull())
+      .addColumn('inserted_at', 'integer', (c) => c.notNull())
+      .execute();
+
+    await kysely.schema
+      .createIndex('idx_time_tag')
+      .ifNotExists()
+      .on('tag_usages')
+      .column('inserted_at')
+      .column('tag')
+      .execute();
+
     Deno.cron('cleanup tag usages older than a week', { hour: { every: 1 } }, async () => {
       const lastWeek = new Date(new Date().getTime() - Time.days(7));
       await this.cleanupTagUsages(lastWeek);
@@ -38,7 +69,7 @@ export const TrendsWorker = {
     accounts: number;
     uses: number;
   }[]> {
-    return await kysely.selectFrom('trends_tag_usages')
+    return await kysely.selectFrom('tag_usages')
       .select(({ fn }) => [
         'tag',
         fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
@@ -59,7 +90,7 @@ export const TrendsWorker = {
    */
   async getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
     const result = await kysely
-      .selectFrom('trends_tag_usages')
+      .selectFrom('tag_usages')
       .select(({ fn }) => [
         'inserted_at',
         fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
@@ -95,14 +126,14 @@ export const TrendsWorker = {
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
     await kysely
-      .insertInto('trends_tag_usages')
+      .insertInto('tag_usages')
       .values(tags.map((tag) => ({ tag, pubkey8, inserted_at })))
       .execute();
   },
 
   async cleanupTagUsages(until: Date): Promise<void> {
     await kysely
-      .deleteFrom('trends_tag_usages')
+      .deleteFrom('tag_usages')
       .where('inserted_at', '<', until.valueOf())
       .execute();
   },

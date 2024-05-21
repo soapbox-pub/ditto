@@ -7,7 +7,7 @@ import { stripTime } from '@/utils/time.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { Context } from 'hono';
 
-await TrendsWorker.setupCleanupJob();
+await TrendsWorker.open('data/trends.sqlite3');
 
 const limitSchema = z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20));
 
