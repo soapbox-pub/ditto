@@ -27,7 +27,7 @@ interface TagsDB {
   tag_usages: {
     tag: string;
     pubkey8: string;
-    inserted_at: number;
+    inserted_at: Date;
   };
 }
 
@@ -40,6 +40,13 @@ export const TrendsWorker = {
         database: new Sqlite(path),
       }),
     });
+
+    await sql`PRAGMA synchronous = normal`.execute(kysely);
+    await sql`PRAGMA temp_store = memory`.execute(kysely);
+    await sql`PRAGMA foreign_keys = ON`.execute(kysely);
+    await sql`PRAGMA auto_vacuum = FULL`.execute(kysely);
+    await sql`PRAGMA journal_mode = WAL`.execute(kysely);
+    await sql`PRAGMA mmap_size = 50000000`.execute(kysely);
 
     await kysely.schema
       .createTable('tag_usages')
@@ -64,19 +71,19 @@ export const TrendsWorker = {
   },
 
   /** Gets the most used hashtags between the date range. */
-  async getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts): Promise<{
+  getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts): Promise<{
     tag: string;
     accounts: number;
     uses: number;
   }[]> {
-    return await kysely.selectFrom('tag_usages')
+    return kysely.selectFrom('tag_usages')
       .select(({ fn }) => [
         'tag',
         fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
         fn.countAll<number>().as('uses'),
       ])
-      .where('inserted_at', '>=', since.valueOf())
-      .where('inserted_at', '<', until.valueOf())
+      .where('inserted_at', '>=', since)
+      .where('inserted_at', '<', until)
       .groupBy('tag')
       .having((c) => c(c.fn.agg('count', ['pubkey8']).distinct(), '>=', threshold))
       .orderBy((c) => c.fn.agg('count', ['pubkey8']).distinct(), 'desc')
@@ -92,15 +99,15 @@ export const TrendsWorker = {
     const result = await kysely
       .selectFrom('tag_usages')
       .select(({ fn }) => [
-        'inserted_at',
+        sql<number>`date(inserted_at)`.as('day'),
         fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
         fn.countAll<number>().as('uses'),
       ])
       .where('tag', '=', tag)
-      .where('inserted_at', '>=', since.valueOf())
-      .where('inserted_at', '<', until.valueOf())
-      .groupBy(sql`inserted_at`)
-      .orderBy(sql`inserted_at`, 'desc')
+      .where('inserted_at', '>=', since)
+      .where('inserted_at', '<', until)
+      .groupBy(sql`date(inserted_at)`)
+      .orderBy(sql`date(inserted_at)`, 'desc')
       .limit(limit)
       .offset(offset)
       .execute();
@@ -113,15 +120,16 @@ export const TrendsWorker = {
 
     // Fill in missing dates with 0 usages.
     return dateRange.map((day) => {
-      const data = result.find((item) => new Date(item.inserted_at).getTime() === day.getTime());
+      const data = result.find((item) => new Date(item.day).getTime() === day.getTime());
       if (data) {
-        return { ...data, day: new Date(data.inserted_at) };
+        return { ...data, day: new Date(data.day) };
+      } else {
+        return { day, accounts: 0, uses: 0 };
       }
-      return { day, accounts: 0, uses: 0 };
     });
   },
 
-  async addTagUsages(pubkey: string, hashtags: string[], inserted_at = new Date().valueOf()): Promise<void> {
+  async addTagUsages(pubkey: string, hashtags: string[], inserted_at = new Date()): Promise<void> {
     const pubkey8 = NSchema.id().parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
@@ -134,7 +142,7 @@ export const TrendsWorker = {
   async cleanupTagUsages(until: Date): Promise<void> {
     await kysely
       .deleteFrom('tag_usages')
-      .where('inserted_at', '<', until.valueOf())
+      .where('inserted_at', '<', until)
       .execute();
   },
 };

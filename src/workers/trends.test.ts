@@ -1,4 +1,5 @@
 import { assertEquals } from '@std/assert';
+
 import { TrendsWorker } from './trends.ts';
 
 await TrendsWorker.open(':memory:');

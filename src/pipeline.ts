@@ -177,7 +177,7 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
 
   try {
     debug('tracking tags:', JSON.stringify(tags));
-    await TrendsWorker.addTagUsages(event.pubkey, tags, date.valueOf());
+    await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
   }

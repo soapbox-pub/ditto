@@ -5,13 +5,12 @@ import { Conf } from '@/config.ts';
 import { Time } from '@/utils.ts';
 import { stripTime } from '@/utils/time.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
-import { Context } from 'hono';
 
 await TrendsWorker.open('data/trends.sqlite3');
 
 const limitSchema = z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20));
 
-const trendingTagsController: AppController = async (c: Context) => {
+const trendingTagsController: AppController = async (c) => {
   const limit = limitSchema.parse(c.req.query('limit'));
   if (limit < 1) return c.json([]);
 
@@ -28,7 +27,7 @@ const trendingTagsController: AppController = async (c: Context) => {
 
   return c.json(
     await Promise.all(tags.map(async ({ tag, uses, accounts }) => ({
-      tag,
+      name: tag,
       url: Conf.local(`/tags/${tag}`),
       history: [
         // Use the full 24h query for the current day. Then use `offset: 1` to adjust for this below.
