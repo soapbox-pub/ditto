@@ -8,7 +8,7 @@ import { SetRequired } from 'type-fest';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Storages } from '@/storages.ts';
-import { findReplyTag, getTagSet } from '@/tags.ts';
+import { findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 type AuthorStat = keyof Omit<DittoTables['author_stats'], 'pubkey'>;
 type EventStat = keyof Omit<DittoTables['event_stats'], 'event_id'>;

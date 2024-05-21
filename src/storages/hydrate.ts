@@ -6,7 +6,7 @@ import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { refreshAuthorStatsDebounced } from '@/stats.ts';
-import { findQuoteTag } from '@/tags.ts';
+import { findQuoteTag } from '@/utils/tags.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];

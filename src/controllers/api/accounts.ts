@@ -7,7 +7,6 @@ import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
@@ -18,6 +17,7 @@ import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
+import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)

@@ -5,8 +5,8 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
-import { findReplyTag, getTagSet } from '@/tags.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 const debug = Debug('ditto:queries');
 
