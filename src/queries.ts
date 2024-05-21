@@ -88,7 +88,11 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 
 async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
   const store = await Storages.db();
-  const events = await store.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
+
+  const events = await store
+    .query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
+    .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === eventId));
+
   return hydrateEvents({ events, store, signal });
 }
 
