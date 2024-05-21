@@ -11,7 +11,8 @@
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A scripts/admin-event.ts",
     "admin:role": "deno run -A scripts/admin-role.ts",
-    "stats:recompute": "deno run -A scripts/stats-recompute.ts"
+    "stats:recompute": "deno run -A scripts/stats-recompute.ts",
+    "soapbox": "curl -O https://dl.soapbox.pub/main/soapbox.zip && mkdir -p public && mv soapbox.zip public/ && cd public/ && unzip soapbox.zip && rm soapbox.zip"
   },
   "unstable": ["ffi", "kv", "worker-options"],
   "exclude": ["./public"],
