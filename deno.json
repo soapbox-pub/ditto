@@ -43,6 +43,7 @@
     "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",
     "hono/middleware": "https://deno.land/x/hono@v3.10.1/middleware.ts",
     "iso-639-1": "npm:iso-639-1@2.1.15",
+    "isomorphic-dompurify": "npm:isomorphic-dompurify@^2.11.0",
     "kysely": "npm:kysely@^0.27.3",
     "kysely_deno_postgres": "https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts",
     "linkify-plugin-hashtag": "npm:linkify-plugin-hashtag@^4.1.1",
