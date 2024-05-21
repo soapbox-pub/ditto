@@ -1,6 +1,4 @@
 import 'deno-safe-fetch';
-// @deno-types="npm:@types/sanitize-html@2.9.0"
-export { default as sanitizeHtml } from 'npm:sanitize-html@^2.11.0';
 export {
   type ParsedSignature,
   pemToPublicKey,
