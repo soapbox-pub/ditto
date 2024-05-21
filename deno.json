@@ -14,7 +14,7 @@
     "stats:recompute": "deno run -A scripts/stats-recompute.ts",
     "soapbox": "curl -O https://dl.soapbox.pub/main/soapbox.zip && mkdir -p public && mv soapbox.zip public/ && cd public/ && unzip soapbox.zip && rm soapbox.zip"
   },
-  "unstable": ["ffi", "kv", "worker-options"],
+  "unstable": ["cron", "ffi", "kv", "worker-options"],
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
@@ -37,7 +37,6 @@
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
     "deno-safe-fetch/load": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
-    "deno-sqlite": "https://raw.githubusercontent.com/alexgleason/deno-sqlite/325f66d8c395e7f6f5ee78ebfa42a0eeea4a942b/mod.ts",
     "entities": "npm:entities@^4.5.0",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
     "formdata-helper": "npm:formdata-helper@^0.3.0",

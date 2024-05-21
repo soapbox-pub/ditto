@@ -1,6 +1,9 @@
+/// <reference lib="webworker" />
+import { Database as Sqlite } from '@db/sqlite';
 import { NSchema } from '@nostrify/nostrify';
+import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
+import { Kysely, sql } from 'kysely';
 import * as Comlink from 'comlink';
-import { DB as Sqlite } from 'deno-sqlite';
 
 import { hashtagSchema } from '@/schema.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
@@ -20,73 +23,94 @@ interface GetTagHistoryOpts {
   offset?: number;
 }
 
-let db: Sqlite;
+interface TagsDB {
+  tag_usages: {
+    tag: string;
+    pubkey8: string;
+    inserted_at: Date;
+  };
+}
+
+let kysely: Kysely<TagsDB>;
 
 export const TrendsWorker = {
-  open(path: string) {
-    db = new Sqlite(path);
+  async open(path: string) {
+    kysely = new Kysely({
+      dialect: new DenoSqlite3Dialect({
+        database: new Sqlite(path),
+      }),
+    });
 
-    db.execute(`
-      CREATE TABLE IF NOT EXISTS tag_usages (
-        tag TEXT NOT NULL COLLATE NOCASE,
-        pubkey8 TEXT NOT NULL,
-        inserted_at INTEGER NOT NULL
-      );
+    await sql`PRAGMA synchronous = normal`.execute(kysely);
+    await sql`PRAGMA temp_store = memory`.execute(kysely);
+    await sql`PRAGMA foreign_keys = ON`.execute(kysely);
+    await sql`PRAGMA auto_vacuum = FULL`.execute(kysely);
+    await sql`PRAGMA journal_mode = WAL`.execute(kysely);
+    await sql`PRAGMA mmap_size = 50000000`.execute(kysely);
 
-      CREATE INDEX IF NOT EXISTS idx_time_tag ON tag_usages(inserted_at, tag);
-    `);
+    await kysely.schema
+      .createTable('tag_usages')
+      .ifNotExists()
+      .addColumn('tag', 'text', (c) => c.notNull().modifyEnd(sql`collate nocase`))
+      .addColumn('pubkey8', 'text', (c) => c.notNull())
+      .addColumn('inserted_at', 'integer', (c) => c.notNull())
+      .execute();
 
-    const cleanup = () => {
-      console.info('Cleaning up old tag usages...');
+    await kysely.schema
+      .createIndex('idx_time_tag')
+      .ifNotExists()
+      .on('tag_usages')
+      .column('inserted_at')
+      .column('tag')
+      .execute();
+
+    Deno.cron('cleanup tag usages older than a week', { hour: { every: 1 } }, async () => {
       const lastWeek = new Date(new Date().getTime() - Time.days(7));
-      this.cleanupTagUsages(lastWeek);
-    };
-
-    setInterval(cleanup, Time.hours(1));
-    cleanup();
+      await this.cleanupTagUsages(lastWeek);
+    });
   },
 
   /** Gets the most used hashtags between the date range. */
-  getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts) {
-    return db.query<string[]>(
-      `
-      SELECT tag, COUNT(DISTINCT pubkey8), COUNT(*)
-        FROM tag_usages
-        WHERE inserted_at >= ? AND inserted_at < ?
-        GROUP BY tag
-        HAVING COUNT(DISTINCT pubkey8) >= ?
-        ORDER BY COUNT(DISTINCT pubkey8)
-        DESC LIMIT ?;
-    `,
-      [since, until, threshold, limit],
-    ).map((row) => ({
-      name: row[0],
-      accounts: Number(row[1]),
-      uses: Number(row[2]),
-    }));
+  getTrendingTags({ since, until, limit = 10, threshold = 3 }: GetTrendingTagsOpts): Promise<{
+    tag: string;
+    accounts: number;
+    uses: number;
+  }[]> {
+    return kysely.selectFrom('tag_usages')
+      .select(({ fn }) => [
+        'tag',
+        fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
+        fn.countAll<number>().as('uses'),
+      ])
+      .where('inserted_at', '>=', since)
+      .where('inserted_at', '<', until)
+      .groupBy('tag')
+      .having((c) => c(c.fn.agg('count', ['pubkey8']).distinct(), '>=', threshold))
+      .orderBy((c) => c.fn.agg('count', ['pubkey8']).distinct(), 'desc')
+      .limit(limit)
+      .execute();
   },
 
   /**
    * Gets the tag usage count for a specific tag.
    * It returns an array with counts for each date between the range.
    */
-  getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
-    const result = db.query<string[]>(
-      `
-      SELECT date(inserted_at), COUNT(DISTINCT pubkey8), COUNT(*)
-        FROM tag_usages
-        WHERE tag = ? AND inserted_at >= ? AND inserted_at < ?
-        GROUP BY date(inserted_at)
-        ORDER BY date(inserted_at) DESC
-        LIMIT ?
-        OFFSET ?;
-    `,
-      [tag, since, until, limit, offset],
-    ).map((row) => ({
-      day: new Date(row[0]),
-      accounts: Number(row[1]),
-      uses: Number(row[2]),
-    }));
+  async getTagHistory({ tag, since, until, limit = 7, offset = 0 }: GetTagHistoryOpts) {
+    const result = await kysely
+      .selectFrom('tag_usages')
+      .select(({ fn }) => [
+        sql<number>`date(inserted_at)`.as('day'),
+        fn.agg<number>('count', ['pubkey8']).distinct().as('accounts'),
+        fn.countAll<number>().as('uses'),
+      ])
+      .where('tag', '=', tag)
+      .where('inserted_at', '>=', since)
+      .where('inserted_at', '<', until)
+      .groupBy(sql`date(inserted_at)`)
+      .orderBy(sql`date(inserted_at)`, 'desc')
+      .limit(limit)
+      .offset(offset)
+      .execute();
 
     /** Full date range between `since` and `until`. */
     const dateRange = generateDateRange(
@@ -96,26 +120,30 @@ export const TrendsWorker = {
 
     // Fill in missing dates with 0 usages.
     return dateRange.map((day) => {
-      const data = result.find((item) => item.day.getTime() === day.getTime());
-      return data || { day, accounts: 0, uses: 0 };
+      const data = result.find((item) => new Date(item.day).getTime() === day.getTime());
+      if (data) {
+        return { ...data, day: new Date(data.day) };
+      } else {
+        return { day, accounts: 0, uses: 0 };
+      }
     });
   },
 
-  addTagUsages(pubkey: string, hashtags: string[], date = new Date()): void {
+  async addTagUsages(pubkey: string, hashtags: string[], inserted_at = new Date()): Promise<void> {
     const pubkey8 = NSchema.id().parse(pubkey).substring(0, 8);
     const tags = hashtagSchema.array().min(1).parse(hashtags);
 
-    db.query(
-      'INSERT INTO tag_usages (tag, pubkey8, inserted_at) VALUES ' + tags.map(() => '(?, ?, ?)').join(', '),
-      tags.map((tag) => [tag, pubkey8, date]).flat(),
-    );
+    await kysely
+      .insertInto('tag_usages')
+      .values(tags.map((tag) => ({ tag, pubkey8, inserted_at })))
+      .execute();
   },
 
-  cleanupTagUsages(until: Date): void {
-    db.query(
-      'DELETE FROM tag_usages WHERE inserted_at < ?',
-      [until],
-    );
+  async cleanupTagUsages(until: Date): Promise<void> {
+    await kysely
+      .deleteFrom('tag_usages')
+      .where('inserted_at', '<', until)
+      .execute();
   },
 };
 

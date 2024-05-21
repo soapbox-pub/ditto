@@ -194,12 +194,8 @@ app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
-app.get(
-  '/api/v1/trends/tags',
-  cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }),
-  trendingTagsController,
-);
-app.get('/api/v1/trends', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(15) }), trendingTagsController);
+app.get('/api/v1/trends/tags', trendingTagsController);
+app.get('/api/v1/trends', trendingTagsController);
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
