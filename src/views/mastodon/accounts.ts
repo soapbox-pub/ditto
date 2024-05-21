@@ -1,8 +1,8 @@
 import { NSchema as n } from '@nostrify/nostrify';
+import { escape } from 'entities';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { lodash } from '@/deps.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
@@ -53,7 +53,7 @@ async function renderAccount(
     header_static: banner,
     last_status_at: null,
     locked: false,
-    note: lodash.escape(about),
+    note: about ? escape(about) : '',
     roles: [],
     source: withSource
       ? {
