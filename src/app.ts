@@ -76,10 +76,8 @@ import {
 } from '@/controllers/api/timelines.ts';
 import { trendingTagsController } from '@/controllers/api/trends.ts';
 import { indexController } from '@/controllers/site.ts';
-import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
-import { webfingerController } from '@/controllers/well-known/webfinger.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
@@ -136,8 +134,6 @@ app.use(
   storeMiddleware,
 );
 
-app.get('/.well-known/webfinger', webfingerController);
-app.get('/.well-known/host-meta', hostMetaController);
 app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
 
