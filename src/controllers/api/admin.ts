@@ -5,8 +5,8 @@ import { Conf } from '@/config.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { addTag } from '@/tags.ts';
 import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
+import { addTag } from '@/utils/tags.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
 
 const adminAccountQuerySchema = z.object({

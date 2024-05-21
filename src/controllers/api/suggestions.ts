@@ -2,8 +2,8 @@ import { NStore } from '@nostrify/nostrify';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { getTagSet } from '@/tags.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 export const suggestionsV1Controller: AppController = async (c) => {

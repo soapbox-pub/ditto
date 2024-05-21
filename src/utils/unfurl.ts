@@ -1,8 +1,8 @@
 import TTLCache from '@isaacs/ttlcache';
 import Debug from '@soapbox/stickynotes/debug';
+import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
-import { sanitizeHtml } from '@/deps.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
@@ -44,11 +44,9 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       provider_name: oEmbed?.provider_name || '',
       provider_url: oEmbed?.provider_url || '',
       // @ts-expect-error `html` does in fact exist on oEmbed.
-      html: sanitizeHtml(oEmbed?.html || '', {
-        allowedTags: ['iframe'],
-        allowedAttributes: {
-          iframe: ['width', 'height', 'src', 'frameborder', 'allowfullscreen'],
-        },
+      html: DOMPurify.sanitize(oEmbed?.html || '', {
+        ALLOWED_TAGS: ['iframe'],
+        ALLOWED_ATTR: ['src', 'width', 'height', 'frameborder', 'allowfullscreen'],
       }),
       width: ((oEmbed && oEmbed.type !== 'link') ? oEmbed.width : 0) || 0,
       height: ((oEmbed && oEmbed.type !== 'link') ? oEmbed.height : 0) || 0,

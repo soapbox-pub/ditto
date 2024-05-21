@@ -1,35 +1,29 @@
-import uuid62 from 'uuid62';
+import { Kysely } from 'kysely';
 
 import { DittoDB } from '@/db/DittoDB.ts';
-import { type MediaData } from '@/schemas/nostr.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 
 interface UnattachedMedia {
   id: string;
   pubkey: string;
   url: string;
-  data: MediaData;
+  /** NIP-94 tags. */
+  data: string[][];
   uploaded_at: number;
 }
 
 /** Add unattached media into the database. */
-async function insertUnattachedMedia(media: Omit<UnattachedMedia, 'id' | 'uploaded_at'>) {
-  const result = {
-    id: uuid62.v4(),
-    uploaded_at: Date.now(),
-    ...media,
-  };
-
+async function insertUnattachedMedia(media: UnattachedMedia) {
   const kysely = await DittoDB.getInstance();
   await kysely.insertInto('unattached_media')
-    .values({ ...result, data: JSON.stringify(media.data) })
+    .values({ ...media, data: JSON.stringify(media.data) })
     .execute();
 
-  return result;
+  return media;
 }
 
 /** Select query for unattached media. */
-async function selectUnattachedMediaQuery() {
-  const kysely = await DittoDB.getInstance();
+function selectUnattachedMediaQuery(kysely: Kysely<DittoTables>) {
   return kysely.selectFrom('unattached_media')
     .select([
       'unattached_media.id',
@@ -41,9 +35,8 @@ async function selectUnattachedMediaQuery() {
 }
 
 /** Find attachments that exist but aren't attached to any events. */
-async function getUnattachedMedia(until: Date) {
-  const query = await selectUnattachedMediaQuery();
-  return query
+function getUnattachedMedia(kysely: Kysely<DittoTables>, until: Date) {
+  return selectUnattachedMediaQuery(kysely)
     .leftJoin('nostr_tags', 'unattached_media.url', 'nostr_tags.value')
     .where('uploaded_at', '<', until.getTime())
     .execute();
@@ -58,12 +51,17 @@ async function deleteUnattachedMediaByUrl(url: string) {
 }
 
 /** Get unattached media by IDs. */
-async function getUnattachedMediaByIds(ids: string[]) {
+async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[]): Promise<UnattachedMedia[]> {
   if (!ids.length) return [];
-  const query = await selectUnattachedMediaQuery();
-  return query
+
+  const results = await selectUnattachedMediaQuery(kysely)
     .where('id', 'in', ids)
     .execute();
+
+  return results.map((row) => ({
+    ...row,
+    data: JSON.parse(row.data),
+  }));
 }
 
 /** Delete rows as an event with media is being created. */

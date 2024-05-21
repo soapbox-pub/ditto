@@ -7,11 +7,11 @@ import { Kysely } from 'kysely';
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { normalizeFilters } from '@/filter.ts';
+import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
-import { getTagSet } from '@/tags.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
-import { RelayError } from '@/RelayError.ts';
+import { getTagSet } from '@/utils/tags.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -42,8 +42,17 @@ class EventsDB implements NStore {
   };
 
   constructor(private kysely: Kysely<DittoTables>) {
+    let fts: 'sqlite' | 'postgres' | undefined;
+
+    if (Conf.databaseUrl.protocol === 'sqlite:') {
+      fts = 'sqlite';
+    }
+    if (['postgres:', 'postgresql:'].includes(Conf.databaseUrl.protocol!)) {
+      fts = 'postgres';
+    }
+
     this.store = new NDatabase(kysely, {
-      fts5: Conf.databaseUrl.protocol === 'sqlite:',
+      fts,
       indexTags: EventsDB.indexTags,
       searchText: EventsDB.searchText,
     });
@@ -171,8 +180,8 @@ class EventsDB implements NStore {
 
   /** Build search content for a user. */
   static buildUserSearchContent(event: NostrEvent): string {
-    const { name, nip05, about } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
-    return [name, nip05, about].filter(Boolean).join('\n');
+    const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
+    return [name, nip05].filter(Boolean).join('\n');
   }
 
   /** Build search content from tag values. */

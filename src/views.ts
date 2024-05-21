@@ -5,6 +5,7 @@ import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { paginated, paginationSchema } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 
 /** Render account objects for the author of each event. */
 async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal = AbortSignal.timeout(1000)) {
@@ -24,7 +25,13 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
-    authors.map((event) => renderAccount(event)),
+    Array.from(pubkeys).map(async (pubkey) => {
+      const event = authors.find((event) => event.pubkey === pubkey);
+      if (event) {
+        return await renderAccount(event);
+      }
+      return await accountFromPubkey(pubkey);
+    }),
   );
 
   return paginated(c, events, accounts);
@@ -39,7 +46,13 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
-    events.map((event) => renderAccount(event)),
+    authors.map(async (pubkey) => {
+      const event = events.find((event) => event.pubkey === pubkey);
+      if (event) {
+        return await renderAccount(event);
+      }
+      return await accountFromPubkey(pubkey);
+    }),
   );
 
   return paginated(c, events, accounts);

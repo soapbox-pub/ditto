@@ -5,8 +5,8 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
-import { findReplyTag, getTagSet } from '@/tags.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 const debug = Debug('ditto:queries');
 
@@ -88,7 +88,11 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
 
 async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
   const store = await Storages.db();
-  const events = await store.query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal });
+
+  const events = await store
+    .query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
+    .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === eventId));
+
   return hydrateEvents({ events, store, signal });
 }
 

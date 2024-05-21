@@ -1,7 +1,7 @@
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { getTagSet } from '@/tags.ts';
+import { getTagSet } from '@/utils/tags.ts';
 
 export class UserStore implements NStore {
   constructor(private pubkey: string, private store: NStore) {}

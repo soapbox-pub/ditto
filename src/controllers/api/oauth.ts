@@ -1,9 +1,9 @@
 import { encodeBase64 } from '@std/encoding/base64';
+import { escape } from 'entities';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { lodash } from '@/deps.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getClientConnectUri } from '@/utils/connect.ts';
@@ -100,11 +100,11 @@ const oauthController: AppController = async (c) => {
     <form id="oauth_form" action="/oauth/authorize" method="post">
       <input type="text" placeholder="npub1... or nsec1..." name="nip19" autocomplete="off">
       <input type="hidden" name="pubkey" id="pubkey" value="">
-      <input type="hidden" name="redirect_uri" id="redirect_uri" value="${lodash.escape(redirectUri)}">
+      <input type="hidden" name="redirect_uri" id="redirect_uri" value="${escape(redirectUri)}">
       <button type="submit">Authorize</button>
     </form>
     <br>
-    <a href="${lodash.escape(connectUri)}">Nostr Connect</a>
+    <a href="${escape(connectUri)}">Nostr Connect</a>
   </body>
 </html>
 `);

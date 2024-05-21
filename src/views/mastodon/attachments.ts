@@ -1,20 +1,41 @@
-import * as TypeFest from 'type-fest';
+import { getUrlMediaType } from '@/utils/media.ts';
 
-import { UnattachedMedia } from '@/db/unattached-media.ts';
+/** Render Mastodon media attachment. */
+function renderAttachment(media: { id?: string; data: string[][] }) {
+  const { id, data: tags } = media;
 
-type DittoAttachment = TypeFest.SetOptional<UnattachedMedia, 'id' | 'pubkey' | 'uploaded_at'>;
+  const url = tags.find(([name]) => name === 'url')?.[1];
 
-function renderAttachment(media: DittoAttachment) {
-  const { id, data, url } = media;
+  const m = tags.find(([name]) => name === 'm')?.[1] ?? getUrlMediaType(url!);
+  const alt = tags.find(([name]) => name === 'alt')?.[1];
+  const cid = tags.find(([name]) => name === 'cid')?.[1];
+  const dim = tags.find(([name]) => name === 'dim')?.[1];
+  const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
+
+  if (!url) return;
+
+  const [width, height] = dim?.split('x').map(Number) ?? [null, null];
+
+  const meta = (typeof width === 'number' && typeof height === 'number')
+    ? {
+      original: {
+        width,
+        height,
+        aspect: width / height,
+      },
+    }
+    : undefined;
+
   return {
-    id: id ?? url ?? data.cid,
-    type: getAttachmentType(data.mime ?? ''),
+    id: id ?? url,
+    type: getAttachmentType(m ?? ''),
     url,
     preview_url: url,
     remote_url: null,
-    description: data.description ?? '',
-    blurhash: data.blurhash || null,
-    cid: data.cid,
+    description: alt ?? '',
+    blurhash: blurhash || null,
+    meta,
+    cid: cid,
   };
 }
 
@@ -32,4 +53,4 @@ function getAttachmentType(mime: string): string {
   }
 }
 
-export { type DittoAttachment, renderAttachment };
+export { renderAttachment };

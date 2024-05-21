@@ -1,5 +1,6 @@
 import { NSchema } from '@nostrify/nostrify';
 import * as Comlink from 'comlink';
+import { DB as Sqlite } from 'deno-sqlite';
 
 import { hashtagSchema } from '@/schema.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';

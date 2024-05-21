@@ -7,8 +7,7 @@ import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { addTag, deleteTag, findReplyTag, getTagSet } from '@/tags.ts';
-import { uploadFile } from '@/upload.ts';
+import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { lookupAccount } from '@/utils/lookup.ts';
@@ -18,6 +17,7 @@ import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
+import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -45,14 +45,32 @@ const createAccountController: AppController = async (c) => {
 };
 
 const verifyCredentialsController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
 
-  const event = await getAuthor(pubkey, { relations: ['author_stats'] });
-  if (event) {
-    return c.json(await renderAccount(event, { withSource: true }));
-  } else {
-    return c.json(await accountFromPubkey(pubkey, { withSource: true }));
+  const eventsDB = await Storages.db();
+
+  const [author, [settingsStore]] = await Promise.all([
+    getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
+
+    eventsDB.query([{
+      authors: [pubkey],
+      kinds: [30078],
+      '#d': ['pub.ditto.pleroma_settings_store'],
+      limit: 1,
+    }]),
+  ]);
+
+  const account = author
+    ? await renderAccount(author, { withSource: true })
+    : await accountFromPubkey(pubkey, { withSource: true });
+
+  if (settingsStore) {
+    const data = await signer.nip44!.decrypt(pubkey, settingsStore.content);
+    account.pleroma.settings_store = JSON.parse(data);
   }
+
+  return c.json(account);
 };
 
 const accountController: AppController = async (c) => {
@@ -86,25 +104,35 @@ const accountLookupController: AppController = async (c) => {
   }
 };
 
-const accountSearchController: AppController = async (c) => {
-  const q = c.req.query('q');
+const accountSearchQuerySchema = z.object({
+  q: z.string().transform(decodeURIComponent),
+  resolve: booleanParamSchema.optional().transform(Boolean),
+  following: z.boolean().default(false),
+  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+});
 
-  if (!q) {
-    return c.json({ error: 'Missing `q` query parameter.' }, 422);
+const accountSearchController: AppController = async (c) => {
+  const result = accountSearchQuerySchema.safeParse(c.req.query());
+  const { signal } = c.req.raw;
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
+
+  const { q, limit } = result.data;
 
   const query = decodeURIComponent(q);
   const store = await Storages.search();
 
   const [event, events] = await Promise.all([
     lookupAccount(query),
-    store.query([{ kinds: [0], search: query, limit: 20 }], { signal: c.req.raw.signal }),
+    store.query([{ kinds: [0], search: query, limit }], { signal }),
   ]);
 
   const results = await hydrateEvents({
     events: event ? [event, ...events] : events,
     store,
-    signal: c.req.raw.signal,
+    signal,
   });
 
   if ((results.length < 1) && query.match(/npub1\w+/)) {
@@ -198,10 +226,12 @@ const updateCredentialsSchema = z.object({
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
   nip05: z.string().optional(),
+  pleroma_settings_store: z.unknown().optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
 
@@ -221,8 +251,8 @@ const updateCredentialsController: AppController = async (c) => {
   } = result.data;
 
   const [avatar, header] = await Promise.all([
-    avatarFile ? uploadFile(avatarFile, { pubkey }) : undefined,
-    headerFile ? uploadFile(headerFile, { pubkey }) : undefined,
+    avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
+    headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
   ]);
 
   meta.name = display_name ?? meta.name;
@@ -238,6 +268,18 @@ const updateCredentialsController: AppController = async (c) => {
   }, c);
 
   const account = await renderAccount(event, { withSource: true });
+  const settingsStore = result.data.pleroma_settings_store;
+
+  if (settingsStore) {
+    await createEvent({
+      kind: 30078,
+      tags: [['d', 'pub.ditto.pleroma_settings_store']],
+      content: await signer.nip44!.encrypt(pubkey, JSON.stringify(settingsStore)),
+    }, c);
+  }
+
+  account.pleroma.settings_store = settingsStore;
+
   return c.json(account);
 };
 

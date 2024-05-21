@@ -1,4 +1,4 @@
-import { NostrEvent, NostrSigner, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
 import { cors, logger, serveStatic } from 'hono/middleware';
@@ -7,7 +7,6 @@ import { Conf } from '@/config.ts';
 import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
-import { actorController } from '@/controllers/activitypub/actor.ts';
 import {
   accountController,
   accountLookupController,
@@ -77,10 +76,8 @@ import {
 } from '@/controllers/api/timelines.ts';
 import { trendingTagsController } from '@/controllers/api/trends.ts';
 import { indexController } from '@/controllers/site.ts';
-import { hostMetaController } from '@/controllers/well-known/host-meta.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
-import { webfingerController } from '@/controllers/well-known/webfinger.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
@@ -89,11 +86,14 @@ import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { blockController } from '@/controllers/api/accounts.ts';
 import { unblockController } from '@/controllers/api/accounts.ts';
+import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
+    /** Uploader for the user to upload files. */
+    uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
     /** Store */
@@ -129,16 +129,13 @@ app.use(
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
+  uploaderMiddleware,
   auth98Middleware(),
   storeMiddleware,
 );
 
-app.get('/.well-known/webfinger', webfingerController);
-app.get('/.well-known/host-meta', hostMetaController);
 app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
-
-app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 

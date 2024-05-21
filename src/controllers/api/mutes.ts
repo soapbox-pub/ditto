@@ -1,6 +1,6 @@
 import { type AppController } from '@/app.ts';
 import { Storages } from '@/storages.ts';
-import { getTagSet } from '@/tags.ts';
+import { getTagSet } from '@/utils/tags.ts';
 import { renderAccounts } from '@/views.ts';
 
 /** https://docs.joinmastodon.org/methods/mutes/#get */

@@ -1,20 +1,22 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { addTag, deleteTag } from '@/tags.ts';
-import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
-import { getLnurl } from '@/utils/lnurl.ts';
-import { asyncReplaceAll } from '@/utils/text.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import { getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
+import { addTag, deleteTag } from '@/utils/tags.ts';
+import { asyncReplaceAll } from '@/utils/text.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
@@ -56,6 +58,7 @@ const statusController: AppController = async (c) => {
 const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
+  const kysely = await DittoDB.getInstance();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -73,12 +76,21 @@ const createStatusController: AppController = async (c) => {
 
   const tags: string[][] = [];
 
-  if (data.quote_id) {
-    tags.push(['q', data.quote_id]);
+  if (data.in_reply_to_id) {
+    const ancestor = await getEvent(data.in_reply_to_id);
+
+    if (!ancestor) {
+      return c.json({ error: 'Original post not found.' }, 404);
+    }
+
+    const root = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
+
+    tags.push(['e', root, 'root']);
+    tags.push(['e', data.in_reply_to_id, 'reply']);
   }
 
-  if (data.in_reply_to_id) {
-    tags.push(['e', data.in_reply_to_id, 'reply']);
+  if (data.quote_id) {
+    tags.push(['q', data.quote_id]);
   }
 
   if (data.sensitive && data.spoiler_text) {
@@ -89,15 +101,14 @@ const createStatusController: AppController = async (c) => {
     tags.push(['subject', data.spoiler_text]);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const media = data.media_ids?.length ? await getUnattachedMediaByIds(kysely, data.media_ids) : [];
 
-  if (data.media_ids?.length) {
-    const media = await getUnattachedMediaByIds(data.media_ids)
-      .then((media) => media.filter(({ pubkey }) => pubkey === viewerPubkey))
-      .then((media) => media.map(({ url, data }) => ['media', url, data]));
+  const imeta: string[][] = media.map(({ data }) => {
+    const values: string[] = data.map((tag) => tag.join(' '));
+    return ['imeta', ...values];
+  });
 
-    tags.push(...media);
-  }
+  tags.push(...imeta);
 
   const pubkeys = new Set<string>();
 
@@ -110,7 +121,11 @@ const createStatusController: AppController = async (c) => {
       pubkeys.add(pubkey);
     }
 
-    return `nostr:${pubkey}`;
+    try {
+      return `nostr:${nip19.npubEncode(pubkey)}`;
+    } catch {
+      return match;
+    }
   });
 
   // Explicit addressing
@@ -129,9 +144,15 @@ const createStatusController: AppController = async (c) => {
     tags.push(['t', match[1]]);
   }
 
+  const mediaUrls: string[] = media
+    .map(({ data }) => data.find(([name]) => name === 'url')?.[1])
+    .filter((url): url is string => Boolean(url));
+
+  const mediaCompat: string = mediaUrls.length ? ['', '', ...mediaUrls].join('\n') : '';
+
   const event = await createEvent({
     kind: 1,
-    content,
+    content: content + mediaCompat,
     tags,
   }, c);
 
@@ -261,21 +282,19 @@ const reblogStatusController: AppController = async (c) => {
 const unreblogStatusController: AppController = async (c) => {
   const eventId = c.req.param('id');
   const pubkey = await c.get('signer')?.getPublicKey()!;
-
-  const event = await getEvent(eventId, { kind: 1 });
-
-  if (!event) {
-    return c.json({ error: 'Event not found.' }, 404);
-  }
-
   const store = await Storages.db();
+
+  const [event] = await store.query([{ ids: [eventId], kinds: [1] }]);
+  if (!event) {
+    return c.json({ error: 'Record not found' }, 404);
+  }
 
   const [repostedEvent] = await store.query(
     [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
   );
 
   if (!repostedEvent) {
-    return c.json({ error: 'Event not found.' }, 404);
+    return c.json({ error: 'Record not found' }, 404);
   }
 
   await createEvent({

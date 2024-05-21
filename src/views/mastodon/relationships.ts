@@ -1,5 +1,5 @@
 import { Storages } from '@/storages.ts';
-import { hasTag } from '@/tags.ts';
+import { hasTag } from '@/utils/tags.ts';
 
 async function renderRelationship(sourcePubkey: string, targetPubkey: string) {
   const db = await Storages.db();

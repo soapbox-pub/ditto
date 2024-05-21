@@ -136,6 +136,14 @@ class Conf {
       return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
     },
   };
+  /** nostr.build API endpoint when the `nostrbuild` uploader is used. */
+  static get nostrbuildEndpoint(): string {
+    return Deno.env.get('NOSTRBUILD_ENDPOINT') || 'https://nostr.build/api/v2/upload/files';
+  }
+  /** Default Blossom servers to use when the `blossom` uploader is set. */
+  static get blossomServers(): string[] {
+    return Deno.env.get('BLOSSOM_SERVERS')?.split(',') || ['https://blossom.primal.net/'];
+  }
   /** Module to upload files with. */
   static get uploader() {
     return Deno.env.get('DITTO_UPLOADER');

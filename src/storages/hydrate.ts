@@ -5,6 +5,8 @@ import { DittoDB } from '@/db/DittoDB.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
+import { refreshAuthorStatsDebounced } from '@/stats.ts';
+import { findQuoteTag } from '@/utils/tags.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];
@@ -55,6 +57,8 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     events: await gatherEventStats(cache),
   };
 
+  refreshMissingAuthorStats(events, stats.authors);
+
   // Dedupe events.
   const results = [...new Map(cache.map((event) => [event.id, event])).values()];
 
@@ -78,7 +82,7 @@ function assembleEvents(
     event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
 
     if (event.kind === 1) {
-      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      const id = findQuoteTag(event.tags)?.[1];
       if (id) {
         event.quote = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
       }
@@ -166,7 +170,7 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 
   for (const event of events) {
     if (event.kind === 1) {
-      const id = event.tags.find(([name]) => name === 'q')?.[1];
+      const id = findQuoteTag(event.tags)?.[1];
       if (id) {
         ids.add(id);
       }
@@ -251,11 +255,35 @@ async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['aut
   }
 
   const kysely = await DittoDB.getInstance();
-  return kysely
+
+  const rows = await kysely
     .selectFrom('author_stats')
     .selectAll()
     .where('pubkey', 'in', [...pubkeys])
     .execute();
+
+  return rows.map((row) => ({
+    pubkey: row.pubkey,
+    followers_count: Math.max(0, row.followers_count),
+    following_count: Math.max(0, row.following_count),
+    notes_count: Math.max(0, row.notes_count),
+  }));
+}
+
+function refreshMissingAuthorStats(events: NostrEvent[], stats: DittoTables['author_stats'][]) {
+  const pubkeys = new Set<string>(
+    events
+      .filter((event) => event.kind === 0)
+      .map((event) => event.pubkey),
+  );
+
+  const missing = pubkeys.difference(
+    new Set(stats.map((stat) => stat.pubkey)),
+  );
+
+  for (const pubkey of missing) {
+    refreshAuthorStatsDebounced(pubkey);
+  }
 }
 
 /** Collect event stats from the events. */
@@ -271,11 +299,19 @@ async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['even
   }
 
   const kysely = await DittoDB.getInstance();
-  return kysely
+
+  const rows = await kysely
     .selectFrom('event_stats')
     .selectAll()
     .where('event_id', 'in', [...ids])
     .execute();
+
+  return rows.map((row) => ({
+    event_id: row.event_id,
+    reposts_count: Math.max(0, row.reposts_count),
+    reactions_count: Math.max(0, row.reactions_count),
+    replies_count: Math.max(0, row.replies_count),
+  }));
 }
 
 /** Return a normalized event without any non-standard keys. */
