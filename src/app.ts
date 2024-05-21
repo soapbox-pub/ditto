@@ -7,7 +7,6 @@ import { Conf } from '@/config.ts';
 import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
-import { actorController } from '@/controllers/activitypub/actor.ts';
 import {
   accountController,
   accountLookupController,
@@ -141,8 +140,6 @@ app.get('/.well-known/webfinger', webfingerController);
 app.get('/.well-known/host-meta', hostMetaController);
 app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
-
-app.get('/users/:username', actorController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
