@@ -1,11 +1,10 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { isCWTag } from 'https://gitlab.com/soapbox-pub/mostr/-/raw/c67064aee5ade5e01597c6d23e22e53c628ef0e2/src/nostr/tags.ts';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
-import { findReplyTag } from '@/tags.ts';
+import { findQuoteTag, findReplyTag } from '@/tags.ts';
 import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
@@ -30,6 +29,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     : await accountFromPubkey(event.pubkey);
 
   const replyTag = findReplyTag(event.tags);
+  const quoteTag = findQuoteTag(event.tags);
 
   const mentionedPubkeys = [
     ...new Set(
@@ -73,8 +73,8 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const content = buildInlineRecipients(mentions) + html;
 
-  const cw = event.tags.find(isCWTag);
-  const subject = event.tags.find((tag) => tag[0] === 'subject');
+  const cw = event.tags.find(([name]) => name === 'content-warning');
+  const subject = event.tags.find(([name]) => name === 'subject');
 
   const imeta: string[][][] = event.tags
     .filter(([name]) => name === 'imeta')
@@ -88,7 +88,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     card,
     content,
     created_at: nostrDate(event.created_at).toISOString(),
-    in_reply_to_id: replyTag ? replyTag[1] : null,
+    in_reply_to_id: replyTag?.[1] ?? null,
     in_reply_to_account_id: null,
     sensitive: !!cw,
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
@@ -110,7 +110,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     emojis: renderEmojis(event),
     poll: null,
     quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
-    quote_id: event.tags.find(([name]) => name === 'q')?.[1] ?? null,
+    quote_id: quoteTag?.[1] ?? null,
     uri: Conf.external(note),
     url: Conf.external(note),
     zapped: Boolean(zapEvent),

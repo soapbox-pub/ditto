@@ -35,8 +35,15 @@ const isReplyTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'reply';
 const isRootTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'root';
 const isLegacyReplyTag = (tag: string[]) => tag[0] === 'e' && !tag[3];
 
-function findReplyTag(tags: string[][]) {
+const isQuoteTag = (tag: string[]) => tag[0] === 'q';
+const isLegacyQuoteTag = (tag: string[]) => tag[0] === 'e' && tag[3] === 'mention';
+
+function findReplyTag(tags: string[][]): string[] | undefined {
   return tags.find(isReplyTag) || tags.find(isRootTag) || tags.findLast(isLegacyReplyTag);
 }
 
-export { addTag, deleteTag, findReplyTag, getTagSet, hasTag };
+function findQuoteTag(tags: string[][]): string[] | undefined {
+  return tags.find(isQuoteTag) || tags.find(isLegacyQuoteTag);
+}
+
+export { addTag, deleteTag, findQuoteTag, findReplyTag, getTagSet, hasTag };
