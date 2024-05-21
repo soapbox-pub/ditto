@@ -76,12 +76,21 @@ const createStatusController: AppController = async (c) => {
 
   const tags: string[][] = [];
 
-  if (data.quote_id) {
-    tags.push(['q', data.quote_id]);
+  if (data.in_reply_to_id) {
+    const ancestor = await getEvent(data.in_reply_to_id);
+
+    if (!ancestor) {
+      return c.json({ error: 'Original post not found.' }, 404);
+    }
+
+    const root = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
+
+    tags.push(['e', root, 'root']);
+    tags.push(['e', data.in_reply_to_id, 'reply']);
   }
 
-  if (data.in_reply_to_id) {
-    tags.push(['e', data.in_reply_to_id, 'reply']);
+  if (data.quote_id) {
+    tags.push(['q', data.quote_id]);
   }
 
   if (data.sensitive && data.spoiler_text) {
