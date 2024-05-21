@@ -1,3 +1,5 @@
+import 'deno-safe-fetch/load';
+
 import '@/precheck.ts';
 import '@/sentry.ts';
 import '@/nostr-wasm.ts';
