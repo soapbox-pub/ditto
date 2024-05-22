@@ -14,8 +14,6 @@ import { TrendsWorker } from '@/workers/trends.ts';
 
 await TrendsWorker.open('data/trends.sqlite3');
 
-const limitSchema = z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20));
-
 let trendingHashtagsCache = getTrendingHashtags();
 
 Deno.cron('update trends cache', { minute: { every: 15 } }, async () => {
@@ -23,8 +21,12 @@ Deno.cron('update trends cache', { minute: { every: 15 } }, async () => {
   trendingHashtagsCache = Promise.resolve(trends);
 });
 
+const trendingTagsQuerySchema = z.object({
+  limit: z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20)),
+});
+
 const trendingTagsController: AppController = async (c) => {
-  const limit = limitSchema.parse(c.req.query('limit'));
+  const { limit } = trendingTagsQuerySchema.parse(c.req.query());
   const trends = await trendingHashtagsCache;
   return c.json(trends.slice(0, limit));
 };
@@ -75,9 +77,13 @@ Deno.cron('update trending notes cache', { minute: { every: 15 } }, async () => 
   trendingNotesCache = Promise.resolve(events);
 });
 
+const trendingStatusesQuerySchema = z.object({
+  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+});
+
 const trendingStatusesController: AppController = async (c) => {
   const store = await Storages.db();
-  const limit = limitSchema.parse(c.req.query('limit'));
+  const { limit } = trendingStatusesQuerySchema.parse(c.req.query());
 
   const events = await trendingNotesCache
     .then((events) => events.slice(0, limit))
