@@ -1,5 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
+import 'linkify-plugin-hashtag';
 import linkify from 'linkifyjs';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -141,13 +142,12 @@ const createStatusController: AppController = async (c) => {
     tags.push(['p', pubkey]);
   }
 
-  for (const match of content.matchAll(/#(\w+)/g)) {
-    tags.push(['t', match[1]]);
-  }
-
   for (const link of linkify.find(data.status ?? '')) {
     if (link.type === 'url' && link.href.startsWith('https://')) {
       tags.push(['r', link.href]);
+    }
+    if (link.type === 'hashtag') {
+      tags.push(['t', link.href.replace(/^#/, '').toLowerCase()]);
     }
   }
 
