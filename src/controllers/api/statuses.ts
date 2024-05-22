@@ -1,5 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
+import linkify from 'linkifyjs';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -142,6 +143,12 @@ const createStatusController: AppController = async (c) => {
 
   for (const match of content.matchAll(/#(\w+)/g)) {
     tags.push(['t', match[1]]);
+  }
+
+  for (const link of linkify.find(data.status ?? '')) {
+    if (link.type === 'url' && link.href.startsWith('https://')) {
+      tags.push(['r', link.href]);
+    }
   }
 
   const mediaUrls: string[] = media
