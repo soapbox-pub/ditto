@@ -296,17 +296,17 @@ const unreblogStatusController: AppController = async (c) => {
     return c.json({ error: 'Record not found' }, 404);
   }
 
-  const [repostedEvent] = await store.query(
+  const [repostEvent] = await store.query(
     [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
   );
 
-  if (!repostedEvent) {
+  if (!repostEvent) {
     return c.json({ error: 'Record not found' }, 404);
   }
 
   await createEvent({
     kind: 5,
-    tags: [['e', repostedEvent.id]],
+    tags: [['e', repostEvent.id]],
   }, c);
 
   return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
