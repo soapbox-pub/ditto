@@ -1,6 +1,7 @@
 import { NIP05, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { nip19 } from 'nostr-tools';
+import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
@@ -13,7 +14,14 @@ const debug = Debug('ditto:nip05');
 const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   async (key, { signal }) => {
     debug(`Lookup ${key}`);
+    const tld = tldts.parse(key);
+
+    if (!tld.isIcann || tld.isIp || tld.isPrivate) {
+      throw new Error(`Invalid NIP-05: ${key}`);
+    }
+
     const [name, domain] = key.split('@');
+
     try {
       if (domain === Conf.url.host) {
         const store = await Storages.db();
