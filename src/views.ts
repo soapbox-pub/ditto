@@ -1,4 +1,5 @@
 import { NostrFilter } from '@nostrify/nostrify';
+
 import { AppContext } from '@/app.ts';
 import { Storages } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
@@ -14,23 +15,19 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal
   }
 
   const store = await Storages.db();
-  const events = await store.query(filters, { signal });
-  const pubkeys = new Set(events.map(({ pubkey }) => pubkey));
 
-  if (!pubkeys.size) {
-    return c.json([]);
-  }
-
-  const authors = await store.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
+  const events = await store.query(filters, { signal })
+    // Deduplicate by author.
+    .then((events) => Array.from(new Map(events.map((event) => [event.pubkey, event])).values()))
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
-    Array.from(pubkeys).map(async (pubkey) => {
-      const event = authors.find((event) => event.pubkey === pubkey);
-      if (event) {
-        return await renderAccount(event);
+    events.map(({ author, pubkey }) => {
+      if (author) {
+        return renderAccount(author);
+      } else {
+        return accountFromPubkey(pubkey);
       }
-      return await accountFromPubkey(pubkey);
     }),
   );
 
@@ -46,12 +43,13 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
-    authors.map(async (pubkey) => {
+    authors.map((pubkey) => {
       const event = events.find((event) => event.pubkey === pubkey);
       if (event) {
-        return await renderAccount(event);
+        return renderAccount(event);
+      } else {
+        return accountFromPubkey(pubkey);
       }
-      return await accountFromPubkey(pubkey);
     }),
   );
 
