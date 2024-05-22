@@ -91,27 +91,26 @@ const trendingStatusesController: AppController = async (c) => {
 };
 
 async function getTrendingNotes(): Promise<NostrEvent[]> {
-  const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
   const since = Math.floor((Date.now() - Time.days(1)) / 1000);
 
-  const tags = await kysely
-    .selectFrom('nostr_tags')
-    .select('nostr_tags.value')
-    .leftJoin('nostr_events', 'nostr_events.id', 'nostr_tags.event_id')
-    .where('nostr_events.kind', 'in', [1, 6, 7])
+  const rows = await kysely
+    .selectFrom('nostr_events')
+    .selectAll('nostr_events')
+    .innerJoin('event_stats', 'event_stats.event_id', 'nostr_events.id')
+    .where('nostr_events.kind', '=', 1)
     .where('nostr_events.created_at', '>', since)
-    .where('nostr_tags.name', '=', 'e')
-    .groupBy('nostr_tags.value')
     .orderBy(
-      sql`SUM(case when nostr_events.kind = 6 then 2 else 0 end) + SUM(case when nostr_events.kind = 1 or nostr_events.kind = 7 then 1 else 0 end)`,
+      sql`(event_stats.reposts_count * 2) + (event_stats.replies_count) + (event_stats.reactions_count)`,
       'desc',
     )
     .limit(20)
     .execute();
 
-  const ids = tags.map(({ value }) => value);
-  return store.query([{ kinds: [1], ids, limit: ids.length }]);
+  return rows.map((row) => ({
+    ...row,
+    tags: JSON.parse(row.tags),
+  }));
 }
 
 export { trendingStatusesController, trendingTagsController };
