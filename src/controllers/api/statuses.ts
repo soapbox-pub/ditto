@@ -253,7 +253,10 @@ const favouriteController: AppController = async (c) => {
 const favouritedByController: AppController = (c) => {
   const id = c.req.param('id');
   const params = paginationSchema.parse(c.req.query());
-  return renderEventAccounts(c, [{ kinds: [7], '#e': [id], ...params }]);
+
+  return renderEventAccounts(c, [{ kinds: [7], '#e': [id], ...params }], {
+    filterFn: ({ content }) => content === '+',
+  });
 };
 
 /** https://docs.joinmastodon.org/methods/statuses/#boost */

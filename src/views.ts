@@ -1,4 +1,4 @@
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { AppContext } from '@/app.ts';
 import { Storages } from '@/storages.ts';
@@ -8,18 +8,26 @@ import { paginated, paginationSchema } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 
+interface RenderEventAccountsOpts {
+  signal?: AbortSignal;
+  filterFn?: (event: NostrEvent) => boolean;
+}
+
 /** Render account objects for the author of each event. */
-async function renderEventAccounts(c: AppContext, filters: NostrFilter[], signal = AbortSignal.timeout(1000)) {
+async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?: RenderEventAccountsOpts) {
   if (!filters.length) {
     return c.json([]);
   }
+
+  const { signal = AbortSignal.timeout(1000), filterFn } = opts ?? {};
 
   const store = await Storages.db();
 
   const events = await store.query(filters, { signal })
     // Deduplicate by author.
     .then((events) => Array.from(new Map(events.map((event) => [event.pubkey, event])).values()))
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ events, store, signal }))
+    .then((events) => filterFn ? events.filter(filterFn) : events);
 
   const accounts = await Promise.all(
     events.map(({ author, pubkey }) => {
