@@ -1,10 +1,10 @@
 import { AppController } from '@/app.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { createEvent } from '@/utils/api.ts';
-import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 /**
  * React to a status.
