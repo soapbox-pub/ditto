@@ -2,6 +2,9 @@ import { AppController } from '@/app.ts';
 import { Storages } from '@/storages.ts';
 import { createEvent } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 /**
  * React to a status.
@@ -78,4 +81,40 @@ const deleteReactionController: AppController = async (c) => {
   return c.json(status);
 };
 
-export { deleteReactionController, reactionController };
+/**
+ * Get an object of emoji to account mappings with accounts that reacted to the post.
+ * https://docs.pleroma.social/backend/development/API/pleroma_api/#get-apiv1pleromastatusesidreactions
+ */
+const reactionsController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const store = await Storages.db();
+  const pubkey = await c.get('signer')?.getPublicKey();
+
+  const events = await store.query([{ kinds: [7], '#e': [id], limit: 100 }])
+    .then((events) => hydrateEvents({ events, store }));
+
+  /** Events grouped by emoji. */
+  const byEmoji = events.reduce((acc, event) => {
+    const emoji = event.content;
+    acc[emoji] = acc[emoji] || [];
+    acc[emoji].push(event);
+    return acc;
+  }, {} as Record<string, DittoEvent[]>);
+
+  const results = await Promise.all(
+    Object.entries(byEmoji).map(async ([name, events]) => {
+      return {
+        name,
+        count: events.length,
+        me: pubkey && events.some((event) => event.pubkey === pubkey),
+        accounts: await Promise.all(
+          events.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),
+        ),
+      };
+    }),
+  );
+
+  return c.json(results);
+};
+
+export { deleteReactionController, reactionController, reactionsController };
