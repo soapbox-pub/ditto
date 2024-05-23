@@ -43,6 +43,7 @@ import {
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
+import { deleteReactionController, reactionController } from '@/controllers/api/reactions.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
 import {
   adminReportController,
@@ -209,6 +210,9 @@ app.get('/api/v1/mutes', requireSigner, mutesController);
 
 app.get('/api/v1/markers', requireProof(), markersController);
 app.post('/api/v1/markers', requireProof(), updateMarkersController);
+
+app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, reactionController);
+app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, deleteReactionController);
 
 app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
 app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
