@@ -211,8 +211,9 @@ app.get('/api/v1/mutes', requireSigner, mutesController);
 app.get('/api/v1/markers', requireProof(), markersController);
 app.post('/api/v1/markers', requireProof(), updateMarkersController);
 
-app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, reactionController);
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
+app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);
+app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, reactionController);
 app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, deleteReactionController);
 
 app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);

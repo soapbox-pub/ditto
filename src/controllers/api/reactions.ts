@@ -89,9 +89,15 @@ const reactionsController: AppController = async (c) => {
   const id = c.req.param('id');
   const store = await Storages.db();
   const pubkey = await c.get('signer')?.getPublicKey();
+  const emoji = c.req.param('emoji') as string | undefined;
+
+  if (typeof emoji === 'string' && !/^\p{RGI_Emoji}$/v.test(emoji)) {
+    return c.json({ error: 'Invalid emoji' }, 400);
+  }
 
   const events = await store.query([{ kinds: [7], '#e': [id], limit: 100 }])
-    .then((events) => hydrateEvents({ events, store }));
+    .then((events) => hydrateEvents({ events, store }))
+    .then((events) => events.filter((event) => !emoji || event.content === emoji));
 
   /** Events grouped by emoji. */
   const byEmoji = events.reduce((acc, event) => {
