@@ -96,8 +96,9 @@ const reactionsController: AppController = async (c) => {
   }
 
   const events = await store.query([{ kinds: [7], '#e': [id], limit: 100 }])
-    .then((events) => hydrateEvents({ events, store }))
-    .then((events) => events.filter((event) => !emoji || event.content === emoji));
+    .then((events) => events.filter(({ content }) => /^\p{RGI_Emoji}$/v.test(content)))
+    .then((events) => events.filter((event) => !emoji || event.content === emoji))
+    .then((events) => hydrateEvents({ events, store }));
 
   /** Events grouped by emoji. */
   const byEmoji = events.reduce((acc, event) => {
