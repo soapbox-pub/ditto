@@ -36,9 +36,10 @@ const instanceController: AppController = async (c) => {
     pleroma: {
       metadata: {
         features: [
+          'exposable_reactions',
           'mastodon_api',
           'mastodon_api_streaming',
-          'exposable_reactions',
+          'pleroma_emoji_reactions',
           'quote_posting',
           'v2_suggestions',
         ],
