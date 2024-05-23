@@ -227,6 +227,8 @@ const updateCredentialsSchema = z.object({
   discoverable: z.boolean().optional(),
   nip05: z.string().optional(),
   pleroma_settings_store: z.unknown().optional(),
+  lud16: z.string().email().optional().catch(''),
+  website: z.string().url().optional().catch(''),
 });
 
 const updateCredentialsController: AppController = async (c) => {
@@ -248,6 +250,8 @@ const updateCredentialsController: AppController = async (c) => {
     display_name,
     note,
     nip05,
+    lud16,
+    website,
   } = result.data;
 
   const [avatar, header] = await Promise.all([
@@ -260,6 +264,8 @@ const updateCredentialsController: AppController = async (c) => {
   meta.picture = avatar?.url ?? meta.picture;
   meta.banner = header?.url ?? meta.banner;
   meta.nip05 = nip05 ?? meta.nip05;
+  meta.lud16 = lud16 ?? meta.lud16;
+  meta.website = website ?? meta.website;
 
   const event = await createEvent({
     kind: 0,

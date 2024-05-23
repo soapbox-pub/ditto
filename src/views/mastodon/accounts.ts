@@ -28,6 +28,7 @@ async function renderAccount(
     about,
     lud06,
     lud16,
+    website,
   } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
@@ -83,7 +84,9 @@ async function renderAccount(
     },
     nostr: {
       pubkey,
+      lud16,
     },
+    website,
   };
 }
 
