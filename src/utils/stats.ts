@@ -95,6 +95,18 @@ export function getFollowDiff(
   };
 }
 
+/** Retrieve the author stats by the pubkey. */
+export function getAuthorStats(
+  kysely: Kysely<DittoTables>,
+  pubkey: string,
+): Promise<DittoTables['author_stats'] | undefined> {
+  return kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', pubkey)
+    .executeTakeFirst();
+}
+
 /** Retrieve the author stats by the pubkey, then call the callback to update it. */
 export async function updateAuthorStats(
   kysely: Kysely<DittoTables>,
@@ -108,11 +120,7 @@ export async function updateAuthorStats(
     notes_count: 0,
   };
 
-  const prev = await kysely
-    .selectFrom('author_stats')
-    .selectAll()
-    .where('pubkey', '=', pubkey)
-    .executeTakeFirst();
+  const prev = await getAuthorStats(kysely, pubkey);
 
   const stats = fn(prev ?? empty);
 
@@ -128,6 +136,18 @@ export async function updateAuthorStats(
   }
 }
 
+/** Retrieve the event stats by the event ID. */
+export function getEventStats(
+  kysely: Kysely<DittoTables>,
+  eventId: string,
+): Promise<DittoTables['event_stats'] | undefined> {
+  return kysely
+    .selectFrom('event_stats')
+    .selectAll()
+    .where('event_id', '=', eventId)
+    .executeTakeFirst();
+}
+
 /** Retrieve the event stats by the event ID, then call the callback to update it. */
 export async function updateEventStats(
   kysely: Kysely<DittoTables>,
@@ -141,11 +161,7 @@ export async function updateEventStats(
     reactions_count: 0,
   };
 
-  const prev = await kysely
-    .selectFrom('event_stats')
-    .selectAll()
-    .where('event_id', '=', eventId)
-    .executeTakeFirst();
+  const prev = await getEventStats(kysely, eventId);
 
   const stats = fn(prev ?? empty);
 
