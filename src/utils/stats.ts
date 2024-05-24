@@ -1,5 +1,6 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
+import { SetRequired } from 'type-fest';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { getTagSet } from '@/utils/tags.ts';
@@ -175,4 +176,23 @@ export async function updateEventStats(
       .values({ ...empty, ...stats })
       .execute();
   }
+}
+
+/** Calculate author stats from the database. */
+export async function countAuthorStats(
+  store: SetRequired<NStore, 'count'>,
+  pubkey: string,
+): Promise<DittoTables['author_stats']> {
+  const [{ count: followers_count }, { count: notes_count }, [followList]] = await Promise.all([
+    store.count([{ kinds: [3], '#p': [pubkey] }]),
+    store.count([{ kinds: [1], authors: [pubkey] }]),
+    store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
+  ]);
+
+  return {
+    pubkey,
+    followers_count,
+    following_count: getTagSet(followList?.tags ?? [], 'p').size,
+    notes_count,
+  };
 }

@@ -2,7 +2,7 @@ import { assertEquals } from '@std/assert';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 import { genEvent, getTestDB } from '@/test.ts';
-import { getAuthorStats, getEventStats, getFollowDiff, updateStats } from '@/utils/stats.ts';
+import { countAuthorStats, getAuthorStats, getEventStats, getFollowDiff, updateStats } from '@/utils/stats.ts';
 
 Deno.test('updateStats with kind 1 increments notes count', async () => {
   await using db = await getTestDB();
@@ -141,4 +141,20 @@ Deno.test('updateStats with kind 5 decrements reactions count', async () => {
   const stats = await getEventStats(db.kysely, note.id);
 
   assertEquals(stats!.reactions_count, 0);
+});
+
+Deno.test('countAuthorStats counts author stats from the database', async () => {
+  await using db = await getTestDB();
+
+  const sk = generateSecretKey();
+  const pubkey = getPublicKey(sk);
+
+  await db.store.event(genEvent({ kind: 1, content: 'hello' }, sk));
+  await db.store.event(genEvent({ kind: 1, content: 'yolo' }, sk));
+  await db.store.event(genEvent({ kind: 3, tags: [['p', pubkey]] }));
+
+  const stats = await countAuthorStats(db.store, pubkey);
+
+  assertEquals(stats!.notes_count, 2);
+  assertEquals(stats!.followers_count, 1);
 });
