@@ -10,7 +10,6 @@ import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { RelayError } from '@/RelayError.ts';
-import { updateStats } from '@/stats.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { eventAge, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
@@ -21,6 +20,7 @@ import { verifyEventWorker } from '@/workers/verify.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { lnurlCache } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
+import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
 
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
@@ -121,8 +121,9 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
+  const kysely = await DittoDB.getInstance();
 
-  await updateStats(event).catch(debug);
+  await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
 }
 

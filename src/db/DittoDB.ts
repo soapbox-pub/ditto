@@ -47,7 +47,7 @@ export class DittoDB {
       provider: new FileMigrationProvider({
         fs,
         path,
-        migrationFolder: new URL(import.meta.resolve('../db/migrations')).pathname,
+        migrationFolder: new URL(import.meta.resolve('./migrations')).pathname,
       }),
     });
 

@@ -82,6 +82,15 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const media = imeta.length ? imeta : getMediaLinks(links);
 
+  /** Pleroma emoji reactions object. */
+  const reactions = Object.entries(event.event_stats?.reactions ?? {}).reduce((acc, [emoji, count]) => {
+    if (['+', '-'].includes(emoji)) return acc;
+    acc.push({ name: emoji, count, me: reactionEvent?.content === emoji });
+    return acc;
+  }, [] as { name: string; count: number; me: boolean }[]);
+
+  const expiresAt = new Date(Number(event.tags.find(([name]) => name === 'expiration')?.[1]) * 1000);
+
   return {
     id: event.id,
     account,
@@ -96,7 +105,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
     replies_count: event.event_stats?.replies_count ?? 0,
     reblogs_count: event.event_stats?.reposts_count ?? 0,
-    favourites_count: event.event_stats?.reactions_count ?? 0,
+    favourites_count: event.event_stats?.reactions['+'] ?? 0,
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,
@@ -114,6 +123,10 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     uri: Conf.external(note),
     url: Conf.external(note),
     zapped: Boolean(zapEvent),
+    pleroma: {
+      emoji_reactions: reactions,
+      expires_at: !isNaN(expiresAt.getTime()) ? expiresAt.toISOString() : undefined,
+    },
   };
 }
 

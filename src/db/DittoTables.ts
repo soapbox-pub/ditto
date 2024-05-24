@@ -20,6 +20,7 @@ interface EventStatsRow {
   replies_count: number;
   reposts_count: number;
   reactions_count: number;
+  reactions: string;
 }
 
 interface EventRow {
