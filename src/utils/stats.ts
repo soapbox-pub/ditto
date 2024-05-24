@@ -103,8 +103,12 @@ async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
         }
       }
 
+      // Total reactions count.
+      const count = Object.values(data).reduce((result, value) => result + value, 0);
+
       return {
         reactions: JSON.stringify(data),
+        reactions_count: count,
       };
     });
   }
@@ -142,7 +146,7 @@ export async function updateAuthorStats(
   pubkey: string,
   fn: (prev: DittoTables['author_stats']) => UpdateObject<DittoTables, 'author_stats'>,
 ): Promise<void> {
-  const empty = {
+  const empty: DittoTables['author_stats'] = {
     pubkey,
     followers_count: 0,
     following_count: 0,
@@ -183,7 +187,7 @@ export async function updateEventStats(
   eventId: string,
   fn: (prev: DittoTables['event_stats']) => UpdateObject<DittoTables, 'event_stats'>,
 ): Promise<void> {
-  const empty = {
+  const empty: DittoTables['event_stats'] = {
     event_id: eventId,
     replies_count: 0,
     reposts_count: 0,

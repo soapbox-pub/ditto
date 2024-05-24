@@ -120,6 +120,7 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
   const stats = await getEventStats(db.kysely, note.id);
 
   assertEquals(stats!.reactions, JSON.stringify({ '+': 1, '😂': 1 }));
+  assertEquals(stats!.reactions_count, 2);
 });
 
 Deno.test('updateStats with kind 5 decrements reactions count', async () => {
