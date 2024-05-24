@@ -113,15 +113,13 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
-  await db.store.event(note);
 
-  const reaction = genEvent({ kind: 7, tags: [['e', note.id]] });
-  await updateStats({ ...db, event: reaction });
-  await db.store.event(reaction);
+  await updateStats({ ...db, event: genEvent({ kind: 7, content: '+', tags: [['e', note.id]] }) });
+  await updateStats({ ...db, event: genEvent({ kind: 7, content: '😂', tags: [['e', note.id]] }) });
 
   const stats = await getEventStats(db.kysely, note.id);
 
-  assertEquals(stats!.reactions_count, 1);
+  assertEquals(stats!.reactions, JSON.stringify({ '+': 1, '😂': 1 }));
 });
 
 Deno.test('updateStats with kind 5 decrements reactions count', async () => {
@@ -132,7 +130,7 @@ Deno.test('updateStats with kind 5 decrements reactions count', async () => {
   await db.store.event(note);
 
   const sk = generateSecretKey();
-  const reaction = genEvent({ kind: 7, tags: [['e', note.id]] }, sk);
+  const reaction = genEvent({ kind: 7, content: '+', tags: [['e', note.id]] }, sk);
   await updateStats({ ...db, event: reaction });
   await db.store.event(reaction);
 
@@ -140,7 +138,7 @@ Deno.test('updateStats with kind 5 decrements reactions count', async () => {
 
   const stats = await getEventStats(db.kysely, note.id);
 
-  assertEquals(stats!.reactions_count, 0);
+  assertEquals(stats!.reactions, JSON.stringify({}));
 });
 
 Deno.test('countAuthorStats counts author stats from the database', async () => {

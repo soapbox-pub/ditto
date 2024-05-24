@@ -1,5 +1,7 @@
+import { Semaphore } from '@lambdalisue/async';
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
+import { LRUCache } from 'lru-cache';
 import { SetRequired } from 'type-fest';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -31,7 +33,7 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
 
 /** Update stats for kind 1 event. */
 async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
-  await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: notes_count + x }));
+  await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: Math.max(0, notes_count + x) }));
 }
 
 /** Update stats for kind 3 event. */
@@ -47,11 +49,19 @@ async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
   const { added, removed } = getFollowDiff(event.tags, prev?.tags);
 
   for (const pubkey of added) {
-    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count + x }));
+    await updateAuthorStats(
+      kysely,
+      pubkey,
+      ({ followers_count }) => ({ followers_count: Math.max(0, followers_count + x) }),
+    );
   }
 
   for (const pubkey of removed) {
-    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count - x }));
+    await updateAuthorStats(
+      kysely,
+      pubkey,
+      ({ followers_count }) => ({ followers_count: Math.max(0, followers_count - x) }),
+    );
   }
 }
 
@@ -70,15 +80,33 @@ async function handleEvent5(kysely: Kysely<DittoTables>, event: NostrEvent, x: -
 async function handleEvent6(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (id) {
-    await updateEventStats(kysely, id, ({ reposts_count }) => ({ reposts_count: reposts_count + x }));
+    await updateEventStats(kysely, id, ({ reposts_count }) => ({ reposts_count: Math.max(0, reposts_count + x) }));
   }
 }
 
 /** Update stats for kind 7 event. */
 async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   const id = event.tags.find(([name]) => name === 'e')?.[1];
-  if (id) {
-    await updateEventStats(kysely, id, ({ reactions_count }) => ({ reactions_count: reactions_count + x }));
+  const emoji = event.content;
+
+  if (id && emoji && (['+', '-'].includes(emoji) || /^\p{RGI_Emoji}$/v.test(emoji))) {
+    await updateEventStats(kysely, id, ({ reactions }) => {
+      const data: Record<string, number> = JSON.parse(reactions);
+
+      // Increment or decrement the emoji count.
+      data[emoji] = (data[emoji] ?? 0) + x;
+
+      // Remove reactions with a count of 0 or less.
+      for (const key of Object.keys(data)) {
+        if (data[key] < 1) {
+          delete data[key];
+        }
+      }
+
+      return {
+        reactions: JSON.stringify(data),
+      };
+    });
   }
 }
 
@@ -160,6 +188,7 @@ export async function updateEventStats(
     replies_count: 0,
     reposts_count: 0,
     reactions_count: 0,
+    reactions: '{}',
   };
 
   const prev = await getEventStats(kysely, eventId);
@@ -195,4 +224,39 @@ export async function countAuthorStats(
     following_count: getTagSet(followList?.tags ?? [], 'p').size,
     notes_count,
   };
+}
+
+export interface RefreshAuthorStatsOpts {
+  pubkey: string;
+  kysely: Kysely<DittoTables>;
+  store: SetRequired<NStore, 'count'>;
+}
+
+/** Refresh the author's stats in the database. */
+export async function refreshAuthorStats(
+  { pubkey, kysely, store }: RefreshAuthorStatsOpts,
+): Promise<DittoTables['author_stats']> {
+  const stats = await countAuthorStats(store, pubkey);
+
+  await kysely.insertInto('author_stats')
+    .values(stats)
+    .onConflict((oc) => oc.column('pubkey').doUpdateSet(stats))
+    .execute();
+
+  return stats;
+}
+
+const authorStatsSemaphore = new Semaphore(10);
+const refreshedAuthors = new LRUCache<string, true>({ max: 1000 });
+
+/** Calls `refreshAuthorStats` only once per author. */
+export function refreshAuthorStatsDebounced(opts: RefreshAuthorStatsOpts): void {
+  if (refreshedAuthors.get(opts.pubkey)) {
+    return;
+  }
+
+  refreshedAuthors.set(opts.pubkey, true);
+
+  authorStatsSemaphore
+    .lock(() => refreshAuthorStats(opts).catch(() => {}));
 }

@@ -1,0 +1,18 @@
+import { Kysely } from 'kysely';
+
+export async function up(db: Kysely<any>): Promise<void> {
+  await db.schema
+    .alterTable('event_stats')
+    .addColumn('reactions', 'text', (col) => col.defaultTo('{}'))
+    .execute();
+
+  await db.schema
+    .alterTable('event_stats')
+    .dropColumn('reactions_count')
+    .execute();
+}
+
+export async function down(db: Kysely<any>): Promise<void> {
+  await db.schema.alterTable('event_stats').dropColumn('reactions').execute();
+  await db.schema.alterTable('event_stats').addColumn('reactions_count', 'integer').execute();
+}

@@ -11,7 +11,7 @@ export interface AuthorStats {
 export interface EventStats {
   replies_count: number;
   reposts_count: number;
-  reactions_count: number;
+  reactions: Record<string, number>;
 }
 
 /** Internal Event representation used by Ditto, including extra keys. */

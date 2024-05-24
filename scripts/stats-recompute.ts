@@ -1,6 +1,8 @@
 import { nip19 } from 'nostr-tools';
 
-import { refreshAuthorStats } from '@/stats.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
+import { Storages } from '@/storages.ts';
+import { refreshAuthorStats } from '@/utils/stats.ts';
 
 let pubkey: string;
 try {
@@ -15,4 +17,7 @@ try {
   Deno.exit(1);
 }
 
-await refreshAuthorStats(pubkey);
+const store = await Storages.db();
+const kysely = await DittoDB.getInstance();
+
+await refreshAuthorStats({ pubkey, kysely, store });
