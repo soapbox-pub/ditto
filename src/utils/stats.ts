@@ -8,30 +8,33 @@ interface UpdateStatsOpts {
   kysely: Kysely<DittoTables>;
   store: NStore;
   event: NostrEvent;
+  x?: 1 | -1;
 }
 
 /** Handle one event at a time and update relevant stats for it. */
 // deno-lint-ignore require-await
-export async function updateStats({ event, kysely, store }: UpdateStatsOpts): Promise<void> {
+export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOpts): Promise<void> {
   switch (event.kind) {
     case 1:
-      return handleEvent1(kysely, event);
+      return handleEvent1(kysely, event, x);
     case 3:
-      return handleEvent3(kysely, store, event);
+      return handleEvent3(kysely, event, x, store);
+    case 5:
+      return handleEvent5(kysely, event, -1, store);
     case 6:
-      return handleEvent6(kysely, event);
+      return handleEvent6(kysely, event, x);
     case 7:
-      return handleEvent7(kysely, event);
+      return handleEvent7(kysely, event, x);
   }
 }
 
 /** Update stats for kind 1 event. */
-async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent): Promise<void> {
-  await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: notes_count + 1 }));
+async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
+  await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: notes_count + x }));
 }
 
 /** Update stats for kind 3 event. */
-async function handleEvent3(kysely: Kysely<DittoTables>, store: NStore, event: NostrEvent): Promise<void> {
+async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: number, store: NStore): Promise<void> {
   const following = getTagSet(event.tags, 'p');
 
   await updateAuthorStats(kysely, event.pubkey, () => ({ following_count: following.size }));
@@ -43,27 +46,38 @@ async function handleEvent3(kysely: Kysely<DittoTables>, store: NStore, event: N
   const { added, removed } = getFollowDiff(event.tags, prev?.tags);
 
   for (const pubkey of added) {
-    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count + 1 }));
+    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count + x }));
   }
 
   for (const pubkey of removed) {
-    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count - 1 }));
+    await updateAuthorStats(kysely, pubkey, ({ followers_count }) => ({ followers_count: followers_count - x }));
+  }
+}
+
+/** Update stats for kind 5 event. */
+async function handleEvent5(kysely: Kysely<DittoTables>, event: NostrEvent, x: -1, store: NStore): Promise<void> {
+  const id = event.tags.find(([name]) => name === 'e')?.[1];
+  if (id) {
+    const [target] = await store.query([{ ids: [id], authors: [event.pubkey], limit: 1 }]);
+    if (target) {
+      await updateStats({ event: target, kysely, store, x });
+    }
   }
 }
 
 /** Update stats for kind 6 event. */
-async function handleEvent6(kysely: Kysely<DittoTables>, event: NostrEvent): Promise<void> {
+async function handleEvent6(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (id) {
-    await updateEventStats(kysely, id, ({ reposts_count }) => ({ reposts_count: reposts_count + 1 }));
+    await updateEventStats(kysely, id, ({ reposts_count }) => ({ reposts_count: reposts_count + x }));
   }
 }
 
 /** Update stats for kind 7 event. */
-async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent): Promise<void> {
+async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (id) {
-    await updateEventStats(kysely, id, ({ reactions_count }) => ({ reactions_count: reactions_count + 1 }));
+    await updateEventStats(kysely, id, ({ reactions_count }) => ({ reactions_count: reactions_count + x }));
   }
 }
 
@@ -109,10 +123,7 @@ export async function updateAuthorStats(
       .execute();
   } else {
     await kysely.insertInto('author_stats')
-      .values({
-        ...empty,
-        ...stats,
-      })
+      .values({ ...empty, ...stats })
       .execute();
   }
 }
@@ -145,10 +156,7 @@ export async function updateEventStats(
       .execute();
   } else {
     await kysely.insertInto('event_stats')
-      .values({
-        ...empty,
-        ...stats,
-      })
+      .values({ ...empty, ...stats })
       .execute();
   }
 }
