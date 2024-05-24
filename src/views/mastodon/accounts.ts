@@ -86,7 +86,7 @@ async function renderAccount(
       pubkey,
       lud16,
     },
-    website: /^https?:\/\//.test(website) ? website : undefined,
+    website: website && /^https?:\/\//.test(website) ? website : undefined,
   };
 }
 
