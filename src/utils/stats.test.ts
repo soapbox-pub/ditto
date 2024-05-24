@@ -113,6 +113,7 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
+  await db.store.event(note);
 
   await updateStats({ ...db, event: genEvent({ kind: 7, content: '+', tags: [['e', note.id]] }) });
   await updateStats({ ...db, event: genEvent({ kind: 7, content: '😂', tags: [['e', note.id]] }) });
