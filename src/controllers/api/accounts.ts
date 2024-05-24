@@ -225,10 +225,10 @@ const updateCredentialsSchema = z.object({
   locked: z.boolean().optional(),
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
-  nip05: z.string().optional(),
+  nip05: z.string().email().optional(),
   pleroma_settings_store: z.unknown().optional(),
-  lud16: z.string().email().optional().catch(''),
-  website: z.string().url().optional().catch(''),
+  lud16: z.string().email().optional(),
+  website: z.string().url().optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
@@ -252,6 +252,7 @@ const updateCredentialsController: AppController = async (c) => {
     nip05,
     lud16,
     website,
+    bot,
   } = result.data;
 
   const [avatar, header] = await Promise.all([
@@ -266,6 +267,7 @@ const updateCredentialsController: AppController = async (c) => {
   meta.nip05 = nip05 ?? meta.nip05;
   meta.lud16 = lud16 ?? meta.lud16;
   meta.website = website ?? meta.website;
+  meta.bot = bot ?? meta.bot;
 
   const event = await createEvent({
     kind: 0,
