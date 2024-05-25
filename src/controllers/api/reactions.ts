@@ -33,7 +33,9 @@ const reactionController: AppController = async (c) => {
     tags: [['e', id]],
   }, c);
 
-  const status = renderStatus(event, { viewerPubkey: await signer.getPublicKey() });
+  await hydrateEvents({ events: [event], store });
+
+  const status = await renderStatus(event, { viewerPubkey: await signer.getPublicKey() });
 
   return c.json(status);
 };
