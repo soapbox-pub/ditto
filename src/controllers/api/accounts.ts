@@ -1,4 +1,4 @@
-import { NostrFilter, NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
