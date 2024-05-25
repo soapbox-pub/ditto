@@ -2,6 +2,7 @@ import { assembleEvents } from '@/storages/hydrate.ts';
 import { jsonlEvents } from '@/test.ts';
 
 const testEvents = await jsonlEvents('fixtures/hydrated.jsonl');
+const testStats = JSON.parse(await Deno.readTextFile('fixtures/stats.json'));
 
 Deno.bench('assembleEvents with home feed', (b) => {
   // The first 20 events in this file are my home feed.
@@ -10,5 +11,5 @@ Deno.bench('assembleEvents with home feed', (b) => {
 
   b.start();
 
-  assembleEvents(events, testEvents, { authors: [], events: [] });
+  assembleEvents(events, testEvents, testStats);
 });
