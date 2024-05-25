@@ -36,11 +36,11 @@ export class DittoSQLite {
 
   /** Get the relative or absolute path based on the `DATABASE_URL`. */
   static get path() {
-    if (Deno.env.get('DATABASE_URL') === 'sqlite://:memory:') {
+    if (Conf.databaseUrl === 'sqlite://:memory:') {
       return ':memory:';
     }
 
-    const { host, pathname } = Conf.databaseUrl;
+    const { host, pathname } = Conf.db.url;
 
     if (!pathname) return '';
 

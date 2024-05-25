@@ -19,7 +19,7 @@ export class DittoPostgres {
           // @ts-ignore mismatched kysely versions probably
           createDriver() {
             return new PostgreSQLDriver(
-              { connectionString: Deno.env.get('DATABASE_URL') },
+              { connectionString: Conf.databaseUrl },
               Conf.pg.poolSize,
             );
           },
