@@ -225,10 +225,10 @@ const updateCredentialsSchema = z.object({
   locked: z.boolean().optional(),
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
-  nip05: z.string().email().optional(),
+  nip05: z.union([z.string().email().optional(), z.literal('')]),
   pleroma_settings_store: z.unknown().optional(),
-  lud16: z.string().email().optional(),
-  website: z.string().url().optional(),
+  lud16: z.union([z.string().email().optional(), z.literal('')]),
+  website: z.union([z.string().url().optional(), z.literal('')]),
 });
 
 const updateCredentialsController: AppController = async (c) => {
