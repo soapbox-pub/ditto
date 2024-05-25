@@ -1,7 +1,5 @@
-import { Semaphore } from '@lambdalisue/async';
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
-import { LRUCache } from 'lru-cache';
 import { SetRequired } from 'type-fest';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -265,19 +263,4 @@ export async function refreshAuthorStats(
     .execute();
 
   return stats;
-}
-
-const authorStatsSemaphore = new Semaphore(10);
-const refreshedAuthors = new LRUCache<string, true>({ max: 1000 });
-
-/** Calls `refreshAuthorStats` only once per author. */
-export function refreshAuthorStatsDebounced(opts: RefreshAuthorStatsOpts): void {
-  if (refreshedAuthors.get(opts.pubkey)) {
-    return;
-  }
-
-  refreshedAuthors.set(opts.pubkey, true);
-
-  authorStatsSemaphore
-    .lock(() => refreshAuthorStats(opts).catch(() => {}));
 }
