@@ -39,10 +39,9 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     ),
   ];
 
-  const db = await Storages.db();
-  const optimizer = await Storages.optimizer();
+  const store = await Storages.db();
 
-  const mentionedProfiles = await optimizer.query(
+  const mentionedProfiles = await store.query(
     [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
@@ -55,7 +54,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
       ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
-        ? await db.query([
+        ? await store.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
           { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },

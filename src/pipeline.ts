@@ -47,7 +47,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     parseMetadata(event, signal),
     DVM.event(event),
     trackHashtags(event),
-    fetchRelatedEvents(event),
     processMedia(event),
     payZap(event, signal),
     streamOut(event),
@@ -179,31 +178,6 @@ async function trackHashtags(event: NostrEvent): Promise<void> {
     await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
-  }
-}
-
-/** Queue related events to fetch. */
-async function fetchRelatedEvents(event: DittoEvent) {
-  const cache = await Storages.cache();
-  const reqmeister = await Storages.reqmeister();
-
-  if (!event.author) {
-    const signal = AbortSignal.timeout(3000);
-    reqmeister.query([{ kinds: [0], authors: [event.pubkey] }], { signal })
-      .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
-      .catch(() => {});
-  }
-
-  for (const [name, id] of event.tags) {
-    if (name === 'e') {
-      const { count } = await cache.count([{ ids: [id] }]);
-      if (!count) {
-        const signal = AbortSignal.timeout(3000);
-        reqmeister.query([{ ids: [id] }], { signal })
-          .then((events) => Promise.allSettled(events.map((event) => handleEvent(event, signal))))
-          .catch(() => {});
-      }
-    }
   }
 }
 
