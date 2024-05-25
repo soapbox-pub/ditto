@@ -1,8 +1,8 @@
-import { assertEquals } from '@std/assert';
-import { hydrateEvents } from '@/storages/hydrate.ts';
 import { MockRelay } from '@nostrify/nostrify/test';
+import { assertEquals } from '@std/assert';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { eventFixture } from '@/test.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {

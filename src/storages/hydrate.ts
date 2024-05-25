@@ -67,7 +67,7 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 }
 
 /** Connect the events in list `b` to the DittoEvent fields in list `a`. */
-function assembleEvents(
+export function assembleEvents(
   a: DittoEvent[],
   b: DittoEvent[],
   stats: { authors: DittoTables['author_stats'][]; events: DittoTables['event_stats'][] },
