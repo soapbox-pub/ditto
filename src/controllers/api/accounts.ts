@@ -1,4 +1,4 @@
-import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrFilter, NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -220,8 +220,8 @@ const accountStatusesController: AppController = async (c) => {
 const updateCredentialsSchema = z.object({
   display_name: z.string().optional(),
   note: z.string().optional(),
-  avatar: fileSchema.optional(),
-  header: fileSchema.optional(),
+  avatar: fileSchema.or(z.literal('')).optional(),
+  header: fileSchema.or(z.literal('')).optional(),
   locked: z.boolean().optional(),
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
@@ -268,6 +268,12 @@ const updateCredentialsController: AppController = async (c) => {
   meta.lud16 = lud16 ?? meta.lud16;
   meta.website = website ?? meta.website;
   meta.bot = bot ?? meta.bot;
+
+  if (avatarFile === '') delete meta.picture;
+  if (headerFile === '') delete meta.banner;
+  if (nip05 === '') delete meta.nip05;
+  if (lud16 === '') delete meta.lud16;
+  if (website === '') delete meta.website;
 
   const event = await createEvent({
     kind: 0,
