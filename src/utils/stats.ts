@@ -6,6 +6,7 @@ import { SetRequired } from 'type-fest';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { Conf } from '@/config.ts';
 
 interface UpdateStatsOpts {
   kysely: Kysely<DittoTables>;
@@ -153,8 +154,16 @@ export async function updateAuthorStats(
     notes_count: 0,
   };
 
-  const prev = await getAuthorStats(kysely, pubkey);
+  let query = kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', pubkey);
 
+  if (Conf.db.dialect === 'postgres') {
+    query = query.forUpdate();
+  }
+
+  const prev = await query.executeTakeFirst();
   const stats = fn(prev ?? empty);
 
   if (prev) {
@@ -195,8 +204,16 @@ export async function updateEventStats(
     reactions: '{}',
   };
 
-  const prev = await getEventStats(kysely, eventId);
+  let query = kysely
+    .selectFrom('event_stats')
+    .selectAll()
+    .where('event_id', '=', eventId);
 
+  if (Conf.db.dialect === 'postgres') {
+    query = query.forUpdate();
+  }
+
+  const prev = await query.executeTakeFirst();
   const stats = fn(prev ?? empty);
 
   if (prev) {
