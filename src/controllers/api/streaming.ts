@@ -49,7 +49,7 @@ const streamingController: AppController = (c) => {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
   function send(name: string, payload: object) {
     if (socket.readyState === WebSocket.OPEN) {

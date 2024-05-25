@@ -154,7 +154,7 @@ const relayController: AppController = (c, next) => {
     return c.text('Please use a Nostr client to connect.', 400);
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
   connectStream(socket);
 
   return response;
