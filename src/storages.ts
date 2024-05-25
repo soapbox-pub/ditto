@@ -1,25 +1,18 @@
 // deno-lint-ignore-file require-await
-import { NCache } from '@nostrify/nostrify';
 import { RelayPoolWorker } from 'nostr-relaypool';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
-import { Optimizer } from '@/storages/optimizer.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
-import { Reqmeister } from '@/storages/reqmeister.ts';
 import { SearchStore } from '@/storages/search-store.ts';
 import { InternalRelay } from '@/storages/InternalRelay.ts';
 import { UserStore } from '@/storages/UserStore.ts';
-import { Time } from '@/utils/time.ts';
 
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
   private static _admin: Promise<UserStore> | undefined;
-  private static _cache: Promise<NCache> | undefined;
   private static _client: Promise<PoolStore> | undefined;
-  private static _optimizer: Promise<Optimizer> | undefined;
-  private static _reqmeister: Promise<Reqmeister> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
 
@@ -93,49 +86,13 @@ export class Storages {
     return this._client;
   }
 
-  /** In-memory data store for cached events. */
-  public static async cache(): Promise<NCache> {
-    if (!this._cache) {
-      this._cache = Promise.resolve(new NCache({ max: 3000 }));
-    }
-    return this._cache;
-  }
-
-  /** Batches requests for single events. */
-  public static async reqmeister(): Promise<Reqmeister> {
-    if (!this._reqmeister) {
-      this._reqmeister = Promise.resolve(
-        new Reqmeister({
-          client: await this.client(),
-          delay: Time.seconds(1),
-          timeout: Time.seconds(1),
-        }),
-      );
-    }
-    return this._reqmeister;
-  }
-
-  /** Main Ditto storage adapter */
-  public static async optimizer(): Promise<Optimizer> {
-    if (!this._optimizer) {
-      this._optimizer = Promise.resolve(
-        new Optimizer({
-          db: await this.db(),
-          cache: await this.cache(),
-          client: await this.reqmeister(),
-        }),
-      );
-    }
-    return this._optimizer;
-  }
-
   /** Storage to use for remote search. */
   public static async search(): Promise<SearchStore> {
     if (!this._search) {
       this._search = Promise.resolve(
         new SearchStore({
           relay: Conf.searchRelay,
-          fallback: await this.optimizer(),
+          fallback: await this.db(),
         }),
       );
     }

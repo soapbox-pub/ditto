@@ -25,7 +25,7 @@ const getEvent = async (
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
   debug(`getEvent: ${id}`);
-  const store = await Storages.optimizer();
+  const store = await Storages.db();
   const { kind, signal = AbortSignal.timeout(1000) } = opts;
 
   const filter: NostrFilter = { ids: [id], limit: 1 };
@@ -40,7 +40,7 @@ const getEvent = async (
 
 /** Get a Nostr `set_medatadata` event for a user's pubkey. */
 const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
-  const store = await Storages.optimizer();
+  const store = await Storages.db();
   const { signal = AbortSignal.timeout(1000) } = opts;
 
   return await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })

@@ -69,8 +69,8 @@ const streamingController: AppController = (c) => {
     if (!filter) return;
 
     try {
+      const db = await Storages.db();
       const pubsub = await Storages.pubsub();
-      const optimizer = await Storages.optimizer();
 
       for await (const msg of pubsub.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
@@ -86,7 +86,7 @@ const streamingController: AppController = (c) => {
 
           await hydrateEvents({
             events: [event],
-            store: optimizer,
+            store: db,
             signal: AbortSignal.timeout(1000),
           });
 
