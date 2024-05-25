@@ -3,7 +3,7 @@ import { Kysely } from 'kysely';
 import { Conf } from '@/config.ts';
 
 export async function up(db: Kysely<any>): Promise<void> {
-  if (['postgres:', 'postgresql:'].includes(Conf.databaseUrl.protocol!)) {
+  if (Conf.db.dialect === 'postgres') {
     await db.schema
       .createIndex('nostr_pgfts_gin_search_vec')
       .ifNotExists()
@@ -15,7 +15,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  if (['postgres:', 'postgresql:'].includes(Conf.databaseUrl.protocol!)) {
+  if (Conf.db.dialect === 'postgres') {
     await db.schema.dropIndex('nostr_pgfts_gin_search_vec').ifExists().execute();
   }
 }

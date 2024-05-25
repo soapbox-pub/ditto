@@ -42,17 +42,8 @@ class EventsDB implements NStore {
   };
 
   constructor(private kysely: Kysely<DittoTables>) {
-    let fts: 'sqlite' | 'postgres' | undefined;
-
-    if (Conf.databaseUrl.protocol === 'sqlite:') {
-      fts = 'sqlite';
-    }
-    if (['postgres:', 'postgresql:'].includes(Conf.databaseUrl.protocol!)) {
-      fts = 'postgres';
-    }
-
     this.store = new NDatabase(kysely, {
-      fts,
+      fts: Conf.db.dialect,
       indexTags: EventsDB.indexTags,
       searchText: EventsDB.searchText,
     });

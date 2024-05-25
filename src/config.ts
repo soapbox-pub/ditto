@@ -61,27 +61,6 @@ class Conf {
   static get externalDomain() {
     return Deno.env.get('NOSTR_EXTERNAL') || Conf.localDomain;
   }
-  /** Path to the main SQLite database which stores users, events, and more. */
-  static get dbPath() {
-    if (Deno.env.get('DATABASE_URL') === 'sqlite://:memory:') {
-      return ':memory:';
-    }
-
-    const { host, pathname } = Conf.databaseUrl;
-
-    if (!pathname) return '';
-
-    // Get relative path.
-    if (host === '') {
-      return pathname;
-    } else if (host === '.') {
-      return pathname;
-    } else if (host) {
-      return host + pathname;
-    }
-
-    return '';
-  }
   /**
    * Heroku-style database URL. This is used in production to connect to the
    * database.
@@ -92,9 +71,24 @@ class Conf {
    * protocol://username:password@host:port/database_name
    * ```
    */
-  static get databaseUrl(): url.UrlWithStringQuery {
-    return url.parse(Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3');
+  static get databaseUrl(): string {
+    return Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3';
   }
+  static db = {
+    get url(): url.UrlWithStringQuery {
+      return url.parse(Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3');
+    },
+    get dialect(): 'sqlite' | 'postgres' | undefined {
+      switch (Conf.db.url.protocol) {
+        case 'sqlite:':
+          return 'sqlite';
+        case 'postgres:':
+        case 'postgresql:':
+          return 'postgres';
+      }
+      return undefined;
+    },
+  };
   /** Character limit to enforce for posts made through Mastodon API. */
   static get postCharLimit() {
     return Number(Deno.env.get('POST_CHAR_LIMIT') || 5000);
