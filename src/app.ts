@@ -247,11 +247,29 @@ app.get('/api/v1/lists', emptyArrayController);
 
 app.use('/api/*', notImplementedController);
 
-app.get('*', serveStatic({ root: './public/' }));
-app.get('*', serveStatic({ root: './static/' }));
-app.get('*', serveStatic({ path: './public/index.html' }));
+const publicFiles = serveStatic({ root: './public/' });
+const staticFiles = serveStatic({ root: './static/' });
+const frontendController = serveStatic({ path: './public/index.html' });
 
-app.get('/', indexController);
+// Known frontend routes
+app.get('/@:acct', frontendController);
+app.get('/@:acct/*', frontendController);
+app.get('/users/*', frontendController);
+app.get('/statuses/*', frontendController);
+app.get('/notice/*', frontendController);
+
+// Known static file routes
+app.get('/favicon.ico', publicFiles, staticFiles);
+app.get('/images/*', publicFiles, staticFiles);
+app.get('/instance/*', publicFiles);
+app.get('/packs/*', publicFiles);
+app.get('/sw.js', publicFiles);
+
+// Site index
+app.get('/', frontendController, indexController);
+
+// Fallback
+app.get('*', publicFiles, staticFiles, frontendController);
 
 export default app;
 
