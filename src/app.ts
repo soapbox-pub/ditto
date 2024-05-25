@@ -13,6 +13,7 @@ import {
   accountSearchController,
   accountStatusesController,
   createAccountController,
+  familiarFollowersController,
   favouritesController,
   followController,
   followersController,
@@ -156,6 +157,7 @@ app.patch('/api/v1/accounts/update_credentials', requireSigner, updateCredential
 app.get('/api/v1/accounts/search', accountSearchController);
 app.get('/api/v1/accounts/lookup', accountLookupController);
 app.get('/api/v1/accounts/relationships', requireSigner, relationshipsController);
+app.get('/api/v1/accounts/familiar_followers', requireSigner, familiarFollowersController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/block', requireSigner, blockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unblock', requireSigner, unblockController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/mute', requireSigner, muteController);

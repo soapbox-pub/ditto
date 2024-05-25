@@ -402,6 +402,28 @@ const favouritesController: AppController = async (c) => {
   return paginated(c, events1, statuses);
 };
 
+const familiarFollowersController: AppController = async (c) => {
+  const store = await Storages.db();
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
+
+  const ids = z.array(z.string()).parse(c.req.queries('id[]'));
+  const follows = await getFollowedPubkeys(pubkey);
+
+  const results = await Promise.all(ids.map(async (id) => {
+    const followLists = await store.query([{ kinds: [3], authors: follows, '#p': [id] }])
+      .then((events) => hydrateEvents({ events, store }));
+
+    const accounts = await Promise.all(
+      followLists.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),
+    );
+
+    return { id, accounts };
+  }));
+
+  return c.json(results);
+};
+
 export {
   accountController,
   accountLookupController,
@@ -409,6 +431,7 @@ export {
   accountStatusesController,
   blockController,
   createAccountController,
+  familiarFollowersController,
   favouritesController,
   followController,
   followersController,
