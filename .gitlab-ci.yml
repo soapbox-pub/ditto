@@ -29,3 +29,13 @@ test:
       - deno-test.xml
     reports:
       junit: deno-test.xml
+
+postgres:
+  stage: test
+  script: deno task db:migrate
+  services:
+    - postgres:16
+  variables:
+    DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
+    DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
