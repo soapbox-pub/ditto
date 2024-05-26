@@ -43,7 +43,7 @@ async function renderAccount(
     bot: false,
     created_at: nostrDate(event.user?.created_at ?? event.created_at).toISOString(),
     discoverable: true,
-    display_name: name,
+    display_name: name ?? '',
     emojis: renderEmojis(event),
     fields: [],
     follow_requests_count: 0,
