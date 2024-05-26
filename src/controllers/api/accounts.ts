@@ -66,8 +66,11 @@ const verifyCredentialsController: AppController = async (c) => {
     : await accountFromPubkey(pubkey, { withSource: true });
 
   if (settingsStore) {
-    const data = await signer.nip44!.decrypt(pubkey, settingsStore.content);
-    account.pleroma.settings_store = JSON.parse(data);
+    try {
+      account.pleroma.settings_store = JSON.parse(settingsStore.content);
+    } catch {
+      // Ignore
+    }
   }
 
   return c.json(account);
@@ -288,7 +291,7 @@ const updateCredentialsController: AppController = async (c) => {
     await createEvent({
       kind: 30078,
       tags: [['d', 'pub.ditto.pleroma_settings_store']],
-      content: await signer.nip44!.encrypt(pubkey, JSON.stringify(settingsStore)),
+      content: JSON.stringify(settingsStore),
     }, c);
   }
 
