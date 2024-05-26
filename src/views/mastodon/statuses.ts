@@ -131,18 +131,13 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
 async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
   const { viewerPubkey } = opts;
-
-  const repostId = event.tags.find(([name]) => name === 'e')?.[1];
-  if (!repostId) return;
-
   if (!event.repost) return;
 
+  const status = await renderStatus(event, {}); // omit viewerPubkey intentionally
   const reblog = await renderStatus(event.repost, { viewerPubkey });
 
   return {
-    id: event.id,
-    account: event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey),
-    reblogged: true,
+    ...status,
     reblog,
   };
 }
