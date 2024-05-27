@@ -1,7 +1,6 @@
 // deno-lint-ignore-file require-await
 import { NConnectSigner, NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 
 /**
@@ -12,16 +11,16 @@ import { Storages } from '@/storages.ts';
 export class ConnectSigner implements NostrSigner {
   private signer: Promise<NConnectSigner>;
 
-  constructor(private pubkey: string, private relays?: string[]) {
-    this.signer = this.init();
+  constructor(private pubkey: string, signer: NostrSigner, private relays?: string[]) {
+    this.signer = this.init(signer);
   }
 
-  async init(): Promise<NConnectSigner> {
+  async init(signer: NostrSigner): Promise<NConnectSigner> {
     return new NConnectSigner({
       pubkey: this.pubkey,
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
       relay: await Storages.pubsub(),
-      signer: new AdminSigner(),
+      signer,
       timeout: 60000,
     });
   }

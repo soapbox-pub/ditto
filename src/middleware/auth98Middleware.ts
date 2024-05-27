@@ -3,7 +3,7 @@ import { HTTPException } from 'hono';
 
 import { type AppContext, type AppMiddleware } from '@/app.ts';
 import { findUser, User } from '@/db/users.ts';
-import { ConnectSigner } from '@/signers/ConnectSigner.ts';
+import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { localRequest } from '@/utils/api.ts';
 import {
   buildAuthEventTemplate,
@@ -22,7 +22,7 @@ function auth98Middleware(opts: ParseAuthRequestOpts = {}): AppMiddleware {
     const result = await parseAuthRequest(req, opts);
 
     if (result.success) {
-      c.set('signer', new ConnectSigner(result.data.pubkey));
+      c.set('signer', new ReadOnlySigner(result.data.pubkey));
       c.set('proof', result.data);
     }
 
@@ -70,7 +70,8 @@ function withProof(
   opts?: ParseAuthRequestOpts,
 ): AppMiddleware {
   return async (c, next) => {
-    const pubkey = await c.get('signer')?.getPublicKey();
+    const signer = c.get('signer');
+    const pubkey = await signer?.getPublicKey();
     const proof = c.get('proof') || await obtainProof(c, opts);
 
     // Prevent people from accidentally using the wrong account. This has no other security implications.
@@ -79,8 +80,12 @@ function withProof(
     }
 
     if (proof) {
-      c.set('signer', new ConnectSigner(proof.pubkey));
       c.set('proof', proof);
+
+      if (!signer) {
+        c.set('signer', new ReadOnlySigner(proof.pubkey));
+      }
+
       await handler(c, proof, next);
     } else {
       throw new HTTPException(401, { message: 'No proof' });
