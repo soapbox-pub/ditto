@@ -21,7 +21,7 @@ export class ConnectSigner implements NostrSigner {
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
       relay: await Storages.pubsub(),
       signer,
-      timeout: 60000,
+      timeout: 60_000,
     });
   }
 
