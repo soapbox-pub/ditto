@@ -15,7 +15,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
-import { getLnurl } from '@/utils/lnurl.ts';
+import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
@@ -450,15 +450,16 @@ const zapController: AppController = async (c) => {
   const author = target?.author;
   const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
+  const amount = params.data.amount;
 
   if (target && lnurl) {
-    await createEvent({
+    const nostr = await createEvent({
       kind: 9734,
       content: params.data.comment ?? '',
       tags: [
         ['e', target.id],
         ['p', target.pubkey],
-        ['amount', params.data.amount.toString()],
+        ['amount', amount.toString()],
         ['relays', Conf.relay],
         ['lnurl', lnurl],
       ],
@@ -467,7 +468,11 @@ const zapController: AppController = async (c) => {
     const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
     status.zapped = true;
 
-    return c.json(status);
+    return c.json(status, {
+      headers: {
+        'Ln-Invoice': await getInvoice({ amount, nostr, lnurl }, signal),
+      },
+    });
   } else {
     return c.json({ error: 'Event not found.' }, 404);
   }
