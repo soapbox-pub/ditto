@@ -191,7 +191,7 @@ function processMedia({ tags, pubkey, user }: DittoEvent) {
 
 /** Emit Nostr Wallet Connect event from zaps so users may pay. */
 async function payZap(event: DittoEvent, signal: AbortSignal) {
-  if (event.kind !== 9734 || !event.user) return;
+  if (event.kind !== 9734) return;
 
   const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
   const amount = Number(event.tags.find(([name]) => name === 'amount')?.[1]);
