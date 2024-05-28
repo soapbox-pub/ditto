@@ -1,5 +1,4 @@
 import { NKinds, NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
-import { LNURL } from '@nostrify/nostrify/ln';
 import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
@@ -12,15 +11,12 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DVM } from '@/pipeline/DVM.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { RelayError } from '@/RelayError.ts';
-import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { eventAge, nostrDate, nostrNow, parseNip05, Time } from '@/utils.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
+import { eventAge, nostrDate, parseNip05, Time } from '@/utils.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { lnurlCache } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
@@ -48,7 +44,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     DVM.event(event),
     trackHashtags(event),
     processMedia(event),
-    payZap(event, signal),
     streamOut(event),
   ]);
 }
@@ -186,53 +181,6 @@ function processMedia({ tags, pubkey, user }: DittoEvent) {
   if (user) {
     const urls = getTagSet(tags, 'media');
     return deleteAttachedMedia(pubkey, [...urls]);
-  }
-}
-
-/** Emit Nostr Wallet Connect event from zaps so users may pay. */
-async function payZap(event: DittoEvent, signal: AbortSignal) {
-  if (event.kind !== 9734) return;
-
-  const lnurl = event.tags.find(([name]) => name === 'lnurl')?.[1];
-  const amount = Number(event.tags.find(([name]) => name === 'amount')?.[1]);
-
-  if (!lnurl || !amount) return;
-
-  try {
-    const details = await lnurlCache.fetch(lnurl, { signal });
-
-    if (details.tag !== 'payRequest' || !details.allowsNostr || !details.nostrPubkey) {
-      throw new Error('invalid lnurl');
-    }
-
-    if (amount > details.maxSendable || amount < details.minSendable) {
-      throw new Error('amount out of range');
-    }
-
-    const { pr } = await LNURL.callback(
-      details.callback,
-      { amount, nostr: purifyEvent(event), lnurl },
-      { fetch: fetchWorker, signal },
-    );
-
-    const signer = new AdminSigner();
-
-    const nwcRequestEvent = await signer.signEvent({
-      kind: 23194,
-      content: await signer.nip04.encrypt(
-        event.pubkey,
-        JSON.stringify({ method: 'pay_invoice', params: { invoice: pr } }),
-      ),
-      created_at: nostrNow(),
-      tags: [
-        ['p', event.pubkey],
-        ['e', event.id],
-      ],
-    });
-
-    await handleEvent(nwcRequestEvent, signal);
-  } catch (e) {
-    debug('lnurl error:', e);
   }
 }
 

@@ -4,6 +4,7 @@ import Debug from '@soapbox/stickynotes/debug';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+import { NostrEvent } from '@nostrify/nostrify';
 
 const debug = Debug('ditto:lnurl');
 
@@ -38,4 +39,32 @@ function getLnurl({ lud06, lud16 }: { lud06?: string; lud16?: string }, limit?: 
   }
 }
 
-export { getLnurl, lnurlCache };
+interface CallbackParams {
+  amount: number;
+  nostr: NostrEvent;
+  lnurl: string;
+}
+
+async function getInvoice(params: CallbackParams, signal?: AbortSignal): Promise<string> {
+  const { amount, lnurl } = params;
+
+  const details = await lnurlCache.fetch(lnurl, { signal });
+
+  if (details.tag !== 'payRequest' || !details.allowsNostr || !details.nostrPubkey) {
+    throw new Error('invalid lnurl');
+  }
+
+  if (amount > details.maxSendable || amount < details.minSendable) {
+    throw new Error('amount out of range');
+  }
+
+  const { pr } = await LNURL.callback(
+    details.callback,
+    params,
+    { fetch: fetchWorker, signal },
+  );
+
+  return pr;
+}
+
+export { getInvoice, getLnurl, lnurlCache };
