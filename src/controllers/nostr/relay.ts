@@ -4,28 +4,18 @@ import {
   NostrClientEVENT,
   NostrClientMsg,
   NostrClientREQ,
-  NostrEvent,
-  NostrFilter,
+  NostrRelayMsg,
   NSchema as n,
 } from '@nostrify/nostrify';
+
+import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 
-import type { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
-
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
-
-/** NIP-01 relay to client message. */
-type RelayMsg =
-  | ['EVENT', string, NostrEvent]
-  | ['NOTICE', string]
-  | ['EOSE', string]
-  | ['OK', string, boolean, string]
-  | ['COUNT', string, { count: number; approximate?: boolean }];
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
@@ -65,17 +55,15 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle REQ. Start a subscription. */
-  async function handleReq([_, subId, ...rest]: NostrClientREQ): Promise<void> {
-    const filters = prepareFilters(rest);
-
+  async function handleReq([_, subId, ...filters]: NostrClientREQ): Promise<void> {
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
 
-    const db = await Storages.db();
+    const store = await Storages.db();
     const pubsub = await Storages.pubsub();
 
-    for (const event of await db.query(filters, { limit: FILTER_LIMIT })) {
+    for (const event of await store.query(filters, { limit: FILTER_LIMIT })) {
       send(['EVENT', subId, event]);
     }
 
@@ -118,28 +106,18 @@ function connectStream(socket: WebSocket) {
   }
 
   /** Handle COUNT. Return the number of events matching the filters. */
-  async function handleCount([_, subId, ...rest]: NostrClientCOUNT): Promise<void> {
+  async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     const store = await Storages.db();
-    const { count } = await store.count(prepareFilters(rest));
+    const { count } = await store.count(filters);
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
   /** Send a message back to the client. */
-  function send(msg: RelayMsg): void {
+  function send(msg: NostrRelayMsg): void {
     if (socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify(msg));
     }
   }
-}
-
-/** Enforce the filters with certain criteria. */
-function prepareFilters(filters: NostrClientREQ[2][]): NostrFilter[] {
-  return filters.map((filter) => {
-    const narrow = Boolean(filter.ids?.length || filter.authors?.length);
-    const search = narrow ? filter.search : `domain:${Conf.url.host} ${filter.search ?? ''}`;
-    // Return only local events unless the query is already narrow.
-    return { ...filter, search };
-  });
 }
 
 const relayController: AppController = (c, next) => {
