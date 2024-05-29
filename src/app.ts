@@ -129,7 +129,7 @@ app.get('/relay', relayController);
 app.use(
   '*',
   cspMiddleware(),
-  cors({ origin: '*', exposeHeaders: ['link'] }),
+  cors({ origin: '*', exposeHeaders: ['link', 'Ln-Invoice'] }),
   signerMiddleware,
   uploaderMiddleware,
   auth98Middleware(),
