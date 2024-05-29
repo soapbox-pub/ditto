@@ -7,7 +7,7 @@ export class ReadOnlySigner implements NostrSigner {
 
   async signEvent(): Promise<NostrEvent> {
     throw new HTTPException(401, {
-      message: "Can't sign events with just an npub",
+      message: 'Log out and back in',
     });
   }
 
