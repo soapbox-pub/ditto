@@ -2,7 +2,7 @@ export interface DittoTables {
   nostr_events: EventRow;
   nostr_tags: TagRow;
   nostr_fts5: EventFTSRow;
-  connections: ConnectionRow;
+  nip46_tokens: NIP46TokenRow;
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
@@ -45,7 +45,7 @@ interface TagRow {
   value: string;
 }
 
-interface ConnectionRow {
+interface NIP46TokenRow {
   api_token: string;
   user_pubkey: string;
   server_seckey: Uint8Array;

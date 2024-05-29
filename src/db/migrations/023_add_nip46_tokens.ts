@@ -2,7 +2,7 @@ import { Kysely, sql } from 'kysely';
 
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
-    .createTable('connections')
+    .createTable('nip46_tokens')
     .addColumn('api_token', 'text', (col) => col.primaryKey().unique().notNull())
     .addColumn('user_pubkey', 'text', (col) => col.notNull())
     .addColumn('server_seckey', 'bytea', (col) => col.notNull())
@@ -13,5 +13,5 @@ export async function up(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable('connections').execute();
+  await db.schema.dropTable('nip46_tokens').execute();
 }

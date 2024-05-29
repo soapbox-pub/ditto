@@ -25,7 +25,7 @@ const credentialsGrantSchema = z.object({
 });
 
 const nostrGrantSchema = z.object({
-  grant_type: z.literal('nostr'),
+  grant_type: z.literal('nostr_bunker'),
   pubkey: n.id(),
   relays: z.string().url().array().optional(),
   secret: z.string().optional(),
@@ -47,7 +47,7 @@ const createTokenController: AppController = async (c) => {
   }
 
   switch (result.data.grant_type) {
-    case 'nostr':
+    case 'nostr_bunker':
       return c.json({
         access_token: await getToken(result.data),
         token_type: 'Bearer',
@@ -90,13 +90,13 @@ async function getToken(
   const signer = new NConnectSigner({
     pubkey,
     signer: new NSecSigner(serverSeckey),
-    relay: await Storages.pubsub(),
+    relay: await Storages.pubsub(), // TODO: Use the relays from the request.
     timeout: 60_000,
   });
 
   await signer.connect(secret);
 
-  await kysely.insertInto('connections').values({
+  await kysely.insertInto('nip46_tokens').values({
     api_token: token,
     user_pubkey: pubkey,
     server_seckey: serverSeckey,

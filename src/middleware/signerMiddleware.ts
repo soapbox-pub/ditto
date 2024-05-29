@@ -23,7 +23,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
         const kysely = await DittoDB.getInstance();
 
         const { user_pubkey, server_seckey, relays } = await kysely
-          .selectFrom('connections')
+          .selectFrom('nip46_tokens')
           .select(['user_pubkey', 'server_seckey', 'relays'])
           .where('api_token', '=', bech32)
           .executeTakeFirstOrThrow();
