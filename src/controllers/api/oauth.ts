@@ -1,12 +1,14 @@
-import { encodeBase64 } from '@std/encoding/base64';
+import { NConnectSigner, NSchema as n, NSecSigner } from '@nostrify/nostrify';
+import { bech32 } from '@scure/base';
 import { escape } from 'entities';
-import { nip19 } from 'nostr-tools';
+import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
-import { getClientConnectUri } from '@/utils/connect.ts';
+import { Storages } from '@/storages.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -22,10 +24,18 @@ const credentialsGrantSchema = z.object({
   grant_type: z.literal('client_credentials'),
 });
 
+const nostrGrantSchema = z.object({
+  grant_type: z.literal('nostr_bunker'),
+  pubkey: n.id(),
+  relays: z.string().url().array().optional(),
+  secret: z.string().optional(),
+});
+
 const createTokenSchema = z.discriminatedUnion('grant_type', [
   passwordGrantSchema,
   codeGrantSchema,
   credentialsGrantSchema,
+  nostrGrantSchema,
 ]);
 
 const createTokenController: AppController = async (c) => {
@@ -37,6 +47,13 @@ const createTokenController: AppController = async (c) => {
   }
 
   switch (result.data.grant_type) {
+    case 'nostr_bunker':
+      return c.json({
+        access_token: await getToken(result.data),
+        token_type: 'Bearer',
+        scope: 'read write follow push',
+        created_at: nostrNow(),
+      });
     case 'password':
       return c.json({
         access_token: result.data.password,
@@ -61,50 +78,63 @@ const createTokenController: AppController = async (c) => {
   }
 };
 
+async function getToken(
+  { pubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
+): Promise<`token1${string}`> {
+  const kysely = await DittoDB.getInstance();
+  const token = generateToken();
+
+  const serverSeckey = generateSecretKey();
+  const serverPubkey = getPublicKey(serverSeckey);
+
+  const signer = new NConnectSigner({
+    pubkey,
+    signer: new NSecSigner(serverSeckey),
+    relay: await Storages.pubsub(), // TODO: Use the relays from the request.
+    timeout: 60_000,
+  });
+
+  await signer.connect(secret);
+
+  await kysely.insertInto('nip46_tokens').values({
+    api_token: token,
+    user_pubkey: pubkey,
+    server_seckey: serverSeckey,
+    server_pubkey: serverPubkey,
+    relays: JSON.stringify(relays),
+    connected_at: new Date(),
+  }).execute();
+
+  return token;
+}
+
+/** Generate a bech32 token for the API. */
+function generateToken(): `token1${string}` {
+  const words = bech32.toWords(generateSecretKey());
+  return bech32.encode('token', words);
+}
+
 /** Display the OAuth form. */
-const oauthController: AppController = async (c) => {
+const oauthController: AppController = (c) => {
   const encodedUri = c.req.query('redirect_uri');
   if (!encodedUri) {
     return c.text('Missing `redirect_uri` query param.', 422);
   }
 
   const redirectUri = maybeDecodeUri(encodedUri);
-  const connectUri = await getClientConnectUri(c.req.raw.signal);
-
-  const script = `
-      window.addEventListener('load', function() {
-        if ('nostr' in window) {
-          nostr.getPublicKey().then(function(pubkey) {
-            document.getElementById('pubkey').value = pubkey;
-            document.getElementById('oauth_form').submit();
-          });
-        }
-      });
-    `;
-
-  const hash = encodeBase64(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(script)));
-
-  c.res.headers.set(
-    'content-security-policy',
-    `default-src 'self' 'sha256-${hash}'`,
-  );
 
   return c.html(`<!DOCTYPE html>
 <html lang="en">
   <head>
     <title>Log in with Ditto</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <script>${script}</script>
   </head>
   <body>
     <form id="oauth_form" action="/oauth/authorize" method="post">
-      <input type="text" placeholder="npub1... or nsec1..." name="nip19" autocomplete="off">
-      <input type="hidden" name="pubkey" id="pubkey" value="">
+      <input type="text" placeholder="bunker://..." name="bunker_uri" autocomplete="off" required>
       <input type="hidden" name="redirect_uri" id="redirect_uri" value="${escape(redirectUri)}">
       <button type="submit">Authorize</button>
     </form>
-    <br>
-    <a href="${escape(connectUri)}">Nostr Connect</a>
   </body>
 </html>
 `);
@@ -125,16 +155,8 @@ function maybeDecodeUri(uri: string): string {
 
 /** Schema for FormData POSTed to the OAuthController. */
 const oauthAuthorizeSchema = z.object({
-  pubkey: z.string().regex(/^[0-9a-f]{64}$/).optional().catch(undefined),
-  nip19: z.string().regex(new RegExp(`^${nip19.BECH32_REGEX.source}$`)).optional().catch(undefined),
+  bunker_uri: z.string().url().refine((v) => v.startsWith('bunker://')),
   redirect_uri: z.string().url(),
-}).superRefine((data, ctx) => {
-  if (!data.pubkey && !data.nip19) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Missing `pubkey` or `nip19`.',
-    });
-  }
 });
 
 /** Controller the OAuth form is POSTed to. */
@@ -147,18 +169,19 @@ const oauthAuthorizeController: AppController = async (c) => {
   }
 
   // Parsed FormData values.
-  const { pubkey, nip19: nip19id, redirect_uri: redirectUri } = result.data;
+  const { bunker_uri, redirect_uri: redirectUri } = result.data;
 
-  if (pubkey) {
-    const encoded = nip19.npubEncode(pubkey!);
-    const url = addCodeToRedirectUri(redirectUri, encoded);
-    return c.redirect(url);
-  } else if (nip19id) {
-    const url = addCodeToRedirectUri(redirectUri, nip19id);
-    return c.redirect(url);
-  }
+  const bunker = new URL(bunker_uri);
 
-  return c.text('The Nostr ID was not provided or invalid.', 422);
+  const token = await getToken({
+    pubkey: bunker.hostname,
+    secret: bunker.searchParams.get('secret') || undefined,
+    relays: bunker.searchParams.getAll('relay'),
+  });
+
+  const url = addCodeToRedirectUri(redirectUri, token);
+
+  return c.redirect(url);
 };
 
 /** Append the given `code` as a query param to the `redirect_uri`. */
