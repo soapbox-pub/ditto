@@ -115,6 +115,11 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
 
+  // Integer max value for Postgres. TODO: switch to a bigint in 2038.
+  if (event.created_at >= 2_147_483_647) {
+    throw new RelayError('blocked', 'event too far in the future');
+  }
+
   await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
 }
