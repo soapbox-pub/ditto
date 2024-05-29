@@ -13,7 +13,7 @@ import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts'
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
+import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
@@ -470,7 +470,7 @@ const zapController: AppController = async (c) => {
 
     return c.json(status, {
       headers: {
-        'Ln-Invoice': await getInvoice({ amount, nostr, lnurl }, signal),
+        'Ln-Invoice': await getInvoice({ amount, nostr: purifyEvent(nostr), lnurl }, signal),
       },
     });
   } else {
