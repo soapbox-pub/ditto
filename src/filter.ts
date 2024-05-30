@@ -1,6 +1,5 @@
-import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import stringifyStable from 'fast-stable-stringify';
-import { getFilterLimit } from 'nostr-tools';
 import { z } from 'zod';
 
 /** Microfilter to get one specific event by ID. */
@@ -63,6 +62,25 @@ function normalizeFilters<F extends NostrFilter>(filters: F[]): F[] {
     }
     return acc;
   }, []);
+}
+
+/** Calculate the intrinsic limit of a filter. This function may return `Infinity`. */
+function getFilterLimit(filter: NostrFilter): number {
+  if (filter.ids && !filter.ids.length) return 0;
+  if (filter.kinds && !filter.kinds.length) return 0;
+  if (filter.authors && !filter.authors.length) return 0;
+
+  for (const [key, value] of Object.entries(filter)) {
+    if (key[0] === '#' && Array.isArray(value) && !value.length) return 0;
+  }
+
+  return Math.min(
+    Math.max(0, filter.limit ?? Infinity),
+    filter.ids?.length ?? Infinity,
+    filter.authors?.length && filter.kinds?.every((kind) => NKinds.replaceable(kind))
+      ? filter.authors.length * filter.kinds.length
+      : Infinity,
+  );
 }
 
 export {
