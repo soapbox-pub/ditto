@@ -156,7 +156,7 @@ const createStatusController: AppController = async (c) => {
     .filter((url): url is string => Boolean(url));
 
   const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';
-  const mediaCompat: string = mediaUrls.length ? ['', '', ...mediaUrls].join('\n') : '';
+  const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
   const event = await createEvent({
     kind: 1,
