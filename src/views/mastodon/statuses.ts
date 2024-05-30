@@ -138,6 +138,8 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
 
   return {
     ...status,
+    in_reply_to_id: null,
+    in_reply_to_account_id: null,
     reblog,
   };
 }
