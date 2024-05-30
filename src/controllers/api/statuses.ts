@@ -21,7 +21,7 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 
 const createStatusSchema = z.object({
-  in_reply_to_id: z.string().regex(/[0-9a-f]{64}/).nullish(),
+  in_reply_to_id: n.id().nullish(),
   language: z.string().refine(ISO6391.validate).nullish(),
   media_ids: z.string().array().nullish(),
   poll: z.object({
@@ -36,7 +36,7 @@ const createStatusSchema = z.object({
   status: z.string().nullish(),
   to: z.string().array().nullish(),
   visibility: z.enum(['public', 'unlisted', 'private', 'direct']).nullish(),
-  quote_id: z.string().nullish(),
+  quote_id: n.id().nullish(),
 }).refine(
   (data) => Boolean(data.status || data.media_ids?.length),
   { message: 'Status must contain text or media.' },
@@ -155,11 +155,12 @@ const createStatusController: AppController = async (c) => {
     .map(({ data }) => data.find(([name]) => name === 'url')?.[1])
     .filter((url): url is string => Boolean(url));
 
+  const quoteCompat = data.quote_id ? `\n\n${nip19.noteEncode(data.quote_id)}` : '';
   const mediaCompat: string = mediaUrls.length ? ['', '', ...mediaUrls].join('\n') : '';
 
   const event = await createEvent({
     kind: 1,
-    content: content + mediaCompat,
+    content: content + quoteCompat + mediaCompat,
     tags,
   }, c);
 
