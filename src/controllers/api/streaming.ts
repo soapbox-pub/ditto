@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { DittoDB } from '@/db/DittoDB.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -34,7 +35,7 @@ const streamSchema = z.enum([
 
 type Stream = z.infer<typeof streamSchema>;
 
-const streamingController: AppController = (c) => {
+const streamingController: AppController = async (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -44,7 +45,7 @@ const streamingController: AppController = (c) => {
     return c.text('Please use websocket protocol', 400);
   }
 
-  const pubkey = token ? bech32ToPubkey(token) : undefined;
+  const pubkey = token ? await getTokenPubkey(token) : undefined;
   if (token && !pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
   }
@@ -140,6 +141,22 @@ async function topicToFilter(
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
       return pubkey ? { kinds: [1, 6], authors: await getFeedPubkeys(pubkey) } : undefined;
+  }
+}
+
+async function getTokenPubkey(token: string): Promise<string | undefined> {
+  if (token.startsWith('token1')) {
+    const kysely = await DittoDB.getInstance();
+
+    const { user_pubkey } = await kysely
+      .selectFrom('nip46_tokens')
+      .select(['user_pubkey', 'server_seckey', 'relays'])
+      .where('api_token', '=', token)
+      .executeTakeFirstOrThrow();
+
+    return user_pubkey;
+  } else {
+    return bech32ToPubkey(token);
   }
 }
 
