@@ -46,7 +46,7 @@ interface ParsedNoteContent {
 /** Convert Nostr content to Mastodon API HTML. Also return parsed data. */
 function parseNoteContent(content: string): ParsedNoteContent {
   // Parsing twice is ineffecient, but I don't know how to do only once.
-  const html = linkifyStr(content, linkifyOpts);
+  const html = linkifyStr(content, linkifyOpts).replace(/\n+$/, '');
   const links = linkify.find(content).filter(isLinkURL);
   const firstUrl = links.find(isNonMediaLink)?.href;
 
