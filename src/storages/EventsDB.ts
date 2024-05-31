@@ -93,6 +93,20 @@ class EventsDB implements NStore {
   async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
 
+    for (const filter of filters) {
+      if (filter.since && filter.since >= 2_147_483_647) {
+        throw new Error('since filter too far into the future');
+      }
+      if (filter.until && filter.until >= 2_147_483_647) {
+        throw new Error('until filter too far into the future');
+      }
+      for (const kind of filter.kinds ?? []) {
+        if (kind >= 2_147_483_647) {
+          throw new Error('kind filter too far into the future');
+        }
+      }
+    }
+
     if (opts.signal?.aborted) return Promise.resolve([]);
     if (!filters.length) return Promise.resolve([]);
 
