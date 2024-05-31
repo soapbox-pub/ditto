@@ -1,6 +1,6 @@
 import 'deno-safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
-import { ReadOnlyPolicy } from '@nostrify/nostrify/policies';
+import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/nostrify/policies';
 import * as Comlink from 'comlink';
 
 export class CustomPolicy implements NPolicy {
@@ -12,8 +12,15 @@ export class CustomPolicy implements NPolicy {
   }
 
   async import(path: string): Promise<void> {
-    const Policy = (await import(path)).default;
-    this.policy = new Policy();
+    try {
+      const Policy = (await import(path)).default;
+      this.policy = new Policy();
+    } catch (e) {
+      if (e.message.includes('Module not found')) {
+        this.policy = new NoOpPolicy();
+      }
+      throw e;
+    }
   }
 }
 
