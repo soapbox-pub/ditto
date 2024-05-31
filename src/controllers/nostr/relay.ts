@@ -63,8 +63,14 @@ function connectStream(socket: WebSocket) {
     const store = await Storages.db();
     const pubsub = await Storages.pubsub();
 
-    for (const event of await store.query(filters, { limit: FILTER_LIMIT })) {
-      send(['EVENT', subId, event]);
+    try {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT })) {
+        send(['EVENT', subId, event]);
+      }
+    } catch (e) {
+      send(['CLOSED', subId, e.message]);
+      controllers.delete(subId);
+      return;
     }
 
     send(['EOSE', subId]);
