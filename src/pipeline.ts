@@ -1,4 +1,4 @@
-import { NKinds, NostrEvent, NPolicy, NSchema as n } from '@nostrify/nostrify';
+import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
@@ -55,24 +55,10 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 async function policyFilter(event: NostrEvent): Promise<void> {
   const debug = Debug('ditto:policy');
 
-  const policies: NPolicy[] = [
+  const policy = new PipePolicy([
     new MuteListPolicy(Conf.pubkey, await Storages.admin()),
-  ];
-
-  try {
-    await policyWorker.import(Conf.policy);
-    policies.push(policyWorker);
-    debug(`Using custom policy: ${Conf.policy}`);
-  } catch (e) {
-    if (e.message.includes('Module not found')) {
-      debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
-    } else {
-      console.error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);
-      throw new RelayError('blocked', 'policy could not be loaded');
-    }
-  }
-
-  const policy = new PipePolicy(policies.reverse());
+    policyWorker,
+  ]);
 
   try {
     const result = await policy.call(event);

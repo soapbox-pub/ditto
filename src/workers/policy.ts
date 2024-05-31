@@ -1,7 +1,10 @@
+import { Stickynotes } from '@soapbox/stickynotes';
 import * as Comlink from 'comlink';
 
 import { Conf } from '@/config.ts';
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
+
+const console = new Stickynotes('ditto:policy');
 
 export const policyWorker = Comlink.wrap<CustomPolicy>(
   new Worker(
@@ -19,3 +22,14 @@ export const policyWorker = Comlink.wrap<CustomPolicy>(
     },
   ),
 );
+
+try {
+  await policyWorker.import(Conf.policy);
+  console.debug(`Using custom policy: ${Conf.policy}`);
+} catch (e) {
+  if (e.message.includes('Module not found')) {
+    console.debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
+  } else {
+    throw new Error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);
+  }
+}
