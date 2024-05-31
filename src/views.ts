@@ -44,7 +44,7 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
 
 async function renderAccounts(c: AppContext, pubkeys: string[]) {
   const { offset, limit } = listPaginationSchema.parse(c.req.query());
-  const authors = pubkeys.slice(offset, offset + limit);
+  const authors = pubkeys.reverse().slice(offset, offset + limit);
 
   const store = await Storages.db();
   const signal = c.req.raw.signal;
