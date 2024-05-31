@@ -32,6 +32,9 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (event.created_at >= 2_147_483_647) {
     throw new RelayError('blocked', 'event too far in the future');
   }
+  if (event.kind >= 2_147_483_647) {
+    throw new RelayError('blocked', 'event kind too large');
+  }
   if (!(await verifyEventWorker(event))) return;
   if (encounterEvent(event)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
