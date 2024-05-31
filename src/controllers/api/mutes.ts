@@ -16,7 +16,7 @@ const mutesController: AppController = async (c) => {
 
   if (event10000) {
     const pubkeys = getTagSet(event10000.tags, 'p');
-    return renderAccounts(c, [...pubkeys].reverse());
+    return renderAccounts(c, [...pubkeys]);
   } else {
     return c.json([]);
   }
