@@ -138,8 +138,8 @@ async function parseBody(req: Request): Promise<unknown> {
 
 /** Schema to parse pagination query params. */
 const paginationSchema = z.object({
-  since: z.coerce.number().optional().catch(undefined),
-  until: z.coerce.number().optional().catch(undefined),
+  since: z.coerce.number().nonnegative().optional().catch(undefined),
+  until: z.coerce.number().nonnegative().optional().catch(undefined),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
@@ -169,6 +169,47 @@ type HeaderRecord = Record<string, string | string[]>;
 /** Return results with pagination headers. Assumes chronological sorting of events. */
 function paginated(c: AppContext, events: NostrEvent[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
   const link = buildLinkHeader(c.req.url, events);
+
+  if (link) {
+    headers.link = link;
+  }
+
+  // Filter out undefined entities.
+  const results = entities.filter((entity): entity is Entity => Boolean(entity));
+  return c.json(results, 200, headers);
+}
+
+/** Query params for paginating a list. */
+const listPaginationSchema = z.object({
+  offset: z.coerce.number().nonnegative().catch(0),
+  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+});
+
+/** Build HTTP Link header for paginating Nostr lists. */
+function buildListLinkHeader(url: string, params: { offset: number; limit: number }): string | undefined {
+  const { origin } = Conf.url;
+  const { pathname, search } = new URL(url);
+  const { offset, limit } = params;
+  const next = new URL(pathname + search, origin);
+  const prev = new URL(pathname + search, origin);
+
+  next.searchParams.set('offset', String(offset + limit));
+  prev.searchParams.set('offset', String(Math.max(offset - limit, 0)));
+
+  next.searchParams.set('limit', String(limit));
+  prev.searchParams.set('limit', String(limit));
+
+  return `<${next}>; rel="next", <${prev}>; rel="prev"`;
+}
+
+/** paginate a list of tags. */
+function paginatedList(
+  c: AppContext,
+  params: { offset: number; limit: number },
+  entities: (Entity | undefined)[],
+  headers: HeaderRecord = {},
+) {
+  const link = buildListLinkHeader(c.req.url, params);
 
   if (link) {
     headers.link = link;
@@ -209,8 +250,10 @@ export {
   createAdminEvent,
   createEvent,
   type EventStub,
+  listPaginationSchema,
   localRequest,
   paginated,
+  paginatedList,
   type PaginationParams,
   paginationSchema,
   parseBody,

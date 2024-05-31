@@ -4,7 +4,7 @@ import { AppContext } from '@/app.ts';
 import { Storages } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { paginated, paginationSchema } from '@/utils/api.ts';
+import { listPaginationSchema, paginated, paginatedList, paginationSchema } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 
@@ -42,12 +42,14 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
   return paginated(c, events, accounts);
 }
 
-async function renderAccounts(c: AppContext, authors: string[], signal = AbortSignal.timeout(1000)) {
-  const { since, until, limit } = paginationSchema.parse(c.req.query());
+async function renderAccounts(c: AppContext, pubkeys: string[]) {
+  const { offset, limit } = listPaginationSchema.parse(c.req.query());
+  const authors = pubkeys.slice(offset, offset + limit);
 
   const store = await Storages.db();
+  const signal = c.req.raw.signal;
 
-  const events = await store.query([{ kinds: [0], authors, since, until, limit }], { signal })
+  const events = await store.query([{ kinds: [0], authors }], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
@@ -61,7 +63,7 @@ async function renderAccounts(c: AppContext, authors: string[], signal = AbortSi
     }),
   );
 
-  return paginated(c, events, accounts);
+  return paginatedList(c, { offset, limit }, accounts);
 }
 
 /** Render statuses by event IDs. */
