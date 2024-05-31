@@ -210,9 +210,10 @@ function paginatedList(
   headers: HeaderRecord = {},
 ) {
   const link = buildListLinkHeader(c.req.url, params);
+  const hasMore = entities.length > 0;
 
   if (link) {
-    headers.link = link;
+    headers.link = hasMore ? link : link.split(', ').find((link) => link.endsWith('; rel="prev"'))!;
   }
 
   // Filter out undefined entities.
