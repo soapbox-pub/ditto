@@ -74,7 +74,7 @@ export class DVM {
       kind: 1985,
       tags: [
         ['L', 'nip05'],
-        ['l', nip05],
+        ['l', nip05, 'nip05'],
         ['p', pubkey],
       ],
       content: '',
