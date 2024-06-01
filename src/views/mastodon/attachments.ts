@@ -16,7 +16,7 @@ function renderAttachment(media: { id?: string; data: string[][] }) {
 
   const [width, height] = dim?.split('x').map(Number) ?? [null, null];
 
-  const meta = (typeof width === 'number' && typeof height === 'number')
+  const meta = (width && height)
     ? {
       original: {
         width,
