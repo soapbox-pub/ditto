@@ -99,10 +99,9 @@ const accountLookupController: AppController = async (c) => {
     return c.json(await renderAccount(event));
   }
   try {
-    const pubkey = bech32ToPubkey(decodeURIComponent(acct)) as string;
-    return c.json(await accountFromPubkey(pubkey));
-  } catch (e) {
-    console.log(e);
+    const pubkey = bech32ToPubkey(decodeURIComponent(acct));
+    return c.json(await accountFromPubkey(pubkey!));
+  } catch {
     return c.json({ error: 'Could not find user.' }, 404);
   }
 };
