@@ -31,13 +31,7 @@ async function renderAccount(
     website,
   } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
-  let npub: string;
-  try {
-    npub = nip19.npubEncode(pubkey);
-  } catch {
-    return;
-  }
-
+  const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
   const role = event.user?.tags.find(([name]) => name === 'role')?.[1] ?? 'user';
 
