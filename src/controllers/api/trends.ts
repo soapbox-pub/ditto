@@ -21,12 +21,13 @@ Deno.cron('update trends cache', { minute: { every: 15 } }, async () => {
 
 const trendingTagsQuerySchema = z.object({
   limit: z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20)),
+  offset: z.number().nonnegative().catch(0),
 });
 
 const trendingTagsController: AppController = async (c) => {
-  const { limit } = trendingTagsQuerySchema.parse(c.req.query());
+  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
   const trends = await trendingHashtagsCache;
-  return c.json(trends.slice(0, limit));
+  return c.json(trends.slice(offset, offset + limit));
 };
 
 async function getTrendingHashtags() {
@@ -70,11 +71,12 @@ async function getTrendingHashtags() {
 
 const trendingStatusesQuerySchema = z.object({
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+  offset: z.number().nonnegative().catch(0),
 });
 
 const trendingStatusesController: AppController = async (c) => {
   const store = await Storages.db();
-  const { limit } = trendingStatusesQuerySchema.parse(c.req.query());
+  const { limit, offset } = trendingStatusesQuerySchema.parse(c.req.query());
 
   const [label] = await store.query([{
     kinds: [1985],
@@ -87,7 +89,7 @@ const trendingStatusesController: AppController = async (c) => {
   const ids = (label?.tags ?? [])
     .filter(([name]) => name === 'e')
     .map(([, id]) => id)
-    .slice(0, limit);
+    .slice(offset, offset + limit);
 
   if (!ids.length) {
     return c.json([]);
