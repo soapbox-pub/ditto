@@ -10,8 +10,8 @@ import { Time } from '@/utils/time.ts';
 
 const console = new Stickynotes('ditto:trends');
 
-async function updateTrendingNotesCache() {
-  console.info('Updating trending notes cache...');
+async function updateTrendingNotes() {
+  console.info('Updating trending notes...');
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
@@ -39,11 +39,11 @@ async function updateTrendingNotesCache() {
   });
 
   await handleEvent(label, signal);
-  console.info('Trending notes cache updated.');
+  console.info('Trending notes updated.');
 }
 
-async function updateTrendingHashtagsCache() {
-  console.info('Updating trending hashtags cache...');
+async function updateTrendingHashtags() {
+  console.info('Updating trending hashtags...');
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
@@ -70,11 +70,11 @@ async function updateTrendingHashtagsCache() {
   });
 
   await handleEvent(label, signal);
-  console.info('Trending hashtags cache updated.');
+  console.info('Trending hashtags updated.');
 }
 
-async function updateTrendingLinksCache() {
-  console.info('Updating trending links cache...');
+async function updateTrendingLinks() {
+  console.info('Updating trending links...');
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
@@ -101,12 +101,12 @@ async function updateTrendingLinksCache() {
   });
 
   await handleEvent(label, signal);
-  console.info('Trending links cache updated.');
+  console.info('Trending links updated.');
 }
 
 /** Start cron jobs for the application. */
 export function cron() {
-  Deno.cron('update trending notes cache', '15 * * * *', updateTrendingNotesCache);
-  Deno.cron('update trending hashtags cache', '30 * * * *', updateTrendingHashtagsCache);
-  Deno.cron('update trending links cache', '45 * * * *', updateTrendingLinksCache);
+  Deno.cron('update trending notes', '15 * * * *', updateTrendingNotes);
+  Deno.cron('update trending hashtags', '30 * * * *', updateTrendingHashtags);
+  Deno.cron('update trending links', '45 * * * *', updateTrendingLinks);
 }
