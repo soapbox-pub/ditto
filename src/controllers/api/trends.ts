@@ -68,7 +68,7 @@ async function getTrendingHashtags() {
         return label.created_at >= since && label.created_at < until;
       });
 
-      const [, , accounts, uses] = label?.tags.find(([name, value]) => name === 't' && value === hashtag) ?? [];
+      const [, , , accounts, uses] = label?.tags.find(([name, value]) => name === 't' && value === hashtag) ?? [];
 
       return {
         day: String(date.getTime() / 1000),
@@ -97,7 +97,7 @@ const trendingStatusesController: AppController = async (c) => {
   const [label] = await store.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
-    '#l': ['notes'],
+    '#l': ['#e'],
     authors: [Conf.pubkey],
     limit: 1,
   }]);

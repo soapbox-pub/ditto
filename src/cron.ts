@@ -32,7 +32,7 @@ async function updateTrendingNotes() {
     content: '',
     tags: [
       ['L', 'pub.ditto.trends'],
-      ['l', 'notes', 'pub.ditto.trends'],
+      ['l', '#e', 'pub.ditto.trends'],
       ...events.map(({ id }) => ['e', id, Conf.relay]),
     ],
     created_at: Math.floor(Date.now() / 1000),
@@ -64,7 +64,7 @@ async function updateTrendingHashtags() {
     tags: [
       ['L', 'pub.ditto.trends'],
       ['l', '#t', 'pub.ditto.trends'],
-      ...hashtags.map(({ value, authors, uses }) => ['t', value, authors.toString(), uses.toString()]),
+      ...hashtags.map(({ value, authors, uses }) => ['t', '', value, authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
@@ -95,7 +95,7 @@ async function updateTrendingLinks() {
     tags: [
       ['L', 'pub.ditto.trends'],
       ['l', '#r', 'pub.ditto.trends'],
-      ...links.map(({ value, authors, uses }) => ['r', value, authors.toString(), uses.toString()]),
+      ...links.map(({ value, authors, uses }) => ['r', '', value, authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
