@@ -17,6 +17,24 @@ Deno.test('updateStats with kind 1 increments notes count', async () => {
   assertEquals(stats!.notes_count, 1);
 });
 
+Deno.test('updateStats with kind 1 increments replies count', async () => {
+  await using db = await getTestDB();
+
+  const sk = generateSecretKey();
+
+  const note = genEvent({ kind: 1 }, sk);
+  await updateStats({ ...db, event: note });
+  await db.store.event(note);
+
+  const reply = genEvent({ kind: 1, tags: [['e', note.id]] }, sk);
+  await updateStats({ ...db, event: reply });
+  await db.store.event(reply);
+
+  const stats = await getEventStats(db.kysely, note.id);
+
+  assertEquals(stats!.replies_count, 1);
+});
+
 Deno.test('updateStats with kind 5 decrements notes count', async () => {
   await using db = await getTestDB();
 
