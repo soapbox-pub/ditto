@@ -95,6 +95,10 @@ const trendingStatusesController: AppController = async (c) => {
   const events = await store.query([{ ids }])
     .then((events) => hydrateEvents({ events, store }));
 
+  // Sort events in the order they appear in the label.
+  const indexes = ids.reduce<Record<string, number>>((acc, id, index) => ({ ...acc, [id]: index }), {});
+  events.sort((a, b) => indexes[a.id] - indexes[b.id]);
+
   const statuses = await Promise.all(
     events.map((event) => renderStatus(event, {})),
   );
