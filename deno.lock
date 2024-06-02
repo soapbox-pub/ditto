@@ -6,7 +6,7 @@
       "jsr:@db/sqlite@^0.11.1": "jsr:@db/sqlite@0.11.1",
       "jsr:@denosaurs/plug@1": "jsr:@denosaurs/plug@1.0.6",
       "jsr:@gleasonator/policy": "jsr:@gleasonator/policy@0.2.0",
-      "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.4",
+      "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
@@ -107,6 +107,7 @@
         "integrity": "5b9c17325cc02e37c71e14ac0103b40446b0402fe183e5f5362af23e9ea162bf",
         "dependencies": [
           "jsr:@std/encoding@^0.224.1",
+          "npm:@scure/base@^1.1.6",
           "npm:@scure/bip32@^1.4.0",
           "npm:@scure/bip39@^1.3.0",
           "npm:kysely@^0.27.3",

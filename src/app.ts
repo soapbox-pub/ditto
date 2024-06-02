@@ -4,6 +4,7 @@ import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, t
 import { cors, logger, serveStatic } from 'hono/middleware';
 
 import { Conf } from '@/config.ts';
+import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils.ts';
 
@@ -113,6 +114,9 @@ const debug = Debug('ditto:http');
 
 if (Conf.firehoseEnabled) {
   startFirehose();
+}
+if (Conf.cronEnabled) {
+  cron();
 }
 
 app.use('/api/*', logger(debug));

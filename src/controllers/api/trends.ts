@@ -1,10 +1,8 @@
 import { NostrEvent } from '@nostrify/nostrify';
-import { sql } from 'kysely';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { Time } from '@/utils.ts';
@@ -70,13 +68,6 @@ async function getTrendingHashtags() {
   })));
 }
 
-let trendingNotesCache = getTrendingNotes();
-
-Deno.cron('update trending notes cache', { minute: { every: 15 } }, async () => {
-  const events = await getTrendingNotes();
-  trendingNotesCache = Promise.resolve(events);
-});
-
 const trendingStatusesQuerySchema = z.object({
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
@@ -85,9 +76,30 @@ const trendingStatusesController: AppController = async (c) => {
   const store = await Storages.db();
   const { limit } = trendingStatusesQuerySchema.parse(c.req.query());
 
-  const events = await trendingNotesCache
-    .then((events) => events.slice(0, limit))
+  const [label] = await store.query([{
+    kinds: [1985],
+    '#L': ['pub.ditto.trends'],
+    '#l': ['notes'],
+    authors: [Conf.pubkey],
+    limit: 1,
+  }]);
+
+  const ids = (label?.tags ?? [])
+    .filter(([name]) => name === 'e')
+    .map(([, id]) => id)
+    .slice(0, limit);
+
+  if (!ids.length) {
+    return c.json([]);
+  }
+
+  const results = await store.query([{ ids }])
     .then((events) => hydrateEvents({ events, store }));
+
+  // Sort events in the order they appear in the label.
+  const events = ids
+    .map((id) => results.find((event) => event.id === id))
+    .filter((event): event is NostrEvent => !!event);
 
   const statuses = await Promise.all(
     events.map((event) => renderStatus(event, {})),
@@ -95,28 +107,5 @@ const trendingStatusesController: AppController = async (c) => {
 
   return c.json(statuses.filter(Boolean));
 };
-
-async function getTrendingNotes(): Promise<NostrEvent[]> {
-  const kysely = await DittoDB.getInstance();
-  const since = Math.floor((Date.now() - Time.days(1)) / 1000);
-
-  const rows = await kysely
-    .selectFrom('nostr_events')
-    .selectAll('nostr_events')
-    .innerJoin('event_stats', 'event_stats.event_id', 'nostr_events.id')
-    .where('nostr_events.kind', '=', 1)
-    .where('nostr_events.created_at', '>', since)
-    .orderBy(
-      sql`(event_stats.reposts_count * 2) + (event_stats.replies_count) + (event_stats.reactions_count)`,
-      'desc',
-    )
-    .limit(20)
-    .execute();
-
-  return rows.map((row) => ({
-    ...row,
-    tags: JSON.parse(row.tags),
-  }));
-}
 
 export { trendingStatusesController, trendingTagsController };
