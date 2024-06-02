@@ -1,11 +1,11 @@
 import { Stickynotes } from '@soapbox/stickynotes';
 
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getTrendingEvents } from '@/trends/trending-events.ts';
-import { Time } from '@/utils/time.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { handleEvent } from '@/pipeline.ts';
-import { getTrendingHashtags } from '@/trends/trending-hashtags.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { getTrendingEvents } from '@/trends/trending-events.ts';
+import { getTrendingTagValues } from '@/trends/trending-tag-values.ts';
+import { Time } from '@/utils/time.ts';
 
 const console = new Stickynotes('ditto:trends');
 
@@ -44,10 +44,17 @@ async function updateTrendingNotesCache() {
 async function updateTrendingHashtagsCache() {
   console.info('Updating trending hashtags cache...');
   const kysely = await DittoDB.getInstance();
-  const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
   const signal = AbortSignal.timeout(1000);
 
-  const hashtags = await getTrendingHashtags(kysely, { since: yesterday, limit: 20, threshold: 3 });
+  const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
+  const now = Math.floor(Date.now() / 1000);
+
+  const hashtags = await getTrendingTagValues(kysely, 't', {
+    since: yesterday,
+    until: now,
+    limit: 20,
+  });
+
   const signer = new AdminSigner();
 
   const label = await signer.signEvent({
@@ -56,7 +63,7 @@ async function updateTrendingHashtagsCache() {
     tags: [
       ['L', 'pub.ditto.trends'],
       ['l', 'hashtags', 'pub.ditto.trends'],
-      ...hashtags.map(({ tag }) => ['t', tag]),
+      ...hashtags.map(({ value }) => ['t', value]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
