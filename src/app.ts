@@ -195,7 +195,7 @@ app.post('/api/v2/media', mediaController);
 app.get('/api/v1/timelines/home', requireSigner, homeTimelineController);
 app.get('/api/v1/timelines/public', publicTimelineController);
 app.get('/api/v1/timelines/tag/:hashtag', hashtagTimelineController);
-app.get('/api/v1/timeines/suggested', suggestedTimelineController);
+app.get('/api/v1/timelines/suggested', suggestedTimelineController);
 
 app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
