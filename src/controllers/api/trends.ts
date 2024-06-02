@@ -1,3 +1,4 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -92,12 +93,13 @@ const trendingStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await store.query([{ ids }])
+  const results = await store.query([{ ids }])
     .then((events) => hydrateEvents({ events, store }));
 
   // Sort events in the order they appear in the label.
-  const indexes = ids.reduce<Record<string, number>>((acc, id, index) => ({ ...acc, [id]: index }), {});
-  events.sort((a, b) => indexes[a.id] - indexes[b.id]);
+  const events = ids
+    .map((id) => results.find((event) => event.id === id))
+    .filter((event): event is NostrEvent => !!event);
 
   const statuses = await Promise.all(
     events.map((event) => renderStatus(event, {})),
