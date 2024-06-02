@@ -63,7 +63,7 @@ async function updateTrendingHashtags() {
     content: '',
     tags: [
       ['L', 'pub.ditto.trends'],
-      ['l', 'hashtags', 'pub.ditto.trends'],
+      ['l', '#t', 'pub.ditto.trends'],
       ...hashtags.map(({ value, authors, uses }) => ['t', value, authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
@@ -94,7 +94,7 @@ async function updateTrendingLinks() {
     content: '',
     tags: [
       ['L', 'pub.ditto.trends'],
-      ['l', 'links', 'pub.ditto.trends'],
+      ['l', '#r', 'pub.ditto.trends'],
       ...links.map(({ value, authors, uses }) => ['r', value, authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
