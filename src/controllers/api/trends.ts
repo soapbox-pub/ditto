@@ -5,12 +5,8 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { Time } from '@/utils.ts';
-import { stripTime } from '@/utils/time.ts';
+import { generateDateRange, Time } from '@/utils/time.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { TrendsWorker } from '@/workers/trends.ts';
-
-await TrendsWorker.open('data/trends.sqlite3');
 
 let trendingHashtagsCache = getTrendingHashtags();
 
@@ -31,42 +27,62 @@ const trendingTagsController: AppController = async (c) => {
 };
 
 async function getTrendingHashtags() {
+  const store = await Storages.db();
+
+  const [label] = await store.query([{
+    kinds: [1985],
+    '#L': ['pub.ditto.trends'],
+    '#l': ['#t'],
+    authors: [Conf.pubkey],
+    limit: 1,
+  }]);
+
+  if (!label) {
+    return [];
+  }
+
+  const tags = label.tags.filter(([name]) => name === 't');
+
   const now = new Date();
-  const yesterday = new Date(now.getTime() - Time.days(1));
   const lastWeek = new Date(now.getTime() - Time.days(7));
+  const dates = generateDateRange(lastWeek, now);
 
-  /** Most used hashtags within the past 24h. */
-  const tags = await TrendsWorker.getTrendingTags({
-    since: yesterday,
-    until: now,
-    limit: 20,
-  });
+  return Promise.all(tags.map(async ([_, hashtag]) => {
+    const filters = dates.map((date) => ({
+      kinds: [1985],
+      '#L': ['pub.ditto.trends'],
+      '#l': ['#t'],
+      '#t': [hashtag],
+      authors: [Conf.pubkey],
+      since: Math.floor(date.getTime() / 1000),
+      until: Math.floor((date.getTime() + Time.days(1)) / 1000),
+      limit: 1,
+    }));
 
-  return Promise.all(tags.map(async ({ tag, uses, accounts }) => ({
-    name: tag,
-    url: Conf.local(`/tags/${tag}`),
-    history: [
-      // Use the full 24h query for the current day. Then use `offset: 1` to adjust for this below.
-      // This result is more accurate than what Mastodon returns.
-      {
-        day: String(Math.floor(stripTime(now).getTime() / 1000)),
-        accounts: String(accounts),
-        uses: String(uses),
-      },
-      ...(await TrendsWorker.getTagHistory({
-        tag,
-        since: lastWeek,
-        until: now,
-        limit: 6,
-        offset: 1,
-      })).map((history) => ({
-        // For some reason, Mastodon wants these to be strings... oh well.
-        day: String(Math.floor(history.day.getTime() / 1000)),
-        accounts: String(history.accounts),
-        uses: String(history.uses),
-      })),
-    ],
-  })));
+    const labels = await store.query(filters);
+
+    const history = dates.map((date) => {
+      const label = labels.find((label) => {
+        const since = Math.floor(date.getTime() / 1000);
+        const until = Math.floor((date.getTime() + Time.days(1)) / 1000);
+        return label.created_at >= since && label.created_at < until;
+      });
+
+      const [, , accounts, uses] = label?.tags.find(([name, value]) => name === 't' && value === hashtag) ?? [];
+
+      return {
+        day: String(date.getTime() / 1000),
+        accounts: accounts || '0',
+        uses: uses || '0',
+      };
+    });
+
+    return {
+      name: hashtag,
+      url: Conf.local(`/tags/${hashtag}`),
+      history,
+    };
+  }));
 }
 
 const trendingStatusesQuerySchema = z.object({
