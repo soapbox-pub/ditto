@@ -1,7 +1,7 @@
 import { Stickynotes } from '@soapbox/stickynotes';
 
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getTrendingNotes } from '@/trends/trending-notes.ts';
+import { getTrendingEvents } from '@/trends/trending-events.ts';
 import { Time } from '@/utils/time.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { handleEvent } from '@/pipeline.ts';
@@ -12,10 +12,18 @@ const console = new Stickynotes('ditto:trends');
 async function updateTrendingNotesCache() {
   console.info('Updating trending notes cache...');
   const kysely = await DittoDB.getInstance();
-  const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
   const signal = AbortSignal.timeout(1000);
 
-  const events = await getTrendingNotes(kysely, yesterday, 20);
+  const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
+  const now = Math.floor(Date.now() / 1000);
+
+  const events = await getTrendingEvents(kysely, {
+    kinds: [1],
+    since: yesterday,
+    until: now,
+    limit: 20,
+  });
+
   const signer = new AdminSigner();
 
   const label = await signer.signEvent({
