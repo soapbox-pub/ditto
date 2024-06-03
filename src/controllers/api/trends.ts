@@ -1,20 +1,16 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
-import { type AppController } from '@/app.ts';
+import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { Time } from '@/utils.ts';
-import { stripTime } from '@/utils/time.ts';
+import { generateDateRange, Time } from '@/utils/time.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { TrendsWorker } from '@/workers/trends.ts';
-
-await TrendsWorker.open('data/trends.sqlite3');
 
 let trendingHashtagsCache = getTrendingHashtags();
 
-Deno.cron('update trends cache', { minute: { every: 15 } }, async () => {
+Deno.cron('update trending hashtags cache', { minute: { every: 15 } }, async () => {
   const trends = await getTrendingHashtags();
   trendingHashtagsCache = Promise.resolve(trends);
 });
@@ -31,42 +27,24 @@ const trendingTagsController: AppController = async (c) => {
 };
 
 async function getTrendingHashtags() {
-  const now = new Date();
-  const yesterday = new Date(now.getTime() - Time.days(1));
-  const lastWeek = new Date(now.getTime() - Time.days(7));
+  const store = await Storages.db();
+  const trends = await getTrendingTags(store, 't');
 
-  /** Most used hashtags within the past 24h. */
-  const tags = await TrendsWorker.getTrendingTags({
-    since: yesterday,
-    until: now,
-    limit: 20,
+  return trends.map((trend) => {
+    const hashtag = trend.value;
+
+    const history = trend.history.map(({ day, authors, uses }) => ({
+      day: String(day),
+      accounts: String(authors),
+      uses: String(uses),
+    }));
+
+    return {
+      name: hashtag,
+      url: Conf.local(`/tags/${hashtag}`),
+      history,
+    };
   });
-
-  return Promise.all(tags.map(async ({ tag, uses, accounts }) => ({
-    name: tag,
-    url: Conf.local(`/tags/${tag}`),
-    history: [
-      // Use the full 24h query for the current day. Then use `offset: 1` to adjust for this below.
-      // This result is more accurate than what Mastodon returns.
-      {
-        day: String(Math.floor(stripTime(now).getTime() / 1000)),
-        accounts: String(accounts),
-        uses: String(uses),
-      },
-      ...(await TrendsWorker.getTagHistory({
-        tag,
-        since: lastWeek,
-        until: now,
-        limit: 6,
-        offset: 1,
-      })).map((history) => ({
-        // For some reason, Mastodon wants these to be strings... oh well.
-        day: String(Math.floor(history.day.getTime() / 1000)),
-        accounts: String(history.accounts),
-        uses: String(history.uses),
-      })),
-    ],
-  })));
 }
 
 const trendingStatusesQuerySchema = z.object({
@@ -81,7 +59,7 @@ const trendingStatusesController: AppController = async (c) => {
   const [label] = await store.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
-    '#l': ['notes'],
+    '#l': ['#e'],
     authors: [Conf.pubkey],
     limit: 1,
   }]);
@@ -95,7 +73,7 @@ const trendingStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const results = await store.query([{ ids }])
+  const results = await store.query([{ kinds: [1], ids }])
     .then((events) => hydrateEvents({ events, store }));
 
   // Sort events in the order they appear in the label.
@@ -109,5 +87,70 @@ const trendingStatusesController: AppController = async (c) => {
 
   return c.json(statuses.filter(Boolean));
 };
+
+interface TrendingTag {
+  name: string;
+  value: string;
+  history: {
+    day: number;
+    authors: number;
+    uses: number;
+  }[];
+}
+
+export async function getTrendingTags(store: NStore, tagName: string): Promise<TrendingTag[]> {
+  const filter = {
+    kinds: [1985],
+    '#L': ['pub.ditto.trends'],
+    '#l': [`#${tagName}`],
+    authors: [Conf.pubkey],
+    limit: 1,
+  };
+
+  const [label] = await store.query([filter]);
+
+  if (!label) {
+    return [];
+  }
+
+  const tags = label.tags.filter(([name]) => name === tagName);
+
+  const now = new Date();
+  const lastWeek = new Date(now.getTime() - Time.days(7));
+  const dates = generateDateRange(lastWeek, now).reverse();
+
+  return Promise.all(tags.map(async ([_, value]) => {
+    const filters = dates.map((date) => ({
+      ...filter,
+      [`#${tagName}`]: [value],
+      since: Math.floor(date.getTime() / 1000),
+      until: Math.floor((date.getTime() + Time.days(1)) / 1000),
+    }));
+
+    const labels = await store.query(filters);
+
+    const history = dates.map((date) => {
+      const label = labels.find((label) => {
+        const since = Math.floor(date.getTime() / 1000);
+        const until = Math.floor((date.getTime() + Time.days(1)) / 1000);
+        return label.created_at >= since && label.created_at < until;
+      });
+
+      const [, , , accounts, uses] = label?.tags.find((tag) => tag[0] === tagName && tag[1] === value) ?? [];
+
+      return {
+        day: Math.floor(date.getTime() / 1000),
+        authors: Number(accounts || 0),
+        uses: Number(uses || 0),
+      };
+    });
+
+    return {
+      name: tagName,
+      value,
+      history,
+    };
+  }));
+}
 
 export { trendingStatusesController, trendingTagsController };
