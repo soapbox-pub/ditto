@@ -61,6 +61,10 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
   const ignored = follows.union(mutes);
   const pubkeys = suggested.union(trending).difference(ignored);
 
+  if (pubkey) {
+    pubkeys.delete(pubkey);
+  }
+
   const authors = [...pubkeys].slice(offset, offset + limit);
 
   const profiles = await store.query(
