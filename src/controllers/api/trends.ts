@@ -6,6 +6,7 @@ import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
+import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 let trendingHashtagsCache = getTrendingHashtags();
@@ -45,6 +46,54 @@ async function getTrendingHashtags() {
       history,
     };
   });
+}
+
+let trendingLinksCache = getTrendingLinks();
+
+Deno.cron('update trending links cache', { minute: { every: 15 } }, async () => {
+  const trends = await getTrendingLinks();
+  trendingLinksCache = Promise.resolve(trends);
+});
+
+const trendingLinksController: AppController = async (c) => {
+  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
+  const trends = await trendingLinksCache;
+  return c.json(trends.slice(offset, offset + limit));
+};
+
+async function getTrendingLinks() {
+  const store = await Storages.db();
+  const trends = await getTrendingTags(store, 'r');
+
+  return Promise.all(trends.map(async (trend) => {
+    const link = trend.value;
+    const card = await unfurlCardCached(link);
+
+    const history = trend.history.map(({ day, authors, uses }) => ({
+      day: String(day),
+      accounts: String(authors),
+      uses: String(uses),
+    }));
+
+    return {
+      url: link,
+      title: '',
+      description: '',
+      type: 'link',
+      author_name: '',
+      author_url: '',
+      provider_name: '',
+      provider_url: '',
+      html: '',
+      width: 0,
+      height: 0,
+      image: null,
+      embed_url: '',
+      blurhash: null,
+      ...card,
+      history,
+    };
+  }));
 }
 
 const trendingStatusesQuerySchema = z.object({
@@ -153,4 +202,4 @@ export async function getTrendingTags(store: NStore, tagName: string): Promise<T
   }));
 }
 
-export { trendingStatusesController, trendingTagsController };
+export { trendingLinksController, trendingStatusesController, trendingTagsController };
