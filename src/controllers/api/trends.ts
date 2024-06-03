@@ -117,7 +117,7 @@ export async function getTrendingTags(store: NStore, tagName: string): Promise<T
 
   const now = new Date();
   const lastWeek = new Date(now.getTime() - Time.days(7));
-  const dates = generateDateRange(lastWeek, now);
+  const dates = generateDateRange(lastWeek, now).reverse();
 
   return Promise.all(tags.map(async ([_, value]) => {
     const filters = dates.map((date) => ({
