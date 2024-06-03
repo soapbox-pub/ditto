@@ -25,6 +25,10 @@ async function updateTrendingNotes() {
     limit: 40,
   });
 
+  if (!events.length) {
+    return;
+  }
+
   const signer = new AdminSigner();
 
   const label = await signer.signEvent({
@@ -56,6 +60,10 @@ async function updateTrendingHashtags() {
     limit: 20,
   });
 
+  if (!hashtags.length) {
+    return;
+  }
+
   const signer = new AdminSigner();
 
   const label = await signer.signEvent({
@@ -64,7 +72,7 @@ async function updateTrendingHashtags() {
     tags: [
       ['L', 'pub.ditto.trends'],
       ['l', '#t', 'pub.ditto.trends'],
-      ...hashtags.map(({ value, authors, uses }) => ['t', '', value, authors.toString(), uses.toString()]),
+      ...hashtags.map(({ value, authors, uses }) => ['t', value, '', authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
@@ -87,6 +95,10 @@ async function updateTrendingLinks() {
     limit: 20,
   });
 
+  if (!links.length) {
+    return;
+  }
+
   const signer = new AdminSigner();
 
   const label = await signer.signEvent({
@@ -95,7 +107,7 @@ async function updateTrendingLinks() {
     tags: [
       ['L', 'pub.ditto.trends'],
       ['l', '#r', 'pub.ditto.trends'],
-      ...links.map(({ value, authors, uses }) => ['r', '', value, authors.toString(), uses.toString()]),
+      ...links.map(({ value, authors, uses }) => ['r', value, '', authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
