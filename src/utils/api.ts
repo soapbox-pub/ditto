@@ -202,11 +202,16 @@ function buildListLinkHeader(url: string, params: { offset: number; limit: numbe
   return `<${next}>; rel="next", <${prev}>; rel="prev"`;
 }
 
+interface PaginatedListParams {
+  offset: number;
+  limit: number;
+}
+
 /** paginate a list of tags. */
 function paginatedList(
   c: AppContext,
-  params: { offset: number; limit: number },
-  entities: (Entity | undefined)[],
+  params: PaginatedListParams,
+  entities: unknown[],
   headers: HeaderRecord = {},
 ) {
   const link = buildListLinkHeader(c.req.url, params);
@@ -217,7 +222,7 @@ function paginatedList(
   }
 
   // Filter out undefined entities.
-  const results = entities.filter((entity): entity is Entity => Boolean(entity));
+  const results = entities.filter(Boolean);
   return c.json(results, 200, headers);
 }
 
@@ -255,6 +260,7 @@ export {
   localRequest,
   paginated,
   paginatedList,
+  type PaginatedListParams,
   type PaginationParams,
   paginationSchema,
   parseBody,

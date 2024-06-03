@@ -1,51 +1,75 @@
-import { NStore } from '@nostrify/nostrify';
+import { NostrFilter } from '@nostrify/nostrify';
+import { matchFilter } from 'nostr-tools';
 
-import { AppController } from '@/app.ts';
+import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { listPaginationSchema, paginatedList, PaginatedListParams } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 export const suggestionsV1Controller: AppController = async (c) => {
-  const store = c.get('store');
   const signal = c.req.raw.signal;
-  const accounts = await renderSuggestedAccounts(store, signal);
-
-  return c.json(accounts);
+  const params = listPaginationSchema.parse(c.req.query());
+  const suggestions = await renderV2Suggestions(c, params, signal);
+  const accounts = suggestions.map(({ account }) => account);
+  return paginatedList(c, params, accounts);
 };
 
 export const suggestionsV2Controller: AppController = async (c) => {
-  const store = c.get('store');
   const signal = c.req.raw.signal;
-  const accounts = await renderSuggestedAccounts(store, signal);
-
-  const suggestions = accounts.map((account) => ({
-    source: 'staff',
-    account,
-  }));
-
-  return c.json(suggestions);
+  const params = listPaginationSchema.parse(c.req.query());
+  const suggestions = await renderV2Suggestions(c, params, signal);
+  return paginatedList(c, params, suggestions);
 };
 
-async function renderSuggestedAccounts(store: NStore, signal?: AbortSignal) {
-  const [follows] = await store.query(
-    [{ kinds: [3], authors: [Conf.pubkey], limit: 1 }],
-    { signal },
-  );
+async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, signal?: AbortSignal) {
+  const { offset, limit } = params;
 
-  // TODO: pagination
-  const pubkeys = [...getTagSet(follows?.tags ?? [], 'p')].slice(0, 20);
+  const store = c.get('store');
+  const signer = c.get('signer');
+  const pubkey = await signer?.getPublicKey();
+
+  const filters: NostrFilter[] = [
+    { kinds: [3], authors: [Conf.pubkey], limit: 1 },
+  ];
+
+  if (pubkey) {
+    filters.push({ kinds: [3], authors: [pubkey], limit: 1 });
+    filters.push({ kinds: [10000], authors: [pubkey], limit: 1 });
+  }
+
+  const events = await store.query(filters, { signal });
+
+  const [suggestedEvent, followsEvent, mutesEvent] = [
+    events.find((event) => matchFilter({ kinds: [3], authors: [Conf.pubkey] }, event)),
+    pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
+    pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
+  ];
+
+  const [suggested, follows, mutes] = [
+    getTagSet(suggestedEvent?.tags ?? [], 'p'),
+    getTagSet(followsEvent?.tags ?? [], 'p'),
+    getTagSet(mutesEvent?.tags ?? [], 'p'),
+  ];
+
+  const ignored = follows.union(mutes);
+  const pubkeys = suggested.difference(ignored);
+
+  const authors = [...pubkeys].slice(offset, offset + limit);
 
   const profiles = await store.query(
-    [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+    [{ kinds: [0], authors, limit: authors.length }],
     { signal },
   )
     .then((events) => hydrateEvents({ events, store, signal }));
 
-  const accounts = await Promise.all(pubkeys.map((pubkey) => {
+  return Promise.all(authors.map((pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
-    return profile ? renderAccount(profile) : accountFromPubkey(pubkey);
-  }));
 
-  return accounts.filter(Boolean);
+    return {
+      source: suggested.has(pubkey) ? 'staff' : 'global',
+      account: profile ? renderAccount(profile) : accountFromPubkey(pubkey),
+    };
+  }));
 }
