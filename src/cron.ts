@@ -46,21 +46,21 @@ async function updateTrendingNotes() {
   console.info('Trending notes updated.');
 }
 
-async function updateTrendingHashtags() {
-  console.info('Updating trending hashtags...');
+async function updateTrendingTags(tagName: string, extra = '') {
+  console.info(`Updating trending #${tagName}...`);
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
   const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
   const now = Math.floor(Date.now() / 1000);
 
-  const hashtags = await getTrendingTagValues(kysely, 't', {
+  const trends = await getTrendingTagValues(kysely, tagName, {
     since: yesterday,
     until: now,
     limit: 20,
   });
 
-  if (!hashtags.length) {
+  if (!trends.length) {
     return;
   }
 
@@ -71,54 +71,19 @@ async function updateTrendingHashtags() {
     content: '',
     tags: [
       ['L', 'pub.ditto.trends'],
-      ['l', '#t', 'pub.ditto.trends'],
-      ...hashtags.map(({ value, authors, uses }) => ['t', value, '', authors.toString(), uses.toString()]),
+      ['l', `#${tagName}`, 'pub.ditto.trends'],
+      ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
     ],
     created_at: Math.floor(Date.now() / 1000),
   });
 
   await handleEvent(label, signal);
-  console.info('Trending hashtags updated.');
-}
-
-async function updateTrendingLinks() {
-  console.info('Updating trending links...');
-  const kysely = await DittoDB.getInstance();
-  const signal = AbortSignal.timeout(1000);
-
-  const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
-  const now = Math.floor(Date.now() / 1000);
-
-  const links = await getTrendingTagValues(kysely, 'r', {
-    since: yesterday,
-    until: now,
-    limit: 20,
-  });
-
-  if (!links.length) {
-    return;
-  }
-
-  const signer = new AdminSigner();
-
-  const label = await signer.signEvent({
-    kind: 1985,
-    content: '',
-    tags: [
-      ['L', 'pub.ditto.trends'],
-      ['l', '#r', 'pub.ditto.trends'],
-      ...links.map(({ value, authors, uses }) => ['r', value, '', authors.toString(), uses.toString()]),
-    ],
-    created_at: Math.floor(Date.now() / 1000),
-  });
-
-  await handleEvent(label, signal);
-  console.info('Trending links updated.');
+  console.info(`Trending #${tagName} updated.`);
 }
 
 /** Start cron jobs for the application. */
 export function cron() {
   Deno.cron('update trending notes', '15 * * * *', updateTrendingNotes);
-  Deno.cron('update trending hashtags', '30 * * * *', updateTrendingHashtags);
-  Deno.cron('update trending links', '45 * * * *', updateTrendingLinks);
+  Deno.cron('update trending hashtags', '30 * * * *', () => updateTrendingTags('t'));
+  Deno.cron('update trending links', '45 * * * *', () => updateTrendingTags('r'));
 }
