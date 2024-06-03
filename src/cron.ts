@@ -46,7 +46,7 @@ async function updateTrendingNotes() {
   console.info('Trending notes updated.');
 }
 
-async function updateTrendingTags(tagName: string, extra = '') {
+async function updateTrendingTags(tagName: string, limit: number, extra = '') {
   console.info(`Updating trending #${tagName}...`);
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
@@ -57,7 +57,7 @@ async function updateTrendingTags(tagName: string, extra = '') {
   const trends = await getTrendingTagValues(kysely, tagName, {
     since: yesterday,
     until: now,
-    limit: 20,
+    limit,
   });
 
   if (!trends.length) {
@@ -84,6 +84,6 @@ async function updateTrendingTags(tagName: string, extra = '') {
 /** Start cron jobs for the application. */
 export function cron() {
   Deno.cron('update trending notes', '15 * * * *', updateTrendingNotes);
-  Deno.cron('update trending hashtags', '30 * * * *', () => updateTrendingTags('t'));
-  Deno.cron('update trending links', '45 * * * *', () => updateTrendingTags('r'));
+  Deno.cron('update trending hashtags', '30 * * * *', () => updateTrendingTags('t', 20));
+  Deno.cron('update trending links', '45 * * * *', () => updateTrendingTags('r', 20));
 }
