@@ -1,7 +1,7 @@
 import 'linkify-plugin-hashtag';
 import linkifyStr from 'linkify-string';
 import linkify from 'linkifyjs';
-import { nip21 } from 'nostr-tools';
+import { nip19, nip21 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
@@ -18,10 +18,15 @@ const linkifyOpts: linkify.Opts = {
     },
     url: ({ content }) => {
       try {
-        const { value } = nip21.parse(content);
-        const name = value.substring(0, 8);
-        const href = Conf.local(`/@${value}`);
-        return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
+        const { decoded } = nip21.parse(content);
+        const pubkey = getDecodedPubkey(decoded);
+        if (pubkey) {
+          const name = pubkey.substring(0, 8);
+          const href = Conf.local(`/users/${pubkey}`);
+          return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
+        } else {
+          return '';
+        }
       } catch {
         return `<a href="${content}">${content}</a>`;
       }
@@ -101,6 +106,16 @@ function isNonMediaLink({ href }: Link): boolean {
 /** Ensures the Link is a URL so it can be parsed. */
 function isLinkURL(link: Link): boolean {
   return link.type === 'url';
+}
+
+/** Get pubkey from decoded bech32 entity, or undefined if not applicable. */
+function getDecodedPubkey(decoded: nip19.DecodeResult): string | undefined {
+  switch (decoded.type) {
+    case 'npub':
+      return decoded.data;
+    case 'nprofile':
+      return decoded.data.pubkey;
+  }
 }
 
 export { getMediaLinks, parseNoteContent, stripimeta };
