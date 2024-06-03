@@ -13,9 +13,8 @@ import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { eventAge, nostrDate, parseNip05, Time } from '@/utils.ts';
+import { eventAge, parseNip05, Time } from '@/utils.ts';
 import { policyWorker } from '@/workers/policy.ts';
-import { TrendsWorker } from '@/workers/trends.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
@@ -49,7 +48,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     storeEvent(event, signal),
     parseMetadata(event, signal),
     DVM.event(event),
-    trackHashtags(event),
     processMedia(event),
     streamOut(event),
   ]);
@@ -145,25 +143,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
       last_updated_at = excluded.last_updated_at
     WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
     `.execute(kysely);
-  } catch (_e) {
-    // do nothing
-  }
-}
-
-/** Track whenever a hashtag is used, for processing trending tags. */
-async function trackHashtags(event: NostrEvent): Promise<void> {
-  const date = nostrDate(event.created_at);
-
-  const tags = event.tags
-    .filter((tag) => tag[0] === 't')
-    .map((tag) => tag[1])
-    .slice(0, 5);
-
-  if (!tags.length) return;
-
-  try {
-    debug('tracking tags:', JSON.stringify(tags));
-    await TrendsWorker.addTagUsages(event.pubkey, tags, date);
   } catch (_e) {
     // do nothing
   }
