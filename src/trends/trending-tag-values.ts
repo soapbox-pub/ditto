@@ -8,7 +8,7 @@ export async function getTrendingTagValues(
   /** Kysely instance to execute queries on. */
   kysely: Kysely<DittoTables>,
   /** Tag name to filter by, eg `t` or `r`. */
-  tagName: string,
+  tagNames: string[],
   /** Filter of eligible events. */
   filter: NostrFilter,
 ): Promise<{ value: string; authors: number; uses: number }[]> {
@@ -20,7 +20,7 @@ export async function getTrendingTagValues(
       fn.agg<number>('count', ['nostr_events.pubkey']).distinct().as('authors'),
       fn.countAll<number>().as('uses'),
     ])
-    .where('nostr_tags.name', '=', tagName)
+    .where('nostr_tags.name', 'in', tagNames)
     .groupBy('nostr_tags.value')
     .orderBy((c) => c.fn.agg('count', ['nostr_events.pubkey']).distinct(), 'desc');
 
