@@ -11,6 +11,7 @@ export interface AuthorStats {
 export interface EventStats {
   replies_count: number;
   reposts_count: number;
+  quotes_count: number;
   reactions: Record<string, number>;
 }
 

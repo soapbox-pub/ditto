@@ -3,7 +3,7 @@ import { Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 
 import { DittoTables } from '@/db/DittoTables.ts';
-import { findReplyTag, getTagSet } from '@/utils/tags.ts';
+import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { Conf } from '@/config.ts';
 
 interface UpdateStatsOpts {
@@ -34,12 +34,22 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
 async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: Math.max(0, notes_count + x) }));
 
-  const inReplyToId = findReplyTag(event.tags)?.[1];
-  if (inReplyToId) {
+  const replyId = findReplyTag(event.tags)?.[1];
+  const quoteId = findQuoteTag(event.tags)?.[1];
+
+  if (replyId) {
     await updateEventStats(
       kysely,
-      inReplyToId,
+      replyId,
       ({ replies_count }) => ({ replies_count: Math.max(0, replies_count + x) }),
+    );
+  }
+
+  if (quoteId) {
+    await updateEventStats(
+      kysely,
+      quoteId,
+      ({ quotes_count }) => ({ quotes_count: Math.max(0, quotes_count + x) }),
     );
   }
 }
@@ -208,6 +218,7 @@ export async function updateEventStats(
     replies_count: 0,
     reposts_count: 0,
     reactions_count: 0,
+    quotes_count: 0,
     reactions: '{}',
   };
 

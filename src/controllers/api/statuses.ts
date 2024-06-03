@@ -14,7 +14,7 @@ import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { createEvent, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
@@ -322,6 +322,33 @@ const rebloggedByController: AppController = (c) => {
   return renderEventAccounts(c, [{ kinds: [6], '#e': [id], ...params }]);
 };
 
+const quotesController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const params = paginationSchema.parse(c.req.query());
+  const store = await Storages.db();
+
+  const [event] = await store.query([{ ids: [id], kinds: [1] }]);
+  if (!event) {
+    return c.json({ error: 'Event not found.' }, 404);
+  }
+
+  const quotes = await store
+    .query([{ kinds: [1], '#q': [event.id], ...params }])
+    .then((events) => hydrateEvents({ events, store }));
+
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
+
+  const statuses = await Promise.all(
+    quotes.map((event) => renderStatus(event, { viewerPubkey })),
+  );
+
+  if (!statuses.length) {
+    return c.json([]);
+  }
+
+  return paginated(c, quotes, statuses);
+};
+
 /** https://docs.joinmastodon.org/methods/statuses/#bookmark */
 const bookmarkController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
@@ -487,6 +514,7 @@ export {
   favouriteController,
   favouritedByController,
   pinController,
+  quotesController,
   rebloggedByController,
   reblogStatusController,
   statusController,

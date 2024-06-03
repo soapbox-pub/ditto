@@ -62,6 +62,7 @@ import {
   favouriteController,
   favouritedByController,
   pinController,
+  quotesController,
   rebloggedByController,
   reblogStatusController,
   statusController,
@@ -188,6 +189,8 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requireSigner, reblogStatu
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requireSigner, unreblogStatusController);
 app.post('/api/v1/statuses', requireSigner, createStatusController);
 app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requireSigner, deleteStatusController);
+
+app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/quotes', quotesController);
 
 app.post('/api/v1/media', mediaController);
 app.post('/api/v2/media', mediaController);
