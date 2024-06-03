@@ -125,6 +125,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     pleroma: {
       emoji_reactions: reactions,
       expires_at: !isNaN(expiresAt.getTime()) ? expiresAt.toISOString() : undefined,
+      quotes_count: event.event_stats?.quotes_count ?? 0,
     },
   };
 }

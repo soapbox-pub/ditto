@@ -297,6 +297,7 @@ async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['even
     reposts_count: Math.max(0, row.reposts_count),
     replies_count: Math.max(0, row.replies_count),
     reactions_count: Math.max(0, row.reactions_count),
+    quotes_count: Math.max(0, row.quotes_count),
     reactions: row.reactions,
   }));
 }
