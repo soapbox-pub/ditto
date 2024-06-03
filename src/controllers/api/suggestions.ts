@@ -69,12 +69,12 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
   )
     .then((events) => hydrateEvents({ events, store, signal }));
 
-  return Promise.all(authors.map((pubkey) => {
+  return Promise.all(authors.map(async (pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
 
     return {
       source: suggested.has(pubkey) ? 'staff' : 'global',
-      account: profile ? renderAccount(profile) : accountFromPubkey(pubkey),
+      account: profile ? await renderAccount(profile) : await accountFromPubkey(pubkey),
     };
   }));
 }
