@@ -49,6 +49,7 @@ async function updateTrendingTags(tagName: string, kinds: number[], limit: numbe
 
 /** Start cron jobs for the application. */
 export function cron() {
+  Deno.cron('update trending pubkeys', '0 * * * *', () => updateTrendingTags('p', [1, 3], 40, Conf.relay));
   Deno.cron('update trending notes', '15 * * * *', () => updateTrendingTags('e', [1, 6, 7], 40, Conf.relay, ['q']));
   Deno.cron('update trending hashtags', '30 * * * *', () => updateTrendingTags('t', [1], 20));
   Deno.cron('update trending links', '45 * * * *', () => updateTrendingTags('r', [1], 20));
