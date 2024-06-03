@@ -32,6 +32,7 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
 
   const filters: NostrFilter[] = [
     { kinds: [3], authors: [Conf.pubkey], limit: 1 },
+    { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 },
   ];
 
   if (pubkey) {
@@ -41,20 +42,24 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
 
   const events = await store.query(filters, { signal });
 
-  const [suggestedEvent, followsEvent, mutesEvent] = [
+  const [suggestedEvent, followsEvent, mutesEvent, trendingEvent] = [
     events.find((event) => matchFilter({ kinds: [3], authors: [Conf.pubkey] }, event)),
     pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
     pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
+    events.find((event) =>
+      matchFilter({ kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 }, event)
+    ),
   ];
 
-  const [suggested, follows, mutes] = [
+  const [suggested, trending, follows, mutes] = [
     getTagSet(suggestedEvent?.tags ?? [], 'p'),
+    getTagSet(trendingEvent?.tags ?? [], 'p'),
     getTagSet(followsEvent?.tags ?? [], 'p'),
     getTagSet(mutesEvent?.tags ?? [], 'p'),
   ];
 
   const ignored = follows.union(mutes);
-  const pubkeys = suggested.difference(ignored);
+  const pubkeys = suggested.union(trending).difference(ignored);
 
   const authors = [...pubkeys].slice(offset, offset + limit);
 
