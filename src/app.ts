@@ -79,7 +79,11 @@ import {
   publicTimelineController,
   suggestedTimelineController,
 } from '@/controllers/api/timelines.ts';
-import { trendingStatusesController, trendingTagsController } from '@/controllers/api/trends.ts';
+import {
+  trendingLinksController,
+  trendingStatusesController,
+  trendingTagsController,
+} from '@/controllers/api/trends.ts';
 import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
@@ -207,6 +211,7 @@ app.get('/api/v2/search', searchController);
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
 app.get('/api/v1/trends/statuses', trendingStatusesController);
+app.get('/api/v1/trends/links', trendingLinksController);
 app.get('/api/v1/trends/tags', trendingTagsController);
 app.get('/api/v1/trends', trendingTagsController);
 
