@@ -139,7 +139,7 @@ app.get('/relay', relayController);
 app.use(
   '*',
   cspMiddleware(),
-  cors({ origin: '*', exposeHeaders: ['link', 'Ln-Invoice'] }),
+  cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
   uploaderMiddleware,
   auth98Middleware(),
@@ -188,7 +188,6 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requireSigner, bookmarkC
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requireSigner, unbookmarkController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requireSigner, pinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requireSigner, unpinController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/zap', requireSigner, zapController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requireSigner, reblogStatusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requireSigner, unreblogStatusController);
 app.post('/api/v1/statuses', requireSigner, createStatusController);
@@ -239,6 +238,8 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
+
+app.post('/api/v1/ditto/zap', requireSigner, zapController);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);

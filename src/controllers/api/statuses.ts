@@ -19,6 +19,7 @@ import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -460,47 +461,64 @@ const unpinController: AppController = async (c) => {
 };
 
 const zapSchema = z.object({
+  account_id: n.id(),
+  status_id: n.id().optional(),
   amount: z.number().int().positive(),
   comment: z.string().optional(),
 });
 
 const zapController: AppController = async (c) => {
-  const id = c.req.param('id');
   const body = await parseBody(c.req.raw);
-  const params = zapSchema.safeParse(body);
+  const result = zapSchema.safeParse(body);
   const { signal } = c.req.raw;
+  const store = c.get('store');
 
-  if (!params.success) {
-    return c.json({ error: 'Bad request', schema: params.error }, 400);
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
 
-  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'], signal });
-  const author = target?.author;
-  const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
-  const lnurl = getLnurl(meta);
-  const amount = params.data.amount;
+  const { account_id, status_id, amount, comment } = result.data;
 
-  if (target && lnurl) {
-    const nostr = await createEvent({
-      kind: 9734,
-      content: params.data.comment ?? '',
-      tags: [
+  const tags: string[][] = [];
+  let target: undefined | DittoEvent;
+  let lnurl: undefined | string;
+
+  if (status_id) {
+    target = await getEvent(status_id, { kind: 1, relations: ['author'], signal });
+    const author = target?.author;
+    const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
+    lnurl = getLnurl(meta);
+    if (target && lnurl) {
+      tags.push(
         ['e', target.id],
         ['p', target.pubkey],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
         ['lnurl', lnurl],
-      ],
+      );
+    }
+  } else {
+    [target] = await store.query([{ authors: [account_id], kinds: [0], limit: 1 }]);
+    const meta = n.json().pipe(n.metadata()).catch({}).parse(target?.content);
+    lnurl = getLnurl(meta);
+    if (target && lnurl) {
+      tags.push(
+        ['p', target.pubkey],
+        ['amount', amount.toString()],
+        ['relays', Conf.relay],
+        ['lnurl', lnurl],
+      );
+    }
+  }
+
+  if (target && lnurl) {
+    const nostr = await createEvent({
+      kind: 9734,
+      content: comment ?? '',
+      tags,
     }, c);
 
-    const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
-    status.zapped = true;
-
-    return c.json(status, {
-      headers: {
-        'Ln-Invoice': await getInvoice({ amount, nostr: purifyEvent(nostr), lnurl }, signal),
-      },
-    });
+    return c.json({ invoice: await getInvoice({ amount, nostr: purifyEvent(nostr), lnurl }, signal) });
   } else {
     return c.json({ error: 'Event not found.' }, 404);
   }
