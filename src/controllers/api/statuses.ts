@@ -471,6 +471,7 @@ const zapController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = zapSchema.safeParse(body);
   const { signal } = c.req.raw;
+  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -497,7 +498,7 @@ const zapController: AppController = async (c) => {
       );
     }
   } else {
-    target = await getEvent(account_id, { kind: 0, signal });
+    [target] = await store.query([{ authors: [account_id], kinds: [0], limit: 1 }]);
     const meta = n.json().pipe(n.metadata()).catch({}).parse(target?.content);
     lnurl = getLnurl(meta);
     if (target && lnurl) {
