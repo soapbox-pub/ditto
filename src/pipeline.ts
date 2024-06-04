@@ -8,7 +8,6 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { DVM } from '@/pipeline/DVM.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -47,7 +46,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await Promise.all([
     storeEvent(event, signal),
     parseMetadata(event, signal),
-    DVM.event(event),
     processMedia(event),
     streamOut(event),
   ]);
