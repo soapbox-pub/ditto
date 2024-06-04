@@ -462,7 +462,7 @@ const unpinController: AppController = async (c) => {
 
 const zapSchema = z.object({
   account_id: n.id(),
-  status_id: n.id().optional().or(z.literal('')),
+  status_id: n.id().optional(),
   amount: z.number().int().positive(),
   comment: z.string().optional(),
 });
