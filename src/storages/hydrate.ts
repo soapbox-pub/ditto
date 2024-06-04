@@ -6,6 +6,7 @@ import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
+import { findQuoteInContent } from '@/utils/note.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];
@@ -84,7 +85,7 @@ export function assembleEvents(
     event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
 
     if (event.kind === 1) {
-      const id = findQuoteTag(event.tags)?.[1];
+      const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
       if (id) {
         event.quote = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
       }
@@ -172,7 +173,7 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 
   for (const event of events) {
     if (event.kind === 1) {
-      const id = findQuoteTag(event.tags)?.[1];
+      const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
       if (id) {
         ids.add(id);
       }
