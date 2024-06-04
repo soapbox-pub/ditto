@@ -1,7 +1,7 @@
 import 'linkify-plugin-hashtag';
 import linkifyStr from 'linkify-string';
 import linkify from 'linkifyjs';
-import { nip19, nip21 } from 'nostr-tools';
+import { nip19, nip21, nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
@@ -118,4 +118,20 @@ function getDecodedPubkey(decoded: nip19.DecodeResult): string | undefined {
   }
 }
 
-export { getMediaLinks, parseNoteContent, stripimeta };
+/** Find a quote in the content. */
+function findQuoteInContent(content: string): string | undefined {
+  try {
+    for (const { decoded } of nip27.matchAll(content)) {
+      switch (decoded.type) {
+        case 'note':
+          return decoded.data;
+        case 'nevent':
+          return decoded.data.id;
+      }
+    }
+  } catch (_) {
+    // do nothing
+  }
+}
+
+export { findQuoteInContent, getMediaLinks, parseNoteContent, stripimeta };

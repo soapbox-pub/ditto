@@ -6,7 +6,7 @@ import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
 import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
-import { findQuoteTag, findReplyTag } from '@/utils/tags.ts';
+import { findReplyTag } from '@/utils/tags.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
@@ -28,8 +28,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     ? await renderAccount({ ...event.author, author_stats: event.author_stats })
     : await accountFromPubkey(event.pubkey);
 
-  const replyTag = findReplyTag(event.tags);
-  const quoteTag = findQuoteTag(event.tags);
+  const replyId = findReplyTag(event.tags)?.[1];
 
   const mentionedPubkeys = [
     ...new Set(
@@ -96,7 +95,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     card,
     content,
     created_at: nostrDate(event.created_at).toISOString(),
-    in_reply_to_id: replyTag?.[1] ?? null,
+    in_reply_to_id: replyId ?? null,
     in_reply_to_account_id: null,
     sensitive: !!cw,
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
@@ -118,7 +117,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     emojis: renderEmojis(event),
     poll: null,
     quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
-    quote_id: quoteTag?.[1] ?? null,
+    quote_id: event.quote?.id ?? null,
     uri: Conf.external(note),
     url: Conf.external(note),
     zapped: Boolean(zapEvent),
