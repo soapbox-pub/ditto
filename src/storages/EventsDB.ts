@@ -32,6 +32,7 @@ class EventsDB implements NStore {
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'media': ({ count, value }) => (count < 4) && isURL(value),
+    'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
     'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
     'proxy': ({ count, value }) => count === 0 && isURL(value),
