@@ -203,6 +203,7 @@ const deleteStatusController: AppController = async (c) => {
 
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
+  const store = c.get('store');
   const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
@@ -214,9 +215,20 @@ const contextController: AppController = async (c) => {
   }
 
   if (event) {
+    const [ancestorEvents, descendantEvents] = await Promise.all([
+      getAncestors(store, event),
+      getDescendants(store, event.id),
+    ]);
+
+    await hydrateEvents({
+      events: [...ancestorEvents, ...descendantEvents],
+      signal: c.req.raw.signal,
+      store,
+    });
+
     const [ancestors, descendants] = await Promise.all([
-      getAncestors(event).then(renderStatuses),
-      getDescendants(event.id).then(renderStatuses),
+      renderStatuses(ancestorEvents),
+      renderStatuses(descendantEvents),
     ]);
 
     return c.json({ ancestors, descendants });

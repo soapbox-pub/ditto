@@ -1,4 +1,4 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 
 import { Conf } from '@/config.ts';
@@ -68,17 +68,17 @@ async function getFeedPubkeys(pubkey: string): Promise<string[]> {
   return [...authors, pubkey];
 }
 
-async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promise<NostrEvent[]> {
+async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent[] = []): Promise<NostrEvent[]> {
   if (result.length < 100) {
     const replyTag = findReplyTag(event.tags);
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const parentEvent = await getEvent(inReplyTo, { kind: 1 });
+      const [parentEvent] = await store.query([{ kinds: [1], ids: [inReplyTo], limit: 1 }]);
 
       if (parentEvent) {
         result.push(parentEvent);
-        return getAncestors(parentEvent, result);
+        return getAncestors(store, parentEvent, result);
       }
     }
   }
@@ -86,14 +86,14 @@ async function getAncestors(event: NostrEvent, result: NostrEvent[] = []): Promi
   return result.reverse();
 }
 
-async function getDescendants(eventId: string, signal = AbortSignal.timeout(2000)): Promise<NostrEvent[]> {
-  const store = await Storages.db();
-
-  const events = await store
-    .query([{ kinds: [1], '#e': [eventId] }], { limit: 200, signal })
+async function getDescendants(
+  store: NStore,
+  eventId: string,
+  signal = AbortSignal.timeout(2000),
+): Promise<NostrEvent[]> {
+  return await store
+    .query([{ kinds: [1], '#e': [eventId], limit: 200 }], { signal })
     .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === eventId));
-
-  return hydrateEvents({ events, store, signal });
 }
 
 /** Returns whether the pubkey is followed by a local user. */

@@ -4,6 +4,8 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getTagSet } from '@/utils/tags.ts';
 
 export class UserStore implements NStore {
+  private promise: Promise<DittoEvent[]> | undefined;
+
   constructor(private pubkey: string, private store: NStore) {}
 
   async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
@@ -24,7 +26,10 @@ export class UserStore implements NStore {
   }
 
   private async getMuteList(): Promise<DittoEvent | undefined> {
-    const [muteList] = await this.store.query([{ authors: [this.pubkey], kinds: [10000], limit: 1 }]);
+    if (!this.promise) {
+      this.promise = this.store.query([{ authors: [this.pubkey], kinds: [10000], limit: 1 }]);
+    }
+    const [muteList] = await this.promise;
     return muteList;
   }
 
