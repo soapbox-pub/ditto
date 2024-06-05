@@ -16,7 +16,7 @@ const linkifyOpts: linkify.Opts = {
       const href = Conf.local(`/tags/${tag}`);
       return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
     },
-    url: ({ content }) => {
+    url: ({ attributes, content }) => {
       try {
         const { decoded } = nip21.parse(content);
         const pubkey = getDecodedPubkey(decoded);
@@ -28,7 +28,11 @@ const linkifyOpts: linkify.Opts = {
           return '';
         }
       } catch {
-        return `<a href="${content}">${content}</a>`;
+        const attr = Object.entries(attributes)
+          .map(([name, value]) => `${name}="${value}"`)
+          .join(' ');
+
+        return `<a ${attr}>${content}</a>`;
       }
     },
   },
