@@ -5,6 +5,7 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
@@ -128,13 +129,42 @@ const oauthController: AppController = (c) => {
   <head>
     <title>Log in with Ditto</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <style>
+      html {
+        background-color: #f8f8f8;
+        font-family: sans-serif;
+      }
+      body {
+        max-width: 400px;
+        margin: 0 auto;
+        text-align: center;
+        padding: 1em;
+      }
+      form {
+        margin: 2em 0;
+        display: flex;
+        justify-content: center;
+        gap: 0.2em;
+      }
+      input, button {
+        padding: 0.5em;
+        border-radius: 0.5em;
+        border: 1px solid;
+      }
+      p {
+        font-size: 0.8em;
+        color: #666;
+      }
+    </style>
   </head>
   <body>
+    <h1>Nostr Connect</h1>
     <form id="oauth_form" action="/oauth/authorize" method="post">
       <input type="text" placeholder="bunker://..." name="bunker_uri" autocomplete="off" required>
       <input type="hidden" name="redirect_uri" id="redirect_uri" value="${escape(redirectUri)}">
       <button type="submit">Authorize</button>
     </form>
+    <p>Sign in with a Nostr bunker app. Please configure the app to use this relay: ${Conf.relay}</p>
   </body>
 </html>
 `);
