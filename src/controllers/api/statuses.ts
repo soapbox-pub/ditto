@@ -220,6 +220,12 @@ const contextController: AppController = async (c) => {
       getDescendants(store, event.id).then(renderStatuses),
     ]);
 
+    await hydrateEvents({
+      events: [...ancestors, ...descendants],
+      signal: c.req.raw.signal,
+      store,
+    });
+
     return c.json({ ancestors, descendants });
   }
 
