@@ -215,16 +215,21 @@ const contextController: AppController = async (c) => {
   }
 
   if (event) {
-    const [ancestors, descendants] = await Promise.all([
-      getAncestors(store, event).then(renderStatuses),
-      getDescendants(store, event.id).then(renderStatuses),
+    const [ancestorEvents, descendantEvents] = await Promise.all([
+      getAncestors(store, event),
+      getDescendants(store, event.id),
     ]);
 
     await hydrateEvents({
-      events: [...ancestors, ...descendants],
+      events: [...ancestorEvents, ...descendantEvents],
       signal: c.req.raw.signal,
       store,
     });
+
+    const [ancestors, descendants] = await Promise.all([
+      renderStatuses(ancestorEvents),
+      renderStatuses(descendantEvents),
+    ]);
 
     return c.json({ ancestors, descendants });
   }
