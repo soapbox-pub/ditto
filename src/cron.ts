@@ -10,14 +10,14 @@ import { Time } from '@/utils/time.ts';
 const console = new Stickynotes('ditto:trends');
 
 async function updateTrendingTags(
-  tagName: string,
   l: string,
+  tagName: string,
   kinds: number[],
   limit: number,
   extra = '',
   aliases?: string[],
 ) {
-  console.info(`Updating trending #${tagName}...`);
+  console.info(`Updating trending ${l}...`);
   const kysely = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
