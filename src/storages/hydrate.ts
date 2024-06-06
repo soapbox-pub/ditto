@@ -99,7 +99,7 @@ export function assembleEvents(
     }
 
     if (event.kind === 7) {
-      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      const id = event.tags.findLast(([name]) => name === 'e')?.[1];
       if (id) {
         event.reacted = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
       }
@@ -154,7 +154,7 @@ function gatherReacted({ events, store, signal }: HydrateOpts): Promise<DittoEve
 
   for (const event of events) {
     if (event.kind === 7) {
-      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      const id = event.tags.findLast(([name]) => name === 'e')?.[1];
       if (id) {
         ids.add(id);
       }
