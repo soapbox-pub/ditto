@@ -49,7 +49,7 @@ const adminAccountsController: AppController = async (c) => {
   const events: NostrEvent[] = [];
 
   if (pending) {
-    for (const event of await store.query([{ kinds: [3036], ...params }], { signal })) {
+    for (const event of await store.query([{ kinds: [3036], '#p': [Conf.pubkey], ...params }], { signal })) {
       pubkeys.add(event.pubkey);
       events.push(event);
     }
