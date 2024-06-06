@@ -10,9 +10,12 @@ const nameSchema = z.string().min(1).regex(/^\w+$/);
  * https://github.com/nostr-protocol/nips/blob/master/05.md
  */
 const nostrController: AppController = async (c) => {
+  const store = c.get('store');
+
   const result = nameSchema.safeParse(c.req.query('name'));
   const name = result.success ? result.data : undefined;
-  const pointer = name ? await localNip05Lookup(c.get('store'), name) : undefined;
+
+  const pointer = name ? await localNip05Lookup(store, name) : undefined;
 
   if (!name || !pointer) {
     return c.json({ names: {}, relays: {} });
