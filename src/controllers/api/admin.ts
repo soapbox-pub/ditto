@@ -77,7 +77,8 @@ const adminAccountsController: AppController = async (c) => {
 
       return {
         ...account,
-        invite_request: request ? request.content : null,
+        invite_request: request?.content ?? null,
+        invite_request_username: request?.tags.find(([name]) => name === 'r')?.[1] ?? null,
         approved: !!grant,
       };
     }),
