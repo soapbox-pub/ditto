@@ -1,13 +1,14 @@
+import { NostrEvent } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
 import { addTag } from '@/utils/tags.ts';
-import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
+import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const adminAccountQuerySchema = z.object({
   local: booleanParamSchema.optional(),
@@ -36,25 +37,50 @@ const adminAccountsController: AppController = async (c) => {
   } = adminAccountQuerySchema.parse(c.req.query());
 
   // Not supported.
-  if (pending || disabled || silenced || suspended || sensitized) {
+  if (disabled || silenced || suspended || sensitized) {
     return c.json([]);
   }
 
   const store = await Storages.db();
-  const { since, until, limit } = paginationSchema.parse(c.req.query());
+  const params = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events = await store.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
-  const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
-  const authors = await store.query([{ kinds: [0], authors: pubkeys }], { signal });
+  const pubkeys = new Set<string>();
+  const events: NostrEvent[] = [];
 
-  for (const event of events) {
-    const d = event.tags.find(([name]) => name === 'd')?.[1];
-    (event as DittoEvent).d_author = authors.find((author) => author.pubkey === d);
+  if (pending) {
+    for (const event of await store.query([{ kinds: [3036], ...params }], { signal })) {
+      pubkeys.add(event.pubkey);
+      events.push(event);
+    }
+  } else {
+    for (const event of await store.query([{ kinds: [30360], authors: [Conf.pubkey], ...params }], { signal })) {
+      const pubkey = event.tags.find(([name]) => name === 'd')?.[1];
+      if (pubkey) {
+        pubkeys.add(pubkey);
+        events.push(event);
+      }
+    }
   }
 
+  const authors = await store.query([{ kinds: [0], authors: [...pubkeys] }], { signal })
+    .then((events) => hydrateEvents({ store, events, signal }));
+
   const accounts = await Promise.all(
-    events.map((event) => renderAdminAccount(event)),
+    [...pubkeys].map(async (pubkey) => {
+      const author = authors.find((event) => event.pubkey === pubkey);
+      const account = author ? await renderAdminAccount(author) : await renderAdminAccountFromPubkey(pubkey);
+      const request = events.find((event) => event.kind === 3036 && event.pubkey === pubkey);
+      const grant = events.find(
+        (event) => event.kind === 30360 && event.tags.find(([name]) => name === 'd')?.[1] === pubkey,
+      );
+
+      return {
+        ...account,
+        invite_request: request ? request.content : null,
+        approved: !!grant,
+      };
+    }),
   );
 
   return paginated(c, events, accounts);
