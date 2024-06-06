@@ -104,7 +104,7 @@ async function handleEvent6(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 
 /** Update stats for kind 7 event. */
 async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
-  const id = event.tags.find(([name]) => name === 'e')?.[1];
+  const id = event.tags.findLast(([name]) => name === 'e')?.[1];
   const emoji = event.content;
 
   if (id && emoji && (['+', '-'].includes(emoji) || /^\p{RGI_Emoji}$/v.test(emoji))) {
