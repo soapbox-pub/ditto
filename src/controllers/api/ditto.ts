@@ -5,6 +5,7 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { createEvent } from '@/utils/api.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -58,3 +59,25 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
     return acc;
   }, [] as RelayEntity[]);
 }
+
+const inviteRequestSchema = z.object({
+  nip05: z.string().email(),
+  reason: z.string().max(500).optional(),
+});
+
+export const inviteRequestController: AppController = async (c) => {
+  const { nip05, reason } = inviteRequestSchema.parse(await c.req.json());
+
+  await createEvent({
+    kind: 3036,
+    content: reason,
+    tags: [
+      ['r', nip05],
+      ['L', 'nip05.domain'],
+      ['l', nip05.split('@')[1], 'nip05.domain'],
+      ['p', Conf.pubkey],
+    ],
+  }, c);
+
+  return new Response('', { status: 204 });
+};
