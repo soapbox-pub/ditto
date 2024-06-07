@@ -14,7 +14,7 @@ import { lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
-import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
@@ -192,7 +192,7 @@ const accountStatusesController: AppController = async (c) => {
 
   const filter: NostrFilter = {
     authors: [pubkey],
-    kinds: [1],
+    kinds: [1, 6],
     since,
     until,
     limit,
@@ -206,7 +206,10 @@ const accountStatusesController: AppController = async (c) => {
     .then((events) => hydrateEvents({ events, store, signal }))
     .then((events) => {
       if (exclude_replies) {
-        return events.filter((event) => !findReplyTag(event.tags));
+        return events.filter((event) => {
+          if (event.kind === 1) return !findReplyTag(event.tags);
+          return true;
+        });
       }
       return events;
     });
@@ -214,7 +217,10 @@ const accountStatusesController: AppController = async (c) => {
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const statuses = await Promise.all(
-    events.map((event) => renderStatus(event, { viewerPubkey })),
+    events.map((event) => {
+      if (event.kind === 6) return renderReblog(event, { viewerPubkey });
+      return renderStatus(event, { viewerPubkey });
+    }),
   );
   return paginated(c, events, statuses);
 };
