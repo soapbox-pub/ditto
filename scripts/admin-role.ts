@@ -5,11 +5,14 @@ import { Conf } from '@/config.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { nostrNow } from '@/utils.ts';
+import { nip19 } from 'nostr-tools';
 
 const kysely = await DittoDB.getInstance();
 const eventsDB = new EventsDB(kysely);
 
-const [pubkey, role] = Deno.args;
+const [pubkeyOrNpub, role] = Deno.args;
+const pubkey = pubkeyOrNpub.startsWith('npub') ?
+  nip19.decode(pubkeyOrNpub).data as string : pubkeyOrNpub;
 
 if (!NSchema.id().safeParse(pubkey).success) {
   console.error('Invalid pubkey');
