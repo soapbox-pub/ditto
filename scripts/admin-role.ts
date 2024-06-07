@@ -11,8 +11,7 @@ const kysely = await DittoDB.getInstance();
 const eventsDB = new EventsDB(kysely);
 
 const [pubkeyOrNpub, role] = Deno.args;
-const pubkey = pubkeyOrNpub.startsWith('npub') ?
-  nip19.decode(pubkeyOrNpub).data as string : pubkeyOrNpub;
+const pubkey = pubkeyOrNpub.startsWith('npub') ? nip19.decode(pubkeyOrNpub).data as string : pubkeyOrNpub;
 
 if (!NSchema.id().safeParse(pubkey).success) {
   console.error('Invalid pubkey');
