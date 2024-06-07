@@ -100,7 +100,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     sensitive: !!cw,
     spoiler_text: (cw ? cw[1] : subject?.[1]) || '',
     visibility: 'public',
-    language: event.tags.find((tag) => tag[0] === 'lang')?.[1] || null,
+    language: event.tags.find((tag) => tag[0] === 'l' && tag[2] === 'ISO-639-1')?.[1] || null,
     replies_count: event.event_stats?.replies_count ?? 0,
     reblogs_count: event.event_stats?.reposts_count ?? 0,
     favourites_count: event.event_stats?.reactions['+'] ?? 0,
