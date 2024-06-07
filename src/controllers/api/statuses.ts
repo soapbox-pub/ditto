@@ -104,6 +104,11 @@ const createStatusController: AppController = async (c) => {
     tags.push(['subject', data.spoiler_text]);
   }
 
+  if (data.language) {
+    tags.push(['L', 'ISO-639-1']);
+    tags.push(['l', data.language, 'ISO-639-1']);
+  }
+
   const media = data.media_ids?.length ? await getUnattachedMediaByIds(kysely, data.media_ids) : [];
 
   const imeta: string[][] = media.map(({ data }) => {
