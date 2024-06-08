@@ -31,7 +31,7 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
   const pubkey = await signer?.getPublicKey();
 
   const filters: NostrFilter[] = [
-    { kinds: [3], authors: [Conf.pubkey], limit: 1 },
+    { kinds: [30382], authors: [Conf.pubkey], '#n': ['suggest'], limit },
     { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 },
   ];
 
@@ -42,8 +42,8 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
 
   const events = await store.query(filters, { signal });
 
-  const [suggestedEvent, followsEvent, mutesEvent, trendingEvent] = [
-    events.find((event) => matchFilter({ kinds: [3], authors: [Conf.pubkey] }, event)),
+  const [userEvents, followsEvent, mutesEvent, trendingEvent] = [
+    events.filter((event) => matchFilter({ kinds: [30382], authors: [Conf.pubkey], '#n': ['suggest'] }, event)),
     pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
     pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
     events.find((event) =>
@@ -51,8 +51,13 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
     ),
   ];
 
-  const [suggested, trending, follows, mutes] = [
-    getTagSet(suggestedEvent?.tags ?? [], 'p'),
+  const suggested = new Set(
+    userEvents
+      .map((event) => event.tags.find(([name]) => name === 'd')?.[1])
+      .filter((pubkey): pubkey is string => !!pubkey),
+  );
+
+  const [trending, follows, mutes] = [
     getTagSet(trendingEvent?.tags ?? [], 'p'),
     getTagSet(followsEvent?.tags ?? [], 'p'),
     getTagSet(mutesEvent?.tags ?? [], 'p'),

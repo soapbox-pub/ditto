@@ -5,8 +5,7 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
-import { addTag } from '@/utils/tags.ts';
+import { paginated, paginationSchema, parseBody, updateUser } from '@/utils/api.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 
@@ -91,7 +90,7 @@ const adminAccountActionSchema = z.object({
   type: z.enum(['none', 'sensitive', 'disable', 'silence', 'suspend']),
 });
 
-const adminAccountAction: AppController = async (c) => {
+const adminActionController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = adminAccountActionSchema.safeParse(body);
   const authorId = c.req.param('id');
@@ -102,17 +101,24 @@ const adminAccountAction: AppController = async (c) => {
 
   const { data } = result;
 
-  if (data.type !== 'disable') {
-    return c.json({ error: 'Record invalid' }, 422);
+  const n: Record<string, boolean> = {};
+
+  if (data.type === 'sensitive') {
+    n.sensitive = true;
+  }
+  if (data.type === 'disable') {
+    n.disable = true;
+  }
+  if (data.type === 'silence') {
+    n.silence = true;
+  }
+  if (data.type === 'suspend') {
+    n.suspend = true;
   }
 
-  await updateListAdminEvent(
-    { kinds: [10000], authors: [Conf.pubkey], limit: 1 },
-    (tags) => addTag(tags, ['p', authorId]),
-    c,
-  );
+  await updateUser(authorId, n, c);
 
   return c.json({}, 200);
 };
 
-export { adminAccountAction, adminAccountsController };
+export { adminAccountsController, adminActionController };
