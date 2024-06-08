@@ -34,7 +34,7 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
-  const roles = getTagSet(event.tags, 'n');
+  const roles = getTagSet(event.user?.tags ?? [], 'n');
 
   return {
     id: pubkey,
