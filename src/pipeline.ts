@@ -3,10 +3,12 @@ import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
 
+import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
@@ -53,6 +55,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await Promise.all([
     storeEvent(event, signal),
     parseMetadata(event, signal),
+    generateSetEvents(event),
     processMedia(event),
     streamOut(event),
   ]);
@@ -173,6 +176,48 @@ async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
     const pubsub = await Storages.pubsub();
     await pubsub.event(event);
+  }
+}
+
+async function generateSetEvents(event: NostrEvent): Promise<void> {
+  const tagsAdmin = event.tags.some(([name, value]) => ['p', 'P'].includes(name) && value === Conf.pubkey);
+
+  if (event.kind === 1984 && tagsAdmin) {
+    const signer = new AdminSigner();
+
+    const rel = await signer.signEvent({
+      kind: 30383,
+      content: '',
+      tags: [
+        ['d', event.id],
+        ['p', event.pubkey],
+        ['k', '1984'],
+        ['n', 'open'],
+        ...[...getTagSet(event.tags, 'p')].map((pubkey) => ['P', pubkey]),
+        ...[...getTagSet(event.tags, 'e')].map((pubkey) => ['e', pubkey]),
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(rel, AbortSignal.timeout(1000));
+  }
+
+  if (event.kind === 3036 && tagsAdmin) {
+    const signer = new AdminSigner();
+
+    const rel = await signer.signEvent({
+      kind: 30383,
+      content: '',
+      tags: [
+        ['d', event.id],
+        ['p', event.pubkey],
+        ['k', '3036'],
+        ['n', 'open'],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(rel, AbortSignal.timeout(1000));
   }
 }
 
