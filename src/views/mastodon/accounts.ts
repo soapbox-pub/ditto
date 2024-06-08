@@ -34,7 +34,7 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
-  const roles = getTagSet(event.user?.tags ?? [], 'n');
+  const names = getTagSet(event.user?.tags ?? [], 'n');
 
   return {
     id: pubkey,
@@ -77,8 +77,9 @@ async function renderAccount(
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
     },
     pleroma: {
-      is_admin: roles.has('admin'),
-      is_moderator: roles.has('admin') || roles.has('moderator'),
+      is_admin: names.has('admin'),
+      is_moderator: names.has('admin') || names.has('moderator'),
+      is_suggested: names.has('suggest'),
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],

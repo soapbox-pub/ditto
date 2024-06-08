@@ -42,7 +42,9 @@ import {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
+  pleromaAdminSuggestController,
   pleromaAdminTagController,
+  pleromaAdminUnsuggestController,
   pleromaAdminUntagController,
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
@@ -257,6 +259,8 @@ app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requi
 
 app.put('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminTagController);
 app.delete('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminUntagController);
+app.patch('/api/v1/pleroma/admin/users/suggest', requireRole('admin'), pleromaAdminSuggestController);
+app.patch('/api/v1/pleroma/admin/users/unsuggest', requireRole('admin'), pleromaAdminUnsuggestController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
