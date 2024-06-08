@@ -2,8 +2,8 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { HTTPException } from 'hono';
 
 import { type AppContext, type AppMiddleware } from '@/app.ts';
-import { findUser, User } from '@/db/users.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
+import { Storages } from '@/storages.ts';
 import { localRequest } from '@/utils/api.ts';
 import {
   buildAuthEventTemplate,
@@ -11,6 +11,7 @@ import {
   type ParseAuthRequestOpts,
   validateAuthEvent,
 } from '@/utils/nip98.ts';
+import { Conf } from '@/config.ts';
 
 /**
  * NIP-98 auth.
@@ -35,7 +36,14 @@ type UserRole = 'user' | 'admin';
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
   return withProof(async (_c, proof, next) => {
-    const user = await findUser({ pubkey: proof.pubkey });
+    const store = await Storages.db();
+
+    const [user] = await store.query([{
+      kinds: [30382],
+      authors: [Conf.pubkey],
+      '#d': [proof.pubkey],
+      limit: 1,
+    }]);
 
     if (user && matchesRole(user, role)) {
       await next();
@@ -53,15 +61,8 @@ function requireProof(opts?: ParseAuthRequestOpts): AppMiddleware {
 }
 
 /** Check whether the user fulfills the role. */
-function matchesRole(user: User, role: UserRole): boolean {
-  switch (role) {
-    case 'user':
-      return true;
-    case 'admin':
-      return user.admin;
-    default:
-      return false;
-  }
+function matchesRole(user: NostrEvent, role: UserRole): boolean {
+  return user.tags.some(([tag, value]) => tag === 'n' && value === role);
 }
 
 /** HOC to obtain proof in middleware. */

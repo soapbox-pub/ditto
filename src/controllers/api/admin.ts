@@ -5,8 +5,7 @@ import { Conf } from '@/config.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { paginated, paginationSchema, parseBody, updateListAdminEvent } from '@/utils/api.ts';
-import { addTag } from '@/utils/tags.ts';
+import { paginated, paginationSchema, parseBody, updateUser } from '@/utils/api.ts';
 import { renderAdminAccount } from '@/views/mastodon/admin-accounts.ts';
 
 const adminAccountQuerySchema = z.object({
@@ -44,7 +43,7 @@ const adminAccountsController: AppController = async (c) => {
   const { since, until, limit } = paginationSchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
-  const events = await store.query([{ kinds: [30361], authors: [Conf.pubkey], since, until, limit }], { signal });
+  const events = await store.query([{ kinds: [30382], authors: [Conf.pubkey], since, until, limit }], { signal });
   const pubkeys = events.map((event) => event.tags.find(([name]) => name === 'd')?.[1]!);
   const authors = await store.query([{ kinds: [0], authors: pubkeys }], { signal });
 
@@ -64,7 +63,7 @@ const adminAccountActionSchema = z.object({
   type: z.enum(['none', 'sensitive', 'disable', 'silence', 'suspend']),
 });
 
-const adminAccountAction: AppController = async (c) => {
+const adminActionController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = adminAccountActionSchema.safeParse(body);
   const authorId = c.req.param('id');
@@ -75,17 +74,24 @@ const adminAccountAction: AppController = async (c) => {
 
   const { data } = result;
 
-  if (data.type !== 'disable') {
-    return c.json({ error: 'Record invalid' }, 422);
+  const n: Record<string, boolean> = {};
+
+  if (data.type === 'sensitive') {
+    n.sensitive = true;
+  }
+  if (data.type === 'disable') {
+    n.disable = true;
+  }
+  if (data.type === 'silence') {
+    n.silence = true;
+  }
+  if (data.type === 'suspend') {
+    n.suspend = true;
   }
 
-  await updateListAdminEvent(
-    { kinds: [10000], authors: [Conf.pubkey], limit: 1 },
-    (tags) => addTag(tags, ['p', authorId]),
-    c,
-  );
+  await updateUser(authorId, n, c);
 
   return c.json({}, 200);
 };
 
-export { adminAccountAction, adminAccountsController };
+export { adminAccountsController, adminActionController };
