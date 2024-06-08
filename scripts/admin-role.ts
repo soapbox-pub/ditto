@@ -1,7 +1,6 @@
 import { NSchema } from '@nostrify/nostrify';
 
 import { DittoDB } from '@/db/DittoDB.ts';
-import { Conf } from '@/config.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { nostrNow } from '@/utils.ts';
@@ -21,14 +20,39 @@ if (!['admin', 'user'].includes(role)) {
   Deno.exit(1);
 }
 
-const event = await new AdminSigner().signEvent({
-  kind: 30361,
-  tags: [
-    ['d', pubkey],
-    ['role', role],
-    // NIP-31: https://github.com/nostr-protocol/nips/blob/master/31.md
-    ['alt', `User's account was updated by the admins of ${Conf.url.host}`],
-  ],
+const signer = new AdminSigner();
+const admin = await signer.getPublicKey();
+
+const [existing] = await eventsDB.query([{
+  kinds: [30382],
+  authors: [admin],
+  '#d': [pubkey],
+  limit: 1,
+}]);
+
+const prevTags = (existing?.tags ?? []).filter(([name, value]) => {
+  if (name === 'd') {
+    return false;
+  }
+  if (name === 'n' && value === 'admin') {
+    return false;
+  }
+  return true;
+});
+
+const tags: string[][] = [
+  ['d', pubkey],
+];
+
+if (role === 'admin') {
+  tags.push(['n', 'admin']);
+}
+
+tags.push(...prevTags);
+
+const event = await signer.signEvent({
+  kind: 30382,
+  tags,
   content: '',
   created_at: nostrNow(),
 });

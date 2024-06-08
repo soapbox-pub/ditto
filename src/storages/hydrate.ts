@@ -82,7 +82,7 @@ export function assembleEvents(
 
   for (const event of a) {
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
-    event.user = b.find((e) => matchFilter({ kinds: [30361], authors: [admin], '#d': [event.pubkey] }, e));
+    event.user = b.find((e) => matchFilter({ kinds: [30382], authors: [admin], '#d': [event.pubkey] }, e));
 
     if (event.kind === 1) {
       const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
@@ -201,7 +201,7 @@ function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
   return store.query(
-    [{ kinds: [30361], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    [{ kinds: [30382], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
 }

@@ -6,6 +6,7 @@ import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
+import { getTagSet } from '@/utils/tags.ts';
 import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
@@ -33,7 +34,7 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
-  const role = event.user?.tags.find(([name]) => name === 'role')?.[1] ?? 'user';
+  const roles = getTagSet(event.tags, 'n');
 
   return {
     id: pubkey,
@@ -74,11 +75,10 @@ async function renderAccount(
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
-      is_registered: Boolean(event.user),
     },
     pleroma: {
-      is_admin: role === 'admin',
-      is_moderator: ['admin', 'moderator'].includes(role),
+      is_admin: roles.has('admin'),
+      is_moderator: roles.has('admin') || roles.has('moderator'),
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
     },
