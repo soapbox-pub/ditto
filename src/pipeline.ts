@@ -1,14 +1,11 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
 
-import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
@@ -44,6 +41,15 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   await hydrateEvent(event, signal);
 
+  const n = getTagSet(event.user?.tags ?? [], 'n');
+
+  if (n.has('disable')) {
+    throw new RelayError('blocked', 'user is disabled');
+  }
+  if (n.has('suspend')) {
+    throw new RelayError('blocked', 'user is suspended');
+  }
+
   await Promise.all([
     storeEvent(event, signal),
     parseMetadata(event, signal),
@@ -55,13 +61,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 async function policyFilter(event: NostrEvent): Promise<void> {
   const debug = Debug('ditto:policy');
 
-  const policy = new PipePolicy([
-    new MuteListPolicy(Conf.pubkey, await Storages.admin()),
-    policyWorker,
-  ]);
-
   try {
-    const result = await policy.call(event);
+    const result = await policyWorker.call(event);
     debug(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
