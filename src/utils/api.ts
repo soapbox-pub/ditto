@@ -73,8 +73,6 @@ function updateListEvent(
 async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
   const signer = new AdminSigner();
 
-  console.log(t);
-
   const event = await signer.signEvent({
     content: '',
     created_at: nostrNow(),
