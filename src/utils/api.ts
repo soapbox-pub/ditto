@@ -73,6 +73,8 @@ function updateListEvent(
 async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
   const signer = new AdminSigner();
 
+  console.log(t);
+
   const event = await signer.signEvent({
     content: '',
     created_at: nostrNow(),
@@ -125,7 +127,7 @@ async function updateUser(pubkey: string, n: Record<string, boolean>, c: AppCont
 
       return {
         kind: 30382,
-        content: prev?.content,
+        content: prev?.content ?? '',
         tags: [
           ['d', pubkey],
           ...nTags,
@@ -294,6 +296,7 @@ export {
   type PaginationParams,
   paginationSchema,
   parseBody,
+  updateAdminEvent,
   updateEvent,
   updateListAdminEvent,
   updateListEvent,

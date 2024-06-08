@@ -81,6 +81,7 @@ async function renderAccount(
       is_moderator: roles.has('admin') || roles.has('moderator'),
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
+      tags: [...getTagSet(event.user?.tags ?? [], 't')],
     },
     nostr: {
       pubkey,

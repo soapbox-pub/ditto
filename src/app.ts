@@ -42,6 +42,8 @@ import {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
+  pleromaAdminTagController,
+  pleromaAdminUntagController,
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
@@ -252,6 +254,9 @@ app.post(
 );
 
 app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminActionController);
+
+app.put('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminTagController);
+app.delete('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminUntagController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);

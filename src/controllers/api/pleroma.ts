@@ -6,7 +6,8 @@ import { Conf } from '@/config.ts';
 import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
-import { createAdminEvent } from '@/utils/api.ts';
+import { createAdminEvent, updateAdminEvent } from '@/utils/api.ts';
+import { lookupPubkey } from '@/utils/lookup.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const store = await Storages.db();
@@ -87,4 +88,70 @@ async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaCo
   }
 }
 
-export { configController, frontendConfigController, pleromaAdminDeleteStatusController, updateConfigController };
+const pleromaAdminTagsSchema = z.object({
+  nicknames: z.string().array(),
+  tags: z.string().array(),
+});
+
+const pleromaAdminTagController: AppController = async (c) => {
+  const params = pleromaAdminTagsSchema.parse(await c.req.json());
+
+  for (const nickname of params.nicknames) {
+    const pubkey = await lookupPubkey(nickname);
+    if (!pubkey) continue;
+
+    await updateAdminEvent(
+      { kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 },
+      (prev) => {
+        const tags = prev?.tags ?? [['d', pubkey]];
+
+        for (const tag of params.tags) {
+          const existing = prev?.tags.some(([name, value]) => name === 't' && value === tag);
+          if (!existing) {
+            tags.push(['t', tag]);
+          }
+        }
+
+        return {
+          kind: 30382,
+          content: prev?.content ?? '',
+          tags,
+        };
+      },
+      c,
+    );
+  }
+
+  return new Response(null, { status: 204 });
+};
+
+const pleromaAdminUntagController: AppController = async (c) => {
+  const params = pleromaAdminTagsSchema.parse(await c.req.json());
+
+  for (const nickname of params.nicknames) {
+    const pubkey = await lookupPubkey(nickname);
+    if (!pubkey) continue;
+
+    await updateAdminEvent(
+      { kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 },
+      (prev) => ({
+        kind: 30382,
+        content: prev?.content ?? '',
+        tags: (prev?.tags ?? [['d', pubkey]])
+          .filter(([name, value]) => !(name === 't' && params.tags.includes(value))),
+      }),
+      c,
+    );
+  }
+
+  return new Response(null, { status: 204 });
+};
+
+export {
+  configController,
+  frontendConfigController,
+  pleromaAdminDeleteStatusController,
+  pleromaAdminTagController,
+  pleromaAdminUntagController,
+  updateConfigController,
+};
