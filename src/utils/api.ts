@@ -107,6 +107,36 @@ async function updateAdminEvent<E extends EventStub>(
   return createAdminEvent(fn(prev), c);
 }
 
+async function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  const signer = new AdminSigner();
+  const admin = await signer.getPublicKey();
+
+  return updateAdminEvent(
+    { kinds: [30382], authors: [admin], '#d': [pubkey], limit: 1 },
+    (prev) => {
+      const prevNames = prev?.tags.reduce((acc, [name, value]) => {
+        if (name === 'n') acc[value] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      const names = { ...prevNames, ...n };
+      const nTags = Object.entries(names).filter(([, value]) => value).map(([name]) => ['n', name]);
+      const other = prev?.tags.filter(([name]) => !['d', 'n'].includes(name)) ?? [];
+
+      return {
+        kind: 30382,
+        content: prev?.content,
+        tags: [
+          ['d', pubkey],
+          ...nTags,
+          ...other,
+        ],
+      };
+    },
+    c,
+  );
+}
+
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
@@ -267,4 +297,5 @@ export {
   updateEvent,
   updateListAdminEvent,
   updateListEvent,
+  updateUser,
 };

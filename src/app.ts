@@ -26,7 +26,7 @@ import {
   updateCredentialsController,
   verifyCredentialsController,
 } from '@/controllers/api/accounts.ts';
-import { adminAccountAction, adminAccountsController } from '@/controllers/api/admin.ts';
+import { adminAccountsController, adminActionController } from '@/controllers/api/admin.ts';
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
@@ -251,7 +251,7 @@ app.post(
   adminReportResolveController,
 );
 
-app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminAccountAction);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminActionController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);
