@@ -30,7 +30,15 @@ import { adminAccountsController, adminActionController } from '@/controllers/ap
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
-import { adminRelaysController, adminSetRelaysController, nameRequestController } from '@/controllers/api/ditto.ts';
+import {
+  adminNameApproveController,
+  adminNameRejectController,
+  adminNameRequestsController,
+  adminRelaysController,
+  adminSetRelaysController,
+  nameRequestController,
+  nameRequestsController,
+} from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
@@ -245,6 +253,12 @@ app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysControlle
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
+app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
+
+app.get('/api/v1/admin/ditto/names', requireRole('admin'), adminNameRequestsController);
+app.post('/api/v1/admin/ditto/names/:id{[0-9a-f]{64}}/approve', requireRole('admin'), adminNameApproveController);
+app.post('/api/v1/admin/ditto/names/:id{[0-9a-f]{64}}/reject', requireRole('admin'), adminNameRejectController);
+
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 
 app.post('/api/v1/reports', requireSigner, reportController);

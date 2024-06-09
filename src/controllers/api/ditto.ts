@@ -7,7 +7,7 @@ import { booleanParamSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema } from '@/utils/api.ts';
+import { createAdminEvent, createEvent, paginated, paginationSchema, updateEventInfo } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 
 const markerSchema = z.enum(['read', 'write']);
@@ -182,4 +182,59 @@ export const adminNameRequestsController: AppController = async (c) => {
   );
 
   return paginated(c, orig, nameRequests);
+};
+
+export const adminNameApproveController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const store = await Storages.db();
+
+  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
+
+  const r = event.tags.find(([name]) => name === 'r')?.[1];
+  if (!r) {
+    return c.json({ error: 'NIP-05 not found' }, 404);
+  }
+  if (!z.string().email().safeParse(r).success) {
+    return c.json({ error: 'Invalid NIP-05' }, 400);
+  }
+
+  const [existing] = await store.query([{ kinds: [30360], authors: [Conf.pubkey], '#d': [r], limit: 1 }]);
+  if (existing) {
+    return c.json({ error: 'NIP-05 already granted to another user' }, 400);
+  }
+
+  await createAdminEvent({
+    kind: 30360,
+    tags: [
+      ['d', r],
+      ['L', 'nip05.domain'],
+      ['l', r.split('@')[1], 'nip05.domain'],
+      ['p', event.pubkey],
+    ],
+  }, c);
+
+  await updateEventInfo(eventId, { pending: false, approved: true, rejected: false }, c);
+  await hydrateEvents({ events: [event], store });
+
+  const nameRequest = await renderNameRequest(event);
+  return c.json(nameRequest);
+};
+
+export const adminNameRejectController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const store = await Storages.db();
+
+  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
+
+  await updateEventInfo(eventId, { pending: false, approved: false, rejected: true }, c);
+  await hydrateEvents({ events: [event], store });
+
+  const nameRequest = await renderNameRequest(event);
+  return c.json(nameRequest);
 };
