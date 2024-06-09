@@ -34,4 +34,6 @@ export interface DittoEvent extends NostrEvent {
    * https://github.com/nostr-protocol/nips/blob/master/56.md
    */
   reported_notes?: DittoEvent[];
+  /** Admin event relationship. */
+  info?: DittoEvent;
 }

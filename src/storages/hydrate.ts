@@ -44,6 +44,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  for (const event of await gatherInfo({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
   for (const event of await gatherReportedProfiles({ events: cache, store, signal })) {
     cache.push(event);
   }
@@ -83,6 +87,7 @@ export function assembleEvents(
   for (const event of a) {
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
     event.user = b.find((e) => matchFilter({ kinds: [30382], authors: [admin], '#d': [event.pubkey] }, e));
+    event.info = b.find((e) => matchFilter({ kinds: [30383], authors: [admin], '#d': [event.id] }, e));
 
     if (event.kind === 1) {
       const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
@@ -106,20 +111,21 @@ export function assembleEvents(
     }
 
     if (event.kind === 1984) {
-      const targetAccountId = event.tags.find(([name]) => name === 'p')?.[1];
-      if (targetAccountId) {
-        event.reported_profile = b.find((e) => matchFilter({ kinds: [0], authors: [targetAccountId] }, e));
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) {
+        event.reported_profile = b.find((e) => matchFilter({ kinds: [0], authors: [pubkey] }, e));
       }
-      const reportedEvents: DittoEvent[] = [];
 
-      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
-      if (status_ids.length > 0) {
-        for (const id of status_ids) {
-          const reportedEvent = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
-          if (reportedEvent) reportedEvents.push(reportedEvent);
+      const reportedEvents: DittoEvent[] = [];
+      const ids = event.tags.filter(([name]) => name === 'e').map(([_name, value]) => value);
+
+      for (const id of ids) {
+        const reported = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        if (reported) {
+          reportedEvents.push(reported);
         }
-        event.reported_notes = reportedEvents;
       }
+      event.reported_notes = reportedEvents;
     }
 
     event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
@@ -202,6 +208,26 @@ function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent
 
   return store.query(
     [{ kinds: [30382], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
+/** Collect info events from the events. */
+function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 3036) {
+      ids.add(event.id);
+    }
+  }
+
+  if (!ids.size) {
+    return Promise.resolve([]);
+  }
+
+  return store.query(
+    [{ ids: [...ids], limit: ids.size }],
     { signal },
   );
 }

@@ -30,7 +30,7 @@ import { adminAccountsController, adminActionController } from '@/controllers/ap
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
-import { adminRelaysController, adminSetRelaysController, inviteRequestController } from '@/controllers/api/ditto.ts';
+import { adminRelaysController, adminSetRelaysController, nameRequestController } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import { instanceController } from '@/controllers/api/instance.ts';
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
@@ -243,7 +243,7 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
-app.post('/api/v1/ditto/nip05', requireSigner, inviteRequestController);
+app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 
 app.post('/api/v1/reports', requireSigner, reportController);

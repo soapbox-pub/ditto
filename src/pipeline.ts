@@ -212,7 +212,7 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
         ['d', event.id],
         ['p', event.pubkey],
         ['k', '3036'],
-        ['n', 'open'],
+        ['n', 'pending'],
       ],
       created_at: Math.floor(Date.now() / 1000),
     });
