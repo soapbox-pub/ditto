@@ -1,8 +1,10 @@
+import { NostrEvent } from '@nostrify/nostrify';
+
+import { Conf } from '@/config.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { NostrEvent } from '@nostrify/nostrify';
 
 interface RenderNotificationOpts {
   viewerPubkey: string;
@@ -27,7 +29,7 @@ function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
     return renderReaction(event, opts);
   }
 
-  if (event.kind === 30360) {
+  if (event.kind === 30360 && event.pubkey === Conf.pubkey) {
     return renderNameGrant(event);
   }
 }
@@ -49,7 +51,7 @@ async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.repost?.kind !== 1) return;
   const status = await renderStatus(event.repost, opts);
   if (!status) return;
-  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
   return {
     id: notificationId(event),
@@ -64,7 +66,7 @@ async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) 
   if (event.reacted?.kind !== 1) return;
   const status = await renderStatus(event.reacted, opts);
   if (!status) return;
-  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
   return {
     id: notificationId(event),
@@ -79,7 +81,7 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.reacted?.kind !== 1) return;
   const status = await renderStatus(event.reacted, opts);
   if (!status) return;
-  const account = event.author ? await renderAccount(event.author) : accountFromPubkey(event.pubkey);
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
   return {
     id: notificationId(event),
