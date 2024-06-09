@@ -79,7 +79,7 @@ async function renderAccount(
     pleroma: {
       is_admin: names.has('admin'),
       is_moderator: names.has('admin') || names.has('moderator'),
-      is_suggested: names.has('suggest'),
+      is_suggested: names.has('suggested'),
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],

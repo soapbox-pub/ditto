@@ -45,10 +45,10 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   const n = getTagSet(event.user?.tags ?? [], 'n');
 
-  if (n.has('disable')) {
+  if (n.has('disabled')) {
     throw new RelayError('blocked', 'user is disabled');
   }
-  if (n.has('suspend')) {
+  if (n.has('suspended')) {
     throw new RelayError('blocked', 'user is suspended');
   }
 

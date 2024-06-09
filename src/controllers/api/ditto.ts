@@ -1,12 +1,13 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { booleanParamSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 
 const markerSchema = z.enum(['read', 'write']);
@@ -63,20 +64,20 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
 }
 
 const nameRequestSchema = z.object({
-  nip05: z.string().email(),
+  name: z.string().email(),
   reason: z.string().max(500).optional(),
 });
 
 export const nameRequestController: AppController = async (c) => {
-  const { nip05, reason } = nameRequestSchema.parse(await c.req.json());
+  const { name, reason } = nameRequestSchema.parse(await c.req.json());
 
   const event = await createEvent({
     kind: 3036,
     content: reason,
     tags: [
-      ['r', nip05],
+      ['r', name],
       ['L', 'nip05.domain'],
-      ['l', nip05.split('@')[1], 'nip05.domain'],
+      ['l', name.split('@')[1], 'nip05.domain'],
       ['p', Conf.pubkey],
     ],
   }, c);
@@ -87,14 +88,50 @@ export const nameRequestController: AppController = async (c) => {
   return c.json(nameRequest);
 };
 
+const nameRequestsSchema = z.object({
+  approved: booleanParamSchema.optional(),
+  rejected: booleanParamSchema.optional(),
+});
+
 export const nameRequestsController: AppController = async (c) => {
   const store = await Storages.db();
   const signer = c.get('signer')!;
   const pubkey = await signer.getPublicKey();
 
-  const events = await store.query([{ kinds: [3036], authors: [pubkey], limit: 20 }])
-    .then((events) => hydrateEvents({ events, store }));
+  const params = paginationSchema.parse(c.req.query());
+  const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
 
-  const nameRequests = await Promise.all(events.map(renderNameRequest));
-  return c.json(nameRequests);
+  const filter: NostrFilter = {
+    kinds: [30383],
+    authors: [Conf.pubkey],
+    '#k': ['3036'],
+    '#p': [pubkey],
+    ...params,
+  };
+
+  if (approved) {
+    filter['#n'] = ['approved'];
+  }
+  if (rejected) {
+    filter['#n'] = ['rejected'];
+  }
+
+  const orig = await store.query([filter]);
+  const ids = new Set<string>();
+
+  for (const event of orig) {
+    const d = event.tags.find(([name]) => name === 'd')?.[1];
+    if (d) {
+      ids.add(d);
+    }
+  }
+
+  const events = await store.query([{ kinds: [3036], ids: [...ids] }])
+    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
+
+  const nameRequests = await Promise.all(
+    events.map((event) => renderNameRequest(event)),
+  );
+
+  return paginated(c, orig, nameRequests);
 };

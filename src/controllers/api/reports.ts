@@ -3,11 +3,10 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginationSchema, parseBody, updateEventInfo } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema, parseBody, updateEventInfo } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
-import { getTagSet } from '@/utils/tags.ts';
 import { booleanParamSchema } from '@/schema.ts';
 
 const reportSchema = z.object({
@@ -71,6 +70,7 @@ const adminReportsController: AppController = async (c) => {
   const filter: NostrFilter = {
     kinds: [30383],
     authors: [Conf.pubkey],
+    '#k': ['1984'],
     ...params,
   };
 
@@ -98,18 +98,10 @@ const adminReportsController: AppController = async (c) => {
     .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
 
   const reports = await Promise.all(
-    events.map((event) => {
-      const internal = orig.find(({ tags }) => tags.some(([name, value]) => name === 'd' && value === event.id));
-      const names = getTagSet(internal?.tags ?? [], 'n');
-
-      return renderAdminReport(event, {
-        viewerPubkey,
-        actionTaken: names.has('closed'),
-      });
-    }),
+    events.map((event) => renderAdminReport(event, { viewerPubkey })),
   );
 
-  return c.json(reports);
+  return paginated(c, orig, reports);
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get-one */
@@ -153,11 +145,39 @@ const adminReportResolveController: AppController = async (c) => {
   }
 
   await updateEventInfo(eventId, { open: false, closed: true }, c);
-
   await hydrateEvents({ events: [event], store, signal });
 
-  const report = await renderAdminReport(event, { viewerPubkey: pubkey, actionTaken: true });
+  const report = await renderAdminReport(event, { viewerPubkey: pubkey });
   return c.json(report);
 };
 
-export { adminReportController, adminReportResolveController, adminReportsController, reportController };
+const adminReportReopenController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const { signal } = c.req.raw;
+  const store = c.get('store');
+  const pubkey = await c.get('signer')?.getPublicKey();
+
+  const [event] = await store.query([{
+    kinds: [1984],
+    ids: [eventId],
+    limit: 1,
+  }], { signal });
+
+  if (!event) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+
+  await updateEventInfo(eventId, { open: true, closed: false }, c);
+  await hydrateEvents({ events: [event], store, signal });
+
+  const report = await renderAdminReport(event, { viewerPubkey: pubkey });
+  return c.json(report);
+};
+
+export {
+  adminReportController,
+  adminReportReopenController,
+  adminReportResolveController,
+  adminReportsController,
+  reportController,
+};

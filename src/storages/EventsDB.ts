@@ -223,6 +223,8 @@ class EventsDB implements NStore {
         return event.content;
       case 30009:
         return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
+      case 30360:
+        return event.tags.find(([name]) => name === 'd')?.[1] || '';
       default:
         return '';
     }

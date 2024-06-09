@@ -31,7 +31,7 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
   const pubkey = await signer?.getPublicKey();
 
   const filters: NostrFilter[] = [
-    { kinds: [30382], authors: [Conf.pubkey], '#n': ['suggest'], limit },
+    { kinds: [30382], authors: [Conf.pubkey], '#n': ['suggested'], limit },
     { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 },
   ];
 
@@ -43,7 +43,7 @@ async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, s
   const events = await store.query(filters, { signal });
 
   const [userEvents, followsEvent, mutesEvent, trendingEvent] = [
-    events.filter((event) => matchFilter({ kinds: [30382], authors: [Conf.pubkey], '#n': ['suggest'] }, event)),
+    events.filter((event) => matchFilter({ kinds: [30382], authors: [Conf.pubkey], '#n': ['suggested'] }, event)),
     pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
     pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
     events.find((event) =>
