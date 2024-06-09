@@ -26,6 +26,10 @@ function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.kind === 7) {
     return renderReaction(event, opts);
   }
+
+  if (event.kind === 30360) {
+    return renderNameGrant(event);
+  }
 }
 
 async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
@@ -84,6 +88,21 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
     created_at: nostrDate(event.created_at).toISOString(),
     account,
     status,
+  };
+}
+
+async function renderNameGrant(event: DittoEvent) {
+  const d = event.tags.find(([name]) => name === 'd')?.[1];
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+
+  if (!d) return;
+
+  return {
+    id: notificationId(event),
+    type: 'ditto:name_grant',
+    name: d,
+    created_at: nostrDate(event.created_at).toISOString(),
+    account,
   };
 }
 

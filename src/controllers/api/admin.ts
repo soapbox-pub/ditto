@@ -6,7 +6,7 @@ import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated, paginationSchema, parseBody, updateUser } from '@/utils/api.ts';
+import { createAdminEvent, paginated, paginationSchema, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 
@@ -47,7 +47,7 @@ const adminAccountsController: AppController = async (c) => {
     }
 
     const orig = await store.query(
-      [{ kinds: [30383], authors: [Conf.pubkey], '#k': ['3036'], ...params }],
+      [{ kinds: [30383], authors: [Conf.pubkey], '#k': ['3036'], '#n': ['pending'], ...params }],
       { signal },
     );
 
@@ -143,4 +143,59 @@ const adminActionController: AppController = async (c) => {
   return c.json({}, 200);
 };
 
-export { adminAccountsController, adminActionController };
+const adminApproveController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const store = await Storages.db();
+
+  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
+
+  const r = event.tags.find(([name]) => name === 'r')?.[1];
+  if (!r) {
+    return c.json({ error: 'NIP-05 not found' }, 404);
+  }
+  if (!z.string().email().safeParse(r).success) {
+    return c.json({ error: 'Invalid NIP-05' }, 400);
+  }
+
+  const [existing] = await store.query([{ kinds: [30360], authors: [Conf.pubkey], '#d': [r], limit: 1 }]);
+  if (existing) {
+    return c.json({ error: 'NIP-05 already granted to another user' }, 400);
+  }
+
+  await createAdminEvent({
+    kind: 30360,
+    tags: [
+      ['d', r],
+      ['L', 'nip05.domain'],
+      ['l', r.split('@')[1], 'nip05.domain'],
+      ['p', event.pubkey],
+      ['e', event.id],
+    ],
+  }, c);
+
+  await updateEventInfo(eventId, { pending: false, approved: true, rejected: false }, c);
+  await hydrateEvents({ events: [event], store });
+
+  const nameRequest = await renderNameRequest(event);
+  return c.json(nameRequest);
+};
+
+const adminRejectController: AppController = async (c) => {
+  const eventId = c.req.param('id');
+  const store = await Storages.db();
+
+  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
+
+  await updateEventInfo(eventId, { pending: false, approved: false, rejected: true }, c);
+  await hydrateEvents({ events: [event], store });
+
+  const nameRequest = await renderNameRequest(event);
+  return c.json(nameRequest);
+};
+export { adminAccountsController, adminActionController, adminApproveController, adminRejectController };

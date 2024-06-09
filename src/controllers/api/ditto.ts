@@ -1,4 +1,4 @@
-import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
@@ -7,7 +7,7 @@ import { booleanParamSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createAdminEvent, createEvent, paginated, paginationSchema, updateEventInfo } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 
 const markerSchema = z.enum(['read', 'write']);
@@ -134,108 +134,4 @@ export const nameRequestsController: AppController = async (c) => {
   );
 
   return paginated(c, orig, nameRequests);
-};
-
-const adminNameRequestsSchema = z.object({
-  account_id: n.id().optional(),
-  approved: booleanParamSchema.optional(),
-  rejected: booleanParamSchema.optional(),
-});
-
-export const adminNameRequestsController: AppController = async (c) => {
-  const store = await Storages.db();
-  const params = paginationSchema.parse(c.req.query());
-  const { account_id, approved, rejected } = adminNameRequestsSchema.parse(c.req.query());
-
-  const filter: NostrFilter = {
-    kinds: [30383],
-    authors: [Conf.pubkey],
-    '#k': ['3036'],
-    ...params,
-  };
-
-  if (account_id) {
-    filter['#p'] = [account_id];
-  }
-  if (approved) {
-    filter['#n'] = ['approved'];
-  }
-  if (rejected) {
-    filter['#n'] = ['rejected'];
-  }
-
-  const orig = await store.query([filter]);
-  const ids = new Set<string>();
-
-  for (const event of orig) {
-    const d = event.tags.find(([name]) => name === 'd')?.[1];
-    if (d) {
-      ids.add(d);
-    }
-  }
-
-  const events = await store.query([{ kinds: [3036], ids: [...ids] }])
-    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
-
-  const nameRequests = await Promise.all(
-    events.map((event) => renderNameRequest(event)),
-  );
-
-  return paginated(c, orig, nameRequests);
-};
-
-export const adminNameApproveController: AppController = async (c) => {
-  const eventId = c.req.param('id');
-  const store = await Storages.db();
-
-  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
-  if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
-  }
-
-  const r = event.tags.find(([name]) => name === 'r')?.[1];
-  if (!r) {
-    return c.json({ error: 'NIP-05 not found' }, 404);
-  }
-  if (!z.string().email().safeParse(r).success) {
-    return c.json({ error: 'Invalid NIP-05' }, 400);
-  }
-
-  const [existing] = await store.query([{ kinds: [30360], authors: [Conf.pubkey], '#d': [r], limit: 1 }]);
-  if (existing) {
-    return c.json({ error: 'NIP-05 already granted to another user' }, 400);
-  }
-
-  await createAdminEvent({
-    kind: 30360,
-    tags: [
-      ['d', r],
-      ['L', 'nip05.domain'],
-      ['l', r.split('@')[1], 'nip05.domain'],
-      ['p', event.pubkey],
-      ['e', event.id],
-    ],
-  }, c);
-
-  await updateEventInfo(eventId, { pending: false, approved: true, rejected: false }, c);
-  await hydrateEvents({ events: [event], store });
-
-  const nameRequest = await renderNameRequest(event);
-  return c.json(nameRequest);
-};
-
-export const adminNameRejectController: AppController = async (c) => {
-  const eventId = c.req.param('id');
-  const store = await Storages.db();
-
-  const [event] = await store.query([{ kinds: [3036], ids: [eventId] }]);
-  if (!event) {
-    return c.json({ error: 'Event not found' }, 404);
-  }
-
-  await updateEventInfo(eventId, { pending: false, approved: false, rejected: true }, c);
-  await hydrateEvents({ events: [event], store });
-
-  const nameRequest = await renderNameRequest(event);
-  return c.json(nameRequest);
 };
