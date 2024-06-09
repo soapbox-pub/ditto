@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginationSchema, parseBody, updateEventInfo } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema, parseBody, updateEventInfo } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
@@ -101,7 +101,7 @@ const adminReportsController: AppController = async (c) => {
     events.map((event) => renderAdminReport(event, { viewerPubkey })),
   );
 
-  return c.json(reports);
+  return paginated(c, orig, reports);
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get-one */
