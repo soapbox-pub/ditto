@@ -107,13 +107,13 @@ const adminActionController: AppController = async (c) => {
     n.sensitive = true;
   }
   if (data.type === 'disable') {
-    n.disable = true;
+    n.disabled = true;
   }
   if (data.type === 'silence') {
-    n.silence = true;
+    n.silenced = true;
   }
   if (data.type === 'suspend') {
-    n.suspend = true;
+    n.suspended = true;
   }
 
   await updateUser(authorId, n, c);
