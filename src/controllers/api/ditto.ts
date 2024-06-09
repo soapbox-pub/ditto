@@ -64,20 +64,20 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
 }
 
 const nameRequestSchema = z.object({
-  nip05: z.string().email(),
+  name: z.string().email(),
   reason: z.string().max(500).optional(),
 });
 
 export const nameRequestController: AppController = async (c) => {
-  const { nip05, reason } = nameRequestSchema.parse(await c.req.json());
+  const { name, reason } = nameRequestSchema.parse(await c.req.json());
 
   const event = await createEvent({
     kind: 3036,
     content: reason,
     tags: [
-      ['r', nip05],
+      ['r', name],
       ['L', 'nip05.domain'],
-      ['l', nip05.split('@')[1], 'nip05.domain'],
+      ['l', name.split('@')[1], 'nip05.domain'],
       ['p', Conf.pubkey],
     ],
   }, c);
@@ -213,6 +213,7 @@ export const adminNameApproveController: AppController = async (c) => {
       ['L', 'nip05.domain'],
       ['l', r.split('@')[1], 'nip05.domain'],
       ['p', event.pubkey],
+      ['e', event.id],
     ],
   }, c);
 
