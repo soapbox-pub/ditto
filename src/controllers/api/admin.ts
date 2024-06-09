@@ -114,6 +114,7 @@ const adminAccountActionSchema = z.object({
 
 const adminActionController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
+  const store = await Storages.db();
   const result = adminAccountActionSchema.safeParse(body);
   const authorId = c.req.param('id');
 
@@ -136,6 +137,7 @@ const adminActionController: AppController = async (c) => {
   }
   if (data.type === 'suspend') {
     n.suspended = true;
+    store.remove([{ authors: [authorId] }]).catch(console.warn);
   }
 
   await updateUser(authorId, n, c);
