@@ -1,9 +1,20 @@
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { getTagSet } from '@/utils/tags.ts';
 
 /** Expects a kind 0 fully hydrated */
 async function renderAdminAccount(event: DittoEvent) {
   const account = await renderAccount(event);
+  const names = getTagSet(event.user?.tags ?? [], 'n');
+
+  let role = 'user';
+
+  if (names.has('admin')) {
+    role = 'admin';
+  }
+  if (names.has('moderator')) {
+    role = 'moderator';
+  }
 
   return {
     id: account.id,
@@ -15,12 +26,13 @@ async function renderAdminAccount(event: DittoEvent) {
     ips: [],
     locale: '',
     invite_request: null,
-    role: event.tags.find(([name]) => name === 'role')?.[1],
+    role,
     confirmed: true,
     approved: true,
-    disabled: false,
-    silenced: false,
-    suspended: false,
+    disabled: names.has('disabled'),
+    silenced: names.has('silenced'),
+    suspended: names.has('suspended'),
+    sensitized: names.has('sensitized'),
     account,
   };
 }
