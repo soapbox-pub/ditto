@@ -157,7 +157,7 @@ const pleromaAdminSuggestController: AppController = async (c) => {
   for (const nickname of nicknames) {
     const pubkey = await lookupPubkey(nickname);
     if (!pubkey) continue;
-    await updateUser(pubkey, { suggest: true }, c);
+    await updateUser(pubkey, { suggested: true }, c);
   }
 
   return new Response(null, { status: 204 });
@@ -169,7 +169,7 @@ const pleromaAdminUnsuggestController: AppController = async (c) => {
   for (const nickname of nicknames) {
     const pubkey = await lookupPubkey(nickname);
     if (!pubkey) continue;
-    await updateUser(pubkey, { suggest: false }, c);
+    await updateUser(pubkey, { suggested: false }, c);
   }
 
   return new Response(null, { status: 204 });
