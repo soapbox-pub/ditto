@@ -3,8 +3,11 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { Storages } from '@/storages.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { createEvent } from '@/utils/api.ts';
+import { renderNameRequest } from '@/views/ditto.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -58,3 +61,40 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
     return acc;
   }, [] as RelayEntity[]);
 }
+
+const nameRequestSchema = z.object({
+  nip05: z.string().email(),
+  reason: z.string().max(500).optional(),
+});
+
+export const nameRequestController: AppController = async (c) => {
+  const { nip05, reason } = nameRequestSchema.parse(await c.req.json());
+
+  const event = await createEvent({
+    kind: 3036,
+    content: reason,
+    tags: [
+      ['r', nip05],
+      ['L', 'nip05.domain'],
+      ['l', nip05.split('@')[1], 'nip05.domain'],
+      ['p', Conf.pubkey],
+    ],
+  }, c);
+
+  await hydrateEvents({ events: [event], store: await Storages.db() });
+
+  const nameRequest = await renderNameRequest(event);
+  return c.json(nameRequest);
+};
+
+export const nameRequestsController: AppController = async (c) => {
+  const store = await Storages.db();
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
+
+  const events = await store.query([{ kinds: [3036], authors: [pubkey], limit: 20 }])
+    .then((events) => hydrateEvents({ events, store }));
+
+  const nameRequests = await Promise.all(events.map(renderNameRequest));
+  return c.json(nameRequests);
+};

@@ -107,12 +107,20 @@ async function updateAdminEvent<E extends EventStub>(
   return createAdminEvent(fn(prev), c);
 }
 
-async function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  return updateNames(30382, pubkey, n, c);
+}
+
+function updateEventInfo(id: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  return updateNames(30383, id, n, c);
+}
+
+async function updateNames(k: number, d: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
   const signer = new AdminSigner();
   const admin = await signer.getPublicKey();
 
   return updateAdminEvent(
-    { kinds: [30382], authors: [admin], '#d': [pubkey], limit: 1 },
+    { kinds: [k], authors: [admin], '#d': [d], limit: 1 },
     (prev) => {
       const prevNames = prev?.tags.reduce((acc, [name, value]) => {
         if (name === 'n') acc[value] = true;
@@ -124,10 +132,10 @@ async function updateUser(pubkey: string, n: Record<string, boolean>, c: AppCont
       const other = prev?.tags.filter(([name]) => !['d', 'n'].includes(name)) ?? [];
 
       return {
-        kind: 30382,
+        kind: k,
         content: prev?.content ?? '',
         tags: [
-          ['d', pubkey],
+          ['d', d],
           ...nTags,
           ...other,
         ],
@@ -296,6 +304,7 @@ export {
   parseBody,
   updateAdminEvent,
   updateEvent,
+  updateEventInfo,
   updateListAdminEvent,
   updateListEvent,
   updateUser,

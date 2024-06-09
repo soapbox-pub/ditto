@@ -21,7 +21,6 @@ export interface DittoEvent extends NostrEvent {
   author_domain?: string;
   author_stats?: AuthorStats;
   event_stats?: EventStats;
-  d_author?: DittoEvent;
   user?: DittoEvent;
   repost?: DittoEvent;
   quote?: DittoEvent;
@@ -35,4 +34,6 @@ export interface DittoEvent extends NostrEvent {
    * https://github.com/nostr-protocol/nips/blob/master/56.md
    */
   reported_notes?: DittoEvent[];
+  /** Admin event relationship. */
+  info?: DittoEvent;
 }
