@@ -206,6 +206,10 @@ function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEve
 function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
+  if (!pubkeys.size) {
+    return Promise.resolve([]);
+  }
+
   return store.query(
     [{ kinds: [30382], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
     { signal },
@@ -217,7 +221,7 @@ function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[
   const ids = new Set<string>();
 
   for (const event of events) {
-    if (event.kind === 3036) {
+    if (event.kind === 1984 || event.kind === 3036) {
       ids.add(event.id);
     }
   }
@@ -227,7 +231,7 @@ function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[
   }
 
   return store.query(
-    [{ ids: [...ids], limit: ids.size }],
+    [{ kinds: [30383], authors: [Conf.pubkey], '#d': [...ids], limit: ids.size }],
     { signal },
   );
 }

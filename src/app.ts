@@ -53,6 +53,7 @@ import { deleteReactionController, reactionController, reactionsController } fro
 import { relayController } from '@/controllers/nostr/relay.ts';
 import {
   adminReportController,
+  adminReportReopenController,
   adminReportResolveController,
   adminReportsController,
   reportController,
@@ -254,6 +255,12 @@ app.post(
   requireSigner,
   requireRole('admin'),
   adminReportResolveController,
+);
+app.post(
+  '/api/v1/admin/reports/:id{[0-9a-f]{64}}/reopen',
+  requireSigner,
+  requireRole('admin'),
+  adminReportReopenController,
 );
 
 app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminActionController);

@@ -3,6 +3,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { nostrDate } from '@/utils.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { getTagSet } from '@/utils/tags.ts';
 
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
 async function renderReport(event: DittoEvent) {
@@ -30,43 +31,42 @@ async function renderReport(event: DittoEvent) {
 
 interface RenderAdminReportOpts {
   viewerPubkey?: string;
-  actionTaken?: boolean;
 }
 
 /** Admin-level information about a filed report.
  * Expects an event of kind 1984 fully hydrated.
  * https://docs.joinmastodon.org/entities/Admin_Report */
-async function renderAdminReport(reportEvent: DittoEvent, opts: RenderAdminReportOpts) {
-  const { viewerPubkey, actionTaken = false } = opts;
+async function renderAdminReport(event: DittoEvent, opts: RenderAdminReportOpts) {
+  const { viewerPubkey } = opts;
 
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
-  const category = reportEvent.tags.find(([name]) => name === 'p')?.[2];
+  const category = event.tags.find(([name]) => name === 'p')?.[2];
 
   const statuses = [];
-  if (reportEvent.reported_notes) {
-    for (const status of reportEvent.reported_notes) {
+  if (event.reported_notes) {
+    for (const status of event.reported_notes) {
       statuses.push(await renderStatus(status, { viewerPubkey }));
     }
   }
 
-  const reportedPubkey = reportEvent.tags.find(([name]) => name === 'p')?.[1];
+  const reportedPubkey = event.tags.find(([name]) => name === 'p')?.[1];
   if (!reportedPubkey) {
     return;
   }
 
+  const names = getTagSet(event.info?.tags ?? [], 'n');
+
   return {
-    id: reportEvent.id,
-    action_taken: actionTaken,
+    id: event.id,
+    action_taken: names.has('closed'),
     action_taken_at: null,
     category,
-    comment: reportEvent.content,
+    comment: event.content,
     forwarded: false,
-    created_at: nostrDate(reportEvent.created_at).toISOString(),
-    account: reportEvent.author
-      ? await renderAdminAccount(reportEvent.author)
-      : await renderAdminAccountFromPubkey(reportEvent.pubkey),
-    target_account: reportEvent.reported_profile
-      ? await renderAdminAccount(reportEvent.reported_profile)
+    created_at: nostrDate(event.created_at).toISOString(),
+    account: event.author ? await renderAdminAccount(event.author) : await renderAdminAccountFromPubkey(event.pubkey),
+    target_account: event.reported_profile
+      ? await renderAdminAccount(event.reported_profile)
       : await renderAdminAccountFromPubkey(reportedPubkey),
     assigned_account: null,
     action_taken_by_account: null,
