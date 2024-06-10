@@ -1,5 +1,4 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import { PipePolicy } from '@nostrify/nostrify/policies';
 import Debug from '@soapbox/stickynotes/debug';
 import { sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
@@ -8,8 +7,8 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { RelayError } from '@/RelayError.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
@@ -35,6 +34,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
   if (!(await verifyEventWorker(event))) return;
   if (encounterEvent(event)) return;
+  if (await existsInDB(event)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
 
   if (event.kind !== 24133) {
@@ -43,9 +43,19 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   await hydrateEvent(event, signal);
 
+  const n = getTagSet(event.user?.tags ?? [], 'n');
+
+  if (n.has('disabled')) {
+    throw new RelayError('blocked', 'user is disabled');
+  }
+  if (n.has('suspended')) {
+    throw new RelayError('blocked', 'user is suspended');
+  }
+
   await Promise.all([
     storeEvent(event, signal),
     parseMetadata(event, signal),
+    generateSetEvents(event),
     processMedia(event),
     streamOut(event),
   ]);
@@ -54,13 +64,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 async function policyFilter(event: NostrEvent): Promise<void> {
   const debug = Debug('ditto:policy');
 
-  const policy = new PipePolicy([
-    new MuteListPolicy(Conf.pubkey, await Storages.admin()),
-    policyWorker,
-  ]);
-
   try {
-    const result = await policy.call(event);
+    const result = await policyWorker.call(event);
     debug(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
@@ -82,6 +87,13 @@ function encounterEvent(event: NostrEvent): boolean {
     encounters.set(event.id, true);
   }
   return encountered;
+}
+
+/** Check if the event already exists in the database. */
+async function existsInDB(event: DittoEvent): Promise<boolean> {
+  const store = await Storages.db();
+  const events = await store.query([{ ids: [event.id], limit: 1 }]);
+  return events.length > 0;
 }
 
 /** Hydrate the event with the user, if applicable. */
@@ -164,6 +176,48 @@ async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
     const pubsub = await Storages.pubsub();
     await pubsub.event(event);
+  }
+}
+
+async function generateSetEvents(event: NostrEvent): Promise<void> {
+  const tagsAdmin = event.tags.some(([name, value]) => ['p', 'P'].includes(name) && value === Conf.pubkey);
+
+  if (event.kind === 1984 && tagsAdmin) {
+    const signer = new AdminSigner();
+
+    const rel = await signer.signEvent({
+      kind: 30383,
+      content: '',
+      tags: [
+        ['d', event.id],
+        ['p', event.pubkey],
+        ['k', '1984'],
+        ['n', 'open'],
+        ...[...getTagSet(event.tags, 'p')].map((pubkey) => ['P', pubkey]),
+        ...[...getTagSet(event.tags, 'e')].map((pubkey) => ['e', pubkey]),
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(rel, AbortSignal.timeout(1000));
+  }
+
+  if (event.kind === 3036 && tagsAdmin) {
+    const signer = new AdminSigner();
+
+    const rel = await signer.signEvent({
+      kind: 30383,
+      content: '',
+      tags: [
+        ['d', event.id],
+        ['p', event.pubkey],
+        ['k', '3036'],
+        ['n', 'pending'],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(rel, AbortSignal.timeout(1000));
   }
 }
 

@@ -107,6 +107,44 @@ async function updateAdminEvent<E extends EventStub>(
   return createAdminEvent(fn(prev), c);
 }
 
+function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  return updateNames(30382, pubkey, n, c);
+}
+
+function updateEventInfo(id: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  return updateNames(30383, id, n, c);
+}
+
+async function updateNames(k: number, d: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+  const signer = new AdminSigner();
+  const admin = await signer.getPublicKey();
+
+  return updateAdminEvent(
+    { kinds: [k], authors: [admin], '#d': [d], limit: 1 },
+    (prev) => {
+      const prevNames = prev?.tags.reduce((acc, [name, value]) => {
+        if (name === 'n') acc[value] = true;
+        return acc;
+      }, {} as Record<string, boolean>);
+
+      const names = { ...prevNames, ...n };
+      const nTags = Object.entries(names).filter(([, value]) => value).map(([name]) => ['n', name]);
+      const other = prev?.tags.filter(([name]) => !['d', 'n'].includes(name)) ?? [];
+
+      return {
+        kind: k,
+        content: prev?.content ?? '',
+        tags: [
+          ['d', d],
+          ...nTags,
+          ...other,
+        ],
+      };
+    },
+    c,
+  );
+}
+
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
@@ -264,7 +302,10 @@ export {
   type PaginationParams,
   paginationSchema,
   parseBody,
+  updateAdminEvent,
   updateEvent,
+  updateEventInfo,
   updateListAdminEvent,
   updateListEvent,
+  updateUser,
 };

@@ -3,15 +3,15 @@ import { RelayPoolWorker } from 'nostr-relaypool';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { PoolStore } from '@/storages/pool-store.ts';
 import { SearchStore } from '@/storages/search-store.ts';
 import { InternalRelay } from '@/storages/InternalRelay.ts';
-import { UserStore } from '@/storages/UserStore.ts';
 
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
-  private static _admin: Promise<UserStore> | undefined;
+  private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<PoolStore> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
@@ -28,9 +28,9 @@ export class Storages {
   }
 
   /** Admin user storage. */
-  public static async admin(): Promise<UserStore> {
+  public static async admin(): Promise<AdminStore> {
     if (!this._admin) {
-      this._admin = Promise.resolve(new UserStore(Conf.pubkey, await this.db()));
+      this._admin = Promise.resolve(new AdminStore(await this.db()));
     }
     return this._admin;
   }

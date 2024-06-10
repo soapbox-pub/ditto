@@ -45,16 +45,15 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   { max: 500, ttl: Time.hours(1) },
 );
 
-async function localNip05Lookup(store: NStore, name: string): Promise<nip19.ProfilePointer | undefined> {
-  const [label] = await store.query([{
-    kinds: [1985],
+async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
+  const [grant] = await store.query([{
+    kinds: [30360],
+    '#d': [`${localpart}@${Conf.url.host}`],
     authors: [Conf.pubkey],
-    '#L': ['nip05'],
-    '#l': [`${name}@${Conf.url.host}`],
     limit: 1,
   }]);
 
-  const pubkey = label?.tags.find(([name]) => name === 'p')?.[1];
+  const pubkey = grant?.tags.find(([name]) => name === 'p')?.[1];
 
   if (pubkey) {
     return { pubkey, relays: [Conf.relay] };

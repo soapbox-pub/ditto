@@ -11,7 +11,6 @@ import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
-import { getTagSet } from '@/utils/tags.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -27,11 +26,12 @@ class EventsDB implements NStore {
 
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
+    'a': ({ count }) => count < 15,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
     'e': ({ event, count, value }) => ((event.kind === 10003) || count < 15) && isNostrId(value),
+    'k': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
-    'media': ({ count, value }) => (count < 4) && isURL(value),
     'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
     'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
@@ -39,8 +39,6 @@ class EventsDB implements NStore {
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 3) && isURL(value),
     't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
-    'name': ({ event, count }) => event.kind === 30361 && count === 0,
-    'role': ({ event, count }) => event.kind === 30361 && count === 0,
   };
 
   constructor(private kysely: Kysely<DittoTables>) {
@@ -77,17 +75,62 @@ class EventsDB implements NStore {
 
   /** Check if an event has been deleted by the admin. */
   private async isDeletedAdmin(event: NostrEvent): Promise<boolean> {
-    const [deletion] = await this.query([
+    const filters: NostrFilter[] = [
       { kinds: [5], authors: [Conf.pubkey], '#e': [event.id], limit: 1 },
-    ]);
-    return !!deletion;
+    ];
+
+    if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
+      const d = event.tags.find(([tag]) => tag === 'd')?.[1] ?? '';
+
+      filters.push({
+        kinds: [5],
+        authors: [Conf.pubkey],
+        '#a': [`${event.kind}:${event.pubkey}:${d}`],
+        since: event.created_at,
+        limit: 1,
+      });
+    }
+
+    const events = await this.query(filters);
+    return events.length > 0;
   }
 
   /** The DITTO_NSEC can delete any event from the database. NDatabase already handles user deletions. */
   private async deleteEventsAdmin(event: NostrEvent): Promise<void> {
     if (event.kind === 5 && event.pubkey === Conf.pubkey) {
-      const ids = getTagSet(event.tags, 'e');
-      await this.remove([{ ids: [...ids] }]);
+      const ids = new Set(event.tags.filter(([name]) => name === 'e').map(([_name, value]) => value));
+      const addrs = new Set(event.tags.filter(([name]) => name === 'a').map(([_name, value]) => value));
+
+      const filters: NostrFilter[] = [];
+
+      if (ids.size) {
+        filters.push({ ids: [...ids] });
+      }
+
+      for (const addr of addrs) {
+        const [k, pubkey, d] = addr.split(':');
+        const kind = Number(k);
+
+        if (!(Number.isInteger(kind) && kind >= 0)) continue;
+        if (!isNostrId(pubkey)) continue;
+        if (d === undefined) continue;
+
+        const filter: NostrFilter = {
+          kinds: [kind],
+          authors: [pubkey],
+          until: event.created_at,
+        };
+
+        if (d) {
+          filter['#d'] = [d];
+        }
+
+        filters.push(filter);
+      }
+
+      if (filters.length) {
+        await this.remove(filters);
+      }
     }
   }
 
@@ -180,6 +223,8 @@ class EventsDB implements NStore {
         return event.content;
       case 30009:
         return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
+      case 30360:
+        return event.tags.find(([name]) => name === 'd')?.[1] || '';
       default:
         return '';
     }

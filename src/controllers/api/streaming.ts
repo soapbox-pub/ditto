@@ -1,4 +1,4 @@
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { z } from 'zod';
 
@@ -11,6 +11,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
+import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -52,6 +53,11 @@ const streamingController: AppController = async (c) => {
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
+  const store = await Storages.db();
+  const pubsub = await Storages.pubsub();
+
+  const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
+
   function send(name: string, payload: object) {
     if (socket.readyState === WebSocket.OPEN) {
       debug('send', name, JSON.stringify(payload));
@@ -63,51 +69,53 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  socket.onopen = async () => {
-    if (!stream) return;
-
-    const filter = await topicToFilter(stream, c.req.query(), pubkey);
-    if (!filter) return;
-
+  async function sub(type: string, filters: NostrFilter[], render: (event: NostrEvent) => Promise<unknown>) {
     try {
-      const db = await Storages.db();
-      const pubsub = await Storages.pubsub();
-
-      for await (const msg of pubsub.req([filter], { signal: controller.signal })) {
+      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
-          if (pubkey) {
-            const policy = new MuteListPolicy(pubkey, await Storages.admin());
+          if (policy) {
             const [, , ok] = await policy.call(event);
             if (!ok) {
               continue;
             }
           }
 
-          await hydrateEvents({
-            events: [event],
-            store: db,
-            signal: AbortSignal.timeout(1000),
-          });
+          await hydrateEvents({ events: [event], store, signal: AbortSignal.timeout(1000) });
 
-          if (event.kind === 1) {
-            const status = await renderStatus(event, { viewerPubkey: pubkey });
-            if (status) {
-              send('update', status);
-            }
-          }
+          const result = await render(event);
 
-          if (event.kind === 6) {
-            const status = await renderReblog(event, { viewerPubkey: pubkey });
-            if (status) {
-              send('update', status);
-            }
+          if (result) {
+            send(type, result);
           }
         }
       }
     } catch (e) {
       debug('streaming error:', e);
+    }
+  }
+
+  socket.onopen = async () => {
+    if (!stream) return;
+    const topicFilter = await topicToFilter(stream, c.req.query(), pubkey);
+
+    if (topicFilter) {
+      sub('update', [topicFilter], async (event) => {
+        if (event.kind === 1) {
+          return await renderStatus(event, { viewerPubkey: pubkey });
+        }
+        if (event.kind === 6) {
+          return await renderReblog(event, { viewerPubkey: pubkey });
+        }
+      });
+    }
+
+    if (['user', 'user:notification'].includes(stream) && pubkey) {
+      sub('notification', [{ '#p': [pubkey] }], async (event) => {
+        return await renderNotification(event, { viewerPubkey: pubkey });
+      });
+      return;
     }
   };
 

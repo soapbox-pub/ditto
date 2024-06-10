@@ -1,24 +1,87 @@
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated, paginationSchema } from '@/utils/api.ts';
+import { paginated, PaginationParams, paginationSchema } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
+
+/** Set of known notification types across backends. */
+const notificationTypes = new Set([
+  'mention',
+  'status',
+  'reblog',
+  'follow',
+  'follow_request',
+  'favourite',
+  'poll',
+  'update',
+  'admin.sign_up',
+  'admin.report',
+  'severed_relationships',
+  'pleroma:emoji_reaction',
+  'ditto:name_grant',
+]);
+
+const notificationsSchema = z.object({
+  account_id: n.id().optional(),
+});
 
 const notificationsController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
-  const { since, until } = paginationSchema.parse(c.req.query());
+  const params = paginationSchema.parse(c.req.query());
 
-  return renderNotifications(c, [{ kinds: [1, 6, 7], '#p': [pubkey], since, until }]);
+  const types = notificationTypes
+    .intersection(new Set(c.req.queries('types[]') ?? notificationTypes))
+    .difference(new Set(c.req.queries('exclude_types[]')));
+
+  const { account_id } = notificationsSchema.parse(c.req.query());
+
+  const kinds = new Set<number>();
+
+  if (types.has('mention')) {
+    kinds.add(1);
+  }
+  if (types.has('reblog')) {
+    kinds.add(6);
+  }
+  if (types.has('favourite') || types.has('pleroma:emoji_reaction')) {
+    kinds.add(7);
+  }
+
+  const filter: NostrFilter = {
+    kinds: [...kinds],
+    '#p': [pubkey],
+    ...params,
+  };
+
+  const filters: NostrFilter[] = [filter];
+
+  if (account_id) {
+    filter.authors = [account_id];
+  }
+
+  if (types.has('ditto:name_grant') && !account_id) {
+    filters.push({ kinds: [30360], authors: [Conf.pubkey], '#p': [pubkey], ...params });
+  }
+
+  return renderNotifications(filters, types, params, c);
 };
 
-async function renderNotifications(c: AppContext, filters: NostrFilter[]) {
+async function renderNotifications(
+  filters: NostrFilter[],
+  types: Set<string>,
+  params: PaginationParams,
+  c: AppContext,
+) {
   const store = c.get('store');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const { signal } = c.req.raw;
+  const opts = { signal, limit: params.limit };
 
   const events = await store
-    .query(filters, { signal })
+    .query(filters, opts)
     .then((events) => events.filter((event) => event.pubkey !== pubkey))
     .then((events) => hydrateEvents({ events, store, signal }));
 
@@ -26,9 +89,8 @@ async function renderNotifications(c: AppContext, filters: NostrFilter[]) {
     return c.json([]);
   }
 
-  const notifications = (await Promise
-    .all(events.map((event) => renderNotification(event, { viewerPubkey: pubkey }))))
-    .filter(Boolean);
+  const notifications = (await Promise.all(events.map((event) => renderNotification(event, { viewerPubkey: pubkey }))))
+    .filter((notification) => notification && types.has(notification.type));
 
   if (!notifications.length) {
     return c.json([]);
