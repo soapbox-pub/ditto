@@ -10,7 +10,7 @@
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
-      "jsr:@nostrify/nostrify@^0.23.0": "jsr:@nostrify/nostrify@0.23.0",
+      "jsr:@nostrify/nostrify@^0.23.1": "jsr:@nostrify/nostrify@0.23.1",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
@@ -121,8 +121,8 @@
           "npm:zod@^3.23.8"
         ]
       },
-      "@nostrify/nostrify@0.23.0": {
-        "integrity": "8636c0322885707d6a7b342ef55f70debf399a1eb65b83abcce7972d69e30920",
+      "@nostrify/nostrify@0.23.1": {
+        "integrity": "7a242dedfe33cf38131696ad96d789d54257cfbfd5b5e63748fe5d53c057d99a",
         "dependencies": [
           "jsr:@std/encoding@^0.224.1",
           "npm:@scure/base@^1.1.6",
@@ -1343,7 +1343,7 @@
     "dependencies": [
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@db/sqlite@^0.11.1",
-      "jsr:@nostrify/nostrify@^0.23.0",
+      "jsr:@nostrify/nostrify@^0.23.1",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
