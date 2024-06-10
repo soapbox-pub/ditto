@@ -109,7 +109,7 @@ const adminAccountsController: AppController = async (c) => {
 };
 
 const adminAccountActionSchema = z.object({
-  type: z.enum(['none', 'sensitive', 'disable', 'silence', 'suspend']),
+  type: z.enum(['none', 'sensitive', 'disable', 'silence', 'suspend', 'revoke_name']),
 });
 
 const adminActionController: AppController = async (c) => {
@@ -138,6 +138,10 @@ const adminActionController: AppController = async (c) => {
   if (data.type === 'suspend') {
     n.suspended = true;
     store.remove([{ authors: [authorId] }]).catch(console.warn);
+  }
+  if (data.type === 'revoke_name') {
+    n.revoke_name = true;
+    store.remove([{ kinds: [30360], authors: [Conf.pubkey], '#p': [authorId] }]).catch(console.warn);
   }
 
   await updateUser(authorId, n, c);
