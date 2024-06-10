@@ -14,12 +14,13 @@ export class AdminStore implements NStore {
 
   async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<DittoEvent[]> {
     const events = await this.store.query(filters, opts);
+    const pubkeys = new Set(events.map((event) => event.pubkey));
 
     const users = await this.store.query([{
       kinds: [30382],
       authors: [Conf.pubkey],
-      '#d': events.map((event) => event.pubkey),
-      limit: 1,
+      '#d': [...pubkeys],
+      limit: pubkeys.size,
     }]);
 
     return events.filter((event) => {
