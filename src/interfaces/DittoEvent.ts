@@ -13,6 +13,7 @@ export interface EventStats {
   reposts_count: number;
   quotes_count: number;
   reactions: Record<string, number>;
+  zaps_amount: number;
 }
 
 /** Internal Event representation used by Ditto, including extra keys. */
