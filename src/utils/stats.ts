@@ -1,7 +1,7 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
-import { SetRequired } from 'type-fest';
 
+import { SetRequired } from 'type-fest';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { Conf } from '@/config.ts';
@@ -27,6 +27,8 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
       return handleEvent6(kysely, event, x);
     case 7:
       return handleEvent7(kysely, event, x);
+    case 9735:
+      return handleEvent9735(kysely, event);
   }
 }
 
@@ -132,6 +134,28 @@ async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
   }
 }
 
+/** Update stats for kind 9735 event. */
+async function handleEvent9735(kysely: Kysely<DittoTables>, event: NostrEvent): Promise<void> {
+  // https://github.com/nostr-protocol/nips/blob/master/57.md#appendix-f-validating-zap-receipts
+  const id = event.tags.find(([name]) => name === 'e')?.[1];
+  if (!id) return;
+
+  let amount = '0';
+  try {
+    const zapRequest = JSON.parse(event.tags.find(([name]) => name === 'description')?.[1]!) as NostrEvent;
+    amount = zapRequest.tags.find(([name]) => name === 'amount')?.[1]!;
+  } catch {
+    return;
+  }
+  if (amount === '0' || !amount || (/^\d+$/).test(amount) === false) return;
+
+  await updateEventStats(
+    kysely,
+    id,
+    ({ zaps_amount }) => ({ zaps_amount: Math.max(0, zaps_amount + Number(amount)) }),
+  );
+}
+
 /** Get the pubkeys that were added and removed from a follow event. */
 export function getFollowDiff(
   tags: string[][],
@@ -219,6 +243,7 @@ export async function updateEventStats(
     reposts_count: 0,
     reactions_count: 0,
     quotes_count: 0,
+    zaps_amount: 0,
     reactions: '{}',
   };
 
