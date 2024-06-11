@@ -209,6 +209,10 @@ const oauthAuthorizeController: AppController = async (c) => {
     relays: bunker.searchParams.getAll('relay'),
   });
 
+  if (redirectUri === 'urn:ietf:wg:oauth:2.0:oob') {
+    return c.text(token);
+  }
+
   const url = addCodeToRedirectUri(redirectUri, token);
 
   return c.redirect(url);
