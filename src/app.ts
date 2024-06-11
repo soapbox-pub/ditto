@@ -129,7 +129,7 @@ type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
 type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
 
-const app = new Hono<AppEnv>();
+const app = new Hono<AppEnv>({ strict: false });
 
 const debug = Debug('ditto:http');
 
@@ -141,14 +141,12 @@ if (Conf.cronEnabled) {
 }
 
 app.use('/api/*', logger(debug));
-app.use('/relay/*', logger(debug));
 app.use('/.well-known/*', logger(debug));
 app.use('/users/*', logger(debug));
 app.use('/nodeinfo/*', logger(debug));
 app.use('/oauth/*', logger(debug));
 
 app.get('/api/v1/streaming', streamingController);
-app.get('/api/v1/streaming/', streamingController);
 app.get('/relay', relayController);
 
 app.use(
@@ -297,6 +295,9 @@ app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
 app.use('/api/*', notImplementedController);
+app.use('/.well-known/*', notImplementedController);
+app.use('/nodeinfo/*', notImplementedController);
+app.use('/oauth/*', notImplementedController);
 
 const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
