@@ -85,7 +85,13 @@ const adminAccountsController: AppController = async (c) => {
     }
 
     const events = await store.query([{ kinds: [30382], authors: [Conf.pubkey], '#n': n, ...params }], { signal });
-    const pubkeys = new Set<string>(events.map(({ pubkey }) => pubkey));
+
+    const pubkeys = new Set<string>(
+      events
+        .map(({ tags }) => tags.find(([name]) => name === 'd')?.[1])
+        .filter((pubkey): pubkey is string => !!pubkey),
+    );
+
     const authors = await store.query([{ kinds: [0], authors: [...pubkeys] }])
       .then((events) => hydrateEvents({ store, events, signal }));
 
@@ -100,10 +106,14 @@ const adminAccountsController: AppController = async (c) => {
   }
 
   const filter: NostrFilter = { kinds: [0], ...params };
+
   if (local) {
     filter.search = `domain:${Conf.url.host}`;
   }
-  const events = await store.query([filter], { signal });
+
+  const events = await store.query([filter], { signal })
+    .then((events) => hydrateEvents({ store, events, signal }));
+
   const accounts = await Promise.all(events.map(renderAdminAccount));
   return paginated(c, events, accounts);
 };
