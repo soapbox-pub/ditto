@@ -122,6 +122,7 @@ const oauthController: AppController = (c) => {
     return c.text('Missing `redirect_uri` query param.', 422);
   }
 
+  const state = c.req.query('state');
   const redirectUri = maybeDecodeUri(encodedUri);
 
   return c.html(`<!DOCTYPE html>
@@ -162,6 +163,7 @@ const oauthController: AppController = (c) => {
     <form id="oauth_form" action="/oauth/authorize" method="post">
       <input type="text" placeholder="bunker://..." name="bunker_uri" autocomplete="off" required>
       <input type="hidden" name="redirect_uri" id="redirect_uri" value="${escape(redirectUri)}">
+      <input type="hidden" name="state" value="${escape(state ?? '')}">
       <button type="submit">Authorize</button>
     </form>
     <p>Sign in with a Nostr bunker app. Please configure the app to use this relay: ${Conf.relay}</p>
@@ -187,6 +189,7 @@ function maybeDecodeUri(uri: string): string {
 const oauthAuthorizeSchema = z.object({
   bunker_uri: z.string().url().refine((v) => v.startsWith('bunker://')),
   redirect_uri: z.string().url(),
+  state: z.string().optional(),
 });
 
 /** Controller the OAuth form is POSTed to. */
@@ -199,7 +202,7 @@ const oauthAuthorizeController: AppController = async (c) => {
   }
 
   // Parsed FormData values.
-  const { bunker_uri, redirect_uri: redirectUri } = result.data;
+  const { bunker_uri, redirect_uri: redirectUri, state } = result.data;
 
   const bunker = new URL(bunker_uri);
 
@@ -213,17 +216,22 @@ const oauthAuthorizeController: AppController = async (c) => {
     return c.text(token);
   }
 
-  const url = addCodeToRedirectUri(redirectUri, token);
+  const url = addCodeToRedirectUri(redirectUri, token, state);
 
   return c.redirect(url);
 };
 
 /** Append the given `code` as a query param to the `redirect_uri`. */
-function addCodeToRedirectUri(redirectUri: string, code: string): string {
+function addCodeToRedirectUri(redirectUri: string, code: string, state?: string): string {
   const url = new URL(redirectUri);
   const q = new URLSearchParams();
 
   q.set('code', code);
+
+  if (state) {
+    q.set('state', state);
+  }
+
   url.search = q.toString();
 
   return url.toString();
