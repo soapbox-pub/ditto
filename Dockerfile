@@ -1,4 +1,4 @@
-FROM denoland/deno:1.43.3
+FROM denoland/deno:1.44.2
 EXPOSE 4036
 WORKDIR /app
 RUN mkdir -p data && chown -R deno data
