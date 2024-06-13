@@ -126,7 +126,7 @@ export const nameRequestsController: AppController = async (c) => {
     }
   }
 
-  if (ids.size === 0) {
+  if (!ids.size) {
     return c.json([]);
   }
 
