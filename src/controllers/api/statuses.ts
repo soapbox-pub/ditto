@@ -545,6 +545,7 @@ const zapController: AppController = async (c) => {
 const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
   const store = await Storages.db();
+  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
 
   const events: DittoEvent[] = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
     const zapRequest = event.tags.find(([name]) => name === 'description')?.[1];
@@ -560,17 +561,13 @@ const zappedByController: AppController = async (c) => {
 
   const results = (await Promise.all(
     events.map(async (event) => {
-      const amount = event.tags.find(([name]) => name === 'amount')?.[1];
-      const onlyDigits = /^\d+$/;
-      if (!amount || !onlyDigits.test(amount)) return;
-
+      const amount = amountSchema.parse(event.tags.find(([name]) => name === 'amount')?.[1]);
       const comment = event?.content ?? '';
-
       const account = event?.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
       return {
-        zap_comment: comment,
-        zap_amount: Number(amount),
+        comment,
+        amount,
         account,
       };
     }),

@@ -1,7 +1,8 @@
 import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
-
 import { SetRequired } from 'type-fest';
+import { z } from 'zod';
+
 import { DittoTables } from '@/db/DittoTables.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { Conf } from '@/config.ts';
@@ -140,19 +141,20 @@ async function handleEvent9735(kysely: Kysely<DittoTables>, event: NostrEvent): 
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (!id) return;
 
-  let amount = '0';
+  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+  let amount = 0;
   try {
     const zapRequest = JSON.parse(event.tags.find(([name]) => name === 'description')?.[1]!) as NostrEvent;
-    amount = zapRequest.tags.find(([name]) => name === 'amount')?.[1]!;
+    amount = amountSchema.parse(zapRequest.tags.find(([name]) => name === 'amount')?.[1]);
+    if (amount <= 0) return;
   } catch {
     return;
   }
-  if (amount === '0' || !amount || (/^\d+$/).test(amount) === false) return;
 
   await updateEventStats(
     kysely,
     id,
-    ({ zaps_amount }) => ({ zaps_amount: Math.max(0, zaps_amount + Number(amount)) }),
+    ({ zaps_amount }) => ({ zaps_amount: Math.max(0, zaps_amount + amount) }),
   );
 }
 
