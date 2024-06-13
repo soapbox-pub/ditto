@@ -1,4 +1,4 @@
-import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n, NStore } from '@nostrify/nostrify';
 import { Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 import { z } from 'zod';
@@ -144,7 +144,7 @@ async function handleEvent9735(kysely: Kysely<DittoTables>, event: NostrEvent): 
   const amountSchema = z.coerce.number().int().nonnegative().catch(0);
   let amount = 0;
   try {
-    const zapRequest = JSON.parse(event.tags.find(([name]) => name === 'description')?.[1]!) as NostrEvent;
+    const zapRequest = n.json().pipe(n.event()).parse(event.tags.find(([name]) => name === 'description')?.[1]);
     amount = amountSchema.parse(zapRequest.tags.find(([name]) => name === 'amount')?.[1]);
     if (amount <= 0) return;
   } catch {
