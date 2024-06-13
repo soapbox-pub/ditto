@@ -104,6 +104,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     replies_count: event.event_stats?.replies_count ?? 0,
     reblogs_count: event.event_stats?.reposts_count ?? 0,
     favourites_count: event.event_stats?.reactions['+'] ?? 0,
+    zaps_amount: event.event_stats?.zaps_amount ?? 0,
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,

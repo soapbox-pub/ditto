@@ -23,6 +23,7 @@ interface EventStatsRow {
   reactions_count: number;
   quotes_count: number;
   reactions: string;
+  zaps_amount: number;
 }
 
 interface EventRow {

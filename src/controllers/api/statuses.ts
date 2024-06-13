@@ -20,6 +20,7 @@ import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -541,6 +542,40 @@ const zapController: AppController = async (c) => {
   }
 };
 
+const zappedByController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const store = await Storages.db();
+  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+
+  const events: DittoEvent[] = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
+    const zapRequest = event.tags.find(([name]) => name === 'description')?.[1];
+    if (!zapRequest) return;
+    try {
+      return JSON.parse(zapRequest);
+    } catch {
+      return;
+    }
+  }).filter(Boolean);
+
+  await hydrateEvents({ events, store });
+
+  const results = (await Promise.all(
+    events.map(async (event) => {
+      const amount = amountSchema.parse(event.tags.find(([name]) => name === 'amount')?.[1]);
+      const comment = event?.content ?? '';
+      const account = event?.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+
+      return {
+        comment,
+        amount,
+        account,
+      };
+    }),
+  )).filter(Boolean);
+
+  return c.json(results);
+};
+
 export {
   bookmarkController,
   contextController,
@@ -557,4 +592,5 @@ export {
   unpinController,
   unreblogStatusController,
   zapController,
+  zappedByController,
 };
