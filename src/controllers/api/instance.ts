@@ -3,7 +3,9 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
-const instanceController: AppController = async (c) => {
+const version = '0.0.0 (compatible; Ditto 0.0.1)';
+
+const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
 
@@ -54,7 +56,7 @@ const instanceController: AppController = async (c) => {
     urls: {
       streaming_api: `${wsProtocol}//${host}`,
     },
-    version: '0.0.0 (compatible; Ditto 0.0.1)',
+    version,
     email: meta.email,
     nostr: {
       pubkey: Conf.pubkey,
@@ -67,4 +69,86 @@ const instanceController: AppController = async (c) => {
   });
 };
 
-export { instanceController };
+const instanceV2Controller: AppController = async (c) => {
+  const { host, protocol } = Conf.url;
+  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+
+  /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
+  const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
+
+  return c.json({
+    domain: host,
+    title: meta.name,
+    version,
+    source_url: 'https://gitlab.com/soapbox-pub/ditto',
+    description: meta.about,
+    usage: {
+      users: {
+        active_month: 0,
+      },
+    },
+    thumbnail: {
+      url: meta.picture,
+      blurhash: '',
+      versions: {
+        '@1x': meta.picture,
+        '@2x': meta.picture,
+      },
+    },
+    languages: [
+      'en',
+    ],
+    configuration: {
+      urls: {
+        streaming: `${wsProtocol}//${host}`,
+      },
+      vapid: {
+        public_key: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+      },
+      accounts: {
+        max_featured_tags: 10,
+        max_pinned_statuses: 5,
+      },
+      statuses: {
+        max_characters: Conf.postCharLimit,
+        max_media_attachments: 4,
+        characters_reserved_per_url: 23,
+      },
+      media_attachments: {
+        supported_mime_types: [],
+        image_size_limit: 16777216,
+        image_matrix_limit: 33177600,
+        video_size_limit: 103809024,
+        video_frame_rate_limit: 120,
+        video_matrix_limit: 8294400,
+      },
+      polls: {
+        max_options: 4,
+        max_characters_per_option: 50,
+        min_expiration: 300,
+        max_expiration: 2629746,
+      },
+      translation: {
+        enabled: false,
+      },
+    },
+    registrations: {
+      enabled: false,
+      approval_required: false,
+      message: null,
+      url: null,
+    },
+    rules: [],
+  });
+};
+
+const instanceDescriptionController: AppController = async (c) => {
+  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+
+  return c.json({
+    content: meta.about,
+    updated_at: new Date((meta.event?.created_at ?? 0) * 1000).toISOString(),
+  });
+};
+
+export { instanceDescriptionController, instanceV1Controller, instanceV2Controller };

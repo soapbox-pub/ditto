@@ -6,7 +6,6 @@ import { cors, logger, serveStatic } from 'hono/middleware';
 import { Conf } from '@/config.ts';
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
-import { Time } from '@/utils.ts';
 
 import {
   accountController,
@@ -42,7 +41,11 @@ import {
   nameRequestsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
-import { instanceController } from '@/controllers/api/instance.ts';
+import {
+  instanceDescriptionController,
+  instanceV1Controller,
+  instanceV2Controller,
+} from '@/controllers/api/instance.ts';
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
 import { mediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
@@ -103,7 +106,6 @@ import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
-import { cacheMiddleware } from '@/middleware/cacheMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
@@ -164,7 +166,9 @@ app.get('/.well-known/nostr.json', nostrController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
 
-app.get('/api/v1/instance', cacheMiddleware({ cacheName: 'web', expires: Time.minutes(5) }), instanceController);
+app.get('/api/v1/instance', instanceV1Controller);
+app.get('/api/v2/instance', instanceV2Controller);
+app.get('/api/v1/instance/extended_description', instanceDescriptionController);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
