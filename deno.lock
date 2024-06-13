@@ -26,6 +26,7 @@
       "jsr:@std/encoding@^0.224.1": "jsr:@std/encoding@0.224.3",
       "jsr:@std/fmt@^0.221.0": "jsr:@std/fmt@0.221.0",
       "jsr:@std/fs@^0.221.0": "jsr:@std/fs@0.221.0",
+      "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
       "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.0",
       "jsr:@std/io@^0.224": "jsr:@std/io@0.224.1",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
@@ -190,6 +191,9 @@
           "jsr:@std/assert@^0.221.0",
           "jsr:@std/path@^0.221.0"
         ]
+      },
+      "@std/fs@0.229.3": {
+        "integrity": "783bca21f24da92e04c3893c9e79653227ab016c48e96b3078377ebd5222e6eb"
       },
       "@std/internal@1.0.0": {
         "integrity": "ac6a6dfebf838582c4b4f61a6907374e27e05bedb6ce276e0f1608fe84e7cd9a"
@@ -1215,6 +1219,7 @@
     "https://deno.land/std@0.214.0/path/windows/separator.ts": "e51c5522140eff4f8402617c5c68a201fdfa3a1a8b28dc23587cff931b665e43",
     "https://deno.land/std@0.214.0/path/windows/to_file_url.ts": "1cd63fd35ec8d1370feaa4752eccc4cc05ea5362a878be8dc7db733650995484",
     "https://deno.land/std@0.214.0/path/windows/to_namespaced_path.ts": "4ffa4fb6fae321448d5fe810b3ca741d84df4d7897e61ee29be961a6aac89a4c",
+    "https://deno.land/std@0.80.0/encoding/utf8.ts": "1b7e77db9a12363c67872f8a208886ca1329f160c1ca9133b13d2ed399688b99",
     "https://deno.land/x/hono@v3.10.1/adapter/deno/serve-static.ts": "ba10cf6aaf39da942b0d49c3b9877ddba69d41d414c6551d890beb1085f58eea",
     "https://deno.land/x/hono@v3.10.1/client/client.ts": "ff340f58041203879972dd368b011ed130c66914f789826610869a90603406bf",
     "https://deno.land/x/hono@v3.10.1/client/index.ts": "3ff4cf246f3543f827a85a2c84d66a025ac350ee927613629bda47e854bfb7ba",
@@ -1279,6 +1284,8 @@
     "https://deno.land/x/hono@v3.10.1/utils/url.ts": "5fc3307ef3cb2e6f34ec2a03e3d7f2126c6a9f5f0eab677222df3f0e40bd7567",
     "https://deno.land/x/hono@v3.10.1/validator/index.ts": "6c986e8b91dcf857ecc8164a506ae8eea8665792a4ff7215471df669c632ae7c",
     "https://deno.land/x/hono@v3.10.1/validator/validator.ts": "afa5e52495e0996fbba61996736fab5c486590d72d376f809e9f9ff4e0c463e9",
+    "https://deno.land/x/keypress@0.0.7/dep.ts": "feeb0056d332c126343249b79fe86cb0bf3abd03ea4c270cd39575c38d37a911",
+    "https://deno.land/x/keypress@0.0.7/mod.ts": "1130570c2397118a3a301b1137400a8e55486716cc3557b3bd5e9947b6b9c035",
     "https://deno.land/x/kysely_deno_postgres@v0.4.0/deps.ts": "7970f66a52a9fa0cef607cb7ef0171212af2ccb83e73ecfa7629aabc28a38793",
     "https://deno.land/x/kysely_deno_postgres@v0.4.0/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
     "https://deno.land/x/kysely_deno_postgres@v0.4.0/src/PostgreSQLDriver.ts": "590c2fa248cff38e6e0f623050983039b5fde61e9c7131593d2922fb1f0eb921",
@@ -1337,6 +1344,16 @@
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/main/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/main/src/PostgreSQLDriver.ts": "590c2fa248cff38e6e0f623050983039b5fde61e9c7131593d2922fb1f0eb921",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/main/src/PostgreSQLDriverDatabaseConnection.ts": "2158de426860bfd4f8e73afff0289bd40a11e273c8d883d4fd6474db01a9c2a7",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/KeyCombo.ts": "a370b2dca76faa416d00e45479c8ce344971b5b86b44b4d0b213245c4bd2f8a3",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/checkbox.ts": "e337ee7396aaefe6cc8c6349a445542fe7f0760311773369c9012b3fa278d21e",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/config.ts": "a94a022c757f63ee7c410e29b97d3bfab1811889fb4483f56395cf376a911d1b",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/confirm.ts": "dde395f351e14ebff9dd882c49c1376f0c648a5978d17dfad997f9958df01d1c",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/input.ts": "5b7a3e194e6a5b74bb26d5ef1363d78619769772ad01244fd6f95b9c66cc6f0d",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/list.ts": "3b96403b043b5b5bc417d8d07b34828961c1f9d2bdbc9f24e6ef40fb9c95438e",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/mod.ts": "cb10c598652cf7edf600af17f73bcadcdedf6900d9f5b5647e89ba2ea378b7d5",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/password.ts": "3c578bd21e4fd283431aa940357f40fed2e26d3de12ad129a696d7fe38ae744d",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/text-util.ts": "37c0437d2030c0b6255f10afec7ccfcb6b195e9a0a011bb7956595142c3d7383",
+    "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/util.ts": "a8285450db7b56a3e507f478aaad68927ecb1ee545449cb869ccc4aace13fada",
     "https://unpkg.com/nostr-relaypool2@0.6.34/lib/nostr-relaypool.worker.js": "a336e5c58b1e6946ae8943eb4fef21b810dc2a5a233438cff92b883673e29c96"
   },
   "workspace": {
@@ -1351,6 +1368,7 @@
       "jsr:@std/crypto@^0.224.0",
       "jsr:@std/dotenv@^0.224.0",
       "jsr:@std/encoding@^0.224.0",
+      "jsr:@std/fs@^0.229.3",
       "jsr:@std/json@^0.223.0",
       "jsr:@std/media-types@^0.224.1",
       "jsr:@std/streams@^0.223.0",
