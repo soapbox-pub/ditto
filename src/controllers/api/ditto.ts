@@ -126,7 +126,11 @@ export const nameRequestsController: AppController = async (c) => {
     }
   }
 
-  const events = await store.query([{ kinds: [3036], ids: [...ids] }])
+  if (ids.size === 0) {
+    return c.json([]);
+  }
+
+  const events = await store.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
     .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
 
   const nameRequests = await Promise.all(
