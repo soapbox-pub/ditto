@@ -3,6 +3,7 @@
 import { NDatabase, NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n, NStore } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely } from 'kysely';
+import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -220,7 +221,7 @@ class EventsDB implements NStore {
       case 0:
         return EventsDB.buildUserSearchContent(event);
       case 1:
-        return event.content;
+        return nip27.replaceAll(event.content, () => '');
       case 30009:
         return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
       case 30360:

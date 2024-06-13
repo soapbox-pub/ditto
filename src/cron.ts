@@ -59,7 +59,7 @@ export function cron() {
   Deno.cron(
     'update trending pubkeys',
     '0 * * * *',
-    () => updateTrendingTags('#p', 'p', [1, 6, 7, 9735], 40, Conf.relay),
+    () => updateTrendingTags('#p', 'p', [1, 3, 6, 7, 9735], 40, Conf.relay),
   );
   Deno.cron(
     'update trending zapped events',
