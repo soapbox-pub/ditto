@@ -23,7 +23,7 @@
     "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
-    "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.23.1",
+    "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.23.2",
     "@scure/base": "npm:@scure/base@^1.1.6",
     "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
     "@soapbox/kysely-deno-sqlite": "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
