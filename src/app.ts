@@ -88,6 +88,7 @@ import {
   unpinController,
   unreblogStatusController,
   zapController,
+  zappedByController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
 import { suggestionsV1Controller, suggestionsV2Controller } from '@/controllers/api/suggestions.ts';
@@ -259,6 +260,7 @@ app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
+app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
