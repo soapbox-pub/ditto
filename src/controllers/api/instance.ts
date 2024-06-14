@@ -3,7 +3,7 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
-const version = '0.0.0 (compatible; Ditto 0.0.1)';
+const version = '3.0.0 (compatible; Ditto 1.0.0)';
 
 const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;

@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2024-06-14
+
 - Initial release
 
-[unreleased]: https://gitlab.com/soapbox-pub/ditto/-/compare/main...HEAD
+[unreleased]: https://gitlab.com/soapbox-pub/ditto/-/compare/v1.0.0...HEAD
+[1.0.0]: https://gitlab.com/soapbox-pub/ditto/-/tags/v1.0.0
