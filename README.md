@@ -18,9 +18,9 @@ For more info see: https://docs.soapbox.pub/ditto/
 - [x] Reposts
 - [x] Notifications
 - [x] Profiles
-- [ ] Search
+- [x] Search
 - [x] Moderation
-- [ ] Zaps
+- [x] Zaps
 - [x] Customizable
 - [x] Open source
 - [x] Self-hosted
