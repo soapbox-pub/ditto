@@ -69,7 +69,16 @@ const nameRequestSchema = z.object({
 });
 
 export const nameRequestController: AppController = async (c) => {
+  const store = await Storages.db();
+  const signer = c.get('signer')!;
+  const pubkey = await signer.getPublicKey();
+
   const { name, reason } = nameRequestSchema.parse(await c.req.json());
+
+  const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
+  if (existing) {
+    return c.json({ error: 'Name request already exists' }, 400);
+  }
 
   const event = await createEvent({
     kind: 3036,
