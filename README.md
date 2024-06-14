@@ -7,8 +7,6 @@ For more info see: https://docs.soapbox.pub/ditto/
 
 <img width="400" src="ditto-planet.png">
 
-⚠️ This software is a work in progress.
-
 ## Features
 
 - [x] Built-in Nostr relay
