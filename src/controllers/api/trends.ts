@@ -1,4 +1,4 @@
-import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
@@ -148,58 +148,56 @@ interface TrendingTag {
 }
 
 export async function getTrendingTags(store: NStore, tagName: string): Promise<TrendingTag[]> {
-  const filter = {
+  const [label] = await store.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': [`#${tagName}`],
     authors: [Conf.pubkey],
     limit: 1,
-  };
+  }]);
 
-  const [label] = await store.query([filter]);
+  if (!label) return [];
 
-  if (!label) {
-    return [];
-  }
+  const date = new Date(label.created_at * 1000);
+  const lastWeek = new Date(date.getTime() - Time.days(7));
+  const dates = generateDateRange(lastWeek, date).reverse();
 
-  const tags = label.tags.filter(([name]) => name === tagName);
+  const results: TrendingTag[] = [];
 
-  const labelDate = new Date(label.created_at * 1000);
-  const lastWeek = new Date(labelDate.getTime() - Time.days(7));
-  const dates = generateDateRange(lastWeek, labelDate).reverse();
+  for (const [name, value] of label.tags) {
+    if (name !== tagName) continue;
 
-  return Promise.all(tags.map(async ([_, value]) => {
-    const filters = dates.map((date) => ({
-      ...filter,
-      [`#${tagName}`]: [value],
-      since: Math.floor(date.getTime() / 1000),
-      until: Math.floor((date.getTime() + Time.days(1)) / 1000),
-    }));
+    const history: TrendingTag['history'] = [];
 
-    const labels = await store.query(filters);
+    for (const date of dates) {
+      const [label] = await store.query([{
+        kinds: [1985],
+        '#L': ['pub.ditto.trends'],
+        '#l': [`#${tagName}`],
+        [`#${tagName}`]: [value],
+        authors: [Conf.pubkey],
+        since: Math.floor(date.getTime() / 1000),
+        until: Math.floor((date.getTime() + Time.days(1)) / 1000),
+        limit: 1,
+      } as NostrFilter]);
 
-    const history = dates.map((date) => {
-      const label = labels.find((label) => {
-        const since = Math.floor(date.getTime() / 1000);
-        const until = Math.floor((date.getTime() + Time.days(1)) / 1000);
-        return label.created_at >= since && label.created_at < until;
-      });
+      const [, , , accounts, uses] = label?.tags.find(([n, v]) => n === tagName && v === value) ?? [];
 
-      const [, , , accounts, uses] = label?.tags.find((tag) => tag[0] === tagName && tag[1] === value) ?? [];
-
-      return {
+      history.push({
         day: Math.floor(date.getTime() / 1000),
         authors: Number(accounts || 0),
         uses: Number(uses || 0),
-      };
-    });
+      });
+    }
 
-    return {
+    results.push({
       name: tagName,
       value,
       history,
-    };
-  }));
+    });
+  }
+
+  return results;
 }
 
 export { trendingLinksController, trendingStatusesController, trendingTagsController };
