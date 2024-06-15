@@ -1,16 +1,16 @@
 import { NSchema } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { nostrNow } from '@/utils.ts';
-import { nip19 } from 'nostr-tools';
 
 const kysely = await DittoDB.getInstance();
 const eventsDB = new EventsDB(kysely);
 
 const [pubkeyOrNpub, role] = Deno.args;
-const pubkey = pubkeyOrNpub.startsWith('npub') ? nip19.decode(pubkeyOrNpub).data as string : pubkeyOrNpub;
+const pubkey = pubkeyOrNpub.startsWith('npub1') ? nip19.decode(pubkeyOrNpub as `npub1${string}`).data : pubkeyOrNpub;
 
 if (!NSchema.id().safeParse(pubkey).success) {
   console.error('Invalid pubkey');
