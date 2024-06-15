@@ -11,7 +11,7 @@ import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 let trendingHashtagsCache = getTrendingHashtags();
 
-Deno.cron('update trending hashtags cache', { minute: { every: 15 } }, async () => {
+Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
   const trends = await getTrendingHashtags();
   trendingHashtagsCache = Promise.resolve(trends);
 });
@@ -50,7 +50,7 @@ async function getTrendingHashtags() {
 
 let trendingLinksCache = getTrendingLinks();
 
-Deno.cron('update trending links cache', { minute: { every: 15 } }, async () => {
+Deno.cron('update trending links cache', '50 * * * *', async () => {
   const trends = await getTrendingLinks();
   trendingLinksCache = Promise.resolve(trends);
 });
