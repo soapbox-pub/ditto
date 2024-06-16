@@ -121,8 +121,8 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     poll: null,
     quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
     quote_id: event.quote?.id ?? null,
-    uri: Conf.external(note),
-    url: Conf.external(note),
+    uri: Conf.local(`/${note}`),
+    url: Conf.local(`/${note}`),
     zapped: Boolean(zapEvent),
     pleroma: {
       emoji_reactions: reactions,

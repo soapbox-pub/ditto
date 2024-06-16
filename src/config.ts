@@ -13,8 +13,9 @@ await dotenv.load({
 
 /** Application-wide configuration. */
 class Conf {
+  private static _pubkey: string | undefined;
   /** Ditto admin secret key in nip19 format. This is the way it's configured by an admin. */
-  static get nsec() {
+  static get nsec(): `nsec1${string}` {
     const value = Deno.env.get('DITTO_NSEC');
     if (!value) {
       throw new Error('Missing DITTO_NSEC');
@@ -25,13 +26,18 @@ class Conf {
     return value as `nsec1${string}`;
   }
   /** Ditto admin secret key in hex format. */
-  static get seckey() {
+  static get seckey(): Uint8Array {
     return nip19.decode(Conf.nsec).data;
   }
   /** Ditto admin public key in hex format. */
-  static pubkey = getPublicKey(Conf.seckey);
+  static get pubkey(): string {
+    if (!this._pubkey) {
+      this._pubkey = getPublicKey(Conf.seckey);
+    }
+    return this._pubkey;
+  }
   /** Ditto admin secret key as a Web Crypto key. */
-  static get cryptoKey() {
+  static get cryptoKey(): Promise<CryptoKey> {
     return crypto.subtle.importKey(
       'raw',
       Conf.seckey,
@@ -41,7 +47,7 @@ class Conf {
     );
   }
 
-  static get port() {
+  static get port(): number {
     return parseInt(Deno.env.get('PORT') || '4036');
   }
 
@@ -50,16 +56,12 @@ class Conf {
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
   }
   /** Relay to use for NIP-50 `search` queries. */
-  static get searchRelay() {
+  static get searchRelay(): string | undefined {
     return Deno.env.get('SEARCH_RELAY');
   }
   /** Origin of the Ditto server, including the protocol and port. */
-  static get localDomain() {
+  static get localDomain(): string {
     return Deno.env.get('LOCAL_DOMAIN') || `http://localhost:${Conf.port}`;
-  }
-  /** URL to an external Nostr viewer. */
-  static get externalDomain() {
-    return Deno.env.get('NOSTR_EXTERNAL') || Conf.localDomain;
   }
   /**
    * Heroku-style database URL. This is used in production to connect to the
@@ -76,7 +78,7 @@ class Conf {
   }
   static db = {
     get url(): url.UrlWithStringQuery {
-      return url.parse(Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3');
+      return url.parse(Conf.databaseUrl);
     },
     get dialect(): 'sqlite' | 'postgres' | undefined {
       switch (Conf.db.url.protocol) {
@@ -90,43 +92,43 @@ class Conf {
     },
   };
   /** Character limit to enforce for posts made through Mastodon API. */
-  static get postCharLimit() {
+  static get postCharLimit(): number {
     return Number(Deno.env.get('POST_CHAR_LIMIT') || 5000);
   }
   /** S3 media storage configuration. */
   static s3 = {
-    get endPoint() {
-      return Deno.env.get('S3_ENDPOINT')!;
+    get endPoint(): string | undefined {
+      return Deno.env.get('S3_ENDPOINT');
     },
-    get region() {
-      return Deno.env.get('S3_REGION')!;
+    get region(): string | undefined {
+      return Deno.env.get('S3_REGION');
     },
-    get accessKey() {
+    get accessKey(): string | undefined {
       return Deno.env.get('S3_ACCESS_KEY');
     },
-    get secretKey() {
+    get secretKey(): string | undefined {
       return Deno.env.get('S3_SECRET_KEY');
     },
-    get bucket() {
+    get bucket(): string | undefined {
       return Deno.env.get('S3_BUCKET');
     },
-    get pathStyle() {
+    get pathStyle(): boolean | undefined {
       return optionalBooleanSchema.parse(Deno.env.get('S3_PATH_STYLE'));
     },
-    get port() {
+    get port(): number | undefined {
       return optionalNumberSchema.parse(Deno.env.get('S3_PORT'));
     },
-    get sessionToken() {
+    get sessionToken(): string | undefined {
       return Deno.env.get('S3_SESSION_TOKEN');
     },
-    get useSSL() {
+    get useSSL(): boolean | undefined {
       return optionalBooleanSchema.parse(Deno.env.get('S3_USE_SSL'));
     },
   };
   /** IPFS uploader configuration. */
   static ipfs = {
     /** Base URL for private IPFS API calls. */
-    get apiUrl() {
+    get apiUrl(): string {
       return Deno.env.get('IPFS_API_URL') || 'http://localhost:5001';
     },
   };
@@ -139,15 +141,15 @@ class Conf {
     return Deno.env.get('BLOSSOM_SERVERS')?.split(',') || ['https://blossom.primal.net/'];
   }
   /** Module to upload files with. */
-  static get uploader() {
+  static get uploader(): string | undefined {
     return Deno.env.get('DITTO_UPLOADER');
   }
   /** Location to use for local uploads. */
-  static get uploadsDir() {
+  static get uploadsDir(): string {
     return Deno.env.get('UPLOADS_DIR') || 'data/uploads';
   }
   /** Media base URL for uploads. */
-  static get mediaDomain() {
+  static get mediaDomain(): string {
     const value = Deno.env.get('MEDIA_DOMAIN');
 
     if (!value) {
@@ -159,11 +161,11 @@ class Conf {
     return value;
   }
   /** Max upload size for files in number of bytes. Default 100MiB. */
-  static get maxUploadSize() {
+  static get maxUploadSize(): number {
     return Number(Deno.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);
   }
   /** Usernames that regular users cannot sign up with. */
-  static get forbiddenUsernames() {
+  static get forbiddenUsernames(): string[] {
     return Deno.env.get('FORBIDDEN_USERNAMES')?.split(',') || [
       '_',
       'admin',
@@ -175,24 +177,20 @@ class Conf {
   }
   /** Proof-of-work configuration. */
   static pow = {
-    get registrations() {
+    get registrations(): number {
       return Number(Deno.env.get('DITTO_POW_REGISTRATIONS') ?? 20);
     },
   };
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
-  static get url() {
+  static get url(): URL {
     return new URL(Conf.localDomain);
   }
   /** Merges the path with the localDomain. */
   static local(path: string): string {
     return mergePaths(Conf.localDomain, path);
   }
-  /** Get an external URL for the NIP-19 identifier. */
-  static external(nip19: string): string {
-    return new URL(`/${nip19}`, Conf.externalDomain).toString();
-  }
   /** URL to send Sentry errors to. */
-  static get sentryDsn() {
+  static get sentryDsn(): string | undefined {
     return Deno.env.get('SENTRY_DSN');
   }
   /** SQLite settings. */
