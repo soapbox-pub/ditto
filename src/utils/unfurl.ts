@@ -3,27 +3,11 @@ import Debug from '@soapbox/stickynotes/debug';
 import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
+import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
 const debug = Debug('ditto:unfurl');
-
-interface PreviewCard {
-  url: string;
-  title: string;
-  description: string;
-  type: 'link' | 'photo' | 'video' | 'rich';
-  author_name: string;
-  author_url: string;
-  provider_name: string;
-  provider_url: string;
-  html: string;
-  width: number;
-  height: number;
-  image: string | null;
-  embed_url: string;
-  blurhash: string | null;
-}
 
 async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {
   debug(`Unfurling ${url}...`);
