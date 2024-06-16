@@ -41,19 +41,24 @@ if (DITTO_NSEC) {
 const domain = await question('input', 'What is the domain of your instance? (eg ditto.pub)', Conf.url.host);
 vars.LOCAL_DOMAIN = `https://${domain}`;
 
-const database = await question('list', 'Which database do you want to use?', ['postgres', 'sqlite']);
-if (database === 'sqlite') {
-  const path = await question('input', 'Path to SQLite database', 'data/db.sqlite3');
-  vars.DATABASE_URL = `sqlite://${path}`;
-}
-if (database === 'postgres') {
-  const url = nodeUrl.parse(Deno.env.get('DATABASE_URL') ?? 'postgres://ditto:ditto@localhost:5432/ditto');
-  const host = await question('input', 'Postgres host', url.hostname);
-  const port = await question('input', 'Postgres port', url.port);
-  const user = await question('input', 'Postgres user', url.username);
-  const password = await question('input', 'Postgres password', url.password);
-  const database = await question('input', 'Postgres database', url.pathname.slice(1));
-  vars.DATABASE_URL = `postgres://${user}:${password}@${host}:${port}/${database}`;
+const DATABASE_URL = Deno.env.get('DATABASE_URL');
+
+if (DATABASE_URL) {
+  vars.DATABASE_URL = await question('input', 'Database URL', DATABASE_URL);
+} else {
+  const database = await question('list', 'Which database do you want to use?', ['postgres', 'sqlite']);
+  if (database === 'sqlite') {
+    const path = await question('input', 'Path to SQLite database', 'data/db.sqlite3');
+    vars.DATABASE_URL = `sqlite://${path}`;
+  }
+  if (database === 'postgres') {
+    const host = await question('input', 'Postgres host', 'localhost');
+    const port = await question('input', 'Postgres port', '5432');
+    const user = await question('input', 'Postgres user', 'ditto');
+    const password = await question('input', 'Postgres password', 'ditto');
+    const database = await question('input', 'Postgres database', 'ditto');
+    vars.DATABASE_URL = `postgres://${user}:${password}@${host}:${port}/${database}`;
+  }
 }
 
 vars.DITTO_UPLOADER = await question('list', 'How do you want to upload files?', [
