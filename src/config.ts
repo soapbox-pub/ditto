@@ -98,10 +98,10 @@ class Conf {
   /** S3 media storage configuration. */
   static s3 = {
     get endPoint(): string | undefined {
-      return Deno.env.get('S3_ENDPOINT')!;
+      return Deno.env.get('S3_ENDPOINT');
     },
     get region(): string | undefined {
-      return Deno.env.get('S3_REGION')!;
+      return Deno.env.get('S3_REGION');
     },
     get accessKey(): string | undefined {
       return Deno.env.get('S3_ACCESS_KEY');
@@ -145,7 +145,7 @@ class Conf {
     return Deno.env.get('DITTO_UPLOADER');
   }
   /** Location to use for local uploads. */
-  static get uploadsDir(): string | undefined {
+  static get uploadsDir(): string {
     return Deno.env.get('UPLOADS_DIR') || 'data/uploads';
   }
   /** Media base URL for uploads. */

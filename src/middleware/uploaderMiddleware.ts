@@ -13,7 +13,20 @@ export const uploaderMiddleware: AppMiddleware = async (c, next) => {
 
   switch (Conf.uploader) {
     case 's3':
-      c.set('uploader', new S3Uploader(Conf.s3));
+      c.set(
+        'uploader',
+        new S3Uploader({
+          accessKey: Conf.s3.accessKey,
+          bucket: Conf.s3.bucket,
+          endPoint: Conf.s3.endPoint!,
+          pathStyle: Conf.s3.pathStyle,
+          port: Conf.s3.port,
+          region: Conf.s3.region!,
+          secretKey: Conf.s3.secretKey,
+          sessionToken: Conf.s3.sessionToken,
+          useSSL: Conf.s3.useSSL,
+        }),
+      );
       break;
     case 'ipfs':
       c.set('uploader', new IPFSUploader({ baseUrl: Conf.mediaDomain, apiUrl: Conf.ipfs.apiUrl, fetch: fetchWorker }));
