@@ -1,4 +1,3 @@
-import nodeUrl from 'node:url';
 import { exists } from '@std/fs/exists';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 import question from 'question-deno';
