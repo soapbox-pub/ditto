@@ -2,6 +2,8 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
+import { MastodonMention } from '@/entities/MastodonMention.ts';
+import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
 import { nostrDate } from '@/utils.ts';
@@ -17,7 +19,7 @@ interface RenderStatusOpts {
   depth?: number;
 }
 
-async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<any> {
+async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<MastodonStatus | undefined> {
   const { viewerPubkey, depth = 1 } = opts;
 
   if (depth > 2 || depth < 0) return;
@@ -130,12 +132,14 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   };
 }
 
-async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
+async function renderReblog(event: DittoEvent, opts: RenderStatusOpts): Promise<MastodonStatus | undefined> {
   const { viewerPubkey } = opts;
   if (!event.repost) return;
 
   const status = await renderStatus(event, {}); // omit viewerPubkey intentionally
-  const reblog = await renderStatus(event.repost, { viewerPubkey });
+  if (!status) return;
+
+  const reblog = await renderStatus(event.repost, { viewerPubkey }) ?? null;
 
   return {
     ...status,
@@ -145,7 +149,7 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts) {
   };
 }
 
-async function toMention(pubkey: string, event?: NostrEvent) {
+async function toMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
   const account = event ? await renderAccount(event) : undefined;
 
   if (account) {
@@ -166,9 +170,7 @@ async function toMention(pubkey: string, event?: NostrEvent) {
   }
 }
 
-type Mention = Awaited<ReturnType<typeof toMention>>;
-
-function buildInlineRecipients(mentions: Mention[]): string {
+function buildInlineRecipients(mentions: MastodonMention[]): string {
   if (!mentions.length) return '';
 
   const elements = mentions.reduce<string[]>((acc, { url, username }) => {

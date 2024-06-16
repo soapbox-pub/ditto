@@ -3,6 +3,7 @@ import { escape } from 'entities';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
+import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
@@ -17,9 +18,16 @@ interface ToAccountOpts {
 async function renderAccount(
   event: Omit<DittoEvent, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
-) {
+): Promise<MastodonAccount> {
   const { withSource = false } = opts;
   const { pubkey } = event;
+
+  const names = getTagSet(event.user?.tags ?? [], 'n');
+  if (names.has('disabled') || names.has('suspended')) {
+    const account = await accountFromPubkey(pubkey, opts);
+    account.pleroma.deactivated = true;
+    return account;
+  }
 
   const {
     name,
@@ -34,7 +42,6 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
-  const names = getTagSet(event.user?.tags ?? [], 'n');
 
   return {
     id: pubkey,
@@ -77,6 +84,7 @@ async function renderAccount(
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
     },
     pleroma: {
+      deactivated: names.has('disabled') || names.has('suspended'),
       is_admin: names.has('admin'),
       is_moderator: names.has('admin') || names.has('moderator'),
       is_suggested: names.has('suggested'),
@@ -92,7 +100,7 @@ async function renderAccount(
   };
 }
 
-function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}) {
+function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}): Promise<MastodonAccount> {
   const event: UnsignedEvent = {
     kind: 0,
     pubkey,
