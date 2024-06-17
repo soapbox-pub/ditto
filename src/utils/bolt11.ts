@@ -7,7 +7,8 @@ function getAmount(invoice: string | undefined): string | undefined {
   try {
     const decoded = bolt11.decode(invoice);
     return decoded?.millisatoshis ?? undefined;
-  } catch {
+  } catch (e) {
+    console.log(e);
     return;
   }
 }
