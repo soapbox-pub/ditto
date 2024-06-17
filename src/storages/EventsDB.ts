@@ -60,18 +60,7 @@ class EventsDB implements NStore {
     }
 
     await this.deleteEventsAdmin(event);
-
-    try {
-      await this.store.event(event);
-    } catch (e) {
-      if (e.message === 'Cannot add a deleted event') {
-        throw new RelayError('blocked', 'event deleted by user');
-      } else if (e.message === 'Cannot replace an event with an older event') {
-        return;
-      } else {
-        this.console.debug('ERROR', e.message);
-      }
-    }
+    await this.store.event(event);
   }
 
   /** Check if an event has been deleted by the admin. */
