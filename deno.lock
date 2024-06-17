@@ -1375,6 +1375,7 @@
       "npm:@isaacs/ttlcache@^1.4.1",
       "npm:@noble/secp256k1@^2.0.0",
       "npm:@scure/base@^1.1.6",
+      "npm:bolt11@^1.4.1",
       "npm:comlink@^4.4.1",
       "npm:entities@^4.5.0",
       "npm:fast-stable-stringify@^1.0.0",
