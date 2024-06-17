@@ -116,8 +116,20 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
 
-  await updateStats({ event, store, kysely }).catch(debug);
-  await store.event(event, { signal });
+  try {
+    await kysely.transaction().execute(async (trx) => {
+      await updateStats({ event, store, kysely: trx });
+      await store.event(event, { signal });
+    });
+  } catch (e) {
+    if (e.message === 'Cannot add a deleted event') {
+      throw new RelayError('blocked', 'event deleted by user');
+    } else if (e.message === 'Cannot replace an event with an older event') {
+      return;
+    } else {
+      debug('ERROR', e.message);
+    }
+  }
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
