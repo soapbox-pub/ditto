@@ -63,7 +63,7 @@
     "unfurl.js": "npm:unfurl.js@^6.4.0",
     "zod": "npm:zod@^3.23.8",
     "~/fixtures/": "./fixtures/",
-    "bolt11": "npm:bolt11@^1.4.1"
+    "light-bolt11-decoder": "npm:light-bolt11-decoder"
   },
   "lint": {
     "include": ["src/", "scripts/"],
