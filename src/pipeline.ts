@@ -126,6 +126,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
       throw new RelayError('blocked', 'event deleted by user');
     } else if (e.message === 'Cannot replace an event with an older event') {
       return;
+    } else if (e.message === 'ERROR The transaction "TRANSACTION_NAME" has been aborted') {
+      return; // useless error message, probably from deno-postgres
     } else {
       debug('ERROR', e.message);
     }
