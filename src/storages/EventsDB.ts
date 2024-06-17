@@ -7,7 +7,6 @@ import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { normalizeFilters } from '@/filter.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -264,7 +263,7 @@ class EventsDB implements NStore {
       }
     }
 
-    return normalizeFilters(filters); // Improves performance of `{ kinds: [0], authors: ['...'] }` queries.
+    return filters;
   }
 }
 
