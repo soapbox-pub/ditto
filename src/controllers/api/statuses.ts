@@ -21,6 +21,7 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -548,10 +549,17 @@ const zappedByController: AppController = async (c) => {
   const amountSchema = z.coerce.number().int().nonnegative().catch(0);
 
   const events: DittoEvent[] = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
-    const zapRequest = event.tags.find(([name]) => name === 'description')?.[1];
-    if (!zapRequest) return;
+    const zapRequestString = event.tags.find(([name]) => name === 'description')?.[1];
+    if (!zapRequestString) return;
     try {
-      return JSON.parse(zapRequest);
+      const zapRequest = JSON.parse(zapRequestString);
+      const amount = zapRequest?.tags.find(([name]: any) => name === 'amount')?.[1];
+      if (!amount) {
+        const amount = getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]);
+        if (!amount) return;
+        zapRequest.tags.push(['amount', amount]);
+      }
+      return zapRequest;
     } catch {
       return;
     }
