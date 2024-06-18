@@ -16,7 +16,6 @@ export class DittoPostgres {
           createAdapter() {
             return new PostgresAdapter();
           },
-          // @ts-ignore mismatched kysely versions probably
           createDriver() {
             return new PostgreSQLDriver(
               { connectionString: Conf.databaseUrl },
