@@ -548,11 +548,11 @@ const zappedByController: AppController = async (c) => {
   const store = await Storages.db();
   const amountSchema = z.coerce.number().int().nonnegative().catch(0);
 
-  const events: DittoEvent[] = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
+  const events = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
     const zapRequestString = event.tags.find(([name]) => name === 'description')?.[1];
     if (!zapRequestString) return;
     try {
-      const zapRequest = JSON.parse(zapRequestString);
+      const zapRequest = n.json().pipe(n.event()).parse(zapRequestString);
       const amount = zapRequest?.tags.find(([name]: any) => name === 'amount')?.[1];
       if (!amount) {
         const amount = getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]);
@@ -563,7 +563,7 @@ const zappedByController: AppController = async (c) => {
     } catch {
       return;
     }
-  }).filter(Boolean);
+  }).filter(Boolean) as DittoEvent[];
 
   await hydrateEvents({ events, store });
 
