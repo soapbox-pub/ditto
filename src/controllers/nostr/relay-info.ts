@@ -16,7 +16,12 @@ const relayInfoController: AppController = async (c) => {
     software: 'Ditto',
     version: '0.0.0',
     limitation: {
-      // TODO.
+      auth_required: false,
+      created_at_lower_limit: 0,
+      created_at_upper_limit: 2_147_483_647,
+      max_limit: 100,
+      payment_required: false,
+      restricted_writes: false,
     },
   });
 };
