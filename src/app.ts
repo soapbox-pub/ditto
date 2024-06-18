@@ -8,12 +8,14 @@ import Debug from '@soapbox/stickynotes/debug';
 import { Conf } from '@/config.ts';
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
+import { Time } from '@/utils/time.ts';
 
 import {
   accountController,
   accountLookupController,
   accountSearchController,
   accountStatusesController,
+  blockController,
   createAccountController,
   familiarFollowersController,
   favouritesController,
@@ -22,6 +24,7 @@ import {
   followingController,
   muteController,
   relationshipsController,
+  unblockController,
   unfollowController,
   unmuteController,
   updateCredentialsController,
@@ -110,11 +113,10 @@ import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
+import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
-import { blockController } from '@/controllers/api/accounts.ts';
-import { unblockController } from '@/controllers/api/accounts.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 
 interface AppEnv extends HonoEnv {
@@ -144,6 +146,8 @@ if (Conf.firehoseEnabled) {
 if (Conf.cronEnabled) {
   cron();
 }
+
+app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
 app.use('/api/*', logger(debug));
 app.use('/.well-known/*', logger(debug));
