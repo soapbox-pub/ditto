@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
+import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrSigner } from '@nostrify/nostrify';
-import { HTTPException } from 'hono';
 
 export class ReadOnlySigner implements NostrSigner {
   constructor(private pubkey: string) {}

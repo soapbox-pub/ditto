@@ -1,5 +1,5 @@
+import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent } from '@nostrify/nostrify';
-import { HTTPException } from 'hono';
 
 import { type AppContext, type AppMiddleware } from '@/app.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';

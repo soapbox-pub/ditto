@@ -1,7 +1,9 @@
+import { Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { cors } from '@hono/hono/cors';
+import { serveStatic } from '@hono/hono/deno';
+import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { type Context, Env as HonoEnv, type Handler, Hono, Input as HonoInput, type MiddlewareHandler } from 'hono';
-import { cors, logger, serveStatic } from 'hono/middleware';
 
 import { Conf } from '@/config.ts';
 import { cron } from '@/cron.ts';

@@ -1,10 +1,10 @@
+import { HTTPException } from '@hono/hono/http-exception';
 import { NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { AppMiddleware } from '@/app.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
-import { HTTPException } from 'hono';
 import { DittoDB } from '@/db/DittoDB.ts';
 
 /** We only accept "Bearer" type. */

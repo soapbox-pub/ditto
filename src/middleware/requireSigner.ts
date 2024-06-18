@@ -1,4 +1,4 @@
-import { HTTPException } from 'hono';
+import { HTTPException } from '@hono/hono/http-exception';
 
 import { AppMiddleware } from '@/app.ts';
 
