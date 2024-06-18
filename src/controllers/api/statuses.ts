@@ -8,8 +8,9 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
+import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
@@ -547,15 +548,22 @@ const zappedByController: AppController = async (c) => {
   const store = await Storages.db();
   const amountSchema = z.coerce.number().int().nonnegative().catch(0);
 
-  const events: DittoEvent[] = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
-    const zapRequest = event.tags.find(([name]) => name === 'description')?.[1];
-    if (!zapRequest) return;
+  const events = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
+    const zapRequestString = event.tags.find(([name]) => name === 'description')?.[1];
+    if (!zapRequestString) return;
     try {
-      return JSON.parse(zapRequest);
+      const zapRequest = n.json().pipe(n.event()).parse(zapRequestString);
+      const amount = zapRequest?.tags.find(([name]: any) => name === 'amount')?.[1];
+      if (!amount) {
+        const amount = getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]);
+        if (!amount) return;
+        zapRequest.tags.push(['amount', amount]);
+      }
+      return zapRequest;
     } catch {
       return;
     }
-  }).filter(Boolean);
+  }).filter(Boolean) as DittoEvent[];
 
   await hydrateEvents({ events, store });
 
