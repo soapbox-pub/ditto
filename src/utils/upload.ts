@@ -1,7 +1,9 @@
+import { HTTPException } from '@hono/hono/http-exception';
+
 import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { insertUnattachedMedia, UnattachedMedia } from '@/db/unattached-media.ts';
-import { HTTPException } from 'hono';
+
 interface FileMeta {
   pubkey: string;
   description?: string;

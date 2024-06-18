@@ -22,6 +22,7 @@
     "@/": "./src/",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
     "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
+    "@hono/hono": "jsr:@hono/hono@^4.4.6",
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.23.3",
@@ -43,12 +44,11 @@
     "entities": "npm:entities@^4.5.0",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
     "formdata-helper": "npm:formdata-helper@^0.3.0",
-    "hono": "https://deno.land/x/hono@v3.10.1/mod.ts",
-    "hono/middleware": "https://deno.land/x/hono@v3.10.1/middleware.ts",
     "iso-639-1": "npm:iso-639-1@2.1.15",
     "isomorphic-dompurify": "npm:isomorphic-dompurify@^2.11.0",
     "kysely": "npm:kysely@^0.27.3",
     "kysely_deno_postgres": "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/f2948b86190a10faa293588775e162b3a8b52e70/mod.ts",
+    "light-bolt11-decoder": "npm:light-bolt11-decoder",
     "linkify-plugin-hashtag": "npm:linkify-plugin-hashtag@^4.1.1",
     "linkify-string": "npm:linkify-string@^4.1.1",
     "linkifyjs": "npm:linkifyjs@^4.1.1",
@@ -62,8 +62,7 @@
     "type-fest": "npm:type-fest@^4.3.0",
     "unfurl.js": "npm:unfurl.js@^6.4.0",
     "zod": "npm:zod@^3.23.8",
-    "~/fixtures/": "./fixtures/",
-    "light-bolt11-decoder": "npm:light-bolt11-decoder"
+    "~/fixtures/": "./fixtures/"
   },
   "lint": {
     "include": ["src/", "scripts/"],
