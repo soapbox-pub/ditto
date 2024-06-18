@@ -1,3 +1,5 @@
+import denoJson from 'deno.json' with { type: 'json' };
+
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
@@ -14,7 +16,7 @@ const relayInfoController: AppController = async (c) => {
     contact: meta.email,
     supported_nips: [1, 5, 9, 11, 16, 45, 50, 46, 98],
     software: 'Ditto',
-    version: '0.0.0',
+    version: denoJson.version,
     limitation: {
       auth_required: false,
       created_at_lower_limit: 0,

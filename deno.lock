@@ -43,6 +43,7 @@
       "npm:entities@^4.5.0": "npm:entities@4.5.0",
       "npm:fast-stable-stringify@^1.0.0": "npm:fast-stable-stringify@1.0.0",
       "npm:formdata-helper@^0.3.0": "npm:formdata-helper@0.3.0",
+      "npm:hono-rate-limiter@^0.3.0": "npm:hono-rate-limiter@0.3.0_hono@4.2.5",
       "npm:iso-639-1@2.1.15": "npm:iso-639-1@2.1.15",
       "npm:isomorphic-dompurify@^2.11.0": "npm:isomorphic-dompurify@2.11.0",
       "npm:kysely@0.27.3": "npm:kysely@0.27.3",
@@ -520,6 +521,16 @@
       },
       "he@1.2.0": {
         "integrity": "sha512-F/1DnUGPopORZi0ni+CvrCgHQ5FyEAHRLSApuYWMmrbSwoN2Mn/7k+Gl38gJnR7yyDZk6WLXwiGod1JOWNDKGw==",
+        "dependencies": {}
+      },
+      "hono-rate-limiter@0.3.0_hono@4.2.5": {
+        "integrity": "sha512-QUS1N+DCZs8CKjpoHugvEvAp/+e+LUllPPnaIlATK9GyT26niQxn4H4V+O5kHwcsXjD3P3JOc0jMb7fnW6gpFQ==",
+        "dependencies": {
+          "hono": "hono@4.2.5"
+        }
+      },
+      "hono@4.2.5": {
+        "integrity": "sha512-uonJD3i/yy005kQ7bPZRVfG3rejYJwyPqBmPoUGijS4UB/qM+YlrZ7xzSWy+ByDu9buGHUG+f+SKzz03Y6V1Kw==",
         "dependencies": {}
       },
       "html-encoding-sniffer@4.0.0": {

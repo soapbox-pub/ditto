@@ -1,9 +1,11 @@
+import denoJson from 'deno.json' with { type: 'json' };
+
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
-const version = '3.0.0 (compatible; Ditto 1.0.0)';
+const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
 
 const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;

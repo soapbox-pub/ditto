@@ -1,5 +1,6 @@
 {
   "$schema": "https://deno.land/x/deno@v1.41.0/cli/schemas/config-file.v1.json",
+  "version": "1.0.0",
   "tasks": {
     "start": "deno run -A src/server.ts",
     "dev": "deno run -A --watch src/server.ts",
@@ -40,6 +41,7 @@
     "@std/media-types": "jsr:@std/media-types@^0.224.1",
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
+    "deno.json": "./deno.json",
     "deno-safe-fetch/load": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
     "entities": "npm:entities@^4.5.0",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
