@@ -116,22 +116,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
 
-  try {
-    await kysely.transaction().execute(async (trx) => {
-      await updateStats({ event, store, kysely: trx });
-      await store.event(event, { signal });
-    });
-  } catch (e) {
-    if (e.message === 'Cannot add a deleted event') {
-      throw new RelayError('blocked', 'event deleted by user');
-    } else if (e.message === 'Cannot replace an event with an older event') {
-      return;
-    } else if (e.message === 'ERROR The transaction "TRANSACTION_NAME" has been aborted') {
-      return; // useless error message, probably from deno-postgres
-    } else {
-      debug('ERROR', e.message);
-    }
-  }
+  await updateStats({ event, store, kysely }).catch(debug);
+  await store.event(event, { signal });
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
