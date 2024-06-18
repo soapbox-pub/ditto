@@ -1,13 +1,15 @@
 import { Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { cors } from '@hono/hono/cors';
-import { serveStatic } from '@hono/hono/deno';
+import { getConnInfo, serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
+import { rateLimiter } from 'hono-rate-limiter';
 
 import { Conf } from '@/config.ts';
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
+import { Time } from '@/utils/time.ts';
 
 import {
   accountController,
@@ -144,6 +146,16 @@ if (Conf.firehoseEnabled) {
 if (Conf.cronEnabled) {
   cron();
 }
+
+// @ts-ignore Mismatched Hono versions.
+const limiter: MiddlewareHandler = rateLimiter({
+  limit: 300,
+  windowMs: Time.minutes(5),
+  // @ts-ignore Mismatched Hono versions.
+  keyGenerator: (c) => getConnInfo(c).remote.address!,
+});
+
+app.use('*', limiter);
 
 app.use('/api/*', logger(debug));
 app.use('/.well-known/*', logger(debug));
