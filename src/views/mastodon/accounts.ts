@@ -23,7 +23,7 @@ async function renderAccount(
   const { pubkey } = event;
 
   const names = getTagSet(event.user?.tags ?? [], 'n');
-  if (names.has('disabled') || names.has('suspended')) {
+  if (names.has('disabled')) {
     const account = await accountFromPubkey(pubkey, opts);
     account.pleroma.deactivated = true;
     return account;
@@ -84,7 +84,7 @@ async function renderAccount(
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
     },
     pleroma: {
-      deactivated: names.has('disabled') || names.has('suspended'),
+      deactivated: names.has('disabled'),
       is_admin: names.has('admin'),
       is_moderator: names.has('admin') || names.has('moderator'),
       is_suggested: names.has('suggested'),

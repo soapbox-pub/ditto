@@ -31,7 +31,7 @@ export class AdminStore implements NStore {
 
       const n = getTagSet(user?.tags ?? [], 'n');
 
-      if (n.has('disabled') || n.has('suspended')) {
+      if (n.has('disabled')) {
         return false;
       }
 

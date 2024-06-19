@@ -48,9 +48,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (n.has('disabled')) {
     throw new RelayError('blocked', 'user is disabled');
   }
-  if (n.has('suspended')) {
-    throw new RelayError('blocked', 'user is suspended');
-  }
 
   await Promise.all([
     storeEvent(event, signal),
