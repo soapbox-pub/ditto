@@ -87,6 +87,7 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
     id: notificationId(event),
     type: 'pleroma:emoji_reaction',
     emoji: event.content,
+    emoji_url: event.tags.find(([name, value]) => name === 'emoji' && `:${value}:` === event.content)?.[2],
     created_at: nostrDate(event.created_at).toISOString(),
     account,
     status,
