@@ -146,6 +146,7 @@ const adminActionController: AppController = async (c) => {
     n.silenced = true;
   }
   if (data.type === 'suspend') {
+    n.disabled = true;
     n.suspended = true;
     store.remove([{ authors: [authorId] }]).catch(console.warn);
   }
