@@ -57,12 +57,19 @@ const streamingController: AppController = async (c) => {
     return c.json({ error: 'Invalid access token' }, 401);
   }
 
+  const ip = c.req.header('x-real-ip');
+  if (ip) {
+    const count = limiter.get(ip) ?? 0;
+    if (count > LIMITER_LIMIT) {
+      return c.json({ error: 'Rate limit exceeded' }, 429);
+    }
+  }
+
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
   const store = await Storages.db();
   const pubsub = await Storages.pubsub();
 
-  const ip = c.req.header('x-real-ip');
   const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
 
   function send(name: string, payload: object) {
@@ -139,6 +146,7 @@ const streamingController: AppController = async (c) => {
 
     if (typeof e.data !== 'string') {
       socket.close(1003, 'Invalid message');
+      return;
     }
   };
 
