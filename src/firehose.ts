@@ -3,7 +3,7 @@ import { Stickynotes } from '@soapbox/stickynotes';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
-import * as pipeline from './pipeline.ts';
+import * as pipeline from '@/pipeline.ts';
 
 const console = new Stickynotes('ditto:firehose');
 
