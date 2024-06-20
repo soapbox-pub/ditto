@@ -181,7 +181,7 @@ const accountStatusesController: AppController = async (c) => {
   const store = await Storages.db();
 
   const [user] = await store.query([{ kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 }], { signal });
-  const names = getTagSet(user?.tags, 'n');
+  const names = getTagSet(user?.tags ?? [], 'n');
 
   if (names.has('disabled')) {
     return c.json([]);
