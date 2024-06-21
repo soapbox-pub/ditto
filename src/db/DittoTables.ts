@@ -75,6 +75,6 @@ interface EventZapRow {
   receipt_id: string;
   target_event_id: string;
   sender_pubkey: string;
-  amount: number;
+  amount_millisats: number;
   comment: string;
 }

@@ -3,11 +3,10 @@ import { Kysely } from 'kysely';
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('event_zaps')
-    .ifNotExists()
     .addColumn('receipt_id', 'text', (col) => col.primaryKey())
     .addColumn('target_event_id', 'text', (col) => col.notNull())
     .addColumn('sender_pubkey', 'text', (col) => col.notNull())
-    .addColumn('amount', 'integer', (col) => col.notNull())
+    .addColumn('amount_millisats', 'integer', (col) => col.notNull())
     .addColumn('comment', 'text', (col) => col.notNull())
     .execute();
 
@@ -21,6 +20,6 @@ export async function up(db: Kysely<any>): Promise<void> {
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropIndex('idx_event_zaps_id_amount').execute();
+  await db.schema.dropIndex('idx_event_zaps_id_amount').ifExists().execute();
   await db.schema.dropTable('event_zaps').execute();
 }
