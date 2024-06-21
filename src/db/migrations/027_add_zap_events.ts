@@ -13,7 +13,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createIndex('idx_event_zaps_id_amount')
     .on('event_zaps')
-    .column('amount')
+    .column('amount_millisats')
     .column('target_event_id')
     .ifNotExists()
     .execute();
