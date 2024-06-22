@@ -36,13 +36,17 @@ async function handleEvent9735(kysely: Kysely<DittoTables>, event: NostrEvent) {
   const zappedEventId = zapRequest.tags.find(([name]) => name === 'e')?.[1];
   if (!zappedEventId) return;
 
-  await kysely.insertInto('event_zaps').values({
-    receipt_id: event.id,
-    target_event_id: zappedEventId,
-    sender_pubkey: zapRequest.pubkey,
-    amount_millisats,
-    comment: zapRequest.content,
-  }).execute();
+  try {
+    await kysely.insertInto('event_zaps').values({
+      receipt_id: event.id,
+      target_event_id: zappedEventId,
+      sender_pubkey: zapRequest.pubkey,
+      amount_millisats,
+      comment: zapRequest.content,
+    }).execute();
+  } catch {
+    // receipt_id is unique, do nothing
+  }
 }
 
 export { scavengerEvent };
