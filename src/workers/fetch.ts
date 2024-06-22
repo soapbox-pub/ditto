@@ -1,8 +1,9 @@
 import * as Comlink from 'comlink';
 
+import { FetchWorker } from './fetch.worker.ts';
 import './handlers/abortsignal.ts';
 
-import type { FetchWorker } from './fetch.worker.ts';
+import { fetchCounter } from '@/metrics.ts';
 
 const worker = new Worker(new URL('./fetch.worker.ts', import.meta.url), { type: 'module' });
 const client = Comlink.wrap<typeof FetchWorker>(worker);
@@ -24,6 +25,7 @@ const fetchWorker: typeof fetch = async (...args) => {
   await ready;
   const [url, init] = serializeFetchArgs(args);
   const { body, signal, ...rest } = init;
+  fetchCounter.inc({ method: init.method, path: new URL(url).pathname });
   const result = await client.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
   return new Response(...result);
 };

@@ -10,6 +10,7 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
+import { relayEventCounter, relayMessageCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -22,6 +23,7 @@ function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
 
   socket.onmessage = (e) => {
+    relayMessageCounter.inc();
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
       handleMsg(result.data);
@@ -40,15 +42,18 @@ function connectStream(socket: WebSocket) {
   function handleMsg(msg: NostrClientMsg) {
     switch (msg[0]) {
       case 'REQ':
+        relayEventCounter.inc();
         handleReq(msg);
         return;
       case 'EVENT':
+        relayEventCounter.inc({ kind: msg[1].kind.toString() });
         handleEvent(msg);
         return;
       case 'CLOSE':
         handleClose(msg);
         return;
       case 'COUNT':
+        relayEventCounter.inc();
         handleCount(msg);
         return;
     }

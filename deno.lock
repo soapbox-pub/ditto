@@ -1418,6 +1418,7 @@
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1",
       "npm:nostr-wasm@^0.1.0",
+      "npm:prom-client@^15.1.2",
       "npm:tldts@^6.0.14",
       "npm:tseep@^1.2.1",
       "npm:type-fest@^4.3.0",

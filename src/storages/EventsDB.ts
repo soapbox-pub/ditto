@@ -7,6 +7,7 @@ import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { dbEventCounter, dbQueryCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -53,6 +54,7 @@ class EventsDB implements NStore {
   async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
+    dbEventCounter.inc({ kind: event.kind });
 
     if (await this.isDeletedAdmin(event)) {
       throw new RelayError('blocked', 'event deleted by admin');
@@ -137,6 +139,7 @@ class EventsDB implements NStore {
   /** Get events for filters from the database. */
   async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
+    dbQueryCounter.inc();
 
     for (const filter of filters) {
       if (filter.since && filter.since >= 2_147_483_647) {
