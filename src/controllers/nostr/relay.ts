@@ -10,7 +10,7 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayEventCounter, relayMessageCounter } from '@/metrics.ts';
+import { relayCountCounter, relayEventCounter, relayMessageCounter, relayReqCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -42,7 +42,7 @@ function connectStream(socket: WebSocket) {
   function handleMsg(msg: NostrClientMsg) {
     switch (msg[0]) {
       case 'REQ':
-        relayEventCounter.inc();
+        relayReqCounter.inc();
         handleReq(msg);
         return;
       case 'EVENT':
@@ -53,7 +53,7 @@ function connectStream(socket: WebSocket) {
         handleClose(msg);
         return;
       case 'COUNT':
-        relayEventCounter.inc();
+        relayCountCounter.inc();
         handleCount(msg);
         return;
     }
