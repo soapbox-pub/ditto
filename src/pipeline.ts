@@ -7,6 +7,7 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { pipelineEventCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -36,6 +37,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (encounterEvent(event)) return;
   if (await existsInDB(event)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
+  pipelineEventCounter.inc({ kind: event.kind });
 
   if (event.kind !== 24133) {
     await policyFilter(event);
