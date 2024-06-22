@@ -25,7 +25,7 @@ const fetchWorker: typeof fetch = async (...args) => {
   await ready;
   const [url, init] = serializeFetchArgs(args);
   const { body, signal, ...rest } = init;
-  fetchCounter.inc({ method: init.method, path: new URL(url).pathname });
+  fetchCounter.inc({ method: init.method });
   const result = await client.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
   return new Response(...result);
 };

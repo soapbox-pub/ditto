@@ -3,13 +3,13 @@ import { Counter } from 'prom-client';
 export const httpRequestCounter = new Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
-  labelNames: ['method', 'path'],
+  labelNames: ['method'],
 });
 
 export const fetchCounter = new Counter({
   name: 'fetch_total',
   help: 'Total number of fetch requests',
-  labelNames: ['method', 'path'],
+  labelNames: ['method'],
 });
 
 export const firehoseEventCounter = new Counter({
