@@ -108,6 +108,7 @@ import {
   trendingStatusesController,
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
+import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
@@ -167,6 +168,8 @@ app.use(
   auth98Middleware(),
   storeMiddleware,
 );
+
+app.get('/metrics', metricsController);
 
 app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
