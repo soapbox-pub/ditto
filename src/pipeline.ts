@@ -17,6 +17,7 @@ import { verifyEventWorker } from '@/workers/verify.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { scavengerEvent } from '@/utils/scavenger.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -50,7 +51,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
 
   await Promise.all([
-    storeEvent(event, signal),
+    scavengerEvent({ savedEvent: storeEvent(event, signal), kysely: (await DittoDB.getInstance()) }),
     parseMetadata(event, signal),
     generateSetEvents(event),
     processMedia(event),
@@ -108,13 +109,15 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 }
 
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
+async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<DittoEvent | undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
 
   await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
+
+  return event;
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
