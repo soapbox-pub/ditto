@@ -40,6 +40,7 @@ export interface MastodonAccount {
   username: string;
   ditto: {
     accepts_zaps: boolean;
+    external?: URL;
   };
   pleroma: {
     deactivated: boolean;

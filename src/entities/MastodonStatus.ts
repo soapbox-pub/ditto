@@ -39,4 +39,7 @@ export interface MastodonStatus {
     expires_at?: string;
     quotes_count: number;
   };
+  ditto: {
+    external?: URL;
+  };
 }
