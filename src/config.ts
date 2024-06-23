@@ -63,6 +63,14 @@ class Conf {
   static get localDomain(): string {
     return Deno.env.get('LOCAL_DOMAIN') || `http://localhost:${Conf.port}`;
   }
+  /** Link to an external nostr viewer. */
+  static get externalDomain(): string {
+    return Deno.env.get('NOSTR_EXTERNAL') || 'https://njump.me';
+  }
+  /** Get a link to a nip19-encoded entity in the configured external viewer. */
+  static external(path: string) {
+    return new URL(path, Conf.externalDomain).toString();
+  }
   /**
    * Heroku-style database URL. This is used in production to connect to the
    * database.
