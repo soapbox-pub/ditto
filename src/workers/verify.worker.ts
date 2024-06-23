@@ -3,6 +3,7 @@ import * as Comlink from 'comlink';
 import { VerifiedEvent, verifyEvent } from 'nostr-tools';
 
 import '@/nostr-wasm.ts';
+import '@/sentry.ts';
 
 export const VerifyWorker = {
   verifyEvent(event: NostrEvent): event is VerifiedEvent {

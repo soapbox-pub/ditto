@@ -2,6 +2,7 @@ import Debug from '@soapbox/stickynotes/debug';
 import * as Comlink from 'comlink';
 
 import './handlers/abortsignal.ts';
+import '@/sentry.ts';
 
 const debug = Debug('ditto:fetch.worker');
 
