@@ -69,7 +69,7 @@ class Conf {
   }
   /** Get a link to a nip19-encoded entity in the configured external viewer. */
   static external(path: string) {
-    return new URL(path, Conf.externalDomain);
+    return new URL(path, Conf.externalDomain).toString();
   }
   /**
    * Heroku-style database URL. This is used in production to connect to the

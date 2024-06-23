@@ -40,6 +40,6 @@ export interface MastodonStatus {
     quotes_count: number;
   };
   ditto: {
-    external?: URL;
+    external_url: string;
   };
 }

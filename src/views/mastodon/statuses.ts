@@ -125,7 +125,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     url: Conf.local(`/${note}`),
     zapped: Boolean(zapEvent),
     ditto: {
-      external: Conf.externalDomain === Conf.localDomain ? undefined : Conf.external(note),
+      external_url: Conf.external(note),
     },
     pleroma: {
       emoji_reactions: reactions,
