@@ -114,6 +114,7 @@ import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
+import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
@@ -161,6 +162,7 @@ app.get('/relay', relayController);
 
 app.use(
   '*',
+  metricsMiddleware,
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
