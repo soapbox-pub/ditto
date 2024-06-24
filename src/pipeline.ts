@@ -54,9 +54,11 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     throw new RelayError('blocked', 'user is disabled');
   }
 
+  const kysely = await DittoDB.getInstance();
+
   await Promise.all([
     storeEvent(event, signal),
-    handleZaps(await DittoDB.getInstance(), event),
+    handleZaps(kysely, event),
     parseMetadata(event, signal),
     generateSetEvents(event),
     processMedia(event),
@@ -114,15 +116,13 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 }
 
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<DittoEvent | undefined> {
+async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
 
   await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
-
-  return event;
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
