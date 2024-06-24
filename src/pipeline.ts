@@ -1,7 +1,8 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { sql } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
+import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -18,7 +19,8 @@ import { verifyEventWorker } from '@/workers/verify.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { scavengerEvent } from '@/utils/scavenger.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -53,7 +55,8 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
 
   await Promise.all([
-    scavengerEvent({ savedEvent: storeEvent(event, signal), kysely: (await DittoDB.getInstance()) }),
+    storeEvent(event, signal),
+    handleZaps(await DittoDB.getInstance(), event),
     parseMetadata(event, signal),
     generateSetEvents(event),
     processMedia(event),
@@ -223,4 +226,31 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
   }
 }
 
-export { handleEvent };
+/** Stores the event in the 'event_zaps' table */
+async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
+  const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+  if (!zapRequestString) return;
+  const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+  if (!zapRequest) return;
+
+  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+  const amount_millisats = amountSchema.parse(getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]));
+  if (!amount_millisats || amount_millisats < 1) return;
+
+  const zappedEventId = zapRequest.tags.find(([name]) => name === 'e')?.[1];
+  if (!zappedEventId) return;
+
+  try {
+    await kysely.insertInto('event_zaps').values({
+      receipt_id: event.id,
+      target_event_id: zappedEventId,
+      sender_pubkey: zapRequest.pubkey,
+      amount_millisats,
+      comment: zapRequest.content,
+    }).execute();
+  } catch {
+    // receipt_id is unique, do nothing
+  }
+}
+
+export { handleEvent, handleZaps };
