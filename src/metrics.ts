@@ -24,25 +24,16 @@ export const pipelineEventCounter = new Counter({
   labelNames: ['kind'],
 });
 
-export const relayReqCounter = new Counter({
-  name: 'relay_reqs_total',
-  help: 'Total number of REQ messages processed by the relay',
-});
-
 export const relayEventCounter = new Counter({
   name: 'relay_events_total',
   help: 'Total number of EVENT messages processed by the relay',
   labelNames: ['kind'],
 });
 
-export const relayCountCounter = new Counter({
-  name: 'relay_counts_total',
-  help: 'Total number of COUNT messages processed by the relay',
-});
-
 export const relayMessageCounter = new Counter({
   name: 'relay_messages_total',
   help: 'Total number of Nostr messages processed by the relay',
+  labelNames: ['verb'],
 });
 
 export const dbQueryCounter = new Counter({

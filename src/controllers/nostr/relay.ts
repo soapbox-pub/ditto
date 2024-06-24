@@ -10,7 +10,7 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayCountCounter, relayEventCounter, relayMessageCounter, relayReqCounter } from '@/metrics.ts';
+import { relayEventCounter, relayMessageCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -23,11 +23,12 @@ function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
 
   socket.onmessage = (e) => {
-    relayMessageCounter.inc();
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
+      relayMessageCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
+      relayMessageCounter.inc();
       send(['NOTICE', 'Invalid message.']);
     }
   };
@@ -42,18 +43,15 @@ function connectStream(socket: WebSocket) {
   function handleMsg(msg: NostrClientMsg) {
     switch (msg[0]) {
       case 'REQ':
-        relayReqCounter.inc();
         handleReq(msg);
         return;
       case 'EVENT':
-        relayEventCounter.inc({ kind: msg[1].kind.toString() });
         handleEvent(msg);
         return;
       case 'CLOSE':
         handleClose(msg);
         return;
       case 'COUNT':
-        relayCountCounter.inc();
         handleCount(msg);
         return;
     }
@@ -93,6 +91,7 @@ function connectStream(socket: WebSocket) {
 
   /** Handle EVENT. Store the event. */
   async function handleEvent([_, event]: NostrClientEVENT): Promise<void> {
+    relayEventCounter.inc({ kind: event.kind.toString() });
     try {
       // This will store it (if eligible) and run other side-effects.
       await pipeline.handleEvent(event, AbortSignal.timeout(1000));
