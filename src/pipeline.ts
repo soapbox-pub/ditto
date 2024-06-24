@@ -228,6 +228,8 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
 
 /** Stores the event in the 'event_zaps' table */
 async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
+  if (event.kind !== 9735) return;
+
   const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
   if (!zapRequestString) return;
   const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
