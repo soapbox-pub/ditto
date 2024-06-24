@@ -11,15 +11,22 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 
   await db.schema
-    .createIndex('idx_event_zaps_id_amount')
+    .createIndex('idx_event_zaps_amount_millisats')
     .on('event_zaps')
     .column('amount_millisats')
+    .ifNotExists()
+    .execute();
+
+  await db.schema
+    .createIndex('idx_event_zaps_target_event_id')
+    .on('event_zaps')
     .column('target_event_id')
     .ifNotExists()
     .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropIndex('idx_event_zaps_id_amount').ifExists().execute();
+  await db.schema.dropIndex('idx_event_zaps_amount_millisats').ifExists().execute();
+  await db.schema.dropIndex('idx_event_zaps_target_event_id').ifExists().execute();
   await db.schema.dropTable('event_zaps').execute();
 }
