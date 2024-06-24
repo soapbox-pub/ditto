@@ -10,7 +10,7 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayEventCounter, relayMessageCounter } from '@/metrics.ts';
+import { relayConnectionsGauge, relayEventCounter, relayMessageCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -21,6 +21,10 @@ const FILTER_LIMIT = 100;
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
+
+  socket.onopen = () => {
+    relayConnectionsGauge.inc();
+  };
 
   socket.onmessage = (e) => {
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
@@ -34,6 +38,8 @@ function connectStream(socket: WebSocket) {
   };
 
   socket.onclose = () => {
+    relayConnectionsGauge.dec();
+
     for (const controller of controllers.values()) {
       controller.abort();
     }

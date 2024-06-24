@@ -1,9 +1,14 @@
-import { Counter } from 'prom-client';
+import { Counter, Gauge } from 'prom-client';
 
 export const httpRequestCounter = new Counter({
   name: 'http_requests_total',
   help: 'Total number of HTTP requests',
   labelNames: ['method'],
+});
+
+export const streamingConnectionsGauge = new Gauge({
+  name: 'streaming_connections',
+  help: 'Number of active connections to the streaming API',
 });
 
 export const fetchCounter = new Counter({
@@ -34,6 +39,11 @@ export const relayMessageCounter = new Counter({
   name: 'relay_messages_total',
   help: 'Total number of Nostr messages processed by the relay',
   labelNames: ['verb'],
+});
+
+export const relayConnectionsGauge = new Gauge({
+  name: 'relay_connections',
+  help: 'Number of active connections to the relay',
 });
 
 export const dbQueryCounter = new Counter({

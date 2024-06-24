@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { streamingConnectionsGauge } from '@/metrics.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -97,6 +98,8 @@ const streamingController: AppController = async (c) => {
   }
 
   socket.onopen = async () => {
+    streamingConnectionsGauge.inc();
+
     if (!stream) return;
     const topicFilter = await topicToFilter(stream, c.req.query(), pubkey);
 
@@ -120,6 +123,7 @@ const streamingController: AppController = async (c) => {
   };
 
   socket.onclose = () => {
+    streamingConnectionsGauge.dec();
     controller.abort();
   };
 
