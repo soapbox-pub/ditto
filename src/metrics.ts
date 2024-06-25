@@ -57,3 +57,13 @@ export const dbEventCounter = new Counter({
   help: 'Total number of database inserts',
   labelNames: ['kind'],
 });
+
+export const dbPoolSizeGauge = new Gauge({
+  name: 'db_pool_size',
+  help: 'Number of connections in the database pool',
+});
+
+export const dbAvailableConnectionsGauge = new Gauge({
+  name: 'db_available_connections',
+  help: 'Number of available connections in the database pool',
+});
