@@ -14,7 +14,7 @@ import { relayConnectionsGauge, relayEventCounter, relayMessageCounter } from '@
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
-import { prometheusParams } from "@/db/KyselyLogger.ts";
+import { prometheusParams } from '@/db/KyselyLogger.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -57,12 +57,10 @@ function connectStream(socket: WebSocket) {
           try {
             const parsed = JSON.parse(msg[1].content);
             if (parsed.threshold) prometheusParams.threshold = parsed.threshold;
-          }
-          catch (e) {
+          } catch (e) {
             console.debug(`Error parsing kind 13314 ${msg[1].content}: ${e}`);
           }
-        }
-        else handleEvent(msg);
+        } else handleEvent(msg);
         return;
       case 'CLOSE':
         handleClose(msg);
