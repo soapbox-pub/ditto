@@ -15,9 +15,11 @@ import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 import { prometheusParams } from '@/db/KyselyLogger.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
+const adminPubkey = await new AdminSigner().getPublicKey();
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket) {
@@ -53,7 +55,7 @@ function connectStream(socket: WebSocket) {
         handleReq(msg);
         return;
       case 'EVENT':
-        if (msg[1].kind === 13314) {
+        if (msg[1].kind === 13314 && msg[1].pubkey === adminPubkey) {
           try {
             const parsed = JSON.parse(msg[1].content);
             if (parsed.threshold) prometheusParams.threshold = parsed.threshold;
