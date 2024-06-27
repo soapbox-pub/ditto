@@ -71,6 +71,4 @@ export const dbAvailableConnectionsGauge = new Gauge({
 export const dbQueryTimeHistogram = new Histogram({
   name: 'db_query_duration_seconds',
   help: 'Duration of database queries',
-  labelNames: ['method'],
-  buckets: [3, 6, 9],
 });
