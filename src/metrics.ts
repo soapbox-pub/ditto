@@ -68,7 +68,9 @@ export const dbAvailableConnectionsGauge = new Gauge({
   help: 'Number of available connections in the database pool',
 });
 
-export const dbQueryTime = new Histogram({
-  name: 'db_query_time',
-  help: 'Time taken per kysely query',
+export const dbQueryTimeHistogram = new Histogram({
+  name: 'db_query_duration_seconds',
+  help: 'Duration of database queries',
+  labelNames: ['method'],
+  buckets: [3, 6, 9],
 });
