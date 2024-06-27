@@ -1,28 +1,18 @@
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Logger } from 'kysely';
-import { dbQueryTime } from '@/metrics.ts';
-
-export const prometheusParams = {
-  threshold: 10000,
-};
+import { dbQueryTimeHistogram } from '@/metrics.ts';
 
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
   if (event.level === 'query') {
     const console = new Stickynotes('ditto:sql');
 
+    const timer = dbQueryTimeHistogram.startTimer();
+
     const { query, queryDurationMillis } = event;
     const { sql, parameters } = query;
 
-    if (queryDurationMillis > prometheusParams.threshold) {
-      const labels = {
-        sql,
-        parameters: JSON.stringify(
-          parameters.filter((param: any) => ['string', 'number'].includes(typeof param)) as (string | number)[],
-        ),
-      };
-      dbQueryTime.observe(labels, queryDurationMillis);
-    }
+    timer();
 
     console.debug(
       sql,
