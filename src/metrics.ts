@@ -1,4 +1,4 @@
-import { Counter, Gauge } from 'prom-client';
+import { Counter, Gauge, Histogram } from 'prom-client';
 
 export const httpRequestCounter = new Counter({
   name: 'http_requests_total',
@@ -66,4 +66,9 @@ export const dbPoolSizeGauge = new Gauge({
 export const dbAvailableConnectionsGauge = new Gauge({
   name: 'db_available_connections',
   help: 'Number of available connections in the database pool',
+});
+
+export const dbQueryTimeHistogram = new Histogram({
+  name: 'db_query_duration_seconds',
+  help: 'Duration of database queries',
 });
