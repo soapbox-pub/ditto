@@ -7,12 +7,10 @@ export const KyselyLogger: Logger = (event) => {
   if (event.level === 'query') {
     const console = new Stickynotes('ditto:sql');
 
-    const timer = dbQueryTimeHistogram.startTimer();
-
     const { query, queryDurationMillis } = event;
     const { sql, parameters } = query;
 
-    timer();
+    dbQueryTimeHistogram.observe(queryDurationMillis);
 
     console.debug(
       sql,
