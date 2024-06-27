@@ -69,6 +69,6 @@ export const dbAvailableConnectionsGauge = new Gauge({
 });
 
 export const dbQueryTimeHistogram = new Histogram({
-  name: 'db_query_duration_seconds',
+  name: 'db_query_duration_ms',
   help: 'Duration of database queries',
 });
