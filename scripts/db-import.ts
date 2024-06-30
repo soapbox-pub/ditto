@@ -16,19 +16,19 @@ interface ImportEventsOpts {
 }
 
 type DoEvent = (evt: NostrEvent) => void | Promise<void>;
-const importUsers = async (authors: string[], relays: string[], doEvent: DoEvent = (evt: NostrEvent) => eventsDB.event(evt), opts?: Partial<ImportEventsOpts>) => {
+const importUsers = async (authors: string[], relays: string[], opts?: Partial<ImportEventsOpts>, doEvent: DoEvent = async (evt: NostrEvent) => await eventsDB.event(evt)) => {
     // Kind 0s + follow lists.
     const profiles: Record<string, Record<number, NostrEvent>> = {};
     // Kind 1s.
     const notes = new Set<string>();
 
+    const { profilesOnly = false } = opts || {};
+
     await Promise.all(relays.map(async relay => {
         if (!relay.startsWith('wss://')) console.error(`Invalid relay url ${relay}`);
         const conn = new NRelay1(relay);
         const kinds = [0, 3];
-        if (!opts?.profilesOnly) {
-            kinds.push(1);
-        }
+        if (!profilesOnly) kinds.push(1);
         const matched = await conn.query([{ kinds, authors, limit: 1000 }]);
         await conn.close();
         await Promise.all(
@@ -43,7 +43,7 @@ const importUsers = async (authors: string[], relays: string[], doEvent: DoEvent
 
                 profiles[pubkey] ??= {};
                 const existing = profiles[pubkey][kind];
-                if (existing.created_at > event.created_at) return;
+                if (existing?.created_at > event.created_at) return;
                 else profiles[pubkey][kind] = event;
             })
         )
@@ -79,7 +79,7 @@ if (import.meta.main) {
             switch (arg) {
                 case '-p':
                 case '--profile-only':
-                    console.log('Only importing profiles.');
+                    console.info('Only importing profiles.');
                     opts.profilesOnly = true;
                     break;
             }
@@ -107,25 +107,23 @@ if (import.meta.main) {
         }
     }
 
-    await importUsers(pubkeys, relays, console.log, opts);
+    await importUsers(pubkeys, relays, opts);
+    Deno.exit(0);
 }
 
-await kysely.destroy();
-
 function showHelp() {
-    console.log('ditto - db:import');
-    console.log('Import users\' posts and kind 0s from a given set of relays.\n');
+    console.info('ditto - db:import');
+    console.info('Import users\' posts and kind 0s from a given set of relays.\n');
     showUsage();
-    console.log(`
+    console.info(`
 OPTIONS:
 
 -p, --profile-only
   Only import profiles and not posts. Default: off.
 `);
-
 }
 
 function showUsage() {
-    console.log('Usage: deno task db:import [options] npub1xxxxxx[ npub1yyyyyyy]...' +
+    console.info('Usage: deno task db:import [options] npub1xxxxxx[ npub1yyyyyyy]...' +
         ' wss://first.relay[ second.relay]...');
 }
