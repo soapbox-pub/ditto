@@ -47,6 +47,7 @@
       "npm:hono-rate-limiter@^0.3.0": "npm:hono-rate-limiter@0.3.0_hono@4.2.5",
       "npm:iso-639-1@2.1.15": "npm:iso-639-1@2.1.15",
       "npm:isomorphic-dompurify@^2.11.0": "npm:isomorphic-dompurify@2.11.0",
+      "npm:kysely-postgres-js@2.0.0": "npm:kysely-postgres-js@2.0.0_kysely@0.27.3_postgres@3.4.4",
       "npm:kysely@0.27.3": "npm:kysely@0.27.3",
       "npm:kysely@^0.27.2": "npm:kysely@0.27.3",
       "npm:kysely@^0.27.3": "npm:kysely@0.27.3",
@@ -62,6 +63,7 @@
       "npm:nostr-tools@^2.5.0": "npm:nostr-tools@2.5.1",
       "npm:nostr-tools@^2.7.0": "npm:nostr-tools@2.7.0",
       "npm:nostr-wasm@^0.1.0": "npm:nostr-wasm@0.1.0",
+      "npm:postgres@3.4.4": "npm:postgres@3.4.4",
       "npm:prom-client@^15.1.2": "npm:prom-client@15.1.2",
       "npm:tldts@^6.0.14": "npm:tldts@6.1.18",
       "npm:type-fest@^4.3.0": "npm:type-fest@4.18.2",
@@ -664,6 +666,13 @@
           "xml-name-validator": "xml-name-validator@5.0.0"
         }
       },
+      "kysely-postgres-js@2.0.0_kysely@0.27.3_postgres@3.4.4": {
+        "integrity": "sha512-R1tWx6/x3tSatWvsmbHJxpBZYhNNxcnMw52QzZaHKg7ZOWtHib4iZyEaw4gb2hNKVctWQ3jfMxZT/ZaEMK6kBQ==",
+        "dependencies": {
+          "kysely": "kysely@0.27.3",
+          "postgres": "postgres@3.4.4"
+        }
+      },
       "kysely@0.27.3": {
         "integrity": "sha512-lG03Ru+XyOJFsjH3OMY6R/9U38IjDPfnOfDgO3ynhbDr+Dz8fak+X6L62vqu3iybQnj+lG84OttBuU9KY3L9kA==",
         "dependencies": {}
@@ -866,6 +875,10 @@
       },
       "pidtree@0.6.0": {
         "integrity": "sha512-eG2dWTVw5bzqGRztnHExczNxt5VGsE6OwTeCG3fdUf9KBsZzO3R5OIIIzWR+iZA0NtZ+RDVdaoE2dK1cn6jH4g==",
+        "dependencies": {}
+      },
+      "postgres@3.4.4": {
+        "integrity": "sha512-IbyN+9KslkqcXa8AO9fxpk97PA4pzewvpi2B3Dwy9u4zpV32QicaEdgmF3eSQUzdRk7ttDHQejNgAEr4XoeH4A==",
         "dependencies": {}
       },
       "prom-client@15.1.2": {
@@ -1442,6 +1455,7 @@
       "npm:hono-rate-limiter@^0.3.0",
       "npm:iso-639-1@2.1.15",
       "npm:isomorphic-dompurify@^2.11.0",
+      "npm:kysely-postgres-js@2.0.0",
       "npm:kysely@^0.27.3",
       "npm:light-bolt11-decoder",
       "npm:linkify-plugin-hashtag@^4.1.1",
@@ -1451,6 +1465,7 @@
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1",
       "npm:nostr-wasm@^0.1.0",
+      "npm:postgres@3.4.4",
       "npm:prom-client@^15.1.2",
       "npm:tldts@^6.0.14",
       "npm:tseep@^1.2.1",
