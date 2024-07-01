@@ -99,6 +99,8 @@ if (import.meta.main) {
         continue;
       }
       pubkeys.push(decoded);
+    } else if (NSchema.id().safeParse(arg).success) {
+      pubkeys.push(arg);
     } else {
       relaySectionBegun = true;
       if (!arg.startsWith('wss://')) {
