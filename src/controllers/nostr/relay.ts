@@ -73,7 +73,7 @@ function connectStream(socket: WebSocket) {
     const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 500 })) {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 300 })) {
         send(['EVENT', subId, event]);
       }
     } catch (e) {
@@ -128,7 +128,7 @@ function connectStream(socket: WebSocket) {
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     const store = await Storages.db();
-    const { count } = await store.count(filters, { timeout: 500 });
+    const { count } = await store.count(filters, { timeout: 100 });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
