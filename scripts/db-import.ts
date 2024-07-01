@@ -2,7 +2,7 @@
  * Script to import a user/list of users into Ditto given their npub/pubkey by looking them up on a list of relays.
  */
 
-import { nip19 } from 'npm:nostr-tools@^2.7.0';
+import { nip19 } from 'nostr-tools';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { NostrEvent, NRelay1, NSchema } from '@nostrify/nostrify';
