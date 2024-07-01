@@ -45,6 +45,7 @@ class EventsDB implements NStore {
   constructor(private kysely: Kysely<DittoTables>) {
     this.store = new NDatabase(kysely, {
       fts: Conf.db.dialect,
+      timeoutStrategy: Conf.db.dialect === 'postgres' ? 'setStatementTimeout' : undefined,
       indexTags: EventsDB.indexTags,
       searchText: EventsDB.searchText,
     });
