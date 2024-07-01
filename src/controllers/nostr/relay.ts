@@ -73,7 +73,7 @@ function connectStream(socket: WebSocket) {
     const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 300 })) {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 1000 })) {
         send(['EVENT', subId, event]);
       }
     } catch (e) {
