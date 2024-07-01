@@ -32,9 +32,11 @@ const importUsers = async (
   await Promise.all(relays.map(async (relay) => {
     if (!relay.startsWith('wss://')) console.error(`Invalid relay url ${relay}`);
     const conn = new NRelay1(relay);
-    const kinds = [0, 3];
-    if (!profilesOnly) kinds.push(1);
-    const matched = await conn.query([{ kinds, authors, limit: 1000 }]);
+
+    const matched = [
+      ...await conn.query([{ kinds: [0, 3], authors, limit: 1000 }]),
+      ...(!profilesOnly ? [] : await conn.query([{ kinds: [1], authors, limit: 1000 }])),
+    ];
     await conn.close();
     await Promise.all(
       matched.map(async (event) => {
