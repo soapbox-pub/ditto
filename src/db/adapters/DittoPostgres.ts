@@ -14,7 +14,7 @@ export class DittoPostgres {
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
-          postgres: postgres(Conf.databaseUrl)
+          postgres: postgres(Conf.databaseUrl) as any
         }),
         log: KyselyLogger
       });
