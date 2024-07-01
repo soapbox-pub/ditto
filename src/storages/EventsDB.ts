@@ -51,7 +51,7 @@ class EventsDB implements NStore {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent, opts?: { signal?: AbortSignal; timeout?: number }): Promise<void> {
+  async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
     dbEventCounter.inc({ kind: event.kind });
@@ -63,7 +63,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event, { timeout: opts?.timeout ?? 3000 });
+      await this.store.event(event, { ...opts, timeout: opts.timeout ?? 3000 });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -163,15 +163,15 @@ class EventsDB implements NStore {
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, { timeout: opts.timeout ?? 3000 });
+    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? 3000 });
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: NostrFilter[], opts?: { signal?: AbortSignal; timeout?: number }): Promise<void> {
+  async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
 
-    return this.store.remove(filters, opts);
+    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? 5000 });
   }
 
   /** Get number of events that would be returned by filters. */
@@ -184,7 +184,7 @@ class EventsDB implements NStore {
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters, { timeout: opts.timeout ?? 1000 });
+    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? 1000 });
   }
 
   /** Return only the tags that should be indexed. */
