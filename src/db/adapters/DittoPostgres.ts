@@ -1,5 +1,5 @@
 import { Kysely } from 'kysely';
-import { PostgresJSDialect } from "kysely-postgres-js";
+import { PostgresJSDialect } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
 import { Conf } from '@/config.ts';
@@ -14,9 +14,9 @@ export class DittoPostgres {
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
-          postgres: postgres(Conf.databaseUrl) as any
+          postgres: postgres(Conf.databaseUrl) as any,
         }),
-        log: KyselyLogger
+        log: KyselyLogger,
       });
     }
 
