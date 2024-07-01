@@ -35,8 +35,11 @@ const importUsers = async (
 
     const matched = [
       ...await conn.query([{ kinds: [0, 3], authors, limit: 1000 }]),
-      ...(!profilesOnly ? [] : await conn.query([{ kinds: [1], authors, limit: 1000 }])),
+      ...(!profilesOnly ? [] : await conn.query(
+        authors.map((author) => ({ kinds: [1], authors: [author], limit: 200 })),
+      )),
     ];
+
     await conn.close();
     await Promise.all(
       matched.map(async (event) => {
