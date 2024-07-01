@@ -14,12 +14,12 @@ interface ImportEventsOpts {
   profilesOnly: boolean;
 }
 
-type DoEvent = (evt: NostrEvent) => void | Promise<void>;
+type DoEvent = (event: NostrEvent) => void | Promise<void>;
 const importUsers = async (
   authors: string[],
   relays: string[],
   opts?: Partial<ImportEventsOpts>,
-  doEvent: DoEvent = async (evt: NostrEvent) => await eventsDB.event(evt),
+  doEvent: DoEvent = async (event: NostrEvent) => await eventsDB.event(event),
 ) => {
   // Kind 0s + follow lists.
   const profiles: Record<string, Record<number, NostrEvent>> = {};
