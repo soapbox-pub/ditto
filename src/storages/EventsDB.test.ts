@@ -191,3 +191,33 @@ Deno.test('inserting replaceable events', async () => {
   await eventsDB.event(newerEvent);
   assertEquals(await eventsDB.query([{ kinds: [0] }]), [newerEvent]);
 });
+
+Deno.test("throws a RelayError when querying an event with a large 'since'", async () => {
+  const { eventsDB } = await createDB();
+
+  await assertRejects(
+    () => eventsDB.query([{ since: 33333333333333 }]),
+    RelayError,
+    'since filter too far into the future',
+  );
+});
+
+Deno.test("throws a RelayError when querying an event with a large 'until'", async () => {
+  const { eventsDB } = await createDB();
+
+  await assertRejects(
+    () => eventsDB.query([{ until: 66666666666666 }]),
+    RelayError,
+    'until filter too far into the future',
+  );
+});
+
+Deno.test("throws a RelayError when querying an event with a large 'kind'", async () => {
+  const { eventsDB } = await createDB();
+
+  await assertRejects(
+    () => eventsDB.query([{ kinds: [99999999999999] }]),
+    RelayError,
+    'kind filter too far into the future',
+  );
+});

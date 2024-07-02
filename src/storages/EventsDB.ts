@@ -147,14 +147,14 @@ class EventsDB implements NStore {
 
     for (const filter of filters) {
       if (filter.since && filter.since >= 2_147_483_647) {
-        throw new Error('since filter too far into the future');
+        throw new RelayError('invalid', 'since filter too far into the future');
       }
       if (filter.until && filter.until >= 2_147_483_647) {
-        throw new Error('until filter too far into the future');
+        throw new RelayError('invalid', 'until filter too far into the future');
       }
       for (const kind of filter.kinds ?? []) {
         if (kind >= 2_147_483_647) {
-          throw new Error('kind filter too far into the future');
+          throw new RelayError('invalid', 'kind filter too far into the future');
         }
       }
     }
