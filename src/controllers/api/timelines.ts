@@ -60,7 +60,7 @@ const suggestedTimelineController: AppController = async (c) => {
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
   const { signal } = c.req.raw;
   const store = c.get('store');
-  const opts = { signal, timeout: 5000 };
+  const opts = { signal, timeout: 10_000 };
 
   const events = await store
     .query(filters, opts)
