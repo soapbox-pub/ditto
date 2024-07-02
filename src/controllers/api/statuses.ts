@@ -8,14 +8,21 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getAmount } from '@/utils/bolt11.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import {
+  createEvent,
+  listPaginationSchema,
+  paginated,
+  paginatedList,
+  paginationSchema,
+  parseBody,
+  updateListEvent,
+} from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
@@ -545,33 +552,26 @@ const zapController: AppController = async (c) => {
 
 const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
+  const params = listPaginationSchema.parse(c.req.query());
   const store = await Storages.db();
-  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+  const db = await DittoDB.getInstance();
 
-  const events = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
-    const zapRequestString = event.tags.find(([name]) => name === 'description')?.[1];
-    if (!zapRequestString) return;
-    try {
-      const zapRequest = n.json().pipe(n.event()).parse(zapRequestString);
-      const amount = zapRequest?.tags.find(([name]: any) => name === 'amount')?.[1];
-      if (!amount) {
-        const amount = getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]);
-        if (!amount) return;
-        zapRequest.tags.push(['amount', amount]);
-      }
-      return zapRequest;
-    } catch {
-      return;
-    }
-  }).filter(Boolean) as DittoEvent[];
+  const zaps = await db.selectFrom('event_zaps')
+    .selectAll()
+    .where('target_event_id', '=', id)
+    .orderBy('amount_millisats', 'desc')
+    .limit(params.limit)
+    .offset(params.offset).execute();
 
-  await hydrateEvents({ events, store });
+  const authors = await store.query([{ kinds: [0], authors: zaps.map((zap) => zap.sender_pubkey) }]);
 
   const results = (await Promise.all(
-    events.map(async (event) => {
-      const amount = amountSchema.parse(event.tags.find(([name]) => name === 'amount')?.[1]);
-      const comment = event?.content ?? '';
-      const account = event?.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+    zaps.map(async (zap) => {
+      const amount = zap.amount_millisats;
+      const comment = zap.comment;
+
+      const sender = authors.find((author) => author.pubkey === zap.sender_pubkey);
+      const account = sender ? await renderAccount(sender) : await accountFromPubkey(zap.sender_pubkey);
 
       return {
         comment,
@@ -581,7 +581,7 @@ const zappedByController: AppController = async (c) => {
     }),
   )).filter(Boolean);
 
-  return c.json(results);
+  return paginatedList(c, params, results);
 };
 
 export {
