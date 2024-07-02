@@ -1,5 +1,6 @@
 /**
- * Script to import a user/list of users into Ditto given their npub/pubkey by looking them up on a list of relays.
+ * Script to import a user/list of users into Ditto given their npub/pubkey
+ * by looking them up on a list of relays.
  */
 
 import { NostrEvent, NRelay1, NSchema } from '@nostrify/nostrify';
@@ -26,15 +27,21 @@ const importUsers = async (
   const profiles: Record<string, Record<number, NostrEvent>> = {};
   // Kind 1s.
   const notes = new Set<string>();
-
   const { profilesOnly = false } = opts || {};
 
   await Promise.all(relays.map(async (relay) => {
     if (!relay.startsWith('wss://')) console.error(`Invalid relay url ${relay}`);
     const conn = new NRelay1(relay);
-    const kinds = [0, 3];
-    if (!profilesOnly) kinds.push(1);
-    const matched = await conn.query([{ kinds, authors, limit: 1000 }]);
+    const matched = await conn.query([{ kinds: [0, 3], authors, limit: 1000 }]);
+
+    if (!profilesOnly) {
+      matched.push(
+        ...await conn.query(
+          authors.map((author) => ({ kinds: [1], authors: [author], limit: 200 })),
+        ),
+      );
+    }
+
     await conn.close();
     await Promise.all(
       matched.map(async (event) => {
@@ -59,6 +66,20 @@ const importUsers = async (
     for (const kind in profile) {
       await doEvent(profile[kind]);
     }
+
+    let name = user;
+    // kind 0, not first idx
+    const event = profile[0];
+    if (event) {
+      // if event exists, print name
+      const parsed = JSON.parse(event.content);
+      name = parsed.nip05 || parsed.name || name;
+    }
+    if (NSchema.id().safeParse(name).success) {
+      // if no kind 0 found and this is a pubkey, encode as npub
+      name = nip19.npubEncode(name);
+    }
+    console.info(`Imported user ${name}${profilesOnly ? "'s profile" : ''}.`);
   }
 };
 
@@ -79,6 +100,7 @@ if (import.meta.main) {
       if (optionsEnd) {
         console.error('Option encountered after end of options section.');
         showUsage();
+        Deno.exit(1);
       }
       switch (arg) {
         case '-p':
