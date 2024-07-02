@@ -12,7 +12,7 @@ export class DittoPostgres {
 
   static getPool(): Pool {
     if (!this.pool) {
-      this.pool = new Pool(Conf.databaseUrl, Conf.pg.poolSize);
+      this.pool = new Pool(Conf.databaseUrl, Conf.pg.poolSize, true);
     }
     return this.pool;
   }

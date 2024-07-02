@@ -45,13 +45,14 @@ class EventsDB implements NStore {
   constructor(private kysely: Kysely<DittoTables>) {
     this.store = new NDatabase(kysely, {
       fts: Conf.db.dialect,
+      timeoutStrategy: Conf.db.dialect === 'postgres' ? 'setStatementTimeout' : undefined,
       indexTags: EventsDB.indexTags,
       searchText: EventsDB.searchText,
     });
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
+  async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
     dbEventCounter.inc({ kind: event.kind });
@@ -63,7 +64,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event);
+      await this.store.event(event, { ...opts, timeout: opts.timeout ?? 1000 });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -137,7 +138,10 @@ class EventsDB implements NStore {
   }
 
   /** Get events for filters from the database. */
-  async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
+  async query(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
+  ): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
     dbQueryCounter.inc();
 
@@ -160,28 +164,28 @@ class EventsDB implements NStore {
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, opts);
+    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? 1000 });
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: NostrFilter[], _opts?: { signal?: AbortSignal }): Promise<void> {
+  async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
 
-    return this.store.remove(filters);
+    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? 3000 });
   }
 
   /** Get number of events that would be returned by filters. */
   async count(
     filters: NostrFilter[],
-    opts: { signal?: AbortSignal } = {},
+    opts: { signal?: AbortSignal; timeout?: number } = {},
   ): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters);
+    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? 500 });
   }
 
   /** Return only the tags that should be indexed. */
