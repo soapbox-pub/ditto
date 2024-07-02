@@ -77,9 +77,7 @@ function connectStream(socket: WebSocket) {
         send(['EVENT', subId, event]);
       }
     } catch (e) {
-      if (
-        e instanceof RelayError
-      ) {
+      if (e instanceof RelayError) {
         send(['CLOSED', subId, e.message]);
       } else {
         send(['CLOSED', subId, 'error: something went wrong']);
