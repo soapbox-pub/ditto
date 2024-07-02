@@ -78,8 +78,7 @@ function connectStream(socket: WebSocket) {
       }
     } catch (e) {
       if (
-        e instanceof RelayError ||
-        e.message.slice(-('filter too far into the future'.length)) === 'filter too far into the future'
+        e instanceof RelayError
       ) {
         send(['CLOSED', subId, e.message]);
       } else {
