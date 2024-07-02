@@ -342,7 +342,7 @@ app.get('*', publicFiles, staticFiles, frontendController);
 
 app.onError((err, c) => {
   if (err.message === 'canceling statement due to statement timeout') {
-    return c.json({ error: 'Everything will be fine, I mean it. Don\t worry child.' }, 500);
+    return c.json({ error: "A timeout happened, don't worry :)" }, 500);
   }
   return c.json(500);
 });
