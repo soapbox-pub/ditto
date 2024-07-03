@@ -240,7 +240,9 @@ class EventsDB implements NStore {
   /** Build search content for a user. */
   static buildUserSearchContent(event: NostrEvent): string {
     const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
-    return [name, nip05].filter(Boolean).join('\n');
+    const nip05splitted = nip05 ? nip05.split(/[_@.]/) : [];
+
+    return [name, nip05, ...nip05splitted].filter(Boolean).join('\n');
   }
 
   /** Build search content from tag values. */
