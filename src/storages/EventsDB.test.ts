@@ -1,25 +1,16 @@
-import { Database as Sqlite } from '@db/sqlite';
-import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { assertEquals, assertRejects } from '@std/assert';
-import { Kysely } from 'kysely';
 import { generateSecretKey } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { RelayError } from '@/RelayError.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { eventFixture, genEvent } from '@/test.ts';
 
-/** Create in-memory database for testing. */
+/** Create an database for testing. */
 const createDB = async () => {
-  const kysely = new Kysely<DittoTables>({
-    dialect: new DenoSqlite3Dialect({
-      database: new Sqlite(':memory:'),
-    }),
-  });
+  const kysely = await DittoDB.getInstance();
   const eventsDB = new EventsDB(kysely);
-  await DittoDB.migrate(kysely);
   return { eventsDB, kysely };
 };
 
@@ -220,4 +211,8 @@ Deno.test("throws a RelayError when querying an event with a large 'kind'", asyn
     RelayError,
     'kind filter too far into the future',
   );
+});
+
+Deno.test('query user by NIP-05 search filter', async () => {
+  // implement
 });
