@@ -108,6 +108,7 @@ import {
   trendingStatusesController,
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
+import { errorHandler } from '@/controllers/error.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
@@ -340,12 +341,7 @@ app.get('/', frontendController, indexController);
 // Fallback
 app.get('*', publicFiles, staticFiles, frontendController);
 
-app.onError((err, c) => {
-  if (err.message === 'canceling statement due to statement timeout') {
-    return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
-  }
-  return c.json({ error: 'Something went wrong' }, 500);
-});
+app.onError(errorHandler);
 
 export default app;
 
