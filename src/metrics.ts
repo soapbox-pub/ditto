@@ -6,6 +6,12 @@ export const httpRequestCounter = new Counter({
   labelNames: ['method'],
 });
 
+export const httpResponseCounter = new Counter({
+  name: 'http_responses_total',
+  help: 'Total number of HTTP responses',
+  labelNames: ['status', 'path'],
+});
+
 export const streamingConnectionsGauge = new Gauge({
   name: 'streaming_connections',
   help: 'Number of active connections to the streaming API',
