@@ -279,6 +279,12 @@ class EventsDB implements NStore {
 
         filter.search = tokens.filter((t) => typeof t === 'string').join(' ');
       }
+
+      if (filter.kinds) {
+        // Ephemeral events are not stored, so don't bother querying for them.
+        // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
+        filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
+      }
     }
 
     return filters;
