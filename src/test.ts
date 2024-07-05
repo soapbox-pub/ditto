@@ -96,7 +96,10 @@ export const createTestDB = async (databaseUrl?: string) => {
   let kysely: Kysely<DittoTables>;
 
   if (dialect === 'sqlite') {
-    Deno.env.set('DATABASE_URL', 'sqlite://:memory:'); // hack, refactor all, 021 migration
+    // migration 021_pgfts_index.ts calls 'Conf.db.dialect',
+    // and this calls the DATABASE_URL environment variable.
+    // The following line ensures to NOT use the DATABASE_URL that may exist in an .env file.
+    Deno.env.set('DATABASE_URL', 'sqlite://:memory:');
 
     kysely = new Kysely<DittoTables>({
       dialect: new DenoSqlite3Dialect({
@@ -104,7 +107,6 @@ export const createTestDB = async (databaseUrl?: string) => {
       }),
     });
   } else {
-    //kysely = await DittoDB.getInstance();
     kysely = new Kysely({
       dialect: {
         createAdapter() {
