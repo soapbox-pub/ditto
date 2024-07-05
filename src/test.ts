@@ -102,6 +102,8 @@ export const createTestDB = async (databaseUrl?: string) => {
     dialect = 'sqlite';
   }
 
+  console.warn(`Using: ${dialect}`);
+
   let kysely: Kysely<DittoTables>;
 
   if (dialect === 'sqlite') {
