@@ -79,7 +79,7 @@ export async function getTestDB() {
 export const createTestDB = async (databaseUrl?: string) => {
   databaseUrl ??= Deno.env.get('DATABASE_URL') ?? 'sqlite://:memory:';
 
-  const dialect: 'sqlite' | 'postgres' = (() => {
+  let dialect: 'sqlite' | 'postgres' = (() => {
     const protocol = databaseUrl.split(':')[0];
     switch (protocol) {
       case 'sqlite':
@@ -92,6 +92,15 @@ export const createTestDB = async (databaseUrl?: string) => {
         throw new Error(`Unsupported protocol: ${protocol}`);
     }
   })();
+
+  const allowToUseDATABASE_URL = Deno.env.get('ALLOW_TO_USE_DATABASE_URL')?.toLowerCase() ?? '';
+  if (allowToUseDATABASE_URL !== 'true' && dialect === 'postgres') {
+    console.warn(
+      '%cRunning tests with sqlite, if you meant to use Postgres, run again with ALLOW_TO_USE_DATABASE_URL environment variable set to true',
+      'color: yellow;',
+    );
+    dialect = 'sqlite';
+  }
 
   let kysely: Kysely<DittoTables>;
 
