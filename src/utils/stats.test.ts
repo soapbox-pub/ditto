@@ -1,11 +1,11 @@
 import { assertEquals } from '@std/assert';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
-import { genEvent, getTestDB } from '@/test.ts';
+import { createTestDB, genEvent } from '@/test.ts';
 import { countAuthorStats, getAuthorStats, getEventStats, getFollowDiff, updateStats } from '@/utils/stats.ts';
 
 Deno.test('updateStats with kind 1 increments notes count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
@@ -18,7 +18,7 @@ Deno.test('updateStats with kind 1 increments notes count', async () => {
 });
 
 Deno.test('updateStats with kind 1 increments replies count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const sk = generateSecretKey();
 
@@ -36,7 +36,7 @@ Deno.test('updateStats with kind 1 increments replies count', async () => {
 });
 
 Deno.test('updateStats with kind 5 decrements notes count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
@@ -54,7 +54,7 @@ Deno.test('updateStats with kind 5 decrements notes count', async () => {
 });
 
 Deno.test('updateStats with kind 3 increments followers count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   await updateStats({ ...db, event: genEvent({ kind: 3, tags: [['p', 'alex']] }) });
   await updateStats({ ...db, event: genEvent({ kind: 3, tags: [['p', 'alex']] }) });
@@ -66,7 +66,7 @@ Deno.test('updateStats with kind 3 increments followers count', async () => {
 });
 
 Deno.test('updateStats with kind 3 decrements followers count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const sk = generateSecretKey();
   const follow = genEvent({ kind: 3, tags: [['p', 'alex']], created_at: 0 }, sk);
@@ -92,7 +92,7 @@ Deno.test('getFollowDiff returns added and removed followers', () => {
 });
 
 Deno.test('updateStats with kind 6 increments reposts count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
@@ -108,7 +108,7 @@ Deno.test('updateStats with kind 6 increments reposts count', async () => {
 });
 
 Deno.test('updateStats with kind 5 decrements reposts count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
@@ -127,7 +127,7 @@ Deno.test('updateStats with kind 5 decrements reposts count', async () => {
 });
 
 Deno.test('updateStats with kind 7 increments reactions count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
@@ -143,7 +143,7 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
 });
 
 Deno.test('updateStats with kind 5 decrements reactions count', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...db, event: note });
@@ -162,7 +162,7 @@ Deno.test('updateStats with kind 5 decrements reactions count', async () => {
 });
 
 Deno.test('countAuthorStats counts author stats from the database', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
