@@ -3,21 +3,23 @@ import { assertEquals } from '@std/assert';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventFixture } from '@/test.ts';
+import { createTestDB, eventFixture } from '@/test.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  await using db = await createTestDB('sqlite://:memory:');
 
   const event0 = await eventFixture('event-0');
   const event1 = await eventFixture('event-1');
 
   // Save events to database
-  await db.event(event0);
-  await db.event(event1);
+  await relay.event(event0);
+  await relay.event(event1);
 
   await hydrateEvents({
     events: [event1],
-    store: db,
+    store: relay,
+    kysely: db.kysely,
   });
 
   const expectedEvent = { ...event1, author: event0 };
@@ -25,7 +27,8 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  await using db = await createTestDB('sqlite://:memory:');
 
   const event0madePost = await eventFixture('event-0-the-one-who-post-and-users-repost');
   const event0madeRepost = await eventFixture('event-0-the-one-who-repost');
@@ -33,14 +36,15 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
   const event6 = await eventFixture('event-6');
 
   // Save events to database
-  await db.event(event0madePost);
-  await db.event(event0madeRepost);
-  await db.event(event1reposted);
-  await db.event(event6);
+  await relay.event(event0madePost);
+  await relay.event(event0madeRepost);
+  await relay.event(event1reposted);
+  await relay.event(event6);
 
   await hydrateEvents({
     events: [event6],
-    store: db,
+    store: relay,
+    kysely: db.kysely,
   });
 
   const expectedEvent6 = {
@@ -52,7 +56,8 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  await using db = await createTestDB('sqlite://:memory:');
 
   const event0madeQuoteRepost = await eventFixture('event-0-the-one-who-quote-repost');
   const event0 = await eventFixture('event-0');
@@ -60,14 +65,15 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   const event1willBeQuoteReposted = await eventFixture('event-1-that-will-be-quote-reposted');
 
   // Save events to database
-  await db.event(event0madeQuoteRepost);
-  await db.event(event0);
-  await db.event(event1quoteRepost);
-  await db.event(event1willBeQuoteReposted);
+  await relay.event(event0madeQuoteRepost);
+  await relay.event(event0);
+  await relay.event(event1quoteRepost);
+  await relay.event(event1willBeQuoteReposted);
 
   await hydrateEvents({
     events: [event1quoteRepost],
-    store: db,
+    store: relay,
+    kysely: db.kysely,
   });
 
   const expectedEvent1quoteRepost = {
@@ -80,7 +86,8 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  await using db = await createTestDB('sqlite://:memory:');
 
   const author = await eventFixture('event-0-makes-repost-with-quote-repost');
   const event1 = await eventFixture('event-1-will-be-reposted-with-quote-repost');
@@ -88,14 +95,15 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   const event1quote = await eventFixture('event-1-quote-repost-will-be-reposted');
 
   // Save events to database
-  await db.event(author);
-  await db.event(event1);
-  await db.event(event1quote);
-  await db.event(event6);
+  await relay.event(author);
+  await relay.event(event1);
+  await relay.event(event1quote);
+  await relay.event(event6);
 
   await hydrateEvents({
     events: [event6],
-    store: db,
+    store: relay,
+    kysely: db.kysely,
   });
 
   const expectedEvent6 = {
@@ -107,7 +115,8 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
 });
 
 Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stats', async () => {
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  await using db = await createTestDB('sqlite://:memory:');
 
   const authorDictator = await eventFixture('kind-0-dictator');
   const authorVictim = await eventFixture('kind-0-george-orwell');
@@ -115,14 +124,15 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
   const event1 = await eventFixture('kind-1-author-george-orwell');
 
   // Save events to database
-  await db.event(authorDictator);
-  await db.event(authorVictim);
-  await db.event(reportEvent);
-  await db.event(event1);
+  await relay.event(authorDictator);
+  await relay.event(authorVictim);
+  await relay.event(reportEvent);
+  await relay.event(event1);
 
   await hydrateEvents({
     events: [reportEvent],
-    store: db,
+    store: relay,
+    kysely: db.kysely,
   });
 
   const expectedEvent: DittoEvent = {
