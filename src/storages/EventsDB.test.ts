@@ -1,21 +1,80 @@
 import { assertEquals, assertRejects } from '@std/assert';
 import { generateSecretKey } from 'nostr-tools';
 
+import { Database as Sqlite } from '@db/sqlite';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { RelayError } from '@/RelayError.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
 import { eventFixture, genEvent } from '@/test.ts';
+import { EventsDB } from '@/storages/EventsDB.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
+import { Kysely } from 'kysely';
+import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
+
+const databaseUrl = Deno.env.get('DATABASE_URL') ?? 'sqlite://:memory:';
+
+const dialect: 'sqlite' | 'postgres' = (() => {
+  const protocol = databaseUrl.split(':')[0];
+  switch (protocol) {
+    case 'sqlite':
+      return 'sqlite';
+    case 'postgres':
+      return protocol;
+    case 'postgresql':
+      return 'postgres';
+    default:
+      throw new Error(`Unsupported protocol: ${protocol}`);
+  }
+})();
 
 /** Create an database for testing. */
 const createDB = async () => {
-  const kysely = await DittoDB.getInstance();
-  const eventsDB = new EventsDB(kysely);
-  return { eventsDB, kysely };
-};
+  let kysely: Kysely<DittoTables>;
 
+  if (dialect === 'sqlite') {
+    kysely = new Kysely<DittoTables>({
+      dialect: new DenoSqlite3Dialect({
+        database: new Sqlite(':memory:'),
+      }),
+    });
+    await DittoDB.migrate(kysely);
+  } else {
+    kysely = await DittoDB.getInstance();
+  }
+
+  const eventsDB = new EventsDB(kysely);
+
+  return {
+    eventsDB,
+    kysely,
+    [Symbol.asyncDispose]: async () => {
+      if (dialect === 'postgres') {
+        for (
+          const table of [
+            'author_stats',
+            'event_stats',
+            'event_zaps',
+            'kysely_migration',
+            'kysely_migration_lock',
+            'nip46_tokens',
+            'pubkey_domains',
+            'unattached_media',
+            'nostr_events',
+            'nostr_tags',
+            'nostr_pgfts',
+          ]
+        ) {
+          await kysely.schema.dropTable(table).ifExists().cascade().execute();
+        }
+        await kysely.destroy();
+      }
+    },
+  };
+};
 Deno.test('count filters', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
+
   const event1 = await eventFixture('event-1');
 
   assertEquals((await eventsDB.count([{ kinds: [1] }])).count, 0);
@@ -24,7 +83,8 @@ Deno.test('count filters', async () => {
 });
 
 Deno.test('insert and filter events', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const event1 = await eventFixture('event-1');
   await eventsDB.event(event1);
@@ -59,7 +119,8 @@ Deno.test('query events with domain search filter', async () => {
 });
 
 Deno.test('delete events', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const [one, two] = [
     { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] },
@@ -86,7 +147,8 @@ Deno.test('delete events', async () => {
 });
 
 Deno.test("user cannot delete another user's event", async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const event = { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] };
   await eventsDB.event(event);
@@ -108,7 +170,8 @@ Deno.test("user cannot delete another user's event", async () => {
 });
 
 Deno.test('admin can delete any event', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const [one, two] = [
     { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] },
@@ -135,7 +198,8 @@ Deno.test('admin can delete any event', async () => {
 });
 
 Deno.test('throws a RelayError when inserting an event deleted by the admin', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const event = genEvent();
   await eventsDB.event(event);
@@ -151,7 +215,8 @@ Deno.test('throws a RelayError when inserting an event deleted by the admin', as
 });
 
 Deno.test('throws a RelayError when inserting an event deleted by a user', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const sk = generateSecretKey();
 
@@ -169,7 +234,8 @@ Deno.test('throws a RelayError when inserting an event deleted by a user', async
 });
 
 Deno.test('inserting replaceable events', async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   const event = await eventFixture('event-0');
   await eventsDB.event(event);
@@ -184,7 +250,8 @@ Deno.test('inserting replaceable events', async () => {
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'since'", async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   await assertRejects(
     () => eventsDB.query([{ since: 33333333333333 }]),
@@ -194,7 +261,8 @@ Deno.test("throws a RelayError when querying an event with a large 'since'", asy
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'until'", async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   await assertRejects(
     () => eventsDB.query([{ until: 66666666666666 }]),
@@ -204,7 +272,8 @@ Deno.test("throws a RelayError when querying an event with a large 'until'", asy
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'kind'", async () => {
-  const { eventsDB } = await createDB();
+  await using db = await createDB();
+  const { eventsDB } = db;
 
   await assertRejects(
     () => eventsDB.query([{ kinds: [99999999999999] }]),
