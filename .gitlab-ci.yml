@@ -32,7 +32,7 @@ test:
 
 postgres:
   stage: test
-  script: deno task db:migrate
+  script: deno task db:migrate && deno task test
   services:
     - postgres:16
   variables:
