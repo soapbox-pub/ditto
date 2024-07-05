@@ -71,6 +71,7 @@ const createDB = async () => {
     },
   };
 };
+
 Deno.test('count filters', async () => {
   await using db = await createDB();
   const { eventsDB } = db;
