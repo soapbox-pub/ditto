@@ -13,13 +13,13 @@ export class DittoPostgres {
   // deno-lint-ignore require-await
   static async getInstance(): Promise<Kysely<DittoTables>> {
     if (!this.postgres) {
-      this.postgres = postgres(Conf.databaseUrl, { max: Conf.pg.poolSize }) as any;
+      this.postgres = postgres(Conf.databaseUrl, { max: Conf.pg.poolSize });
     }
 
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
-          postgres: this.postgres,
+          postgres: this.postgres as any,
         }),
         log: KyselyLogger,
       });
