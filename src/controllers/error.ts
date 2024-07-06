@@ -1,6 +1,11 @@
 import { ErrorHandler } from '@hono/hono';
+import { HTTPException } from '@hono/hono/http-exception';
 
 export const errorHandler: ErrorHandler = (err, c) => {
+  if (err instanceof HTTPException) {
+    return c.json({ error: err.message }, err.status);
+  }
+
   console.error(err);
 
   if (err.message === 'canceling statement due to statement timeout') {
