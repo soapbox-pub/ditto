@@ -33,8 +33,6 @@ export class DittoPostgres {
   }
 
   static get availableConnections(): number {
-    // blocked by https://github.com/porsager/postgres/pull/911
-    // return this.postgres.availableConnections;
-    return 1;
+    return this.postgres.availableConnections;
   }
 }
