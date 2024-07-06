@@ -7,6 +7,7 @@ export interface DittoTables {
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
+  event_zaps: EventZapRow;
 }
 
 interface AuthorStatsRow {
@@ -68,4 +69,12 @@ interface PubkeyDomainRow {
   pubkey: string;
   domain: string;
   last_updated_at: number;
+}
+
+interface EventZapRow {
+  receipt_id: string;
+  target_event_id: string;
+  sender_pubkey: string;
+  amount_millisats: number;
+  comment: string;
 }

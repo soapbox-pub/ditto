@@ -12,7 +12,7 @@
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
-      "jsr:@nostrify/nostrify@^0.23.3": "jsr:@nostrify/nostrify@0.23.3",
+      "jsr:@nostrify/nostrify@^0.25.0": "jsr:@nostrify/nostrify@0.25.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
@@ -138,8 +138,8 @@
           "npm:zod@^3.23.8"
         ]
       },
-      "@nostrify/nostrify@0.23.3": {
-        "integrity": "868b10dd094801e28f4982ef9815f0d43f2a807b6f8ad291c78ecb3eb291605a",
+      "@nostrify/nostrify@0.25.0": {
+        "integrity": "98f26f44e95ac87fc91b3f3809d38432e1a7f6aebf10380b2554b6f9526313c6",
         "dependencies": [
           "jsr:@std/encoding@^0.224.1",
           "npm:@scure/base@^1.1.6",
@@ -1408,6 +1408,10 @@
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/src/PostgreSQLDriver.ts": "ea5a523bceeed420858b744beeb95d48976cb2b0d3f519a68b65a8229036cf6a",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/src/PostgreSQLDriverDatabaseConnection.ts": "11e2fc10a3abb3d0729613c4b7cdb9cb73b597fd77353311bb6707c73a635fc5",
+    "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/c6869b9e12d74af78a846ad503d84493f5db9df4/deps.ts": "b3dbecae69c30a5f161323b8c8ebd91d9af1eceb98fafab3091c7281a4b64fed",
+    "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/c6869b9e12d74af78a846ad503d84493f5db9df4/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
+    "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/c6869b9e12d74af78a846ad503d84493f5db9df4/src/PostgreSQLDriver.ts": "0f5d1bc2b24d4e0052e38ee289fb2f5e8e1470544f61aa2afe65e1059bf35dfb",
+    "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/c6869b9e12d74af78a846ad503d84493f5db9df4/src/PostgreSQLDriverDatabaseConnection.ts": "e5d4e0fc9737c3ec253e679a51f5b43d2bb9a3386c147b7b1d14f4f5a5f734f1",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/f2948b86190a10faa293588775e162b3a8b52e70/deps.ts": "b3dbecae69c30a5f161323b8c8ebd91d9af1eceb98fafab3091c7281a4b64fed",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/f2948b86190a10faa293588775e162b3a8b52e70/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/f2948b86190a10faa293588775e162b3a8b52e70/src/PostgreSQLDriver.ts": "ac1a39e86fd676973bce215e19db1f26b82408b8f2bb09a3601802974ea7cec6",
@@ -1433,7 +1437,7 @@
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@hono/hono@^4.4.6",
-      "jsr:@nostrify/nostrify@^0.23.3",
+      "jsr:@nostrify/nostrify@^0.25.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
