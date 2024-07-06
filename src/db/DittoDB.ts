@@ -39,14 +39,14 @@ export class DittoDB {
 
   static get poolSize(): number {
     if (Conf.db.dialect === 'postgres') {
-      return DittoPostgres.getPool().size;
+      return DittoPostgres.poolSize;
     }
     return 1;
   }
 
   static get availableConnections(): number {
     if (Conf.db.dialect === 'postgres') {
-      return DittoPostgres.getPool().available;
+      return DittoPostgres.availableConnections;
     }
     return 1;
   }
