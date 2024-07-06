@@ -220,7 +220,7 @@ Deno.test("throws a RelayError when querying an event with a large 'kind'", asyn
 
 Deno.test(
   'query user by NIP-05 search filter',
-  { ignore: Deno.env.get('DATABASE_URL')?.slice(0, 8) !== 'postgres' },
+  { ignore: Conf.db.dialect !== 'postgres' },
   async () => {
     await using db = await createTestDB();
     const { store } = db;
