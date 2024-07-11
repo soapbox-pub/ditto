@@ -19,6 +19,7 @@ export class DittoPostgres {
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
+          // @ts-ignore: mismatched library versions
           postgres: this.postgres,
         }),
         log: KyselyLogger,
