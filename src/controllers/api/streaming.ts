@@ -10,9 +10,10 @@ import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { bech32ToPubkey } from '@/utils.ts';
+import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
+import TTLCache from '@isaacs/ttlcache';
 
 const debug = Debug('ditto:streaming');
 
@@ -37,6 +38,11 @@ const streamSchema = z.enum([
 
 type Stream = z.infer<typeof streamSchema>;
 
+const LIMITER_WINDOW = Time.minutes(5);
+const LIMITER_LIMIT = 100;
+
+const limiter = new TTLCache<string, number>();
+
 const streamingController: AppController = async (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
@@ -50,6 +56,14 @@ const streamingController: AppController = async (c) => {
   const pubkey = token ? await getTokenPubkey(token) : undefined;
   if (token && !pubkey) {
     return c.json({ error: 'Invalid access token' }, 401);
+  }
+
+  const ip = c.req.header('x-real-ip');
+  if (ip) {
+    const count = limiter.get(ip) ?? 0;
+    if (count > LIMITER_LIMIT) {
+      return c.json({ error: 'Rate limit exceeded' }, 429);
+    }
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
@@ -118,6 +132,23 @@ const streamingController: AppController = async (c) => {
       sub('notification', [{ '#p': [pubkey] }], async (event) => {
         return await renderNotification(event, { viewerPubkey: pubkey });
       });
+      return;
+    }
+  };
+
+  socket.onmessage = (e) => {
+    if (ip) {
+      const count = limiter.get(ip) ?? 0;
+      limiter.set(ip, count + 1, { ttl: LIMITER_WINDOW });
+
+      if (count > LIMITER_LIMIT) {
+        socket.close(1008, 'Rate limit exceeded');
+        return;
+      }
+    }
+
+    if (typeof e.data !== 'string') {
+      socket.close(1003, 'Invalid message');
       return;
     }
   };
