@@ -10,6 +10,7 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
+import { relayConnectionsGauge, relayEventCounter, relayMessageCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -21,16 +22,24 @@ const FILTER_LIMIT = 100;
 function connectStream(socket: WebSocket) {
   const controllers = new Map<string, AbortController>();
 
+  socket.onopen = () => {
+    relayConnectionsGauge.inc();
+  };
+
   socket.onmessage = (e) => {
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
+      relayMessageCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
+      relayMessageCounter.inc();
       send(['NOTICE', 'Invalid message.']);
     }
   };
 
   socket.onclose = () => {
+    relayConnectionsGauge.dec();
+
     for (const controller of controllers.values()) {
       controller.abort();
     }
@@ -64,11 +73,15 @@ function connectStream(socket: WebSocket) {
     const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT })) {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 1000 })) {
         send(['EVENT', subId, event]);
       }
     } catch (e) {
-      send(['CLOSED', subId, e.message]);
+      if (e instanceof RelayError) {
+        send(['CLOSED', subId, e.message]);
+      } else {
+        send(['CLOSED', subId, 'error: something went wrong']);
+      }
       controllers.delete(subId);
       return;
     }
@@ -88,6 +101,7 @@ function connectStream(socket: WebSocket) {
 
   /** Handle EVENT. Store the event. */
   async function handleEvent([_, event]: NostrClientEVENT): Promise<void> {
+    relayEventCounter.inc({ kind: event.kind.toString() });
     try {
       // This will store it (if eligible) and run other side-effects.
       await pipeline.handleEvent(event, AbortSignal.timeout(1000));
@@ -114,7 +128,7 @@ function connectStream(socket: WebSocket) {
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     const store = await Storages.db();
-    const { count } = await store.count(filters);
+    const { count } = await store.count(filters, { timeout: 100 });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 

@@ -108,11 +108,14 @@ import {
   trendingStatusesController,
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
+import { errorHandler } from '@/controllers/error.ts';
+import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
+import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
@@ -149,14 +152,14 @@ if (Conf.cronEnabled) {
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
-app.use('/api/*', logger(debug));
-app.use('/.well-known/*', logger(debug));
-app.use('/users/*', logger(debug));
-app.use('/nodeinfo/*', logger(debug));
-app.use('/oauth/*', logger(debug));
+app.use('/api/*', metricsMiddleware, logger(debug));
+app.use('/.well-known/*', metricsMiddleware, logger(debug));
+app.use('/users/*', metricsMiddleware, logger(debug));
+app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
+app.use('/oauth/*', metricsMiddleware, logger(debug));
 
-app.get('/api/v1/streaming', streamingController);
-app.get('/relay', relayController);
+app.get('/api/v1/streaming', metricsMiddleware, streamingController);
+app.get('/relay', metricsMiddleware, relayController);
 
 app.use(
   '*',
@@ -167,6 +170,8 @@ app.use(
   auth98Middleware(),
   storeMiddleware,
 );
+
+app.get('/metrics', metricsController);
 
 app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
@@ -334,6 +339,8 @@ app.get('/', frontendController, indexController);
 
 // Fallback
 app.get('*', publicFiles, staticFiles, frontendController);
+
+app.onError(errorHandler);
 
 export default app;
 

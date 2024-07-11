@@ -7,6 +7,7 @@ import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { dbEventCounter, dbQueryCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -44,15 +45,17 @@ class EventsDB implements NStore {
   constructor(private kysely: Kysely<DittoTables>) {
     this.store = new NDatabase(kysely, {
       fts: Conf.db.dialect,
+      timeoutStrategy: Conf.db.dialect === 'postgres' ? 'setStatementTimeout' : undefined,
       indexTags: EventsDB.indexTags,
       searchText: EventsDB.searchText,
     });
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent, _opts?: { signal?: AbortSignal }): Promise<void> {
+  async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
+    dbEventCounter.inc({ kind: event.kind });
 
     if (await this.isDeletedAdmin(event)) {
       throw new RelayError('blocked', 'event deleted by admin');
@@ -61,7 +64,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event);
+      await this.store.event(event, { ...opts, timeout: opts.timeout ?? 1000 });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -135,19 +138,23 @@ class EventsDB implements NStore {
   }
 
   /** Get events for filters from the database. */
-  async query(filters: NostrFilter[], opts: { signal?: AbortSignal; limit?: number } = {}): Promise<NostrEvent[]> {
+  async query(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
+  ): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
+    dbQueryCounter.inc();
 
     for (const filter of filters) {
       if (filter.since && filter.since >= 2_147_483_647) {
-        throw new Error('since filter too far into the future');
+        throw new RelayError('invalid', 'since filter too far into the future');
       }
       if (filter.until && filter.until >= 2_147_483_647) {
-        throw new Error('until filter too far into the future');
+        throw new RelayError('invalid', 'until filter too far into the future');
       }
       for (const kind of filter.kinds ?? []) {
         if (kind >= 2_147_483_647) {
-          throw new Error('kind filter too far into the future');
+          throw new RelayError('invalid', 'kind filter too far into the future');
         }
       }
     }
@@ -157,28 +164,28 @@ class EventsDB implements NStore {
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, opts);
+    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? 1000 });
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: NostrFilter[], _opts?: { signal?: AbortSignal }): Promise<void> {
+  async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
 
-    return this.store.remove(filters);
+    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? 3000 });
   }
 
   /** Get number of events that would be returned by filters. */
   async count(
     filters: NostrFilter[],
-    opts: { signal?: AbortSignal } = {},
+    opts: { signal?: AbortSignal; timeout?: number } = {},
   ): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters);
+    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? 500 });
   }
 
   /** Return only the tags that should be indexed. */
@@ -243,6 +250,8 @@ class EventsDB implements NStore {
 
   /** Converts filters to more performant, simpler filters that are better for SQLite. */
   async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
+    filters = structuredClone(filters);
+
     for (const filter of filters) {
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
@@ -271,6 +280,12 @@ class EventsDB implements NStore {
         }
 
         filter.search = tokens.filter((t) => typeof t === 'string').join(' ');
+      }
+
+      if (filter.kinds) {
+        // Ephemeral events are not stored, so don't bother querying for them.
+        // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
+        filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
       }
     }
 

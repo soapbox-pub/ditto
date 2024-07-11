@@ -209,7 +209,9 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  const events = await store.query([filter], { signal })
+  const opts = { signal, limit, timeout: 10_000 };
+
+  const events = await store.query([filter], opts)
     .then((events) => hydrateEvents({ events, store, signal }))
     .then((events) => {
       if (exclude_replies) {

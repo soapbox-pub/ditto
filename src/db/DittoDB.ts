@@ -37,6 +37,20 @@ export class DittoDB {
     return kysely;
   }
 
+  static get poolSize(): number {
+    if (Conf.db.dialect === 'postgres') {
+      return DittoPostgres.getPool().size;
+    }
+    return 1;
+  }
+
+  static get availableConnections(): number {
+    if (Conf.db.dialect === 'postgres') {
+      return DittoPostgres.getPool().available;
+    }
+    return 1;
+  }
+
   /** Migrate the database to the latest version. */
   static async migrate(kysely: Kysely<DittoTables>) {
     const migrator = new Migrator({

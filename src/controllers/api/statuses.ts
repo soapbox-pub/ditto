@@ -8,14 +8,21 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { getAmount } from '@/utils/bolt11.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import {
+  createEvent,
+  listPaginationSchema,
+  paginated,
+  paginatedList,
+  paginationSchema,
+  parseBody,
+  updateListEvent,
+} from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
@@ -90,8 +97,8 @@ const createStatusController: AppController = async (c) => {
 
     const root = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
 
-    tags.push(['e', root, 'root']);
-    tags.push(['e', data.in_reply_to_id, 'reply']);
+    tags.push(['e', root, Conf.relay, 'root']);
+    tags.push(['e', data.in_reply_to_id, Conf.relay, 'reply']);
   }
 
   if (data.quote_id) {
@@ -195,7 +202,7 @@ const deleteStatusController: AppController = async (c) => {
     if (event.pubkey === pubkey) {
       await createEvent({
         kind: 5,
-        tags: [['e', id]],
+        tags: [['e', id, Conf.relay]],
       }, c);
 
       const author = await getAuthor(event.pubkey);
@@ -253,8 +260,8 @@ const favouriteController: AppController = async (c) => {
       kind: 7,
       content: '+',
       tags: [
-        ['e', target.id],
-        ['p', target.pubkey],
+        ['e', target.id, Conf.relay],
+        ['p', target.pubkey, Conf.relay],
       ],
     }, c);
 
@@ -295,7 +302,10 @@ const reblogStatusController: AppController = async (c) => {
 
   const reblogEvent = await createEvent({
     kind: 6,
-    tags: [['e', event.id], ['p', event.pubkey]],
+    tags: [
+      ['e', event.id, Conf.relay],
+      ['p', event.pubkey, Conf.relay],
+    ],
   }, c);
 
   await hydrateEvents({
@@ -330,7 +340,7 @@ const unreblogStatusController: AppController = async (c) => {
 
   await createEvent({
     kind: 5,
-    tags: [['e', repostEvent.id]],
+    tags: [['e', repostEvent.id, Conf.relay]],
   }, c);
 
   return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
@@ -382,7 +392,7 @@ const bookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId]),
+      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -409,7 +419,7 @@ const unbookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId]),
+      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -436,7 +446,7 @@ const pinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId]),
+      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -465,7 +475,7 @@ const unpinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId]),
+      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -509,7 +519,7 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['e', target.id],
+        ['e', target.id, Conf.relay],
         ['p', target.pubkey],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
@@ -545,33 +555,26 @@ const zapController: AppController = async (c) => {
 
 const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
+  const params = listPaginationSchema.parse(c.req.query());
   const store = await Storages.db();
-  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+  const db = await DittoDB.getInstance();
 
-  const events = (await store.query([{ kinds: [9735], '#e': [id], limit: 100 }])).map((event) => {
-    const zapRequestString = event.tags.find(([name]) => name === 'description')?.[1];
-    if (!zapRequestString) return;
-    try {
-      const zapRequest = n.json().pipe(n.event()).parse(zapRequestString);
-      const amount = zapRequest?.tags.find(([name]: any) => name === 'amount')?.[1];
-      if (!amount) {
-        const amount = getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]);
-        if (!amount) return;
-        zapRequest.tags.push(['amount', amount]);
-      }
-      return zapRequest;
-    } catch {
-      return;
-    }
-  }).filter(Boolean) as DittoEvent[];
+  const zaps = await db.selectFrom('event_zaps')
+    .selectAll()
+    .where('target_event_id', '=', id)
+    .orderBy('amount_millisats', 'desc')
+    .limit(params.limit)
+    .offset(params.offset).execute();
 
-  await hydrateEvents({ events, store });
+  const authors = await store.query([{ kinds: [0], authors: zaps.map((zap) => zap.sender_pubkey) }]);
 
   const results = (await Promise.all(
-    events.map(async (event) => {
-      const amount = amountSchema.parse(event.tags.find(([name]) => name === 'amount')?.[1]);
-      const comment = event?.content ?? '';
-      const account = event?.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+    zaps.map(async (zap) => {
+      const amount = zap.amount_millisats;
+      const comment = zap.comment;
+
+      const sender = authors.find((author) => author.pubkey === zap.sender_pubkey);
+      const account = sender ? await renderAccount(sender) : await accountFromPubkey(zap.sender_pubkey);
 
       return {
         comment,
@@ -581,7 +584,7 @@ const zappedByController: AppController = async (c) => {
     }),
   )).filter(Boolean);
 
-  return c.json(results);
+  return paginatedList(c, params, results);
 };
 
 export {

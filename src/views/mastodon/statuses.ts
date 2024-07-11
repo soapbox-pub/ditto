@@ -124,6 +124,9 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     uri: Conf.local(`/${note}`),
     url: Conf.local(`/${note}`),
     zapped: Boolean(zapEvent),
+    ditto: {
+      external_url: Conf.external(note),
+    },
     pleroma: {
       emoji_reactions: reactions,
       expires_at: !isNaN(expiresAt.getTime()) ? expiresAt.toISOString() : undefined,

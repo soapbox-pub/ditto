@@ -1,12 +1,14 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { sql } from 'kysely';
+import { Kysely, sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
+import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { pipelineEventCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -17,6 +19,8 @@ import { verifyEventWorker } from '@/workers/verify.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -36,6 +40,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (encounterEvent(event)) return;
   if (await existsInDB(event)) return;
   debug(`NostrEvent<${event.kind}> ${event.id}`);
+  pipelineEventCounter.inc({ kind: event.kind });
 
   if (event.kind !== 24133) {
     await policyFilter(event);
@@ -49,8 +54,11 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     throw new RelayError('blocked', 'user is disabled');
   }
 
+  const kysely = await DittoDB.getInstance();
+
   await Promise.all([
     storeEvent(event, signal),
+    handleZaps(kysely, event),
     parseMetadata(event, signal),
     generateSetEvents(event),
     processMedia(event),
@@ -108,7 +116,7 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 }
 
 /** Maybe store the event, if eligible. */
-async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<void> {
+async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
   const kysely = await DittoDB.getInstance();
@@ -218,4 +226,33 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
   }
 }
 
-export { handleEvent };
+/** Stores the event in the 'event_zaps' table */
+async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
+  if (event.kind !== 9735) return;
+
+  const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+  if (!zapRequestString) return;
+  const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+  if (!zapRequest) return;
+
+  const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+  const amount_millisats = amountSchema.parse(getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]));
+  if (!amount_millisats || amount_millisats < 1) return;
+
+  const zappedEventId = zapRequest.tags.find(([name]) => name === 'e')?.[1];
+  if (!zappedEventId) return;
+
+  try {
+    await kysely.insertInto('event_zaps').values({
+      receipt_id: event.id,
+      target_event_id: zappedEventId,
+      sender_pubkey: zapRequest.pubkey,
+      amount_millisats,
+      comment: zapRequest.content,
+    }).execute();
+  } catch {
+    // receipt_id is unique, do nothing
+  }
+}
+
+export { handleEvent, handleZaps };

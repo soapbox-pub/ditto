@@ -82,6 +82,7 @@ async function renderAccount(
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
+      external_url: Conf.external(npub),
     },
     pleroma: {
       deactivated: names.has('disabled'),
