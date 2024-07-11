@@ -63,4 +63,6 @@ export async function getTestDB() {
   };
 }
 
-export const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

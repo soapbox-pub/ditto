@@ -19,7 +19,7 @@ export class DittoPostgres {
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
-          postgres: this.postgres as any,
+          postgres: this.postgres,
         }),
         log: KyselyLogger,
       });
