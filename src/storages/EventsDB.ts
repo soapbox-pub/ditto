@@ -250,6 +250,8 @@ class EventsDB implements NStore {
 
   /** Converts filters to more performant, simpler filters that are better for SQLite. */
   async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
+    filters = structuredClone(filters);
+
     for (const filter of filters) {
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
