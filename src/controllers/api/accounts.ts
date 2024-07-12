@@ -209,7 +209,7 @@ const accountStatusesController: AppController = async (c) => {
     filter['#t'] = [tagged];
   }
 
-  const opts = { signal, limit, timeout: 10_000 };
+  const opts = { signal, limit, timeout: Conf.db.timeouts.timelines };
 
   const events = await store.query([filter], opts)
     .then((events) => hydrateEvents({ events, store, signal }))

@@ -10,6 +10,7 @@ import {
 } from '@nostrify/nostrify';
 
 import { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { relayConnectionsGauge, relayEventCounter, relayMessageCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
@@ -95,7 +96,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
     const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: 1000 })) {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
         send(['EVENT', subId, event]);
       }
     } catch (e) {
@@ -150,7 +151,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     const store = await Storages.db();
-    const { count } = await store.count(filters, { timeout: 100 });
+    const { count } = await store.count(filters, { timeout: Conf.db.timeouts.relay });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 

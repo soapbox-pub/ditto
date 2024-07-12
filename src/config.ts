@@ -98,6 +98,21 @@ class Conf {
       }
       return undefined;
     },
+    /** Database query timeout configurations. */
+    timeouts: {
+      /** Default query timeout when another setting isn't more specific. */
+      get default(): number {
+        return Number(Deno.env.get('DB_TIMEOUT_DEFAULT') || 3_000);
+      },
+      /** Timeout used for queries made through the Nostr relay. */
+      get relay(): number {
+        return Number(Deno.env.get('DB_TIMEOUT_RELAY') || 1_000);
+      },
+      /** Timeout used for timelines such as home, notifications, hashtag, etc. */
+      get timelines(): number {
+        return Number(Deno.env.get('DB_TIMEOUT_TIMELINES') || 10_000);
+      },
+    },
   };
   /** Character limit to enforce for posts made through Mastodon API. */
   static get postCharLimit(): number {
