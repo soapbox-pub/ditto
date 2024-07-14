@@ -102,7 +102,7 @@ class Conf {
     timeouts: {
       /** Default query timeout when another setting isn't more specific. */
       get default(): number {
-        return Number(Deno.env.get('DB_TIMEOUT_DEFAULT') || 3_000);
+        return Number(Deno.env.get('DB_TIMEOUT_DEFAULT') || 5_000);
       },
       /** Timeout used for queries made through the Nostr relay. */
       get relay(): number {
@@ -110,7 +110,7 @@ class Conf {
       },
       /** Timeout used for timelines such as home, notifications, hashtag, etc. */
       get timelines(): number {
-        return Number(Deno.env.get('DB_TIMEOUT_TIMELINES') || 10_000);
+        return Number(Deno.env.get('DB_TIMEOUT_TIMELINES') || 15_000);
       },
     },
   };
