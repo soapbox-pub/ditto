@@ -20,7 +20,10 @@ check:
 
 test:
   stage: test
-  script: deno task test
+  script: 
+    - deno task test --coverage=cov_profile
+    - deno coverage cov_profile
+  coverage: /All files[^\|]*\|[^\|]*\s+([\d\.]+)/
   variables:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
   artifacts:
@@ -39,3 +42,4 @@ postgres:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
     DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
     POSTGRES_HOST_AUTH_METHOD: trust
+
