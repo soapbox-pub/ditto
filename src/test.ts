@@ -2,8 +2,11 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { Database as Sqlite } from '@db/sqlite';
-import { NDatabase, NostrEvent } from '@nostrify/nostrify';
 import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
+import { finalizeEvent, generateSecretKey } from 'nostr-tools';
+import { PostgreSQLDriver } from 'kysely_deno_postgres';
+import { Pool } from 'postgres';
+import { NDatabase, NostrEvent } from '@nostrify/nostrify';
 import {
   FileMigrationProvider,
   Kysely,
@@ -12,13 +15,10 @@ import {
   PostgresIntrospector,
   PostgresQueryCompiler,
 } from 'kysely';
-import { finalizeEvent, generateSecretKey } from 'nostr-tools';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
-import { PostgreSQLDriver } from 'kysely_deno_postgres';
-import { Pool } from 'postgres';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
