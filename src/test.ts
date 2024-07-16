@@ -62,3 +62,7 @@ export async function getTestDB() {
     [Symbol.asyncDispose]: () => kysely.destroy(),
   };
 }
+
+export function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}

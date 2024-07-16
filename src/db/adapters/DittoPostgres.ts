@@ -1,6 +1,6 @@
-import { Kysely, PostgresAdapter, PostgresIntrospector, PostgresQueryCompiler } from 'kysely';
-import { PostgreSQLDriver } from 'kysely_deno_postgres';
-import { Pool } from 'postgres';
+import { Kysely } from 'kysely';
+import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
+import postgres from 'postgres';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -8,37 +8,31 @@ import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
   static db: Kysely<DittoTables> | undefined;
-  static pool: Pool | undefined;
-
-  static getPool(): Pool {
-    if (!this.pool) {
-      this.pool = new Pool(Conf.databaseUrl, Conf.pg.poolSize, true);
-    }
-    return this.pool;
-  }
+  static postgres?: postgres.Sql;
 
   // deno-lint-ignore require-await
   static async getInstance(): Promise<Kysely<DittoTables>> {
+    if (!this.postgres) {
+      this.postgres = postgres(Conf.databaseUrl, { max: Conf.pg.poolSize });
+    }
+
     if (!this.db) {
       this.db = new Kysely({
-        dialect: {
-          createAdapter() {
-            return new PostgresAdapter();
-          },
-          createDriver() {
-            return new PostgreSQLDriver(DittoPostgres.getPool());
-          },
-          createIntrospector(db: Kysely<unknown>) {
-            return new PostgresIntrospector(db);
-          },
-          createQueryCompiler() {
-            return new PostgresQueryCompiler();
-          },
-        },
+        dialect: new PostgresJSDialect({
+          postgres: this.postgres as unknown as PostgresJSDialectConfig['postgres'],
+        }),
         log: KyselyLogger,
       });
     }
 
     return this.db;
+  }
+
+  static get poolSize() {
+    return this.postgres?.connections.open ?? 0;
+  }
+
+  static get availableConnections(): number {
+    return this.postgres?.connections.idle ?? 0;
   }
 }
