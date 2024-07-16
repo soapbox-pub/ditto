@@ -64,7 +64,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event, { ...opts, timeout: opts.timeout ?? 1000 });
+      await this.store.event(event, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -164,7 +164,7 @@ class EventsDB implements NStore {
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? 1000 });
+    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
   }
 
   /** Delete events based on filters from the database. */
@@ -172,7 +172,7 @@ class EventsDB implements NStore {
     if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
 
-    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? 3000 });
+    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
   }
 
   /** Get number of events that would be returned by filters. */
@@ -185,7 +185,7 @@ class EventsDB implements NStore {
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? 500 });
+    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
   }
 
   /** Return only the tags that should be indexed. */
@@ -253,6 +253,8 @@ class EventsDB implements NStore {
 
   /** Converts filters to more performant, simpler filters that are better for SQLite. */
   async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
+    filters = structuredClone(filters);
+
     for (const filter of filters) {
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
@@ -281,6 +283,12 @@ class EventsDB implements NStore {
         }
 
         filter.search = tokens.filter((t) => typeof t === 'string').join(' ');
+      }
+
+      if (filter.kinds) {
+        // Ephemeral events are not stored, so don't bother querying for them.
+        // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
+        filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
       }
     }
 

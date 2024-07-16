@@ -1,4 +1,4 @@
-image: denoland/deno:1.44.2
+image: denoland/deno:1.45.2
 
 default:
   interruptible: true
@@ -20,7 +20,10 @@ check:
 
 test:
   stage: test
-  script: deno task test
+  script: 
+    - deno task test --coverage=cov_profile
+    - deno coverage cov_profile
+  coverage: /All files[^\|]*\|[^\|]*\s+([\d\.]+)/
   variables:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
   artifacts:

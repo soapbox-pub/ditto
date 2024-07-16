@@ -108,6 +108,7 @@ import {
   trendingStatusesController,
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
+import { errorHandler } from '@/controllers/error.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
@@ -151,18 +152,17 @@ if (Conf.cronEnabled) {
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
-app.use('/api/*', logger(debug));
-app.use('/.well-known/*', logger(debug));
-app.use('/users/*', logger(debug));
-app.use('/nodeinfo/*', logger(debug));
-app.use('/oauth/*', logger(debug));
+app.use('/api/*', metricsMiddleware, logger(debug));
+app.use('/.well-known/*', metricsMiddleware, logger(debug));
+app.use('/users/*', metricsMiddleware, logger(debug));
+app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
+app.use('/oauth/*', metricsMiddleware, logger(debug));
 
-app.get('/api/v1/streaming', streamingController);
-app.get('/relay', relayController);
+app.get('/api/v1/streaming', metricsMiddleware, streamingController);
+app.get('/relay', metricsMiddleware, relayController);
 
 app.use(
   '*',
-  metricsMiddleware,
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,
@@ -340,12 +340,7 @@ app.get('/', frontendController, indexController);
 // Fallback
 app.get('*', publicFiles, staticFiles, frontendController);
 
-app.onError((err, c) => {
-  if (err.message === 'canceling statement due to statement timeout') {
-    return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
-  }
-  return c.json({ error: 'Something went wrong' }, 500);
-});
+app.onError(errorHandler);
 
 export default app;
 

@@ -78,7 +78,7 @@ async function renderNotifications(
   const store = c.get('store');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const { signal } = c.req.raw;
-  const opts = { signal, limit: params.limit, timeout: 15_000 };
+  const opts = { signal, limit: params.limit, timeout: Conf.db.timeouts.timelines };
 
   const events = await store
     .query(filters, opts)

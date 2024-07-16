@@ -1,4 +1,5 @@
 // deno-lint-ignore-file require-await
+import { HTTPException } from '@hono/hono/http-exception';
 import { NConnectSigner, NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 import { Storages } from '@/storages.ts';
@@ -27,30 +28,78 @@ export class ConnectSigner implements NostrSigner {
 
   async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
     const signer = await this.signer;
-    return signer.signEvent(event);
+    try {
+      return await signer.signEvent(event);
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        throw new HTTPException(408, { message: 'The event was not signed quickly enough' });
+      } else {
+        throw e;
+      }
+    }
   }
 
   readonly nip04 = {
     encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
       const signer = await this.signer;
-      return signer.nip04.encrypt(pubkey, plaintext);
+      try {
+        return await signer.nip04.encrypt(pubkey, plaintext);
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          throw new HTTPException(408, {
+            message: 'Text was not encrypted quickly enough',
+          });
+        } else {
+          throw e;
+        }
+      }
     },
 
     decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
       const signer = await this.signer;
-      return signer.nip04.decrypt(pubkey, ciphertext);
+      try {
+        return await signer.nip04.decrypt(pubkey, ciphertext);
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          throw new HTTPException(408, {
+            message: 'Text was not decrypted quickly enough',
+          });
+        } else {
+          throw e;
+        }
+      }
     },
   };
 
   readonly nip44 = {
     encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
       const signer = await this.signer;
-      return signer.nip44.encrypt(pubkey, plaintext);
+      try {
+        return await signer.nip44.encrypt(pubkey, plaintext);
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          throw new HTTPException(408, {
+            message: 'Text was not encrypted quickly enough',
+          });
+        } else {
+          throw e;
+        }
+      }
     },
 
     decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
       const signer = await this.signer;
-      return signer.nip44.decrypt(pubkey, ciphertext);
+      try {
+        return await signer.nip44.decrypt(pubkey, ciphertext);
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          throw new HTTPException(408, {
+            message: 'Text was not decrypted quickly enough',
+          });
+        } else {
+          throw e;
+        }
+      }
     },
   };
 

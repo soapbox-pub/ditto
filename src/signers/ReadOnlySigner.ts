@@ -7,7 +7,7 @@ export class ReadOnlySigner implements NostrSigner {
 
   async signEvent(): Promise<NostrEvent> {
     throw new HTTPException(401, {
-      message: 'Log out and back in',
+      message: 'Log in with Nostr Connect to sign events',
     });
   }
 

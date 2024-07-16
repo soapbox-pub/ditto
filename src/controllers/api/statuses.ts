@@ -97,8 +97,8 @@ const createStatusController: AppController = async (c) => {
 
     const root = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
 
-    tags.push(['e', root, 'root']);
-    tags.push(['e', data.in_reply_to_id, 'reply']);
+    tags.push(['e', root, Conf.relay, 'root']);
+    tags.push(['e', data.in_reply_to_id, Conf.relay, 'reply']);
   }
 
   if (data.quote_id) {
@@ -202,7 +202,7 @@ const deleteStatusController: AppController = async (c) => {
     if (event.pubkey === pubkey) {
       await createEvent({
         kind: 5,
-        tags: [['e', id]],
+        tags: [['e', id, Conf.relay]],
       }, c);
 
       const author = await getAuthor(event.pubkey);
@@ -260,8 +260,8 @@ const favouriteController: AppController = async (c) => {
       kind: 7,
       content: '+',
       tags: [
-        ['e', target.id],
-        ['p', target.pubkey],
+        ['e', target.id, Conf.relay],
+        ['p', target.pubkey, Conf.relay],
       ],
     }, c);
 
@@ -302,7 +302,10 @@ const reblogStatusController: AppController = async (c) => {
 
   const reblogEvent = await createEvent({
     kind: 6,
-    tags: [['e', event.id], ['p', event.pubkey]],
+    tags: [
+      ['e', event.id, Conf.relay],
+      ['p', event.pubkey, Conf.relay],
+    ],
   }, c);
 
   await hydrateEvents({
@@ -337,7 +340,7 @@ const unreblogStatusController: AppController = async (c) => {
 
   await createEvent({
     kind: 5,
-    tags: [['e', repostEvent.id]],
+    tags: [['e', repostEvent.id, Conf.relay]],
   }, c);
 
   return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
@@ -389,7 +392,7 @@ const bookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId]),
+      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -416,7 +419,7 @@ const unbookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId]),
+      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -443,7 +446,7 @@ const pinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId]),
+      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -472,7 +475,7 @@ const unpinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId]),
+      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
       c,
     );
 
@@ -516,7 +519,7 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['e', target.id],
+        ['e', target.id, Conf.relay],
         ['p', target.pubkey],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
