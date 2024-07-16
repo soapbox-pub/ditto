@@ -1,5 +1,5 @@
 import { Kysely } from 'kysely';
-import { PostgresJSDialect } from 'kysely-postgres-js';
+import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
 import { Conf } from '@/config.ts';
@@ -8,7 +8,7 @@ import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
   static db: Kysely<DittoTables> | undefined;
-  static postgres: postgres.Sql;
+  static postgres?: postgres.Sql;
 
   // deno-lint-ignore require-await
   static async getInstance(): Promise<Kysely<DittoTables>> {
@@ -19,8 +19,7 @@ export class DittoPostgres {
     if (!this.db) {
       this.db = new Kysely({
         dialect: new PostgresJSDialect({
-          // @ts-ignore: mismatched library versions
-          postgres: this.postgres,
+          postgres: this.postgres as unknown as PostgresJSDialectConfig['postgres'],
         }),
         log: KyselyLogger,
       });
@@ -30,10 +29,10 @@ export class DittoPostgres {
   }
 
   static get poolSize() {
-    return Conf.pg.poolSize;
+    return this.postgres?.connections.open ?? 0;
   }
 
   static get availableConnections(): number {
-    return this.postgres.connections.idle;
+    return this.postgres?.connections.idle ?? 0;
   }
 }
