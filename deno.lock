@@ -8,11 +8,11 @@
       "jsr:@gleasonator/policy": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.2.0": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
-      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.4.6",
+      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.0",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
-      "jsr:@nostrify/nostrify@^0.25.0": "jsr:@nostrify/nostrify@0.25.0",
+      "jsr:@nostrify/nostrify@^0.26.0": "jsr:@nostrify/nostrify@0.26.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
@@ -21,8 +21,9 @@
       "jsr:@std/assert@^0.225.1": "jsr:@std/assert@0.225.3",
       "jsr:@std/bytes@^0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^1.0.0-rc.3": "jsr:@std/bytes@1.0.0",
+      "jsr:@std/bytes@^1.0.1-rc.3": "jsr:@std/bytes@1.0.2",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
-      "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.0",
+      "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.2",
       "jsr:@std/encoding@^0.221.0": "jsr:@std/encoding@0.221.0",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.3",
       "jsr:@std/encoding@^0.224.1": "jsr:@std/encoding@0.224.3",
@@ -30,7 +31,7 @@
       "jsr:@std/fs@^0.221.0": "jsr:@std/fs@0.221.0",
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
       "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.0",
-      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.1",
+      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.3",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.217": "jsr:@std/path@0.217.0",
       "jsr:@std/path@^0.221.0": "jsr:@std/path@0.221.0",
@@ -109,6 +110,9 @@
       "@hono/hono@4.4.6": {
         "integrity": "aa557ca9930787ee86b9ca1730691f1ce1c379174c2cb244d5934db2b6314453"
       },
+      "@hono/hono@4.5.0": {
+        "integrity": "4a410f7773ac4b5b0eb4520b26c7ab7795a271d57a9df7fa1953ded6b90ccaf7"
+      },
       "@nostrify/nostrify@0.22.4": {
         "integrity": "1c8a7847e5773213044b491e85fd7cafae2ad194ce59da4d957d2b27c776b42d",
         "dependencies": [
@@ -138,8 +142,8 @@
           "npm:zod@^3.23.8"
         ]
       },
-      "@nostrify/nostrify@0.25.0": {
-        "integrity": "98f26f44e95ac87fc91b3f3809d38432e1a7f6aebf10380b2554b6f9526313c6",
+      "@nostrify/nostrify@0.26.0": {
+        "integrity": "8a4a49326f2d2bdf27e9ac6dc8c052bb37b31ae892350daa1df470070fddacd1",
         "dependencies": [
           "jsr:@std/crypto@^0.224.0",
           "jsr:@std/encoding@^0.224.1",
@@ -183,6 +187,9 @@
       "@std/bytes@1.0.0": {
         "integrity": "9392e72af80adccaa1197912fa19990ed091cb98d5c9c4344b0c301b22d7c632"
       },
+      "@std/bytes@1.0.2": {
+        "integrity": "fbdee322bbd8c599a6af186a1603b3355e59a5fb1baa139f8f4c3c9a1b3e3d57"
+      },
       "@std/crypto@0.224.0": {
         "integrity": "154ef3ff08ef535562ef1a718718c5b2c5fc3808f0f9100daad69e829bfcdf2d",
         "dependencies": [
@@ -192,6 +199,9 @@
       },
       "@std/dotenv@0.224.0": {
         "integrity": "d9234cdf551507dcda60abb6c474289843741d8c07ee8ce540c60f5c1b220a1d"
+      },
+      "@std/dotenv@0.224.2": {
+        "integrity": "29081695357e4534696c9e986b2560be29c141ccf52daa32b6c20ff5b5c64ab9"
       },
       "@std/encoding@0.221.0": {
         "integrity": "d1dd76ef0dc5d14088411e6dc1dede53bf8308c95d1537df1214c97137208e45"
@@ -225,6 +235,12 @@
         "integrity": "73de242551a5c0965eb33e36b1fc7df4834ffbc836a1a643a410ccd11253d6be",
         "dependencies": [
           "jsr:@std/bytes@^1.0.0-rc.3"
+        ]
+      },
+      "@std/io@0.224.3": {
+        "integrity": "b402edeb99c6b3778d9ae3e9927bc9085b170b41e5a09bbb7064ab2ee394ae2f",
+        "dependencies": [
+          "jsr:@std/bytes@^1.0.1-rc.3"
         ]
       },
       "@std/media-types@0.224.1": {
@@ -1732,7 +1748,7 @@
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@hono/hono@^4.4.6",
-      "jsr:@nostrify/nostrify@^0.25.0",
+      "jsr:@nostrify/nostrify@^0.26.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
