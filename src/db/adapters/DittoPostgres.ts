@@ -34,6 +34,6 @@ export class DittoPostgres {
   }
 
   static get availableConnections(): number {
-    return this.postgres.connections.max - this.postgres.connections.open;
+    return this.postgres.connections.closed;
   }
 }
