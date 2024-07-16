@@ -4,23 +4,17 @@ import path from 'node:path';
 import { Database as Sqlite } from '@db/sqlite';
 import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
-import { PostgreSQLDriver } from 'kysely_deno_postgres';
-import { Pool } from 'postgres';
 import { NDatabase, NostrEvent } from '@nostrify/nostrify';
-import {
-  FileMigrationProvider,
-  Kysely,
-  Migrator,
-  PostgresAdapter,
-  PostgresIntrospector,
-  PostgresQueryCompiler,
-} from 'kysely';
+import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
+import postgres from 'postgres';
+import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
+import { Conf } from '@/config.ts';
 
 /** Import an event fixture by name in tests. */
 export async function eventFixture(name: string): Promise<NostrEvent> {
@@ -119,20 +113,11 @@ export const createTestDB = async (databaseUrl?: string) => {
     });
   } else {
     kysely = new Kysely({
-      dialect: {
-        createAdapter() {
-          return new PostgresAdapter();
-        },
-        createDriver() {
-          return new PostgreSQLDriver(new Pool(databaseUrl, 10, true));
-        },
-        createIntrospector(db: Kysely<unknown>) {
-          return new PostgresIntrospector(db);
-        },
-        createQueryCompiler() {
-          return new PostgresQueryCompiler();
-        },
-      },
+      dialect: new PostgresJSDialect({
+        postgres: postgres(Conf.databaseUrl, {
+          max: Conf.pg.poolSize,
+        }) as unknown as PostgresJSDialectConfig['postgres'],
+      }),
       log: KyselyLogger,
     });
   }
