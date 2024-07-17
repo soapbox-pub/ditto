@@ -56,7 +56,7 @@ export class Storages {
         const tags = relayList?.tags ?? [];
 
         const activeRelays = tags.reduce((acc, [name, url, marker]) => {
-          if (name === 'r' && !marker) {
+          if (name === 'r' && (!marker || marker === 'write')) {
             acc.push(url);
           }
           return acc;
