@@ -7,6 +7,7 @@ import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { normalizeFilters } from '@/filter.ts';
 import { dbEventCounter, dbQueryCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
@@ -250,7 +251,7 @@ class EventsDB implements NStore {
 
   /** Converts filters to more performant, simpler filters that are better for SQLite. */
   async expandFilters(filters: NostrFilter[]): Promise<NostrFilter[]> {
-    filters = structuredClone(filters);
+    filters = normalizeFilters(structuredClone(filters));
 
     for (const filter of filters) {
       if (filter.search) {
