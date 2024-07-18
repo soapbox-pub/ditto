@@ -287,9 +287,41 @@ class EventsDB implements NStore {
         // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
         filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
       }
+
+      // Convert tag filters into `ids` filter for performance reasons.
+      const tagEntries = Object.entries(filter).filter(EventsDB.isTagEntry);
+      if (tagEntries.length) {
+        const tagIds: string[] = await tagEntries
+          .map(([key, value]) =>
+            this.kysely
+              .selectFrom('nostr_tags')
+              .select('event_id')
+              .distinct()
+              .where('name', '=', key.replace(/^#/, ''))
+              .where('value', 'in', value)
+          )
+          .reduce((result, query) => result.intersect(query))
+          .execute()
+          .then((rows) => rows.map(({ event_id }) => event_id));
+
+        if (tagIds.length) {
+          filter.ids = filter.ids ?? [];
+          filter.ids.push(...tagIds);
+        }
+
+        for (const [key] of tagEntries) {
+          delete filter[key];
+        }
+      }
     }
 
     return filters;
+  }
+
+  /** Check if the object entry is a valid tag filter. */
+  private static isTagEntry(entry: [string, unknown]): entry is [`#${string}`, string[]] {
+    const [key, value] = entry;
+    return key.startsWith('#') && Array.isArray(value);
   }
 }
 
