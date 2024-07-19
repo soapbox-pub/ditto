@@ -1,6 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { boolean, z } from 'zod';
+import { z } from 'zod';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
