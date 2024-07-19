@@ -32,5 +32,5 @@ Deno.test('Get zap splits in DittoZapSplits format', async () => {
     '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4': ['2', 'Patrick developer'],
   });
 
-  assertEquals(await getZapSplits(store, 'garbage'), {});
+  assertEquals(await getZapSplits(store, 'garbage'), undefined);
 });
