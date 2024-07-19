@@ -6,12 +6,12 @@ type ExtraMessage = string;
 /** Number from 1 to 100, stringified. */
 type splitPercentages = string;
 
-type DittoZapSplits = {
+export type DittoZapSplits = {
   [key: Pubkey]: [splitPercentages, ExtraMessage];
 };
 
 /** Gets zap splits from NIP-78 in DittoZapSplits format. */
-export async function getZapSplits(store: NStore, pubkey: string): Promise<DittoZapSplits> {
+export async function getZapSplits(store: NStore, pubkey: string): Promise<DittoZapSplits | undefined> {
   const zapSplits: DittoZapSplits = {};
 
   const [event] = await store.query([{
@@ -20,7 +20,7 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
     '#d': ['pub.ditto.zapSplits'],
     limit: 1,
   }]);
-  if (!event) return {};
+  if (!event) return;
 
   for (const tag of event.tags) {
     if (
