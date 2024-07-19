@@ -34,3 +34,27 @@ Deno.test('Get zap splits in DittoZapSplits format', async () => {
 
   assertEquals(await getZapSplits(store, 'garbage'), undefined);
 });
+
+Deno.test('Zap split is empty', async () => {
+  const { store } = await getTestDB();
+
+  const sk = generateSecretKey();
+  const pubkey = getPublicKey(sk);
+
+  const event = genEvent({
+    kind: 30078,
+    tags: [
+      ['d', 'pub.ditto.zapSplits'],
+      ['p', 'baka'],
+    ],
+  }, sk);
+  await store.event(event);
+
+  const eventFromDb = await store.query([{ kinds: [30078], authors: [pubkey] }]);
+
+  assertEquals(eventFromDb.length, 1);
+
+  const zapSplits = await getZapSplits(store, pubkey);
+
+  assertEquals(zapSplits, {});
+});
