@@ -1,6 +1,6 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { z } from 'zod';
+import { boolean, z } from 'zod';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
@@ -93,12 +93,17 @@ function isURL(value: unknown): boolean {
   return z.string().url().safeParse(value).success;
 }
 
+function isNumberFrom1To100(value: unknown): boolean {
+  return z.coerce.number().int().gte(1).lte(100).safeParse(value).success;
+}
+
 export {
   bech32ToPubkey,
   dedupeEvents,
   eventAge,
   findTag,
   isNostrId,
+  isNumberFrom1To100,
   isURL,
   type Nip05,
   nostrDate,
