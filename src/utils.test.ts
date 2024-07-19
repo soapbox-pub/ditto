@@ -10,6 +10,8 @@ Deno.test('Value is any number from 1 to 100', () => {
   assertEquals(isNumberFrom1To100(0), false);
   assertEquals(isNumberFrom1To100(-1), false);
   assertEquals(isNumberFrom1To100('-10'), false);
+  assertEquals(isNumberFrom1To100([]), false);
+  assertEquals(isNumberFrom1To100(undefined), false);
 
   for (let i = 1; i < 100; i++) {
     assertEquals(isNumberFrom1To100(String(i)), true);
