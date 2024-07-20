@@ -65,7 +65,10 @@ export class Storages {
 
         return new NPool({
           open(url) {
-            return new NRelay1(url);
+            return new NRelay1(url, {
+              // Skip event verification (it's done in the pipeline).
+              verifyEvent: () => true,
+            });
           },
           reqRouter: async (filters) => {
             return new Map(activeRelays.map((relay) => {
