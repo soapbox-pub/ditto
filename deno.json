@@ -51,7 +51,7 @@
     "iso-639-1": "npm:iso-639-1@2.1.15",
     "isomorphic-dompurify": "npm:isomorphic-dompurify@^2.11.0",
     "kysely": "npm:kysely@^0.27.3",
-    "postgres": "https://raw.githubusercontent.com/xyzshantaram/postgres.js/17469a9e5f025d112206c583a29275e93dfc1431/deno/mod.js",
+    "postgres": "https://raw.githubusercontent.com/xyzshantaram/postgres.js/8a9bbce88b3f6425ecaacd99a80372338b157a53/deno/mod.js",
     "kysely-postgres-js": "npm:kysely-postgres-js@2.0.0",
     "light-bolt11-decoder": "npm:light-bolt11-decoder",
     "linkify-plugin-hashtag": "npm:linkify-plugin-hashtag@^4.1.1",
