@@ -42,6 +42,7 @@ import { bookmarksController } from '@/controllers/api/bookmarks.ts';
 import {
   adminRelaysController,
   adminSetRelaysController,
+  deleteZapSplitsController,
   nameRequestController,
   nameRequestsController,
   updateZapSplitsController,
@@ -272,7 +273,7 @@ app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
-//app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
+app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
