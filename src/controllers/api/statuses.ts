@@ -29,6 +29,8 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { isObjectEmpty } from '@/utils.ts';
+import { getZapSplits } from '@/utils/zap_split.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -71,6 +73,7 @@ const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
   const kysely = await DittoDB.getInstance();
+  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -173,13 +176,25 @@ const createStatusController: AppController = async (c) => {
   const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';
   const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
+  const author = await getAuthor(await c.get('signer')?.getPublicKey() as string);
+
+  const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
+  const lnurl = getLnurl(meta);
+  const zap_split = await getZapSplits(store, Conf.pubkey);
+  if (lnurl && zap_split && isObjectEmpty(zap_split) === false) {
+    let totalSplit = 0;
+    for (const pubkey in zap_split) {
+      totalSplit += Number(zap_split[pubkey][0]);
+      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey][0]]);
+    }
+    tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+  }
+
   const event = await createEvent({
     kind: 1,
     content: content + quoteCompat + mediaCompat,
     tags,
   }, c);
-
-  const author = await getAuthor(event.pubkey);
 
   if (data.quote_id) {
     await hydrateEvents({
@@ -189,7 +204,7 @@ const createStatusController: AppController = async (c) => {
     });
   }
 
-  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: await c.get('signer')?.getPublicKey() }));
+  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: author?.pubkey }));
 };
 
 const deleteStatusController: AppController = async (c) => {
