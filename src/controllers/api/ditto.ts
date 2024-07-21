@@ -1,14 +1,17 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
-import { booleanParamSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { booleanParamSchema } from '@/schema.ts';
+import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema, parseBody } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
+import { getZapSplits } from '@/utils/zap_split.ts';
+import { updateListAdminEvent } from '@/utils/api.ts';
+import { addTag } from '@/utils/tags.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -147,4 +150,34 @@ export const nameRequestsController: AppController = async (c) => {
   );
 
   return paginated(c, orig, nameRequests);
+};
+
+const zapSplitSchema = z.array(z.tuple([n.id(), z.number().int().min(1).max(100), z.string().max(500)])).min(1);
+
+export const updateZapSplitsController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = zapSplitSchema.safeParse(body);
+  const store = c.get('store');
+
+  if (!result.success) {
+    return c.json({ error: result.error }, 400);
+  }
+
+  const zap_split = await getZapSplits(store, Conf.pubkey);
+  if (!zap_split) {
+    return c.json({ error: 'Zap split not activated, visit `/api/v1/instance` to activate it.' }, 404);
+  }
+
+  const { data } = result;
+
+  await updateListAdminEvent(
+    { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    (tags) =>
+      data.reduce((accumulator, currentValue) => {
+        return addTag(accumulator, ['p', currentValue[0], String(currentValue[1]), currentValue[2]]);
+      }, tags),
+    c,
+  );
+
+  return c.json(200);
 };
