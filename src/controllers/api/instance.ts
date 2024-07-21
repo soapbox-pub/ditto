@@ -4,12 +4,29 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
+import { DittoZapSplits, getZapSplits } from '@/utils/zap_split.ts';
+import { createAdminEvent } from '@/utils/api.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
 
 const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const store = c.get('store');
+
+  let zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
+  if (!zap_split) {
+    const officialDittoAccountPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
+    const officialDittoAccountMsg = 'Official Ditto Account';
+    await createAdminEvent({
+      kind: 30078,
+      tags: [
+        ['d', 'pub.ditto.zapSplits'],
+        ['p', officialDittoAccountPubkey, '5', officialDittoAccountMsg],
+      ],
+    }, c);
+    zap_split = { [officialDittoAccountPubkey]: ['5', officialDittoAccountMsg] };
+  }
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -68,6 +85,9 @@ const instanceV1Controller: AppController = async (c) => {
       },
     },
     rules: [],
+    ditto: {
+      zap_split,
+    },
   });
 };
 
