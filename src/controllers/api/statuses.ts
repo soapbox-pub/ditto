@@ -29,7 +29,6 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { isObjectEmpty } from '@/utils.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
 
 const createStatusSchema = z.object({
@@ -181,13 +180,15 @@ const createStatusController: AppController = async (c) => {
   const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
   const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (lnurl && zap_split && isObjectEmpty(zap_split) === false) {
+  if (lnurl && zap_split) {
     let totalSplit = 0;
     for (const pubkey in zap_split) {
       totalSplit += Number(zap_split[pubkey][0]);
       tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey][0]]);
     }
-    tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+    if (totalSplit) {
+      tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+    }
   }
 
   const event = await createEvent({
