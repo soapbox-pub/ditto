@@ -2,7 +2,7 @@ import { assertEquals } from '@std/assert';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 import { genEvent } from '@/test.ts';
-import { getZapSplits } from '@/utils/zap_split.ts';
+import { getZapSplits } from '@/utils/zap-split.ts';
 import { getTestDB } from '@/test.ts';
 
 Deno.test('Get zap splits in DittoZapSplits format', async () => {

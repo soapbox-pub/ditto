@@ -4,7 +4,7 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
-import { DittoZapSplits, getZapSplits } from '@/utils/zap_split.ts';
+import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { createAdminEvent } from '@/utils/api.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;

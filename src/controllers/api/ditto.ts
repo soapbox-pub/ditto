@@ -9,7 +9,7 @@ import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent, paginated, paginationSchema, parseBody } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
-import { getZapSplits } from '@/utils/zap_split.ts';
+import { getZapSplits } from '@/utils/zap-split.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
 import { addTag } from '@/utils/tags.ts';
 import { deleteTag } from '@/utils/tags.ts';

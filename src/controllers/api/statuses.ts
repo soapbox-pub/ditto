@@ -30,7 +30,7 @@ import { asyncReplaceAll } from '@/utils/text.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { isObjectEmpty } from '@/utils.ts';
-import { getZapSplits } from '@/utils/zap_split.ts';
+import { getZapSplits } from '@/utils/zap-split.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
