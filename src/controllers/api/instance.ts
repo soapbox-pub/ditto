@@ -16,16 +16,16 @@ const instanceV1Controller: AppController = async (c) => {
 
   let zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
   if (!zap_split) {
-    const officialDittoAccountPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
-    const officialDittoAccountMsg = 'Official Ditto Account';
+    const dittoPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
+    const dittoMsg = 'Official Ditto Account';
     await createAdminEvent({
       kind: 30078,
       tags: [
         ['d', 'pub.ditto.zapSplits'],
-        ['p', officialDittoAccountPubkey, '5', officialDittoAccountMsg],
+        ['p', dittoPubkey, '5', dittoMsg],
       ],
     }, c);
-    zap_split = { [officialDittoAccountPubkey]: ['5', officialDittoAccountMsg] };
+    zap_split = { [dittoPubkey]: ['5', dittoMsg] };
   }
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
