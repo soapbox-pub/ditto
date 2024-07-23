@@ -25,7 +25,7 @@ const instanceV1Controller: AppController = async (c) => {
         ['p', dittoPubkey, '5', dittoMsg],
       ],
     }, c);
-    zap_split = { [dittoPubkey]: ['5', dittoMsg] };
+    zap_split = { [dittoPubkey]: { amount: 5, message: dittoMsg } };
   }
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
