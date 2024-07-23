@@ -4,10 +4,10 @@ import { isNumberFrom1To100 } from '@/utils.ts';
 type Pubkey = string;
 type ExtraMessage = string;
 /** Number from 1 to 100, stringified. */
-type splitPercentages = string;
+type splitPercentages = number;
 
 export type DittoZapSplits = {
-  [key: Pubkey]: [splitPercentages, ExtraMessage];
+  [key: Pubkey]: { amount: splitPercentages; message: ExtraMessage };
 };
 
 /** Gets zap splits from NIP-78 in DittoZapSplits format. */
@@ -27,7 +27,7 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
       tag[0] === 'p' && n.id().safeParse(tag[1]).success &&
       isNumberFrom1To100(tag[2])
     ) {
-      zapSplits[tag[1]] = [tag[2], tag[3] ?? ''];
+      zapSplits[tag[1]] = { amount: Number(tag[2]), message: tag[3] };
     }
   }
 
