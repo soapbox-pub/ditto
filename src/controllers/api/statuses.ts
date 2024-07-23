@@ -176,7 +176,7 @@ const createStatusController: AppController = async (c) => {
   const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';
   const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
-  const author = await getAuthor(await c.get('signer')?.getPublicKey() as string);
+  const author = await getAuthor(await c.get('signer')?.getPublicKey()!);
 
   const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
