@@ -28,8 +28,8 @@ Deno.test('Get zap splits in DittoZapSplits format', async () => {
   const zapSplits = await getZapSplits(store, pubkey);
 
   assertEquals(zapSplits, {
-    '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd': ['3', 'Alex creator of Ditto'],
-    '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4': ['2', 'Patrick developer'],
+    '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd': { amount: 3, message: 'Alex creator of Ditto' },
+    '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4': { amount: 2, message: 'Patrick developer' },
   });
 
   assertEquals(await getZapSplits(store, 'garbage'), undefined);
