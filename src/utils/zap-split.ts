@@ -1,5 +1,9 @@
+import { Conf } from '@/config.ts';
 import { NSchema as n, NStore } from '@nostrify/nostrify';
-import { isNumberFrom1To100 } from '@/utils.ts';
+import { isNumberFrom1To100, nostrNow } from '@/utils.ts';
+import { Storages } from '@/storages.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { handleEvent } from '@/pipeline.ts';
 
 type Pubkey = string;
 type ExtraMessage = string;
@@ -32,4 +36,26 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
   }
 
   return zapSplits;
+}
+
+export async function createZapSplitsIfNotExists() {
+  const store = await Storages.admin();
+
+  const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
+  if (!zap_split) {
+    const dittoPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
+    const dittoMsg = 'Official Ditto Account';
+
+    const signer = new AdminSigner();
+    const event = await signer.signEvent({
+      content: '',
+      created_at: nostrNow(),
+      kind: 30078,
+      tags: [
+        ['d', 'pub.ditto.zapSplits'],
+        ['p', dittoPubkey, '5', dittoMsg],
+      ],
+    });
+    await handleEvent(event, AbortSignal.timeout(5000));
+  }
 }
