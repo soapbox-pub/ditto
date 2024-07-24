@@ -72,33 +72,37 @@ export async function updateTrendingTags(
 
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
-  const trends = await getTrendingTagValues(kysely, tagNames, {
-    kinds,
-    since: yesterday,
-    until: now,
-    limit,
-  });
+  try {
+    const trends = await getTrendingTagValues(kysely, tagNames, {
+      kinds,
+      since: yesterday,
+      until: now,
+      limit,
+    });
 
-  if (!trends.length) {
-    console.info(`No trending ${l} found. Skipping.`);
-    return;
+    if (!trends.length) {
+      console.info(`No trending ${l} found. Skipping.`);
+      return;
+    }
+
+    const signer = new AdminSigner();
+
+    const label = await signer.signEvent({
+      kind: 1985,
+      content: '',
+      tags: [
+        ['L', 'pub.ditto.trends'],
+        ['l', l, 'pub.ditto.trends'],
+        ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(label, signal);
+    console.info(`Trending ${l} updated.`);
+  } catch (e) {
+    console.error(`Error updating trending ${l}: ${e.message}`);
   }
-
-  const signer = new AdminSigner();
-
-  const label = await signer.signEvent({
-    kind: 1985,
-    content: '',
-    tags: [
-      ['L', 'pub.ditto.trends'],
-      ['l', l, 'pub.ditto.trends'],
-      ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
-    ],
-    created_at: Math.floor(Date.now() / 1000),
-  });
-
-  await handleEvent(label, signal);
-  console.info(`Trending ${l} updated.`);
 }
 
 /** Update trending pubkeys. */
