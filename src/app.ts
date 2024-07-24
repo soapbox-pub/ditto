@@ -5,9 +5,6 @@ import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 
-import { Conf } from '@/config.ts';
-import { cron } from '@/cron.ts';
-import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -144,13 +141,6 @@ type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response
 const app = new Hono<AppEnv>({ strict: false });
 
 const debug = Debug('ditto:http');
-
-if (Conf.firehoseEnabled) {
-  startFirehose();
-}
-if (Conf.cronEnabled) {
-  cron();
-}
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
