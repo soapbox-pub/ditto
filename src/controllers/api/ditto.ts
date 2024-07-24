@@ -166,7 +166,7 @@ export const updateZapSplitsController: AppController = async (c) => {
 
   const zap_split = await getZapSplits(store, Conf.pubkey);
   if (!zap_split) {
-    return c.json({ error: 'Zap split not activated, visit `/api/v1/instance` to activate it.' }, 404);
+    return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
   const { data } = result;
@@ -196,7 +196,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
 
   const zap_split = await getZapSplits(store, Conf.pubkey);
   if (!zap_split) {
-    return c.json({ error: 'Zap split not activated, visit `/api/v1/instance` to activate it.' }, 404);
+    return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
   const { data } = result;
