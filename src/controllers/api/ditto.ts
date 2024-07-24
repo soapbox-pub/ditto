@@ -153,7 +153,11 @@ export const nameRequestsController: AppController = async (c) => {
   return paginated(c, orig, nameRequests);
 };
 
-const zapSplitSchema = z.array(z.tuple([n.id(), z.number().int().min(1).max(100), z.string().max(500)])).min(1);
+const zapSplitSchema = z.array(z.object({
+  pubkey: n.id(),
+  amount: z.number().int().min(1).max(100),
+  message: z.string().max(500),
+})).min(1);
 
 export const updateZapSplitsController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
@@ -175,7 +179,7 @@ export const updateZapSplitsController: AppController = async (c) => {
     { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       data.reduce((accumulator, currentValue) => {
-        return addTag(accumulator, ['p', currentValue[0], String(currentValue[1]), currentValue[2]]);
+        return addTag(accumulator, ['p', currentValue.pubkey, currentValue.amount.toString(), currentValue.message]);
       }, tags),
     c,
   );
