@@ -183,8 +183,8 @@ const createStatusController: AppController = async (c) => {
   if (lnurl && zap_split) {
     let totalSplit = 0;
     for (const pubkey in zap_split) {
-      totalSplit += Number(zap_split[pubkey][0]);
-      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey][0]]);
+      totalSplit += zap_split[pubkey].amount;
+      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey].amount.toString()]);
     }
     if (totalSplit) {
       tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
