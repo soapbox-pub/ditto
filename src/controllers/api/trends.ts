@@ -12,8 +12,12 @@ import { renderStatus } from '@/views/mastodon/statuses.ts';
 let trendingHashtagsCache = getTrendingHashtags();
 
 Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
-  const trends = await getTrendingHashtags();
-  trendingHashtagsCache = Promise.resolve(trends);
+  try {
+    const trends = await getTrendingHashtags();
+    trendingHashtagsCache = Promise.resolve(trends);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 const trendingTagsQuerySchema = z.object({
@@ -51,8 +55,12 @@ async function getTrendingHashtags() {
 let trendingLinksCache = getTrendingLinks();
 
 Deno.cron('update trending links cache', '50 * * * *', async () => {
-  const trends = await getTrendingLinks();
-  trendingLinksCache = Promise.resolve(trends);
+  try {
+    const trends = await getTrendingLinks();
+    trendingLinksCache = Promise.resolve(trends);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 const trendingLinksController: AppController = async (c) => {
