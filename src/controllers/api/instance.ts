@@ -5,7 +5,6 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { createAdminEvent } from '@/utils/api.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
 
@@ -14,19 +13,7 @@ const instanceV1Controller: AppController = async (c) => {
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
   const store = c.get('store');
 
-  let zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
-    const dittoPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
-    const dittoMsg = 'Official Ditto Account';
-    await createAdminEvent({
-      kind: 30078,
-      tags: [
-        ['d', 'pub.ditto.zapSplits'],
-        ['p', dittoPubkey, '5', dittoMsg],
-      ],
-    }, c);
-    zap_split = { [dittoPubkey]: { amount: 5, message: dittoMsg } };
-  }
+  const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey) ?? {};
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
