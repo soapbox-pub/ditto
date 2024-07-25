@@ -93,17 +93,12 @@ function isURL(value: unknown): boolean {
   return z.string().url().safeParse(value).success;
 }
 
-function isNumberFrom1To100(value: unknown): boolean {
-  return z.coerce.number().int().gte(1).lte(100).safeParse(value).success;
-}
-
 export {
   bech32ToPubkey,
   dedupeEvents,
   eventAge,
   findTag,
   isNostrId,
-  isNumberFrom1To100,
   isURL,
   type Nip05,
   nostrDate,

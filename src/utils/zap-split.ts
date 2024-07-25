@@ -1,9 +1,10 @@
-import { Conf } from '@/config.ts';
-import { NSchema as n, NStore } from '@nostrify/nostrify';
-import { isNumberFrom1To100, nostrNow } from '@/utils.ts';
-import { Storages } from '@/storages.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { Conf } from '@/config.ts';
 import { handleEvent } from '@/pipeline.ts';
+import { NSchema as n, NStore } from '@nostrify/nostrify';
+import { nostrNow } from '@/utils.ts';
+import { percentageSchema } from '@/schema.ts';
+import { Storages } from '@/storages.ts';
 
 type Pubkey = string;
 type ExtraMessage = string;
@@ -29,7 +30,7 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
   for (const tag of event.tags) {
     if (
       tag[0] === 'p' && n.id().safeParse(tag[1]).success &&
-      isNumberFrom1To100(tag[2])
+      percentageSchema.safeParse(tag[2]).success
     ) {
       zapSplits[tag[1]] = { amount: Number(tag[2]), message: tag[3] };
     }
