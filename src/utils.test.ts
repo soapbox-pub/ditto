@@ -1,5 +1,6 @@
-import { isNumberFrom1To100, isObjectEmpty } from '@/utils.ts';
 import { assertEquals } from '@std/assert';
+
+import { isNumberFrom1To100 } from '@/utils.ts';
 
 Deno.test('Value is any number from 1 to 100', () => {
   assertEquals(isNumberFrom1To100('latvia'), false);
@@ -18,12 +19,4 @@ Deno.test('Value is any number from 1 to 100', () => {
   }
 
   assertEquals(isNumberFrom1To100('1e1'), true);
-});
-
-Deno.test('Object is empty', () => {
-  assertEquals(isObjectEmpty([1]), false);
-  assertEquals(isObjectEmpty({ 'yolo': 'no yolo' }), false);
-
-  assertEquals(isObjectEmpty([]), true);
-  assertEquals(isObjectEmpty({}), true);
 });

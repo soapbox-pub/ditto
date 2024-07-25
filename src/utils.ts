@@ -97,13 +97,6 @@ function isNumberFrom1To100(value: unknown): boolean {
   return z.coerce.number().int().gte(1).lte(100).safeParse(value).success;
 }
 
-function isObjectEmpty(obj: object): boolean {
-  for (const prop in obj) {
-    if (Object.hasOwn(obj, prop)) return false;
-  }
-  return true;
-}
-
 export {
   bech32ToPubkey,
   dedupeEvents,
@@ -111,7 +104,6 @@ export {
   findTag,
   isNostrId,
   isNumberFrom1To100,
-  isObjectEmpty,
   isURL,
   type Nip05,
   nostrDate,
