@@ -39,7 +39,7 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
   return zapSplits;
 }
 
-export async function createZapSplitsIfNotExists() {
+export async function seedZapSplits() {
   const store = await Storages.admin();
 
   const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);

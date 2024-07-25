@@ -1,7 +1,7 @@
 // Starts up applications required to run before the HTTP server is on.
 
 import { Conf } from '@/config.ts';
-import { createZapSplitsIfNotExists } from '@/utils/zap-split.ts';
+import { seedZapSplits } from '@/utils/zap-split.ts';
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
 
@@ -13,4 +13,4 @@ if (Conf.cronEnabled) {
   cron();
 }
 
-await createZapSplitsIfNotExists();
+await seedZapSplits();
