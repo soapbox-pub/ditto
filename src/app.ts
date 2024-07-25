@@ -5,9 +5,6 @@ import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 
-import { Conf } from '@/config.ts';
-import { cron } from '@/cron.ts';
-import { startFirehose } from '@/firehose.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -42,8 +39,10 @@ import { bookmarksController } from '@/controllers/api/bookmarks.ts';
 import {
   adminRelaysController,
   adminSetRelaysController,
+  deleteZapSplitsController,
   nameRequestController,
   nameRequestsController,
+  updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
 import {
@@ -142,13 +141,6 @@ type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response
 const app = new Hono<AppEnv>({ strict: false });
 
 const debug = Debug('ditto:http');
-
-if (Conf.firehoseEnabled) {
-  startFirehose();
-}
-if (Conf.cronEnabled) {
-  cron();
-}
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
@@ -269,6 +261,9 @@ app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysContro
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
+
+app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
+app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);

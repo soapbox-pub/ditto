@@ -38,4 +38,14 @@ const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value 
 /** Schema for `File` objects. */
 const fileSchema = z.custom<File>((value) => value instanceof File);
 
-export { booleanParamSchema, decode64Schema, fileSchema, filteredArray, hashtagSchema, safeUrlSchema };
+const percentageSchema = z.coerce.number().int().gte(1).lte(100);
+
+export {
+  booleanParamSchema,
+  decode64Schema,
+  fileSchema,
+  filteredArray,
+  hashtagSchema,
+  percentageSchema,
+  safeUrlSchema,
+};
