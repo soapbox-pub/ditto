@@ -7,7 +7,7 @@ import { createTestDB, eventFixture } from '@/test.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
   const relay = new MockRelay();
-  await using db = await createTestDB('sqlite://:memory:');
+  await using db = await createTestDB();
 
   const event0 = await eventFixture('event-0');
   const event1 = await eventFixture('event-1');
@@ -28,7 +28,7 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 
 Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
   const relay = new MockRelay();
-  await using db = await createTestDB('sqlite://:memory:');
+  await using db = await createTestDB();
 
   const event0madePost = await eventFixture('event-0-the-one-who-post-and-users-repost');
   const event0madeRepost = await eventFixture('event-0-the-one-who-repost');
@@ -57,7 +57,7 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
 
 Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   const relay = new MockRelay();
-  await using db = await createTestDB('sqlite://:memory:');
+  await using db = await createTestDB();
 
   const event0madeQuoteRepost = await eventFixture('event-0-the-one-who-quote-repost');
   const event0 = await eventFixture('event-0');
@@ -87,7 +87,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
   const relay = new MockRelay();
-  await using db = await createTestDB('sqlite://:memory:');
+  await using db = await createTestDB();
 
   const author = await eventFixture('event-0-makes-repost-with-quote-repost');
   const event1 = await eventFixture('event-1-will-be-reposted-with-quote-repost');
@@ -116,7 +116,7 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
 
 Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stats', async () => {
   const relay = new MockRelay();
-  await using db = await createTestDB('sqlite://:memory:');
+  await using db = await createTestDB();
 
   const authorDictator = await eventFixture('kind-0-dictator');
   const authorVictim = await eventFixture('kind-0-george-orwell');
