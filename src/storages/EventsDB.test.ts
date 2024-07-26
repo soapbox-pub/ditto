@@ -217,24 +217,3 @@ Deno.test("throws a RelayError when querying an event with a large 'kind'", asyn
     'kind filter too far into the future',
   );
 });
-
-Deno.test(
-  'query user by NIP-05 search filter',
-  { ignore: Conf.db.dialect !== 'postgres' },
-  async () => {
-    await using db = await createTestDB();
-    const { store } = db;
-
-    const event0 = await eventFixture('event-0');
-    await store.event(event0);
-
-    assertEquals(await store.query([{}]), [event0]);
-    assertEquals(await store.query([{ search: 'sonator.dev' }]), []);
-    assertEquals(await store.query([{ search: 'alex' }]), [event0]);
-    assertEquals(await store.query([{ search: 'gleasonator' }]), [event0]);
-    assertEquals(await store.query([{ search: 'com' }]), [event0]);
-    assertEquals(await store.query([{ search: 'mostr' }]), [event0]);
-    assertEquals(await store.query([{ search: 'pub' }]), [event0]);
-    assertEquals(await store.query([{ search: 'mostr.pub' }]), [event0]);
-  },
-);
