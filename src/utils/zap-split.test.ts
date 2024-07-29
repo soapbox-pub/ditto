@@ -6,7 +6,8 @@ import { getZapSplits } from '@/utils/zap-split.ts';
 import { getTestDB } from '@/test.ts';
 
 Deno.test('Get zap splits in DittoZapSplits format', async () => {
-  const { store } = await getTestDB();
+  await using db = await getTestDB();
+  const store = db.store;
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
@@ -19,6 +20,7 @@ Deno.test('Get zap splits in DittoZapSplits format', async () => {
       ['p', '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd', '3', 'Alex creator of Ditto'],
     ],
   }, sk);
+
   await store.event(event);
 
   const eventFromDb = await store.query([{ kinds: [30078], authors: [pubkey] }]);
@@ -36,7 +38,8 @@ Deno.test('Get zap splits in DittoZapSplits format', async () => {
 });
 
 Deno.test('Zap split is empty', async () => {
-  const { store } = await getTestDB();
+  await using db = await getTestDB();
+  const store = db.store;
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
