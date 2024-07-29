@@ -7,6 +7,7 @@ import { SearchStore } from '@/storages/search-store.ts';
 import { InternalRelay } from '@/storages/InternalRelay.ts';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { getRelays } from '@/utils/outbox.ts';
+import { seedZapSplits } from '@/utils/zap-split.ts';
 
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
@@ -20,7 +21,9 @@ export class Storages {
     if (!this._db) {
       this._db = (async () => {
         const kysely = await DittoDB.getInstance();
-        return new EventsDB(kysely);
+        const store = new EventsDB(kysely);
+        await seedZapSplits(store);
+        return store;
       })();
     }
     return this._db;

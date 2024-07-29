@@ -9,11 +9,18 @@ import { generateDateRange, Time } from '@/utils/time.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-let trendingHashtagsCache = getTrendingHashtags();
+let trendingHashtagsCache = getTrendingHashtags().catch((e) => {
+  console.error(`Failed to get trending hashtags: ${e}`);
+  return Promise.resolve([]);
+});
 
 Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
-  const trends = await getTrendingHashtags();
-  trendingHashtagsCache = Promise.resolve(trends);
+  try {
+    const trends = await getTrendingHashtags();
+    trendingHashtagsCache = Promise.resolve(trends);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 const trendingTagsQuerySchema = z.object({
@@ -48,11 +55,18 @@ async function getTrendingHashtags() {
   });
 }
 
-let trendingLinksCache = getTrendingLinks();
+let trendingLinksCache = getTrendingLinks().catch((e) => {
+  console.error(`Failed to get trending links: ${e}`);
+  return Promise.resolve([]);
+});
 
 Deno.cron('update trending links cache', '50 * * * *', async () => {
-  const trends = await getTrendingLinks();
-  trendingLinksCache = Promise.resolve(trends);
+  try {
+    const trends = await getTrendingLinks();
+    trendingLinksCache = Promise.resolve(trends);
+  } catch (e) {
+    console.error(e);
+  }
 });
 
 const trendingLinksController: AppController = async (c) => {

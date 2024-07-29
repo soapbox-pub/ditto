@@ -1,10 +1,8 @@
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Conf } from '@/config.ts';
-import { handleEvent } from '@/pipeline.ts';
 import { NSchema as n, NStore } from '@nostrify/nostrify';
 import { nostrNow } from '@/utils.ts';
 import { percentageSchema } from '@/schema.ts';
-import { Storages } from '@/storages.ts';
 
 type Pubkey = string;
 type ExtraMessage = string;
@@ -39,11 +37,10 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
   return zapSplits;
 }
 
-export async function seedZapSplits() {
-  const store = await Storages.admin();
+export async function seedZapSplits(store: NStore) {
+  const zapSplit: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
 
-  const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
+  if (!zapSplit) {
     const dittoPubkey = '781a1527055f74c1f70230f10384609b34548f8ab6a0a6caa74025827f9fdae5';
     const dittoMsg = 'Official Ditto Account';
 
@@ -57,6 +54,7 @@ export async function seedZapSplits() {
         ['p', dittoPubkey, '5', dittoMsg],
       ],
     });
-    await handleEvent(event, AbortSignal.timeout(5000));
+
+    await store.event(event);
   }
 }

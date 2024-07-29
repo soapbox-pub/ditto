@@ -46,6 +46,9 @@ interface TagRow {
   event_id: string;
   name: string;
   value: string;
+  kind: number;
+  pubkey: string;
+  created_at: number;
 }
 
 interface NIP46TokenRow {

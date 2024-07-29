@@ -22,24 +22,23 @@ export async function getTrendingTagValues(
 ): Promise<{ value: string; authors: number; uses: number }[]> {
   let query = kysely
     .selectFrom('nostr_tags')
-    .innerJoin('nostr_events', 'nostr_events.id', 'nostr_tags.event_id')
     .select(({ fn }) => [
       'nostr_tags.value',
-      fn.agg<number>('count', ['nostr_events.pubkey']).distinct().as('authors'),
+      fn.agg<number>('count', ['nostr_tags.pubkey']).distinct().as('authors'),
       fn.countAll<number>().as('uses'),
     ])
     .where('nostr_tags.name', 'in', tagNames)
     .groupBy('nostr_tags.value')
-    .orderBy((c) => c.fn.agg('count', ['nostr_events.pubkey']).distinct(), 'desc');
+    .orderBy((c) => c.fn.agg('count', ['nostr_tags.pubkey']).distinct(), 'desc');
 
   if (filter.kinds) {
-    query = query.where('nostr_events.kind', 'in', filter.kinds);
+    query = query.where('nostr_tags.kind', 'in', filter.kinds);
   }
   if (typeof filter.since === 'number') {
-    query = query.where('nostr_events.created_at', '>=', filter.since);
+    query = query.where('nostr_tags.created_at', '>=', filter.since);
   }
   if (typeof filter.until === 'number') {
-    query = query.where('nostr_events.created_at', '<=', filter.until);
+    query = query.where('nostr_tags.created_at', '<=', filter.until);
   }
   if (typeof filter.limit === 'number') {
     query = query.limit(filter.limit);
@@ -72,33 +71,37 @@ export async function updateTrendingTags(
 
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
-  const trends = await getTrendingTagValues(kysely, tagNames, {
-    kinds,
-    since: yesterday,
-    until: now,
-    limit,
-  });
+  try {
+    const trends = await getTrendingTagValues(kysely, tagNames, {
+      kinds,
+      since: yesterday,
+      until: now,
+      limit,
+    });
 
-  if (!trends.length) {
-    console.info(`No trending ${l} found. Skipping.`);
-    return;
+    if (!trends.length) {
+      console.info(`No trending ${l} found. Skipping.`);
+      return;
+    }
+
+    const signer = new AdminSigner();
+
+    const label = await signer.signEvent({
+      kind: 1985,
+      content: '',
+      tags: [
+        ['L', 'pub.ditto.trends'],
+        ['l', l, 'pub.ditto.trends'],
+        ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await handleEvent(label, signal);
+    console.info(`Trending ${l} updated.`);
+  } catch (e) {
+    console.error(`Error updating trending ${l}: ${e.message}`);
   }
-
-  const signer = new AdminSigner();
-
-  const label = await signer.signEvent({
-    kind: 1985,
-    content: '',
-    tags: [
-      ['L', 'pub.ditto.trends'],
-      ['l', l, 'pub.ditto.trends'],
-      ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
-    ],
-    created_at: Math.floor(Date.now() / 1000),
-  });
-
-  await handleEvent(label, signal);
-  console.info(`Trending ${l} updated.`);
 }
 
 /** Update trending pubkeys. */
