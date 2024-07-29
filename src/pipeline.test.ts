@@ -1,11 +1,11 @@
 import { assertEquals } from '@std/assert';
 import { generateSecretKey } from 'nostr-tools';
 
-import { genEvent, getTestDB } from '@/test.ts';
+import { createTestDB, genEvent, getTestDB } from '@/test.ts';
 import { handleZaps } from '@/pipeline.ts';
 
 Deno.test('store one zap receipt in nostr_events; convert it into event_zaps table format and store it', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
   const kysely = db.kysely;
 
   const sk = generateSecretKey();

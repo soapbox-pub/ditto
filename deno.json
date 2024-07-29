@@ -8,7 +8,7 @@
     "db:migrate": "deno run -A scripts/db-migrate.ts",
     "nostr:pull": "deno run -A scripts/nostr-pull.ts",
     "debug": "deno run -A --inspect src/server.ts",
-    "test": "DATABASE_URL=\"sqlite://:memory:\" deno test -A --junit-path=./deno-test.xml",
+    "test": "deno test -A --junit-path=./deno-test.xml",
     "check": "deno check src/server.ts",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A scripts/admin-event.ts",

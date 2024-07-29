@@ -7,16 +7,18 @@ import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
+import { Kysely } from 'kysely';
 
 interface HydrateOpts {
   events: DittoEvent[];
   store: NStore;
   signal?: AbortSignal;
+  kysely?: Kysely<DittoTables>;
 }
 
 /** Hydrate events using the provided storage. */
 async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
-  const { events, store, signal } = opts;
+  const { events, store, signal, kysely = await DittoDB.getInstance() } = opts;
 
   if (!events.length) {
     return events;
@@ -57,8 +59,8 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   const stats = {
-    authors: await gatherAuthorStats(cache),
-    events: await gatherEventStats(cache),
+    authors: await gatherAuthorStats(cache, kysely),
+    events: await gatherEventStats(cache, kysely),
   };
 
   // Dedupe events.
@@ -276,7 +278,10 @@ function gatherReportedProfiles({ events, store, signal }: HydrateOpts): Promise
 }
 
 /** Collect author stats from the events. */
-async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['author_stats'][]> {
+async function gatherAuthorStats(
+  events: DittoEvent[],
+  kysely: Kysely<DittoTables>,
+): Promise<DittoTables['author_stats'][]> {
   const pubkeys = new Set<string>(
     events
       .filter((event) => event.kind === 0)
@@ -286,8 +291,6 @@ async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['aut
   if (!pubkeys.size) {
     return Promise.resolve([]);
   }
-
-  const kysely = await DittoDB.getInstance();
 
   const rows = await kysely
     .selectFrom('author_stats')
@@ -304,7 +307,10 @@ async function gatherAuthorStats(events: DittoEvent[]): Promise<DittoTables['aut
 }
 
 /** Collect event stats from the events. */
-async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['event_stats'][]> {
+async function gatherEventStats(
+  events: DittoEvent[],
+  kysely: Kysely<DittoTables>,
+): Promise<DittoTables['event_stats'][]> {
   const ids = new Set<string>(
     events
       .filter((event) => event.kind === 1)
@@ -314,8 +320,6 @@ async function gatherEventStats(events: DittoEvent[]): Promise<DittoTables['even
   if (!ids.size) {
     return Promise.resolve([]);
   }
-
-  const kysely = await DittoDB.getInstance();
 
   const rows = await kysely
     .selectFrom('event_stats')
