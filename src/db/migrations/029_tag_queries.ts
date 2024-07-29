@@ -54,6 +54,12 @@ export async function up(db: Kysely<any>): Promise<void> {
     .ifNotExists()
     .columns(['value', 'name', 'kind', 'pubkey', 'created_at desc', 'event_id asc'])
     .execute();
+  await db.schema
+    .createIndex('nostr_tags_trends')
+    .on('nostr_tags')
+    .ifNotExists()
+    .columns(['created_at', 'name', 'kind'])
+    .execute();
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
