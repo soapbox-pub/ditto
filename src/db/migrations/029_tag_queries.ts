@@ -11,12 +11,13 @@ export async function up(db: Kysely<any>): Promise<void> {
     .addColumn('created_at', 'integer', (col) => col.notNull())
     .execute();
 
-  setTimeout(() => {
+  let iid: number | undefined;
+  const tid = setTimeout(() => {
     console.warn(
       'Recreating the tags table to boost performance. Depending on the size of your database, this could take a very long time, even as long as 2 days!',
     );
     const emojis = ['⚡', '🐛', '🔎', '😂', '😅', '😬', '😭', '🙃', '🤔', '🧐', '🧐', '🫠'];
-    setInterval(() => {
+    iid = setInterval(() => {
       const emoji = emojis[Math.floor(Math.random() * emojis.length)];
       console.info(`Recreating tags table... ${emoji}`);
     }, 60_000);
@@ -31,6 +32,9 @@ export async function up(db: Kysely<any>): Promise<void> {
     FROM
       nostr_tags as t LEFT JOIN nostr_events e on t.event_id = e.id;
   `.execute(db);
+
+  clearTimeout(tid);
+  if (iid) clearInterval(iid);
 
   // Drop the old table and rename it.
   await db.schema.dropTable('nostr_tags').execute();
