@@ -1,14 +1,18 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
-import { booleanParamSchema } from '@/schema.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { booleanParamSchema } from '@/schema.ts';
+import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema } from '@/utils/api.ts';
+import { createEvent, paginated, paginationSchema, parseBody } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
+import { getZapSplits } from '@/utils/zap-split.ts';
+import { updateListAdminEvent } from '@/utils/api.ts';
+import { addTag } from '@/utils/tags.ts';
+import { deleteTag } from '@/utils/tags.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -147,4 +151,75 @@ export const nameRequestsController: AppController = async (c) => {
   );
 
   return paginated(c, orig, nameRequests);
+};
+
+const zapSplitSchema = z.record(
+  n.id(),
+  z.object({
+    amount: z.number().int().min(1).max(100),
+    message: z.string().max(500),
+  }),
+);
+
+export const updateZapSplitsController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = zapSplitSchema.safeParse(body);
+  const store = c.get('store');
+
+  if (!result.success) {
+    return c.json({ error: result.error }, 400);
+  }
+
+  const zap_split = await getZapSplits(store, Conf.pubkey);
+  if (!zap_split) {
+    return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
+  }
+
+  const { data } = result;
+  const pubkeys = Object.keys(data);
+
+  if (pubkeys.length < 1) {
+    return c.json(200);
+  }
+
+  await updateListAdminEvent(
+    { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    (tags) =>
+      pubkeys.reduce((accumulator, pubkey) => {
+        return addTag(accumulator, ['p', pubkey, data[pubkey].amount.toString(), data[pubkey].message]);
+      }, tags),
+    c,
+  );
+
+  return c.json(200);
+};
+
+const deleteZapSplitSchema = z.array(n.id()).min(1);
+
+export const deleteZapSplitsController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = deleteZapSplitSchema.safeParse(body);
+  const store = c.get('store');
+
+  if (!result.success) {
+    return c.json({ error: result.error }, 400);
+  }
+
+  const zap_split = await getZapSplits(store, Conf.pubkey);
+  if (!zap_split) {
+    return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
+  }
+
+  const { data } = result;
+
+  await updateListAdminEvent(
+    { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    (tags) =>
+      data.reduce((accumulator, currentValue) => {
+        return deleteTag(accumulator, ['p', currentValue]);
+      }, tags),
+    c,
+  );
+
+  return c.json(200);
 };

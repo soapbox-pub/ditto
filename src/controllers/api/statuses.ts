@@ -6,10 +6,15 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { addTag, deleteTag } from '@/utils/tags.ts';
+import { asyncReplaceAll } from '@/utils/text.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
 import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
+import { lookupPubkey } from '@/utils/lookup.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
@@ -24,11 +29,7 @@ import {
   updateListEvent,
 } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
-import { lookupPubkey } from '@/utils/lookup.ts';
-import { addTag, deleteTag } from '@/utils/tags.ts';
-import { asyncReplaceAll } from '@/utils/text.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { getZapSplits } from '@/utils/zap-split.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -71,6 +72,7 @@ const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
   const kysely = await DittoDB.getInstance();
+  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -173,13 +175,27 @@ const createStatusController: AppController = async (c) => {
   const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';
   const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
+  const author = await getAuthor(await c.get('signer')?.getPublicKey()!);
+
+  const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
+  const lnurl = getLnurl(meta);
+  const zap_split = await getZapSplits(store, Conf.pubkey);
+  if (lnurl && zap_split) {
+    let totalSplit = 0;
+    for (const pubkey in zap_split) {
+      totalSplit += zap_split[pubkey].amount;
+      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey].amount.toString()]);
+    }
+    if (totalSplit) {
+      tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+    }
+  }
+
   const event = await createEvent({
     kind: 1,
     content: content + quoteCompat + mediaCompat,
     tags,
   }, c);
-
-  const author = await getAuthor(event.pubkey);
 
   if (data.quote_id) {
     await hydrateEvents({
@@ -189,7 +205,7 @@ const createStatusController: AppController = async (c) => {
     });
   }
 
-  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: await c.get('signer')?.getPublicKey() }));
+  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: author?.pubkey }));
 };
 
 const deleteStatusController: AppController = async (c) => {
