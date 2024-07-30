@@ -8,7 +8,7 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { pipelineEventCounter } from '@/metrics.ts';
+import { pipelineEventCounter, policyEventCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -71,6 +71,7 @@ async function policyFilter(event: NostrEvent): Promise<void> {
 
   try {
     const result = await policyWorker.call(event);
+    policyEventCounter.inc({ ok: String(result[2]) });
     debug(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
