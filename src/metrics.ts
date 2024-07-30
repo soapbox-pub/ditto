@@ -35,6 +35,12 @@ export const pipelineEventCounter = new Counter({
   labelNames: ['kind'],
 });
 
+export const policyEventCounter = new Counter({
+  name: 'policy_events_total',
+  help: 'Total number of policy OK responses',
+  labelNames: ['ok'],
+});
+
 export const relayEventCounter = new Counter({
   name: 'relay_events_total',
   help: 'Total number of EVENT messages processed by the relay',
