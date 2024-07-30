@@ -247,7 +247,7 @@ const contextController: AppController = async (c) => {
   if (event) {
     const [ancestorEvents, descendantEvents] = await Promise.all([
       getAncestors(store, event),
-      getDescendants(store, event.id),
+      getDescendants(store, event),
     ]);
 
     await hydrateEvents({

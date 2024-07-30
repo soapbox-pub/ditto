@@ -74,7 +74,7 @@ async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const [parentEvent] = await store.query([{ kinds: [1], ids: [inReplyTo], limit: 1 }]);
+      const [parentEvent] = await store.query([{ kinds: [1], ids: [inReplyTo], until: event.created_at, limit: 1 }]);
 
       if (parentEvent) {
         result.push(parentEvent);
@@ -88,12 +88,12 @@ async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent
 
 async function getDescendants(
   store: NStore,
-  eventId: string,
+  event: NostrEvent,
   signal = AbortSignal.timeout(2000),
 ): Promise<NostrEvent[]> {
   return await store
-    .query([{ kinds: [1], '#e': [eventId], limit: 200 }], { signal })
-    .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === eventId));
+    .query([{ kinds: [1], '#e': [event.id], since: event.created_at, limit: 200 }], { signal })
+    .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === event.id));
 }
 
 /** Returns whether the pubkey is followed by a local user. */
