@@ -8,11 +8,11 @@
       "jsr:@gleasonator/policy": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.2.0": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
-      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.1",
-      "jsr:@nostrify/nostrify@0.27.0": "jsr:@nostrify/nostrify@0.27.0",
+      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.3",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
+      "jsr:@nostrify/nostrify@^0.28.0": "jsr:@nostrify/nostrify@0.28.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
@@ -116,6 +116,9 @@
       "@hono/hono@4.5.1": {
         "integrity": "459748ed4d4146c6e4bdff0213ff1ac44749904066ae02e7550d6c7f28c9bc4c"
       },
+      "@hono/hono@4.5.3": {
+        "integrity": "429923b2b3c6586a1450862328d61a1346fee5841e8ae86c494250475057213c"
+      },
       "@nostrify/nostrify@0.22.4": {
         "integrity": "1c8a7847e5773213044b491e85fd7cafae2ad194ce59da4d957d2b27c776b42d",
         "dependencies": [
@@ -145,8 +148,8 @@
           "npm:zod@^3.23.8"
         ]
       },
-      "@nostrify/nostrify@0.27.0": {
-        "integrity": "c4461dd93ed78c7bd0f3a4fbc0d77ba68acafa05ffcf6b82f3f3962a3a7e9698",
+      "@nostrify/nostrify@0.28.0": {
+        "integrity": "abaacd679e2a00a4394d60858d67e5b9a11605c785526d7f6ba354ccd8df087d",
         "dependencies": [
           "jsr:@std/crypto@^0.224.0",
           "jsr:@std/encoding@^0.224.1",
@@ -1766,7 +1769,7 @@
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@hono/hono@^4.4.6",
-      "jsr:@nostrify/nostrify@0.27.0",
+      "jsr:@nostrify/nostrify@^0.28.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
