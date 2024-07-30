@@ -8,6 +8,7 @@
       "jsr:@gleasonator/policy": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.2.0": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
+      "jsr:@gleasonator/policy@0.4.1": "jsr:@gleasonator/policy@0.4.1",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.3",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
@@ -103,6 +104,12 @@
       },
       "@gleasonator/policy@0.4.0": {
         "integrity": "59c2f3ab1dc663e99a3e10b7eb69bf9fe581ce5d428fe56653e38f7f961da5ea",
+        "dependencies": [
+          "jsr:@nostrify/nostrify@^0.22.1"
+        ]
+      },
+      "@gleasonator/policy@0.4.1": {
+        "integrity": "4d42d11d2e9b5f183cec1ca73dbb6f5cd50475efb2bef9495857fa8e5e5d8251",
         "dependencies": [
           "jsr:@nostrify/nostrify@^0.22.1"
         ]
