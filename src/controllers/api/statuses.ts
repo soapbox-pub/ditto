@@ -258,7 +258,7 @@ const contextController: AppController = async (c) => {
 
     const [ancestors, descendants] = await Promise.all([
       renderStatuses(ancestorEvents),
-      renderStatuses(descendantEvents),
+      renderStatuses(descendantEvents.reverse()),
     ]);
 
     return c.json({ ancestors, descendants });
