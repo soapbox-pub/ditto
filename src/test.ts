@@ -6,8 +6,8 @@ import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
 import { NDatabase, NostrEvent } from '@nostrify/nostrify';
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
-import postgres from 'postgres';
 import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
+import postgres from 'postgres';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -113,6 +113,7 @@ export const createTestDB = async (databaseUrl?: string) => {
     });
   } else {
     kysely = new Kysely({
+      // @ts-ignore Kysely version mismatch.
       dialect: new PostgresJSDialect({
         postgres: postgres(Conf.databaseUrl, {
           max: Conf.pg.poolSize,
