@@ -1,5 +1,15 @@
-import { Kysely } from 'kysely';
-import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
+import {
+  BinaryOperationNode,
+  FunctionNode,
+  Kysely,
+  OperatorNode,
+  PostgresAdapter,
+  PostgresIntrospector,
+  PostgresQueryCompiler,
+  PrimitiveValueListNode,
+  ValueNode,
+} from 'kysely';
+import { PostgresJSDialectConfig, PostgresJSDriver } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
 import { Conf } from '@/config.ts';
@@ -18,9 +28,22 @@ export class DittoPostgres {
 
     if (!this.db) {
       this.db = new Kysely({
-        dialect: new PostgresJSDialect({
-          postgres: this.postgres as unknown as PostgresJSDialectConfig['postgres'],
-        }),
+        dialect: {
+          createAdapter() {
+            return new PostgresAdapter();
+          },
+          createDriver() {
+            return new PostgresJSDriver({
+              postgres: DittoPostgres.postgres as unknown as PostgresJSDialectConfig['postgres'],
+            });
+          },
+          createIntrospector(db) {
+            return new PostgresIntrospector(db);
+          },
+          createQueryCompiler() {
+            return new DittoPostgresQueryCompiler();
+          },
+        },
         log: KyselyLogger,
       });
     }
@@ -34,5 +57,20 @@ export class DittoPostgres {
 
   static get availableConnections(): number {
     return this.postgres?.connections.idle ?? 0;
+  }
+}
+
+/** Converts `in` queries to `any` to improve prepared statements on Postgres. */
+class DittoPostgresQueryCompiler extends PostgresQueryCompiler {
+  protected override visitBinaryOperation(node: BinaryOperationNode): void {
+    if (
+      OperatorNode.is(node.operator) && node.operator.operator === 'in' && PrimitiveValueListNode.is(node.rightOperand)
+    ) {
+      this.visitNode(node.leftOperand);
+      this.append(' = ');
+      this.visitNode(FunctionNode.create('any', [ValueNode.create(node.rightOperand.values)]));
+    } else {
+      super.visitBinaryOperation(node);
+    }
   }
 }

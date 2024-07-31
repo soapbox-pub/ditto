@@ -50,7 +50,7 @@
     "hono-rate-limiter": "npm:hono-rate-limiter@^0.3.0",
     "iso-639-1": "npm:iso-639-1@2.1.15",
     "isomorphic-dompurify": "npm:isomorphic-dompurify@^2.11.0",
-    "kysely": "npm:kysely@^0.27.3",
+    "kysely": "npm:kysely@^0.27.4",
     "postgres": "https://raw.githubusercontent.com/xyzshantaram/postgres.js/8a9bbce88b3f6425ecaacd99a80372338b157a53/deno/mod.js",
     "kysely-postgres-js": "npm:kysely-postgres-js@2.0.0",
     "light-bolt11-decoder": "npm:light-bolt11-decoder",

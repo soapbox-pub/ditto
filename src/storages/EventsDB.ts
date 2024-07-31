@@ -43,6 +43,7 @@ class EventsDB implements NStore {
   };
 
   constructor(private kysely: Kysely<DittoTables>) {
+    // @ts-ignore Kysely version mismatch.
     this.store = new NDatabase(kysely, {
       fts: Conf.db.dialect,
       timeoutStrategy: Conf.db.dialect === 'postgres' ? 'setStatementTimeout' : undefined,
