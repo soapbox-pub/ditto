@@ -15,7 +15,6 @@ export class DittoSQLite {
       await sqliteWorker.open(this.path);
 
       this.db = new Kysely<DittoTables>({
-        // @ts-ignore Kysely version mismatch.
         dialect: new PolySqliteDialect({
           database: sqliteWorker,
         }),
