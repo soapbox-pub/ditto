@@ -1,5 +1,7 @@
+import { Semaphore } from '@lambdalisue/async';
 import { Stickynotes } from '@soapbox/stickynotes';
 
+import { Conf } from '@/config.ts';
 import { firehoseEventCounter } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
@@ -7,6 +9,7 @@ import { nostrNow } from '@/utils.ts';
 import * as pipeline from '@/pipeline.ts';
 
 const console = new Stickynotes('ditto:firehose');
+const sem = new Semaphore(Conf.firehoseConcurrency);
 
 /**
  * This function watches events on all known relays and performs
@@ -22,9 +25,13 @@ export async function startFirehose(): Promise<void> {
       console.debug(`NostrEvent<${event.kind}> ${event.id}`);
       firehoseEventCounter.inc({ kind: event.kind });
 
-      pipeline
-        .handleEvent(event, AbortSignal.timeout(5000))
-        .catch(() => {});
+      sem.lock(async () => {
+        try {
+          await pipeline.handleEvent(event, AbortSignal.timeout(5000));
+        } catch (e) {
+          console.warn(e);
+        }
+      });
     }
   }
 }
