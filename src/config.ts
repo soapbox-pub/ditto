@@ -242,6 +242,10 @@ class Conf {
   static get firehoseEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('FIREHOSE_ENABLED')) ?? true;
   }
+  /** Number of events the firehose is allowed to process at one time before they have to wait in a queue. */
+  static get firehoseConcurrency(): number {
+    return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? (Conf.pg.poolSize * 0.25)));
+  }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
