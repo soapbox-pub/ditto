@@ -1,13 +1,24 @@
 // deno-lint-ignore-file require-await
 
-import { NDatabase, NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n, NStore } from '@nostrify/nostrify';
+import {
+  NDatabase,
+  NIP50,
+  NKinds,
+  NostrEvent,
+  NostrFilter,
+  NostrRelayCLOSED,
+  NostrRelayEOSE,
+  NostrRelayEVENT,
+  NSchema as n,
+  NStore,
+} from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { dbEventCounter, dbQueryCounter } from '@/metrics.ts';
+import { dbEventCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -137,13 +148,20 @@ class EventsDB implements NStore {
     }
   }
 
+  /** Stream events from the database. */
+  req(
+    filters: NostrFilter[],
+    opts: { signal?: AbortSignal } = {},
+  ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
+    return this.store.req(filters, opts);
+  }
+
   /** Get events for filters from the database. */
   async query(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
   ): Promise<NostrEvent[]> {
     filters = await this.expandFilters(filters);
-    dbQueryCounter.inc();
 
     for (const filter of filters) {
       if (filter.since && filter.since >= 2_147_483_647) {
