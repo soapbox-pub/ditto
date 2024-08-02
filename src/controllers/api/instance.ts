@@ -4,16 +4,12 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
-import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
 
 const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
-  const store = c.get('store');
-
-  const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey) ?? {};
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -72,9 +68,6 @@ const instanceV1Controller: AppController = async (c) => {
       },
     },
     rules: [],
-    ditto: {
-      zap_split,
-    },
   });
 };
 
