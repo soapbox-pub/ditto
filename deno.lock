@@ -35,9 +35,11 @@
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
       "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.1",
       "jsr:@std/io@^0.224": "jsr:@std/io@0.224.4",
+      "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.217": "jsr:@std/path@0.217.0",
       "jsr:@std/path@^0.221.0": "jsr:@std/path@0.221.0",
+      "jsr:@std/streams@^0.223.0": "jsr:@std/streams@0.223.0",
       "npm:@isaacs/ttlcache@^1.4.1": "npm:@isaacs/ttlcache@1.4.1",
       "npm:@noble/hashes@^1.4.0": "npm:@noble/hashes@1.4.0",
       "npm:@scure/base@^1.1.6": "npm:@scure/base@1.1.6",
@@ -272,6 +274,9 @@
           "jsr:@std/bytes@^1.0.2-rc.3"
         ]
       },
+      "@std/json@0.223.0": {
+        "integrity": "9a4a255931dd0397924c6b10bb6a72fe3e28ddd876b981ada2e3b8dd0764163f"
+      },
       "@std/media-types@0.224.1": {
         "integrity": "9e69a5daed37c5b5c6d3ce4731dc191f80e67f79bed392b0957d1d03b87f11e1"
       },
@@ -286,6 +291,9 @@
         "dependencies": [
           "jsr:@std/assert@^0.221.0"
         ]
+      },
+      "@std/streams@0.223.0": {
+        "integrity": "d6b28e498ced3960b04dc5d251f2dcfc1df244b5ec5a48dc23a8f9b490be3b99"
       }
     },
     "npm": {
