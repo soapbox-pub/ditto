@@ -40,6 +40,7 @@ import {
   adminRelaysController,
   adminSetRelaysController,
   deleteZapSplitsController,
+  getZapSplitsController,
   nameRequestController,
   nameRequestsController,
   updateZapSplitsController,
@@ -262,6 +263,8 @@ app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysContro
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
+
+app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
 app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
