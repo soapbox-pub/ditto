@@ -62,19 +62,19 @@ export class DittoDB {
       }),
     });
 
-    console.info('Running migrations...');
-    const results = await migrator.migrateToLatest();
+    console.warn('Running migrations...');
+    const { results, error } = await migrator.migrateToLatest();
 
-    if (results.error) {
-      console.error(results.error);
+    if (error) {
+      console.error(error);
       Deno.exit(1);
     } else {
-      if (!results.results?.length) {
-        console.info('Everything up-to-date.');
+      if (!results?.length) {
+        console.warn('Everything up-to-date.');
       } else {
-        console.info('Migrations finished!');
-        for (const { migrationName, status } of results.results!) {
-          console.info(`  - ${migrationName}: ${status}`);
+        console.warn('Migrations finished!');
+        for (const { migrationName, status } of results!) {
+          console.warn(`  - ${migrationName}: ${status}`);
         }
       }
     }

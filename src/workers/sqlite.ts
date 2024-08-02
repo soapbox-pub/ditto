@@ -1,7 +1,10 @@
 import * as Comlink from 'comlink';
+import { asyncGeneratorTransferHandler } from 'comlink-async-generator';
 import { CompiledQuery, QueryResult } from 'kysely';
 
 import type { SqliteWorker as _SqliteWorker } from './sqlite.worker.ts';
+
+Comlink.transferHandlers.set('asyncGenerator', asyncGeneratorTransferHandler);
 
 class SqliteWorker {
   #worker: Worker;
@@ -33,8 +36,12 @@ class SqliteWorker {
     return this.#client.executeQuery(query) as Promise<QueryResult<R>>;
   }
 
-  streamQuery<R>(): AsyncIterableIterator<R> {
-    throw new Error('Streaming queries are not supported in the web worker');
+  async *streamQuery<R>(query: CompiledQuery): AsyncIterableIterator<QueryResult<R>> {
+    await this.#ready;
+
+    for await (const result of await this.#client.streamQuery(query)) {
+      yield result as QueryResult<R>;
+    }
   }
 
   destroy(): Promise<void> {
