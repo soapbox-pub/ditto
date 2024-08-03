@@ -215,7 +215,7 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
   return await BLANK_META(url);
 };
 
-export const openGraphFrontendController = <E extends Env>(
+export const serveStaticWithOG = <E extends Env>(
   options: ServeStaticOptions<E>,
 ): MiddlewareHandler => {
   // deno-lint-ignore require-await
