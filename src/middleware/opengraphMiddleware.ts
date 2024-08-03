@@ -47,19 +47,19 @@ const instanceName = async () => {
 
 const tpl = async ({ title, type, url, image, description }: OpenGraphTemplateOpts): Promise<string> =>
   html`\
-<meta property="og:title" content="${title}">
-<meta property="og:type" content="${type}">
-<meta property="og:url" content="${url}">
-<meta property="og:description" content="${description}">
-<meta property="og:site_name" content="${await instanceName()}">
+<meta content="${title}" property="og:title">
+<meta content="${type}" property="og:type">
+<meta content="${url}" property="og:url">
+<meta content="${description}" property="og:description">
+<meta content="${await instanceName()}" property="og:site_name">
 
 ${
     image
       ? r(html`
-<meta property="og:image" content="${image.url}">
-<meta property="og:image:width" content="${image.w}">
-<meta property="og:image:height" content="${image.h}">
-${image.alt ? r(html`<meta property="og:image:alt" content="${image.alt}">`) : ''}
+<meta content="${image.url}" property="og:image">
+<meta content="${image.w}" property="og:image:width">
+<meta content="${image.h}" property="og:image:height">
+${image.alt ? r(html`<meta content="${image.alt}" property="og:image:alt">`) : ''}
 `)
       : ''
   }
@@ -71,7 +71,7 @@ ${
     image
       ? r(html`
 <meta name="twitter:image" content="${image.url}">
-${image.alt ? r(html`<meta property="twitter:image:alt" content="${image.alt}">`) : ''}
+${image.alt ? r(html`<meta content="${image.alt}" property="twitter:image:alt">`) : ''}
 `)
       : ''
   }
