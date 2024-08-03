@@ -222,11 +222,13 @@ export const serveStaticWithOG = <E extends Env>(
   return async function serveStatic(c: Context, next: Next) {
     let file = '';
     const getContent = async (path: string) => {
+      console.log('here');
       try {
         if (!file) file = await Deno.readTextFile(path);
         if (!file) throw new Error(`File at ${path} was empty!`);
-        if (c.req.header('accept')?.includes('html') && file.includes(OG_META_PLACEHOLDER)) {
+        if (file.includes(OG_META_PLACEHOLDER)) {
           const params = getPathParams(c.req.path);
+          console.log(params);
           if (params) {
             const meta = await buildMetaTags(params, Conf.local(c.req.path));
             return file.replace(OG_META_PLACEHOLDER, meta);
