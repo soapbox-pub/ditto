@@ -123,7 +123,7 @@ const normalizeHandle = async (handle: string) => {
   return '';
 };
 
-const getKind0 = async (handle: string | undefined): Promise<Pick<NostrMetadata, 'name' | 'about' | 'nip05'>> => {
+const getKind0 = async (handle: string | undefined): Promise<NostrMetadata> => {
   const id = await normalizeHandle(handle || '');
   const kind0 = await getAuthor(id);
 
@@ -186,10 +186,11 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
 
   const kind0 = await getKind0(params.acct);
   const { description, image } = await getStatus(params.statusId || '');
+  const handle = kind0.nip05 || kind0.name || 'npub1xxx';
 
   if (params.acct && params.statusId) {
     return tpl({
-      title: `View @${kind0.name}'s post on Ditto`,
+      title: `View @${handle}'s post on Ditto`,
       type: 'article',
       image,
       description,
@@ -197,10 +198,18 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
     });
   } else if (params.acct) {
     return tpl({
-      title: `View @${kind0.nip05 || kind0.name || 'npub1xxx'}'s profile on Ditto`,
+      title: `View @${handle}'s profile on Ditto`,
       type: 'profile',
       description: kind0.about || '',
       url,
+      image: kind0.picture
+        ? {
+          url: kind0.picture,
+          // Time will tell if this is fine.
+          h: 150,
+          w: 150,
+        }
+        : undefined,
     });
   } else if (params.statusId) {
     return tpl({
