@@ -121,7 +121,7 @@ import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
-import { serveStaticWithOG } from '@/middleware/opengraphMiddleware.ts';
+import { serveStaticWithOG } from './middleware/serveStaticWithOG.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
