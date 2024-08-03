@@ -12,6 +12,7 @@ import { Conf } from '@/config.ts';
 
 /*
  * TODO: implement caching for posts (LRUCache)
+ * TODO: use profile images if available
  */
 
 interface OpenGraphTemplateOpts {
