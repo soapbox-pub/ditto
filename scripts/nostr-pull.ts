@@ -138,7 +138,7 @@ if (import.meta.main) {
 }
 
 function showHelp() {
-  console.info('ditto - db:import');
+  console.info('ditto - nostr:pull');
   console.info("Import users' posts and kind 0s from a given set of relays.\n");
   showUsage();
   console.info(`
@@ -151,7 +151,7 @@ OPTIONS:
 
 function showUsage() {
   console.info(
-    'Usage: deno task db:import [options] npub1xxxxxx[ npub1yyyyyyy]...' +
+    'Usage: deno task nostr:pull [options] npub1xxxxxx[ npub1yyyyyyy]...' +
       ' wss://first.relay[ second.relay]...',
   );
 }
