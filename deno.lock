@@ -71,6 +71,8 @@
       "npm:nostr-tools@^2.5.0": "npm:nostr-tools@2.5.1",
       "npm:nostr-tools@^2.7.0": "npm:nostr-tools@2.7.0",
       "npm:nostr-wasm@^0.1.0": "npm:nostr-wasm@0.1.0",
+      "npm:path-to-regexp@6.2.1": "npm:path-to-regexp@6.2.1",
+      "npm:path-to-regexp@7.1.0": "npm:path-to-regexp@7.1.0",
       "npm:postgres@3.4.4": "npm:postgres@3.4.4",
       "npm:prom-client@^15.1.2": "npm:prom-client@15.1.2",
       "npm:tldts@^6.0.14": "npm:tldts@6.1.18",
@@ -933,6 +935,14 @@
         "integrity": "sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ==",
         "dependencies": {}
       },
+      "path-to-regexp@6.2.1": {
+        "integrity": "sha512-JLyh7xT1kizaEvcaXOQwOc2/Yhw6KZOvPf1S8401UyLk86CU79LN3vl7ztXGm/pZ+YjoyAJ4rxmHwbkBXJX+yw==",
+        "dependencies": {}
+      },
+      "path-to-regexp@7.1.0": {
+        "integrity": "sha512-ZToe+MbUF4lBqk6dV8GKot4DKfzrxXsplOddH8zN3YK+qw9/McvP7+4ICjZvOne0jQhN4eJwHsX6tT0Ns19fvw==",
+        "dependencies": {}
+      },
       "picomatch@2.3.1": {
         "integrity": "sha512-JU3teHTNjmE2VCGFzuY8EXzCDVwEqB2a8fsIvwaStHhAWJEeVd1o1QD80CU6+ZdEXXSLbSsuLwJjkCBWqRQUVA==",
         "dependencies": {}
@@ -1734,7 +1744,9 @@
     "https://deno.land/x/postgres@v0.19.0/utils/deferred.ts": "5420531adb6c3ea29ca8aac57b9b59bd3e4b9a938a4996bbd0947a858f611080",
     "https://deno.land/x/postgres@v0.19.0/utils/utils.ts": "ca47193ea03ff5b585e487a06f106d367e509263a960b787197ce0c03113a738",
     "https://deno.land/x/sentry@7.112.2/index.mjs": "04382d5c2f4e233ba389611db46f77943b2a7f6efbeaaf31193f6e586f4366ef",
+    "https://esm.sh/campfire.js@4.0.0-alpha3": "81a8acce35c2b5dad01f8699d14671e0bef233908d86e2b3f12ebde3a3ac3436",
     "https://esm.sh/kysely@0.17.1/dist/esm/index-nodeless.js": "9c23bfd307118e3ccd3a9f0ec1261fc3451fb5301aa34aa6f28e05156818755a",
+    "https://esm.sh/v135/campfire.js@4.0.0-alpha3/denonext/campfire.mjs": "192fa94e07ff4356fe8afa75b59063a217eec1f0d68c26fe4b4547730e6fc3f2",
     "https://esm.sh/v135/kysely@0.17.1/denonext/dist/esm/index-nodeless.js": "6f73bbf2d73bc7e96cdabf941c4ae8c12f58fd7b441031edec44c029aed9532b",
     "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts": "3f74ab08cf97d4a3e6994cb79422e9b0069495e017416858121d5ff8ae04ac2a",
     "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/mod.ts": "5f505cd265aefbcb687cde6f98c79344d3292ee1dd978e85e5ffa84a617c6682",
@@ -1841,6 +1853,7 @@
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1",
       "npm:nostr-wasm@^0.1.0",
+      "npm:path-to-regexp@6.2.1",
       "npm:prom-client@^15.1.2",
       "npm:tldts@^6.0.14",
       "npm:tseep@^1.2.1",

@@ -121,6 +121,7 @@ import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
+import { openGraphFrontendController } from '@/middleware/opengraphMiddleware.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -314,7 +315,7 @@ app.use('/oauth/*', notImplementedController);
 
 const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
-const frontendController = serveStatic({ path: './public/index.html' });
+const frontendController = openGraphFrontendController({ path: './public/index.html' });
 
 // Known frontend routes
 app.get('/@:acct', frontendController);
