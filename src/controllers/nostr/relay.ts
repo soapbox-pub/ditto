@@ -28,9 +28,11 @@ const limiter = new TTLCache<string, number>();
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
+  let opened = false;
   const controllers = new Map<string, AbortController>();
 
   socket.onopen = () => {
+    opened = true;
     relayConnectionsGauge.inc();
   };
 
@@ -61,7 +63,9 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   };
 
   socket.onclose = () => {
-    relayConnectionsGauge.dec();
+    if (opened) {
+      relayConnectionsGauge.dec();
+    }
 
     for (const controller of controllers.values()) {
       controller.abort();
