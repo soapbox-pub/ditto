@@ -123,7 +123,7 @@ const normalizeHandle = async (handle: string) => {
   return '';
 };
 
-const getKind0 = async (handle: string | undefined): Promise<Required<Pick<NostrMetadata, 'name' | 'about'>>> => {
+const getKind0 = async (handle: string | undefined): Promise<Pick<NostrMetadata, 'name' | 'about' | 'nip05'>> => {
   const id = await normalizeHandle(handle || '');
   const kind0 = await getAuthor(id);
 
@@ -197,9 +197,9 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
     });
   } else if (params.acct) {
     return tpl({
-      title: `View @${kind0.name}'s profile on Ditto`,
+      title: `View @${kind0.nip05 || kind0.name || 'npub1xxx'}'s profile on Ditto`,
       type: 'profile',
-      description: kind0.about,
+      description: kind0.about || '',
       url,
     });
   } else if (params.statusId) {
@@ -222,13 +222,11 @@ export const serveStaticWithOG = <E extends Env>(
   return async function serveStatic(c: Context, next: Next) {
     let file = '';
     const getContent = async (path: string) => {
-      console.log('here');
       try {
         if (!file) file = await Deno.readTextFile(path);
         if (!file) throw new Error(`File at ${path} was empty!`);
         if (file.includes(OG_META_PLACEHOLDER)) {
           const params = getPathParams(c.req.path);
-          console.log(params);
           if (params) {
             const meta = await buildMetaTags(params, Conf.local(c.req.path));
             return file.replace(OG_META_PLACEHOLDER, meta);
