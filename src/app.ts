@@ -108,6 +108,7 @@ import {
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
 import { errorHandler } from '@/controllers/error.ts';
+import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import '@/startup.ts';
@@ -121,7 +122,6 @@ import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
-import { serveStaticWithOG } from './middleware/serveStaticWithOG.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -315,7 +315,6 @@ app.use('/oauth/*', notImplementedController);
 
 const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
-const frontendController = serveStaticWithOG({ path: './public/index.html' });
 
 // Known frontend routes
 app.get('/@:acct', frontendController);

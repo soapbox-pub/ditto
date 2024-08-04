@@ -27,6 +27,7 @@ interface StatusInfo {
 }
 
 const store = await Storages.db();
+
 export const getInstanceName = async () => {
   const meta = await getInstanceMetadata(store, AbortSignal.timeout(1000));
   return meta?.name || 'Ditto';

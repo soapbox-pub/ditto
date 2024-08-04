@@ -1,5 +1,3 @@
-import { Context, Env, MiddlewareHandler, Next } from '@hono/hono';
-import { serveStatic as baseServeStatic, ServeStaticOptions } from '@hono/hono/serve-static';
 import { html, r } from '@/utils/html.ts';
 import { Conf } from '@/config.ts';
 import {
@@ -10,6 +8,7 @@ import {
   OpenGraphTemplateOpts,
   PathParams,
 } from '@/utils/og-metadata.ts';
+import { AppMiddleware } from '@/app.ts';
 
 /** Placeholder to find & replace with metadata. */
 const OG_META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
@@ -108,37 +107,20 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
   return await BLANK_META(url);
 };
 
-export function serveStaticWithOG<E extends Env>(
-  options: ServeStaticOptions<E>,
-): MiddlewareHandler {
-  // deno-lint-ignore require-await
-  return async function serveStatic(c: Context, next: Next) {
-    let file = '';
-    const getContent = async (path: string) => {
-      try {
-        if (!file) file = await Deno.readTextFile(path);
-        if (!file) throw new Error(`File at ${path} was empty!`);
-        if (file.includes(OG_META_PLACEHOLDER)) {
-          const params = getPathParams(c.req.path);
-          if (params) {
-            const meta = await buildMetaTags(params, Conf.local(c.req.path));
-            return file.replace(OG_META_PLACEHOLDER, meta);
-          }
-        }
-        return file;
-      } catch (e) {
-        console.warn(`${e}`);
-      }
+export const frontendController: AppMiddleware = async (c, next) => {
+  try {
+    const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
+    if (content.includes(OG_META_PLACEHOLDER)) {
+      const params = getPathParams(c.req.path);
 
-      return '';
-    };
-    const pathResolve = (path: string) => {
-      return `./${path}`;
-    };
-    return baseServeStatic({
-      ...options,
-      getContent,
-      pathResolve,
-    })(c, next);
-  };
-}
+      if (params) {
+        const meta = await buildMetaTags(params, Conf.local(c.req.path));
+        return c.html(content.replace(OG_META_PLACEHOLDER, meta));
+      }
+    }
+    return c.html(content);
+  } catch (e) {
+    console.log(e);
+    await next();
+  }
+};
