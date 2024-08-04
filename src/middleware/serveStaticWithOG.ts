@@ -67,8 +67,10 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
   if (!params.acct && !params.statusId) return await BLANK_META(url);
 
   const kind0 = await getProfileInfo(params.acct);
+  console.log(params.acct);
   const { description, image } = await getStatusInfo(params.statusId || '');
-  const handle = kind0.nip05?.replace(/^@_/, '') || kind0.name || 'npub1xxx';
+  const handle = kind0.nip05?.replace(/^_@/, '') || kind0.name || 'npub1xxx';
+  console.log({ n: kind0.nip05, handle });
 
   if (params.acct && params.statusId) {
     return tpl({
