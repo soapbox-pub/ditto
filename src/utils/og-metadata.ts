@@ -68,16 +68,15 @@ export function getPathParams(path: string) {
     } else if (params.npub) {
       params.acct = nip19.decode(`npub${params.npub}`).data as string;
     }
-    console.log(params);
     return params;
   }
 }
 
 async function urlParamToPubkey(handle: string) {
   const id = `${handle}`;
-  const parts = id.match(/(?:(.+))?@(.+)/);
+  const parts = id.match(/(?:(.+)@)?(.+)/);
   if (parts) {
-    const key = `${parts[1] || ''}@${parts[2]}`;
+    const key = `${parts[1] ? (parts[1] + '@') : ''}${parts[2]}`;
     return await nip05Cache.fetch(key, { signal: AbortSignal.timeout(1000) }).then((res) => res.pubkey);
   } else if (id.startsWith('npub1')) {
     return nip19.decode(id as `npub1${string}`).data;
