@@ -1,6 +1,6 @@
 import { Context, Env, MiddlewareHandler, Next } from '@hono/hono';
 import { serveStatic as baseServeStatic, ServeStaticOptions } from '@hono/hono/serve-static';
-import { html, r } from 'campfire.js';
+import { html, r } from '@/utils/html.ts';
 import { Conf } from '@/config.ts';
 import {
   getInstanceName,

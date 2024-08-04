@@ -44,7 +44,6 @@
     "@std/json": "jsr:@std/json@^0.223.0",
     "@std/media-types": "jsr:@std/media-types@^0.224.1",
     "@std/streams": "jsr:@std/streams@^0.223.0",
-    "campfire.js": "https://esm.sh/campfire.js@4.0.0-alpha3",
     "comlink": "npm:comlink@^4.4.1",
     "comlink-async-generator": "npm:comlink-async-generator@^0.0.1",
     "deno-safe-fetch/load": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
