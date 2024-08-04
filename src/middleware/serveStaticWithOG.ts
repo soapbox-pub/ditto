@@ -23,10 +23,7 @@ interface OpenGraphTemplateOpts {
   description: string;
 }
 
-interface PathParams {
-  statusId?: string;
-  acct?: string;
-}
+type PathParams = Partial<Record<'statusId' | 'acct' | 'note' | 'nevent' | 'nprofile' | 'npub', string>>;
 
 interface StatusInfo {
   description: string;
@@ -97,6 +94,11 @@ const SSR_ROUTES = [
   '/users/:acct',
   '/statuses/:statusId',
   '/notice/:statusId',
+  '/posts/:statusId',
+  '/note:note',
+  '/nevent:nevent',
+  '/nprofile:nprofile',
+  '/npub:npub',
 ] as const;
 
 const SSR_ROUTE_MATCHERS = SSR_ROUTES.map((route) => match(route, { decode: decodeURIComponent }));
@@ -104,19 +106,36 @@ const SSR_ROUTE_MATCHERS = SSR_ROUTES.map((route) => match(route, { decode: deco
 const getPathParams = (path: string) => {
   for (const matcher of SSR_ROUTE_MATCHERS) {
     const result = matcher(path);
-    if (result) return result.params as PathParams;
+    if (!result) continue;
+    const params = result.params as PathParams;
+    if (params.nevent) {
+      const decoded = nip19.decode(`nevent${params.nevent}`).data as nip19.EventPointer;
+      params.statusId = decoded.id;
+    } else if (params.note) {
+      params.statusId = nip19.decode(`note${params.note}`).data as string;
+    }
+
+    if (params.nprofile) {
+      const decoded = nip19.decode(`nprofile${params.nprofile}`).data as nip19.ProfilePointer;
+      params.acct = decoded.pubkey;
+    } else if (params.npub) {
+      params.acct = nip19.decode(`npub${params.npub}`).data as string;
+    }
+    console.log(params);
+    return params;
   }
 };
 
 const normalizeHandle = async (handle: string) => {
   const id = `${handle}`;
   const parts = id.match(/(?:(.+))?@(.+)/);
-
   if (parts) {
     const key = `${parts[1] || ''}@${parts[2]}`;
     return await nip05Cache.fetch(key, { signal: AbortSignal.timeout(1000) }).then((res) => res.pubkey);
   } else if (id.startsWith('npub1')) {
     return nip19.decode(id as `npub1${string}`).data;
+  } else if (/(?:[0-9]|[a-f]){64}/.test(id)) {
+    return id;
   }
 
   // shouldn't ever happen for a well-formed link
