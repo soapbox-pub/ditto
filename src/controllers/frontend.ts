@@ -54,10 +54,14 @@ export const frontendController: AppMiddleware = async (c, next) => {
     const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
-
       if (params) {
-        const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
-        return c.html(content.replace(META_PLACEHOLDER, meta));
+        try {
+          const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
+          return c.html(content.replace(META_PLACEHOLDER, meta));
+        }
+        catch {
+          return c.html(content);
+        }
       }
     }
     return c.html(content);
