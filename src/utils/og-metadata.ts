@@ -112,8 +112,8 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
     const fallback = nip19.npubEncode(pubkey).slice(0, 8);
     try {
       const author = acc || await fetchProfile({ pubkey });
-      if (author.meta.nip05) return parseNip05(author.meta.nip05).handle;
-      else if (author.meta.name) return author.meta.name;
+      if (author?.meta?.nip05) return parseNip05(author.meta.nip05).handle;
+      else if (author?.meta?.name) return author.meta.name;
     } catch (e) {
       console.debug('Error in getHandle: ', e);
     }
