@@ -3,8 +3,11 @@ import { getEvent } from '@/queries.ts';
 import { nip19, nip27 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
 
+import { Stickynotes } from '@soapbox/stickynotes';
 import { lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
+
+const console = new Stickynotes('ditto:frontend');
 
 export interface OpenGraphTemplateOpts {
   title: string;
@@ -78,6 +81,7 @@ type ProfileInfo = { name: string; about: string } & NostrMetadata;
  * or sensible defaults if the kind 0 has those values missing.
  */
 export async function getProfileInfo(handle: string | undefined): Promise<ProfileInfo> {
+  console.debug(handle);
   const acc = await lookupAccount(handle || '');
   if (!acc) throw new Error('Invalid handle specified, or account not found.');
 

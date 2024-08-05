@@ -60,7 +60,8 @@ export const frontendController: AppMiddleware = async (c, next) => {
         try {
           const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
           return c.html(content.replace(META_PLACEHOLDER, meta));
-        } catch {
+        } catch (e) {
+          console.debug(e);
           return c.html(content);
         }
       }
