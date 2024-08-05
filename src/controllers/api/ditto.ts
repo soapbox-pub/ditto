@@ -173,8 +173,8 @@ export const updateZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
@@ -208,8 +208,8 @@ export const deleteZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
@@ -230,24 +230,24 @@ export const deleteZapSplitsController: AppController = async (c) => {
 export const getZapSplitsController: AppController = async (c) => {
   const store = c.get('store');
 
-  const zap_split: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey) ?? {};
-  if (!zap_split) {
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey) ?? {};
+  if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
-  const pubkeys = Object.keys(zap_split);
+  const pubkeys = Object.keys(dittoZapSplit);
 
-  const zapSplitEntity = await Promise.all(pubkeys.map(async (pubkey) => {
+  const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
     const author = await getAuthor(pubkey);
 
     const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
 
     return {
       account,
-      weight: zap_split[pubkey].weight,
-      message: zap_split[pubkey].message,
+      weight: dittoZapSplit[pubkey].weight,
+      message: dittoZapSplit[pubkey].message,
     };
   }));
 
-  return c.json(zapSplitEntity, 200);
+  return c.json(zapSplits, 200);
 };
