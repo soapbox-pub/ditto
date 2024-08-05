@@ -31,6 +31,11 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
     description: meta.about,
     url,
     site: meta.name,
+    image: {
+      url: Conf.local('/favicon.ico'),
+      w: 48,
+      h: 48,
+    },
   };
 
   if (params.acct && !params.statusId) {
