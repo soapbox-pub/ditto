@@ -1,7 +1,5 @@
-import { Storages } from '@/storages.ts';
 import { NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { getAuthor, getEvent } from '@/queries.ts';
-import { getInstanceMetadata } from '@/utils/instance.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { match } from 'path-to-regexp';
 import { nip19 } from 'nostr-tools';
@@ -12,6 +10,7 @@ export interface OpenGraphTemplateOpts {
   url: string;
   image?: StatusInfo['image'];
   description: string;
+  site: string;
 }
 
 export type PathParams = Partial<Record<'statusId' | 'acct' | 'note' | 'nevent' | 'nprofile' | 'npub', string>>;
@@ -25,13 +24,6 @@ interface StatusInfo {
     alt?: string;
   };
 }
-
-const store = await Storages.db();
-
-export const getInstanceName = async () => {
-  const meta = await getInstanceMetadata(store, AbortSignal.timeout(1000));
-  return meta?.name || 'Ditto';
-};
 
 /** URL routes to serve metadata on. */
 const SSR_ROUTES = [
