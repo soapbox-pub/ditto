@@ -115,7 +115,8 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
       if (author?.meta?.nip05) return parseNip05(author.meta.nip05).handle;
       else if (author?.meta?.name) return author.meta.name;
     } catch (e) {
-      console.debug('Error in getHandle: ', e);
+      console.debug('Error fetching profile/parsing nip-05 in getHandle');
+      console.debug(e);
     }
     return fallback;
   };
@@ -148,8 +149,8 @@ export async function getStatusInfo(id: string): Promise<StatusInfo> {
   try {
     const handle = await getHandle(event.pubkey);
     title = `View @${handle}'s post on Ditto`;
-  } catch (e) {
-    console.log(e);
+  } catch (_) {
+    console.log(`Error getting status info for ${id}: proceeding silently`);
   }
   const res: StatusInfo = {
     title,

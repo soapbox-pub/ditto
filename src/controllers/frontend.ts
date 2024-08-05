@@ -36,7 +36,6 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
   try {
     if (params.acct && !params.statusId) {
       const key = /^[a-f0-9]{64}$/.test(params.acct) ? 'pubkey' : 'handle';
-      console.log(key);
       let handle = '';
       try {
         const profile = await fetchProfile({ [key]: params.acct });
@@ -45,8 +44,8 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
         if (profile.meta.picture) {
           res.image = { url: profile.meta.picture, h: 150, w: 150 };
         }
-      } catch (e) {
-        console.debug(e);
+      } catch (_) {
+        console.debug(`couldn't find kind 0 for ${params.acct}`);
         // @ts-ignore we don't want getHandle trying to do a lookup here
         // but we do want it to give us a nice pretty npub
         handle = await getHandle(params.acct, {});
@@ -77,7 +76,7 @@ export const frontendController: AppMiddleware = async (c, next) => {
   try {
     const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
     const ua = c.req.header('User-Agent');
-    console.debug('got ua', ua);
+    console.debug('ua', ua);
     if (!SHOULD_INJECT_RE.test(ua || '')) {
       return c.html(content);
     }
@@ -88,7 +87,7 @@ export const frontendController: AppMiddleware = async (c, next) => {
           const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
           return c.html(content.replace(META_PLACEHOLDER, meta));
         } catch (e) {
-          console.log(e);
+          console.log(`Error in building meta tags: ${e}`);
           return c.html(content);
         }
       }
