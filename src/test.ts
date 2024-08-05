@@ -2,9 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { Database as Sqlite } from '@db/sqlite';
+import { NDatabase } from '@nostrify/db';
+import { NostrEvent } from '@nostrify/nostrify';
 import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
-import { NDatabase, NostrEvent } from '@nostrify/nostrify';
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
 import postgres from 'postgres';
