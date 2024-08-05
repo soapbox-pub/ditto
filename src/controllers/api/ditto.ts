@@ -159,7 +159,7 @@ export const nameRequestsController: AppController = async (c) => {
 const zapSplitSchema = z.record(
   n.id(),
   z.object({
-    amount: z.number().int().min(1).max(100),
+    weight: z.number().int().min(1).max(100),
     message: z.string().max(500),
   }),
 );
@@ -189,7 +189,7 @@ export const updateZapSplitsController: AppController = async (c) => {
     { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       pubkeys.reduce((accumulator, pubkey) => {
-        return addTag(accumulator, ['p', pubkey, data[pubkey].amount.toString(), data[pubkey].message]);
+        return addTag(accumulator, ['p', pubkey, data[pubkey].weight.toString(), data[pubkey].message]);
       }, tags),
     c,
   );
@@ -244,7 +244,7 @@ export const getZapSplitsController: AppController = async (c) => {
 
     return {
       account,
-      amount: zap_split[pubkey].amount,
+      weight: zap_split[pubkey].weight,
       message: zap_split[pubkey].message,
     };
   }));
