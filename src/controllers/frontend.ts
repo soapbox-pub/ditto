@@ -37,20 +37,25 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
       h: 48,
     },
   };
-
-  if (params.acct && !params.statusId) {
-    const profile = await getProfileInfo(params.acct);
-    res.type = 'profile';
-    res.title = `View @${await getHandle(params.acct)}'s profile on Ditto`;
-    res.description = profile.about;
-    if (profile.picture) {
-      res.image = { url: profile.picture, h: 150, w: 150 };
+  try {
+    if (params.acct && !params.statusId) {
+      const profile = await getProfileInfo(params.acct);
+      res.type = 'profile';
+      res.title = `View @${await getHandle(params.acct, profile.name)}'s profile on Ditto`;
+      res.description = profile.about;
+      if (profile.picture) {
+        res.image = { url: profile.picture, h: 150, w: 150 };
+      }
+    } else if (params.statusId) {
+      const { description, image, title } = await getStatusInfo(params.statusId);
+      res.description = description;
+      res.image = image;
+      res.title = title;
     }
-  } else if (params.statusId) {
-    const { description, image, title } = await getStatusInfo(params.statusId);
-    res.description = description;
-    res.image = image;
-    res.title = title;
+  } catch (e) {
+    console.debug('Error getting OpenGraph metadata information:');
+    console.debug(e);
+    console.trace();
   }
 
   return res;
@@ -66,7 +71,7 @@ export const frontendController: AppMiddleware = async (c, next) => {
           const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
           return c.html(content.replace(META_PLACEHOLDER, meta));
         } catch (e) {
-          console.debug(e);
+          console.log(e);
           return c.html(content);
         }
       }
