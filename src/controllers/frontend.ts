@@ -3,9 +3,9 @@ import { Conf } from '@/config.ts';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Storages } from '@/storages.ts';
 import {
+  fetchProfile,
   getHandle,
   getPathParams,
-  getProfileInfo,
   getStatusInfo,
   OpenGraphTemplateOpts,
   PathParams,
@@ -39,12 +39,13 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
   };
   try {
     if (params.acct && !params.statusId) {
-      const profile = await getProfileInfo(params.acct);
+      const profile = await fetchProfile({ handle: params.acct });
+      const handle = await getHandle(params.acct, profile);
       res.type = 'profile';
-      res.title = `View @${await getHandle(params.acct, profile.name)}'s profile on Ditto`;
-      res.description = profile.about;
-      if (profile.picture) {
-        res.image = { url: profile.picture, h: 150, w: 150 };
+      res.title = `View @${handle}'s profile on Ditto`;
+      res.description = profile.meta.about || `@${handle}'s Nostr profile`;
+      if (profile.meta.picture) {
+        res.image = { url: profile.meta.picture, h: 150, w: 150 };
       }
     } else if (params.statusId) {
       const { description, image, title } = await getStatusInfo(params.statusId);

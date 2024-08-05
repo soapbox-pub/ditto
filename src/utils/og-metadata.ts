@@ -1,11 +1,12 @@
-import { NostrMetadata, NSchema as n } from '@nostrify/nostrify';
-import { getEvent } from '@/queries.ts';
+import { NostrEvent, NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { getAuthor, getEvent } from '@/queries.ts';
 import { nip19, nip27 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
 
 import { Stickynotes } from '@soapbox/stickynotes';
-import { lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
+import { lookupPubkey } from '@/utils/lookup.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
+import { parseNip05 } from '@/utils.ts';
 
 const console = new Stickynotes('ditto:frontend');
 
@@ -71,43 +72,74 @@ export function getPathParams(path: string) {
   }
 }
 
-type ProfileInfo = { name: string; about: string } & NostrMetadata;
+export async function fetchProfile(
+  { pubkey, handle }: Partial<Record<'pubkey' | 'handle', string>>,
+): Promise<ProfileInfo> {
+  if (!handle && !pubkey) {
+    throw new Error('Tried to fetch kind 0 with no args');
+  }
 
-/**
- * Look up the name and bio of a user for use in generating OpenGraph metadata.
- *
- * @param handle The bech32 / nip05 identifier for the user, obtained from the URL.
- * @returns An object containing the `name` and `about` fields of the user's kind 0,
- * or sensible defaults if the kind 0 has those values missing.
- */
-export async function getProfileInfo(handle: string | undefined): Promise<ProfileInfo> {
-  console.debug(handle);
-  const acc = await lookupAccount(handle || '');
-  if (!acc) throw new Error('Invalid handle specified, or account not found.');
+  if (handle) pubkey = await lookupPubkey(handle);
+  if (!pubkey) throw new Error('NIP-05 or bech32 specified and no pubkey found');
 
-  const short = nip19.npubEncode(acc.id).slice(0, 8);
-  const { name = short, about = `@${short}'s Nostr profile` } = n.json().pipe(n.metadata()).parse(acc.content);
+  const author = await getAuthor(pubkey);
+  if (!author) throw new Error(`Author not found for pubkey ${pubkey}`);
 
-  return { name, about };
+  return {
+    meta: n.json()
+      .pipe(n.metadata())
+      .parse(author.content),
+    event: author,
+  };
 }
+
+type ProfileInfo = { meta: NostrMetadata; event: NostrEvent };
 
 function truncate(s: string, len: number, ellipsis = '…') {
   if (s.length <= len) return s;
   return s.slice(0, len) + ellipsis;
 }
 
-export async function getHandle(id: string, name?: string | undefined) {
+/**
+ * @param id A nip-05 identifier, bech32 encoded npub/nprofile
+ * @param acc A ProfileInfo object, if you've already fetched it then this is used to build a handle.
+ * @returns The handle
+ */
+export async function getHandle(id: string, acc?: ProfileInfo) {
   console.debug({ id, name });
-  const pubkey = /[a-z0-9]{64}/.test(id) ? id : await lookupPubkey(id);
-  if (!pubkey) throw new Error('Invalid user identifier');
-  const parsed = await parseAndVerifyNip05(id, pubkey);
-  return parsed?.handle || name || 'npub1xxx';
+  let handle: string | undefined = '';
+
+  const handlePubkey = async (pubkey: string) => {
+    const author = acc || await fetchProfile({ pubkey });
+    if (author.meta.nip05) return parseNip05(author.meta.nip05).handle;
+    else if (author.meta.name) return author.meta.name;
+  };
+
+  if (/[a-z0-9]{64}/.test(id)) {
+    await handlePubkey(id);
+  } else if (n.bech32().safeParse(id).success) {
+    if (id.startsWith('npub')) {
+      handle = await handlePubkey(nip19.decode(id as `npub1${string}`).data) || id.slice(0, 8);
+    } else if (id.startsWith('nprofile')) {
+      const decoded = nip19.decode(id as `nprofile1${string}`).data.pubkey;
+      handle = await handlePubkey(decoded);
+      if (!handle) handle = nip19.npubEncode(decoded).slice(0, 8);
+    } else {
+      throw new Error('non-nprofile or -npub bech32 passed to getHandle()');
+    }
+  } else {
+    const pubkey = await lookupPubkey(id);
+    if (!pubkey) throw new Error('Invalid user identifier');
+    const parsed = await parseAndVerifyNip05(id, pubkey);
+    handle = parsed?.handle;
+  }
+
+  return handle || name || 'npub1xxx';
 }
 
 export async function getStatusInfo(id: string): Promise<StatusInfo> {
   const event = await getEvent(id);
   if (!id || !event) throw new Error('Invalid post id supplied');
-
   const handle = await getHandle(event.pubkey);
   const res: StatusInfo = {
     title: `View @${handle}'s post on Ditto`,
