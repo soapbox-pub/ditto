@@ -39,7 +39,7 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
   };
   try {
     if (params.acct && !params.statusId) {
-      const key = /[a-z0-9]/.test(params.acct) ? 'pubkey' : 'handle';
+      const key = /[a-f0-9]/.test(params.acct) ? 'pubkey' : 'handle';
       const profile = await fetchProfile({ [key]: params.acct });
       const handle = await getHandle(params.acct, profile);
       res.type = 'profile';

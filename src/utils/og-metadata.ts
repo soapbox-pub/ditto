@@ -108,7 +108,7 @@ function truncate(s: string, len: number, ellipsis = '…') {
 export async function getHandle(id: string, acc?: ProfileInfo) {
   let handle: string | undefined = '';
 
-  const handlePubkey = async (pubkey: string) => {
+  const pubkeyToHandle = async (pubkey: string) => {
     const fallback = nip19.npubEncode(pubkey).slice(0, 8);
     try {
       const author = acc || await fetchProfile({ pubkey });
@@ -120,14 +120,14 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
     return fallback;
   };
 
-  if (/[a-z0-9]{64}/.test(id)) {
-    handle = await handlePubkey(id);
+  if (/[a-f0-9]{64}/.test(id)) {
+    handle = await pubkeyToHandle(id);
   } else if (n.bech32().safeParse(id).success) {
     if (id.startsWith('npub')) {
-      handle = await handlePubkey(nip19.decode(id as `npub1${string}`).data);
+      handle = await pubkeyToHandle(nip19.decode(id as `npub1${string}`).data);
     } else if (id.startsWith('nprofile')) {
       const decoded = nip19.decode(id as `nprofile1${string}`).data.pubkey;
-      handle = await handlePubkey(decoded);
+      handle = await pubkeyToHandle(decoded);
     } else {
       throw new Error('non-nprofile or -npub bech32 passed to getHandle()');
     }
