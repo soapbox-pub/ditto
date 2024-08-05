@@ -1,7 +1,8 @@
 import { NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { getEvent } from '@/queries.ts';
-import { match } from 'path-to-regexp';
 import { nip19 } from 'nostr-tools';
+import { match } from 'path-to-regexp';
+
 import { lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 
