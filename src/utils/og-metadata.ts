@@ -106,7 +106,6 @@ function truncate(s: string, len: number, ellipsis = '…') {
  * @returns The handle
  */
 export async function getHandle(id: string, acc?: ProfileInfo) {
-  console.debug({ id, name });
   let handle: string | undefined = '';
 
   const handlePubkey = async (pubkey: string) => {
@@ -122,7 +121,7 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
   };
 
   if (/[a-z0-9]{64}/.test(id)) {
-    await handlePubkey(id);
+    handle = await handlePubkey(id);
   } else if (n.bech32().safeParse(id).success) {
     if (id.startsWith('npub')) {
       handle = await handlePubkey(nip19.decode(id as `npub1${string}`).data);
