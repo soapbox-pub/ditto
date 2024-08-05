@@ -179,12 +179,12 @@ const createStatusController: AppController = async (c) => {
 
   const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (lnurl && zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (lnurl && dittoZapSplit) {
     let totalSplit = 0;
-    for (const pubkey in zap_split) {
-      totalSplit += zap_split[pubkey].amount;
-      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey].amount.toString()]);
+    for (const pubkey in dittoZapSplit) {
+      totalSplit += dittoZapSplit[pubkey].weight;
+      tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString()]);
     }
     if (totalSplit) {
       tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);

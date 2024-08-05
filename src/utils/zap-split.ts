@@ -10,7 +10,7 @@ type ExtraMessage = string;
 type splitPercentages = number;
 
 export type DittoZapSplits = {
-  [key: Pubkey]: { amount: splitPercentages; message: ExtraMessage };
+  [key: Pubkey]: { weight: splitPercentages; message: ExtraMessage };
 };
 
 /** Gets zap splits from NIP-78 in DittoZapSplits format. */
@@ -30,7 +30,7 @@ export async function getZapSplits(store: NStore, pubkey: string): Promise<Ditto
       tag[0] === 'p' && n.id().safeParse(tag[1]).success &&
       percentageSchema.safeParse(tag[2]).success
     ) {
-      zapSplits[tag[1]] = { amount: Number(tag[2]), message: tag[3] };
+      zapSplits[tag[1]] = { weight: Number(tag[2]), message: tag[3] };
     }
   }
 
