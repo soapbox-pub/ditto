@@ -1,5 +1,6 @@
-import { html, r } from '@/utils/html.ts';
+import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { html, r } from '@/utils/html.ts';
 import {
   getInstanceName,
   getPathParams,
@@ -8,7 +9,6 @@ import {
   OpenGraphTemplateOpts,
   PathParams,
 } from '@/utils/og-metadata.ts';
-import { AppMiddleware } from '@/app.ts';
 
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
