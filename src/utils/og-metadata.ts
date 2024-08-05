@@ -97,6 +97,7 @@ function truncate(s: string, len: number, ellipsis = '…') {
 }
 
 export async function getHandle(id: string, name?: string | undefined) {
+  console.debug({ id, name });
   const pubkey = /[a-z][0-9]{64}/.test(id) ? id : await lookupPubkey(id);
   if (!pubkey) throw new Error('Invalid user identifier');
   const parsed = await parseAndVerifyNip05(id, pubkey);
