@@ -1,14 +1,15 @@
 import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { html, r } from '@/utils/html.ts';
+import { html } from '@/utils/html.ts';
+import { Storages } from '@/storages.ts';
 import {
-  getInstanceName,
   getPathParams,
   getProfileInfo,
   getStatusInfo,
   OpenGraphTemplateOpts,
   PathParams,
 } from '@/utils/og-metadata.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
 
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
@@ -22,54 +23,45 @@ const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
  * @param opts the metadata to use to fill the template.
  * @returns the built OpenGraph metadata.
  */
-const tpl = async ({ title, type, url, image, description }: OpenGraphTemplateOpts): Promise<string> =>
-  html`\
-<meta content="${title}" property="og:title">
-<meta content="${type}" property="og:type">
-<meta content="${url}" property="og:url">
-<meta content="${description}" property="og:description">
-<meta content="${await getInstanceName()}" property="og:site_name">
+const tpl = ({ title, type, url, image, description, site }: OpenGraphTemplateOpts): string => {
+  const res = [];
+  res.push(html`\
+  <meta content="${title}" property="og:title">
+  <meta content="${type}" property="og:type">
+  <meta content="${url}" property="og:url">
+  <meta content="${description}" property="og:description">
+  <meta content="${site}" property="og:site_name">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="${title}">
+  <meta name="twitter:description" content="${description}">
+  `);
 
-${
-    image
-      ? r(html`
-<meta content="${image.url}" property="og:image">
-<meta content="${image.w}" property="og:image:width">
-<meta content="${image.h}" property="og:image:height">
-${image.alt ? r(html`<meta content="${image.alt}" property="og:image:alt">`) : ''}
-`)
-      : ''
+  if (image) {
+    res.push(html`\
+    <meta content="${image.url}" property="og:image">
+    <meta content="${image.w}" property="og:image:width">
+    <meta content="${image.h}" property="og:image:height">
+    <meta name="twitter:image" content="${image.url}">
+    `);
+    if (image.alt) {
+      res.push(html`<meta content="${image.alt}" property="og:image:alt">`);
+      res.push(html`<meta content="${image.alt}" property="twitter:image:alt">`);
+    }
   }
 
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="${title}">
-<meta name="twitter:description" content="${description}">
-${
-    image
-      ? r(html`
-<meta name="twitter:image" content="${image.url}">
-${image.alt ? r(html`<meta content="${image.alt}" property="twitter:image:alt">`) : ''}
-`)
-      : ''
-  }
-`.replace(/\n+/g, '\n');
+  return res.join('\n').replace(/\n+/g, '\n').replace(/^[ ]+/gm, '');
+};
 
-const BLANK_META = (url: string) =>
-  tpl({
-    title: 'Ditto',
-    type: 'website',
-    url,
-    description: 'Ditto, a decentralized, self-hosted social media server',
-  });
+const store = await Storages.db();
 
-const buildMetaTags = async (params: PathParams, url: string): Promise<string> => {
-  if (!params.acct && !params.statusId) return await BLANK_META(url);
+async function buildMetaTags(params: PathParams, url: string): Promise<string> {
+  // should never happen
+  if (!params.acct && !params.statusId) return '';
 
+  const meta = await getInstanceMetadata(store);
   const kind0 = await getProfileInfo(params.acct);
-  console.log(params.acct);
   const { description, image } = await getStatusInfo(params.statusId || '');
   const handle = kind0.nip05?.replace(/^_@/, '') || kind0.name || 'npub1xxx';
-  console.log({ n: kind0.nip05, handle });
 
   if (params.acct && params.statusId) {
     return tpl({
@@ -78,6 +70,7 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
       image,
       description,
       url,
+      site: meta.name,
     });
   } else if (params.acct) {
     return tpl({
@@ -85,6 +78,7 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
       type: 'profile',
       description: kind0.about || '',
       url,
+      site: meta.name,
       image: kind0.picture
         ? {
           url: kind0.picture,
@@ -101,11 +95,12 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
       description,
       image,
       url,
+      site: meta.name,
     });
   }
 
-  return await BLANK_META(url);
-};
+  return '';
+}
 
 export const frontendController: AppMiddleware = async (c, next) => {
   try {

@@ -1,12 +1,13 @@
+import { nip19 } from 'nostr-tools';
 import { NIP05, NStore } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { nip19 } from 'nostr-tools';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
+import { Storages } from '@/storages.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
-import { Storages } from '@/storages.ts';
+import { Nip05, parseNip05 } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
 const debug = Debug('ditto:nip05');
@@ -57,6 +58,22 @@ async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19
 
   if (pubkey) {
     return { pubkey, relays: [Conf.relay] };
+  }
+}
+
+export async function parseAndVerifyNip05(
+  nip05: string | undefined,
+  pubkey: string,
+  signal = AbortSignal.timeout(3000),
+): Promise<Nip05 | undefined> {
+  if (!nip05) return;
+  try {
+    const result = await nip05Cache.fetch(nip05, { signal });
+    if (result.pubkey === pubkey) {
+      return parseNip05(nip05);
+    }
+  } catch (_e) {
+    // do nothing
   }
 }
 

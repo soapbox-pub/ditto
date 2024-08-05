@@ -6,9 +6,9 @@ import { Conf } from '@/config.ts';
 import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
-import { nip05Cache } from '@/utils/nip05.ts';
+import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { Nip05, nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
+import { nostrDate, nostrNow } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 interface ToAccountOpts {
@@ -111,22 +111,6 @@ function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}): Promise<Ma
   };
 
   return renderAccount(event, opts);
-}
-
-async function parseAndVerifyNip05(
-  nip05: string | undefined,
-  pubkey: string,
-  signal = AbortSignal.timeout(3000),
-): Promise<Nip05 | undefined> {
-  if (!nip05) return;
-  try {
-    const result = await nip05Cache.fetch(nip05, { signal });
-    if (result.pubkey === pubkey) {
-      return parseNip05(nip05);
-    }
-  } catch (_e) {
-    // do nothing
-  }
 }
 
 export { accountFromPubkey, renderAccount };
