@@ -11,7 +11,7 @@ import {
 import { AppMiddleware } from '@/app.ts';
 
 /** Placeholder to find & replace with metadata. */
-const OG_META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
+const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 
 /*
  * TODO: implement caching for posts (LRUCache)
@@ -110,12 +110,12 @@ const buildMetaTags = async (params: PathParams, url: string): Promise<string> =
 export const frontendController: AppMiddleware = async (c, next) => {
   try {
     const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
-    if (content.includes(OG_META_PLACEHOLDER)) {
+    if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
 
       if (params) {
         const meta = await buildMetaTags(params, Conf.local(c.req.path));
-        return c.html(content.replace(OG_META_PLACEHOLDER, meta));
+        return c.html(content.replace(META_PLACEHOLDER, meta));
       }
     }
     return c.html(content);
