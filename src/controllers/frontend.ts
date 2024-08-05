@@ -1,5 +1,6 @@
 import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { Stickynotes } from '@soapbox/stickynotes';
 import { Storages } from '@/storages.ts';
 import {
   getHandle,
@@ -12,6 +13,8 @@ import {
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { metadataView } from '@/views/meta.ts';
 
+const console = new Stickynotes('ditto:frontend');
+
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 
@@ -19,9 +22,8 @@ const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
  * TODO: implement caching for posts (LRUCache)
  */
 
-const store = await Storages.db();
-
 async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenGraphTemplateOpts> {
+  const store = await Storages.db();
   const meta = await getInstanceMetadata(store);
   const res: OpenGraphTemplateOpts = {
     title: `View this page on ${meta.name}`,
