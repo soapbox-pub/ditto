@@ -43,17 +43,20 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
       console.log(key);
       const profile = await fetchProfile({ [key]: params.acct });
       const handle = await getHandle(params.acct, profile);
-      res.type = 'profile';
-      res.title = `View @${handle}'s profile on Ditto`;
-      res.description = profile.meta.about || `@${handle}'s Nostr profile`;
+
+      Object.assign(res, {
+        type: 'profile',
+        title: `View @${handle}'s profile on Ditto`,
+        description: profile.meta.about || `@${handle}'s Nostr profile`,
+      });
+
       if (profile.meta.picture) {
-        res.image = { url: profile.meta.picture, h: 150, w: 150 };
+        Object.assign(res, { image: { url: profile.meta.picture, h: 150, w: 150 } });
       }
     } else if (params.statusId) {
       const { description, image, title } = await getStatusInfo(params.statusId);
-      res.description = description;
-      res.image = image;
-      res.title = title;
+      Object.assign(res, { description, title });
+      if (image) Object.assign(res, { image });
     }
   } catch (e) {
     console.debug('Error getting OpenGraph metadata information:');
