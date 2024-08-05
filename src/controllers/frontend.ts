@@ -18,10 +18,6 @@ const console = new Stickynotes('ditto:frontend');
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 
-/*
- * TODO: implement caching for posts (LRUCache)
- */
-
 async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenGraphTemplateOpts> {
   const store = await Storages.db();
   const meta = await getInstanceMetadata(store);
@@ -70,6 +66,10 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
 export const frontendController: AppMiddleware = async (c, next) => {
   try {
     const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
+    const shouldInject = new RegExp(Conf.opengraphRouteRegex, 'i');
+    if (!shouldInject) {
+      return c.html(content);
+    }
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
       if (params) {
