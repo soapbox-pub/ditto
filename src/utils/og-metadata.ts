@@ -101,7 +101,7 @@ function truncate(s: string, len: number, ellipsis = '…') {
 }
 
 /**
- * @param id A nip-05 identifier, bech32 encoded npub/nprofile
+ * @param id A nip-05 identifier, bech32 encoded npub/nprofile, or a pubkey
  * @param acc A ProfileInfo object, if you've already fetched it then this is used to build a handle.
  * @returns The handle
  */
@@ -110,20 +110,25 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
   let handle: string | undefined = '';
 
   const handlePubkey = async (pubkey: string) => {
-    const author = acc || await fetchProfile({ pubkey });
-    if (author.meta.nip05) return parseNip05(author.meta.nip05).handle;
-    else if (author.meta.name) return author.meta.name;
+    const fallback = nip19.npubEncode(pubkey).slice(0, 8);
+    try {
+      const author = acc || await fetchProfile({ pubkey });
+      if (author.meta.nip05) return parseNip05(author.meta.nip05).handle;
+      else if (author.meta.name) return author.meta.name;
+    } catch (e) {
+      console.debug('Error in getHandle: ', e);
+    }
+    return fallback;
   };
 
   if (/[a-z0-9]{64}/.test(id)) {
     await handlePubkey(id);
   } else if (n.bech32().safeParse(id).success) {
     if (id.startsWith('npub')) {
-      handle = await handlePubkey(nip19.decode(id as `npub1${string}`).data) || id.slice(0, 8);
+      handle = await handlePubkey(nip19.decode(id as `npub1${string}`).data);
     } else if (id.startsWith('nprofile')) {
       const decoded = nip19.decode(id as `nprofile1${string}`).data.pubkey;
       handle = await handlePubkey(decoded);
-      if (!handle) handle = nip19.npubEncode(decoded).slice(0, 8);
     } else {
       throw new Error('non-nprofile or -npub bech32 passed to getHandle()');
     }
@@ -140,9 +145,15 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
 export async function getStatusInfo(id: string): Promise<StatusInfo> {
   const event = await getEvent(id);
   if (!id || !event) throw new Error('Invalid post id supplied');
-  const handle = await getHandle(event.pubkey);
+  let title = 'View post on Ditto';
+  try {
+    const handle = await getHandle(event.pubkey);
+    title = `View @${handle}'s post on Ditto`;
+  } catch (e) {
+    console.log(e);
+  }
   const res: StatusInfo = {
-    title: `View @${handle}'s post on Ditto`,
+    title,
     description: nip27.replaceAll(
       event.content,
       ({ decoded, value }) => decoded.type === 'npub' ? value.slice(0, 8) : '',
