@@ -237,7 +237,7 @@ export const getZapSplitsController: AppController = async (c) => {
 
   const pubkeys = Object.keys(zap_split);
 
-  const zap_splits_mastodon = await Promise.all(pubkeys.map(async (pubkey) => {
+  const zapSplitEntity = await Promise.all(pubkeys.map(async (pubkey) => {
     const author = await getAuthor(pubkey);
 
     const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
@@ -249,5 +249,5 @@ export const getZapSplitsController: AppController = async (c) => {
     };
   }));
 
-  return c.json(zap_splits_mastodon, 200);
+  return c.json(zapSplitEntity, 200);
 };
