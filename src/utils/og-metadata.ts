@@ -1,10 +1,10 @@
 import { Storages } from '@/storages.ts';
-import { getInstanceMetadata } from '@/utils/instance.ts';
-import { nip19 } from 'nostr-tools';
-import { match } from 'path-to-regexp';
-import { nip05Cache } from '@/utils/nip05.ts';
 import { NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { getAuthor, getEvent } from '@/queries.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
+import { nip05Cache } from '@/utils/nip05.ts';
+import { match } from 'path-to-regexp';
+import { nip19 } from 'nostr-tools';
 
 export interface OpenGraphTemplateOpts {
   title: string;
