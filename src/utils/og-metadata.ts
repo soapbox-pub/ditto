@@ -1,6 +1,6 @@
 import { NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { getEvent } from '@/queries.ts';
-import { nip19 } from 'nostr-tools';
+import { nip19, nip27 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
 
 import { lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
@@ -106,8 +106,10 @@ export async function getStatusInfo(id: string): Promise<StatusInfo> {
   const handle = await getHandle(event.pubkey);
   const res: StatusInfo = {
     title: `View @${handle}'s post on Ditto`,
-    description: event.content
-      .replace(/nostr:(npub1(?:[0-9]|[a-z]){58})/g, (_, key: string) => `@${key.slice(0, 8)}`),
+    description: nip27.replaceAll(
+      event.content,
+      ({ decoded, value }) => decoded.type === 'npub' ? value.slice(0, 8) : '',
+    ),
   };
 
   const data: string[][] = event.tags
