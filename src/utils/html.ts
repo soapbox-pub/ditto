@@ -1,3 +1,5 @@
+import { escape } from 'entities';
+
 interface RawHtml {
   raw: true;
   contents: string;
@@ -8,16 +10,6 @@ interface RawHtml {
  */
 interface RawHtmlOptions {
   joiner?: string;
-}
-
-export function escape(str: string) {
-  if (!str) return '';
-
-  return str.replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 }
 
 /**
@@ -40,7 +32,7 @@ export function r(val: any, options?: RawHtmlOptions): RawHtml {
  * ```
  * const unsafe = `oops <script>alert(1)</script>`;
  * testing.innerHTML = html`foo bar baz ${unsafe}`;
- * console.assert(testing === "foo bar baz oops%20%3Cscript%3Ealert%281%29%3C/script%3E");
+ * console.assert(testing === "foo bar baz oops&lt;script&gt;alert(1)&lt;/script&gt;");
  * ```
  */
 export function html(strings: TemplateStringsArray, ...values: (string | number | RawHtml)[]) {
