@@ -160,7 +160,25 @@ const relationshipsController: AppController = async (c) => {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const result = await Promise.all(ids.data.map((id) => renderRelationship(pubkey, id)));
+  const db = await Storages.db();
+
+  const [sourceEvents, targetEvents] = await Promise.all([
+    db.query([{ kinds: [3, 10000], authors: [pubkey] }]),
+    db.query([{ kinds: [3], authors: ids.data }]),
+  ]);
+
+  const event3 = sourceEvents.find((event) => event.kind === 3 && event.pubkey === pubkey);
+  const event10000 = sourceEvents.find((event) => event.kind === 10000 && event.pubkey === pubkey);
+
+  const result = ids.data.map((id) =>
+    renderRelationship({
+      sourcePubkey: pubkey,
+      targetPubkey: id,
+      event3,
+      target3: targetEvents.find((event) => event.kind === 3 && event.pubkey === id),
+      event10000,
+    })
+  );
 
   return c.json(result);
 };
@@ -325,7 +343,7 @@ const followController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   relationship.following = true;
 
   return c.json(relationship);
@@ -342,7 +360,7 @@ const unfollowController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
@@ -379,7 +397,7 @@ const muteController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
@@ -394,7 +412,7 @@ const unmuteController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
@@ -446,6 +464,23 @@ const familiarFollowersController: AppController = async (c) => {
 
   return c.json(results);
 };
+
+async function getRelationship(sourcePubkey: string, targetPubkey: string) {
+  const db = await Storages.db();
+
+  const [sourceEvents, targetEvents] = await Promise.all([
+    db.query([{ kinds: [3, 10000], authors: [sourcePubkey] }]),
+    db.query([{ kinds: [3], authors: [targetPubkey] }]),
+  ]);
+
+  return renderRelationship({
+    sourcePubkey,
+    targetPubkey,
+    event3: sourceEvents.find((event) => event.kind === 3 && event.pubkey === sourcePubkey),
+    target3: targetEvents.find((event) => event.kind === 3 && event.pubkey === targetPubkey),
+    event10000: sourceEvents.find((event) => event.kind === 10000 && event.pubkey === sourcePubkey),
+  });
+}
 
 export {
   accountController,
