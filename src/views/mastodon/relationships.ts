@@ -11,18 +11,6 @@ interface RenderRelationshipOpts {
 }
 
 function renderRelationship({ sourcePubkey, targetPubkey, event3, target3, event10000 }: RenderRelationshipOpts) {
-  // const db = await Storages.db();
-
-  // const events = await db.query([
-  //   { kinds: [3], authors: [sourcePubkey], limit: 1 },
-  //   { kinds: [3], authors: [targetPubkey], limit: 1 },
-  //   { kinds: [10000], authors: [sourcePubkey], limit: 1 },
-  // ]);
-
-  // const event3 = events.find((event) => event.kind === 3 && event.pubkey === sourcePubkey);
-  // const target3 = events.find((event) => event.kind === 3 && event.pubkey === targetPubkey);
-  // const event10000 = events.find((event) => event.kind === 10000 && event.pubkey === sourcePubkey);
-
   return {
     id: targetPubkey,
     following: event3 ? hasTag(event3.tags, ['p', targetPubkey]) : false,
