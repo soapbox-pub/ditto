@@ -4,7 +4,9 @@ import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
+import { SetRequired } from 'type-fest';
 
+import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -117,6 +119,7 @@ import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
+import { paginationMiddleware } from '@/middleware/paginationMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
@@ -131,8 +134,10 @@ interface AppEnv extends HonoEnv {
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** Store */
+    /** Storage for the user, might filter out unwanted content. */
     store: NStore;
+    /** Normalized pagination params. */
+    pagination: SetRequired<DittoPagination, 'limit' | 'offset'>;
   };
 }
 
@@ -146,7 +151,7 @@ const debug = Debug('ditto:http');
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
-app.use('/api/*', metricsMiddleware, logger(debug));
+app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
 app.use('/.well-known/*', metricsMiddleware, logger(debug));
 app.use('/users/*', metricsMiddleware, logger(debug));
 app.use('/nodeinfo/*', metricsMiddleware, logger(debug));

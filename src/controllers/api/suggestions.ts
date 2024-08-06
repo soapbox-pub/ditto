@@ -4,13 +4,13 @@ import { matchFilter } from 'nostr-tools';
 import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { listPaginationSchema, paginatedList, PaginatedListParams } from '@/utils/api.ts';
+import { paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 export const suggestionsV1Controller: AppController = async (c) => {
   const signal = c.req.raw.signal;
-  const params = listPaginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const suggestions = await renderV2Suggestions(c, params, signal);
   const accounts = suggestions.map(({ account }) => account);
   return paginatedList(c, params, accounts);
@@ -18,12 +18,12 @@ export const suggestionsV1Controller: AppController = async (c) => {
 
 export const suggestionsV2Controller: AppController = async (c) => {
   const signal = c.req.raw.signal;
-  const params = listPaginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const suggestions = await renderV2Suggestions(c, params, signal);
   return paginatedList(c, params, suggestions);
 };
 
-async function renderV2Suggestions(c: AppContext, params: PaginatedListParams, signal?: AbortSignal) {
+async function renderV2Suggestions(c: AppContext, params: { offset: number; limit: number }, signal?: AbortSignal) {
   const { offset, limit } = params;
 
   const store = c.get('store');

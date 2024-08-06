@@ -6,7 +6,7 @@ import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createAdminEvent, paginated, paginationSchema, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
+import { createAdminEvent, paginated, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 
@@ -29,7 +29,7 @@ const adminAccountQuerySchema = z.object({
 
 const adminAccountsController: AppController = async (c) => {
   const store = await Storages.db();
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { signal } = c.req.raw;
   const {
     local,

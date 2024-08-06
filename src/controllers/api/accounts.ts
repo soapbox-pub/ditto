@@ -9,7 +9,7 @@ import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
-import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
+import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
 import { lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -192,7 +192,7 @@ const accountStatusesQuerySchema = z.object({
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
-  const { since, until } = paginationSchema.parse(c.req.query());
+  const { since, until } = c.get('pagination');
   const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
@@ -366,7 +366,7 @@ const unfollowController: AppController = async (c) => {
 
 const followersController: AppController = (c) => {
   const pubkey = c.req.param('pubkey');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   return renderEventAccounts(c, [{ kinds: [3], '#p': [pubkey], ...params }]);
 };
 
@@ -418,7 +418,7 @@ const unmuteController: AppController = async (c) => {
 
 const favouritesController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { signal } = c.req.raw;
 
   const store = await Storages.db();

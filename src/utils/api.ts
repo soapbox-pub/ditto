@@ -5,7 +5,6 @@ import Debug from '@soapbox/stickynotes/debug';
 import { parseFormData } from 'formdata-helper';
 import { EventTemplate } from 'nostr-tools';
 import * as TypeFest from 'type-fest';
-import { z } from 'zod';
 
 import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
@@ -176,16 +175,6 @@ async function parseBody(req: Request): Promise<unknown> {
   }
 }
 
-/** Schema to parse pagination query params. */
-const paginationSchema = z.object({
-  since: z.coerce.number().nonnegative().optional().catch(undefined),
-  until: z.coerce.number().nonnegative().optional().catch(undefined),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
-});
-
-/** Mastodon API pagination query params. */
-type PaginationParams = z.infer<typeof paginationSchema>;
-
 /** Build HTTP Link header for Mastodon API pagination. */
 function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined {
   if (events.length <= 1) return;
@@ -219,12 +208,6 @@ function paginated(c: AppContext, events: NostrEvent[], entities: (Entity | unde
   return c.json(results, 200, headers);
 }
 
-/** Query params for paginating a list. */
-const listPaginationSchema = z.object({
-  offset: z.coerce.number().nonnegative().catch(0),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
-});
-
 /** Build HTTP Link header for paginating Nostr lists. */
 function buildListLinkHeader(url: string, params: { offset: number; limit: number }): string | undefined {
   const { origin } = Conf.url;
@@ -242,15 +225,10 @@ function buildListLinkHeader(url: string, params: { offset: number; limit: numbe
   return `<${next}>; rel="next", <${prev}>; rel="prev"`;
 }
 
-interface PaginatedListParams {
-  offset: number;
-  limit: number;
-}
-
 /** paginate a list of tags. */
 function paginatedList(
   c: AppContext,
-  params: PaginatedListParams,
+  params: { offset: number; limit: number },
   entities: unknown[],
   headers: HeaderRecord = {},
 ) {
@@ -296,13 +274,9 @@ export {
   createAdminEvent,
   createEvent,
   type EventStub,
-  listPaginationSchema,
   localRequest,
   paginated,
   paginatedList,
-  type PaginatedListParams,
-  type PaginationParams,
-  paginationSchema,
   parseBody,
   updateAdminEvent,
   updateEvent,

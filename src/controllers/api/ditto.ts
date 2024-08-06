@@ -7,7 +7,7 @@ import { addTag } from '@/utils/tags.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginated, paginationSchema, parseBody } from '@/utils/api.ts';
+import { createEvent, paginated, parseBody } from '@/utils/api.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { getAuthor } from '@/queries.ts';
@@ -114,7 +114,7 @@ export const nameRequestsController: AppController = async (c) => {
   const signer = c.get('signer')!;
   const pubkey = await signer.getPublicKey();
 
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
 
   const filter: NostrFilter = {
