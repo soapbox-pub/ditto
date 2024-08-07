@@ -43,6 +43,7 @@ import {
   getZapSplitsController,
   nameRequestController,
   nameRequestsController,
+  statusZapSplitsController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
@@ -270,6 +271,7 @@ app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
 app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
+app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
 app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
