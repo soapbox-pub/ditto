@@ -250,8 +250,9 @@ class Conf {
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
   }
-  static get opengraphRouteRegex(): string {
-    return Deno.env.get('OPENGRAPH_ROUTE_REGEX') ||
+  /** Crawler User-Agent regex to render link previews to. */
+  static get crawlerRegex(): string {
+    return Deno.env.get('CRAWLER_REGEX') ||
       'googlebot|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterestbot|slackbot|vkShare|W3C_Validator|whatsapp|mastodon|pleroma|Discordbot|AhrefsBot|SEMrushBot|MJ12bot|SeekportBot|Synapse|Matrix';
   }
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */

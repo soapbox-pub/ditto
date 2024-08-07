@@ -21,30 +21,43 @@ const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenGraphTemplateOpts> {
   const store = await Storages.db();
   const meta = await getInstanceMetadata(store);
+
   const res: OpenGraphTemplateOpts = {
-    title: `View this page on ${meta.name}`,
+    title: meta.name,
     type: 'article',
     description: meta.about,
     url,
     site: meta.name,
     image: {
       url: Conf.local('/favicon.ico'),
-      w: 48,
-      h: 48,
     },
   };
+
   try {
-    if (params.acct && !params.statusId) {
+    if (params.statusId) {
+      const { description, image, title } = await getStatusInfo(params.statusId);
+
+      res.description = description;
+      res.title = title;
+
+      if (res.image) {
+        res.image = image;
+      }
+    } else if (params.acct) {
       const key = /^[a-f0-9]{64}$/.test(params.acct) ? 'pubkey' : 'handle';
       let handle = '';
       try {
         const profile = await fetchProfile({ [key]: params.acct });
         handle = await getHandle(params.acct, profile);
-        res.description = profile.meta.about || `@${handle}'s Nostr profile`;
+
+        res.description = profile.meta.about;
+
         if (profile.meta.picture) {
-          res.image = { url: profile.meta.picture, h: 150, w: 150 };
+          res.image = {
+            url: profile.meta.picture,
+          };
         }
-      } catch (_) {
+      } catch {
         console.debug(`couldn't find kind 0 for ${params.acct}`);
         // @ts-ignore we don't want getHandle trying to do a lookup here
         // but we do want it to give us a nice pretty npub
@@ -52,14 +65,8 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
         res.description = `@${handle}'s Nostr profile`;
       }
 
-      Object.assign(res, {
-        type: 'profile',
-        title: `View @${handle}'s profile on Ditto`,
-      });
-    } else if (params.statusId) {
-      const { description, image, title } = await getStatusInfo(params.statusId);
-      Object.assign(res, { description, title });
-      if (image) Object.assign(res, { image });
+      res.type = 'profile';
+      res.title = `View @${handle}'s profile on Ditto`;
     }
   } catch (e) {
     console.debug('Error getting OpenGraph metadata information:');
@@ -70,16 +77,17 @@ async function buildTemplateOpts(params: PathParams, url: string): Promise<OpenG
   return res;
 }
 
-const SHOULD_INJECT_RE = new RegExp(Conf.opengraphRouteRegex, 'i');
-
 export const frontendController: AppMiddleware = async (c, next) => {
   try {
     const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
+
     const ua = c.req.header('User-Agent');
     console.debug('ua', ua);
-    if (!SHOULD_INJECT_RE.test(ua || '')) {
+
+    if (!new RegExp(Conf.crawlerRegex, 'i').test(ua ?? '')) {
       return c.html(content);
     }
+
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
       if (params) {
@@ -87,7 +95,7 @@ export const frontendController: AppMiddleware = async (c, next) => {
           const meta = metadataView(await buildTemplateOpts(params, Conf.local(c.req.path)));
           return c.html(content.replace(META_PLACEHOLDER, meta));
         } catch (e) {
-          console.log(`Error in building meta tags: ${e}`);
+          console.log(`Error building meta tags: ${e}`);
           return c.html(content);
         }
       }

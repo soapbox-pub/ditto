@@ -1,9 +1,9 @@
 import { NostrEvent, NostrMetadata, NSchema as n } from '@nostrify/nostrify';
-import { getAuthor, getEvent } from '@/queries.ts';
+import { Stickynotes } from '@soapbox/stickynotes';
 import { nip19, nip27 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
 
-import { Stickynotes } from '@soapbox/stickynotes';
+import { getAuthor, getEvent } from '@/queries.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 import { parseNip05 } from '@/utils.ts';
@@ -15,7 +15,7 @@ export interface OpenGraphTemplateOpts {
   type: 'article' | 'profile' | 'website';
   url: string;
   image?: StatusInfo['image'];
-  description: string;
+  description?: string;
   site: string;
 }
 
@@ -26,8 +26,8 @@ interface StatusInfo {
   description: string;
   image?: {
     url: string;
-    w: number;
-    h: number;
+    w?: number;
+    h?: number;
     alt?: string;
   };
 }
@@ -50,7 +50,7 @@ const SSR_ROUTES = [
 
 const SSR_ROUTE_MATCHERS = SSR_ROUTES.map((route) => match(route, { decode: decodeURIComponent }));
 
-export function getPathParams(path: string) {
+export function getPathParams(path: string): PathParams | undefined {
   for (const matcher of SSR_ROUTE_MATCHERS) {
     const result = matcher(path);
     if (!result) continue;
@@ -144,7 +144,7 @@ export async function getHandle(id: string, acc?: ProfileInfo) {
 
 export async function getStatusInfo(id: string): Promise<StatusInfo> {
   const event = await getEvent(id);
-  if (!id || !event) throw new Error('Invalid post id supplied');
+  if (!event) throw new Error('Invalid post id supplied');
   let title = 'View post on Ditto';
   try {
     const handle = await getHandle(event.pubkey);
