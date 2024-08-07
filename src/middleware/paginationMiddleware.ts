@@ -34,7 +34,16 @@ export const paginationMiddleware: AppMiddleware = async (c, next) => {
     }
   }
 
-  c.set('pagination', pagination);
+  c.set('pagination', {
+    since: pagination.since,
+    until: pagination.until,
+    limit: pagination.limit,
+  });
+
+  c.set('listPagination', {
+    limit: pagination.limit,
+    offset: pagination.offset,
+  });
 
   await next();
 };

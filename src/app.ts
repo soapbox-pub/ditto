@@ -4,9 +4,7 @@ import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { SetRequired } from 'type-fest';
 
-import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -137,7 +135,9 @@ interface AppEnv extends HonoEnv {
     /** Storage for the user, might filter out unwanted content. */
     store: NStore;
     /** Normalized pagination params. */
-    pagination: SetRequired<DittoPagination, 'limit' | 'offset'>;
+    pagination: { since?: number; until?: number; limit: number };
+    /** Normalized list pagination params. */
+    listPagination: { offset: number; limit: number };
   };
 }
 

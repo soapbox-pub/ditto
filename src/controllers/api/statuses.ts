@@ -563,7 +563,7 @@ const zapController: AppController = async (c) => {
 
 const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
-  const params = c.get('pagination');
+  const params = c.get('listPagination');
   const store = await Storages.db();
   const db = await DittoDB.getInstance();
 
