@@ -72,7 +72,11 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
   const zapEvent = relatedEvents.find((event) => event.kind === 9734);
 
-  const content = buildInlineRecipients(mentions) + html;
+  const compatMentions = buildInlineRecipients(mentions.filter((m) => {
+    if (m.id === account.id) return false;
+    if (html.includes(m.url)) return false;
+    return true;
+  }));
 
   const cw = event.tags.find(([name]) => name === 'content-warning');
   const subject = event.tags.find(([name]) => name === 'subject');
@@ -96,7 +100,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     id: event.id,
     account,
     card,
-    content,
+    content: compatMentions + html,
     created_at: nostrDate(event.created_at).toISOString(),
     in_reply_to_id: replyId ?? null,
     in_reply_to_account_id: null,
