@@ -133,11 +133,13 @@ const accountSearchController: AppController = async (c) => {
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const events = await store.query([{ kinds: [0], search: query, limit }], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+  const events = event ? [event] : await store.query([{ kinds: [0], search: query, limit }], { signal });
 
-  const accounts = await Promise.all(
-    events.map((event) => renderAccount(event)),
+  const accounts = await hydrateEvents({ events, store, signal }).then(
+    (events) =>
+      Promise.all(
+        events.map((event) => renderAccount(event)),
+      ),
   );
 
   return c.json(accounts);
