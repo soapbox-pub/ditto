@@ -8,9 +8,9 @@ import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
-import { extractBech32, nostrNow } from '@/utils.ts';
+import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
-import { lookupAccount } from '@/utils/lookup.ts';
+import { extractIdentifier, lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
@@ -125,11 +125,11 @@ const accountSearchController: AppController = async (c) => {
   const query = decodeURIComponent(result.data.q);
   const store = await Storages.search();
 
-  const bech32 = extractBech32(query);
-  const event = await lookupAccount(bech32 ?? query);
+  const lookup = extractIdentifier(query);
+  const event = await lookupAccount(lookup ?? query);
 
-  if (!event && bech32) {
-    const pubkey = bech32ToPubkey(bech32);
+  if (!event && lookup) {
+    const pubkey = bech32ToPubkey(lookup);
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 

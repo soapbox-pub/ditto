@@ -6,13 +6,11 @@ import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { bech32ToPubkey, extractBech32 } from '@/utils.ts';
+import { bech32ToPubkey } from '@/utils.ts';
+import { ACCT_REGEX, extractIdentifier } from '@/utils/lookup.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-
-/** Matches NIP-05 names with or without an @ in front. */
-const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -34,11 +32,11 @@ const searchController: AppController = async (c) => {
   }
 
   const event = await lookupEvent(result.data, signal);
-  const bech32 = extractBech32(result.data.q);
+  const lookup = extractIdentifier(result.data.q);
 
   // Render account from pubkey.
-  if (!event && bech32) {
-    const pubkey = bech32ToPubkey(bech32);
+  if (!event && lookup) {
+    const pubkey = bech32ToPubkey(lookup);
     return c.json({
       accounts: pubkey ? [await accountFromPubkey(pubkey)] : [],
       statuses: [],
@@ -131,11 +129,10 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
     return filters;
   }
 
-  const bech32 = extractBech32(q);
-
-  if (bech32) {
+  const lookup = extractIdentifier(q);
+  if (lookup) {
     try {
-      const result = nip19.decode(bech32);
+      const result = nip19.decode(lookup);
       switch (result.type) {
         case 'npub':
           if (accounts) filters.push({ kinds: [0], authors: [result.data] });

@@ -1,6 +1,5 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { match } from 'path-to-regexp';
 import { z } from 'zod';
 
 /** Get the current time in Nostr format. */
@@ -22,51 +21,6 @@ function bech32ToPubkey(bech32: string): string | undefined {
     }
   } catch {
     //
-  }
-}
-
-/** Extract a bech32 ID out of a search query string. */
-function extractBech32(value: string): string | undefined {
-  let bech32: string = value;
-
-  try {
-    const uri = new URL(value);
-    switch (uri.protocol) {
-      // Extract from NIP-19 URI, eg `nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
-      case 'nostr:':
-        bech32 = uri.pathname;
-        break;
-      // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
-      case 'http:':
-      case 'https:': {
-        const accountUriMatch = match<{ acct: string }>('/users/:acct')(uri.pathname);
-        const accountUrlMatch = match<{ acct: string }>('/\\@:acct')(uri.pathname);
-        const statusUriMatch = match<{ acct: string; id: string }>('/users/:acct/statuses/:id')(uri.pathname);
-        const statusUrlMatch = match<{ acct: string; id: string }>('/\\@:acct/:id')(uri.pathname);
-        const soapboxMatch = match<{ acct: string; id: string }>('/\\@:acct/posts/:id')(uri.pathname);
-        const nostrMatch = match<{ bech32: string }>('/:bech32')(uri.pathname);
-        if (accountUriMatch) {
-          bech32 = accountUriMatch.params.acct;
-        } else if (accountUrlMatch) {
-          bech32 = accountUrlMatch.params.acct;
-        } else if (statusUriMatch) {
-          bech32 = nip19.noteEncode(statusUriMatch.params.id);
-        } else if (statusUrlMatch) {
-          bech32 = nip19.noteEncode(statusUrlMatch.params.id);
-        } else if (soapboxMatch) {
-          bech32 = nip19.noteEncode(soapboxMatch.params.id);
-        } else if (nostrMatch) {
-          bech32 = nostrMatch.params.bech32;
-        }
-        break;
-      }
-    }
-  } catch {
-    // do nothing
-  }
-
-  if (n.bech32().safeParse(bech32).success) {
-    return bech32;
   }
 }
 
@@ -134,18 +88,6 @@ function isURL(value: unknown): boolean {
   return z.string().url().safeParse(value).success;
 }
 
-export {
-  bech32ToPubkey,
-  eventAge,
-  extractBech32,
-  findTag,
-  isNostrId,
-  isURL,
-  type Nip05,
-  nostrDate,
-  nostrNow,
-  parseNip05,
-  sha256,
-};
+export { bech32ToPubkey, eventAge, findTag, isNostrId, isURL, type Nip05, nostrDate, nostrNow, parseNip05, sha256 };
 
 export { Time } from '@/utils/time.ts';
