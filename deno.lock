@@ -73,6 +73,7 @@
       "npm:nostr-tools@^2.5.0": "npm:nostr-tools@2.5.1",
       "npm:nostr-tools@^2.7.0": "npm:nostr-tools@2.7.0",
       "npm:nostr-wasm@^0.1.0": "npm:nostr-wasm@0.1.0",
+      "npm:path-to-regexp@^7.1.0": "npm:path-to-regexp@7.1.0",
       "npm:postgres@3.4.4": "npm:postgres@3.4.4",
       "npm:prom-client@^15.1.2": "npm:prom-client@15.1.2",
       "npm:tldts@^6.0.14": "npm:tldts@6.1.18",
@@ -945,6 +946,10 @@
       },
       "path-key@4.0.0": {
         "integrity": "sha512-haREypq7xkM7ErfgIyA0z+Bj4AGKlMSdlQE2jvJo6huWD1EdkKYV+G/T4nq0YEF2vgTT8kqMFKo1uHn950r4SQ==",
+        "dependencies": {}
+      },
+      "path-to-regexp@7.1.0": {
+        "integrity": "sha512-ZToe+MbUF4lBqk6dV8GKot4DKfzrxXsplOddH8zN3YK+qw9/McvP7+4ICjZvOne0jQhN4eJwHsX6tT0Ns19fvw==",
         "dependencies": {}
       },
       "picomatch@2.3.1": {
@@ -1856,6 +1861,7 @@
       "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1",
       "npm:nostr-wasm@^0.1.0",
+      "npm:path-to-regexp@^7.1.0",
       "npm:prom-client@^15.1.2",
       "npm:tldts@^6.0.14",
       "npm:tseep@^1.2.1",
