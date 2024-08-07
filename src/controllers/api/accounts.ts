@@ -10,7 +10,7 @@ import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
-import { extractIdentifier, lookupAccount } from '@/utils/lookup.ts';
+import { extractIdentifier, lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
@@ -129,7 +129,7 @@ const accountSearchController: AppController = async (c) => {
   const event = await lookupAccount(lookup ?? query);
 
   if (!event && lookup) {
-    const pubkey = bech32ToPubkey(lookup);
+    const pubkey = await lookupPubkey(lookup);
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
