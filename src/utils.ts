@@ -24,6 +24,32 @@ function bech32ToPubkey(bech32: string): string | undefined {
   }
 }
 
+/** Extract a bech32 ID out of a search query string. */
+function extractBech32(value: string): string | undefined {
+  let bech32: string = value;
+
+  try {
+    const uri = new URL(value);
+    switch (uri.protocol) {
+      // Extract from NIP-19 URI, eg `nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'nostr:':
+        bech32 = uri.pathname;
+        break;
+      // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'http:':
+      case 'https:':
+        bech32 = uri.pathname.slice(1);
+        break;
+    }
+  } catch {
+    // do nothing
+  }
+
+  if (n.bech32().safeParse(bech32).success) {
+    return bech32;
+  }
+}
+
 interface Nip05 {
   /** Localpart of the nip05, eg `alex` in `alex@alexgleason.me`. */
   local: string | undefined;
@@ -97,6 +123,7 @@ export {
   bech32ToPubkey,
   dedupeEvents,
   eventAge,
+  extractBech32,
   findTag,
   isNostrId,
   isURL,

@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { bech32ToPubkey, dedupeEvents } from '@/utils.ts';
+import { bech32ToPubkey, dedupeEvents, extractBech32 } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -39,7 +39,7 @@ const searchController: AppController = async (c) => {
   ]);
 
   if (event) {
-    events.push(event);
+    events.unshift(event);
   }
 
   const results = dedupeEvents(events);
@@ -167,32 +167,6 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   }
 
   return filters;
-}
-
-/** Extract a bech32 ID out of a search query string. */
-function extractBech32(value: string): string | undefined {
-  let bech32: string = value;
-
-  try {
-    const uri = new URL(value);
-    switch (uri.protocol) {
-      // Extract from NIP-19 URI, eg `nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
-      case 'nostr:':
-        bech32 = uri.pathname;
-        break;
-      // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
-      case 'http:':
-      case 'https:':
-        bech32 = uri.pathname.slice(1);
-        break;
-    }
-  } catch {
-    // do nothing
-  }
-
-  if (n.bech32().safeParse(bech32).success) {
-    return bech32;
-  }
 }
 
 export { searchController };

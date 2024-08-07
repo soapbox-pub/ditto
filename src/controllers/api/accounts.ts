@@ -8,7 +8,7 @@ import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
-import { nostrNow } from '@/utils.ts';
+import { dedupeEvents, extractBech32, nostrNow } from '@/utils.ts';
 import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
 import { lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
@@ -125,30 +125,33 @@ const accountSearchController: AppController = async (c) => {
 
   const query = decodeURIComponent(q);
   const store = await Storages.search();
+  const bech32 = extractBech32(query);
 
   const [event, events] = await Promise.all([
-    lookupAccount(query),
+    lookupAccount(bech32 ?? query),
     store.query([{ kinds: [0], search: query, limit }], { signal }),
   ]);
 
+  if (event) {
+    events.unshift(event);
+  }
+
   const results = await hydrateEvents({
-    events: event ? [event, ...events] : events,
+    events: dedupeEvents(events),
     store,
     signal,
   });
 
-  if ((results.length < 1) && query.match(/npub1\w+/)) {
-    const possibleNpub = query;
-    try {
-      const npubHex = nip19.decode(possibleNpub);
-      return c.json([await accountFromPubkey(String(npubHex.data))]);
-    } catch (e) {
-      console.log(e);
-      return c.json([]);
-    }
+  const accounts = await Promise.all(
+    results.map((event) => renderAccount(event)),
+  );
+
+  // Render account from pubkey.
+  const pubkey = bech32ToPubkey(result.data.q);
+  if (pubkey && !accounts.find((account) => account.id === pubkey)) {
+    accounts.unshift(await accountFromPubkey(pubkey));
   }
 
-  const accounts = await Promise.all(results.map((event) => renderAccount(event)));
   return c.json(accounts);
 };
 
