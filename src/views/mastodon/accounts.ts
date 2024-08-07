@@ -42,10 +42,11 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
+  const acct = parsed05?.handle || npub;
 
   return {
     id: pubkey,
-    acct: parsed05?.handle || npub,
+    acct,
     avatar: picture,
     avatar_static: picture,
     bot: false,
@@ -78,7 +79,8 @@ async function renderAccount(
       }
       : undefined,
     statuses_count: event.author_stats?.notes_count ?? 0,
-    url: Conf.local(`/users/${pubkey}`),
+    uri: Conf.local(`/users/${acct}`),
+    url: Conf.local(`/@${acct}`),
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),

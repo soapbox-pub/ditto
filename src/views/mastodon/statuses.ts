@@ -121,8 +121,8 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     poll: null,
     quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
     quote_id: event.quote?.id ?? null,
-    uri: Conf.local(`/${note}`),
-    url: Conf.local(`/${note}`),
+    uri: Conf.local(`/users/${account.acct}/statuses/${event.id}`),
+    url: Conf.local(`/@${account.acct}/${event.id}`),
     zapped: Boolean(zapEvent),
     ditto: {
       external_url: Conf.external(note),
