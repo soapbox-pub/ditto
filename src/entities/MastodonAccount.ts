@@ -36,6 +36,7 @@ export interface MastodonAccount {
     };
   };
   statuses_count: number;
+  uri: string;
   url: string;
   username: string;
   ditto: {

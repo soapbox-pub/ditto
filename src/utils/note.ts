@@ -4,39 +4,11 @@ import linkify from 'linkifyjs';
 import { nip19, nip21, nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
+import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
-
-const linkifyOpts: linkify.Opts = {
-  render: {
-    hashtag: ({ content }) => {
-      const tag = content.replace(/^#/, '');
-      const href = Conf.local(`/tags/${tag}`);
-      return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
-    },
-    url: ({ attributes, content }) => {
-      try {
-        const { decoded } = nip21.parse(content);
-        const pubkey = getDecodedPubkey(decoded);
-        if (pubkey) {
-          const name = pubkey.substring(0, 8);
-          const href = Conf.local(`/users/${pubkey}`);
-          return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
-        } else {
-          return '';
-        }
-      } catch {
-        const attr = Object.entries(attributes)
-          .map(([name, value]) => `${name}="${value}"`)
-          .join(' ');
-
-        return `<a ${attr}>${content}</a>`;
-      }
-    },
-  },
-};
 
 type Link = ReturnType<typeof linkify.find>[0];
 
@@ -48,11 +20,41 @@ interface ParsedNoteContent {
 }
 
 /** Convert Nostr content to Mastodon API HTML. Also return parsed data. */
-function parseNoteContent(content: string): ParsedNoteContent {
-  // Parsing twice is ineffecient, but I don't know how to do only once.
-  const html = linkifyStr(content, linkifyOpts).replace(/\n+$/, '');
+function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedNoteContent {
   const links = linkify.find(content).filter(isLinkURL);
   const firstUrl = links.find(isNonMediaLink)?.href;
+
+  const html = linkifyStr(content, {
+    render: {
+      hashtag: ({ content }) => {
+        const tag = content.replace(/^#/, '');
+        const href = Conf.local(`/tags/${tag}`);
+        return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
+      },
+      url: ({ attributes, content }) => {
+        try {
+          const { decoded } = nip21.parse(content);
+          const pubkey = getDecodedPubkey(decoded);
+          if (pubkey) {
+            const mention = mentions.find((m) => m.id === pubkey);
+            const npub = nip19.npubEncode(pubkey);
+            const acct = mention?.acct ?? npub;
+            const name = mention?.acct ?? npub.substring(0, 8);
+            const href = mention?.url ?? Conf.local(`/@${acct}`);
+            return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
+          } else {
+            return '';
+          }
+        } catch {
+          const attr = Object.entries(attributes)
+            .map(([name, value]) => `${name}="${value}"`)
+            .join(' ');
+
+          return `<a ${attr}>${content}</a>`;
+        }
+      },
+    },
+  }).replace(/\n+$/, '');
 
   return {
     html,

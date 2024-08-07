@@ -10,7 +10,7 @@ import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
 import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
-import { lookupAccount } from '@/utils/lookup.ts';
+import { extractIdentifier, lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
@@ -110,45 +110,38 @@ const accountSearchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
 const accountSearchController: AppController = async (c) => {
-  const result = accountSearchQuerySchema.safeParse(c.req.query());
   const { signal } = c.req.raw;
+  const { limit } = c.get('pagination');
+
+  const result = accountSearchQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const { q, limit } = result.data;
-
-  const query = decodeURIComponent(q);
+  const query = decodeURIComponent(result.data.q);
   const store = await Storages.search();
 
-  const [event, events] = await Promise.all([
-    lookupAccount(query),
-    store.query([{ kinds: [0], search: query, limit }], { signal }),
-  ]);
+  const lookup = extractIdentifier(query);
+  const event = await lookupAccount(lookup ?? query);
 
-  const results = await hydrateEvents({
-    events: event ? [event, ...events] : events,
-    store,
-    signal,
-  });
-
-  if ((results.length < 1) && query.match(/npub1\w+/)) {
-    const possibleNpub = query;
-    try {
-      const npubHex = nip19.decode(possibleNpub);
-      return c.json([await accountFromPubkey(String(npubHex.data))]);
-    } catch (e) {
-      console.log(e);
-      return c.json([]);
-    }
+  if (!event && lookup) {
+    const pubkey = await lookupPubkey(lookup);
+    return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const accounts = await Promise.all(results.map((event) => renderAccount(event)));
+  const events = event ? [event] : await store.query([{ kinds: [0], search: query, limit }], { signal });
+
+  const accounts = await hydrateEvents({ events, store, signal }).then(
+    (events) =>
+      Promise.all(
+        events.map((event) => renderAccount(event)),
+      ),
+  );
+
   return c.json(accounts);
 };
 

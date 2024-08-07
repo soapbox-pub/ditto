@@ -4,7 +4,7 @@ import { eventFixture } from '@/test.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 
 Deno.test('parseNoteContent', () => {
-  const { html, links, firstUrl } = parseNoteContent('Hello, world!');
+  const { html, links, firstUrl } = parseNoteContent('Hello, world!', []);
   assertEquals(html, 'Hello, world!');
   assertEquals(links, []);
   assertEquals(firstUrl, undefined);

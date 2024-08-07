@@ -19,7 +19,7 @@ function bech32ToPubkey(bech32: string): string | undefined {
       case 'npub':
         return decoded.data;
     }
-  } catch (_) {
+  } catch {
     //
   }
 }
@@ -78,11 +78,6 @@ async function sha256(message: string): Promise<string> {
   return hashHex;
 }
 
-/** Deduplicate events by ID. */
-function dedupeEvents(events: NostrEvent[]): NostrEvent[] {
-  return [...new Map(events.map((event) => [event.id, event])).values()];
-}
-
 /** Test whether the value is a Nostr ID. */
 function isNostrId(value: unknown): boolean {
   return n.id().safeParse(value).success;
@@ -93,18 +88,6 @@ function isURL(value: unknown): boolean {
   return z.string().url().safeParse(value).success;
 }
 
-export {
-  bech32ToPubkey,
-  dedupeEvents,
-  eventAge,
-  findTag,
-  isNostrId,
-  isURL,
-  type Nip05,
-  nostrDate,
-  nostrNow,
-  parseNip05,
-  sha256,
-};
+export { bech32ToPubkey, eventAge, findTag, isNostrId, isURL, type Nip05, nostrDate, nostrNow, parseNip05, sha256 };
 
 export { Time } from '@/utils/time.ts';
