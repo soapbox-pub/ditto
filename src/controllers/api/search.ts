@@ -5,11 +5,11 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { bech32ToPubkey, dedupeEvents, extractBech32 } from '@/utils.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { bech32ToPubkey, extractBech32 } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
 
 /** Matches NIP-05 names with or without an @ in front. */
 const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
@@ -33,38 +33,43 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const [event, events] = await Promise.all([
-    lookupEvent(result.data, signal),
-    searchEvents(result.data, signal),
-  ]);
+  const event = await lookupEvent(result.data, signal);
+  const bech32 = extractBech32(result.data.q);
 
-  if (event) {
-    events.unshift(event);
+  // Render account from pubkey.
+  if (!event && bech32) {
+    const pubkey = bech32ToPubkey(bech32);
+    return c.json({
+      accounts: pubkey ? [await accountFromPubkey(pubkey)] : [],
+      statuses: [],
+      hashtags: [],
+    });
   }
 
-  const results = dedupeEvents(events);
+  let events: NostrEvent[] = [];
+
+  if (event) {
+    events = [event];
+  } else {
+    events = await searchEvents(result.data, signal);
+  }
+
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
-      results
+      events
         .filter((event) => event.kind === 0)
         .map((event) => renderAccount(event))
         .filter(Boolean),
     ),
     Promise.all(
-      results
+      events
         .filter((event) => event.kind === 1)
         .map((event) => renderStatus(event, { viewerPubkey }))
         .filter(Boolean),
     ),
   ]);
-
-  // Render account from pubkey.
-  const pubkey = bech32ToPubkey(result.data.q);
-  if (pubkey && !accounts.find((account) => account.id === pubkey)) {
-    accounts.unshift(await accountFromPubkey(pubkey));
-  }
 
   return c.json({
     accounts,
@@ -139,14 +144,10 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
           if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
           break;
         case 'note':
-          if (statuses) {
-            filters.push({ kinds: [1], ids: [result.data] });
-          }
+          if (statuses) filters.push({ kinds: [1], ids: [result.data] });
           break;
         case 'nevent':
-          if (statuses) {
-            filters.push({ kinds: [1], ids: [result.data.id] });
-          }
+          if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
           break;
       }
     } catch {

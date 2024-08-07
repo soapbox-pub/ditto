@@ -8,7 +8,7 @@ import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
-import { dedupeEvents, extractBech32, nostrNow } from '@/utils.ts';
+import { extractBech32, nostrNow } from '@/utils.ts';
 import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
 import { lookupAccount } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
@@ -110,47 +110,35 @@ const accountSearchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
 const accountSearchController: AppController = async (c) => {
-  const result = accountSearchQuerySchema.safeParse(c.req.query());
   const { signal } = c.req.raw;
+  const { limit } = c.get('pagination');
+
+  const result = accountSearchQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const { q, limit } = result.data;
-
-  const query = decodeURIComponent(q);
+  const query = decodeURIComponent(result.data.q);
   const store = await Storages.search();
+
   const bech32 = extractBech32(query);
+  const event = await lookupAccount(bech32 ?? query);
 
-  const [event, events] = await Promise.all([
-    lookupAccount(bech32 ?? query),
-    store.query([{ kinds: [0], search: query, limit }], { signal }),
-  ]);
-
-  if (event) {
-    events.unshift(event);
+  if (!event && bech32) {
+    const pubkey = bech32ToPubkey(bech32);
+    return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const results = await hydrateEvents({
-    events: dedupeEvents(events),
-    store,
-    signal,
-  });
+  const events = await store.query([{ kinds: [0], search: query, limit }], { signal })
+    .then((events) => hydrateEvents({ events, store, signal }));
 
   const accounts = await Promise.all(
-    results.map((event) => renderAccount(event)),
+    events.map((event) => renderAccount(event)),
   );
-
-  // Render account from pubkey.
-  const pubkey = bech32ToPubkey(result.data.q);
-  if (pubkey && !accounts.find((account) => account.id === pubkey)) {
-    accounts.unshift(await accountFromPubkey(pubkey));
-  }
 
   return c.json(accounts);
 };

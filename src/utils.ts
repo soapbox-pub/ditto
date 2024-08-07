@@ -19,7 +19,7 @@ function bech32ToPubkey(bech32: string): string | undefined {
       case 'npub':
         return decoded.data;
     }
-  } catch (_) {
+  } catch {
     //
   }
 }
@@ -104,11 +104,6 @@ async function sha256(message: string): Promise<string> {
   return hashHex;
 }
 
-/** Deduplicate events by ID. */
-function dedupeEvents(events: NostrEvent[]): NostrEvent[] {
-  return [...new Map(events.map((event) => [event.id, event])).values()];
-}
-
 /** Test whether the value is a Nostr ID. */
 function isNostrId(value: unknown): boolean {
   return n.id().safeParse(value).success;
@@ -121,7 +116,6 @@ function isURL(value: unknown): boolean {
 
 export {
   bech32ToPubkey,
-  dedupeEvents,
   eventAge,
   extractBech32,
   findTag,
