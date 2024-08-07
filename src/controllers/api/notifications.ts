@@ -3,8 +3,9 @@ import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated, PaginationParams, paginationSchema } from '@/utils/api.ts';
+import { paginated } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 /** Set of known notification types across backends. */
@@ -30,7 +31,7 @@ const notificationsSchema = z.object({
 
 const notificationsController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
 
   const types = notificationTypes
     .intersection(new Set(c.req.queries('types[]') ?? notificationTypes))
@@ -72,7 +73,7 @@ const notificationsController: AppController = async (c) => {
 async function renderNotifications(
   filters: NostrFilter[],
   types: Set<string>,
-  params: PaginationParams,
+  params: DittoPagination,
   c: AppContext,
 ) {
   const store = c.get('store');

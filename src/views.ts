@@ -4,7 +4,7 @@ import { AppContext } from '@/app.ts';
 import { Storages } from '@/storages.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
-import { listPaginationSchema, paginated, paginatedList, paginationSchema } from '@/utils/api.ts';
+import { paginated, paginatedList } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 
@@ -43,7 +43,7 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
 }
 
 async function renderAccounts(c: AppContext, pubkeys: string[]) {
-  const { offset, limit } = listPaginationSchema.parse(c.req.query());
+  const { offset, limit } = c.get('listPagination');
   const authors = pubkeys.reverse().slice(offset, offset + limit);
 
   const store = await Storages.db();
@@ -73,7 +73,7 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
   }
 
   const store = await Storages.db();
-  const { limit } = paginationSchema.parse(c.req.query());
+  const { limit } = c.get('pagination');
 
   const events = await store.query([{ kinds: [1], ids, limit }], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
