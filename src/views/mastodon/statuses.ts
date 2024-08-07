@@ -172,7 +172,7 @@ function buildInlineRecipients(mentions: MastodonMention[]): string {
 
   const elements = mentions.reduce<string[]>((acc, { url, username }) => {
     const name = nip19.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
-    acc.push(`<a href="${url}" class="u-url mention" rel="ugc">@<span>${name}</span></a>`);
+    acc.push(`<span class="h-card"><a class="u-url mention" href="${url}" rel="ugc">@<span>${name}</span></a></span>`);
     return acc;
   }, []);
 
