@@ -34,9 +34,9 @@ interface StatusInfo {
 
 /** URL routes to serve metadata on. */
 const SSR_ROUTES = [
-  '/@:acct/posts/:statusId',
-  '/@:acct/:statusId',
-  '/@:acct',
+  '/\\@:acct/posts/:statusId',
+  '/\\@:acct/:statusId',
+  '/\\@:acct',
   '/users/:acct/statuses/:statusId',
   '/users/:acct',
   '/statuses/:statusId',
