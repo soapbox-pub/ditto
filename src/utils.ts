@@ -38,7 +38,7 @@ function extractBech32(value: string): string | undefined {
       // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
       case 'http:':
       case 'https:':
-        bech32 = uri.pathname.slice(1);
+        bech32 = uri.pathname.replace(/^\/@?/, '');
         break;
     }
   } catch {
