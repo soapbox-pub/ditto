@@ -46,13 +46,14 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
-  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags));
+  const mentions = await Promise.all(
+    mentionedPubkeys.map((pubkey) => renderMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
+  );
 
-  const [mentions, card, relatedEvents] = await Promise
+  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions);
+
+  const [card, relatedEvents] = await Promise
     .all([
-      Promise.all(
-        mentionedPubkeys.map((pubkey) => toMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
-      ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
         ? await store.query([
@@ -71,7 +72,11 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
   const zapEvent = relatedEvents.find((event) => event.kind === 9734);
 
-  const content = buildInlineRecipients(mentions) + html;
+  const compatMentions = buildInlineRecipients(mentions.filter((m) => {
+    if (m.id === account.id) return false;
+    if (html.includes(m.url)) return false;
+    return true;
+  }));
 
   const cw = event.tags.find(([name]) => name === 'content-warning');
   const subject = event.tags.find(([name]) => name === 'subject');
@@ -95,7 +100,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     id: event.id,
     account,
     card,
-    content,
+    content: compatMentions + html,
     created_at: nostrDate(event.created_at).toISOString(),
     in_reply_to_id: replyId ?? null,
     in_reply_to_account_id: null,
@@ -121,8 +126,8 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     poll: null,
     quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
     quote_id: event.quote?.id ?? null,
-    uri: Conf.local(`/${note}`),
-    url: Conf.local(`/${note}`),
+    uri: Conf.local(`/users/${account.acct}/statuses/${event.id}`),
+    url: Conf.local(`/@${account.acct}/${event.id}`),
     zapped: Boolean(zapEvent),
     ditto: {
       external_url: Conf.external(note),
@@ -152,25 +157,14 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts): Promise<
   };
 }
 
-async function toMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
-  const account = event ? await renderAccount(event) : undefined;
-
-  if (account) {
-    return {
-      id: account.id,
-      acct: account.acct,
-      username: account.username,
-      url: account.url,
-    };
-  } else {
-    const npub = nip19.npubEncode(pubkey);
-    return {
-      id: pubkey,
-      acct: npub,
-      username: npub.substring(0, 8),
-      url: Conf.local(`/users/${pubkey}`),
-    };
-  }
+async function renderMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
+  const account = event ? await renderAccount(event) : await accountFromPubkey(pubkey);
+  return {
+    id: account.id,
+    acct: account.acct,
+    username: account.username,
+    url: account.url,
+  };
 }
 
 function buildInlineRecipients(mentions: MastodonMention[]): string {
@@ -178,7 +172,7 @@ function buildInlineRecipients(mentions: MastodonMention[]): string {
 
   const elements = mentions.reduce<string[]>((acc, { url, username }) => {
     const name = nip19.BECH32_REGEX.test(username) ? username.substring(0, 8) : username;
-    acc.push(`<a href="${url}" class="u-url mention" rel="ugc">@<span>${name}</span></a>`);
+    acc.push(`<span class="h-card"><a class="u-url mention" href="${url}" rel="ugc">@<span>${name}</span></a></span>`);
     return acc;
   }, []);
 

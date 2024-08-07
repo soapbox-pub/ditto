@@ -1,18 +1,22 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
+import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { AppController } from '@/app.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { booleanParamSchema } from '@/schema.ts';
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginationSchema, parseBody } from '@/utils/api.ts';
-import { renderNameRequest } from '@/views/ditto.ts';
-import { getZapSplits } from '@/utils/zap-split.ts';
-import { updateListAdminEvent } from '@/utils/api.ts';
 import { addTag } from '@/utils/tags.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
+import { Conf } from '@/config.ts';
+import { createEvent, paginated, parseBody } from '@/utils/api.ts';
 import { deleteTag } from '@/utils/tags.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
+import { getAuthor } from '@/queries.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
+import { renderNameRequest } from '@/views/ditto.ts';
+import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { Storages } from '@/storages.ts';
+import { updateListAdminEvent } from '@/utils/api.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -111,7 +115,7 @@ export const nameRequestsController: AppController = async (c) => {
   const signer = c.get('signer')!;
   const pubkey = await signer.getPublicKey();
 
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
 
   const filter: NostrFilter = {
@@ -156,7 +160,7 @@ export const nameRequestsController: AppController = async (c) => {
 const zapSplitSchema = z.record(
   n.id(),
   z.object({
-    amount: z.number().int().min(1).max(100),
+    weight: z.number().int().min(1).max(100),
     message: z.string().max(500),
   }),
 );
@@ -170,8 +174,8 @@ export const updateZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
@@ -186,7 +190,7 @@ export const updateZapSplitsController: AppController = async (c) => {
     { kinds: [30078], authors: [Conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       pubkeys.reduce((accumulator, pubkey) => {
-        return addTag(accumulator, ['p', pubkey, data[pubkey].amount.toString(), data[pubkey].message]);
+        return addTag(accumulator, ['p', pubkey, data[pubkey].weight.toString(), data[pubkey].message]);
       }, tags),
     c,
   );
@@ -205,8 +209,8 @@ export const deleteZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (!zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
 
@@ -222,4 +226,62 @@ export const deleteZapSplitsController: AppController = async (c) => {
   );
 
   return c.json(200);
+};
+
+export const getZapSplitsController: AppController = async (c) => {
+  const store = c.get('store');
+
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, Conf.pubkey) ?? {};
+  if (!dittoZapSplit) {
+    return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
+  }
+
+  const pubkeys = Object.keys(dittoZapSplit);
+
+  const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
+    const author = await getAuthor(pubkey);
+
+    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+
+    return {
+      account,
+      weight: dittoZapSplit[pubkey].weight,
+      message: dittoZapSplit[pubkey].message,
+    };
+  }));
+
+  return c.json(zapSplits, 200);
+};
+
+export const statusZapSplitsController: AppController = async (c) => {
+  const store = c.get('store');
+  const id = c.req.param('id');
+  const { signal } = c.req.raw;
+
+  const [event] = await store.query([{ kinds: [1], ids: [id], limit: 1 }], { signal });
+  if (!event) {
+    return c.json({ error: 'Event not found' }, 404);
+  }
+
+  const zapsTag = event.tags.filter(([name]) => name === 'zap');
+
+  const pubkeys = zapsTag.map((name) => name[1]);
+
+  const users = await store.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
+  await hydrateEvents({ events: users, store, signal });
+
+  const zapSplits = (await Promise.all(pubkeys.map(async (pubkey) => {
+    const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;
+    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+
+    const weight = percentageSchema.catch(0).parse(zapsTag.find((name) => name[1] === pubkey)![3]) ?? 0;
+
+    return {
+      account,
+      message: '',
+      weight: weight,
+    };
+  }))).filter((zapSplit) => zapSplit.weight > 0);
+
+  return c.json(zapSplits, 200);
 };

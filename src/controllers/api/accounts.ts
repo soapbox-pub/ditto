@@ -9,8 +9,8 @@ import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
-import { createEvent, paginated, paginationSchema, parseBody, updateListEvent } from '@/utils/api.ts';
-import { lookupAccount } from '@/utils/lookup.ts';
+import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
+import { extractIdentifier, lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
@@ -110,45 +110,38 @@ const accountSearchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
 });
 
 const accountSearchController: AppController = async (c) => {
-  const result = accountSearchQuerySchema.safeParse(c.req.query());
   const { signal } = c.req.raw;
+  const { limit } = c.get('pagination');
+
+  const result = accountSearchQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const { q, limit } = result.data;
-
-  const query = decodeURIComponent(q);
+  const query = decodeURIComponent(result.data.q);
   const store = await Storages.search();
 
-  const [event, events] = await Promise.all([
-    lookupAccount(query),
-    store.query([{ kinds: [0], search: query, limit }], { signal }),
-  ]);
+  const lookup = extractIdentifier(query);
+  const event = await lookupAccount(lookup ?? query);
 
-  const results = await hydrateEvents({
-    events: event ? [event, ...events] : events,
-    store,
-    signal,
-  });
-
-  if ((results.length < 1) && query.match(/npub1\w+/)) {
-    const possibleNpub = query;
-    try {
-      const npubHex = nip19.decode(possibleNpub);
-      return c.json([await accountFromPubkey(String(npubHex.data))]);
-    } catch (e) {
-      console.log(e);
-      return c.json([]);
-    }
+  if (!event && lookup) {
+    const pubkey = await lookupPubkey(lookup);
+    return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const accounts = await Promise.all(results.map((event) => renderAccount(event)));
+  const events = event ? [event] : await store.query([{ kinds: [0], search: query, limit }], { signal });
+
+  const accounts = await hydrateEvents({ events, store, signal }).then(
+    (events) =>
+      Promise.all(
+        events.map((event) => renderAccount(event)),
+      ),
+  );
+
   return c.json(accounts);
 };
 
@@ -160,7 +153,25 @@ const relationshipsController: AppController = async (c) => {
     return c.json({ error: 'Missing `id[]` query parameters.' }, 422);
   }
 
-  const result = await Promise.all(ids.data.map((id) => renderRelationship(pubkey, id)));
+  const db = await Storages.db();
+
+  const [sourceEvents, targetEvents] = await Promise.all([
+    db.query([{ kinds: [3, 10000], authors: [pubkey] }]),
+    db.query([{ kinds: [3], authors: ids.data }]),
+  ]);
+
+  const event3 = sourceEvents.find((event) => event.kind === 3 && event.pubkey === pubkey);
+  const event10000 = sourceEvents.find((event) => event.kind === 10000 && event.pubkey === pubkey);
+
+  const result = ids.data.map((id) =>
+    renderRelationship({
+      sourcePubkey: pubkey,
+      targetPubkey: id,
+      event3,
+      target3: targetEvents.find((event) => event.kind === 3 && event.pubkey === id),
+      event10000,
+    })
+  );
 
   return c.json(result);
 };
@@ -174,7 +185,7 @@ const accountStatusesQuerySchema = z.object({
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
-  const { since, until } = paginationSchema.parse(c.req.query());
+  const { since, until } = c.get('pagination');
   const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
@@ -325,7 +336,7 @@ const followController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   relationship.following = true;
 
   return c.json(relationship);
@@ -342,13 +353,13 @@ const unfollowController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
 const followersController: AppController = (c) => {
   const pubkey = c.req.param('pubkey');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   return renderEventAccounts(c, [{ kinds: [3], '#p': [pubkey], ...params }]);
 };
 
@@ -379,7 +390,7 @@ const muteController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
@@ -394,13 +405,13 @@ const unmuteController: AppController = async (c) => {
     c,
   );
 
-  const relationship = await renderRelationship(sourcePubkey, targetPubkey);
+  const relationship = await getRelationship(sourcePubkey, targetPubkey);
   return c.json(relationship);
 };
 
 const favouritesController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { signal } = c.req.raw;
 
   const store = await Storages.db();
@@ -446,6 +457,23 @@ const familiarFollowersController: AppController = async (c) => {
 
   return c.json(results);
 };
+
+async function getRelationship(sourcePubkey: string, targetPubkey: string) {
+  const db = await Storages.db();
+
+  const [sourceEvents, targetEvents] = await Promise.all([
+    db.query([{ kinds: [3, 10000], authors: [sourcePubkey] }]),
+    db.query([{ kinds: [3], authors: [targetPubkey] }]),
+  ]);
+
+  return renderRelationship({
+    sourcePubkey,
+    targetPubkey,
+    event3: sourceEvents.find((event) => event.kind === 3 && event.pubkey === sourcePubkey),
+    target3: targetEvents.find((event) => event.kind === 3 && event.pubkey === targetPubkey),
+    event10000: sourceEvents.find((event) => event.kind === 10000 && event.pubkey === sourcePubkey),
+  });
+}
 
 export {
   accountController,

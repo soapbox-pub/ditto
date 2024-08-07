@@ -1,4 +1,6 @@
 import { NIP05, NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
+import { match } from 'path-to-regexp';
 
 import { getAuthor } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
@@ -33,5 +35,56 @@ export async function lookupPubkey(value: string, signal?: AbortSignal): Promise
       console.debug(e);
       return;
     }
+  }
+}
+
+/** Extract an acct or bech32 identifier out of a URL or of itself. */
+export function extractIdentifier(value: string): string | undefined {
+  value = value.trim();
+
+  try {
+    const uri = new URL(value);
+    switch (uri.protocol) {
+      // Extract from NIP-19 URI, eg `nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'nostr:':
+        value = uri.pathname;
+        break;
+      // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'http:':
+      case 'https:': {
+        const accountUriMatch = match<{ acct: string }>('/users/:acct')(uri.pathname);
+        const accountUrlMatch = match<{ acct: string }>('/\\@:acct')(uri.pathname);
+        const statusUriMatch = match<{ acct: string; id: string }>('/users/:acct/statuses/:id')(uri.pathname);
+        const statusUrlMatch = match<{ acct: string; id: string }>('/\\@:acct/:id')(uri.pathname);
+        const soapboxMatch = match<{ acct: string; id: string }>('/\\@:acct/posts/:id')(uri.pathname);
+        const nostrMatch = match<{ bech32: string }>('/:bech32')(uri.pathname);
+        if (accountUriMatch) {
+          value = accountUriMatch.params.acct;
+        } else if (accountUrlMatch) {
+          value = accountUrlMatch.params.acct;
+        } else if (statusUriMatch) {
+          value = nip19.noteEncode(statusUriMatch.params.id);
+        } else if (statusUrlMatch) {
+          value = nip19.noteEncode(statusUrlMatch.params.id);
+        } else if (soapboxMatch) {
+          value = nip19.noteEncode(soapboxMatch.params.id);
+        } else if (nostrMatch) {
+          value = nostrMatch.params.bech32;
+        }
+        break;
+      }
+    }
+  } catch {
+    // do nothing
+  }
+
+  value = value.replace(/^@/, '');
+
+  if (n.bech32().safeParse(value).success) {
+    return value;
+  }
+
+  if (NIP05.regex().test(value)) {
+    return value;
   }
 }

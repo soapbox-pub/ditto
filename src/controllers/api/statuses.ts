@@ -19,15 +19,7 @@ import { renderEventAccounts } from '@/views.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
-import {
-  createEvent,
-  listPaginationSchema,
-  paginated,
-  paginatedList,
-  paginationSchema,
-  parseBody,
-  updateListEvent,
-} from '@/utils/api.ts';
+import { createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
 
@@ -179,12 +171,12 @@ const createStatusController: AppController = async (c) => {
 
   const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
   const lnurl = getLnurl(meta);
-  const zap_split = await getZapSplits(store, Conf.pubkey);
-  if (lnurl && zap_split) {
+  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+  if (lnurl && dittoZapSplit) {
     let totalSplit = 0;
-    for (const pubkey in zap_split) {
-      totalSplit += zap_split[pubkey].amount;
-      tags.push(['zap', pubkey, Conf.relay, zap_split[pubkey].amount.toString()]);
+    for (const pubkey in dittoZapSplit) {
+      totalSplit += dittoZapSplit[pubkey].weight;
+      tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString()]);
     }
     if (totalSplit) {
       tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
@@ -296,7 +288,7 @@ const favouriteController: AppController = async (c) => {
 
 const favouritedByController: AppController = (c) => {
   const id = c.req.param('id');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
 
   return renderEventAccounts(c, [{ kinds: [7], '#e': [id], ...params }], {
     filterFn: ({ content }) => content === '+',
@@ -364,13 +356,13 @@ const unreblogStatusController: AppController = async (c) => {
 
 const rebloggedByController: AppController = (c) => {
   const id = c.req.param('id');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   return renderEventAccounts(c, [{ kinds: [6], '#e': [id], ...params }]);
 };
 
 const quotesController: AppController = async (c) => {
   const id = c.req.param('id');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const store = await Storages.db();
 
   const [event] = await store.query([{ ids: [id], kinds: [1] }]);
@@ -571,7 +563,7 @@ const zapController: AppController = async (c) => {
 
 const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
-  const params = listPaginationSchema.parse(c.req.query());
+  const params = c.get('listPagination');
   const store = await Storages.db();
   const db = await DittoDB.getInstance();
 

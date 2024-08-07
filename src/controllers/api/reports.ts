@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginated, paginationSchema, parseBody, updateEventInfo } from '@/utils/api.ts';
+import { createEvent, paginated, parseBody, updateEventInfo } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
@@ -64,7 +64,7 @@ const adminReportsController: AppController = async (c) => {
   const store = c.get('store');
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { resolved, account_id, target_account_id } = adminReportsSchema.parse(c.req.query());
 
   const filter: NostrFilter = {

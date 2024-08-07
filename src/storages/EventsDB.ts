@@ -1,7 +1,7 @@
 // deno-lint-ignore-file require-await
 
+import { NDatabase } from '@nostrify/db';
 import {
-  NDatabase,
   NIP50,
   NKinds,
   NostrEvent,

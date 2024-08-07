@@ -40,8 +40,10 @@ import {
   adminRelaysController,
   adminSetRelaysController,
   deleteZapSplitsController,
+  getZapSplitsController,
   nameRequestController,
   nameRequestsController,
+  statusZapSplitsController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
@@ -117,6 +119,7 @@ import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
+import { paginationMiddleware } from '@/middleware/paginationMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
@@ -131,8 +134,12 @@ interface AppEnv extends HonoEnv {
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** Store */
+    /** Storage for the user, might filter out unwanted content. */
     store: NStore;
+    /** Normalized pagination params. */
+    pagination: { since?: number; until?: number; limit: number };
+    /** Normalized list pagination params. */
+    listPagination: { offset: number; limit: number };
   };
 }
 
@@ -146,7 +153,7 @@ const debug = Debug('ditto:http');
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
-app.use('/api/*', metricsMiddleware, logger(debug));
+app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
 app.use('/.well-known/*', metricsMiddleware, logger(debug));
 app.use('/users/*', metricsMiddleware, logger(debug));
 app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
@@ -263,6 +270,9 @@ app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysContro
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
+
+app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
+app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
 app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);

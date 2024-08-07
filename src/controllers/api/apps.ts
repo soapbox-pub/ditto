@@ -1,4 +1,7 @@
+import { z } from 'zod';
+
 import type { AppController } from '@/app.ts';
+import { parseBody } from '@/utils/api.ts';
 
 /**
  * Apps are unnecessary cruft in Mastodon API, but necessary to make clients work.
@@ -14,10 +17,14 @@ const FAKE_APP = {
   vapid_key: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
 };
 
+const createAppSchema = z.object({
+  redirect_uris: z.string().url().optional(),
+});
+
 const createAppController: AppController = async (c) => {
   // TODO: Handle both formData and json. 422 on parsing error.
   try {
-    const { redirect_uris } = await c.req.json();
+    const { redirect_uris } = createAppSchema.parse(await parseBody(c.req.raw));
 
     return c.json({
       ...FAKE_APP,

@@ -6,12 +6,12 @@ import { Conf } from '@/config.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated, paginationSchema } from '@/utils/api.ts';
+import { paginated } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const homeTimelineController: AppController = async (c) => {
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const authors = await getFeedPubkeys(pubkey);
   return renderStatuses(c, [{ authors, kinds: [1, 6], ...params }]);
@@ -23,7 +23,7 @@ const publicQuerySchema = z.object({
 });
 
 const publicTimelineController: AppController = (c) => {
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   const { local, instance } = publicQuerySchema.parse(c.req.query());
 
   const filter: NostrFilter = { kinds: [1], ...params };
@@ -39,13 +39,13 @@ const publicTimelineController: AppController = (c) => {
 
 const hashtagTimelineController: AppController = (c) => {
   const hashtag = c.req.param('hashtag')!.toLowerCase();
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
   return renderStatuses(c, [{ kinds: [1], '#t': [hashtag], ...params }]);
 };
 
 const suggestedTimelineController: AppController = async (c) => {
   const store = c.get('store');
-  const params = paginationSchema.parse(c.req.query());
+  const params = c.get('pagination');
 
   const [follows] = await store.query(
     [{ kinds: [3], authors: [Conf.pubkey], limit: 1 }],
