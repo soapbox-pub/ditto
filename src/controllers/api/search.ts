@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
-import { dedupeEvents } from '@/utils.ts';
+import { bech32ToPubkey, dedupeEvents } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -60,14 +60,10 @@ const searchController: AppController = async (c) => {
     ),
   ]);
 
-  if ((result.data.type === 'accounts') && (accounts.length < 1) && (result.data.q.match(/npub1\w+/))) {
-    const possibleNpub = result.data.q;
-    try {
-      const npubHex = nip19.decode(possibleNpub);
-      accounts.push(await accountFromPubkey(String(npubHex.data)));
-    } catch (e) {
-      console.log(e);
-    }
+  // Render account from pubkey.
+  const pubkey = bech32ToPubkey(result.data.q);
+  if (pubkey && !accounts.find((account) => account.id === pubkey)) {
+    accounts.unshift(await accountFromPubkey(pubkey));
   }
 
   return c.json({
@@ -130,9 +126,11 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
     return filters;
   }
 
-  if (new RegExp(`^${nip19.BECH32_REGEX.source}$`).test(q)) {
+  const bech32 = extractBech32(q);
+
+  if (bech32) {
     try {
-      const result = nip19.decode(q);
+      const result = nip19.decode(bech32);
       switch (result.type) {
         case 'npub':
           if (accounts) filters.push({ kinds: [0], authors: [result.data] });
@@ -151,10 +149,10 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
           }
           break;
       }
-    } catch (_e) {
+    } catch {
       // do nothing
     }
-  } else if (/^[0-9a-f]{64}$/.test(q)) {
+  } else if (n.id().safeParse(q).success) {
     if (accounts) filters.push({ kinds: [0], authors: [q] });
     if (statuses) filters.push({ kinds: [1], ids: [q] });
   } else if (accounts && ACCT_REGEX.test(q)) {
@@ -163,12 +161,38 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
       if (pubkey) {
         filters.push({ kinds: [0], authors: [pubkey] });
       }
-    } catch (_e) {
+    } catch {
       // do nothing
     }
   }
 
   return filters;
+}
+
+/** Extract a bech32 ID out of a search query string. */
+function extractBech32(value: string): string | undefined {
+  let bech32: string = value;
+
+  try {
+    const uri = new URL(value);
+    switch (uri.protocol) {
+      // Extract from NIP-19 URI, eg `nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'nostr:':
+        bech32 = uri.pathname;
+        break;
+      // Extract from URL, eg `https://njump.me/npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p`.
+      case 'http:':
+      case 'https:':
+        bech32 = uri.pathname.slice(1);
+        break;
+    }
+  } catch {
+    // do nothing
+  }
+
+  if (n.bech32().safeParse(bech32).success) {
+    return bech32;
+  }
 }
 
 export { searchController };
