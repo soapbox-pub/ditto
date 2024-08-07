@@ -253,7 +253,7 @@ export const getZapSplitsController: AppController = async (c) => {
   return c.json(zapSplits, 200);
 };
 
-export const getZapSplitsOfStatusController: AppController = async (c) => {
+export const statusZapSplitsController: AppController = async (c) => {
   const store = c.get('store');
   const id = c.req.param('id');
   const { signal } = c.req.raw;
