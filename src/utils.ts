@@ -40,10 +40,10 @@ function extractBech32(value: string): string | undefined {
       case 'http:':
       case 'https:': {
         const accountUriMatch = match<{ acct: string }>('/users/:acct')(uri.pathname);
-        const accountUrlMatch = match<{ acct: string }>('/@:acct')(uri.pathname);
+        const accountUrlMatch = match<{ acct: string }>('/\\@:acct')(uri.pathname);
         const statusUriMatch = match<{ acct: string; id: string }>('/users/:acct/statuses/:id')(uri.pathname);
-        const statusUrlMatch = match<{ acct: string; id: string }>('/@:acct/:id')(uri.pathname);
-        const soapboxMatch = match<{ acct: string; id: string }>('/@:acct/posts/:id')(uri.pathname);
+        const statusUrlMatch = match<{ acct: string; id: string }>('/\\@:acct/:id')(uri.pathname);
+        const soapboxMatch = match<{ acct: string; id: string }>('/\\@:acct/posts/:id')(uri.pathname);
         const nostrMatch = match<{ bech32: string }>('/:bech32')(uri.pathname);
         if (accountUriMatch) {
           bech32 = accountUriMatch.params.acct;
