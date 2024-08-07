@@ -46,13 +46,14 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
   );
 
-  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags));
+  const mentions = await Promise.all(
+    mentionedPubkeys.map((pubkey) => renderMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
+  );
 
-  const [mentions, card, relatedEvents] = await Promise
+  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions);
+
+  const [card, relatedEvents] = await Promise
     .all([
-      Promise.all(
-        mentionedPubkeys.map((pubkey) => toMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
-      ),
       firstUrl ? unfurlCardCached(firstUrl) : null,
       viewerPubkey
         ? await store.query([
@@ -152,25 +153,14 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts): Promise<
   };
 }
 
-async function toMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
-  const account = event ? await renderAccount(event) : undefined;
-
-  if (account) {
-    return {
-      id: account.id,
-      acct: account.acct,
-      username: account.username,
-      url: account.url,
-    };
-  } else {
-    const npub = nip19.npubEncode(pubkey);
-    return {
-      id: pubkey,
-      acct: npub,
-      username: npub.substring(0, 8),
-      url: Conf.local(`/users/${pubkey}`),
-    };
-  }
+async function renderMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
+  const account = event ? await renderAccount(event) : await accountFromPubkey(pubkey);
+  return {
+    id: account.id,
+    acct: account.acct,
+    username: account.username,
+    url: account.url,
+  };
 }
 
 function buildInlineRecipients(mentions: MastodonMention[]): string {
