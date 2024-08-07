@@ -7,9 +7,6 @@ import { bech32ToPubkey } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { Stickynotes } from '@soapbox/stickynotes';
 
-/** Matches NIP-05 names with or without an @ in front. */
-export const ACCT_REGEX = /^@?(?:([\w.+-]+)@)?([\w.-]+)$/;
-
 /** Resolve a bech32 or NIP-05 identifier to an account. */
 export async function lookupAccount(
   value: string,
@@ -43,6 +40,8 @@ export async function lookupPubkey(value: string, signal?: AbortSignal): Promise
 
 /** Extract an acct or bech32 identifier out of a URL or of itself. */
 export function extractIdentifier(value: string): string | undefined {
+  value = value.trim();
+
   try {
     const uri = new URL(value);
     switch (uri.protocol) {
@@ -79,11 +78,13 @@ export function extractIdentifier(value: string): string | undefined {
     // do nothing
   }
 
+  value = value.replace(/^@/, '');
+
   if (n.bech32().safeParse(value).success) {
     return value;
   }
 
-  if (ACCT_REGEX.test(value)) {
+  if (NIP05.regex().test(value)) {
     return value;
   }
 }

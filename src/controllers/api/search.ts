@@ -6,8 +6,7 @@ import { AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { bech32ToPubkey } from '@/utils.ts';
-import { ACCT_REGEX, extractIdentifier } from '@/utils/lookup.ts';
+import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
@@ -36,7 +35,7 @@ const searchController: AppController = async (c) => {
 
   // Render account from pubkey.
   if (!event && lookup) {
-    const pubkey = bech32ToPubkey(lookup);
+    const pubkey = await lookupPubkey(lookup);
     return c.json({
       accounts: pubkey ? [await accountFromPubkey(pubkey)] : [],
       statuses: [],
@@ -120,51 +119,55 @@ async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<Nos
 
 /** Get filters to lookup the input value. */
 async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: AbortSignal): Promise<NostrFilter[]> {
-  const filters: NostrFilter[] = [];
-
   const accounts = !type || type === 'accounts';
   const statuses = !type || type === 'statuses';
 
   if (!resolve || type === 'hashtags') {
+    return [];
+  }
+
+  if (n.id().safeParse(q).success) {
+    const filters: NostrFilter[] = [];
+    if (accounts) filters.push({ kinds: [0], authors: [q] });
+    if (statuses) filters.push({ kinds: [1], ids: [q] });
     return filters;
   }
 
   const lookup = extractIdentifier(q);
-  if (lookup) {
-    try {
-      const result = nip19.decode(lookup);
-      switch (result.type) {
-        case 'npub':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data] });
-          break;
-        case 'nprofile':
-          if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
-          break;
-        case 'note':
-          if (statuses) filters.push({ kinds: [1], ids: [result.data] });
-          break;
-        case 'nevent':
-          if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
-          break;
-      }
-    } catch {
-      // do nothing
+  if (!lookup) return [];
+
+  try {
+    const result = nip19.decode(lookup);
+    const filters: NostrFilter[] = [];
+    switch (result.type) {
+      case 'npub':
+        if (accounts) filters.push({ kinds: [0], authors: [result.data] });
+        break;
+      case 'nprofile':
+        if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
+        break;
+      case 'note':
+        if (statuses) filters.push({ kinds: [1], ids: [result.data] });
+        break;
+      case 'nevent':
+        if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
+        break;
     }
-  } else if (n.id().safeParse(q).success) {
-    if (accounts) filters.push({ kinds: [0], authors: [q] });
-    if (statuses) filters.push({ kinds: [1], ids: [q] });
-  } else if (accounts && ACCT_REGEX.test(q)) {
-    try {
-      const { pubkey } = await nip05Cache.fetch(q, { signal });
-      if (pubkey) {
-        filters.push({ kinds: [0], authors: [pubkey] });
-      }
-    } catch {
-      // do nothing
-    }
+    return filters;
+  } catch {
+    // do nothing
   }
 
-  return filters;
+  try {
+    const { pubkey } = await nip05Cache.fetch(lookup, { signal });
+    if (pubkey) {
+      return [{ kinds: [0], authors: [pubkey] }];
+    }
+  } catch {
+    // do nothing
+  }
+
+  return [];
 }
 
 export { searchController };
