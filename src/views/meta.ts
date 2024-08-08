@@ -1,3 +1,5 @@
+import DOMPurify from 'isomorphic-dompurify';
+
 import { Conf } from '@/config.ts';
 import { html } from '@/utils/html.ts';
 import { MetadataEntities } from '@/utils/og-metadata.ts';
@@ -12,7 +14,7 @@ export function renderMetadata(url: string, { account, status, instance }: Metad
 
   const title = account ? `${account.display_name} (@${account.acct})` : instance.name;
   const attachment = status?.media_attachments?.find((a) => a.type === 'image');
-  const description = status?.content || account?.note || instance.tagline;
+  const description = DOMPurify.sanitize(status?.content || account?.note || instance.tagline, { ALLOWED_TAGS: [] });
   const image = attachment?.preview_url || account?.avatar_static || instance.picture || Conf.local('/favicon.ico');
   const siteName = instance?.name;
   const width = attachment?.meta?.original?.width;
