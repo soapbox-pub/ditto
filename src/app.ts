@@ -110,6 +110,7 @@ import {
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
 import { errorHandler } from '@/controllers/error.ts';
+import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import '@/startup.ts';
@@ -324,7 +325,6 @@ app.use('/oauth/*', notImplementedController);
 
 const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
-const frontendController = serveStatic({ path: './public/index.html' });
 
 // Known frontend routes
 app.get('/@:acct', frontendController);

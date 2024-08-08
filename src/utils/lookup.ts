@@ -75,7 +75,7 @@ export function extractIdentifier(value: string): string | undefined {
       }
     }
   } catch {
-    // do nothing
+    // fall through
   }
 
   value = value.replace(/^@/, '');

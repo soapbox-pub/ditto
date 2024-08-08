@@ -13,7 +13,11 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
   debug(`Unfurling ${url}...`);
   try {
     const result = await unfurl(url, {
-      fetch: (url) => fetchWorker(url, { signal }),
+      fetch: (url) =>
+        fetchWorker(url, {
+          headers: { 'User-Agent': 'WhatsApp/2' },
+          signal,
+        }),
     });
 
     const { oEmbed, title, description, canonical_url, open_graph } = result;

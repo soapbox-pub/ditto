@@ -1,4 +1,5 @@
 import { MastodonAccount } from '@/entities/MastodonAccount.ts';
+import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
 
 export interface MastodonStatus {
@@ -24,7 +25,7 @@ export interface MastodonStatus {
   pinned: boolean;
   reblog: MastodonStatus | null;
   application: unknown;
-  media_attachments: unknown[];
+  media_attachments: MastodonAttachment[];
   mentions: unknown[];
   tags: unknown[];
   emojis: unknown[];
