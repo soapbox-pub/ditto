@@ -28,15 +28,13 @@ export const frontendController: AppMiddleware = async (c, next) => {
 
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
-      if (params) {
-        try {
-          const entities = await getEntities(params);
-          const meta = renderMetadata(c.req.url, entities);
-          return c.html(content.replace(META_PLACEHOLDER, meta));
-        } catch (e) {
-          console.log(`Error building meta tags: ${e}`);
-          return c.html(content);
-        }
+      try {
+        const entities = await getEntities(params ?? {});
+        const meta = renderMetadata(c.req.url, entities);
+        return c.html(content.replace(META_PLACEHOLDER, meta));
+      } catch (e) {
+        console.log(`Error building meta tags: ${e}`);
+        return c.html(content);
       }
     }
     return c.html(content);
