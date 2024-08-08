@@ -2,6 +2,7 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
+import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
 import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -119,7 +120,9 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
-    media_attachments: media.map((m) => renderAttachment({ data: m })).filter(Boolean),
+    media_attachments: media.map((m) => renderAttachment({ data: m })).filter((m): m is MastodonAttachment =>
+      Boolean(m)
+    ),
     mentions,
     tags: [],
     emojis: renderEmojis(event),

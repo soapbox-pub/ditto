@@ -1,7 +1,10 @@
+import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
 import { getUrlMediaType } from '@/utils/media.ts';
 
 /** Render Mastodon media attachment. */
-function renderAttachment(media: { id?: string; data: string[][] }) {
+function renderAttachment(
+  media: { id?: string; data: string[][] },
+): (MastodonAttachment & { cid?: string }) | undefined {
   const { id, data: tags } = media;
 
   const url = tags.find(([name]) => name === 'url')?.[1];
