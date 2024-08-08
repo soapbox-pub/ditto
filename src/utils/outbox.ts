@@ -18,7 +18,7 @@ export async function getRelays(store: NStore, pubkey: string): Promise<Set<stri
             relays.add(url.toString() as `wss://${string}`);
           }
         } catch (_e) {
-          // do nothing
+          // fall through
         }
       }
     }

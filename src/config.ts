@@ -251,9 +251,12 @@ class Conf {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
   }
   /** Crawler User-Agent regex to render link previews to. */
-  static get crawlerRegex(): string {
-    return Deno.env.get('CRAWLER_REGEX') ||
-      'googlebot|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterestbot|slackbot|vkShare|W3C_Validator|whatsapp|mastodon|pleroma|Discordbot|AhrefsBot|SEMrushBot|MJ12bot|SeekportBot|Synapse|Matrix';
+  static get crawlerRegex(): RegExp {
+    return new RegExp(
+      Deno.env.get('CRAWLER_REGEX') ||
+        'googlebot|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterestbot|slackbot|vkShare|W3C_Validator|whatsapp|mastodon|pleroma|Discordbot|AhrefsBot|SEMrushBot|MJ12bot|SeekportBot|Synapse|Matrix',
+      'i',
+    );
   }
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   static get policy(): string {

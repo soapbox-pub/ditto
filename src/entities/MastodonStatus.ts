@@ -24,7 +24,16 @@ export interface MastodonStatus {
   pinned: boolean;
   reblog: MastodonStatus | null;
   application: unknown;
-  media_attachments: unknown[];
+  media_attachments: {
+    type: string;
+    preview_url?: string;
+    meta?: {
+      original?: {
+        width?: number;
+        height?: number;
+      };
+    };
+  }[];
   mentions: unknown[];
   tags: unknown[];
   emojis: unknown[];

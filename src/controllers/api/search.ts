@@ -155,7 +155,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
     }
     return filters;
   } catch {
-    // do nothing
+    // fall through
   }
 
   try {
@@ -164,7 +164,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
       return [{ kinds: [0], authors: [pubkey] }];
     }
   } catch {
-    // do nothing
+    // fall through
   }
 
   return [];
