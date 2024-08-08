@@ -1,6 +1,7 @@
-import { NIP05, NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
+import tldts from 'tldts';
 
 import { getAuthor } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
@@ -27,14 +28,12 @@ export async function lookupPubkey(value: string, signal?: AbortSignal): Promise
     return bech32ToPubkey(value);
   }
 
-  if (NIP05.regex().test(value)) {
-    try {
-      const { pubkey } = await nip05Cache.fetch(value, { signal });
-      return pubkey;
-    } catch (e) {
-      console.debug(e);
-      return;
-    }
+  try {
+    const { pubkey } = await nip05Cache.fetch(value, { signal });
+    return pubkey;
+  } catch (e) {
+    console.debug(e);
+    return;
   }
 }
 
@@ -84,7 +83,7 @@ export function extractIdentifier(value: string): string | undefined {
     return value;
   }
 
-  if (NIP05.regex().test(value)) {
+  if (tldts.parse(value).isIcann) {
     return value;
   }
 }
