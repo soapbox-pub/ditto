@@ -158,6 +158,8 @@ async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEven
       throw new HTTPException(422, {
         res: c.json({ error: e.message }, 422),
       });
+    } else {
+      throw e;
     }
   }
 
