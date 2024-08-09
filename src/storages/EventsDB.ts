@@ -82,7 +82,7 @@ class EventsDB implements NStore {
       } else if (e.message === 'Cannot replace an event with an older event') {
         return;
       } else {
-        this.console.debug('ERROR', e.message);
+        throw e;
       }
     }
   }
