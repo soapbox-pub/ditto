@@ -6,11 +6,11 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: err.message }, err.status);
   }
 
-  console.error(err);
-
   if (err.message === 'canceling statement due to statement timeout') {
     return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
   }
+
+  console.error(err);
 
   return c.json({ error: 'Something went wrong' }, 500);
 };
