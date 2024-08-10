@@ -61,7 +61,7 @@ async function getEntities(params: { acct?: string; statusId?: string }): Promis
   }
 
   if (params.acct) {
-    const pubkey = await lookupPubkey(params.acct);
+    const pubkey = await lookupPubkey(params.acct.replace(/^@/, ''));
     const event = pubkey ? await getAuthor(pubkey) : undefined;
     if (event) {
       entities.account = await renderAccount(event);
