@@ -327,8 +327,8 @@ const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
 
 // Known frontend routes
-app.get('/@:acct', frontendController);
-app.get('/@:acct/*', frontendController);
+app.get('/:acct{@.*}', frontendController);
+app.get('/:acct{@.*}/*', frontendController);
 app.get('/users/*', frontendController);
 app.get('/statuses/*', frontendController);
 app.get('/notice/*', frontendController);
