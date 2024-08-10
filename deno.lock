@@ -11,7 +11,7 @@
       "jsr:@gleasonator/policy@0.4.1": "jsr:@gleasonator/policy@0.4.1",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.3",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
-      "jsr:@nostrify/db@^0.30.0": "jsr:@nostrify/db@0.30.0",
+      "jsr:@nostrify/db@^0.31.0": "jsr:@nostrify/db@0.31.0",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
@@ -138,8 +138,8 @@
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
-      "@nostrify/db@0.30.0": {
-        "integrity": "a75ba78be89d57c54c3d47e9e94c7142817c5b50daec27bf7f9a4af4629be20b",
+      "@nostrify/db@0.31.0": {
+        "integrity": "e1621f553aae431ad1d592de40684767b48ebc0b77cd36498eb92101c40374f0",
         "dependencies": [
           "jsr:@nostrify/nostrify@^0.30.0",
           "jsr:@nostrify/types@^0.30.0",
@@ -1827,7 +1827,7 @@
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@^0.30.0",
+      "jsr:@nostrify/db@^0.31.0",
       "jsr:@nostrify/nostrify@^0.30.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",

@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 
-import { NDatabase } from '@nostrify/db';
+import { NPostgres } from '@nostrify/db';
 import {
   NIP50,
   NKinds,
@@ -33,7 +33,7 @@ type TagCondition = ({ event, count, value }: {
 
 /** SQLite database storage adapter for Nostr events. */
 class EventsDB implements NStore {
-  private store: NDatabase;
+  private store: NPostgres;
   private console = new Stickynotes('ditto:db:events');
 
   /** Conditions for when to index certain tags. */
@@ -54,11 +54,9 @@ class EventsDB implements NStore {
   };
 
   constructor(private kysely: Kysely<DittoTables>) {
-    this.store = new NDatabase(kysely, {
-      fts: Conf.db.dialect,
-      timeoutStrategy: Conf.db.dialect === 'postgres' ? 'setStatementTimeout' : undefined,
+    this.store = new NPostgres(kysely, {
       indexTags: EventsDB.indexTags,
-      searchText: EventsDB.searchText,
+      indexSearch: EventsDB.searchText,
     });
   }
 
