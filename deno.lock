@@ -9,9 +9,9 @@
       "jsr:@gleasonator/policy@0.2.0": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
       "jsr:@gleasonator/policy@0.4.1": "jsr:@gleasonator/policy@0.4.1",
-      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.3",
+      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.4",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
-      "jsr:@nostrify/db@^0.31.0": "jsr:@nostrify/db@0.31.0",
+      "jsr:@nostrify/db@^0.31.1": "jsr:@nostrify/db@0.31.1",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
@@ -135,11 +135,14 @@
       "@hono/hono@4.5.3": {
         "integrity": "429923b2b3c6586a1450862328d61a1346fee5841e8ae86c494250475057213c"
       },
+      "@hono/hono@4.5.4": {
+        "integrity": "3792780b8460d5df0959b07c059db9325e4fa1a49f8b5aff7ab9bc870bdec8e3"
+      },
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
-      "@nostrify/db@0.31.0": {
-        "integrity": "e1621f553aae431ad1d592de40684767b48ebc0b77cd36498eb92101c40374f0",
+      "@nostrify/db@0.31.1": {
+        "integrity": "b0e2542f2b02cb67e1f936d1def69c0facc0bdba3d8c1e396a0026929f3e2317",
         "dependencies": [
           "jsr:@nostrify/nostrify@^0.30.0",
           "jsr:@nostrify/types@^0.30.0",
@@ -1827,7 +1830,7 @@
       "jsr:@db/sqlite@^0.11.1",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@^0.31.0",
+      "jsr:@nostrify/db@^0.31.1",
       "jsr:@nostrify/nostrify@^0.30.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",

@@ -30,7 +30,7 @@
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
     "@lambdalisue/async": "jsr:@lambdalisue/async@^2.1.1",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
-    "@nostrify/db": "jsr:@nostrify/db@^0.31.0",
+    "@nostrify/db": "jsr:@nostrify/db@^0.31.1",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.30.0",
     "@scure/base": "npm:@scure/base@^1.1.6",
     "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
