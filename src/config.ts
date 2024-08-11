@@ -235,7 +235,7 @@ class Conf {
   static pg = {
     /** Number of connections to use in the pool. */
     get poolSize(): number {
-      return Number(Deno.env.get('PG_POOL_SIZE') ?? 10);
+      return Number(Deno.env.get('PG_POOL_SIZE') ?? 20);
     },
   };
   /** Whether to enable requesting events from known relays. */
