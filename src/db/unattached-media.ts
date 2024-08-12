@@ -14,7 +14,7 @@ interface UnattachedMedia {
 
 /** Add unattached media into the database. */
 async function insertUnattachedMedia(media: UnattachedMedia) {
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   await kysely.insertInto('unattached_media')
     .values({ ...media, data: JSON.stringify(media.data) })
     .execute();
@@ -44,7 +44,7 @@ function getUnattachedMedia(kysely: Kysely<DittoTables>, until: Date) {
 
 /** Delete unattached media by URL. */
 async function deleteUnattachedMediaByUrl(url: string) {
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   return kysely.deleteFrom('unattached_media')
     .where('url', '=', url)
     .execute();
@@ -67,7 +67,7 @@ async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   await kysely.deleteFrom('unattached_media')
     .where('pubkey', '=', pubkey)
     .where('url', 'in', urls)

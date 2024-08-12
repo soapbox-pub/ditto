@@ -1,3 +1,4 @@
+import { NPostgresSchema } from '@nostrify/db';
 import {
   BinaryOperationNode,
   FunctionNode,
@@ -17,11 +18,11 @@ import { DittoTables } from '@/db/DittoTables.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
-  static db: Kysely<DittoTables> | undefined;
+  static db: Kysely<DittoTables> & Kysely<NPostgresSchema> | undefined;
   static postgres?: postgres.Sql;
 
   // deno-lint-ignore require-await
-  static async getInstance(): Promise<Kysely<DittoTables>> {
+  static async getInstance(): Promise<Kysely<DittoTables> & Kysely<NPostgresSchema>> {
     if (!this.postgres) {
       this.postgres = postgres(Conf.databaseUrl, { max: Conf.pg.poolSize });
     }
@@ -45,7 +46,7 @@ export class DittoPostgres {
           },
         },
         log: KyselyLogger,
-      });
+      }) as Kysely<DittoTables> & Kysely<NPostgresSchema>;
     }
 
     return this.db;

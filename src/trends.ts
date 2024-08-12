@@ -1,10 +1,10 @@
+import { NPostgresSchema } from '@nostrify/db';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { handleEvent } from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Time } from '@/utils/time.ts';
@@ -14,31 +14,53 @@ const console = new Stickynotes('ditto:trends');
 /** Get trending tag values for a given tag in the given time frame. */
 export async function getTrendingTagValues(
   /** Kysely instance to execute queries on. */
-  kysely: Kysely<DittoTables>,
+  kysely: Kysely<NPostgresSchema>,
   /** Tag name to filter by, eg `t` or `r`. */
   tagNames: string[],
   /** Filter of eligible events. */
   filter: NostrFilter,
 ): Promise<{ value: string; authors: number; uses: number }[]> {
+  /*
+  SELECT
+      LOWER(element.value) AS value,
+      COUNT(DISTINCT nostr_events.pubkey) AS authors,
+      COUNT(*) as "uses"
+  FROM
+      nostr_events,
+      jsonb_each_text(nostr_events.tags_index) kv,
+      jsonb_array_elements_text(kv.value::jsonb) element
+  WHERE
+      kv.key = 't'
+      AND nostr_events.kind = 1
+      AND nostr_events.created_at >= 1723325796
+      AND nostr_events.created_at <= 1723412196
+  GROUP BY
+      LOWER(element.value)
+  ORDER BY
+      COUNT(DISTINCT nostr_events.pubkey) DESC
+  LIMIT 20;
+  */
   let query = kysely
-    .selectFrom('nostr_tags')
+    .selectFrom((eb) => [
+      'nostr_events',
+      eb.from('jsonb_each_text', ['nostr_events.tags_index'], 'kv'),
+      eb.from('jsonb_array_elements_text', ['kv.value::jsonb'], 'element'),
+    ])
     .select(({ fn }) => [
-      'nostr_tags.value',
-      fn.agg<number>('count', ['nostr_tags.pubkey']).distinct().as('authors'),
-      fn.countAll<number>().as('uses'),
+      fn('lower', ['element.value']).as('value'),
     ])
     .where('nostr_tags.name', 'in', tagNames)
     .groupBy('nostr_tags.value')
     .orderBy((c) => c.fn.agg('count', ['nostr_tags.pubkey']).distinct(), 'desc');
 
   if (filter.kinds) {
-    query = query.where('nostr_tags.kind', 'in', filter.kinds);
+    query = query.where('kind', 'in', filter.kinds);
   }
   if (typeof filter.since === 'number') {
-    query = query.where('nostr_tags.created_at', '>=', filter.since);
+    query = query.where('created_at', '>=', filter.since);
   }
   if (typeof filter.until === 'number') {
-    query = query.where('nostr_tags.created_at', '<=', filter.until);
+    query = query.where('created_at', '<=', filter.until);
   }
   if (typeof filter.limit === 'number') {
     query = query.limit(filter.limit);

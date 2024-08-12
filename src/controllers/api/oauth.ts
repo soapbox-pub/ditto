@@ -82,7 +82,7 @@ const createTokenController: AppController = async (c) => {
 async function getToken(
   { pubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
 ): Promise<`token1${string}`> {
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   const token = generateToken();
 
   const serverSeckey = generateSecretKey();

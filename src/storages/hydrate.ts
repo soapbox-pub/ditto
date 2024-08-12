@@ -18,7 +18,7 @@ interface HydrateOpts {
 
 /** Hydrate events using the provided storage. */
 async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
-  const { events, store, signal, kysely = await DittoDB.getInstance() } = opts;
+  const { events, store, signal, kysely = (await DittoDB.getInstance()).kysely } = opts;
 
   if (!events.length) {
     return events;
@@ -59,8 +59,8 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   const stats = {
-    authors: await gatherAuthorStats(cache, kysely),
-    events: await gatherEventStats(cache, kysely),
+    authors: await gatherAuthorStats(cache, kysely as Kysely<DittoTables>),
+    events: await gatherEventStats(cache, kysely as Kysely<DittoTables>),
   };
 
   // Dedupe events.

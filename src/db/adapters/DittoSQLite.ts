@@ -1,3 +1,4 @@
+import { NDatabaseSchema } from '@nostrify/db';
 import { PolySqliteDialect } from '@soapbox/kysely-deno-sqlite';
 import { Kysely, sql } from 'kysely';
 
@@ -7,19 +8,19 @@ import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import SqliteWorker from '@/workers/sqlite.ts';
 
 export class DittoSQLite {
-  static db: Kysely<DittoTables> | undefined;
+  static db: Kysely<DittoTables> & Kysely<NDatabaseSchema> | undefined;
 
-  static async getInstance(): Promise<Kysely<DittoTables>> {
+  static async getInstance(): Promise<Kysely<DittoTables> & Kysely<NDatabaseSchema>> {
     if (!this.db) {
       const sqliteWorker = new SqliteWorker();
       await sqliteWorker.open(this.path);
 
-      this.db = new Kysely<DittoTables>({
+      this.db = new Kysely({
         dialect: new PolySqliteDialect({
           database: sqliteWorker,
         }),
         log: KyselyLogger,
-      });
+      }) as Kysely<DittoTables> & Kysely<NDatabaseSchema>;
 
       // Set PRAGMA values.
       await Promise.all([
