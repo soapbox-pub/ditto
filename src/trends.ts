@@ -1,10 +1,8 @@
-import { NPostgresSchema } from '@nostrify/db';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
-import { Kysely } from 'kysely';
 
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoDatabase, DittoDB } from '@/db/DittoDB.ts';
 import { handleEvent } from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Time } from '@/utils/time.ts';
@@ -14,7 +12,7 @@ const console = new Stickynotes('ditto:trends');
 /** Get trending tag values for a given tag in the given time frame. */
 export async function getTrendingTagValues(
   /** Kysely instance to execute queries on. */
-  kysely: Kysely<NPostgresSchema>,
+  db: DittoDatabase,
   /** Tag name to filter by, eg `t` or `r`. */
   tagNames: string[],
   /** Filter of eligible events. */
@@ -40,39 +38,29 @@ export async function getTrendingTagValues(
       COUNT(DISTINCT nostr_events.pubkey) DESC
   LIMIT 20;
   */
-  let query = kysely
-    .selectFrom((eb) => [
-      'nostr_events',
-      eb.from('jsonb_each_text', ['nostr_events.tags_index'], 'kv'),
-      eb.from('jsonb_array_elements_text', ['kv.value::jsonb'], 'element'),
-    ])
-    .select(({ fn }) => [
-      fn('lower', ['element.value']).as('value'),
-    ])
-    .where('nostr_tags.name', 'in', tagNames)
-    .groupBy('nostr_tags.value')
-    .orderBy((c) => c.fn.agg('count', ['nostr_tags.pubkey']).distinct(), 'desc');
 
-  if (filter.kinds) {
-    query = query.where('kind', 'in', filter.kinds);
-  }
-  if (typeof filter.since === 'number') {
-    query = query.where('created_at', '>=', filter.since);
-  }
-  if (typeof filter.until === 'number') {
-    query = query.where('created_at', '<=', filter.until);
-  }
-  if (typeof filter.limit === 'number') {
-    query = query.limit(filter.limit);
-  }
+  return [];
 
-  const rows = await query.execute();
+  // if (filter.kinds) {
+  //   query = query.where('kind', 'in', filter.kinds);
+  // }
+  // if (typeof filter.since === 'number') {
+  //   query = query.where('created_at', '>=', filter.since);
+  // }
+  // if (typeof filter.until === 'number') {
+  //   query = query.where('created_at', '<=', filter.until);
+  // }
+  // if (typeof filter.limit === 'number') {
+  //   query = query.limit(filter.limit);
+  // }
 
-  return rows.map((row) => ({
-    value: row.value,
-    authors: Number(row.authors),
-    uses: Number(row.uses),
-  }));
+  // const rows = await query.execute();
+
+  // return rows.map((row) => ({
+  //   value: row.value,
+  //   authors: Number(row.authors),
+  //   uses: Number(row.uses),
+  // }));
 }
 
 /** Get trending tags and publish an event with them. */
@@ -85,7 +73,7 @@ export async function updateTrendingTags(
   aliases?: string[],
 ) {
   console.info(`Updating trending ${l}...`);
-  const kysely = await DittoDB.getInstance();
+  const db = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
   const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
@@ -94,7 +82,7 @@ export async function updateTrendingTags(
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
   try {
-    const trends = await getTrendingTagValues(kysely, tagNames, {
+    const trends = await getTrendingTagValues(db, tagNames, {
       kinds,
       since: yesterday,
       until: now,
