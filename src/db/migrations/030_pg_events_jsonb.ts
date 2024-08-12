@@ -81,10 +81,11 @@ If you don't want to wait, you can create a fresh database and then import your 
 
 1. Revert to a prior commit: e789e08c
 2. Export your events: "deno task db:export > events.jsonl"
-3. Drop your old database: "dropdb ditto"
-4. Create a new database: "createdb ditto"
-5. Start Ditto
-6. While Ditto is running, import your events: "cat events.jsonl | deno task db:import"`);
+3. Checkout the latest commit: "git checkout main && git pull"
+4. Drop your old database: "dropdb ditto"
+5. Create a new database: "createdb ditto"
+6. Start Ditto
+7. While Ditto is running, import your events: "cat events.jsonl | deno task db:import"`);
 
     const emojis = ['⚡', '🐛', '🔎', '😂', '😅', '😬', '😭', '🙃', '🤔', '🧐', '🧐', '🫠'];
     iid = setInterval(() => {
