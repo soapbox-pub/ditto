@@ -20,26 +20,38 @@ export async function getTrendingTagValues(
   filter: NostrFilter,
 ): Promise<{ value: string; authors: number; uses: number }[]> {
   if (dialect === 'postgres') {
-    const { rows } = await sql<{ value: string; authors: number; uses: number }>`
-      SELECT
-          LOWER(element.value) AS value,
-          COUNT(DISTINCT nostr_events.pubkey) AS authors,
-          COUNT(*) as "uses"
-      FROM
-          nostr_events,
-          jsonb_each_text(nostr_events.tags_index) kv,
-          jsonb_array_elements_text(kv.value::jsonb) element
-      WHERE
-          kv.key = ANY(${tagNames})
-          ${filter.kinds ? sql`AND nostr_events.kind = ANY(${filter.kinds})` : sql``}
-          ${typeof filter.since === 'number' ? sql`AND nostr_events.created_at >= ${filter.since}` : sql``}
-          ${typeof filter.until === 'number' ? sql`AND nostr_events.created_at <= ${filter.until}` : sql``}
-      GROUP BY
-          LOWER(element.value)
-      ORDER BY
-          COUNT(DISTINCT nostr_events.pubkey) DESC
-      ${typeof filter.limit === 'number' ? sql`LIMIT ${filter.limit}` : sql``};`
-      .execute(kysely);
+    let query = kysely
+      .selectFrom([
+        'nostr_events',
+        sql<{ key: string; value: string }>`jsonb_each_text(nostr_events.tags_index)`.as('kv'),
+        sql<{ key: string; value: string }>`jsonb_array_elements_text(kv.value::jsonb)`.as('element'),
+      ])
+      .select(({ fn }) => [
+        fn<string>('lower', ['element.value']).as('value'),
+        fn.agg<number>('count', ['nostr_events.pubkey']).distinct().as('authors'),
+        fn.countAll<number>().as('uses'),
+      ])
+      .where('kv.key', '=', (eb) => eb.fn.any(eb.val(tagNames)))
+      .groupBy((eb) => eb.fn<string>('lower', ['element.value']))
+      .orderBy((eb) => eb.fn.agg('count', ['nostr_events.pubkey']).distinct(), 'desc');
+
+    if (filter.kinds) {
+      query = query.where('nostr_events.kind', '=', ({ fn, val }) => fn.any(val(filter.kinds)));
+    }
+    if (filter.authors) {
+      query = query.where('nostr_events.pubkey', '=', ({ fn, val }) => fn.any(val(filter.authors)));
+    }
+    if (typeof filter.since === 'number') {
+      query = query.where('nostr_events.created_at', '>=', filter.since);
+    }
+    if (typeof filter.until === 'number') {
+      query = query.where('nostr_events.created_at', '<=', filter.until);
+    }
+    if (typeof filter.limit === 'number') {
+      query = query.limit(filter.limit);
+    }
+
+    const rows = await query.execute();
 
     return rows.map((row) => ({
       value: row.value,
