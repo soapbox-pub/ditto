@@ -75,8 +75,7 @@ export async function up(db: Kysely<any>): Promise<void> {
 
   let iid: number | undefined;
   const tid = setTimeout(() => {
-    console.warn(`Recreating the database to improve performance.
-Depending on the size of your database, this could take a very long time, possibly days!
+    console.warn(`Recreating the database to improve performance. This will take several hours.
 
 If you don't want to wait, you can create a fresh database and then import your old events:
 
