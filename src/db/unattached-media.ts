@@ -34,14 +34,6 @@ function selectUnattachedMediaQuery(kysely: Kysely<DittoTables>) {
     ]);
 }
 
-/** Find attachments that exist but aren't attached to any events. */
-function getUnattachedMedia(kysely: Kysely<DittoTables>, until: Date) {
-  return selectUnattachedMediaQuery(kysely)
-    .leftJoin('nostr_tags', 'unattached_media.url', 'nostr_tags.value')
-    .where('uploaded_at', '<', until.getTime())
-    .execute();
-}
-
 /** Delete unattached media by URL. */
 async function deleteUnattachedMediaByUrl(url: string) {
   const { kysely } = await DittoDB.getInstance();
@@ -77,7 +69,6 @@ async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void
 export {
   deleteAttachedMedia,
   deleteUnattachedMediaByUrl,
-  getUnattachedMedia,
   getUnattachedMediaByIds,
   insertUnattachedMedia,
   type UnattachedMedia,
