@@ -99,7 +99,7 @@ export const createTestDB = async (databaseUrl?: string) => {
 
   console.warn(`Using: ${dialect}`);
 
-  let kysely: DittoDatabase['kysely'];
+  const db: DittoDatabase = { dialect } as DittoDatabase;
 
   if (dialect === 'sqlite') {
     // migration 021_pgfts_index.ts calls 'Conf.db.dialect',
@@ -107,13 +107,13 @@ export const createTestDB = async (databaseUrl?: string) => {
     // The following line ensures to NOT use the DATABASE_URL that may exist in an .env file.
     Deno.env.set('DATABASE_URL', 'sqlite://:memory:');
 
-    kysely = new Kysely({
+    db.kysely = new Kysely({
       dialect: new DenoSqlite3Dialect({
         database: new Sqlite(':memory:'),
       }),
     }) as Kysely<DittoTables> & Kysely<NDatabaseSchema>;
   } else {
-    kysely = new Kysely({
+    db.kysely = new Kysely({
       // @ts-ignore Kysely version mismatch.
       dialect: new PostgresJSDialect({
         postgres: postgres(Conf.databaseUrl, {
@@ -123,14 +123,14 @@ export const createTestDB = async (databaseUrl?: string) => {
       log: KyselyLogger,
     }) as Kysely<DittoTables> & Kysely<NPostgresSchema>;
   }
-  await DittoDB.migrate(kysely);
 
-  const store = new EventsDB(kysely);
+  await DittoDB.migrate(db.kysely);
+  const store = new EventsDB(db);
 
   return {
     dialect,
     store,
-    kysely,
+    kysely: db.kysely,
     [Symbol.asyncDispose]: async () => {
       if (dialect === 'postgres') {
         for (
@@ -149,9 +149,9 @@ export const createTestDB = async (databaseUrl?: string) => {
             'event_zaps',
           ]
         ) {
-          await kysely.schema.dropTable(table).ifExists().cascade().execute();
+          await db.kysely.schema.dropTable(table).ifExists().cascade().execute();
         }
-        await kysely.destroy();
+        await db.kysely.destroy();
       }
     },
   };

@@ -6,8 +6,8 @@ import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { nostrNow } from '@/utils.ts';
 
-const kysely = await DittoDB.getInstance();
-const eventsDB = new EventsDB(kysely);
+const db = await DittoDB.getInstance();
+const eventsDB = new EventsDB(db);
 
 const [pubkeyOrNpub, role] = Deno.args;
 const pubkey = pubkeyOrNpub.startsWith('npub1') ? nip19.decode(pubkeyOrNpub as `npub1${string}`).data : pubkeyOrNpub;

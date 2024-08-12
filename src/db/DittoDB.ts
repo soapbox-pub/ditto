@@ -8,15 +8,12 @@ import { Conf } from '@/config.ts';
 import { DittoPostgres } from '@/db/adapters/DittoPostgres.ts';
 import { DittoSQLite } from '@/db/adapters/DittoSQLite.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
 
 export type DittoDatabase = {
   dialect: 'sqlite';
-  store: EventsDB;
   kysely: Kysely<DittoTables> & Kysely<NDatabaseSchema>;
 } | {
   dialect: 'postgres';
-  store: EventsDB;
   kysely: Kysely<DittoTables> & Kysely<NPostgresSchema>;
 };
 
@@ -37,12 +34,10 @@ export class DittoDB {
       case 'sqlite':
         result.dialect = 'sqlite';
         result.kysely = await DittoSQLite.getInstance();
-        result.store = new EventsDB(result.kysely as any);
         break;
       case 'postgres':
         result.dialect = 'postgres';
         result.kysely = await DittoPostgres.getInstance();
-        result.store = new EventsDB(result.kysely as any);
         break;
       default:
         throw new Error('Unsupported database URL.');

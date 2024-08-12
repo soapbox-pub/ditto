@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 
-import { NPostgres } from '@nostrify/db';
+import { NDatabase, NPostgres } from '@nostrify/db';
 import {
   NIP50,
   NKinds,
@@ -13,11 +13,10 @@ import {
   NStore,
 } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
-import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
+import { DittoDatabase } from '@/db/DittoDB.ts';
 import { dbEventCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
@@ -33,7 +32,7 @@ type TagCondition = ({ event, count, value }: {
 
 /** SQLite database storage adapter for Nostr events. */
 class EventsDB implements NStore {
-  private store: NPostgres;
+  private store: NDatabase | NPostgres;
   private console = new Stickynotes('ditto:db:events');
 
   /** Conditions for when to index certain tags. */
@@ -53,11 +52,21 @@ class EventsDB implements NStore {
     't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
   };
 
-  constructor(private kysely: Kysely<DittoTables>) {
-    this.store = new NPostgres(kysely, {
-      indexTags: EventsDB.indexTags,
-      indexSearch: EventsDB.searchText,
-    });
+  constructor(private database: DittoDatabase) {
+    const { dialect, kysely } = database;
+
+    if (dialect === 'postgres') {
+      this.store = new NPostgres(kysely, {
+        indexTags: EventsDB.indexTags,
+        indexSearch: EventsDB.searchText,
+      });
+    } else {
+      this.store = new NDatabase(kysely, {
+        fts: 'sqlite',
+        indexTags: EventsDB.indexTags,
+        searchText: EventsDB.searchText,
+      });
+    }
   }
 
   /** Insert an event (and its tags) into the database. */
@@ -277,7 +286,7 @@ class EventsDB implements NStore {
         ) as { key: 'domain'; value: string } | undefined)?.value;
 
         if (domain) {
-          const query = this.kysely
+          const query = this.database.kysely
             .selectFrom('pubkey_domains')
             .select('pubkey')
             .where('domain', '=', domain);
