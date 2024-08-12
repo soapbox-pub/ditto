@@ -1,5 +1,6 @@
 import { NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
+import { sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { DittoDatabase, DittoDB } from '@/db/DittoDB.ts';
@@ -18,26 +19,34 @@ export async function getTrendingTagValues(
   /** Filter of eligible events. */
   filter: NostrFilter,
 ): Promise<{ value: string; authors: number; uses: number }[]> {
-  /*
-  SELECT
-      LOWER(element.value) AS value,
-      COUNT(DISTINCT nostr_events.pubkey) AS authors,
-      COUNT(*) as "uses"
-  FROM
-      nostr_events,
-      jsonb_each_text(nostr_events.tags_index) kv,
-      jsonb_array_elements_text(kv.value::jsonb) element
-  WHERE
-      kv.key = 't'
-      AND nostr_events.kind = 1
-      AND nostr_events.created_at >= 1723325796
-      AND nostr_events.created_at <= 1723412196
-  GROUP BY
-      LOWER(element.value)
-  ORDER BY
-      COUNT(DISTINCT nostr_events.pubkey) DESC
-  LIMIT 20;
-  */
+  if (dialect === 'postgres') {
+    const { rows } = await sql<{ value: string; authors: number; uses: number }>`
+      SELECT
+          LOWER(element.value) AS value,
+          COUNT(DISTINCT nostr_events.pubkey) AS authors,
+          COUNT(*) as "uses"
+      FROM
+          nostr_events,
+          jsonb_each_text(nostr_events.tags_index) kv,
+          jsonb_array_elements_text(kv.value::jsonb) element
+      WHERE
+          kv.key = ANY(${tagNames})
+          ${filter.kinds ? sql`AND nostr_events.kind = ANY(${filter.kinds})` : sql``}
+          ${typeof filter.since === 'number' ? sql`AND nostr_events.created_at >= ${filter.since}` : sql``}
+          ${typeof filter.until === 'number' ? sql`AND nostr_events.created_at <= ${filter.until}` : sql``}
+      GROUP BY
+          LOWER(element.value)
+      ORDER BY
+          COUNT(DISTINCT nostr_events.pubkey) DESC
+      ${typeof filter.limit === 'number' ? sql`LIMIT ${filter.limit}` : sql``};`
+      .execute(kysely);
+
+    return rows.map((row) => ({
+      value: row.value,
+      authors: Number(row.authors),
+      uses: Number(row.uses),
+    }));
+  }
 
   if (dialect === 'sqlite') {
     let query = kysely
