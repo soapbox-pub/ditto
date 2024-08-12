@@ -12,7 +12,7 @@ const console = new Stickynotes('ditto:trends');
 /** Get trending tag values for a given tag in the given time frame. */
 export async function getTrendingTagValues(
   /** Kysely instance to execute queries on. */
-  db: DittoDatabase,
+  { dialect, kysely }: DittoDatabase,
   /** Tag name to filter by, eg `t` or `r`. */
   tagNames: string[],
   /** Filter of eligible events. */
@@ -39,28 +39,41 @@ export async function getTrendingTagValues(
   LIMIT 20;
   */
 
+  if (dialect === 'sqlite') {
+    let query = kysely
+      .selectFrom('nostr_tags')
+      .select(({ fn }) => [
+        'nostr_tags.value',
+        fn.agg<number>('count', ['nostr_tags.pubkey']).distinct().as('authors'),
+        fn.countAll<number>().as('uses'),
+      ])
+      .where('nostr_tags.name', 'in', tagNames)
+      .groupBy('nostr_tags.value')
+      .orderBy((c) => c.fn.agg('count', ['nostr_tags.pubkey']).distinct(), 'desc');
+
+    if (filter.kinds) {
+      query = query.where('nostr_tags.kind', 'in', filter.kinds);
+    }
+    if (typeof filter.since === 'number') {
+      query = query.where('nostr_tags.created_at', '>=', filter.since);
+    }
+    if (typeof filter.until === 'number') {
+      query = query.where('nostr_tags.created_at', '<=', filter.until);
+    }
+    if (typeof filter.limit === 'number') {
+      query = query.limit(filter.limit);
+    }
+
+    const rows = await query.execute();
+
+    return rows.map((row) => ({
+      value: row.value,
+      authors: Number(row.authors),
+      uses: Number(row.uses),
+    }));
+  }
+
   return [];
-
-  // if (filter.kinds) {
-  //   query = query.where('kind', 'in', filter.kinds);
-  // }
-  // if (typeof filter.since === 'number') {
-  //   query = query.where('created_at', '>=', filter.since);
-  // }
-  // if (typeof filter.until === 'number') {
-  //   query = query.where('created_at', '<=', filter.until);
-  // }
-  // if (typeof filter.limit === 'number') {
-  //   query = query.limit(filter.limit);
-  // }
-
-  // const rows = await query.execute();
-
-  // return rows.map((row) => ({
-  //   value: row.value,
-  //   authors: Number(row.authors),
-  //   uses: Number(row.uses),
-  // }));
 }
 
 /** Get trending tags and publish an event with them. */
