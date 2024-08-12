@@ -129,7 +129,7 @@ If you don't want to wait, you can create a fresh database and then import your 
   clearTimeout(tid);
   if (iid) clearInterval(iid);
 
-  await db.schema.dropTable('nostr_events').execute();
+  await db.schema.dropTable('nostr_events').cascade().execute();
   await db.schema.dropTable('nostr_tags').execute();
   await db.schema.dropTable('nostr_pgfts').execute();
 
