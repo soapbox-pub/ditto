@@ -58,9 +58,11 @@ Deno.test('delete events', async () => {
   await using db = await createTestDB();
   const { store } = db;
 
+  const sk = generateSecretKey();
+
   const [one, two] = [
-    { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] },
-    { id: '2', kind: 1, pubkey: 'abc', content: 'yolo fam', created_at: 2, sig: '', tags: [] },
+    genEvent({ kind: 1, content: 'hello world', created_at: 1 }, sk),
+    genEvent({ kind: 1, content: 'yolo fam', created_at: 2 }, sk),
   ];
 
   await store.event(one);
@@ -69,15 +71,9 @@ Deno.test('delete events', async () => {
   // Sanity check
   assertEquals(await store.query([{ kinds: [1] }]), [two, one]);
 
-  await store.event({
-    kind: 5,
-    pubkey: one.pubkey,
-    tags: [['e', one.id]],
-    created_at: 0,
-    content: '',
-    id: '',
-    sig: '',
-  });
+  await store.event(
+    genEvent({ kind: 5, tags: [['e', one.id]] }, sk),
+  );
 
   assertEquals(await store.query([{ kinds: [1] }]), [two]);
 });
@@ -86,21 +82,15 @@ Deno.test("user cannot delete another user's event", async () => {
   await using db = await createTestDB();
   const { store } = db;
 
-  const event = { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] };
+  const event = genEvent({ kind: 1, content: 'hello world', created_at: 1 });
   await store.event(event);
 
   // Sanity check
   assertEquals(await store.query([{ kinds: [1] }]), [event]);
 
-  await store.event({
-    kind: 5,
-    pubkey: 'def', // different pubkey
-    tags: [['e', event.id]],
-    created_at: 0,
-    content: '',
-    id: '',
-    sig: '',
-  });
+  await store.event(
+    genEvent({ kind: 5, tags: [['e', event.id]] }), // different sk
+  );
 
   assertEquals(await store.query([{ kinds: [1] }]), [event]);
 });
@@ -109,9 +99,11 @@ Deno.test('admin can delete any event', async () => {
   await using db = await createTestDB();
   const { store } = db;
 
+  const sk = generateSecretKey();
+
   const [one, two] = [
-    { id: '1', kind: 1, pubkey: 'abc', content: 'hello world', created_at: 1, sig: '', tags: [] },
-    { id: '2', kind: 1, pubkey: 'abc', content: 'yolo fam', created_at: 2, sig: '', tags: [] },
+    genEvent({ kind: 1, content: 'hello world', created_at: 1 }, sk),
+    genEvent({ kind: 1, content: 'yolo fam', created_at: 2 }, sk),
   ];
 
   await store.event(one);
@@ -120,15 +112,9 @@ Deno.test('admin can delete any event', async () => {
   // Sanity check
   assertEquals(await store.query([{ kinds: [1] }]), [two, one]);
 
-  await store.event({
-    kind: 5,
-    pubkey: Conf.pubkey, // Admin pubkey
-    tags: [['e', one.id]],
-    created_at: 0,
-    content: '',
-    id: '',
-    sig: '',
-  });
+  await store.event(
+    genEvent({ kind: 5, tags: [['e', one.id]] }, Conf.seckey), // admin sk
+  );
 
   assertEquals(await store.query([{ kinds: [1] }]), [two]);
 });
@@ -173,14 +159,15 @@ Deno.test('inserting replaceable events', async () => {
   await using db = await createTestDB();
   const { store } = db;
 
-  const event = await eventFixture('event-0');
+  const sk = generateSecretKey();
+  const event = genEvent({ kind: 0, created_at: 100 }, sk);
   await store.event(event);
 
-  const olderEvent = { ...event, id: '123', created_at: event.created_at - 1 };
+  const olderEvent = genEvent({ kind: 0, created_at: 50 }, sk);
   await store.event(olderEvent);
   assertEquals(await store.query([{ kinds: [0], authors: [event.pubkey] }]), [event]);
 
-  const newerEvent = { ...event, id: '123', created_at: event.created_at + 1 };
+  const newerEvent = genEvent({ kind: 0, created_at: 999 }, sk);
   await store.event(newerEvent);
   assertEquals(await store.query([{ kinds: [0] }]), [newerEvent]);
 });
