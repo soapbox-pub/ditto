@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import { Database as Sqlite } from '@db/sqlite';
-import { NDatabase } from '@nostrify/db';
+import { NDatabase, NDatabaseSchema, NPostgresSchema } from '@nostrify/db';
 import { NostrEvent } from '@nostrify/nostrify';
 import { DenoSqlite3Dialect } from '@soapbox/kysely-deno-sqlite';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
@@ -10,7 +10,7 @@ import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
-import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoDatabase, DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
@@ -99,7 +99,7 @@ export const createTestDB = async (databaseUrl?: string) => {
 
   console.warn(`Using: ${dialect}`);
 
-  let kysely: Kysely<DittoTables>;
+  let kysely: DittoDatabase['kysely'];
 
   if (dialect === 'sqlite') {
     // migration 021_pgfts_index.ts calls 'Conf.db.dialect',
@@ -107,11 +107,11 @@ export const createTestDB = async (databaseUrl?: string) => {
     // The following line ensures to NOT use the DATABASE_URL that may exist in an .env file.
     Deno.env.set('DATABASE_URL', 'sqlite://:memory:');
 
-    kysely = new Kysely<DittoTables>({
+    kysely = new Kysely({
       dialect: new DenoSqlite3Dialect({
         database: new Sqlite(':memory:'),
       }),
-    });
+    }) as Kysely<DittoTables> & Kysely<NDatabaseSchema>;
   } else {
     kysely = new Kysely({
       // @ts-ignore Kysely version mismatch.
@@ -121,13 +121,14 @@ export const createTestDB = async (databaseUrl?: string) => {
         }) as unknown as PostgresJSDialectConfig['postgres'],
       }),
       log: KyselyLogger,
-    });
+    }) as Kysely<DittoTables> & Kysely<NPostgresSchema>;
   }
   await DittoDB.migrate(kysely);
 
   const store = new EventsDB(kysely);
 
   return {
+    dialect,
     store,
     kysely,
     [Symbol.asyncDispose]: async () => {

@@ -37,7 +37,7 @@ Deno.test('store one zap receipt in nostr_events; convert it into event_zaps tab
   await handleZaps(kysely, event);
   await handleZaps(kysely, event);
 
-  const zapReceipts = await kysely.selectFrom('nostr_events').selectAll().execute();
+  const zapReceipts = await db.store.query([{}]);
   const customEventZaps = await kysely.selectFrom('event_zaps').selectAll().execute();
 
   assertEquals(zapReceipts.length, 1); // basic check
