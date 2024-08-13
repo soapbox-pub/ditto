@@ -7,7 +7,10 @@ if (Deno.env.get('CI') && Conf.db.dialect === 'postgres') {
   await sleep(1_000);
 }
 
-const kysely = await DittoDB.getInstance();
+// This migrates kysely internally.
+const { kysely } = await DittoDB.getInstance();
+
+// Close the connection before exiting.
 await kysely.destroy();
 
 Deno.exit();

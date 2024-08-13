@@ -19,8 +19,8 @@ import { verifyEventWorker } from '@/workers/verify.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { getAmount } from '@/utils/bolt11.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -54,7 +54,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     throw new RelayError('blocked', 'user is disabled');
   }
 
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
 
   await Promise.all([
     storeEvent(event, signal),
@@ -106,7 +106,7 @@ async function existsInDB(event: DittoEvent): Promise<boolean> {
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   await hydrateEvents({ events: [event], store: await Storages.db(), signal });
 
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   const domain = await kysely
     .selectFrom('pubkey_domains')
     .select('domain')
@@ -120,7 +120,7 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
 
   await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
@@ -148,7 +148,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Track pubkey domain.
   try {
-    const kysely = await DittoDB.getInstance();
+    const { kysely } = await DittoDB.getInstance();
     const { domain } = parseNip05(nip05);
 
     await sql`

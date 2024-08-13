@@ -106,6 +106,8 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
     } catch (e) {
       if (e instanceof RelayError) {
         send(['CLOSED', subId, e.message]);
+      } else if (e.message.includes('timeout')) {
+        send(['CLOSED', subId, 'error: the relay could not respond fast enough']);
       } else {
         send(['CLOSED', subId, 'error: something went wrong']);
       }

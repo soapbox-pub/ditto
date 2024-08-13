@@ -20,8 +20,8 @@ export class Storages {
   public static async db(): Promise<EventsDB> {
     if (!this._db) {
       this._db = (async () => {
-        const kysely = await DittoDB.getInstance();
-        const store = new EventsDB(kysely);
+        const db = await DittoDB.getInstance();
+        const store = new EventsDB(db);
         await seedZapSplits(store);
         return store;
       })();

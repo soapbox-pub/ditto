@@ -14,7 +14,7 @@ interface UnattachedMedia {
 
 /** Add unattached media into the database. */
 async function insertUnattachedMedia(media: UnattachedMedia) {
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   await kysely.insertInto('unattached_media')
     .values({ ...media, data: JSON.stringify(media.data) })
     .execute();
@@ -34,17 +34,9 @@ function selectUnattachedMediaQuery(kysely: Kysely<DittoTables>) {
     ]);
 }
 
-/** Find attachments that exist but aren't attached to any events. */
-function getUnattachedMedia(kysely: Kysely<DittoTables>, until: Date) {
-  return selectUnattachedMediaQuery(kysely)
-    .leftJoin('nostr_tags', 'unattached_media.url', 'nostr_tags.value')
-    .where('uploaded_at', '<', until.getTime())
-    .execute();
-}
-
 /** Delete unattached media by URL. */
 async function deleteUnattachedMediaByUrl(url: string) {
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   return kysely.deleteFrom('unattached_media')
     .where('url', '=', url)
     .execute();
@@ -67,7 +59,7 @@ async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   await kysely.deleteFrom('unattached_media')
     .where('pubkey', '=', pubkey)
     .where('url', 'in', urls)
@@ -77,7 +69,6 @@ async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void
 export {
   deleteAttachedMedia,
   deleteUnattachedMediaByUrl,
-  getUnattachedMedia,
   getUnattachedMediaByIds,
   insertUnattachedMedia,
   type UnattachedMedia,

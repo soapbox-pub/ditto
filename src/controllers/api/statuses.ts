@@ -63,7 +63,7 @@ const statusController: AppController = async (c) => {
 const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   const store = c.get('store');
 
   if (!result.success) {
@@ -565,9 +565,9 @@ const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
   const params = c.get('listPagination');
   const store = await Storages.db();
-  const db = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
 
-  const zaps = await db.selectFrom('event_zaps')
+  const zaps = await kysely.selectFrom('event_zaps')
     .selectAll()
     .where('target_event_id', '=', id)
     .orderBy('amount_millisats', 'desc')

@@ -1,7 +1,4 @@
 export interface DittoTables {
-  nostr_events: EventRow;
-  nostr_tags: TagRow;
-  nostr_fts5: EventFTSRow;
   nip46_tokens: NIP46TokenRow;
   unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
@@ -25,30 +22,6 @@ interface EventStatsRow {
   quotes_count: number;
   reactions: string;
   zaps_amount: number;
-}
-
-interface EventRow {
-  id: string;
-  kind: number;
-  pubkey: string;
-  content: string;
-  created_at: number;
-  tags: string;
-  sig: string;
-}
-
-interface EventFTSRow {
-  event_id: string;
-  content: string;
-}
-
-interface TagRow {
-  event_id: string;
-  name: string;
-  value: string;
-  kind: number;
-  pubkey: string;
-  created_at: number;
 }
 
 interface NIP46TokenRow {
