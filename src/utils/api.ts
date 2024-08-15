@@ -46,27 +46,38 @@ interface UpdateEventFilter extends NostrFilter {
   limit: 1;
 }
 
-/** Fetch existing event, update it, then publish the new event. */
+/** Update a replaceable event, or throw if no event exists yet. */
 async function updateEvent<E extends EventStub>(
   filter: UpdateEventFilter,
-  fn: (prev: NostrEvent | undefined) => E,
+  fn: (prev: NostrEvent) => E | Promise<E>,
   c: AppContext,
 ): Promise<NostrEvent> {
   const store = await Storages.db();
-  const [prev] = await store.query([filter], { signal: c.req.raw.signal });
-  return createEvent(fn(prev), c);
+
+  const [prev] = await store.query(
+    [filter],
+    { signal: c.req.raw.signal },
+  );
+
+  if (prev) {
+    return createEvent(await fn(prev), c);
+  } else {
+    throw new HTTPException(422, {
+      message: 'No event to update',
+    });
+  }
 }
 
-/** Fetch existing event, update its tags, then publish the new event. */
+/** Update a replaceable list event, or throw if no event exists yet. */
 function updateListEvent(
   filter: UpdateEventFilter,
   fn: (tags: string[][]) => string[][],
   c: AppContext,
 ): Promise<NostrEvent> {
-  return updateEvent(filter, (prev) => ({
+  return updateEvent(filter, ({ content, tags }) => ({
     kind: filter.kinds[0],
-    content: prev?.content ?? '',
-    tags: fn(prev?.tags ?? []),
+    content,
+    tags: fn(tags),
   }), c);
 }
 
