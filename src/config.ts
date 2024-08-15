@@ -262,6 +262,10 @@ class Conf {
   static get policy(): string {
     return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
   }
+  /** Whether zap splits should be enabled. */
+  static get zapSplitsEnabled(): boolean {
+    return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
+  }
 }
 
 const optionalBooleanSchema = z

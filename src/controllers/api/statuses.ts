@@ -169,17 +169,19 @@ const createStatusController: AppController = async (c) => {
 
   const author = await getAuthor(await c.get('signer')?.getPublicKey()!);
 
-  const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
-  const lnurl = getLnurl(meta);
-  const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
-  if (lnurl && dittoZapSplit) {
-    let totalSplit = 0;
-    for (const pubkey in dittoZapSplit) {
-      totalSplit += dittoZapSplit[pubkey].weight;
-      tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString()]);
-    }
-    if (totalSplit) {
-      tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+  if (Conf.zapSplitsEnabled) {
+    const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
+    const lnurl = getLnurl(meta);
+    const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+    if (lnurl && dittoZapSplit) {
+      let totalSplit = 0;
+      for (const pubkey in dittoZapSplit) {
+        totalSplit += dittoZapSplit[pubkey].weight;
+        tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString()]);
+      }
+      if (totalSplit) {
+        tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+      }
     }
   }
 
