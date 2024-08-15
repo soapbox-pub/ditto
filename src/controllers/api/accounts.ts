@@ -9,7 +9,7 @@ import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
-import { createEvent, paginated, parseBody, updateListEvent } from '@/utils/api.ts';
+import { createEvent, paginated, parseBody, updateEvent, updateListEvent } from '@/utils/api.ts';
 import { extractIdentifier, lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -269,45 +269,49 @@ const updateCredentialsController: AppController = async (c) => {
     return c.json(result.error, 422);
   }
 
-  const author = await getAuthor(pubkey);
-  const meta = author ? n.json().pipe(n.metadata()).catch({}).parse(author.content) : {};
+  const event = await updateEvent(
+    { kinds: [0], authors: [pubkey], limit: 1 },
+    async (prev) => {
+      const meta = n.json().pipe(n.metadata()).catch({}).parse(prev.content);
+      const {
+        avatar: avatarFile,
+        header: headerFile,
+        display_name,
+        note,
+        nip05,
+        lud16,
+        website,
+        bot,
+      } = result.data;
 
-  const {
-    avatar: avatarFile,
-    header: headerFile,
-    display_name,
-    note,
-    nip05,
-    lud16,
-    website,
-    bot,
-  } = result.data;
+      const [avatar, header] = await Promise.all([
+        avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
+        headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
+      ]);
 
-  const [avatar, header] = await Promise.all([
-    avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
-    headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
-  ]);
+      meta.name = display_name ?? meta.name;
+      meta.about = note ?? meta.about;
+      meta.picture = avatar?.url ?? meta.picture;
+      meta.banner = header?.url ?? meta.banner;
+      meta.nip05 = nip05 ?? meta.nip05;
+      meta.lud16 = lud16 ?? meta.lud16;
+      meta.website = website ?? meta.website;
+      meta.bot = bot ?? meta.bot;
 
-  meta.name = display_name ?? meta.name;
-  meta.about = note ?? meta.about;
-  meta.picture = avatar?.url ?? meta.picture;
-  meta.banner = header?.url ?? meta.banner;
-  meta.nip05 = nip05 ?? meta.nip05;
-  meta.lud16 = lud16 ?? meta.lud16;
-  meta.website = website ?? meta.website;
-  meta.bot = bot ?? meta.bot;
+      if (avatarFile === '') delete meta.picture;
+      if (headerFile === '') delete meta.banner;
+      if (nip05 === '') delete meta.nip05;
+      if (lud16 === '') delete meta.lud16;
+      if (website === '') delete meta.website;
 
-  if (avatarFile === '') delete meta.picture;
-  if (headerFile === '') delete meta.banner;
-  if (nip05 === '') delete meta.nip05;
-  if (lud16 === '') delete meta.lud16;
-  if (website === '') delete meta.website;
-
-  const event = await createEvent({
-    kind: 0,
-    content: JSON.stringify(meta),
-    tags: [],
-  }, c);
+      return {
+        kind: 0,
+        content: JSON.stringify(meta),
+        tags: [],
+      };
+    },
+    c,
+  );
 
   const account = await renderAccount(event, { withSource: true });
   const settingsStore = result.data.pleroma_settings_store;
