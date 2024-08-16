@@ -86,6 +86,7 @@ async function renderAccount(
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
       external_url: Conf.external(npub),
     },
+    domain: parsed05?.domain,
     pleroma: {
       deactivated: names.has('disabled'),
       is_admin: names.has('admin'),

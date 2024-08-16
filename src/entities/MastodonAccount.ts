@@ -43,6 +43,7 @@ export interface MastodonAccount {
     accepts_zaps: boolean;
     external_url: string;
   };
+  domain?: string;
   pleroma: {
     deactivated: boolean;
     favicon?: string;
