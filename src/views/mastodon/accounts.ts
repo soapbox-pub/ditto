@@ -94,6 +94,7 @@ async function renderAccount(
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],
+      favicon: parsed05?.domain ? new URL('/favicon.ico', `https://${parsed05.domain}`).toString() : undefined,
     },
     nostr: {
       pubkey,

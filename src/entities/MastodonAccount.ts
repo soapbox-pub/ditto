@@ -45,6 +45,7 @@ export interface MastodonAccount {
   };
   pleroma: {
     deactivated: boolean;
+    favicon?: string;
     is_admin: boolean;
     is_moderator: boolean;
     is_suggested: boolean;
