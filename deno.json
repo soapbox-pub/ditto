@@ -24,6 +24,7 @@
   "exclude": ["./public"],
   "imports": {
     "@/": "./src/",
+    "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.47",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
     "@db/sqlite": "jsr:@db/sqlite@^0.11.1",
     "@hono/hono": "jsr:@hono/hono@^4.4.6",
