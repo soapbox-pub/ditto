@@ -8,6 +8,7 @@ import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { faviconCache } from '@/utils/favicon.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
@@ -18,6 +19,7 @@ interface ToAccountOpts {
 async function renderAccount(
   event: Omit<DittoEvent, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
+  signal = AbortSignal.timeout(3000),
 ): Promise<MastodonAccount> {
   const { withSource = false } = opts;
   const { pubkey } = event;
@@ -41,8 +43,17 @@ async function renderAccount(
   } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
-  const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
+  const parsed05 = await parseAndVerifyNip05(nip05, pubkey, signal);
   const acct = parsed05?.handle || npub;
+
+  let favicon: URL | undefined;
+  if (parsed05?.domain) {
+    try {
+      favicon = await faviconCache.fetch(parsed05.domain, { signal });
+    } catch {
+      favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`);
+    }
+  }
 
   return {
     id: pubkey,
@@ -95,7 +106,7 @@ async function renderAccount(
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: undefined as unknown,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],
-      favicon: parsed05?.domain ? new URL('/favicon.ico', `https://${parsed05.domain}`).toString() : undefined,
+      favicon: favicon?.toString(),
     },
     nostr: {
       pubkey,
