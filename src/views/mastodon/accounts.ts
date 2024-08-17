@@ -19,6 +19,7 @@ interface ToAccountOpts {
 async function renderAccount(
   event: Omit<DittoEvent, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
+  signal = AbortSignal.timeout(3000),
 ): Promise<MastodonAccount> {
   const { withSource = false } = opts;
   const { pubkey } = event;
@@ -42,13 +43,13 @@ async function renderAccount(
   } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
-  const parsed05 = await parseAndVerifyNip05(nip05, pubkey);
+  const parsed05 = await parseAndVerifyNip05(nip05, pubkey, signal);
   const acct = parsed05?.handle || npub;
 
   let favicon: URL | undefined;
   if (parsed05?.domain) {
     try {
-      favicon = await faviconCache.fetch(parsed05.domain);
+      favicon = await faviconCache.fetch(parsed05.domain, { signal });
     } catch {
       favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`);
     }
