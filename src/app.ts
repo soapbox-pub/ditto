@@ -329,9 +329,12 @@ const staticFiles = serveStatic({ root: './static/' });
 // Known frontend routes
 app.get('/:acct{@.*}', frontendController);
 app.get('/:acct{@.*}/*', frontendController);
+app.get('/:bech32{^[\x21-\x7E]{1,83}1[023456789acdefghjklmnpqrstuvwxyz]{6,}$}', frontendController);
 app.get('/users/*', frontendController);
+app.get('/tags/*', frontendController);
 app.get('/statuses/*', frontendController);
 app.get('/notice/*', frontendController);
+app.get('/timeline/*', frontendController);
 
 // Known static file routes
 app.get('/favicon.ico', publicFiles, staticFiles);
