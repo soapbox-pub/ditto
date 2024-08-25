@@ -38,15 +38,12 @@ const mediaController: AppController = async (c) => {
 };
 
 const updateMediaDescriptionController: AppController = async (c) => {
-  console.log('in media description update controller');
   const result = mediaDescriptionUpdateSchema.safeParse(await parseBody(c.req.raw));
-  console.log(result);
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
   }
   try {
     const { description } = result.data;
-    console.log(description);
     if (!await setMediaDescription(c.req.param('id'), description)) {
       return c.json({ error: 'File with specified ID not found.' }, 404);
     }
