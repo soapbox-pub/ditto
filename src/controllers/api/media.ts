@@ -37,7 +37,7 @@ const mediaController: AppController = async (c) => {
   }
 };
 
-const updateMediaDescriptionController: AppController = async (c) => {
+const updateMediaController: AppController = async (c) => {
   const result = mediaDescriptionUpdateSchema.safeParse(await parseBody(c.req.raw));
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
@@ -55,4 +55,4 @@ const updateMediaDescriptionController: AppController = async (c) => {
   return c.json({ message: 'ok' }, 200);
 };
 
-export { mediaController, updateMediaDescriptionController };
+export { mediaController, updateMediaController };
