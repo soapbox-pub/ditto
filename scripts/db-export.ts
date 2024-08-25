@@ -2,8 +2,6 @@ import { Storages } from '@/storages.ts';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Command, InvalidOptionArgumentError } from 'commander';
 
-const store = await Storages.db();
-
 interface ExportFilter {
   authors?: string[];
   ids?: string[];
@@ -47,11 +45,11 @@ function die(code: number, ...args: any[]) {
 
 function tagFilterShortcut(name: 'd' | 'e' | 'p', value: string) {
   const val = [value];
-  if (findInvalid(val)) die(1, `ERROR: Invalid value supplied for ${name}-tag.`);
+  if (findInvalid(val)) throw new Error(`ERROR: Invalid value supplied for ${name}-tag.`);
   return val;
 }
 
-async function exportEvents(args: ExportFilter) {
+export function buildFilter(args: ExportFilter) {
   const filter: NostrFilter = {};
   const { authors, ids, kinds, d, e, limit, p, search, since, until, tags } = args;
   if (since) {
@@ -62,18 +60,19 @@ async function exportEvents(args: ExportFilter) {
   }
   if (authors && authors.length) {
     const invalid = findInvalid(authors);
-    if (invalid) die(1, `ERROR: Invalid pubkey ${invalid} supplied.`);
+    if (invalid) throw new Error(`ERROR: Invalid pubkey ${invalid} supplied.`);
     filter.authors = authors;
   }
   if (ids) {
     const invalid = findInvalid(ids);
-    if (invalid) die(1, `ERROR: Invalid event ID ${invalid} supplied.`);
+    if (invalid) throw new Error(`ERROR: Invalid event ID ${invalid} supplied.`);
+    filter.ids = ids;
   }
   if (kinds && kinds.length) {
     filter.kinds = kinds;
   }
   if (d) {
-    filter['#d'] = tagFilterShortcut('d', d);
+    filter['#d'] = [d];
   }
   if (e) {
     filter['#e'] = tagFilterShortcut('e', e);
@@ -92,6 +91,19 @@ async function exportEvents(args: ExportFilter) {
       const [name, ...values] = val.split('=');
       filter[`#${name}`] = [values.join('=')];
     }
+  }
+
+  return filter;
+}
+
+async function exportEvents(args: ExportFilter) {
+  const store = await Storages.db();
+
+  let filter: NostrFilter = {};
+  try {
+    filter = buildFilter(args);
+  } catch (e) {
+    die(1, e.message || e.toString());
   }
 
   let count = 0;
@@ -144,5 +156,3 @@ if (import.meta.main) {
 
   await exporter.parseAsync(Deno.args, { from: 'user' });
 }
-
-Deno.exit();
