@@ -14,7 +14,7 @@ const mediaBodySchema = z.object({
   focus: z.string().optional(),
 });
 
-const mediaDescriptionUpdateSchema = z.object({
+const mediaUpdateSchema = z.object({
   description: z.string(),
 });
 
@@ -38,7 +38,7 @@ const mediaController: AppController = async (c) => {
 };
 
 const updateMediaController: AppController = async (c) => {
-  const result = mediaDescriptionUpdateSchema.safeParse(await parseBody(c.req.raw));
+  const result = mediaUpdateSchema.safeParse(await parseBody(c.req.raw));
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
   }
