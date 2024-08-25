@@ -53,7 +53,7 @@ import {
   instanceV2Controller,
 } from '@/controllers/api/instance.ts';
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
-import { mediaController } from '@/controllers/api/media.ts';
+import { mediaController, updateMediaDescriptionController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
 import { notificationsController } from '@/controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from '@/controllers/api/oauth.ts';
@@ -226,6 +226,10 @@ app.delete('/api/v1/statuses/:id{[0-9a-f]{64}}', requireSigner, deleteStatusCont
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/quotes', quotesController);
 
 app.post('/api/v1/media', mediaController);
+app.put(
+  '/api/v1/media/:id{[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}}',
+  updateMediaDescriptionController,
+);
 app.post('/api/v2/media', mediaController);
 
 app.get('/api/v1/timelines/home', requireSigner, homeTimelineController);

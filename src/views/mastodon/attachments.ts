@@ -10,7 +10,7 @@ function renderAttachment(
   const url = tags.find(([name]) => name === 'url')?.[1];
 
   const m = tags.find(([name]) => name === 'm')?.[1] ?? getUrlMediaType(url!);
-  const alt = tags.find(([name]) => name === 'alt')?.[1];
+  const alt = tags.find(([name]) => name === 'alt')?.slice(1).join(' ') || 'picture';
   const cid = tags.find(([name]) => name === 'cid')?.[1];
   const dim = tags.find(([name]) => name === 'dim')?.[1];
   const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
