@@ -1,4 +1,4 @@
-import { DOMParser } from '@b-fuze/deno-dom/native';
+import { DOMParser } from '@b-fuze/deno-dom';
 import Debug from '@soapbox/stickynotes/debug';
 import tldts from 'tldts';
 
