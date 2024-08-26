@@ -48,6 +48,7 @@
     "@std/streams": "jsr:@std/streams@^0.223.0",
     "comlink": "npm:comlink@^4.4.1",
     "comlink-async-generator": "npm:comlink-async-generator@^0.0.1",
+    "commander": "npm:commander@12.1.0",
     "deno-safe-fetch/load": "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts",
     "deno.json": "./deno.json",
     "entities": "npm:entities@^4.5.0",

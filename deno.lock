@@ -60,6 +60,7 @@
       "npm:comlink-async-generator": "npm:comlink-async-generator@0.0.1",
       "npm:comlink-async-generator@^0.0.1": "npm:comlink-async-generator@0.0.1",
       "npm:comlink@^4.4.1": "npm:comlink@4.4.1",
+      "npm:commander@12.1.0": "npm:commander@12.1.0",
       "npm:entities@^4.5.0": "npm:entities@4.5.0",
       "npm:fast-stable-stringify@^1.0.0": "npm:fast-stable-stringify@1.0.0",
       "npm:formdata-helper@^0.3.0": "npm:formdata-helper@0.3.0",
@@ -541,6 +542,10 @@
       },
       "commander@11.1.0": {
         "integrity": "sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==",
+        "dependencies": {}
+      },
+      "commander@12.1.0": {
+        "integrity": "sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==",
         "dependencies": {}
       },
       "cross-spawn@7.0.3": {
@@ -1904,6 +1909,7 @@
       "npm:@scure/base@^1.1.6",
       "npm:comlink-async-generator@^0.0.1",
       "npm:comlink@^4.4.1",
+      "npm:commander@12.1.0",
       "npm:entities@^4.5.0",
       "npm:fast-stable-stringify@^1.0.0",
       "npm:formdata-helper@^0.3.0",
