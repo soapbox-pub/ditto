@@ -276,10 +276,12 @@ export const statusZapSplitsController: AppController = async (c) => {
 
     const weight = percentageSchema.catch(0).parse(zapsTag.find((name) => name[1] === pubkey)![3]) ?? 0;
 
+    const message = zapsTag.find((name) => name[1] === pubkey)![4] ?? '';
+
     return {
       account,
-      message: '',
-      weight: weight,
+      message,
+      weight,
     };
   }))).filter((zapSplit) => zapSplit.weight > 0);
 
