@@ -177,7 +177,7 @@ const createStatusController: AppController = async (c) => {
       let totalSplit = 0;
       for (const pubkey in dittoZapSplit) {
         totalSplit += dittoZapSplit[pubkey].weight;
-        tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString()]);
+        tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString(), dittoZapSplit[pubkey].message]);
       }
       if (totalSplit) {
         tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
