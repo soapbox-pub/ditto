@@ -12,13 +12,14 @@
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
       "jsr:@gleasonator/policy@0.4.1": "jsr:@gleasonator/policy@0.4.1",
       "jsr:@gleasonator/policy@0.4.2": "jsr:@gleasonator/policy@0.4.2",
-      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.5",
+      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.9",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
       "jsr:@nostrify/db@^0.31.2": "jsr:@nostrify/db@0.31.2",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
-      "jsr:@nostrify/nostrify@^0.30.0": "jsr:@nostrify/nostrify@0.30.0",
+      "jsr:@nostrify/nostrify@^0.30.0": "jsr:@nostrify/nostrify@0.30.1",
+      "jsr:@nostrify/nostrify@^0.30.1": "jsr:@nostrify/nostrify@0.30.1",
       "jsr:@nostrify/types@^0.30.0": "jsr:@nostrify/types@0.30.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
@@ -30,6 +31,7 @@
       "jsr:@std/bytes@^0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^1.0.0-rc.3": "jsr:@std/bytes@1.0.0",
       "jsr:@std/bytes@^1.0.1-rc.3": "jsr:@std/bytes@1.0.2",
+      "jsr:@std/bytes@^1.0.2": "jsr:@std/bytes@1.0.2",
       "jsr:@std/bytes@^1.0.2-rc.3": "jsr:@std/bytes@1.0.2",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
       "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.2",
@@ -43,7 +45,7 @@
       "jsr:@std/fs@^0.221.0": "jsr:@std/fs@0.221.0",
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
       "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.1",
-      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.4",
+      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.6",
       "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.213.1": "jsr:@std/path@0.213.1",
@@ -172,6 +174,9 @@
       "@hono/hono@4.5.5": {
         "integrity": "e5a63b5f535475cd80974b65fed23a138d0cbb91fe1cc9a17a7c7278e835c308"
       },
+      "@hono/hono@4.5.9": {
+        "integrity": "47f561e67aedbd6d1e21e3a1ae26c1b80ffdb62a51c161d502e75bee17ca40af"
+      },
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
@@ -215,6 +220,21 @@
       },
       "@nostrify/nostrify@0.30.0": {
         "integrity": "7c29e7d8b5a0a81e238170ac1e7ad708bc72dd8f478d8d82c30598fb4eff9b9c",
+        "dependencies": [
+          "jsr:@nostrify/types@^0.30.0",
+          "jsr:@std/crypto@^0.224.0",
+          "jsr:@std/encoding@^0.224.1",
+          "npm:@scure/base@^1.1.6",
+          "npm:@scure/bip32@^1.4.0",
+          "npm:@scure/bip39@^1.3.0",
+          "npm:lru-cache@^10.2.0",
+          "npm:nostr-tools@^2.7.0",
+          "npm:websocket-ts@^2.1.5",
+          "npm:zod@^3.23.8"
+        ]
+      },
+      "@nostrify/nostrify@0.30.1": {
+        "integrity": "fcc923707e87a9fbecc82dbb18756d1d3d134cd0763f4b1254c4bce709e811eb",
         "dependencies": [
           "jsr:@nostrify/types@^0.30.0",
           "jsr:@std/crypto@^0.224.0",
@@ -340,6 +360,12 @@
         "integrity": "bce1151765e4e70e376039fd72c71672b4d4aae363878a5ee3e58361b81197ec",
         "dependencies": [
           "jsr:@std/bytes@^1.0.2-rc.3"
+        ]
+      },
+      "@std/io@0.224.6": {
+        "integrity": "eefe034a370be34daf066c8634dd645635d099bb21eccf110f0bdc28d9040891",
+        "dependencies": [
+          "jsr:@std/bytes@^1.0.2"
         ]
       },
       "@std/json@0.223.0": {
@@ -1892,7 +1918,7 @@
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@nostrify/db@^0.31.2",
-      "jsr:@nostrify/nostrify@^0.30.0",
+      "jsr:@nostrify/nostrify@^0.30.1",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
