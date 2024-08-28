@@ -52,8 +52,8 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
                 return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
               }
             }
+            return content;
           }
-          return content;
         } catch {
           // fallthrough
         }

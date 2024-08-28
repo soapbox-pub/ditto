@@ -11,8 +11,13 @@ Deno.test('parseNoteContent', () => {
 });
 
 Deno.test('parseNoteContent parses URLs', () => {
-  const { html } = parseNoteContent(`check out my website: https://alexgleason.me`, []);
+  const { html } = parseNoteContent('check out my website: https://alexgleason.me', []);
   assertEquals(html, 'check out my website: <a href="https://alexgleason.me">https://alexgleason.me</a>');
+});
+
+Deno.test('parseNoteContent parses bare URLs', () => {
+  const { html } = parseNoteContent('have you seen ditto.pub?', []);
+  assertEquals(html, 'have you seen <a href="http://ditto.pub">ditto.pub</a>?');
 });
 
 Deno.test('parseNoteContent parses mentions with apostrophes', () => {
