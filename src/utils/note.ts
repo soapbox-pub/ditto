@@ -30,7 +30,7 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
       hashtag: ({ content }) => {
         const tag = content.replace(/^#/, '');
         const href = Conf.local(`/tags/${tag}`);
-        return html`<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
+        return html`<a class="mention hashtag" href="${href}" rel="tag"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
         try {
