@@ -1,10 +1,11 @@
 import 'linkify-plugin-hashtag';
 import linkifyStr from 'linkify-string';
 import linkify from 'linkifyjs';
-import { nip19, nip21, nip27 } from 'nostr-tools';
+import { nip19, nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { MastodonMention } from '@/entities/MastodonMention.ts';
+import { html } from '@/utils/html.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
 
 linkify.registerCustomProtocol('nostr', true);
@@ -24,27 +25,32 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
   const links = linkify.find(content).filter(isLinkURL);
   const firstUrl = links.find(isNonMediaLink)?.href;
 
-  const html = linkifyStr(content, {
+  const result = linkifyStr(content, {
     render: {
       hashtag: ({ content }) => {
         const tag = content.replace(/^#/, '');
         const href = Conf.local(`/tags/${tag}`);
-        return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
+        return html`<a class="mention hashtag" href="${href}" rel="tag"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
         try {
-          const { decoded } = nip21.parse(content);
-          const pubkey = getDecodedPubkey(decoded);
-          if (pubkey) {
-            const mention = mentions.find((m) => m.id === pubkey);
-            const npub = nip19.npubEncode(pubkey);
-            const acct = mention?.acct ?? npub;
-            const name = mention?.acct ?? npub.substring(0, 8);
-            const href = mention?.url ?? Conf.local(`/@${acct}`);
-            return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
-          } else {
-            return '';
+          const { pathname } = new URL(content);
+          const match = pathname.match(new RegExp(`^${nip19.BECH32_REGEX.source}`));
+          if (match) {
+            const bech32 = match[0];
+            const extra = pathname.slice(bech32.length);
+            const decoded = nip19.decode(bech32);
+            const pubkey = getDecodedPubkey(decoded);
+            if (pubkey) {
+              const mention = mentions.find((m) => m.id === pubkey);
+              const npub = nip19.npubEncode(pubkey);
+              const acct = mention?.acct ?? npub;
+              const name = mention?.acct ?? npub.substring(0, 8);
+              const href = mention?.url ?? Conf.local(`/@${acct}`);
+              return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
+            }
           }
+          return content;
         } catch {
           const attr = Object.entries(attributes)
             .map(([name, value]) => `${name}="${value}"`)
@@ -57,7 +63,7 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
   }).replace(/\n+$/, '');
 
   return {
-    html,
+    html: result,
     links,
     firstUrl,
   };
