@@ -10,7 +10,12 @@ Deno.test('parseNoteContent', () => {
   assertEquals(firstUrl, undefined);
 });
 
-Deno.test('parseNoteContent handles apostrophes', () => {
+Deno.test('parseNoteContent parses URLs', () => {
+  const { html } = parseNoteContent(`check out my website: https://alexgleason.me`, []);
+  assertEquals(html, 'check out my website: <a href="https://alexgleason.me">https://alexgleason.me</a>');
+});
+
+Deno.test('parseNoteContent parses mentions with apostrophes', () => {
   const { html } = parseNoteContent(
     `did you see nostr:nprofile1qqsqgc0uhmxycvm5gwvn944c7yfxnnxm0nyh8tt62zhrvtd3xkj8fhgprdmhxue69uhkwmr9v9ek7mnpw3hhytnyv4mz7un9d3shjqgcwaehxw309ahx7umywf5hvefwv9c8qtmjv4kxz7gpzemhxue69uhhyetvv9ujumt0wd68ytnsw43z7s3al0v's speech?`,
     [{

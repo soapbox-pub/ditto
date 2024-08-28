@@ -33,31 +33,36 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
         return html`<a class="mention hashtag" href="${href}" rel="tag"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
-        try {
-          const { pathname } = new URL(content);
-          const match = pathname.match(new RegExp(`^${nip19.BECH32_REGEX.source}`));
-          if (match) {
-            const bech32 = match[0];
-            const extra = pathname.slice(bech32.length);
-            const decoded = nip19.decode(bech32);
-            const pubkey = getDecodedPubkey(decoded);
-            if (pubkey) {
-              const mention = mentions.find((m) => m.id === pubkey);
-              const npub = nip19.npubEncode(pubkey);
-              const acct = mention?.acct ?? npub;
-              const name = mention?.acct ?? npub.substring(0, 8);
-              const href = mention?.url ?? Conf.local(`/@${acct}`);
-              return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
+        const { protocol, pathname } = new URL(content);
+
+        if (protocol === 'nostr:') {
+          try {
+            const match = pathname.match(new RegExp(`^${nip19.BECH32_REGEX.source}`));
+            if (match) {
+              const bech32 = match[0];
+              const extra = pathname.slice(bech32.length);
+              const decoded = nip19.decode(bech32);
+              const pubkey = getDecodedPubkey(decoded);
+              if (pubkey) {
+                const mention = mentions.find((m) => m.id === pubkey);
+                const npub = nip19.npubEncode(pubkey);
+                const acct = mention?.acct ?? npub;
+                const name = mention?.acct ?? npub.substring(0, 8);
+                const href = mention?.url ?? Conf.local(`/@${acct}`);
+                return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
+              }
             }
+          } catch {
+            // fallthrough
           }
           return content;
-        } catch {
-          const attr = Object.entries(attributes)
-            .map(([name, value]) => `${name}="${value}"`)
-            .join(' ');
-
-          return `<a ${attr}>${content}</a>`;
         }
+
+        const attr = Object.entries(attributes)
+          .map(([name, value]) => `${name}="${value}"`)
+          .join(' ');
+
+        return `<a ${attr}>${content}</a>`;
       },
     },
   }).replace(/\n+$/, '');
