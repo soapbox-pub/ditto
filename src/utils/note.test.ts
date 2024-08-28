@@ -10,6 +10,27 @@ Deno.test('parseNoteContent', () => {
   assertEquals(firstUrl, undefined);
 });
 
+Deno.test('parseNoteContent handles apostrophes', () => {
+  const { html } = parseNoteContent(
+    `did you see nostr:nprofile1qqsqgc0uhmxycvm5gwvn944c7yfxnnxm0nyh8tt62zhrvtd3xkj8fhgprdmhxue69uhkwmr9v9ek7mnpw3hhytnyv4mz7un9d3shjqgcwaehxw309ahx7umywf5hvefwv9c8qtmjv4kxz7gpzemhxue69uhhyetvv9ujumt0wd68ytnsw43z7s3al0v's speech?`,
+    [{
+      id: '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd',
+      username: 'alex',
+      acct: 'alex@gleasonator.dev',
+      url: 'https://gleasonator.dev/@alex',
+    }],
+  );
+  assertEquals(
+    html,
+    `did you see <span class="h-card"><a class="u-url mention" href="https://gleasonator.dev/@alex" rel="ugc">@<span>alex@gleasonator.dev</span></a></span>&apos;s speech?`,
+  );
+});
+
+Deno.test("parseNoteContent doesn't parse invalid nostr URIs", () => {
+  const { html } = parseNoteContent(`nip19 has URIs like nostr:npub and nostr:nevent, etc.`, []);
+  assertEquals(html, 'nip19 has URIs like nostr:npub and nostr:nevent, etc.');
+});
+
 Deno.test('getMediaLinks', () => {
   const links = [
     { href: 'https://example.com/image.png' },
