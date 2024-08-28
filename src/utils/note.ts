@@ -23,7 +23,6 @@ interface ParsedNoteContent {
 function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedNoteContent {
   const links = linkify.find(content).filter(isLinkURL);
   const firstUrl = links.find(isNonMediaLink)?.href;
-
   const html = linkifyStr(content, {
     render: {
       hashtag: ({ content }) => {
@@ -32,6 +31,8 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
         return `<a class=\"mention hashtag\" href=\"${href}\" rel=\"tag\"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
+        const extra = content.slice(69)
+        content = content.slice(0,69)
         try {
           const { decoded } = nip21.parse(content);
           const pubkey = getDecodedPubkey(decoded);
@@ -41,7 +42,7 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
             const acct = mention?.acct ?? npub;
             const name = mention?.acct ?? npub.substring(0, 8);
             const href = mention?.url ?? Conf.local(`/@${acct}`);
-            return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>`;
+            return `<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
           } else {
             return '';
           }
