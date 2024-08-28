@@ -33,10 +33,10 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
         return html`<a class="mention hashtag" href="${href}" rel="tag"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
-        const { protocol, pathname } = new URL(content);
+        try {
+          const { protocol, pathname } = new URL(content);
 
-        if (protocol === 'nostr:') {
-          try {
+          if (protocol === 'nostr:') {
             const match = pathname.match(new RegExp(`^${nip19.BECH32_REGEX.source}`));
             if (match) {
               const bech32 = match[0];
@@ -52,10 +52,10 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
                 return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
               }
             }
-          } catch {
-            // fallthrough
           }
           return content;
+        } catch {
+          // fallthrough
         }
 
         const attr = Object.entries(attributes)
