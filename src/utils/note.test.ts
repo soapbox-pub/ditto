@@ -32,13 +32,21 @@ Deno.test('parseNoteContent parses mentions with apostrophes', () => {
   );
   assertEquals(
     html,
-    `did you see <span class="h-card"><a class="u-url mention" href="https://gleasonator.dev/@alex" rel="ugc">@<span>alex@gleasonator.dev</span></a></span>&apos;s speech?`,
+    'did you see <span class="h-card"><a class="u-url mention" href="https://gleasonator.dev/@alex" rel="ugc">@<span>alex@gleasonator.dev</span></a></span>&apos;s speech?',
   );
 });
 
 Deno.test("parseNoteContent doesn't parse invalid nostr URIs", () => {
-  const { html } = parseNoteContent(`nip19 has URIs like nostr:npub and nostr:nevent, etc.`, []);
+  const { html } = parseNoteContent('nip19 has URIs like nostr:npub and nostr:nevent, etc.', []);
   assertEquals(html, 'nip19 has URIs like nostr:npub and nostr:nevent, etc.');
+});
+
+Deno.test('parseNoteContent renders empty for non-profile nostr URIs', () => {
+  const { html } = parseNoteContent(
+    'nostr:nevent1qgsr9cvzwc652r4m83d86ykplrnm9dg5gwdvzzn8ameanlvut35wy3gpz3mhxue69uhhztnnwashymtnw3ezucm0d5qzqru8mkz2q4gzsxg99q7pdneyx7n8p5u0afe3ntapj4sryxxmg4gpcdvgce',
+    [],
+  );
+  assertEquals(html, '');
 });
 
 Deno.test('getMediaLinks', () => {

@@ -50,9 +50,12 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
                 const name = mention?.acct ?? npub.substring(0, 8);
                 const href = mention?.url ?? Conf.local(`/@${acct}`);
                 return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
+              } else {
+                return '';
               }
+            } else {
+              return content;
             }
-            return content;
           }
         } catch {
           // fallthrough
