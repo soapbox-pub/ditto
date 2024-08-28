@@ -16,5 +16,5 @@ export const metricsMiddleware: MiddlewareHandler = async (c, next) => {
   // Get a parameterized path name like `/posts/:id` instead of `/posts/1234`.
   // Tries to find actual route names first before falling back on potential middleware handlers like `app.use('*')`.
   const path = c.req.matchedRoutes.find((r) => r.method !== 'ALL')?.path ?? c.req.routePath;
-  httpResponseCounter.inc({ status, path });
+  httpResponseCounter.inc({ method, status, path });
 };

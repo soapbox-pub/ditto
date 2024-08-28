@@ -9,7 +9,7 @@ export const httpRequestCounter = new Counter({
 export const httpResponseCounter = new Counter({
   name: 'http_responses_total',
   help: 'Total number of HTTP responses',
-  labelNames: ['status', 'path'],
+  labelNames: ['method', 'path', 'status'],
 });
 
 export const streamingConnectionsGauge = new Gauge({
