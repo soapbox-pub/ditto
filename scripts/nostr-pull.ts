@@ -29,6 +29,18 @@ const importUsers = async (
   const notes = new Set<string>();
   const { profilesOnly = false } = opts || {};
 
+  const put = async (event: NostrEvent) => {
+    try {
+      await doEvent(event);
+    } catch (error) {
+      if (error.message.includes('violates unique constraint')) {
+        console.warn(`Skipping existing event ${event.id}...`);
+      } else {
+        console.error(error);
+      }
+    }
+  };
+
   await Promise.all(relays.map(async (relay) => {
     if (!relay.startsWith('wss://')) console.error(`Invalid relay url ${relay}`);
     const conn = new NRelay1(relay);
@@ -49,7 +61,7 @@ const importUsers = async (
         if (kind === 1 && !notes.has(event.id)) {
           // add the event to eventsDB only if it has not been found already.
           notes.add(event.id);
-          await doEvent(event);
+          await put(event);
           return;
         }
 
@@ -64,7 +76,7 @@ const importUsers = async (
   for (const user in profiles) {
     const profile = profiles[user];
     for (const kind in profile) {
-      await doEvent(profile[kind]);
+      await put(profile[kind]);
     }
 
     let name = user;
