@@ -4,9 +4,10 @@ import { z } from 'zod';
 import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoPagination } from '@/interfaces/DittoPagination.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated } from '@/utils/api.ts';
-import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { renderNotification, RenderNotificationOpts } from '@/views/mastodon/notifications.ts';
 
 /** Set of known notification types across backends. */
 const notificationTypes = new Set([
@@ -23,6 +24,7 @@ const notificationTypes = new Set([
   'severed_relationships',
   'pleroma:emoji_reaction',
   'ditto:name_grant',
+  'ditto:zap',
 ]);
 
 const notificationsSchema = z.object({
@@ -67,6 +69,10 @@ const notificationsController: AppController = async (c) => {
     filters.push({ kinds: [30360], authors: [Conf.pubkey], '#p': [pubkey], ...params });
   }
 
+  if (types.has('ditto:zap')) {
+    filters.push({ kinds: [9735], '#p': [pubkey] });
+  }
+
   return renderNotifications(filters, types, params, c);
 };
 
@@ -81,16 +87,55 @@ async function renderNotifications(
   const { signal } = c.req.raw;
   const opts = { signal, limit: params.limit, timeout: Conf.db.timeouts.timelines };
 
+  const zapsRelatedFilter: NostrFilter[] = [];
+
   const events = await store
     .query(filters, opts)
-    .then((events) => events.filter((event) => event.pubkey !== pubkey))
+    .then((events) =>
+      events.filter((event) => {
+        if (event.kind === 9735) {
+          const zappedEventId = event.tags.find(([name]) => name === 'e')?.[1];
+          if (zappedEventId) zapsRelatedFilter.push({ kinds: [1], ids: [zappedEventId] });
+          const zapSender = event.tags.find(([name]) => name === 'P')?.[1];
+          if (zapSender) zapsRelatedFilter.push({ kinds: [0], authors: [zapSender] });
+        }
+
+        return event.pubkey !== pubkey;
+      })
+    )
     .then((events) => hydrateEvents({ events, store, signal }));
 
   if (!events.length) {
     return c.json([]);
   }
 
-  const notifications = (await Promise.all(events.map((event) => renderNotification(event, { viewerPubkey: pubkey }))))
+  const zapSendersAndPosts = await store
+    .query(zapsRelatedFilter, opts)
+    .then((events) => hydrateEvents({ events, store, signal }));
+
+  const notifications = (await Promise.all(events.map((event) => {
+    const opts: RenderNotificationOpts = { viewerPubkey: pubkey };
+    if (event.kind === 9735) {
+      const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+      const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+      // By getting the pubkey from the zap request we guarantee who is the sender
+      // some clients don't put the P tag in the zap receipt...
+      const zapSender = zapRequest?.pubkey;
+      const zappedPost = event.tags.find(([name]) => name === 'e')?.[1];
+
+      const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+      // amount in millisats
+      const amount = amountSchema.parse(getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]));
+
+      opts['zap'] = {
+        zapSender: zapSendersAndPosts.find(({ pubkey, kind }) => kind === 0 && pubkey === zapSender) ?? zapSender,
+        zappedPost: zapSendersAndPosts.find(({ id }) => id === zappedPost),
+        amount,
+        message: zapRequest?.content,
+      };
+    }
+    return renderNotification(event, opts);
+  })))
     .filter((notification) => notification && types.has(notification.type));
 
   if (!notifications.length) {
