@@ -56,6 +56,18 @@ async function getUnattachedMediaByIds(kysely: Kysely<DittoTables>, ids: string[
   }));
 }
 
+async function setMediaDescription(id: string, desc = '') {
+  const { kysely } = await DittoDB.getInstance();
+  const existing = await selectUnattachedMediaQuery(kysely).where('id', '=', id).executeTakeFirst();
+  if (!existing) return false;
+  const parsed = (await JSON.parse(existing.data) as string[][]).filter((itm) => itm[0] !== 'alt');
+  parsed.push(['alt', desc]);
+  await kysely.updateTable('unattached_media')
+    .set({ data: JSON.stringify(parsed) })
+    .execute();
+  return true;
+}
+
 /** Delete rows as an event with media is being created. */
 async function deleteAttachedMedia(pubkey: string, urls: string[]): Promise<void> {
   if (!urls.length) return;
@@ -71,5 +83,6 @@ export {
   deleteUnattachedMediaByUrl,
   getUnattachedMediaByIds,
   insertUnattachedMedia,
+  setMediaDescription,
   type UnattachedMedia,
 };

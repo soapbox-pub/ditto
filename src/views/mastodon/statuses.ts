@@ -84,7 +84,12 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const imeta: string[][][] = event.tags
     .filter(([name]) => name === 'imeta')
-    .map(([_, ...entries]) => entries.map((entry) => entry.split(' ')));
+    .map(([_, ...entries]) =>
+      entries.map((entry) => {
+        const split = entry.split(' ');
+        return [split[0], split.splice(1).join(' ')];
+      })
+    );
 
   const media = imeta.length ? imeta : getMediaLinks(links);
 
