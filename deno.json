@@ -18,7 +18,8 @@
     "setup": "deno run -A scripts/setup.ts",
     "stats:recompute": "deno run -A scripts/stats-recompute.ts",
     "soapbox": "curl -O https://dl.soapbox.pub/main/soapbox.zip && mkdir -p public && mv soapbox.zip public/ && cd public/ && unzip soapbox.zip && rm soapbox.zip",
-    "trends": "deno run -A scripts/trends.ts"
+    "trends": "deno run -A scripts/trends.ts",
+    "clean:deps": "deno cache --reload src/app.ts"
   },
   "unstable": ["cron", "ffi", "kv", "worker-options"],
   "exclude": ["./public"],
