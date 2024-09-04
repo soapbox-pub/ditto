@@ -70,7 +70,7 @@ const notificationsController: AppController = async (c) => {
   }
 
   if (types.has('ditto:zap')) {
-    filters.push({ kinds: [9735], '#p': [pubkey] });
+    filters.push({ kinds: [9735], '#p': [pubkey], ...params });
   }
 
   return renderNotifications(filters, types, params, c);
