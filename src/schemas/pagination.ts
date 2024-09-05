@@ -2,7 +2,10 @@ import { z } from 'zod';
 
 /** Schema to parse pagination query params. */
 export const paginationSchema = z.object({
-  max_id: z.string().optional().catch(undefined),
+  max_id: z.string().transform((val) => {
+    if (!val.includes('-')) return val;
+    return val.split('-')[1];
+  }).optional().catch(undefined),
   min_id: z.string().optional().catch(undefined),
   since: z.coerce.number().nonnegative().optional().catch(undefined),
   until: z.coerce.number().nonnegative().optional().catch(undefined),

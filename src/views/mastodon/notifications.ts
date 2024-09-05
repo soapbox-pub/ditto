@@ -1,13 +1,19 @@
 import { NostrEvent } from '@nostrify/nostrify';
 
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { Conf } from '@/config.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
-import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-interface RenderNotificationOpts {
+export interface RenderNotificationOpts {
   viewerPubkey: string;
+  zap?: {
+    zapSender?: NostrEvent | NostrEvent['pubkey']; // kind 0 or pubkey
+    zappedPost?: NostrEvent;
+    amount?: number;
+    message?: string;
+  };
 }
 
 function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
@@ -31,6 +37,10 @@ function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
 
   if (event.kind === 30360 && event.pubkey === Conf.pubkey) {
     return renderNameGrant(event);
+  }
+
+  if (event.kind === 9735) {
+    return renderZap(event, opts);
   }
 }
 
@@ -106,6 +116,27 @@ async function renderNameGrant(event: DittoEvent) {
     name: d,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
+  };
+}
+
+async function renderZap(event: DittoEvent, opts: RenderNotificationOpts) {
+  if (!opts.zap?.zapSender) return;
+
+  const { amount = 0, message = '' } = opts.zap;
+  if (amount < 1) return;
+
+  const account = typeof opts.zap.zapSender !== 'string'
+    ? await renderAccount(opts.zap.zapSender)
+    : await accountFromPubkey(opts.zap.zapSender);
+
+  return {
+    id: notificationId(event),
+    type: 'ditto:zap',
+    amount,
+    message,
+    created_at: nostrDate(event.created_at).toISOString(),
+    account,
+    ...(opts.zap?.zappedPost ? { status: await renderStatus(opts.zap?.zappedPost, opts) } : {}),
   };
 }
 
