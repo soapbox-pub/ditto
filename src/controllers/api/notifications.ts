@@ -52,6 +52,9 @@ const notificationsController: AppController = async (c) => {
   if (types.has('favourite') || types.has('pleroma:emoji_reaction')) {
     kinds.add(7);
   }
+  if (types.has('ditto:zap')) {
+    kinds.add(9735);
+  }
 
   const filter: NostrFilter = {
     kinds: [...kinds],
@@ -67,10 +70,6 @@ const notificationsController: AppController = async (c) => {
 
   if (types.has('ditto:name_grant') && !account_id) {
     filters.push({ kinds: [30360], authors: [Conf.pubkey], '#p': [pubkey], ...params });
-  }
-
-  if (types.has('ditto:zap')) {
-    filters.push({ kinds: [9735], '#p': [pubkey], ...params });
   }
 
   return renderNotifications(filters, types, params, c);
