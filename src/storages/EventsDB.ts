@@ -17,7 +17,7 @@ import { nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDB.ts';
-import { dbEventCounter } from '@/metrics.ts';
+import { dbEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
@@ -73,7 +73,7 @@ class EventsDB implements NStore {
   async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
-    dbEventCounter.inc({ kind: event.kind });
+    dbEventsCounter.inc({ kind: event.kind });
 
     if (await this.isDeletedAdmin(event)) {
       throw new RelayError('blocked', 'event deleted by admin');

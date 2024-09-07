@@ -2,7 +2,7 @@ import { Semaphore } from '@lambdalisue/async';
 import { Stickynotes } from '@soapbox/stickynotes';
 
 import { Conf } from '@/config.ts';
-import { firehoseEventCounter } from '@/metrics.ts';
+import { firehoseEventsCounter } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
@@ -23,7 +23,7 @@ export async function startFirehose(): Promise<void> {
     if (msg[0] === 'EVENT') {
       const event = msg[2];
       console.debug(`NostrEvent<${event.kind}> ${event.id}`);
-      firehoseEventCounter.inc({ kind: event.kind });
+      firehoseEventsCounter.inc({ kind: event.kind });
 
       sem.lock(async () => {
         try {

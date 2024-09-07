@@ -12,7 +12,7 @@ import {
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayConnectionsGauge, relayEventCounter, relayMessageCounter } from '@/metrics.ts';
+import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -54,10 +54,10 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
-      relayMessageCounter.inc({ verb: result.data[0] });
+      relayMessagesCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
-      relayMessageCounter.inc();
+      relayMessagesCounter.inc();
       send(['NOTICE', 'Invalid message.']);
     }
   };
@@ -130,7 +130,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
   /** Handle EVENT. Store the event. */
   async function handleEvent([_, event]: NostrClientEVENT): Promise<void> {
-    relayEventCounter.inc({ kind: event.kind.toString() });
+    relayEventsCounter.inc({ kind: event.kind.toString() });
     try {
       // This will store it (if eligible) and run other side-effects.
       await pipeline.handleEvent(event, AbortSignal.timeout(1000));
