@@ -123,21 +123,25 @@ const createStatusController: AppController = async (c) => {
 
   const pubkeys = new Set<string>();
 
-  const content = await asyncReplaceAll(data.status ?? '', /@([\w@+._]+)/g, async (match, username) => {
-    const pubkey = await lookupPubkey(username);
-    if (!pubkey) return match;
+  const content = await asyncReplaceAll(
+    data.status ?? '',
+    /(?<![\w/])@([\w@+._]+)(?![\w/\.])/g,
+    async (match, username) => {
+      const pubkey = await lookupPubkey(username);
+      if (!pubkey) return match;
 
-    // Content addressing (default)
-    if (!data.to) {
-      pubkeys.add(pubkey);
-    }
+      // Content addressing (default)
+      if (!data.to) {
+        pubkeys.add(pubkey);
+      }
 
-    try {
-      return `nostr:${nip19.npubEncode(pubkey)}`;
-    } catch {
-      return match;
-    }
-  });
+      try {
+        return `nostr:${nip19.npubEncode(pubkey)}`;
+      } catch {
+        return match;
+      }
+    },
+  );
 
   // Explicit addressing
   for (const to of data.to ?? []) {
