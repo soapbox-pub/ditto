@@ -49,6 +49,22 @@ Deno.test('parseNoteContent renders empty for non-profile nostr URIs', () => {
   assertEquals(html, '');
 });
 
+Deno.test("parseNoteContent doesn't fuck up links to my own post", () => {
+  const { html } = parseNoteContent(
+    'Check this post: https://gleasonator.dev/@alex@gleasonator.dev/posts/a8badb480d88f9e7b6a090342279ef47ed0e0a3989ed85f898dfedc6be94225f',
+    [{
+      id: '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd',
+      username: 'alex',
+      acct: 'alex@gleasonator.dev',
+      url: 'https://gleasonator.dev/@alex',
+    }],
+  );
+  assertEquals(
+    html,
+    'Check this post: <a href="https://gleasonator.dev/@alex@gleasonator.dev/posts/a8badb480d88f9e7b6a090342279ef47ed0e0a3989ed85f898dfedc6be94225f">https://gleasonator.dev/@alex@gleasonator.dev/posts/a8badb480d88f9e7b6a090342279ef47ed0e0a3989ed85f898dfedc6be94225f</a>',
+  );
+});
+
 Deno.test('getMediaLinks', () => {
   const links = [
     { href: 'https://example.com/image.png' },
