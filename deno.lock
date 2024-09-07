@@ -22,6 +22,7 @@
       "jsr:@nostrify/nostrify@^0.30.1": "jsr:@nostrify/nostrify@0.30.1",
       "jsr:@nostrify/types@^0.30.0": "jsr:@nostrify/types@0.30.0",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0": "jsr:@soapbox/kysely-deno-sqlite@2.2.0",
+      "jsr:@soapbox/kysely-pglite@^0.0.5": "jsr:@soapbox/kysely-pglite@0.0.5",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.213.1": "jsr:@std/assert@0.213.1",
       "jsr:@std/assert@^0.217.0": "jsr:@std/assert@0.217.0",
@@ -53,6 +54,7 @@
       "jsr:@std/path@^0.213.1": "jsr:@std/path@0.213.1",
       "jsr:@std/path@^0.221.0": "jsr:@std/path@0.221.0",
       "jsr:@std/streams@^0.223.0": "jsr:@std/streams@0.223.0",
+      "npm:@electric-sql/pglite@^0.2.5": "npm:@electric-sql/pglite@0.2.5",
       "npm:@isaacs/ttlcache@^1.4.1": "npm:@isaacs/ttlcache@1.4.1",
       "npm:@noble/hashes@^1.4.0": "npm:@noble/hashes@1.4.0",
       "npm:@scure/base@^1.1.6": "npm:@scure/base@1.1.6",
@@ -257,6 +259,12 @@
           "npm:kysely@^0.27.2"
         ]
       },
+      "@soapbox/kysely-pglite@0.0.5": {
+        "integrity": "87fc586d46cffede8dcc18598f41411db296130c14f22b044d6a5538fd6e59b5",
+        "dependencies": [
+          "npm:kysely@^0.27.4"
+        ]
+      },
       "@soapbox/stickynotes@0.4.0": {
         "integrity": "60bfe61ab3d7e04bf708273b1e2d391a59534bdf29e54160e98d7afd328ca1ec"
       },
@@ -397,6 +405,10 @@
       }
     },
     "npm": {
+      "@electric-sql/pglite@0.2.5": {
+        "integrity": "sha512-LrMX2kX0mCVN4xkhIDv1KBVukWtoOI/+P9MDQgHX5QEeZCi5S60LZOa0VWXjufPEz7mJtbuXWJRujD++t0gsHA==",
+        "dependencies": {}
+      },
       "@isaacs/ttlcache@1.4.1": {
         "integrity": "sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==",
         "dependencies": {}
@@ -1920,6 +1932,7 @@
       "jsr:@nostrify/db@^0.31.2",
       "jsr:@nostrify/nostrify@^0.30.1",
       "jsr:@soapbox/kysely-deno-sqlite@^2.1.0",
+      "jsr:@soapbox/kysely-pglite@^0.0.5",
       "jsr:@soapbox/stickynotes@^0.4.0",
       "jsr:@std/assert@^0.225.1",
       "jsr:@std/cli@^0.223.0",
@@ -1930,6 +1943,7 @@
       "jsr:@std/json@^0.223.0",
       "jsr:@std/media-types@^0.224.1",
       "jsr:@std/streams@^0.223.0",
+      "npm:@electric-sql/pglite@^0.2.5",
       "npm:@isaacs/ttlcache@^1.4.1",
       "npm:@noble/secp256k1@^2.0.0",
       "npm:@scure/base@^1.1.6",

@@ -5,6 +5,7 @@ import { NDatabaseSchema, NPostgresSchema } from '@nostrify/db';
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 
 import { Conf } from '@/config.ts';
+import { DittoPglite } from '@/db/adapters/DittoPglite.ts';
 import { DittoPostgres } from '@/db/adapters/DittoPostgres.ts';
 import { DittoSQLite } from '@/db/adapters/DittoSQLite.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -30,12 +31,17 @@ export class DittoDB {
   static async _getInstance(): Promise<DittoDatabase> {
     const result = {} as DittoDatabase;
 
-    switch (Conf.db.dialect) {
-      case 'sqlite':
+    switch (Conf.db.url.protocol) {
+      case 'sqlite:':
         result.dialect = 'sqlite';
         result.kysely = await DittoSQLite.getInstance();
         break;
-      case 'postgres':
+      case 'pglite:':
+        result.dialect = 'postgres';
+        result.kysely = await DittoPglite.getInstance();
+        break;
+      case 'postgres:':
+      case 'postgresql:':
         result.dialect = 'postgres';
         result.kysely = await DittoPostgres.getInstance();
         break;

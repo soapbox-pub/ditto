@@ -82,7 +82,7 @@ class Conf {
    * ```
    */
   static get databaseUrl(): string {
-    return Deno.env.get('DATABASE_URL') ?? 'sqlite://data/db.sqlite3';
+    return Deno.env.get('DATABASE_URL') ?? 'pglite://data/pgdata';
   }
   static db = {
     get url(): url.UrlWithStringQuery {
@@ -92,6 +92,7 @@ class Conf {
       switch (Conf.db.url.protocol) {
         case 'sqlite:':
           return 'sqlite';
+        case 'pglite:':
         case 'postgres:':
         case 'postgresql:':
           return 'postgres';
