@@ -3,6 +3,7 @@ import Debug from '@soapbox/stickynotes/debug';
 import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
+import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
@@ -15,7 +16,10 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
     const result = await unfurl(url, {
       fetch: (url) =>
         fetchWorker(url, {
-          headers: { 'User-Agent': 'WhatsApp/2' },
+          headers: {
+            'Accept': 'text/html, application/xhtml+xml',
+            'User-Agent': Conf.fetchUserAgent,
+          },
           signal,
         }),
     });
