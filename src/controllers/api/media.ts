@@ -54,7 +54,7 @@ const updateMediaController: AppController = async (c) => {
 
   dittoUploads.set(id, {
     ...upload,
-    description,
+    tags: upload.tags.filter(([name]) => name !== 'alt').concat([['alt', description]]),
   });
 
   return c.json({ message: 'ok' }, 200);

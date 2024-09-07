@@ -5,7 +5,6 @@ import { Time } from '@/utils/time.ts';
 export interface DittoUpload {
   id: string;
   pubkey: string;
-  description?: string;
   url: string;
   tags: string[][];
   uploadedAt: Date;
