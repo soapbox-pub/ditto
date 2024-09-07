@@ -1,6 +1,6 @@
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Logger } from 'kysely';
-import { dbQueryCounter, dbQueryTimeHistogram } from '@/metrics.ts';
+import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
 
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
@@ -9,8 +9,8 @@ export const KyselyLogger: Logger = (event) => {
   const { query, queryDurationMillis } = event;
   const { sql, parameters } = query;
 
-  dbQueryCounter.inc();
-  dbQueryTimeHistogram.observe(queryDurationMillis);
+  dbQueriesCounter.inc();
+  dbQueryDurationHistogram.observe(queryDurationMillis);
 
   console.debug(
     sql,
