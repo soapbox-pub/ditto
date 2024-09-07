@@ -1,6 +1,5 @@
 export interface DittoTables {
   nip46_tokens: NIP46TokenRow;
-  unattached_media: UnattachedMediaRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
@@ -31,14 +30,6 @@ interface NIP46TokenRow {
   server_pubkey: string;
   relays: string;
   connected_at: Date;
-}
-
-interface UnattachedMediaRow {
-  id: string;
-  pubkey: string;
-  url: string;
-  data: string;
-  uploaded_at: number;
 }
 
 interface PubkeyDomainRow {

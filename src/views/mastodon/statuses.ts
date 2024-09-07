@@ -125,9 +125,9 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     pinned: Boolean(pinEvent),
     reblog: null,
     application: null,
-    media_attachments: media.map((m) => renderAttachment({ data: m })).filter((m): m is MastodonAttachment =>
-      Boolean(m)
-    ),
+    media_attachments: media
+      .map((m) => renderAttachment({ tags: m }))
+      .filter((m): m is MastodonAttachment => Boolean(m)),
     mentions,
     tags: [],
     emojis: renderEmojis(event),
