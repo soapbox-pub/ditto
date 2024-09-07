@@ -258,6 +258,10 @@ class Conf {
       'i',
     );
   }
+  /** User-Agent to use when fetching link previews. Pretend to be Facebook by default. */
+  static get fetchUserAgent(): string {
+    return Deno.env.get('DITTO_FETCH_USER_AGENT') ?? 'facebookexternalhit';
+  }
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   static get policy(): string {
     return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
