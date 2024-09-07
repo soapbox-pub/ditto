@@ -1,0 +1,23 @@
+---
+- name: Update Ditto
+  hosts: all
+  become: true
+  tasks:
+    - name: Update Soapbox
+      shell:
+        cmd: deno task soapbox
+        chdir: /opt/ditto
+      become_user: ditto
+
+    - name: Update ditto from the main branch
+      git:
+        repo: 'https://gitlab.com/soapbox-pub/ditto.git'
+        dest: '/opt/ditto'
+        version: main
+      become_user: ditto
+
+    - name: Restart ditto service
+      systemd:
+        name: ditto
+        state: restarted
+      become_user: root
