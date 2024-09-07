@@ -6,7 +6,6 @@ import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { deleteAttachedMedia } from '@/db/unattached-media.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
@@ -61,7 +60,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     handleZaps(kysely, event),
     parseMetadata(event, signal),
     generateSetEvents(event),
-    processMedia(event),
     streamOut(event),
   ]);
 }
@@ -161,14 +159,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     `.execute(kysely);
   } catch (_e) {
     // do nothing
-  }
-}
-
-/** Delete unattached media entries that are attached to the event. */
-function processMedia({ tags, pubkey, user }: DittoEvent) {
-  if (user) {
-    const urls = getTagSet(tags, 'media');
-    return deleteAttachedMedia(pubkey, [...urls]);
   }
 }
 

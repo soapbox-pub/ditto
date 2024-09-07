@@ -3,9 +3,9 @@ import { getUrlMediaType } from '@/utils/media.ts';
 
 /** Render Mastodon media attachment. */
 function renderAttachment(
-  media: { id?: string; data: string[][] },
+  media: { id?: string; tags: string[][] },
 ): (MastodonAttachment & { cid?: string }) | undefined {
-  const { id, data: tags } = media;
+  const { id, tags } = media;
 
   const url = tags.find(([name]) => name === 'url')?.[1];
 

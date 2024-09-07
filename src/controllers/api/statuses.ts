@@ -1,3 +1,4 @@
+import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import ISO6391 from 'iso-639-1';
 import 'linkify-plugin-hashtag';
@@ -6,22 +7,22 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
-import { addTag, deleteTag } from '@/utils/tags.ts';
-import { asyncReplaceAll } from '@/utils/text.ts';
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { getUnattachedMediaByIds } from '@/db/unattached-media.ts';
+import { addTag, deleteTag } from '@/utils/tags.ts';
+import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
-import { renderEventAccounts } from '@/views.ts';
-import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
 import { createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
+import { renderEventAccounts } from '@/views.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
+import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
@@ -63,7 +64,6 @@ const statusController: AppController = async (c) => {
 const createStatusController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
-  const { kysely } = await DittoDB.getInstance();
   const store = c.get('store');
 
   if (!result.success) {
@@ -112,10 +112,18 @@ const createStatusController: AppController = async (c) => {
     tags.push(['l', data.language, 'ISO-639-1']);
   }
 
-  const media = data.media_ids?.length ? await getUnattachedMediaByIds(kysely, data.media_ids) : [];
+  const media: DittoUpload[] = (data.media_ids ?? []).map((id) => {
+    const upload = dittoUploads.get(id);
 
-  const imeta: string[][] = media.map(({ data }) => {
-    const values: string[] = data.map((tag) => tag.join(' '));
+    if (!upload) {
+      throw new HTTPException(422, { message: 'Uploaded attachment is no longer available.' });
+    }
+
+    return upload;
+  });
+
+  const imeta: string[][] = media.map(({ tags }) => {
+    const values: string[] = tags.map((tag) => tag.join(' '));
     return ['imeta', ...values];
   });
 
@@ -165,7 +173,7 @@ const createStatusController: AppController = async (c) => {
   }
 
   const mediaUrls: string[] = media
-    .map(({ data }) => data.find(([name]) => name === 'url')?.[1])
+    .map(({ url }) => url)
     .filter((url): url is string => Boolean(url));
 
   const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';

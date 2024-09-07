@@ -2,7 +2,7 @@ import { HTTPException } from '@hono/hono/http-exception';
 
 import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { insertUnattachedMedia, UnattachedMedia } from '@/db/unattached-media.ts';
+import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 
 interface FileMeta {
   pubkey: string;
@@ -15,7 +15,7 @@ export async function uploadFile(
   file: File,
   meta: FileMeta,
   signal?: AbortSignal,
-): Promise<UnattachedMedia> {
+): Promise<DittoUpload> {
   const uploader = c.get('uploader');
   if (!uploader) {
     throw new HTTPException(500, {
@@ -36,11 +36,15 @@ export async function uploadFile(
     tags.push(['alt', description]);
   }
 
-  return insertUnattachedMedia({
+  const upload = {
     id: crypto.randomUUID(),
-    pubkey,
     url,
-    data: tags,
-    uploaded_at: Date.now(),
-  });
+    tags,
+    pubkey,
+    uploadedAt: new Date(),
+  };
+
+  dittoUploads.set(upload.id, upload);
+
+  return upload;
 }
