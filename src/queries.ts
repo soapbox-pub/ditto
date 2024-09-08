@@ -74,7 +74,7 @@ async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent
     const inReplyTo = replyTag ? replyTag[1] : undefined;
 
     if (inReplyTo) {
-      const [parentEvent] = await store.query([{ kinds: [1], ids: [inReplyTo], until: event.created_at, limit: 1 }]);
+      const [parentEvent] = await store.query([{ ids: [inReplyTo], until: event.created_at, limit: 1 }]);
 
       if (parentEvent) {
         result.push(parentEvent);
