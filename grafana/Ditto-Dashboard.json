@@ -457,7 +457,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "rate(ditto_db_query_duration_ms_sum[$__rate_interval]) / rate(db_query_total[$__rate_interval])",
+          "expr": "rate(ditto_db_query_duration_ms_sum[$__rate_interval]) / rate(ditto_db_queries_total[$__rate_interval])",
           "instant": false,
           "interval": "",
           "legendFormat": "Effort",
@@ -2112,6 +2112,6 @@
   "timezone": "browser",
   "title": "Ditto",
   "uid": "ddps3ap51fv28d",
-  "version": 59,
+  "version": 60,
   "weekStart": ""
 }
