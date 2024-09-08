@@ -50,7 +50,6 @@ const statusController: AppController = async (c) => {
   const id = c.req.param('id');
 
   const event = await getEvent(id, {
-    kind: 1,
     signal: AbortSignal.timeout(1500),
   });
 
