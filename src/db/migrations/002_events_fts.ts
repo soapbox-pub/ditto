@@ -1,13 +1,8 @@
-import { Kysely, sql } from 'kysely';
+import { Kysely } from 'kysely';
 
-import { Conf } from '@/config.ts';
-
-export async function up(db: Kysely<any>): Promise<void> {
-  if (Conf.db.dialect === 'sqlite') {
-    await sql`CREATE VIRTUAL TABLE events_fts USING fts5(id, content)`.execute(db);
-  }
+export async function up(_db: Kysely<any>): Promise<void> {
+  // This migration used to create an FTS table for SQLite, but SQLite support was removed.
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
-  await db.schema.dropTable('events_fts').ifExists().execute();
+export async function down(_db: Kysely<any>): Promise<void> {
 }

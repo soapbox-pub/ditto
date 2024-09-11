@@ -1,7 +1,7 @@
 import { assertEquals } from '@std/assert';
 import { generateSecretKey } from 'nostr-tools';
 
-import { createTestDB, genEvent, getTestDB } from '@/test.ts';
+import { createTestDB, genEvent } from '@/test.ts';
 import { handleZaps } from '@/pipeline.ts';
 
 Deno.test('store one zap receipt in nostr_events; convert it into event_zaps table format and store it', async () => {
@@ -58,7 +58,7 @@ Deno.test('store one zap receipt in nostr_events; convert it into event_zaps tab
 // If no error happens = ok
 
 Deno.test('zap receipt does not have a "description" tag', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
   const kysely = db.kysely;
 
   const sk = generateSecretKey();
@@ -71,7 +71,7 @@ Deno.test('zap receipt does not have a "description" tag', async () => {
 });
 
 Deno.test('zap receipt does not have a zap request stringified value in the "description" tag', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
   const kysely = db.kysely;
 
   const sk = generateSecretKey();
@@ -84,7 +84,7 @@ Deno.test('zap receipt does not have a zap request stringified value in the "des
 });
 
 Deno.test('zap receipt does not have a "bolt11" tag', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
   const kysely = db.kysely;
 
   const sk = generateSecretKey();
@@ -103,7 +103,7 @@ Deno.test('zap receipt does not have a "bolt11" tag', async () => {
 });
 
 Deno.test('zap request inside zap receipt does not have an "e" tag', async () => {
-  await using db = await getTestDB();
+  await using db = await createTestDB();
   const kysely = db.kysely;
 
   const sk = generateSecretKey();

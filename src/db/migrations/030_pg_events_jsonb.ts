@@ -1,10 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-import { Conf } from '@/config.ts';
-
 export async function up(db: Kysely<any>): Promise<void> {
-  if (Conf.db.dialect !== 'postgres') return;
-
   // Create new table and indexes.
   await db.schema
     .createTable('nostr_events_new')

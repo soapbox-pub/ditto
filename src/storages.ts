@@ -16,12 +16,12 @@ export class Storages {
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
 
-  /** SQLite database to store events this Ditto server cares about. */
+  /** SQL database to store events this Ditto server cares about. */
   public static async db(): Promise<EventsDB> {
     if (!this._db) {
       this._db = (async () => {
-        const db = await DittoDB.getInstance();
-        const store = new EventsDB(db);
+        const { kysely } = await DittoDB.getInstance();
+        const store = new EventsDB(kysely);
         await seedZapSplits(store);
         return store;
       })();

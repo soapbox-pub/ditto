@@ -5,7 +5,6 @@ import { z } from 'zod';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
-import { Conf } from '@/config.ts';
 
 interface UpdateStatsOpts {
   kysely: Kysely<DittoTables>;
@@ -197,16 +196,13 @@ export async function updateAuthorStats(
     notes_count: 0,
   };
 
-  let query = kysely
+  const prev = await kysely
     .selectFrom('author_stats')
     .selectAll()
-    .where('pubkey', '=', pubkey);
+    .forUpdate()
+    .where('pubkey', '=', pubkey)
+    .executeTakeFirst();
 
-  if (Conf.db.dialect === 'postgres') {
-    query = query.forUpdate();
-  }
-
-  const prev = await query.executeTakeFirst();
   const stats = fn(prev ?? empty);
 
   if (prev) {
@@ -249,16 +245,13 @@ export async function updateEventStats(
     reactions: '{}',
   };
 
-  let query = kysely
+  const prev = await kysely
     .selectFrom('event_stats')
     .selectAll()
-    .where('event_id', '=', eventId);
+    .forUpdate()
+    .where('event_id', '=', eventId)
+    .executeTakeFirst();
 
-  if (Conf.db.dialect === 'postgres') {
-    query = query.forUpdate();
-  }
-
-  const prev = await query.executeTakeFirst();
   const stats = fn(prev ?? empty);
 
   if (prev) {

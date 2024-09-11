@@ -9,8 +9,8 @@ import { nostrNow } from '@/utils.ts';
 
 const signer = new AdminSigner();
 
-const db = await DittoDB.getInstance();
-const eventsDB = new EventsDB(db);
+const { kysely } = await DittoDB.getInstance();
+const eventsDB = new EventsDB(kysely);
 
 const readable = Deno.stdin.readable
   .pipeThrough(new TextDecoderStream())

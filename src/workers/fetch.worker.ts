@@ -1,7 +1,9 @@
+/// <reference lib="webworker" />
+
 import Debug from '@soapbox/stickynotes/debug';
 import * as Comlink from 'comlink';
 
-import './handlers/abortsignal.ts';
+import '@/workers/handlers/abortsignal.ts';
 import '@/sentry.ts';
 
 const debug = Debug('ditto:fetch.worker');

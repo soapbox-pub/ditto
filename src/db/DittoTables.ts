@@ -1,4 +1,6 @@
-export interface DittoTables {
+import { NPostgresSchema } from '@nostrify/db';
+
+export interface DittoTables extends NPostgresSchema {
   nip46_tokens: NIP46TokenRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
