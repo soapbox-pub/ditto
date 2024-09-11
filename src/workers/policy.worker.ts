@@ -6,6 +6,9 @@ import * as Comlink from 'comlink';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
+// @ts-ignore Don't try to access the env from this worker.
+Deno.env = new Map<string, string>();
+
 /** Serializable object the worker can use to set up the state. */
 interface PolicyInit {
   /** Path to the policy module (https, jsr, file, etc) */
