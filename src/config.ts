@@ -35,21 +35,11 @@ class Conf {
     }
     return this._pubkey;
   }
-  /** Ditto admin secret key as a Web Crypto key. */
-  static get cryptoKey(): Promise<CryptoKey> {
-    return crypto.subtle.importKey(
-      'raw',
-      Conf.seckey,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign', 'verify'],
-    );
-  }
-
+  /** Port to use when serving the HTTP server. */
   static get port(): number {
     return parseInt(Deno.env.get('PORT') || '4036');
   }
-
+  /** Relay URL to the Ditto server's relay. */
   static get relay(): `wss://${string}` | `ws://${string}` {
     const { protocol, host } = Conf.url;
     return `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}/relay`;
@@ -188,12 +178,6 @@ class Conf {
       'system',
     ];
   }
-  /** Proof-of-work configuration. */
-  static pow = {
-    get registrations(): number {
-      return Number(Deno.env.get('DITTO_POW_REGISTRATIONS') ?? 20);
-    },
-  };
   /** Domain of the Ditto server as a `URL` object, for easily grabbing the `hostname`, etc. */
   static get url(): URL {
     return new URL(Conf.localDomain);
