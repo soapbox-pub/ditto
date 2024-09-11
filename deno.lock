@@ -11,6 +11,7 @@
       "jsr:@gleasonator/policy@0.4.1": "jsr:@gleasonator/policy@0.4.1",
       "jsr:@gleasonator/policy@0.4.2": "jsr:@gleasonator/policy@0.4.2",
       "jsr:@gleasonator/policy@0.5.0": "jsr:@gleasonator/policy@0.5.0",
+      "jsr:@gleasonator/policy@0.5.1": "jsr:@gleasonator/policy@0.5.1",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.11",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
       "jsr:@nostrify/db@^0.31.2": "jsr:@nostrify/db@0.31.2",
@@ -141,6 +142,13 @@
       },
       "@gleasonator/policy@0.5.0": {
         "integrity": "c2882eb3b4147dfe96b6ec2870b012b5a614f686770d1d4b2f778fdc44e8b1f5",
+        "dependencies": [
+          "jsr:@nostrify/nostrify@^0.31.0",
+          "jsr:@nostrify/policies@^0.33.0"
+        ]
+      },
+      "@gleasonator/policy@0.5.1": {
+        "integrity": "2d687c5166556ce13ac05c4542f61ef8a47d8b96b57f6e43d52035805f895551",
         "dependencies": [
           "jsr:@nostrify/nostrify@^0.31.0",
           "jsr:@nostrify/policies@^0.33.0"
