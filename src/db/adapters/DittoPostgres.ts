@@ -12,51 +12,43 @@ import {
 import { PostgresJSDialectConfig, PostgresJSDriver } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
-import { Conf } from '@/config.ts';
+import { DittoDatabase, DittoDatabaseOpts } from '@/db/DittoDatabase.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPostgres {
-  static kysely: Kysely<DittoTables> | undefined;
-  static postgres?: postgres.Sql;
+  static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
+    const pg = postgres(databaseUrl, { max: opts?.poolSize });
 
-  // deno-lint-ignore require-await
-  static async getInstance(): Promise<Kysely<DittoTables>> {
-    if (!this.postgres) {
-      this.postgres = postgres(Conf.databaseUrl, { max: Conf.pg.poolSize });
-    }
-
-    if (!this.kysely) {
-      this.kysely = new Kysely<DittoTables>({
-        dialect: {
-          createAdapter() {
-            return new PostgresAdapter();
-          },
-          createDriver() {
-            return new PostgresJSDriver({
-              postgres: DittoPostgres.postgres as unknown as PostgresJSDialectConfig['postgres'],
-            });
-          },
-          createIntrospector(db) {
-            return new PostgresIntrospector(db);
-          },
-          createQueryCompiler() {
-            return new DittoPostgresQueryCompiler();
-          },
+    const kysely = new Kysely<DittoTables>({
+      dialect: {
+        createAdapter() {
+          return new PostgresAdapter();
         },
-        log: KyselyLogger,
-      });
-    }
+        createDriver() {
+          return new PostgresJSDriver({
+            postgres: pg as unknown as PostgresJSDialectConfig['postgres'],
+          });
+        },
+        createIntrospector(db) {
+          return new PostgresIntrospector(db);
+        },
+        createQueryCompiler() {
+          return new DittoPostgresQueryCompiler();
+        },
+      },
+      log: KyselyLogger,
+    });
 
-    return this.kysely;
-  }
-
-  static get poolSize() {
-    return this.postgres?.connections.open ?? 0;
-  }
-
-  static get availableConnections(): number {
-    return this.postgres?.connections.idle ?? 0;
+    return {
+      kysely,
+      get poolSize() {
+        return pg.connections.open;
+      },
+      get availableConnections() {
+        return pg.connections.idle;
+      },
+    };
   }
 }
 

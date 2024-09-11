@@ -1,3 +1,5 @@
+/// <reference lib="webworker" />
+
 import Debug from '@soapbox/stickynotes/debug';
 import * as Comlink from 'comlink';
 

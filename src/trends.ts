@@ -70,7 +70,7 @@ export async function updateTrendingTags(
   aliases?: string[],
 ) {
   console.info(`Updating trending ${l}...`);
-  const db = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
   const signal = AbortSignal.timeout(1000);
 
   const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
@@ -79,7 +79,7 @@ export async function updateTrendingTags(
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
   try {
-    const trends = await getTrendingTagValues(db, tagNames, {
+    const trends = await getTrendingTagValues(kysely, tagNames, {
       kinds,
       since: yesterday,
       until: now,

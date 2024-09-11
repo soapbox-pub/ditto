@@ -9,8 +9,8 @@ import { nip19 } from 'nostr-tools';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
-const db = await DittoDB.getInstance();
-const eventsDB = new EventsDB(db);
+const { kysely } = await DittoDB.getInstance();
+const eventsDB = new EventsDB(kysely);
 
 interface ImportEventsOpts {
   profilesOnly: boolean;

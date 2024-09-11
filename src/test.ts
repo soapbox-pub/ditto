@@ -1,16 +1,9 @@
-import { PGlite } from '@electric-sql/pglite';
 import { NostrEvent } from '@nostrify/nostrify';
-import { PgliteDialect } from '@soapbox/kysely-pglite';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
-import { Kysely } from 'kysely';
-import { PostgresJSDialect, PostgresJSDialectConfig } from 'kysely-postgres-js';
-import postgres from 'postgres';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { purifyEvent } from '@/storages/hydrate.ts';
-import { KyselyLogger } from '@/db/KyselyLogger.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
 /** Import an event fixture by name in tests. */
@@ -41,31 +34,7 @@ export function genEvent(t: Partial<NostrEvent> = {}, sk: Uint8Array = generateS
 /** Create an database for testing. */
 export const createTestDB = async (databaseUrl = Conf.testDatabaseUrl) => {
   const { protocol } = new URL(databaseUrl);
-
-  const kysely: Kysely<DittoTables> = (() => {
-    switch (protocol) {
-      case 'postgres:':
-      case 'postgresql:':
-        return new Kysely({
-          // @ts-ignore Kysely version mismatch.
-          dialect: new PostgresJSDialect({
-            postgres: postgres(databaseUrl, {
-              max: Conf.pg.poolSize,
-            }) as unknown as PostgresJSDialectConfig['postgres'],
-          }),
-          log: KyselyLogger,
-        });
-      case 'file:':
-      case 'memory:':
-        return new Kysely({
-          dialect: new PgliteDialect({
-            database: new PGlite(databaseUrl),
-          }),
-        });
-      default:
-        throw new Error(`Unsupported database URL protocol: ${protocol}`);
-    }
-  })();
+  const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
 
   await DittoDB.migrate(kysely);
   const store = new EventsDB(kysely);

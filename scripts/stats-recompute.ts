@@ -18,6 +18,6 @@ try {
 }
 
 const store = await Storages.db();
-const kysely = await DittoDB.getInstance();
+const { kysely } = await DittoDB.getInstance();
 
 await refreshAuthorStats({ pubkey, kysely, store });

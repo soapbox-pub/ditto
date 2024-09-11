@@ -20,7 +20,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
 
     if (bech32.startsWith('token1')) {
       try {
-        const kysely = await DittoDB.getInstance();
+        const { kysely } = await DittoDB.getInstance();
 
         const { user_pubkey, server_seckey, relays } = await kysely
           .selectFrom('nip46_tokens')

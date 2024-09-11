@@ -6,9 +6,11 @@ import { dbAvailableConnectionsGauge, dbPoolSizeGauge } from '@/metrics.ts';
 
 /** Prometheus/OpenMetrics controller. */
 export const metricsController: AppController = async (c) => {
+  const db = await DittoDB.getInstance();
+
   // Update some metrics at request time.
-  dbPoolSizeGauge.set(DittoDB.poolSize);
-  dbAvailableConnectionsGauge.set(DittoDB.availableConnections);
+  dbPoolSizeGauge.set(db.poolSize);
+  dbAvailableConnectionsGauge.set(db.availableConnections);
 
   const metrics = await register.metrics();
 

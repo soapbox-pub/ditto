@@ -578,7 +578,7 @@ const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
   const params = c.get('listPagination');
   const store = await Storages.db();
-  const kysely = await DittoDB.getInstance();
+  const { kysely } = await DittoDB.getInstance();
 
   const zaps = await kysely.selectFrom('event_zaps')
     .selectAll()
