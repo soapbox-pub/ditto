@@ -13,7 +13,7 @@ import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 
 const debug = Debug('ditto:api');
 

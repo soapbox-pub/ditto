@@ -21,7 +21,7 @@ export class Storages {
     if (!this._db) {
       this._db = (async () => {
         const { kysely } = await DittoDB.getInstance();
-        const store = new EventsDB(kysely);
+        const store = new EventsDB({ kysely, pubkey: Conf.pubkey, timeout: Conf.db.timeouts.default });
         await seedZapSplits(store);
         return store;
       })();

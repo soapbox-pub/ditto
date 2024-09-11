@@ -1,13 +1,11 @@
 import { NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { DittoDB } from '@/db/DittoDB.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 
-const { kysely } = await DittoDB.getInstance();
-const eventsDB = new EventsDB(kysely);
+const store = await Storages.db();
 
 const [pubkeyOrNpub, role] = Deno.args;
 const pubkey = pubkeyOrNpub.startsWith('npub1') ? nip19.decode(pubkeyOrNpub as `npub1${string}`).data : pubkeyOrNpub;
@@ -25,7 +23,7 @@ if (!['admin', 'user'].includes(role)) {
 const signer = new AdminSigner();
 const admin = await signer.getPublicKey();
 
-const [existing] = await eventsDB.query([{
+const [existing] = await store.query([{
   kinds: [30382],
   authors: [admin],
   '#d': [pubkey],
@@ -59,6 +57,6 @@ const event = await signer.signEvent({
   created_at: nostrNow(),
 });
 
-await eventsDB.event(event);
+await store.event(event);
 
 Deno.exit(0);

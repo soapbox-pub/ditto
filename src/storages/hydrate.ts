@@ -1,4 +1,4 @@
-import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NStore } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -338,17 +338,4 @@ async function gatherEventStats(
   }));
 }
 
-/** Return a normalized event without any non-standard keys. */
-function purifyEvent(event: NostrEvent): NostrEvent {
-  return {
-    id: event.id,
-    pubkey: event.pubkey,
-    kind: event.kind,
-    content: event.content,
-    tags: event.tags,
-    sig: event.sig,
-    created_at: event.created_at,
-  };
-}
-
-export { hydrateEvents, purifyEvent };
+export { hydrateEvents };

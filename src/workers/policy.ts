@@ -24,7 +24,7 @@ export const policyWorker = Comlink.wrap<CustomPolicy>(
 );
 
 try {
-  await policyWorker.import(Conf.policy);
+  await policyWorker.init(Conf.policy, Conf.databaseUrl, Conf.pubkey);
   console.debug(`Using custom policy: ${Conf.policy}`);
 } catch (e) {
   if (e.message.includes('Module not found')) {

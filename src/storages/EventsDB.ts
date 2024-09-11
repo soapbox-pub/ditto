@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 
-import { NDatabase, NPostgres } from '@nostrify/db';
+import { NPostgres } from '@nostrify/db';
 import {
   NIP50,
   NKinds,
@@ -16,13 +16,12 @@ import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
-import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { dbEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -31,9 +30,19 @@ type TagCondition = ({ event, count, value }: {
   value: string;
 }) => boolean;
 
+/** Options for the EventsDB store. */
+interface EventsDBOpts {
+  /** Kysely instance to use. */
+  kysely: Kysely<DittoTables>;
+  /** Pubkey of the admin account. */
+  pubkey: string;
+  /** Timeout in milliseconds for database queries. */
+  timeout: number;
+}
+
 /** SQL database storage adapter for Nostr events. */
 class EventsDB implements NStore {
-  private store: NDatabase | NPostgres;
+  private store: NPostgres;
   private console = new Stickynotes('ditto:db:events');
 
   /** Conditions for when to index certain tags. */
@@ -53,8 +62,8 @@ class EventsDB implements NStore {
     't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
   };
 
-  constructor(private kysely: Kysely<DittoTables>) {
-    this.store = new NPostgres(kysely, {
+  constructor(private opts: EventsDBOpts) {
+    this.store = new NPostgres(opts.kysely, {
       indexTags: EventsDB.indexTags,
       indexSearch: EventsDB.searchText,
     });
@@ -73,7 +82,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
+      await this.store.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -88,7 +97,7 @@ class EventsDB implements NStore {
   /** Check if an event has been deleted by the admin. */
   private async isDeletedAdmin(event: NostrEvent): Promise<boolean> {
     const filters: NostrFilter[] = [
-      { kinds: [5], authors: [Conf.pubkey], '#e': [event.id], limit: 1 },
+      { kinds: [5], authors: [this.opts.pubkey], '#e': [event.id], limit: 1 },
     ];
 
     if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
@@ -96,7 +105,7 @@ class EventsDB implements NStore {
 
       filters.push({
         kinds: [5],
-        authors: [Conf.pubkey],
+        authors: [this.opts.pubkey],
         '#a': [`${event.kind}:${event.pubkey}:${d}`],
         since: event.created_at,
         limit: 1,
@@ -109,7 +118,7 @@ class EventsDB implements NStore {
 
   /** The DITTO_NSEC can delete any event from the database. NDatabase already handles user deletions. */
   private async deleteEventsAdmin(event: NostrEvent): Promise<void> {
-    if (event.kind === 5 && event.pubkey === Conf.pubkey) {
+    if (event.kind === 5 && event.pubkey === this.opts.pubkey) {
       const ids = new Set(event.tags.filter(([name]) => name === 'e').map(([_name, value]) => value));
       const addrs = new Set(event.tags.filter(([name]) => name === 'a').map(([_name, value]) => value));
 
@@ -180,7 +189,7 @@ class EventsDB implements NStore {
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
+    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Delete events based on filters from the database. */
@@ -188,7 +197,7 @@ class EventsDB implements NStore {
     if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
 
-    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
+    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Get number of events that would be returned by filters. */
@@ -201,7 +210,7 @@ class EventsDB implements NStore {
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? Conf.db.timeouts.default });
+    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Return only the tags that should be indexed. */
@@ -277,7 +286,7 @@ class EventsDB implements NStore {
         ) as { key: 'domain'; value: string } | undefined)?.value;
 
         if (domain) {
-          const query = this.kysely
+          const query = this.opts.kysely
             .selectFrom('pubkey_domains')
             .select('pubkey')
             .where('domain', '=', domain);
