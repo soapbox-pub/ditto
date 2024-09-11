@@ -82,7 +82,11 @@ class Conf {
    * ```
    */
   static get databaseUrl(): string {
-    return Deno.env.get('DATABASE_URL') ?? 'pglite://data/pgdata';
+    return Deno.env.get('DATABASE_URL') ?? 'file://data/pgdata';
+  }
+  /** Database to use in tests. */
+  static get testDatabaseUrl(): string {
+    return Deno.env.get('TEST_DATABASE_URL') ?? 'memory://';
   }
   static db = {
     get url(): url.UrlWithStringQuery {
