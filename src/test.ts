@@ -3,8 +3,8 @@ import { finalizeEvent, generateSecretKey } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 
 /** Import an event fixture by name in tests. */
 export async function eventFixture(name: string): Promise<NostrEvent> {
@@ -38,7 +38,12 @@ export async function createTestDB() {
   const { kysely } = DittoDB.create(testDatabaseUrl, { poolSize: 1 });
 
   await DittoDB.migrate(kysely);
-  const store = new EventsDB(kysely);
+
+  const store = new EventsDB({
+    kysely,
+    timeout: Conf.db.timeouts.default,
+    pubkey: Conf.pubkey,
+  });
 
   return {
     store,

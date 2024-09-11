@@ -5,7 +5,6 @@ import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
@@ -53,7 +52,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     throw new RelayError('blocked', 'user is disabled');
   }
 
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
 
   await Promise.all([
     storeEvent(event, signal),
@@ -104,7 +103,7 @@ async function existsInDB(event: DittoEvent): Promise<boolean> {
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   await hydrateEvents({ events: [event], store: await Storages.db(), signal });
 
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
   const domain = await kysely
     .selectFrom('pubkey_domains')
     .select('domain')
@@ -118,7 +117,7 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
 
   await updateStats({ event, store, kysely }).catch(debug);
   await store.event(event, { signal });
@@ -146,7 +145,7 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Track pubkey domain.
   try {
-    const { kysely } = await DittoDB.getInstance();
+    const kysely = await Storages.kysely();
     const { domain } = parseNip05(nip05);
 
     await sql`

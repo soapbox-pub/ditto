@@ -3,24 +3,12 @@ import path from 'node:path';
 
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 
-import { Conf } from '@/config.ts';
 import { DittoPglite } from '@/db/adapters/DittoPglite.ts';
 import { DittoPostgres } from '@/db/adapters/DittoPostgres.ts';
 import { DittoDatabase, DittoDatabaseOpts } from '@/db/DittoDatabase.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 
 export class DittoDB {
-  private static db: DittoDatabase | undefined;
-
-  /** Create (and migrate) the database if it isn't been already, or return the existing connection. */
-  static async getInstance(): Promise<DittoDatabase> {
-    if (!this.db) {
-      this.db = this.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
-      await this.migrate(this.db.kysely);
-    }
-    return this.db;
-  }
-
   /** Open a new database connection. */
   static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
     const { protocol } = new URL(databaseUrl);

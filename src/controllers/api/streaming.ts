@@ -4,7 +4,6 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { streamingConnectionsGauge } from '@/metrics.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
@@ -222,7 +221,7 @@ async function topicToFilter(
 
 async function getTokenPubkey(token: string): Promise<string | undefined> {
   if (token.startsWith('token1')) {
-    const { kysely } = await DittoDB.getInstance();
+    const kysely = await Storages.kysely();
 
     const { user_pubkey } = await kysely
       .selectFrom('nip46_tokens')

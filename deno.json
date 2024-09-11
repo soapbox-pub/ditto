@@ -1,5 +1,4 @@
 {
-  "$schema": "https://deno.land/x/deno@v1.41.0/cli/schemas/config-file.v1.json",
   "version": "1.1.0",
   "tasks": {
     "start": "deno run -A src/server.ts",

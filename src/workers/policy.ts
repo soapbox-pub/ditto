@@ -13,8 +13,8 @@ export const policyWorker = Comlink.wrap<CustomPolicy>(
       type: 'module',
       deno: {
         permissions: {
-          read: [Conf.policy],
-          write: false,
+          read: [Conf.denoDir, Conf.policy, Conf.dataDir],
+          write: [Conf.dataDir],
           net: 'inherit',
           env: false,
         },
@@ -24,7 +24,12 @@ export const policyWorker = Comlink.wrap<CustomPolicy>(
 );
 
 try {
-  await policyWorker.import(Conf.policy);
+  await policyWorker.init({
+    path: Conf.policy,
+    cwd: Deno.cwd(),
+    databaseUrl: Conf.databaseUrl,
+    adminPubkey: Conf.pubkey,
+  });
   console.debug(`Using custom policy: ${Conf.policy}`);
 } catch (e) {
   if (e.message.includes('Module not found')) {

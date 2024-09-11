@@ -8,7 +8,6 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
@@ -16,9 +15,10 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { Storages } from '@/storages.ts';
-import { hydrateEvents, purifyEvent } from '@/storages/hydrate.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
 import { renderEventAccounts } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -578,7 +578,7 @@ const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
   const params = c.get('listPagination');
   const store = await Storages.db();
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
 
   const zaps = await kysely.selectFrom('event_zaps')
     .selectAll()

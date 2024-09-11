@@ -1,6 +1,5 @@
 import { nip19 } from 'nostr-tools';
 
-import { DittoDB } from '@/db/DittoDB.ts';
 import { Storages } from '@/storages.ts';
 import { refreshAuthorStats } from '@/utils/stats.ts';
 
@@ -18,6 +17,6 @@ try {
 }
 
 const store = await Storages.db();
-const { kysely } = await DittoDB.getInstance();
+const kysely = await Storages.kysely();
 
 await refreshAuthorStats({ pubkey, kysely, store });

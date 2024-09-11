@@ -3,10 +3,10 @@ import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { handleEvent } from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { Storages } from '@/storages.ts';
 import { Time } from '@/utils/time.ts';
 
 const console = new Stickynotes('ditto:trends');
@@ -70,7 +70,7 @@ export async function updateTrendingTags(
   aliases?: string[],
 ) {
   console.info(`Updating trending ${l}...`);
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
   const signal = AbortSignal.timeout(1000);
 
   const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);

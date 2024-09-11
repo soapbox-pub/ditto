@@ -1,3 +1,4 @@
+import os from 'node:os';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -239,6 +240,14 @@ class Conf {
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   static get policy(): string {
     return Deno.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
+  }
+  /** Absolute path to the data directory used by Ditto. */
+  static get dataDir(): string {
+    return Deno.env.get('DITTO_DATA_DIR') || new URL('../data', import.meta.url).pathname;
+  }
+  /** Absolute path of the Deno directory. */
+  static get denoDir(): string {
+    return Deno.env.get('DENO_DIR') || `${os.userInfo().homedir}/.cache/deno`;
   }
   /** Whether zap splits should be enabled. */
   static get zapSplitsEnabled(): boolean {

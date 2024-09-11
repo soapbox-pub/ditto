@@ -12,7 +12,7 @@ import { Machina } from '@nostrify/nostrify/utils';
 import { matchFilter } from 'nostr-tools';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { purifyEvent } from '@/storages/hydrate.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 
 /**
  * PubSub event store for streaming events within the application.

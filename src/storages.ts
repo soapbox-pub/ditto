@@ -1,5 +1,6 @@
 // deno-lint-ignore-file require-await
 import { Conf } from '@/config.ts';
+import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
@@ -11,17 +12,31 @@ import { seedZapSplits } from '@/utils/zap-split.ts';
 
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
+  private static _database: DittoDatabase | undefined;
   private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
 
+  public static async database(): Promise<DittoDatabase> {
+    if (!this._database) {
+      this._database = DittoDB.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
+      await DittoDB.migrate(this._database.kysely);
+    }
+    return this._database;
+  }
+
+  public static async kysely(): Promise<DittoDatabase['kysely']> {
+    const { kysely } = await this.database();
+    return kysely;
+  }
+
   /** SQL database to store events this Ditto server cares about. */
   public static async db(): Promise<EventsDB> {
     if (!this._db) {
       this._db = (async () => {
-        const { kysely } = await DittoDB.getInstance();
-        const store = new EventsDB(kysely);
+        const { kysely } = await this.database();
+        const store = new EventsDB({ kysely, pubkey: Conf.pubkey, timeout: Conf.db.timeouts.default });
         await seedZapSplits(store);
         return store;
       })();

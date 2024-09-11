@@ -6,11 +6,9 @@
 import { NostrEvent, NRelay1, NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { DittoDB } from '@/db/DittoDB.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { Storages } from '@/storages.ts';
 
-const { kysely } = await DittoDB.getInstance();
-const eventsDB = new EventsDB(kysely);
+const store = await Storages.db();
 
 interface ImportEventsOpts {
   profilesOnly: boolean;
@@ -21,7 +19,7 @@ const importUsers = async (
   authors: string[],
   relays: string[],
   opts?: Partial<ImportEventsOpts>,
-  doEvent: DoEvent = async (event: NostrEvent) => await eventsDB.event(event),
+  doEvent: DoEvent = async (event: NostrEvent) => await store.event(event),
 ) => {
   // Kind 0s + follow lists.
   const profiles: Record<string, Record<number, NostrEvent>> = {};
