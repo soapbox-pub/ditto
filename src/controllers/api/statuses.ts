@@ -8,7 +8,6 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
@@ -579,7 +578,7 @@ const zappedByController: AppController = async (c) => {
   const id = c.req.param('id');
   const params = c.get('listPagination');
   const store = await Storages.db();
-  const { kysely } = await DittoDB.getInstance();
+  const kysely = await Storages.kysely();
 
   const zaps = await kysely.selectFrom('event_zaps')
     .selectAll()

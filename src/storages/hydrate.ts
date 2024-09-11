@@ -1,13 +1,13 @@
 import { NStore } from '@nostrify/nostrify';
+import { Kysely } from 'kysely';
 import { matchFilter } from 'nostr-tools';
 
-import { DittoDB } from '@/db/DittoDB.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
-import { Kysely } from 'kysely';
+import { Storages } from '@/storages.ts';
 
 interface HydrateOpts {
   events: DittoEvent[];
@@ -18,7 +18,7 @@ interface HydrateOpts {
 
 /** Hydrate events using the provided storage. */
 async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
-  const { events, store, signal, kysely = (await DittoDB.getInstance()).kysely } = opts;
+  const { events, store, signal, kysely = await Storages.kysely() } = opts;
 
   if (!events.length) {
     return events;

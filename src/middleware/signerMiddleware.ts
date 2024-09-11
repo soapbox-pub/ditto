@@ -5,7 +5,7 @@ import { nip19 } from 'nostr-tools';
 import { AppMiddleware } from '@/app.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
+import { Storages } from '@/storages.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
@@ -20,7 +20,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
 
     if (bech32.startsWith('token1')) {
       try {
-        const { kysely } = await DittoDB.getInstance();
+        const kysely = await Storages.kysely();
 
         const { user_pubkey, server_seckey, relays } = await kysely
           .selectFrom('nip46_tokens')
