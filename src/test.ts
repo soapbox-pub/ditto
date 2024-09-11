@@ -31,10 +31,11 @@ export function genEvent(t: Partial<NostrEvent> = {}, sk: Uint8Array = generateS
   return purifyEvent(event);
 }
 
-/** Create an database for testing. */
-export const createTestDB = async (databaseUrl = Conf.testDatabaseUrl) => {
-  const { protocol } = new URL(databaseUrl);
-  const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
+/** Create a database for testing. It uses `TEST_DATABASE_URL`, or creates an in-memory database by default. */
+export async function createTestDB() {
+  const { testDatabaseUrl } = Conf;
+  const { protocol } = new URL(testDatabaseUrl);
+  const { kysely } = DittoDB.create(testDatabaseUrl, { poolSize: 1 });
 
   await DittoDB.migrate(kysely);
   const store = new EventsDB(kysely);
@@ -65,7 +66,7 @@ export const createTestDB = async (databaseUrl = Conf.testDatabaseUrl) => {
       }
     },
   };
-};
+}
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
