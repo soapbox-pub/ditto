@@ -17,7 +17,7 @@ export class SimpleLRU<
 
   constructor(fetchFn: FetchFn<K, V, { signal: AbortSignal }>, opts: LRUCache.Options<K, V, void>) {
     this.cache = new LRUCache({
-      fetchMethod: (key, _staleValue, { signal }) => fetchFn(key, { signal: signal as AbortSignal }),
+      fetchMethod: (key, _staleValue, { signal }) => fetchFn(key, { signal: signal as unknown as AbortSignal }),
       ...opts,
     });
   }

@@ -1,5 +1,4 @@
 import { PGlite } from '@electric-sql/pglite';
-import { NPostgresSchema } from '@nostrify/db';
 import { PgliteDialect } from '@soapbox/kysely-pglite';
 import { Kysely } from 'kysely';
 
@@ -8,17 +7,17 @@ import { DittoTables } from '@/db/DittoTables.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPglite {
-  static db: Kysely<DittoTables> & Kysely<NPostgresSchema> | undefined;
+  static db: Kysely<DittoTables> | undefined;
 
   // deno-lint-ignore require-await
-  static async getInstance(): Promise<Kysely<DittoTables> & Kysely<NPostgresSchema>> {
+  static async getInstance(): Promise<Kysely<DittoTables>> {
     if (!this.db) {
-      this.db = new Kysely({
+      this.db = new Kysely<DittoTables>({
         dialect: new PgliteDialect({
-          database: new PGlite(this.path),
+          database: new PGlite(Conf.databaseUrl),
         }),
         log: KyselyLogger,
-      }) as Kysely<DittoTables> & Kysely<NPostgresSchema>;
+      }) as Kysely<DittoTables>;
     }
 
     return this.db;
@@ -30,27 +29,5 @@ export class DittoPglite {
 
   static get availableConnections(): number {
     return 1;
-  }
-
-  /** Get the relative or absolute path based on the `DATABASE_URL`. */
-  static get path(): string | undefined {
-    if (Conf.databaseUrl === 'pglite://:memory:') {
-      return undefined;
-    }
-
-    const { host, pathname } = Conf.db.url;
-
-    if (!pathname) return '';
-
-    // Get relative path.
-    if (host === '') {
-      return pathname;
-    } else if (host === '.') {
-      return pathname;
-    } else if (host) {
-      return host + pathname;
-    }
-
-    return '';
   }
 }

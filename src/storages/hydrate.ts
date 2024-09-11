@@ -18,7 +18,7 @@ interface HydrateOpts {
 
 /** Hydrate events using the provided storage. */
 async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
-  const { events, store, signal, kysely = (await DittoDB.getInstance()).kysely } = opts;
+  const { events, store, signal, kysely = await DittoDB.getInstance() } = opts;
 
   if (!events.length) {
     return events;

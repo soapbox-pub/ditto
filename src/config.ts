@@ -1,5 +1,3 @@
-import url from 'node:url';
-
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -89,20 +87,6 @@ class Conf {
     return Deno.env.get('TEST_DATABASE_URL') ?? 'memory://';
   }
   static db = {
-    get url(): url.UrlWithStringQuery {
-      return url.parse(Conf.databaseUrl);
-    },
-    get dialect(): 'sqlite' | 'postgres' | undefined {
-      switch (Conf.db.url.protocol) {
-        case 'sqlite:':
-          return 'sqlite';
-        case 'pglite:':
-        case 'postgres:':
-        case 'postgresql:':
-          return 'postgres';
-      }
-      return undefined;
-    },
     /** Database query timeout configurations. */
     timeouts: {
       /** Default query timeout when another setting isn't more specific. */
@@ -221,21 +205,6 @@ class Conf {
   static get sentryDsn(): string | undefined {
     return Deno.env.get('SENTRY_DSN');
   }
-  /** SQLite settings. */
-  static sqlite = {
-    /**
-     * Number of bytes to use for memory-mapped IO.
-     * https://www.sqlite.org/pragma.html#pragma_mmap_size
-     */
-    get mmapSize(): number {
-      const value = Deno.env.get('SQLITE_MMAP_SIZE');
-      if (value) {
-        return Number(value);
-      } else {
-        return 1024 * 1024 * 1024;
-      }
-    },
-  };
   /** Postgres settings. */
   static pg = {
     /** Number of connections to use in the pool. */

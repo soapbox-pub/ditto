@@ -222,7 +222,7 @@ async function topicToFilter(
 
 async function getTokenPubkey(token: string): Promise<string | undefined> {
   if (token.startsWith('token1')) {
-    const { kysely } = await DittoDB.getInstance();
+    const kysely = await DittoDB.getInstance();
 
     const { user_pubkey } = await kysely
       .selectFrom('nip46_tokens')

@@ -1,75 +1,66 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { NDatabaseSchema, NPostgresSchema } from '@nostrify/db';
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { DittoPglite } from '@/db/adapters/DittoPglite.ts';
 import { DittoPostgres } from '@/db/adapters/DittoPostgres.ts';
-import { DittoSQLite } from '@/db/adapters/DittoSQLite.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 
-export type DittoDatabase = {
-  dialect: 'sqlite';
-  kysely: Kysely<DittoTables> & Kysely<NDatabaseSchema>;
-} | {
-  dialect: 'postgres';
-  kysely: Kysely<DittoTables> & Kysely<NPostgresSchema>;
-};
-
 export class DittoDB {
-  private static db: Promise<DittoDatabase> | undefined;
+  private static kysely: Promise<Kysely<DittoTables>> | undefined;
 
-  static getInstance(): Promise<DittoDatabase> {
-    if (!this.db) {
-      this.db = this._getInstance();
+  static getInstance(): Promise<Kysely<DittoTables>> {
+    if (!this.kysely) {
+      this.kysely = this._getInstance();
     }
-    return this.db;
+    return this.kysely;
   }
 
-  static async _getInstance(): Promise<DittoDatabase> {
-    const result = {} as DittoDatabase;
+  static async _getInstance(): Promise<Kysely<DittoTables>> {
+    const { protocol } = new URL(Conf.databaseUrl);
 
-    switch (Conf.db.url.protocol) {
-      case 'sqlite:':
-        result.dialect = 'sqlite';
-        result.kysely = await DittoSQLite.getInstance();
-        break;
-      case 'pglite:':
-        result.dialect = 'postgres';
-        result.kysely = await DittoPglite.getInstance();
+    let kysely: Kysely<DittoTables>;
+
+    switch (protocol) {
+      case 'file:':
+      case 'memory:':
+        kysely = await DittoPglite.getInstance();
         break;
       case 'postgres:':
       case 'postgresql:':
-        result.dialect = 'postgres';
-        result.kysely = await DittoPostgres.getInstance();
+        kysely = await DittoPostgres.getInstance();
         break;
       default:
         throw new Error('Unsupported database URL.');
     }
 
-    await this.migrate(result.kysely);
+    await this.migrate(kysely);
 
-    return result;
+    return kysely;
   }
 
   static get poolSize(): number {
-    if (Conf.db.dialect === 'postgres') {
+    const { protocol } = new URL(Conf.databaseUrl);
+
+    if (['postgres:', 'postgresql:'].includes(protocol)) {
       return DittoPostgres.poolSize;
     }
     return 1;
   }
 
   static get availableConnections(): number {
-    if (Conf.db.dialect === 'postgres') {
+    const { protocol } = new URL(Conf.databaseUrl);
+
+    if (['postgres:', 'postgresql:'].includes(protocol)) {
       return DittoPostgres.availableConnections;
     }
     return 1;
   }
 
   /** Migrate the database to the latest version. */
-  static async migrate(kysely: DittoDatabase['kysely']) {
+  static async migrate(kysely: Kysely<DittoTables>) {
     const migrator = new Migrator({
       db: kysely,
       provider: new FileMigrationProvider({
