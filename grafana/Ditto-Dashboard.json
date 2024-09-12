@@ -35,7 +35,7 @@
       "type": "grafana",
       "id": "grafana",
       "name": "Grafana",
-      "version": "11.1.4"
+      "version": "11.2.0"
     },
     {
       "type": "datasource",
@@ -123,6 +123,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 25,
             "gradientMode": "none",
@@ -363,7 +364,7 @@
         "showThresholdMarkers": true,
         "sizing": "auto"
       },
-      "pluginVersion": "11.1.4",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -437,7 +438,7 @@
         "sizing": "auto",
         "valueMode": "color"
       },
-      "pluginVersion": "11.1.4",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -486,6 +487,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -583,6 +585,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -680,6 +683,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
@@ -822,6 +826,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -903,12 +908,2439 @@
       "type": "timeseries"
     },
     {
-      "collapsed": false,
+      "collapsed": true,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
         "y": 27
+      },
+      "id": 27,
+      "panels": [
+        {
+          "datasource": {
+            "default": false,
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 28
+          },
+          "id": 34,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/timelines/home",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 6,
+            "y": 28
+          },
+          "id": 25,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/notifications",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 12,
+            "y": 28
+          },
+          "id": 31,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/accounts/verify_credentials",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 28
+          },
+          "id": 32,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "POST /oauth/token",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 35
+          },
+          "id": 30,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/instance",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 6,
+            "y": 35
+          },
+          "id": 35,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/timelines/public",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 12,
+            "y": 35
+          },
+          "id": 36,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v1/timelines/tag/:hashtag",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 35
+          },
+          "id": 28,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "GET /api/v2/search",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 0,
+            "y": 42
+          },
+          "id": 26,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "POST /api/v1/statuses",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 6,
+            "y": 42
+          },
+          "id": 29,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "POST /api/v1/statuses/:id/favourite",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 12,
+            "y": 42
+          },
+          "id": 37,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "POST /api/v1/statuses/:id/reblog",
+          "type": "timeseries"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_PROMETHEUS}"
+          },
+          "description": "",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 25,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": [
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Server Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-red",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Client Errors"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "dark-blue",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Redirects"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-yellow",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              },
+              {
+                "matcher": {
+                  "id": "byFrameRefID",
+                  "options": "Success"
+                },
+                "properties": [
+                  {
+                    "id": "color",
+                    "value": {
+                      "fixedColor": "semi-dark-green",
+                      "mode": "shades"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          "gridPos": {
+            "h": 7,
+            "w": 6,
+            "x": 18,
+            "y": 42
+          },
+          "id": 33,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": false,
+              "width": 225
+            },
+            "tooltip": {
+              "maxHeight": 600,
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "pluginVersion": "11.0.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Server Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"4..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Client Errors"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${DS_PROMETHEUS}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Redirects"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_http_responses_total{status=~\"2..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
+              "instant": false,
+              "interval": "",
+              "legendFormat": "{{method}} {{path}} ({{status}})",
+              "range": true,
+              "refId": "Success"
+            }
+          ],
+          "title": "POST /api/v1/ditto/zap",
+          "type": "timeseries"
+        }
+      ],
+      "title": "API",
+      "type": "row"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 28
       },
       "id": 21,
       "panels": [],
@@ -917,9 +3349,8 @@
     },
     {
       "datasource": {
-        "default": false,
         "type": "grafana-postgresql-datasource",
-        "uid": "${postgres}"
+        "uid": "${DS_DITTO-PG}"
       },
       "description": "SQL queries ranked by total time.",
       "fieldConfig": {
@@ -1092,7 +3523,7 @@
         "h": 11,
         "w": 15,
         "x": 0,
-        "y": 28
+        "y": 29
       },
       "id": 13,
       "options": {
@@ -1114,7 +3545,7 @@
           }
         ]
       },
-      "pluginVersion": "11.1.4",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1248,7 +3679,7 @@
         "h": 11,
         "w": 9,
         "x": 15,
-        "y": 28
+        "y": 29
       },
       "id": 14,
       "options": {
@@ -1263,7 +3694,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "11.1.4",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1325,7 +3756,7 @@
         "h": 9,
         "w": 7,
         "x": 0,
-        "y": 39
+        "y": 40
       },
       "id": 16,
       "options": {
@@ -1422,7 +3853,7 @@
         "h": 9,
         "w": 8,
         "x": 7,
-        "y": 39
+        "y": 40
       },
       "id": 17,
       "options": {
@@ -1587,7 +4018,7 @@
         "h": 9,
         "w": 9,
         "x": 15,
-        "y": 39
+        "y": 40
       },
       "id": 18,
       "options": {
@@ -1602,7 +4033,7 @@
         },
         "showHeader": true
       },
-      "pluginVersion": "11.1.4",
+      "pluginVersion": "11.2.0",
       "targets": [
         {
           "datasource": {
@@ -1642,7 +4073,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 48
+        "y": 49
       },
       "id": 23,
       "panels": [],
@@ -1668,6 +4099,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -1778,7 +4210,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 50
       },
       "id": 9,
       "options": {
@@ -1832,6 +4264,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -1915,7 +4348,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 61
+        "y": 62
       },
       "id": 5,
       "options": {
@@ -1967,6 +4400,7 @@
             "axisLabel": "",
             "axisPlacement": "auto",
             "barAlignment": 0,
+            "barWidthFactor": 0.6,
             "drawStyle": "line",
             "fillOpacity": 0,
             "gradientMode": "none",
@@ -2013,7 +4447,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 74
       },
       "id": 19,
       "options": {
@@ -2124,13 +4558,13 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-3h",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "browser",
   "title": "Ditto",
   "uid": "ddps3ap51fv28d",
-  "version": 4,
+  "version": 7,
   "weekStart": ""
 }
