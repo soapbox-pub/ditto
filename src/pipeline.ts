@@ -119,8 +119,10 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<unde
   const store = await Storages.db();
   const kysely = await Storages.kysely();
 
-  await updateStats({ event, store, kysely }).catch(debug);
-  await store.event(event, { signal });
+  await kysely.transaction().execute(async (kysely) => {
+    await updateStats({ event, store, kysely });
+    await store.event(event, { signal });
+  });
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
