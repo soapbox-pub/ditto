@@ -316,6 +316,10 @@ class EventsDB implements NStore {
 
     return filters;
   }
+
+  async transaction(callback: (store: NPostgres, kysely: Kysely<DittoTables>) => Promise<void>): Promise<void> {
+    return this.store.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
+  }
 }
 
 export { EventsDB };
