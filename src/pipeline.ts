@@ -117,9 +117,8 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
-  const kysely = await Storages.kysely();
 
-  await kysely.transaction().execute(async (kysely) => {
+  await store.transaction(async (store, kysely) => {
     await updateStats({ event, store, kysely });
     await store.event(event, { signal });
   });
