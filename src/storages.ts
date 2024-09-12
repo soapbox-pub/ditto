@@ -2,7 +2,6 @@
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
-import { DittoExit } from '@/DittoExit.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { SearchStore } from '@/storages/search-store.ts';
@@ -10,8 +9,6 @@ import { InternalRelay } from '@/storages/InternalRelay.ts';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { getRelays } from '@/utils/outbox.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
-
-DittoExit.add(() => Storages.close());
 
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
