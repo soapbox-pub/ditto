@@ -1,17 +1,7 @@
 // deno-lint-ignore-file require-await
 
-import { NPostgres } from '@nostrify/db';
-import {
-  NIP50,
-  NKinds,
-  NostrEvent,
-  NostrFilter,
-  NostrRelayCLOSED,
-  NostrRelayEOSE,
-  NostrRelayEVENT,
-  NSchema as n,
-  NStore,
-} from '@nostrify/nostrify';
+import { NPostgres, NPostgresSchema } from '@nostrify/db';
+import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
@@ -41,8 +31,7 @@ interface EventsDBOpts {
 }
 
 /** SQL database storage adapter for Nostr events. */
-class EventsDB implements NStore {
-  private store: NPostgres;
+class EventsDB extends NPostgres {
   private console = new Stickynotes('ditto:db:events');
 
   /** Conditions for when to index certain tags. */
@@ -63,7 +52,7 @@ class EventsDB implements NStore {
   };
 
   constructor(private opts: EventsDBOpts) {
-    this.store = new NPostgres(opts.kysely, {
+    super(opts.kysely, {
       indexTags: EventsDB.indexTags,
       indexSearch: EventsDB.searchText,
     });
@@ -82,7 +71,7 @@ class EventsDB implements NStore {
     await this.deleteEventsAdmin(event);
 
     try {
-      await this.store.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+      await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
     } catch (e) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -155,12 +144,9 @@ class EventsDB implements NStore {
     }
   }
 
-  /** Stream events from the database. */
-  req(
-    filters: NostrFilter[],
-    opts: { signal?: AbortSignal } = {},
-  ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
-    return this.store.req(filters, opts);
+  protected getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
+    const query = super.getFilterQuery(trx, filter);
+    return query;
   }
 
   /** Get events for filters from the database. */
@@ -185,32 +171,28 @@ class EventsDB implements NStore {
     }
 
     if (opts.signal?.aborted) return Promise.resolve([]);
-    if (!filters.length) return Promise.resolve([]);
 
     this.console.debug('REQ', JSON.stringify(filters));
 
-    return this.store.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+    return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Delete events based on filters from the database. */
   async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
-    if (!filters.length) return Promise.resolve();
     this.console.debug('DELETE', JSON.stringify(filters));
-
-    return this.store.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+    return super.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Get number of events that would be returned by filters. */
   async count(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number } = {},
-  ): Promise<{ count: number; approximate: boolean }> {
+  ): Promise<{ count: number; approximate: any }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
-    if (!filters.length) return Promise.resolve({ count: 0, approximate: false });
 
     this.console.debug('COUNT', JSON.stringify(filters));
 
-    return this.store.count(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+    return super.count(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Return only the tags that should be indexed. */
@@ -317,8 +299,8 @@ class EventsDB implements NStore {
     return filters;
   }
 
-  async transaction(callback: (store: NPostgres, kysely: Kysely<DittoTables>) => Promise<void>): Promise<void> {
-    return this.store.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
+  async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
+    return super.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
   }
 }
 
