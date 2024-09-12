@@ -8,9 +8,11 @@ import { KyselyLogger } from '@/db/KyselyLogger.ts';
 
 export class DittoPglite {
   static create(databaseUrl: string): DittoDatabase {
+    const pglite = new PGlite(databaseUrl);
+
     const kysely = new Kysely<DittoTables>({
       dialect: new PgliteDialect({
-        database: new PGlite(databaseUrl),
+        database: pglite,
       }),
       log: KyselyLogger,
     });
@@ -19,6 +21,7 @@ export class DittoPglite {
       kysely,
       poolSize: 1,
       availableConnections: 1,
+      waitReady: pglite.waitReady,
     };
   }
 }

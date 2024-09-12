@@ -2,6 +2,7 @@
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { DittoExit } from '@/DittoExit.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { SearchStore } from '@/storages/search-store.ts';
@@ -10,9 +11,11 @@ import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { getRelays } from '@/utils/outbox.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
 
+DittoExit.add(() => Storages.close());
+
 export class Storages {
   private static _db: Promise<EventsDB> | undefined;
-  private static _database: DittoDatabase | undefined;
+  private static _database: Promise<DittoDatabase> | undefined;
   private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
@@ -20,8 +23,12 @@ export class Storages {
 
   public static async database(): Promise<DittoDatabase> {
     if (!this._database) {
-      this._database = DittoDB.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
-      await DittoDB.migrate(this._database.kysely);
+      this._database = (async () => {
+        const db = DittoDB.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
+        await db.waitReady;
+        await DittoDB.migrate(db.kysely);
+        return db;
+      })();
     }
     return this._database;
   }
@@ -35,7 +42,7 @@ export class Storages {
   public static async db(): Promise<EventsDB> {
     if (!this._db) {
       this._db = (async () => {
-        const { kysely } = await this.database();
+        const kysely = await this.kysely();
         const store = new EventsDB({ kysely, pubkey: Conf.pubkey, timeout: Conf.db.timeouts.default });
         await seedZapSplits(store);
         return store;
@@ -117,5 +124,13 @@ export class Storages {
       );
     }
     return this._search;
+  }
+
+  /** Close the database connection, if one has been opened. */
+  public static async close(): Promise<void> {
+    if (this._database) {
+      const { kysely } = await this._database;
+      await kysely.destroy();
+    }
   }
 }
