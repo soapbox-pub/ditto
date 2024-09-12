@@ -121,12 +121,4 @@ export class Storages {
     }
     return this._search;
   }
-
-  /** Close the database connection, if one has been opened. */
-  public static async close(): Promise<void> {
-    if (this._database) {
-      const { kysely } = await this._database;
-      await kysely.destroy();
-    }
-  }
 }
