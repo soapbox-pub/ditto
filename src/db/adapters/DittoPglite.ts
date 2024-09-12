@@ -21,7 +21,6 @@ export class DittoPglite {
       kysely,
       poolSize: 1,
       availableConnections: 1,
-      waitReady: pglite.waitReady,
     };
   }
 }

@@ -48,7 +48,6 @@ export class DittoPostgres {
       get availableConnections() {
         return pg.connections.idle;
       },
-      waitReady: Promise.resolve(),
     };
   }
 }

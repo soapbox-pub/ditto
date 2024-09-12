@@ -25,7 +25,6 @@ export class Storages {
     if (!this._database) {
       this._database = (async () => {
         const db = DittoDB.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
-        await db.waitReady;
         await DittoDB.migrate(db.kysely);
         return db;
       })();
