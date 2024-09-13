@@ -49,9 +49,8 @@ const searchController: AppController = async (c) => {
 
   if (event) {
     events = [event];
-  } else {
-    events = await searchEvents(result.data, signal);
   }
+  events.push(...(await searchEvents(result.data, signal)));
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
