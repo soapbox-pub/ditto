@@ -57,6 +57,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await Promise.all([
     storeEvent(event, signal),
     handleZaps(kysely, event),
+    handleAuthorSearch(kysely, event),
     parseMetadata(event, signal),
     generateSetEvents(event),
     streamOut(event),
@@ -242,6 +243,26 @@ async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
     }).execute();
   } catch {
     // receipt_id is unique, do nothing
+  }
+}
+
+async function handleAuthorSearch(kysely: Kysely<DittoTables>, event: NostrEvent) {
+  if (event.kind !== 0) return;
+  const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
+  const search = [name, nip05].filter(Boolean).join(' ').trim();
+
+  try {
+    await kysely.insertInto('author_search').values({
+      pubkey: event.pubkey,
+      search,
+    }).onConflict(
+      (oc) =>
+        oc.column('pubkey')
+          .doUpdateSet({ search }),
+    )
+      .execute();
+  } catch {
+    // do nothing
   }
 }
 
