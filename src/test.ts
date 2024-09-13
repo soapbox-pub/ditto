@@ -63,6 +63,7 @@ export async function createTestDB() {
             'pubkey_domains',
             'nostr_events',
             'event_zaps',
+            'author_search',
           ]
         ) {
           await kysely.schema.dropTable(table).ifExists().cascade().execute();
