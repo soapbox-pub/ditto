@@ -1,8 +1,10 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
+import { Kysely, sql } from 'kysely';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -89,9 +91,21 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
     filter.authors = [account_id];
   }
 
+  const filter2: NostrFilter = {
+    kinds: [0],
+    limit,
+  };
+  if (type === 'accounts') {
+    const kysely = await Storages.kysely();
+
+    const pubkeys = await getPubkeysBySearch(kysely, { q, limit });
+
+    filter2.authors = pubkeys; // if pubkeys is empty the filter 2 will be discarded
+  }
+
   const store = await Storages.search();
 
-  return store.query([filter], { signal })
+  return store.query([filter, filter2], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 }
 
@@ -170,4 +184,16 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   return [];
 }
 
-export { searchController };
+/** Get pubkeys whose name and NIP-05 is similar to 'q' */
+async function getPubkeysBySearch(kysely: Kysely<DittoTables>, { q, limit }: Pick<SearchQuery, 'q' | 'limit'>) {
+  const pubkeys = (await sql`
+        SELECT *, word_similarity(${q}, search) AS sml
+        FROM author_search
+        WHERE ${q} % search
+        ORDER BY sml DESC, search LIMIT ${limit}
+      `.execute(kysely)).rows.map((row) => (row as { pubkey: string }).pubkey);
+
+  return pubkeys;
+}
+
+export { getPubkeysBySearch, searchController };
