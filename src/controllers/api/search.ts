@@ -198,12 +198,12 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
 
 /** Get pubkeys whose name and NIP-05 is similar to 'q' */
 async function getPubkeysBySearch(kysely: Kysely<DittoTables>, { q, limit }: Pick<SearchQuery, 'q' | 'limit'>) {
-  const pubkeys = (await sql`
+  const pubkeys = (await sql<{ pubkey: string }>`
         SELECT *, word_similarity(${q}, search) AS sml
         FROM author_search
         WHERE ${q} % search
         ORDER BY sml DESC, search LIMIT ${limit}
-      `.execute(kysely)).rows.map((row) => (row as { pubkey: string }).pubkey);
+      `.execute(kysely)).rows.map(({ pubkey }) => pubkey);
 
   return pubkeys;
 }
