@@ -58,7 +58,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   await Promise.all([
     storeEvent(purifyEvent(event), signal),
     handleZaps(kysely, event),
-    handleAuthorSearch(kysely, event),
     parseMetadata(event, signal),
     generateSetEvents(event),
     streamOut(event),
@@ -134,8 +133,28 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
+  const kysely = await Storages.kysely();
+
   // Get nip05.
-  const { nip05 } = metadata.data;
+  const { name, nip05 } = metadata.data;
+
+  // Populate author_search.
+  try {
+    const search = [name, nip05].filter(Boolean).join(' ').trim();
+
+    await kysely.insertInto('author_search').values({
+      pubkey: event.pubkey,
+      search,
+    }).onConflict(
+      (oc) =>
+        oc.column('pubkey')
+          .doUpdateSet({ search }),
+    )
+      .execute();
+  } catch {
+    // do nothing
+  }
+
   if (!nip05) return;
 
   // Fetch nip05.
@@ -148,7 +167,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Track pubkey domain.
   try {
-    const kysely = await Storages.kysely();
     const { domain } = parseNip05(nip05);
 
     await sql`
@@ -245,26 +263,6 @@ async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
     }).execute();
   } catch {
     // receipt_id is unique, do nothing
-  }
-}
-
-async function handleAuthorSearch(kysely: Kysely<DittoTables>, event: NostrEvent) {
-  if (event.kind !== 0) return;
-  const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
-  const search = [name, nip05].filter(Boolean).join(' ').trim();
-
-  try {
-    await kysely.insertInto('author_search').values({
-      pubkey: event.pubkey,
-      search,
-    }).onConflict(
-      (oc) =>
-        oc.column('pubkey')
-          .doUpdateSet({ search }),
-    )
-      .execute();
-  } catch {
-    // do nothing
   }
 }
 
