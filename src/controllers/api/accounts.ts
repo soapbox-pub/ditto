@@ -6,6 +6,7 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
+import { getPubkeysBySearch } from '@/controllers/api/search.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
@@ -115,6 +116,7 @@ const accountSearchQuerySchema = z.object({
 const accountSearchController: AppController = async (c) => {
   const { signal } = c.req.raw;
   const { limit } = c.get('pagination');
+  const kysely = await Storages.kysely();
 
   const result = accountSearchQuerySchema.safeParse(c.req.query());
 
@@ -133,9 +135,22 @@ const accountSearchController: AppController = async (c) => {
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const events = event ? [event] : await store.query([{ kinds: [0], search: query, limit }], { signal });
+  const pubkeys = await getPubkeysBySearch(kysely, { q: query, limit });
 
-  const accounts = await hydrateEvents({ events, store, signal }).then(
+  const events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
+    signal,
+  });
+
+  const orderedEvents = events.map((event, index) => {
+    const pubkey = pubkeys[index];
+
+    const orderedEvent = events.find((e) => e.pubkey === pubkey);
+    if (orderedEvent) return orderedEvent;
+
+    return event;
+  });
+
+  const accounts = await hydrateEvents({ events: orderedEvents, store, signal }).then(
     (events) =>
       Promise.all(
         events.map((event) => renderAccount(event)),
