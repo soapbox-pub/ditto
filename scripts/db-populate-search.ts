@@ -2,23 +2,23 @@ import { NSchema as n } from '@nostrify/nostrify';
 import { Storages } from '@/storages.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 
+const store = await Storages.db();
 const kysely = await Storages.kysely();
-const stream = kysely
-  .selectFrom('nostr_events')
-  .select(['pubkey', 'content'])
-  .where('kind', '=', 0)
-  .stream();
 
 const values: DittoTables['author_search'][] = [];
 
-for await (const author of stream) {
-  const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(author.content);
-  const search = [name, nip05].filter(Boolean).join(' ').trim();
+for await (const msg of store.req([{ kinds: [0] }])) {
+  if (msg[0] === 'EVENT') {
+    const { pubkey, content } = msg[2];
 
-  values.push({
-    pubkey: author.pubkey,
-    search,
-  });
+    const { name, nip05 } = n.json().pipe(n.metadata()).catch({}).parse(content);
+    const search = [name, nip05].filter(Boolean).join(' ').trim();
+
+    values.push({
+      pubkey: pubkey,
+      search,
+    });
+  }
 }
 
 try {
