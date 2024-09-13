@@ -91,19 +91,35 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
     filter.authors = [account_id];
   }
 
+  const pubkeys: string[] = [];
   if (type === 'accounts') {
     const kysely = await Storages.kysely();
 
-    const pubkeys = await getPubkeysBySearch(kysely, { q, limit });
+    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit })));
 
-    filter.authors = pubkeys;
+    if (!filter?.authors) filter.authors = pubkeys;
+    else filter.authors.push(...pubkeys);
+
     filter.search = undefined;
   }
 
   const store = await Storages.search();
 
-  return store.query([filter], { signal })
+  const events = await store.query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
+
+  if (type !== 'accounts') return events;
+
+  const orderedEvents: NostrEvent[] = events.map((event, index) => {
+    const pubkey = pubkeys[index];
+
+    const orderedEvent = events.find((e) => e.pubkey === pubkey);
+    if (orderedEvent) return orderedEvent;
+
+    return event;
+  });
+
+  return orderedEvents;
 }
 
 /** Get event kinds to search from `type` query param. */
