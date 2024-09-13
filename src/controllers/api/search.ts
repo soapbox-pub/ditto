@@ -91,21 +91,18 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
     filter.authors = [account_id];
   }
 
-  const filter2: NostrFilter = {
-    kinds: [0],
-    limit,
-  };
   if (type === 'accounts') {
     const kysely = await Storages.kysely();
 
     const pubkeys = await getPubkeysBySearch(kysely, { q, limit });
 
-    filter2.authors = pubkeys; // if pubkeys is empty the filter 2 will be discarded
+    filter.authors = pubkeys;
+    filter.search = undefined;
   }
 
   const store = await Storages.search();
 
-  return store.query([filter, filter2], { signal })
+  return store.query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 }
 
