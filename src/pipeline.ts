@@ -5,6 +5,7 @@ import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
@@ -14,11 +15,11 @@ import { Storages } from '@/storages.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { getAmount } from '@/utils/bolt11.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 
 const debug = Debug('ditto:pipeline');
 
@@ -55,7 +56,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   const kysely = await Storages.kysely();
 
   await Promise.all([
-    storeEvent(event, signal),
+    storeEvent(purifyEvent(event), signal),
     handleZaps(kysely, event),
     handleAuthorSearch(kysely, event),
     parseMetadata(event, signal),
@@ -118,10 +119,11 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<undefined> {
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
-  const kysely = await Storages.kysely();
 
-  await updateStats({ event, store, kysely }).catch(debug);
-  await store.event(event, { signal });
+  await store.transaction(async (store, kysely) => {
+    await updateStats({ event, store, kysely });
+    await store.event(event, { signal });
+  });
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
