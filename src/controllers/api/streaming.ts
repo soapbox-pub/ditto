@@ -1,4 +1,5 @@
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import TTLCache from '@isaacs/ttlcache';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { z } from 'zod';
 
@@ -10,9 +11,10 @@ import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
-import TTLCache from '@isaacs/ttlcache';
+import { RenderNotificationOpts } from '@/views/mastodon/notifications.ts';
 
 const debug = Debug('ditto:streaming');
 
@@ -155,7 +157,28 @@ const streamingController: AppController = async (c) => {
     if (['user', 'user:notification'].includes(stream) && pubkey) {
       sub([{ '#p': [pubkey] }], async (event) => {
         if (event.pubkey === pubkey) return; // skip own events
-        const payload = await renderNotification(event, { viewerPubkey: pubkey });
+
+        const opts: RenderNotificationOpts = { viewerPubkey: pubkey };
+
+        if (event.kind === 9735) {
+          const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+          const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+          // By getting the pubkey from the zap request we guarantee who is the sender
+          // some clients don't put the P tag in the zap receipt...
+          const zapSender = zapRequest?.pubkey;
+
+          const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+          // amount in millisats
+          const amount = amountSchema.parse(getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]));
+
+          opts['zap'] = {
+            zapSender,
+            amount,
+            message: zapRequest?.content,
+          };
+        }
+
+        const payload = await renderNotification(event, opts);
         if (payload) {
           return {
             event: 'notification',
@@ -215,7 +238,7 @@ async function topicToFilter(
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6], authors: await getFeedPubkeys(pubkey) } : undefined;
+      return pubkey ? { kinds: [1, 6, 9735], authors: await getFeedPubkeys(pubkey) } : undefined;
   }
 }
 
