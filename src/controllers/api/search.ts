@@ -1,8 +1,10 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
+import { Kysely, sql } from 'kysely';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { DittoTables } from '@/db/DittoTables.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -47,9 +49,8 @@ const searchController: AppController = async (c) => {
 
   if (event) {
     events = [event];
-  } else {
-    events = await searchEvents(result.data, signal);
   }
+  events.push(...(await searchEvents(result.data, signal)));
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
@@ -89,10 +90,33 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
     filter.authors = [account_id];
   }
 
+  const pubkeys: string[] = [];
+  if (type === 'accounts') {
+    const kysely = await Storages.kysely();
+
+    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit })));
+
+    if (!filter?.authors) {
+      filter.authors = pubkeys;
+    } else {
+      filter.authors.push(...pubkeys);
+    }
+
+    filter.search = undefined;
+  }
+
   const store = await Storages.search();
 
-  return store.query([filter], { signal })
+  let events = await store.query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
+
+  if (type !== 'accounts') return events;
+
+  events = pubkeys
+    .map((pubkey) => events.find((event) => event.pubkey === pubkey))
+    .filter((event) => !!event);
+
+  return events;
 }
 
 /** Get event kinds to search from `type` query param. */
@@ -170,4 +194,16 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   return [];
 }
 
-export { searchController };
+/** Get pubkeys whose name and NIP-05 is similar to 'q' */
+async function getPubkeysBySearch(kysely: Kysely<DittoTables>, { q, limit }: Pick<SearchQuery, 'q' | 'limit'>) {
+  const pubkeys = (await sql<{ pubkey: string }>`
+        SELECT *, word_similarity(${q}, search) AS sml
+        FROM author_search
+        WHERE ${q} % search
+        ORDER BY sml DESC, search LIMIT ${limit}
+      `.execute(kysely)).rows.map(({ pubkey }) => pubkey);
+
+  return pubkeys;
+}
+
+export { getPubkeysBySearch, searchController };
