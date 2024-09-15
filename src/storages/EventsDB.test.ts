@@ -54,6 +54,23 @@ Deno.test('query events with domain search filter', async () => {
   assertEquals(await store.query([{ kinds: [1], search: 'domain:example.com' }]), []);
 });
 
+Deno.test('query events with language search filter', async () => {
+  await using db = await createTestDB();
+  const { store, kysely } = db;
+
+  const en = genEvent({ kind: 1, content: 'hello world!' });
+  const es = genEvent({ kind: 1, content: 'hola mundo!' });
+
+  await store.event(en);
+  await store.event(es);
+
+  await kysely.updateTable('nostr_events').set('language', 'en').where('id', '=', en.id).execute();
+  await kysely.updateTable('nostr_events').set('language', 'es').where('id', '=', es.id).execute();
+
+  assertEquals(await store.query([{ search: 'language:en' }]), [en]);
+  assertEquals(await store.query([{ search: 'language:es' }]), [es]);
+});
+
 Deno.test('delete events', async () => {
   await using db = await createTestDB();
   const { store } = db;

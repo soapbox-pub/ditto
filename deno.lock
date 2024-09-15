@@ -15,7 +15,7 @@
       "jsr:@gleasonator/policy@0.5.2": "jsr:@gleasonator/policy@0.5.2",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.11",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
-      "jsr:@nostrify/db@^0.31.2": "jsr:@nostrify/db@0.31.2",
+      "jsr:@nostrify/db@^0.32.2": "jsr:@nostrify/db@0.32.2",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
@@ -29,13 +29,16 @@
       "jsr:@soapbox/kysely-pglite@^0.0.1": "jsr:@soapbox/kysely-pglite@0.0.1",
       "jsr:@soapbox/stickynotes@^0.4.0": "jsr:@soapbox/stickynotes@0.4.0",
       "jsr:@std/assert@^0.213.1": "jsr:@std/assert@0.213.1",
+      "jsr:@std/assert@^0.223.0": "jsr:@std/assert@0.223.0",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
       "jsr:@std/assert@^0.225.1": "jsr:@std/assert@0.225.3",
+      "jsr:@std/bytes@^0.223.0": "jsr:@std/bytes@0.223.0",
       "jsr:@std/bytes@^0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^1.0.0-rc.3": "jsr:@std/bytes@1.0.0",
       "jsr:@std/bytes@^1.0.1-rc.3": "jsr:@std/bytes@1.0.2",
       "jsr:@std/bytes@^1.0.2": "jsr:@std/bytes@1.0.2",
       "jsr:@std/bytes@^1.0.2-rc.3": "jsr:@std/bytes@1.0.2",
+      "jsr:@std/cli@^0.223.0": "jsr:@std/cli@0.223.0",
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
       "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.2",
       "jsr:@std/encoding@0.213.1": "jsr:@std/encoding@0.213.1",
@@ -44,15 +47,18 @@
       "jsr:@std/fmt@0.213.1": "jsr:@std/fmt@0.213.1",
       "jsr:@std/fs@0.213.1": "jsr:@std/fs@0.213.1",
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
-      "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.1",
+      "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.3",
+      "jsr:@std/io@^0.223.0": "jsr:@std/io@0.223.0",
       "jsr:@std/io@^0.224": "jsr:@std/io@0.224.7",
       "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.213.1": "jsr:@std/path@0.213.1",
+      "jsr:@std/path@1.0.0-rc.1": "jsr:@std/path@1.0.0-rc.1",
       "jsr:@std/path@^0.213.1": "jsr:@std/path@0.213.1",
       "jsr:@std/streams@^0.223.0": "jsr:@std/streams@0.223.0",
       "npm:@isaacs/ttlcache@^1.4.1": "npm:@isaacs/ttlcache@1.4.1",
       "npm:@noble/hashes@^1.4.0": "npm:@noble/hashes@1.4.0",
+      "npm:@noble/secp256k1@^2.0.0": "npm:@noble/secp256k1@2.1.0",
       "npm:@scure/base@^1.1.6": "npm:@scure/base@1.1.6",
       "npm:@scure/bip32@^1.4.0": "npm:@scure/bip32@1.4.0",
       "npm:@scure/bip39@^1.3.0": "npm:@scure/bip39@1.3.0",
@@ -72,6 +78,7 @@
       "npm:kysely@^0.27.2": "npm:kysely@0.27.4",
       "npm:kysely@^0.27.3": "npm:kysely@0.27.4",
       "npm:kysely@^0.27.4": "npm:kysely@0.27.4",
+      "npm:lande@^1.0.10": "npm:lande@1.0.10",
       "npm:light-bolt11-decoder": "npm:light-bolt11-decoder@3.1.1",
       "npm:linkify-plugin-hashtag@^4.1.1": "npm:linkify-plugin-hashtag@4.1.3_linkifyjs@4.1.3",
       "npm:linkify-string@^4.1.1": "npm:linkify-string@4.1.3_linkifyjs@4.1.3",
@@ -88,6 +95,7 @@
       "npm:postgres@3.4.4": "npm:postgres@3.4.4",
       "npm:prom-client@^15.1.2": "npm:prom-client@15.1.2",
       "npm:tldts@^6.0.14": "npm:tldts@6.1.18",
+      "npm:tseep@^1.2.1": "npm:tseep@1.2.1",
       "npm:type-fest@^4.3.0": "npm:type-fest@4.18.2",
       "npm:unfurl.js@^6.4.0": "npm:unfurl.js@6.4.0",
       "npm:websocket-ts@^2.1.5": "npm:websocket-ts@2.1.5",
@@ -190,11 +198,11 @@
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
-      "@nostrify/db@0.31.2": {
-        "integrity": "a906b64edbf84a6b482cd7c9f5df2d2237c4ec42589116097d99ceb41347b1f5",
+      "@nostrify/db@0.32.2": {
+        "integrity": "265fb41e9d5810b99f1003ce56c89e4b468e6d0c04e7b9d9e3126c4efd49c1c2",
         "dependencies": [
-          "jsr:@nostrify/nostrify@^0.30.0",
-          "jsr:@nostrify/types@^0.30.0",
+          "jsr:@nostrify/nostrify@^0.31.0",
+          "jsr:@nostrify/types@^0.30.1",
           "npm:kysely@^0.27.3",
           "npm:nostr-tools@^2.7.0"
         ]
@@ -303,6 +311,9 @@
       "@std/assert@0.213.1": {
         "integrity": "24c28178b30c8e0782c18e8e94ea72b16282207569cdd10ffb9d1d26f2edebfe"
       },
+      "@std/assert@0.223.0": {
+        "integrity": "eb8d6d879d76e1cc431205bd346ed4d88dc051c6366365b1af47034b0670be24"
+      },
       "@std/assert@0.224.0": {
         "integrity": "8643233ec7aec38a940a8264a6e3eed9bfa44e7a71cc6b3c8874213ff401967f"
       },
@@ -312,6 +323,9 @@
           "jsr:@std/internal@^1.0.0"
         ]
       },
+      "@std/bytes@0.223.0": {
+        "integrity": "84b75052cd8680942c397c2631318772b295019098f40aac5c36cead4cba51a8"
+      },
       "@std/bytes@0.224.0": {
         "integrity": "a2250e1d0eb7d1c5a426f21267ab9bdeac2447fa87a3d0d1a467d3f7a6058e49"
       },
@@ -320,6 +334,12 @@
       },
       "@std/bytes@1.0.2": {
         "integrity": "fbdee322bbd8c599a6af186a1603b3355e59a5fb1baa139f8f4c3c9a1b3e3d57"
+      },
+      "@std/cli@0.223.0": {
+        "integrity": "2feb7970f2028904c3edc22ea916ce9538113dfc170844f3eae03578c333c356",
+        "dependencies": [
+          "jsr:@std/assert@^0.223.0"
+        ]
       },
       "@std/crypto@0.224.0": {
         "integrity": "154ef3ff08ef535562ef1a718718c5b2c5fc3808f0f9100daad69e829bfcdf2d",
@@ -351,13 +371,26 @@
         ]
       },
       "@std/fs@0.229.3": {
-        "integrity": "783bca21f24da92e04c3893c9e79653227ab016c48e96b3078377ebd5222e6eb"
+        "integrity": "783bca21f24da92e04c3893c9e79653227ab016c48e96b3078377ebd5222e6eb",
+        "dependencies": [
+          "jsr:@std/path@1.0.0-rc.1"
+        ]
       },
       "@std/internal@1.0.0": {
         "integrity": "ac6a6dfebf838582c4b4f61a6907374e27e05bedb6ce276e0f1608fe84e7cd9a"
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
+      },
+      "@std/internal@1.0.3": {
+        "integrity": "208e9b94a3d5649bd880e9ca38b885ab7651ab5b5303a56ed25de4755fb7b11e"
+      },
+      "@std/io@0.223.0": {
+        "integrity": "2d8c3c2ab3a515619b90da2c6ff5ea7b75a94383259ef4d02116b228393f84f1",
+        "dependencies": [
+          "jsr:@std/assert@^0.223.0",
+          "jsr:@std/bytes@^0.223.0"
+        ]
       },
       "@std/io@0.224.0": {
         "integrity": "0aff885d21d829c050b8a08b1d71b54aed5841aecf227f8d77e99ec529a11e8e",
@@ -396,7 +429,10 @@
         ]
       },
       "@std/json@0.223.0": {
-        "integrity": "9a4a255931dd0397924c6b10bb6a72fe3e28ddd876b981ada2e3b8dd0764163f"
+        "integrity": "9a4a255931dd0397924c6b10bb6a72fe3e28ddd876b981ada2e3b8dd0764163f",
+        "dependencies": [
+          "jsr:@std/streams@^0.223.0"
+        ]
       },
       "@std/media-types@0.224.1": {
         "integrity": "9e69a5daed37c5b5c6d3ce4731dc191f80e67f79bed392b0957d1d03b87f11e1"
@@ -407,8 +443,16 @@
           "jsr:@std/assert@^0.213.1"
         ]
       },
+      "@std/path@1.0.0-rc.1": {
+        "integrity": "b8c00ae2f19106a6bb7cbf1ab9be52aa70de1605daeb2dbdc4f87a7cbaf10ff6"
+      },
       "@std/streams@0.223.0": {
-        "integrity": "d6b28e498ced3960b04dc5d251f2dcfc1df244b5ec5a48dc23a8f9b490be3b99"
+        "integrity": "d6b28e498ced3960b04dc5d251f2dcfc1df244b5ec5a48dc23a8f9b490be3b99",
+        "dependencies": [
+          "jsr:@std/assert@^0.223.0",
+          "jsr:@std/bytes@^0.223.0",
+          "jsr:@std/io@^0.223.0"
+        ]
       }
     },
     "npm": {
@@ -452,6 +496,10 @@
       },
       "@noble/hashes@1.4.0": {
         "integrity": "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==",
+        "dependencies": {}
+      },
+      "@noble/secp256k1@2.1.0": {
+        "integrity": "sha512-XLEQQNdablO0XZOIniFQimiXsZDNwaYgL96dZwC54Q30imSbAOFf3NKtepc+cXyuZf5Q1HCgbqgZ2UFFuHVcEw==",
         "dependencies": {}
       },
       "@opentelemetry/api@1.9.0": {
@@ -864,6 +912,12 @@
         "integrity": "sha512-dyNKv2KRvYOQPLCAOCjjQuCk4YFd33BvGdf/o5bC7FiW+BB6snA81Zt+2wT9QDFzKqxKa5rrOmvlK/anehCcgA==",
         "dependencies": {}
       },
+      "lande@1.0.10": {
+        "integrity": "sha512-yT52DQh+UV2pEp08jOYrA4drDv0DbjpiRyZYgl25ak9G2cVR2AimzrqkYQWrD9a7Ud+qkAcaiDDoNH9DXfHPmw==",
+        "dependencies": {
+          "toygrad": "toygrad@2.6.0"
+        }
+      },
       "light-bolt11-decoder@3.1.1": {
         "integrity": "sha512-sLg/KCwYkgsHWkefWd6KqpCHrLFWWaXTOX3cf6yD2hAzL0SLpX+lFcaFK2spkjbgzG6hhijKfORDc9WoUHwX0A==",
         "dependencies": {
@@ -1213,6 +1267,10 @@
           "url-parse": "url-parse@1.5.10"
         }
       },
+      "toygrad@2.6.0": {
+        "integrity": "sha512-g4zBmlSbvzOE5FOILxYkAybTSxijKLkj1WoNqVGnbMcWDyj4wWQ+eYSr3ik7XOpIgMq/7eBcPRTJX3DM2E0YMg==",
+        "dependencies": {}
+      },
       "tr46@0.0.3": {
         "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
         "dependencies": {}
@@ -1222,6 +1280,10 @@
         "dependencies": {
           "punycode": "punycode@2.3.1"
         }
+      },
+      "tseep@1.2.1": {
+        "integrity": "sha512-VFnsNcPGC4qFJ1nxbIPSjTmtRZOhlqLmtwRqtLVos8mbRHki8HO9cy9Z1e89EiWyxFmq6LBviI9TQjijxw/mEw==",
+        "dependencies": {}
       },
       "type-fest@3.13.1": {
         "integrity": "sha512-tLq3bSNx+xSpwvAJnzrK0Ep5CLNWjvFTOp71URMaAEWBfRb9nnJiBoUe0tF8bI4ZFO3omgBR6NvnbzVUT3Ly4g==",
@@ -1935,7 +1997,7 @@
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@^0.31.2",
+      "jsr:@nostrify/db@^0.32.2",
       "jsr:@nostrify/nostrify@^0.30.1",
       "jsr:@soapbox/kysely-pglite@^0.0.1",
       "jsr:@soapbox/stickynotes@^0.4.0",
@@ -1963,6 +2025,7 @@
       "npm:isomorphic-dompurify@^2.11.0",
       "npm:kysely-postgres-js@2.0.0",
       "npm:kysely@^0.27.4",
+      "npm:lande@^1.0.10",
       "npm:light-bolt11-decoder",
       "npm:linkify-plugin-hashtag@^4.1.1",
       "npm:linkify-string@^4.1.1",
