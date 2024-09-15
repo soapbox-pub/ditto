@@ -3,7 +3,7 @@
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
-import { Kysely } from 'kysely';
+import { Kysely, SelectQueryBuilder } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -145,8 +145,36 @@ class EventsDB extends NPostgres {
   }
 
   protected getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
-    const query = super.getFilterQuery(trx, filter);
-    return query;
+    if (filter.search) {
+      const tokens = NIP50.parseInput(filter.search);
+
+      let query = super.getFilterQuery(trx, {
+        ...filter,
+        search: tokens.filter((t) => typeof t === 'string').join(' '),
+      }) as SelectQueryBuilder<DittoTables, 'nostr_events', Pick<DittoTables['nostr_events'], keyof NostrEvent>>;
+
+      const data = tokens.filter((t) => typeof t === 'object').reduce(
+        (acc, t) => acc.set(t.key, t.value),
+        new Map<string, string>(),
+      );
+
+      const domain = data.get('domain');
+      const language = data.get('language');
+
+      if (domain) {
+        query = query
+          .innerJoin('pubkey_domains', 'nostr_events.pubkey', 'pubkey_domains.pubkey')
+          .where('pubkey_domains.domain', '=', domain);
+      }
+
+      if (language) {
+        query = query.where('language', '=', language);
+      }
+
+      return query;
+    }
+
+    return super.getFilterQuery(trx, filter);
   }
 
   /** Get events for filters from the database. */
@@ -260,35 +288,6 @@ class EventsDB extends NPostgres {
     filters = structuredClone(filters);
 
     for (const filter of filters) {
-      if (filter.search) {
-        const tokens = NIP50.parseInput(filter.search);
-
-        const domain = (tokens.find((t) =>
-          typeof t === 'object' && t.key === 'domain'
-        ) as { key: 'domain'; value: string } | undefined)?.value;
-
-        if (domain) {
-          const query = this.opts.kysely
-            .selectFrom('pubkey_domains')
-            .select('pubkey')
-            .where('domain', '=', domain);
-
-          if (filter.authors) {
-            query.where('pubkey', 'in', filter.authors);
-          }
-
-          const pubkeys = await query
-            .execute()
-            .then((rows) =>
-              rows.map((row) => row.pubkey)
-            );
-
-          filter.authors = pubkeys;
-        }
-
-        filter.search = tokens.filter((t) => typeof t === 'string').join(' ');
-      }
-
       if (filter.kinds) {
         // Ephemeral events are not stored, so don't bother querying for them.
         // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.

@@ -1,12 +1,19 @@
+import { Nullable } from 'kysely';
+
 import { NPostgresSchema } from '@nostrify/db';
 
 export interface DittoTables extends NPostgresSchema {
+  nostr_events: NostrEventsRow;
   nip46_tokens: NIP46TokenRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
 }
+
+type NostrEventsRow = NPostgresSchema['nostr_events'] & {
+  language: Nullable<string>;
+};
 
 interface AuthorStatsRow {
   pubkey: string;
