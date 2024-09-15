@@ -8,8 +8,8 @@ export async function up(db: Kysely<any>): Promise<void> {
     .ifNotExists()
     .execute();
 
-  await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm;`.execute(db);
-  await sql`CREATE INDEX author_search_search_idx ON author_search USING GIN (search gin_trgm_ops);`.execute(db);
+  await sql`CREATE EXTENSION IF NOT EXISTS pg_trgm`.execute(db);
+  await sql`CREATE INDEX author_search_search_idx ON author_search USING GIN (search gin_trgm_ops)`.execute(db);
 }
 
 export async function down(db: Kysely<any>): Promise<void> {
