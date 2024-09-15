@@ -112,9 +112,9 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
 
   if (type !== 'accounts') return events;
 
-  events = pubkeys.map((pubkey) => {
-    return events.find((event) => event.pubkey === pubkey);
-  }).filter((event) => event !== undefined);
+  events = pubkeys
+    .map((pubkey) => events.find((event) => event.pubkey === pubkey))
+    .filter((event) => !!event);
 
   return events;
 }
