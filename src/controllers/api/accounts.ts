@@ -141,10 +141,11 @@ const accountSearchController: AppController = async (c) => {
     signal,
   });
 
-  events = pubkeys.map((pubkey) => {
-    return events.find((event) => event.pubkey === pubkey);
-  }).filter((event) => event !== undefined);
-
+  if (!event) {
+    events = pubkeys.map((pubkey) => {
+      return events.find((event) => event.pubkey === pubkey);
+    }).filter((event) => event !== undefined);
+  }
   const accounts = await hydrateEvents({ events, store, signal }).then(
     (events) =>
       Promise.all(
