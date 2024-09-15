@@ -104,21 +104,16 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
 
   const store = await Storages.search();
 
-  const events = await store.query([filter], { signal })
+  let events = await store.query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
   if (type !== 'accounts') return events;
 
-  const orderedEvents: NostrEvent[] = events.map((event, index) => {
-    const pubkey = pubkeys[index];
+  events = pubkeys.map((pubkey) => {
+    return events.find((event) => event.pubkey === pubkey);
+  }).filter((event) => event !== undefined);
 
-    const orderedEvent = events.find((e) => e.pubkey === pubkey);
-    if (orderedEvent) return orderedEvent;
-
-    return event;
-  });
-
-  return orderedEvents;
+  return events;
 }
 
 /** Get event kinds to search from `type` query param. */

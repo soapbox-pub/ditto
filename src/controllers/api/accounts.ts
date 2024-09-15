@@ -137,20 +137,15 @@ const accountSearchController: AppController = async (c) => {
 
   const pubkeys = await getPubkeysBySearch(kysely, { q: query, limit });
 
-  const events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
+  let events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
     signal,
   });
 
-  const orderedEvents = events.map((event, index) => {
-    const pubkey = pubkeys[index];
+  events = pubkeys.map((pubkey) => {
+    return events.find((event) => event.pubkey === pubkey);
+  }).filter((event) => event !== undefined);
 
-    const orderedEvent = events.find((e) => e.pubkey === pubkey);
-    if (orderedEvent) return orderedEvent;
-
-    return event;
-  });
-
-  const accounts = await hydrateEvents({ events: orderedEvents, store, signal }).then(
+  const accounts = await hydrateEvents({ events, store, signal }).then(
     (events) =>
       Promise.all(
         events.map((event) => renderAccount(event)),
