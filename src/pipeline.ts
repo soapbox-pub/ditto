@@ -133,8 +133,28 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
+  const kysely = await Storages.kysely();
+
   // Get nip05.
-  const { nip05 } = metadata.data;
+  const { name, nip05 } = metadata.data;
+
+  // Populate author_search.
+  try {
+    const search = [name, nip05].filter(Boolean).join(' ').trim();
+
+    await kysely.insertInto('author_search').values({
+      pubkey: event.pubkey,
+      search,
+    }).onConflict(
+      (oc) =>
+        oc.column('pubkey')
+          .doUpdateSet({ search }),
+    )
+      .execute();
+  } catch {
+    // do nothing
+  }
+
   if (!nip05) return;
 
   // Fetch nip05.
@@ -147,7 +167,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Track pubkey domain.
   try {
-    const kysely = await Storages.kysely();
     const { domain } = parseNip05(nip05);
 
     await sql`

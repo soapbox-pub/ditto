@@ -6,6 +6,7 @@ export interface DittoTables extends NPostgresSchema {
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
+  author_search: AuthorSearch;
 }
 
 interface AuthorStatsRow {
@@ -46,4 +47,9 @@ interface EventZapRow {
   sender_pubkey: string;
   amount_millisats: number;
   comment: string;
+}
+
+interface AuthorSearch {
+  pubkey: string;
+  search: string;
 }

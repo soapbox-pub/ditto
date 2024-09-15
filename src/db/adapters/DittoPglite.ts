@@ -1,4 +1,5 @@
 import { PGlite } from '@electric-sql/pglite';
+import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
 import { PgliteDialect } from '@soapbox/kysely-pglite';
 import { Kysely } from 'kysely';
 
@@ -10,7 +11,7 @@ export class DittoPglite {
   static create(databaseUrl: string): DittoDatabase {
     const kysely = new Kysely<DittoTables>({
       dialect: new PgliteDialect({
-        database: new PGlite(databaseUrl),
+        database: new PGlite(databaseUrl, { extensions: { pg_trgm } }),
       }),
       log: KyselyLogger,
     });
