@@ -140,48 +140,43 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
   // Get nip05.
   const { name, nip05 } = metadata.data;
+  const result = nip05 ? await nip05Cache.fetch(nip05, { signal }).catch(() => undefined) : undefined;
 
   // Populate author_search.
   try {
-    const search = [name, nip05].filter(Boolean).join(' ').trim();
+    const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
 
-    await kysely.insertInto('author_search').values({
-      pubkey: event.pubkey,
-      search,
-    }).onConflict(
-      (oc) =>
-        oc.column('pubkey')
-          .doUpdateSet({ search }),
-    )
-      .execute();
+    if (search) {
+      await kysely.insertInto('author_search').values({
+        pubkey: event.pubkey,
+        search,
+      }).onConflict(
+        (oc) =>
+          oc.column('pubkey')
+            .doUpdateSet({ search }),
+      )
+        .execute();
+    }
   } catch {
     // do nothing
   }
 
-  if (!nip05) return;
+  if (nip05 && result && result.pubkey === event.pubkey) {
+    // Track pubkey domain.
+    try {
+      const { domain } = parseNip05(nip05);
 
-  // Fetch nip05.
-  const result = await nip05Cache.fetch(nip05, { signal }).catch(() => undefined);
-  if (!result) return;
-
-  // Ensure pubkey matches event.
-  const { pubkey } = result;
-  if (pubkey !== event.pubkey) return;
-
-  // Track pubkey domain.
-  try {
-    const { domain } = parseNip05(nip05);
-
-    await sql`
-    INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
-    VALUES (${pubkey}, ${domain}, ${event.created_at})
-    ON CONFLICT(pubkey) DO UPDATE SET
-      domain = excluded.domain,
-      last_updated_at = excluded.last_updated_at
-    WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
-    `.execute(kysely);
-  } catch (_e) {
-    // do nothing
+      await sql`
+      INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
+      VALUES (${event.pubkey}, ${domain}, ${event.created_at})
+      ON CONFLICT(pubkey) DO UPDATE SET
+        domain = excluded.domain,
+        last_updated_at = excluded.last_updated_at
+      WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
+      `.execute(kysely);
+    } catch (_e) {
+      // do nothing
+    }
   }
 }
 
