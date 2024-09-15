@@ -15,7 +15,7 @@
       "jsr:@gleasonator/policy@0.5.2": "jsr:@gleasonator/policy@0.5.2",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.5.11",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
-      "jsr:@nostrify/db@^0.31.2": "jsr:@nostrify/db@0.31.2",
+      "jsr:@nostrify/db@^0.32.2": "jsr:@nostrify/db@0.32.2",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
@@ -47,7 +47,7 @@
       "jsr:@std/fmt@0.213.1": "jsr:@std/fmt@0.213.1",
       "jsr:@std/fs@0.213.1": "jsr:@std/fs@0.213.1",
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
-      "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.1",
+      "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.3",
       "jsr:@std/io@^0.223.0": "jsr:@std/io@0.223.0",
       "jsr:@std/io@^0.224": "jsr:@std/io@0.224.7",
       "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
@@ -198,11 +198,11 @@
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
-      "@nostrify/db@0.31.2": {
-        "integrity": "a906b64edbf84a6b482cd7c9f5df2d2237c4ec42589116097d99ceb41347b1f5",
+      "@nostrify/db@0.32.2": {
+        "integrity": "265fb41e9d5810b99f1003ce56c89e4b468e6d0c04e7b9d9e3126c4efd49c1c2",
         "dependencies": [
-          "jsr:@nostrify/nostrify@^0.30.0",
-          "jsr:@nostrify/types@^0.30.0",
+          "jsr:@nostrify/nostrify@^0.31.0",
+          "jsr:@nostrify/types@^0.30.1",
           "npm:kysely@^0.27.3",
           "npm:nostr-tools@^2.7.0"
         ]
@@ -381,6 +381,9 @@
       },
       "@std/internal@1.0.1": {
         "integrity": "6f8c7544d06a11dd256c8d6ba54b11ed870aac6c5aeafff499892662c57673e6"
+      },
+      "@std/internal@1.0.3": {
+        "integrity": "208e9b94a3d5649bd880e9ca38b885ab7651ab5b5303a56ed25de4755fb7b11e"
       },
       "@std/io@0.223.0": {
         "integrity": "2d8c3c2ab3a515619b90da2c6ff5ea7b75a94383259ef4d02116b228393f84f1",
@@ -1994,7 +1997,7 @@
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@^0.31.2",
+      "jsr:@nostrify/db@^0.32.2",
       "jsr:@nostrify/nostrify@^0.30.1",
       "jsr:@soapbox/kysely-pglite@^0.0.1",
       "jsr:@soapbox/stickynotes@^0.4.0",
