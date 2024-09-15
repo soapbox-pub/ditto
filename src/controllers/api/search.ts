@@ -96,8 +96,11 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
 
     pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit })));
 
-    if (!filter?.authors) filter.authors = pubkeys;
-    else filter.authors.push(...pubkeys);
+    if (!filter?.authors) {
+      filter.authors = pubkeys;
+    } else {
+      filter.authors.push(...pubkeys);
+    }
 
     filter.search = undefined;
   }
