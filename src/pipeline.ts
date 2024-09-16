@@ -1,6 +1,8 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
+import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
+import lande from 'lande';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
@@ -55,10 +57,11 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   const kysely = await Storages.kysely();
 
+  await storeEvent(purifyEvent(event), signal);
   await Promise.all([
-    storeEvent(purifyEvent(event), signal),
     handleZaps(kysely, event),
     parseMetadata(event, signal),
+    setLanguage(event),
     generateSetEvents(event),
     streamOut(event),
   ]);
@@ -133,33 +136,64 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
+  const kysely = await Storages.kysely();
+
   // Get nip05.
-  const { nip05 } = metadata.data;
-  if (!nip05) return;
+  const { name, nip05 } = metadata.data;
+  const result = nip05 ? await nip05Cache.fetch(nip05, { signal }).catch(() => undefined) : undefined;
 
-  // Fetch nip05.
-  const result = await nip05Cache.fetch(nip05, { signal }).catch(() => undefined);
-  if (!result) return;
-
-  // Ensure pubkey matches event.
-  const { pubkey } = result;
-  if (pubkey !== event.pubkey) return;
-
-  // Track pubkey domain.
+  // Populate author_search.
   try {
-    const kysely = await Storages.kysely();
-    const { domain } = parseNip05(nip05);
+    const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
 
-    await sql`
-    INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
-    VALUES (${pubkey}, ${domain}, ${event.created_at})
-    ON CONFLICT(pubkey) DO UPDATE SET
-      domain = excluded.domain,
-      last_updated_at = excluded.last_updated_at
-    WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
-    `.execute(kysely);
-  } catch (_e) {
+    if (search) {
+      await kysely.insertInto('author_search')
+        .values({ pubkey: event.pubkey, search })
+        .onConflict((oc) => oc.column('pubkey').doUpdateSet({ search }))
+        .execute();
+    }
+  } catch {
     // do nothing
+  }
+
+  if (nip05 && result && result.pubkey === event.pubkey) {
+    // Track pubkey domain.
+    try {
+      const { domain } = parseNip05(nip05);
+
+      await sql`
+      INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
+      VALUES (${event.pubkey}, ${domain}, ${event.created_at})
+      ON CONFLICT(pubkey) DO UPDATE SET
+        domain = excluded.domain,
+        last_updated_at = excluded.last_updated_at
+      WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
+      `.execute(kysely);
+    } catch (_e) {
+      // do nothing
+    }
+  }
+}
+
+/** Update the event in the database and set its language. */
+async function setLanguage(event: NostrEvent): Promise<void> {
+  const [topResult] = lande(event.content);
+
+  if (topResult) {
+    const [iso6393, confidence] = topResult;
+    const locale = new Intl.Locale(iso6393);
+
+    if (confidence >= 0.95 && ISO6391.validate(locale.language)) {
+      const kysely = await Storages.kysely();
+      try {
+        await kysely.updateTable('nostr_events')
+          .set('language', locale.language)
+          .where('id', '=', event.id)
+          .execute();
+      } catch {
+        // do nothing
+      }
+    }
   }
 }
 

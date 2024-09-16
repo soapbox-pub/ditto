@@ -54,7 +54,7 @@ if (DATABASE_URL) {
     const host = await question('input', 'Postgres host', 'localhost');
     const port = await question('input', 'Postgres port', '5432');
     const user = await question('input', 'Postgres user', 'ditto');
-    const password = await question('input', 'Postgres password', 'ditto');
+    const password = await question('password', 'Postgres password', true);
     const database = await question('input', 'Postgres database', 'ditto');
     vars.DATABASE_URL = `postgres://${user}:${password}@${host}:${port}/${database}`;
   }
