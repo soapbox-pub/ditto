@@ -42,4 +42,5 @@ export interface DittoEvent extends NostrEvent {
   /** Kind 0 or pubkey that zapped */
   zap_sender?: DittoEvent | string;
   zap_amount?: number;
+  zap_message?: string;
 }
