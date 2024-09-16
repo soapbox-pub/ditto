@@ -160,6 +160,8 @@ export function assembleEvents(
       if (zapSender) {
         event.zap_sender = b.find((e) => matchFilter({ kinds: [0], authors: [zapSender] }, e)) ?? zapSender;
       }
+
+      event.zap_message = zapRequest?.content ?? '';
     }
 
     event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
