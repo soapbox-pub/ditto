@@ -1,12 +1,15 @@
 import { NStore } from '@nostrify/nostrify';
 import { Kysely } from 'kysely';
 import { matchFilter } from 'nostr-tools';
+import { NSchema as n } from '@nostrify/nostrify';
+import { z } from 'zod';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 import { Storages } from '@/storages.ts';
 
 interface HydrateOpts {
@@ -55,6 +58,14 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   for (const event of await gatherReportedNotes({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherZapped({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherZapSender({ events: cache, store, signal })) {
     cache.push(event);
   }
 
@@ -128,6 +139,27 @@ export function assembleEvents(
         }
       }
       event.reported_notes = reportedEvents;
+    }
+
+    if (event.kind === 9735) {
+      const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+      // amount in millisats
+      const amount = amountSchema.parse(getAmount(event?.tags.find(([name]) => name === 'bolt11')?.[1]));
+      event.zap_amount = amount;
+
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        event.zapped = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+      }
+
+      const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+      const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+      // By getting the pubkey from the zap request we guarantee who is the sender
+      // some clients don't put the P tag in the zap receipt...
+      const zapSender = zapRequest?.pubkey;
+      if (zapSender) {
+        event.zap_sender = b.find((e) => matchFilter({ kinds: [0], authors: [zapSender] }, e)) ?? zapSender;
+      }
     }
 
     event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
@@ -273,6 +305,48 @@ function gatherReportedProfiles({ events, store, signal }: HydrateOpts): Promise
 
   return store.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
+/** Collect events being zapped. */
+function gatherZapped({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 9735) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return store.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect author that zapped. */
+function gatherZapSender({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 9735) {
+      const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+      const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+      // By getting the pubkey from the zap request we guarantee who is the sender
+      // some clients don't put the P tag in the zap receipt...
+      const zapSender = zapRequest?.pubkey;
+      if (zapSender) {
+        pubkeys.add(zapSender);
+      }
+    }
+  }
+
+  return store.query(
+    [{ kinds: [0], limit: pubkeys.size }],
     { signal },
   );
 }
