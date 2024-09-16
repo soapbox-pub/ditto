@@ -230,7 +230,13 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 
 /** Collect authors from the events. */
 function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const pubkeys = new Set(events.map((event) => event.pubkey));
+  const pubkeys = new Set(events.map((event) => {
+    if (event.kind === 9735) {
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) return pubkey;
+    }
+    return event.pubkey;
+  }));
 
   return store.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
