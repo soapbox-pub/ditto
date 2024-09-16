@@ -173,6 +173,7 @@ Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 ---
       author: zapReceiver,
     },
     zap_amount: 5225000, // millisats
+    zap_message: '🫂',
   };
   assertEquals(zapReceipt, expectedEvent);
 });
