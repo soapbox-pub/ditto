@@ -6,7 +6,6 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
-import { getPubkeysBySearch } from '@/controllers/api/search.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
@@ -19,6 +18,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
+import { getPubkeysBySearch } from '@/utils/search.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)

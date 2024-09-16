@@ -1,10 +1,8 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { Kysely, sql } from 'kysely';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -12,6 +10,7 @@ import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { getPubkeysBySearch } from '@/utils/search.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -194,16 +193,4 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   return [];
 }
 
-/** Get pubkeys whose name and NIP-05 is similar to 'q' */
-async function getPubkeysBySearch(kysely: Kysely<DittoTables>, { q, limit }: Pick<SearchQuery, 'q' | 'limit'>) {
-  const pubkeys = (await sql<{ pubkey: string }>`
-        SELECT *, word_similarity(${q}, search) AS sml
-        FROM author_search
-        WHERE ${q} % search
-        ORDER BY sml DESC, search LIMIT ${limit}
-      `.execute(kysely)).rows.map(({ pubkey }) => pubkey);
-
-  return pubkeys;
-}
-
-export { getPubkeysBySearch, searchController };
+export { searchController };
