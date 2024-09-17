@@ -117,6 +117,7 @@ const accountSearchController: AppController = async (c) => {
   const { signal } = c.req.raw;
   const { limit } = c.get('pagination');
   const kysely = await Storages.kysely();
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const result = accountSearchQuerySchema.safeParse(c.req.query());
 
@@ -135,7 +136,11 @@ const accountSearchController: AppController = async (c) => {
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const pubkeys = await getPubkeysBySearch(kysely, { q: query, limit });
+  const followList: string[] = [];
+  if (viewerPubkey) {
+    followList.push(...await getFollowedPubkeys(viewerPubkey));
+  }
+  const pubkeys = (await getPubkeysBySearch(kysely, { q: query, limit, followList })).slice(0, limit);
 
   let events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
     signal,

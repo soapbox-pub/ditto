@@ -10,6 +10,7 @@ import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { getFollowedPubkeys } from '@/queries.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
 
 const searchQuerySchema = z.object({
@@ -26,6 +27,7 @@ type SearchQuery = z.infer<typeof searchQuerySchema>;
 const searchController: AppController = async (c) => {
   const result = searchQuerySchema.safeParse(c.req.query());
   const { signal } = c.req.raw;
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
@@ -49,9 +51,7 @@ const searchController: AppController = async (c) => {
   if (event) {
     events = [event];
   }
-  events.push(...(await searchEvents(result.data, signal)));
-
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  events.push(...(await searchEvents({ ...result.data, viewerPubkey }, signal)));
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -76,7 +76,10 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
+async function searchEvents(
+  { q, type, limit, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
+  signal: AbortSignal,
+): Promise<NostrEvent[]> {
   if (type === 'hashtags') return Promise.resolve([]);
 
   const filter: NostrFilter = {
@@ -93,7 +96,11 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
   if (type === 'accounts') {
     const kysely = await Storages.kysely();
 
-    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit })));
+    const followList: string[] = [];
+    if (viewerPubkey) {
+      followList.push(...await getFollowedPubkeys(viewerPubkey));
+    }
+    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit, followList })));
 
     if (!filter?.authors) {
       filter.authors = pubkeys;
