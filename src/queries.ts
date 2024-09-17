@@ -65,7 +65,7 @@ async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise
 /** Get pubkeys the user follows, including the user's own pubkey. */
 async function getFeedPubkeys(pubkey: string): Promise<Set<string>> {
   const authors = await getFollowedPubkeys(pubkey);
-  return new Set([...authors, pubkey]);
+  return authors.add(pubkey);
 }
 
 async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent[] = []): Promise<NostrEvent[]> {
