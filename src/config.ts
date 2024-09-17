@@ -77,6 +77,10 @@ class Conf {
   static get testDatabaseUrl(): string {
     return Deno.env.get('TEST_DATABASE_URL') ?? 'memory://';
   }
+  /** PGlite debug level. 0 disables logging. */
+  static get pgliteDebug(): 0 | 1 | 2 | 3 | 4 | 5 {
+    return Number(Deno.env.get('PGLITE_DEBUG') || 0) as 0 | 1 | 2 | 3 | 4 | 5;
+  }
   static db = {
     /** Database query timeout configurations. */
     timeouts: {

@@ -13,7 +13,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 const homeTimelineController: AppController = async (c) => {
   const params = c.get('pagination');
   const pubkey = await c.get('signer')?.getPublicKey()!;
-  const authors = await getFeedPubkeys(pubkey);
+  const authors = [...await getFeedPubkeys(pubkey)];
   return renderStatuses(c, [{ authors, kinds: [1, 6], ...params }]);
 };
 

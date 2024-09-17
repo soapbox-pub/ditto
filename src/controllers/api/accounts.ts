@@ -386,7 +386,7 @@ const followersController: AppController = (c) => {
 const followingController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const pubkeys = await getFollowedPubkeys(pubkey);
-  return renderAccounts(c, pubkeys);
+  return renderAccounts(c, [...pubkeys]);
 };
 
 /** https://docs.joinmastodon.org/methods/accounts/#block */
@@ -465,7 +465,7 @@ const familiarFollowersController: AppController = async (c) => {
   const follows = await getFollowedPubkeys(pubkey);
 
   const results = await Promise.all(ids.map(async (id) => {
-    const followLists = await store.query([{ kinds: [3], authors: follows, '#p': [id] }])
+    const followLists = await store.query([{ kinds: [3], authors: [...follows], '#p': [id] }])
       .then((events) => hydrateEvents({ events, store }));
 
     const accounts = await Promise.all(

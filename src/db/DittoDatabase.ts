@@ -10,4 +10,5 @@ export interface DittoDatabase {
 
 export interface DittoDatabaseOpts {
   poolSize?: number;
+  debug?: 0 | 1 | 2 | 3 | 4 | 5;
 }
