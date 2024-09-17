@@ -215,7 +215,7 @@ async function topicToFilter(
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6], authors: await getFeedPubkeys(pubkey) } : undefined;
+      return pubkey ? { kinds: [1, 6], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
   }
 }
 
