@@ -5,7 +5,7 @@ import { DittoTables } from '@/db/DittoTables.ts';
 /** Get pubkeys whose name and NIP-05 is similar to 'q' */
 export async function getPubkeysBySearch(
   kysely: Kysely<DittoTables>,
-  opts: { q: string; limit: number; followList: string[] },
+  opts: { q: string; limit: number; followList: Set<string> },
 ) {
   const { q, limit, followList } = opts;
 
@@ -22,8 +22,8 @@ export async function getPubkeysBySearch(
 
   const pubkeys = new Set((await query.execute()).map(({ pubkey }) => pubkey));
 
-  if (followList.length > 0) {
-    query = query.where('pubkey', 'in', followList);
+  if (followList.size > 0) {
+    query = query.where('pubkey', 'in', [...followList]);
   }
 
   const followingPubkeys = new Set((await query.execute()).map(({ pubkey }) => pubkey));

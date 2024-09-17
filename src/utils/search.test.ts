@@ -11,11 +11,11 @@ Deno.test('fuzzy search works', async () => {
     search: 'patrickReiis patrickdosreis.com',
   }).execute();
 
-  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, followList: [] }), []);
-  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'patrick dos reis', limit: 1, followList: [] }), [
+  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, followList: new Set() }), []);
+  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'patrick dos reis', limit: 1, followList: new Set() }), [
     '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
   ]);
-  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, followList: [] }), [
+  assertEquals(await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, followList: new Set() }), [
     '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
   ]);
 });
