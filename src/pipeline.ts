@@ -40,8 +40,13 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (!(await verifyEventWorker(event))) return;
   if (encounterEvent(event)) return;
   if (await existsInDB(event)) return;
+
   debug(`NostrEvent<${event.kind}> ${event.id}`);
   pipelineEventsCounter.inc({ kind: event.kind });
+
+  if (isProtectedEvent(event)) {
+    throw new RelayError('invalid', 'protected event');
+  }
 
   if (event.kind !== 24133) {
     await policyFilter(event);
@@ -101,6 +106,11 @@ async function existsInDB(event: DittoEvent): Promise<boolean> {
   const store = await Storages.db();
   const events = await store.query([{ ids: [event.id], limit: 1 }]);
   return events.length > 0;
+}
+
+/** Check whether the event has a NIP-70 `-` tag. */
+function isProtectedEvent(event: NostrEvent): boolean {
+  return event.tags.some(([name]) => name === '-');
 }
 
 /** Hydrate the event with the user, if applicable. */

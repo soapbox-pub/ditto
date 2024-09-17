@@ -16,7 +16,7 @@ export class DittoDB {
     switch (protocol) {
       case 'file:':
       case 'memory:':
-        return DittoPglite.create(databaseUrl);
+        return DittoPglite.create(databaseUrl, opts);
       case 'postgres:':
       case 'postgresql:':
         return DittoPostgres.create(databaseUrl, opts);

@@ -56,16 +56,16 @@ const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEv
 };
 
 /** Get pubkeys the user follows. */
-async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise<string[]> {
+async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise<Set<string>> {
   const event = await getFollows(pubkey, signal);
-  if (!event) return [];
-  return [...getTagSet(event.tags, 'p')];
+  if (!event) return new Set();
+  return getTagSet(event.tags, 'p');
 }
 
 /** Get pubkeys the user follows, including the user's own pubkey. */
-async function getFeedPubkeys(pubkey: string): Promise<string[]> {
+async function getFeedPubkeys(pubkey: string): Promise<Set<string>> {
   const authors = await getFollowedPubkeys(pubkey);
-  return [...authors, pubkey];
+  return authors.add(pubkey);
 }
 
 async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent[] = []): Promise<NostrEvent[]> {

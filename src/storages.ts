@@ -21,7 +21,10 @@ export class Storages {
   public static async database(): Promise<DittoDatabase> {
     if (!this._database) {
       this._database = (async () => {
-        const db = DittoDB.create(Conf.databaseUrl, { poolSize: Conf.pg.poolSize });
+        const db = DittoDB.create(Conf.databaseUrl, {
+          poolSize: Conf.pg.poolSize,
+          debug: Conf.pgliteDebug,
+        });
         await DittoDB.migrate(db.kysely);
         return db;
       })();
