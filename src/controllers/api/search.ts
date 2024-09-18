@@ -96,8 +96,8 @@ async function searchEvents(
   if (type === 'accounts') {
     const kysely = await Storages.kysely();
 
-    const followList: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
-    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit, followList })));
+    const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
+    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit, followedPubkeys })));
 
     if (!filter?.authors) {
       filter.authors = pubkeys;

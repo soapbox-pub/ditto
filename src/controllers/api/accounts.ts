@@ -136,8 +136,8 @@ const accountSearchController: AppController = async (c) => {
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const followList: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
-  const pubkeys = (await getPubkeysBySearch(kysely, { q: query, limit, followList })).slice(0, limit);
+  const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
+  const pubkeys = (await getPubkeysBySearch(kysely, { q: query, limit, followedPubkeys })).slice(0, limit);
 
   let events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
     signal,
