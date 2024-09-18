@@ -6,7 +6,6 @@ import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
-import { getPubkeysBySearch } from '@/controllers/api/search.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
@@ -19,6 +18,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
+import { getPubkeysBySearch } from '@/utils/search.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -117,6 +117,7 @@ const accountSearchController: AppController = async (c) => {
   const { signal } = c.req.raw;
   const { limit } = c.get('pagination');
   const kysely = await Storages.kysely();
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   const result = accountSearchQuerySchema.safeParse(c.req.query());
 
@@ -135,7 +136,8 @@ const accountSearchController: AppController = async (c) => {
     return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
   }
 
-  const pubkeys = await getPubkeysBySearch(kysely, { q: query, limit });
+  const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
+  const pubkeys = Array.from(await getPubkeysBySearch(kysely, { q: query, limit, followedPubkeys }));
 
   let events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
     signal,

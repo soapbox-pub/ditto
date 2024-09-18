@@ -1,10 +1,8 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { Kysely, sql } from 'kysely';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -12,6 +10,8 @@ import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { getFollowedPubkeys } from '@/queries.ts';
+import { getPubkeysBySearch } from '@/utils/search.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -27,6 +27,7 @@ type SearchQuery = z.infer<typeof searchQuerySchema>;
 const searchController: AppController = async (c) => {
   const result = searchQuerySchema.safeParse(c.req.query());
   const { signal } = c.req.raw;
+  const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
@@ -50,9 +51,7 @@ const searchController: AppController = async (c) => {
   if (event) {
     events = [event];
   }
-  events.push(...(await searchEvents(result.data, signal)));
-
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  events.push(...(await searchEvents({ ...result.data, viewerPubkey }, signal)));
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -77,8 +76,16 @@ const searchController: AppController = async (c) => {
 };
 
 /** Get events for the search params. */
-async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal: AbortSignal): Promise<NostrEvent[]> {
-  if (type === 'hashtags') return Promise.resolve([]);
+async function searchEvents(
+  { q, type, limit, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
+  signal: AbortSignal,
+): Promise<NostrEvent[]> {
+  // Hashtag search is not supported.
+  if (type === 'hashtags') {
+    return Promise.resolve([]);
+  }
+
+  const store = await Storages.search();
 
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
@@ -86,35 +93,33 @@ async function searchEvents({ q, type, limit, account_id }: SearchQuery, signal:
     limit,
   };
 
+  // For account search, use a special index, and prioritize followed accounts.
+  if (type === 'accounts') {
+    const kysely = await Storages.kysely();
+
+    const followedPubkeys = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
+    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, followedPubkeys });
+
+    filter.authors = [...searchPubkeys];
+    filter.search = undefined;
+  }
+
+  // Results should only be shown from one author.
   if (account_id) {
     filter.authors = [account_id];
   }
 
-  const pubkeys: string[] = [];
-  if (type === 'accounts') {
-    const kysely = await Storages.kysely();
-
-    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit })));
-
-    if (!filter?.authors) {
-      filter.authors = pubkeys;
-    } else {
-      filter.authors.push(...pubkeys);
-    }
-
-    filter.search = undefined;
-  }
-
-  const store = await Storages.search();
-
-  let events = await store.query([filter], { signal })
+  // Query the events.
+  let events = await store
+    .query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
-  if (type !== 'accounts') return events;
-
-  events = pubkeys
-    .map((pubkey) => events.find((event) => event.pubkey === pubkey))
-    .filter((event) => !!event);
+  // When using an authors filter, return the events in the same order as the filter.
+  if (filter.authors) {
+    events = filter.authors
+      .map((pubkey) => events.find((event) => event.pubkey === pubkey))
+      .filter((event) => !!event);
+  }
 
   return events;
 }
@@ -194,16 +199,4 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   return [];
 }
 
-/** Get pubkeys whose name and NIP-05 is similar to 'q' */
-async function getPubkeysBySearch(kysely: Kysely<DittoTables>, { q, limit }: Pick<SearchQuery, 'q' | 'limit'>) {
-  const pubkeys = (await sql<{ pubkey: string }>`
-        SELECT *, word_similarity(${q}, search) AS sml
-        FROM author_search
-        WHERE ${q} % search
-        ORDER BY sml DESC, search LIMIT ${limit}
-      `.execute(kysely)).rows.map(({ pubkey }) => pubkey);
-
-  return pubkeys;
-}
-
-export { getPubkeysBySearch, searchController };
+export { searchController };
