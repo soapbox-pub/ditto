@@ -153,22 +153,16 @@ class EventsDB extends NPostgres {
         search: tokens.filter((t) => typeof t === 'string').join(' '),
       }) as SelectQueryBuilder<DittoTables, 'nostr_events', Pick<DittoTables['nostr_events'], keyof NostrEvent>>;
 
-      const data = tokens.filter((t) => typeof t === 'object').reduce(
-        (acc, t) => acc.set(t.key, t.value),
-        new Map<string, string>(),
-      );
+      const languages = new Set<string>();
 
-      const domain = data.get('domain');
-      const language = data.get('language');
-
-      if (domain) {
-        query = query
-          .innerJoin('pubkey_domains', 'nostr_events.pubkey', 'pubkey_domains.pubkey')
-          .where('pubkey_domains.domain', '=', domain);
+      for (const token of tokens) {
+        if (typeof token === 'object' && token.key === 'language') {
+          languages.add(token.value);
+        }
       }
 
-      if (language) {
-        query = query.where('language', '=', language);
+      if (languages.size) {
+        query = query.where('language', 'in', [...languages]);
       }
 
       return query;
@@ -288,6 +282,39 @@ class EventsDB extends NPostgres {
     filters = structuredClone(filters);
 
     for (const filter of filters) {
+      if (filter.search) {
+        const tokens = NIP50.parseInput(filter.search);
+
+        const domains = new Set<string>();
+
+        for (const token of tokens) {
+          if (typeof token === 'object' && token.key === 'domain') {
+            domains.add(token.value);
+          }
+        }
+
+        if (domains.size) {
+          const query = this.opts.kysely
+            .selectFrom('pubkey_domains')
+            .select('pubkey')
+            .where('domain', 'in', [...domains]);
+
+          if (filter.authors) {
+            query.where('pubkey', 'in', filter.authors);
+          }
+
+          const pubkeys = await query.execute().then((rows) => rows.map((row) => row.pubkey));
+
+          filter.authors = pubkeys;
+        }
+
+        // Re-serialize the search string without the domain key. :facepalm:
+        filter.search = tokens
+          .filter((t) => typeof t === 'object' && t.key !== 'domain')
+          .map((t) => typeof t === 'object' ? `${t.key}:${t.value}` : t)
+          .join(' ');
+      }
+
       if (filter.kinds) {
         // Ephemeral events are not stored, so don't bother querying for them.
         // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
