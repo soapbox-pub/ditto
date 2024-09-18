@@ -92,15 +92,15 @@ async function searchEvents(
     filter.authors = [account_id];
   }
 
-  const pubkeys: string[] = [];
+  let pubkeys: Set<string> = new Set();
   if (type === 'accounts') {
     const kysely = await Storages.kysely();
 
     const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
-    pubkeys.push(...(await getPubkeysBySearch(kysely, { q, limit, followedPubkeys })));
+    pubkeys = pubkeys.union(await getPubkeysBySearch(kysely, { q, limit, followedPubkeys }));
 
     if (!filter?.authors) {
-      filter.authors = pubkeys;
+      filter.authors = Array.from(pubkeys);
     } else {
       filter.authors.push(...pubkeys);
     }
@@ -115,7 +115,7 @@ async function searchEvents(
 
   if (type !== 'accounts') return events;
 
-  events = pubkeys
+  events = Array.from(pubkeys)
     .map((pubkey) => events.find((event) => event.pubkey === pubkey))
     .filter((event) => !!event);
 

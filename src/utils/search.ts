@@ -6,7 +6,7 @@ import { DittoTables } from '@/db/DittoTables.ts';
 export async function getPubkeysBySearch(
   kysely: Kysely<DittoTables>,
   opts: { q: string; limit: number; followedPubkeys: Set<string> },
-) {
+): Promise<Set<string>> {
   const { q, limit, followedPubkeys } = opts;
 
   let query = kysely
@@ -28,5 +28,5 @@ export async function getPubkeysBySearch(
 
   const followingPubkeys = new Set((await query.execute()).map(({ pubkey }) => pubkey));
 
-  return Array.from(followingPubkeys.union(pubkeys));
+  return new Set(Array.from(followingPubkeys.union(pubkeys)).slice(0, limit));
 }
