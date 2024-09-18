@@ -80,7 +80,12 @@ async function searchEvents(
   { q, type, limit, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
   signal: AbortSignal,
 ): Promise<NostrEvent[]> {
-  if (type === 'hashtags') return Promise.resolve([]);
+  // Hashtag search is not supported.
+  if (type === 'hashtags') {
+    return Promise.resolve([]);
+  }
+
+  const store = await Storages.search();
 
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
@@ -88,36 +93,33 @@ async function searchEvents(
     limit,
   };
 
+  // For account search, use a special index, and prioritize followed accounts.
+  if (type === 'accounts') {
+    const kysely = await Storages.kysely();
+
+    const followedPubkeys = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
+    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, followedPubkeys });
+
+    filter.authors = [...searchPubkeys];
+    filter.search = undefined;
+  }
+
+  // Results should only be shown from one author.
   if (account_id) {
     filter.authors = [account_id];
   }
 
-  let pubkeys: Set<string> = new Set();
-  if (type === 'accounts') {
-    const kysely = await Storages.kysely();
-
-    const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
-    pubkeys = pubkeys.union(await getPubkeysBySearch(kysely, { q, limit, followedPubkeys }));
-
-    if (!filter?.authors) {
-      filter.authors = Array.from(pubkeys);
-    } else {
-      filter.authors.push(...pubkeys);
-    }
-
-    filter.search = undefined;
-  }
-
-  const store = await Storages.search();
-
-  let events = await store.query([filter], { signal })
+  // Query the events.
+  let events = await store
+    .query([filter], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
-  if (type !== 'accounts') return events;
-
-  events = Array.from(pubkeys)
-    .map((pubkey) => events.find((event) => event.pubkey === pubkey))
-    .filter((event) => !!event);
+  // When using an authors filter, return the events in the same order as the filter.
+  if (filter.authors) {
+    events = filter.authors
+      .map((pubkey) => events.find((event) => event.pubkey === pubkey))
+      .filter((event) => !!event);
+  }
 
   return events;
 }
