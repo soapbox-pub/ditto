@@ -157,8 +157,8 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
 
     if (search) {
-      await kysely.insertInto('author_search')
-        .values({ pubkey: event.pubkey, search })
+      await kysely.insertInto('author_stats')
+        .values({ pubkey: event.pubkey, search, followers_count: 0, following_count: 0, notes_count: 0 })
         .onConflict((oc) => oc.column('pubkey').doUpdateSet({ search }))
         .execute();
     }
