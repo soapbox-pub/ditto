@@ -16,7 +16,7 @@ export async function getPubkeysBySearch(
       'search',
       eb.fn('word_similarity', [sql`${q}`, 'search']).as('sml'),
     ])
-    .where(() => sql`${q} % search`)
+    .where(() => sql`${q} <% search`)
     .orderBy(['sml desc', 'search'])
     .limit(limit);
 
