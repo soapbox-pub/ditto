@@ -10,13 +10,14 @@ export async function getPubkeysBySearch(
   const { q, limit, followedPubkeys } = opts;
 
   let query = kysely
-    .selectFrom('author_search')
+    .selectFrom('author_stats')
     .select((eb) => [
       'pubkey',
       'search',
       eb.fn('word_similarity', [sql`${q}`, 'search']).as('sml'),
     ])
     .where(() => sql`${q} <% search`)
+    .orderBy(['followers_count desc'])
     .orderBy(['sml desc', 'search'])
     .limit(limit);
 
