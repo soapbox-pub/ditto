@@ -13,7 +13,7 @@ Deno.test('fuzzy search works', async () => {
 
   assertEquals(await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, followedPubkeys: new Set() }), new Set());
   assertEquals(
-    await getPubkeysBySearch(db.kysely, { q: 'patrick dos reis', limit: 1, followedPubkeys: new Set() }),
+    await getPubkeysBySearch(db.kysely, { q: 'patrick dosreis', limit: 1, followedPubkeys: new Set() }),
     new Set([
       '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
     ]),
