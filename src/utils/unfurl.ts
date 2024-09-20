@@ -57,7 +57,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
 /** TTL cache for preview cards. */
 const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({
   ttl: Time.hours(12),
-  max: 500,
+  max: 1000,
 });
 
 /** Unfurl card from cache if available, otherwise fetch it. */
