@@ -270,25 +270,18 @@ export async function updateEventStats(
 /** Calculate author stats from the database. */
 export async function countAuthorStats(
   { pubkey, kysely, store }: RefreshAuthorStatsOpts,
-): Promise<DittoTables['author_stats']> {
+): Promise<Omit<DittoTables['author_stats'], 'search'>> {
   const [{ count: followers_count }, { count: notes_count }, [followList]] = await Promise.all([
     store.count([{ kinds: [3], '#p': [pubkey] }]),
     store.count([{ kinds: [1], authors: [pubkey] }]),
     store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
   ]);
 
-  const [{ search }] = await kysely
-    .selectFrom('author_stats')
-    .select('search')
-    .where('pubkey', '=', [pubkey])
-    .execute();
-
   return {
     pubkey,
     followers_count,
     following_count: getTagSet(followList?.tags ?? [], 'p').size,
     notes_count,
-    search,
   };
 }
 
