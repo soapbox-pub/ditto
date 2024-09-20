@@ -48,7 +48,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     throw new RelayError('invalid', 'protected event');
   }
 
-  if (event.kind !== 24133) {
+  if (event.kind !== 24133 && event.pubkey !== Conf.pubkey) {
     await policyFilter(event);
   }
 
