@@ -171,7 +171,16 @@ Deno.test('countAuthorStats counts author stats from the database', async () => 
   await db.store.event(genEvent({ kind: 1, content: 'yolo' }, sk));
   await db.store.event(genEvent({ kind: 3, tags: [['p', pubkey]] }));
 
-  const stats = await countAuthorStats(db.store, pubkey);
+  await db.kysely.insertInto('author_stats').values({
+    pubkey,
+    search: 'Yolo Lolo',
+    notes_count: 0,
+    followers_count: 0,
+    following_count: 0,
+  }).onConflict((oc) => oc.column('pubkey').doUpdateSet({ 'search': 'baka' }))
+    .execute();
+
+  const stats = await countAuthorStats({ store: db.store, pubkey, kysely: db.kysely });
 
   assertEquals(stats!.notes_count, 2);
   assertEquals(stats!.followers_count, 1);

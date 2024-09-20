@@ -194,6 +194,7 @@ export async function updateAuthorStats(
     followers_count: 0,
     following_count: 0,
     notes_count: 0,
+    search: '',
   };
 
   const prev = await kysely
@@ -268,20 +269,27 @@ export async function updateEventStats(
 
 /** Calculate author stats from the database. */
 export async function countAuthorStats(
-  store: SetRequired<NStore, 'count'>,
-  pubkey: string,
+  { pubkey, store }: RefreshAuthorStatsOpts,
 ): Promise<DittoTables['author_stats']> {
-  const [{ count: followers_count }, { count: notes_count }, [followList]] = await Promise.all([
+  const [{ count: followers_count }, { count: notes_count }, [followList], [kind0]] = await Promise.all([
     store.count([{ kinds: [3], '#p': [pubkey] }]),
     store.count([{ kinds: [1], authors: [pubkey] }]),
     store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
+    store.query([{ kinds: [0], authors: [pubkey], limit: 1 }]),
   ]);
+  let search: string = '';
+  const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(kind0?.content);
+  if (metadata.success) {
+    const { name, nip05 } = metadata.data;
+    search = [name, nip05].filter(Boolean).join(' ').trim();
+  }
 
   return {
     pubkey,
     followers_count,
     following_count: getTagSet(followList?.tags ?? [], 'p').size,
     notes_count,
+    search,
   };
 }
 
@@ -295,7 +303,7 @@ export interface RefreshAuthorStatsOpts {
 export async function refreshAuthorStats(
   { pubkey, kysely, store }: RefreshAuthorStatsOpts,
 ): Promise<DittoTables['author_stats']> {
-  const stats = await countAuthorStats(store, pubkey);
+  const stats = await countAuthorStats({ store, pubkey, kysely });
 
   await kysely.insertInto('author_stats')
     .values(stats)

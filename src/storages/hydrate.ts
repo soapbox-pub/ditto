@@ -303,6 +303,7 @@ async function gatherAuthorStats(
     followers_count: Math.max(0, row.followers_count),
     following_count: Math.max(0, row.following_count),
     notes_count: Math.max(0, row.notes_count),
+    search: row.search,
   }));
 }
 
