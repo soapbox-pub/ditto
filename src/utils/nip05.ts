@@ -44,7 +44,7 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
       throw e;
     }
   },
-  { max: 3000, ttl: Time.hours(1), gauge: cachedNip05sSizeGauge },
+  { ...Conf.caches.nip05, gauge: cachedNip05sSizeGauge },
 );
 
 async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {

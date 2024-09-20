@@ -247,6 +247,30 @@ class Conf {
   static get zapSplitsEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
   }
+  /** Cache settings. */
+  static caches = {
+    /** NIP-05 cache settings. */
+    get nip05(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_NIP05_MAX') || 3000),
+        ttl: Number(Deno.env.get('DITTO_CACHE_NIP05_TTL') || 1 * 60 * 60 * 1000),
+      };
+    },
+    /** Favicon cache settings. */
+    get favicon(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_FAVICON_MAX') || 500),
+        ttl: Number(Deno.env.get('DITTO_CACHE_FAVICON_TTL') || 1 * 60 * 60 * 1000),
+      };
+    },
+    /** Link preview cache settings. */
+    get linkPreview(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_MAX') || 1000),
+        ttl: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_TTL') || 12 * 60 * 60 * 1000),
+      };
+    },
+  };
 }
 
 const optionalBooleanSchema = z

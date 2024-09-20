@@ -6,6 +6,7 @@ import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
+import { Conf } from '@/config.ts';
 
 const debug = Debug('ditto:favicon');
 
@@ -38,7 +39,7 @@ const faviconCache = new SimpleLRU<string, URL>(
 
     throw new Error(`Favicon not found: ${key}`);
   },
-  { max: 500, ttl: Time.hours(1), gauge: cachedFaviconsSizeGauge },
+  { ...Conf.caches.favicon, gauge: cachedFaviconsSizeGauge },
 );
 
 export { faviconCache };
