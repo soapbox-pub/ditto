@@ -7,7 +7,6 @@ import { Conf } from '@/config.ts';
 import { cachedNip05sSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { Time } from '@/utils/time.ts';
 import { Nip05, parseNip05 } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 

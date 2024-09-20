@@ -2,11 +2,10 @@ import { DOMParser } from '@b-fuze/deno-dom';
 import Debug from '@soapbox/stickynotes/debug';
 import tldts from 'tldts';
 
+import { Conf } from '@/config.ts';
 import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
-import { Conf } from '@/config.ts';
 
 const debug = Debug('ditto:favicon');
 
