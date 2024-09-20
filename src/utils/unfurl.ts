@@ -5,6 +5,7 @@ import { unfurl } from 'unfurl.js';
 
 import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
+import { cachedLinkPreviewSizeGauge } from '@/metrics.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
@@ -67,6 +68,7 @@ function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Prom
   } else {
     const card = unfurlCard(url, signal);
     previewCardCache.set(url, card);
+    cachedLinkPreviewSizeGauge.set(previewCardCache.size);
     return card;
   }
 }
