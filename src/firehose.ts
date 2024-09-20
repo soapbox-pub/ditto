@@ -19,7 +19,7 @@ const sem = new Semaphore(Conf.firehoseConcurrency);
 export async function startFirehose(): Promise<void> {
   const store = await Storages.client();
 
-  for await (const msg of store.req([{ kinds: [0, 1, 3, 5, 6, 7, 9735, 10002], limit: 0, since: nostrNow() }])) {
+  for await (const msg of store.req([{ kinds: Conf.firehoseKinds, limit: 0, since: nostrNow() }])) {
     if (msg[0] === 'EVENT') {
       const event = msg[2];
       console.debug(`NostrEvent<${event.kind}> ${event.id}`);

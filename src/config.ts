@@ -209,6 +209,12 @@ class Conf {
   static get firehoseConcurrency(): number {
     return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? (Conf.pg.poolSize * 0.25)));
   }
+  /** Nostr event kinds of events to listen for on the firehose. */
+  static get firehoseKinds(): number[] {
+    return (Deno.env.get('FIREHOSE_KINDS') ?? '0, 1, 3, 5, 6, 7, 9735, 10002')
+      .split(/[, ]+/g)
+      .map(Number);
+  }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
