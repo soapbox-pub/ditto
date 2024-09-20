@@ -84,3 +84,23 @@ export const dbQueryDurationHistogram = new Histogram({
   name: 'ditto_db_query_duration_ms',
   help: 'Duration of database queries',
 });
+
+export const cachedFaviconsSizeGauge = new Gauge({
+  name: 'ditto_cached_favicons_size',
+  help: 'Number of domain favicons in cache',
+});
+
+export const cachedLnurlsSizeGauge = new Gauge({
+  name: 'ditto_cached_lnurls_size',
+  help: 'Number of LNURL details in cache',
+});
+
+export const cachedNip05sSizeGauge = new Gauge({
+  name: 'ditto_cached_nip05s_size',
+  help: 'Number of NIP-05 results in cache',
+});
+
+export const cachedLinkPreviewSizeGauge = new Gauge({
+  name: 'ditto_cached_link_previews_size',
+  help: 'Number of link previews in cache',
+});

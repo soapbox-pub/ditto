@@ -4,6 +4,7 @@ import Debug from '@soapbox/stickynotes/debug';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
+import { cachedNip05sSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
@@ -43,7 +44,7 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
       throw e;
     }
   },
-  { max: 500, ttl: Time.hours(1) },
+  { max: 500, ttl: Time.hours(1), gauge: cachedNip05sSizeGauge },
 );
 
 async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
