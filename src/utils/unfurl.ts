@@ -6,7 +6,6 @@ import { unfurl } from 'unfurl.js';
 import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { cachedLinkPreviewSizeGauge } from '@/metrics.ts';
-import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
 const debug = Debug('ditto:unfurl');
@@ -55,10 +54,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
 }
 
 /** TTL cache for preview cards. */
-const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>({
-  ttl: Time.hours(12),
-  max: 500,
-});
+const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>(Conf.caches.linkPreview);
 
 /** Unfurl card from cache if available, otherwise fetch it. */
 function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Promise<PreviewCard | null> {
