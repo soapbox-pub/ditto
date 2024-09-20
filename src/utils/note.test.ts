@@ -36,6 +36,27 @@ Deno.test('parseNoteContent parses mentions with apostrophes', () => {
   );
 });
 
+Deno.test('parseNoteContent parses mentions with commas', () => {
+  const { html } = parseNoteContent(
+    `Sim. Hi nostr:npub1q3sle0kvfsehgsuexttt3ugjd8xdklxfwwkh559wxckmzddywnws6cd26p and nostr:npub1gujeqakgt7fyp6zjggxhyy7ft623qtcaay5lkc8n8gkry4cvnrzqd3f67z, any chance to have Cobrafuma as PWA?`,
+    [{
+      id: '0461fcbecc4c3374439932d6b8f11269ccdb7cc973ad7a50ae362db135a474dd',
+      username: 'alex',
+      acct: 'alex@gleasonator.dev',
+      url: 'https://gleasonator.dev/@alex',
+    }, {
+      id: '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
+      username: 'patrick',
+      acct: 'patrick@patrickdosreis.com',
+      url: 'https://gleasonator.dev/@patrick@patrickdosreis.com',
+    }],
+  );
+  assertEquals(
+    html,
+    'Sim. Hi <span class="h-card"><a class="u-url mention" href="https://gleasonator.dev/@alex" rel="ugc">@<span>alex@gleasonator.dev</span></a></span> and <span class="h-card"><a class="u-url mention" href="https://gleasonator.dev/@patrick@patrickdosreis.com" rel="ugc">@<span>patrick@patrickdosreis.com</span></a></span>, any chance to have Cobrafuma as PWA?',
+  );
+});
+
 Deno.test("parseNoteContent doesn't parse invalid nostr URIs", () => {
   const { html } = parseNoteContent('nip19 has URIs like nostr:npub and nostr:nevent, etc.', []);
   assertEquals(html, 'nip19 has URIs like nostr:npub and nostr:nevent, etc.');
