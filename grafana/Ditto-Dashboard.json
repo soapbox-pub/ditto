@@ -1,22 +1,5 @@
 {
-  "__inputs": [
-    {
-      "name": "DS_PROMETHEUS",
-      "label": "prometheus",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "prometheus",
-      "pluginName": "Prometheus"
-    },
-    {
-      "name": "DS_DITTO-PG",
-      "label": "ditto-pg",
-      "description": "",
-      "type": "datasource",
-      "pluginId": "grafana-postgresql-datasource",
-      "pluginName": "PostgreSQL"
-    }
-  ],
+  "__inputs": [],
   "__elements": {},
   "__requires": [
     {
@@ -253,7 +236,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "increase(ditto_http_responses_total{status=~\"5..\",path!=\"/relay\"}[$__rate_interval])",
@@ -279,7 +262,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "increase(ditto_http_responses_total{status=~\"3..\",path!=\"/relay\"}[$__rate_interval])",
@@ -309,7 +292,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "description": "Number of idle database connections available to the server. Higher is better. At 0, the site stops working.",
       "fieldConfig": {
@@ -385,7 +368,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "description": "Usage of system resources.",
       "fieldConfig": {
@@ -443,7 +426,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "100 * (1 - avg(rate(node_cpu_seconds_total{mode=\"idle\"}[$__rate_interval])))",
@@ -472,7 +455,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "description": "Number of individual database calls.",
       "fieldConfig": {
@@ -570,7 +553,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "description": "Total number of Nostr clients currently connected to the Nostr relay.",
       "fieldConfig": {
@@ -652,7 +635,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "ditto_relay_connections",
@@ -668,7 +651,7 @@
     {
       "datasource": {
         "type": "prometheus",
-        "uid": "${DS_PROMETHEUS}"
+        "uid": "${prometheus}"
       },
       "description": "Number of Nostr events that are accepted or rejected by the custom policy script.",
       "fieldConfig": {
@@ -793,7 +776,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "increase(ditto_policy_events_total{ok=\"false\"}[$__rate_interval])",
@@ -894,7 +877,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "increase(ditto_db_query_duration_ms_sum[$__rate_interval])",
@@ -1065,7 +1048,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
@@ -1091,7 +1074,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/home\"}[$__rate_interval])",
@@ -1121,7 +1104,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -1265,7 +1248,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
@@ -1291,7 +1274,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/notifications\"}[$__rate_interval])",
@@ -1321,7 +1304,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -1465,7 +1448,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
@@ -1491,7 +1474,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/accounts/verify_credentials\"}[$__rate_interval])",
@@ -1521,7 +1504,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -1665,7 +1648,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
@@ -1691,7 +1674,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/oauth/token\"}[$__rate_interval])",
@@ -1721,7 +1704,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -1865,7 +1848,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
@@ -1891,7 +1874,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/instance\"}[$__rate_interval])",
@@ -1921,7 +1904,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -2065,7 +2048,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
@@ -2091,7 +2074,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/public\"}[$__rate_interval])",
@@ -2121,7 +2104,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -2265,7 +2248,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
@@ -2291,7 +2274,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v1/timelines/tag/:hashtag\"}[$__rate_interval])",
@@ -2321,7 +2304,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -2465,7 +2448,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
@@ -2491,7 +2474,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"GET\",path=\"/api/v2/search\"}[$__rate_interval])",
@@ -2521,7 +2504,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -2665,7 +2648,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
@@ -2691,7 +2674,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses\"}[$__rate_interval])",
@@ -2721,7 +2704,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -2865,7 +2848,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
@@ -2891,7 +2874,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/favourite\"}[$__rate_interval])",
@@ -2921,7 +2904,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -3065,7 +3048,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
@@ -3091,7 +3074,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/statuses/:id{[0-9a-f]{64}}/reblog\"}[$__rate_interval])",
@@ -3121,7 +3104,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "",
           "fieldConfig": {
@@ -3265,7 +3248,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"5..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
@@ -3291,7 +3274,7 @@
             {
               "datasource": {
                 "type": "prometheus",
-                "uid": "${DS_PROMETHEUS}"
+                "uid": "${prometheus}"
               },
               "editorMode": "code",
               "expr": "increase(ditto_http_responses_total{status=~\"3..\",method=\"POST\",path=\"/api/v1/ditto/zap\"}[$__rate_interval])",
@@ -3335,7 +3318,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "Number of link previews cached for URLs shared in statuses.",
           "fieldConfig": {
@@ -3399,7 +3382,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "Number of NIP-05 results cached for usernames that have been looked up.",
           "fieldConfig": {
@@ -3463,7 +3446,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "Number of LNURL details cached for Lightning addresses.",
           "fieldConfig": {
@@ -3527,7 +3510,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "description": "Number of favicons cached for domain names.",
           "fieldConfig": {
@@ -3608,7 +3591,7 @@
     {
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "${DS_DITTO-PG}"
+        "uid": "${postgres}"
       },
       "description": "SQL queries ranked by total time.",
       "fieldConfig": {
@@ -3808,7 +3791,7 @@
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "${DS_DITTO-PG}"
+            "uid": "${postgres}"
           },
           "editorMode": "code",
           "format": "table",
@@ -3957,7 +3940,7 @@
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "${DS_DITTO-PG}"
+            "uid": "${postgres}"
           },
           "editorMode": "code",
           "format": "table",
@@ -4048,7 +4031,7 @@
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "${DS_DITTO-PG}"
+            "uid": "${postgres}"
           },
           "editorMode": "code",
           "format": "table",
@@ -4144,7 +4127,7 @@
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "${DS_DITTO-PG}"
+            "uid": "${postgres}"
           },
           "editorMode": "code",
           "format": "table",
@@ -4295,7 +4278,7 @@
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
-            "uid": "${DS_DITTO-PG}"
+            "uid": "${postgres}"
           },
           "editorMode": "code",
           "format": "table",
@@ -4486,7 +4469,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "exemplar": false,
@@ -4623,7 +4606,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "increase(ditto_pipeline_events_total[$__rate_interval])",
@@ -4721,7 +4704,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "sum(increase(ditto_pipeline_events_total[$__rate_interval]))",
@@ -4746,7 +4729,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "${DS_PROMETHEUS}"
+            "uid": "${prometheus}"
           },
           "editorMode": "code",
           "expr": "sum(increase(ditto_firehose_events_total[$__rate_interval]))",
@@ -4766,17 +4749,6 @@
   "tags": [],
   "templating": {
     "list": [
-      {
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "cdtcs576ar7cwb"
-        },
-        "filters": [],
-        "hide": 0,
-        "name": "Filters",
-        "skipUrlSync": false,
-        "type": "adhoc"
-      },
       {
         "current": {},
         "description": "Prometheus datasource",
@@ -4819,6 +4791,6 @@
   "timezone": "browser",
   "title": "Ditto",
   "uid": "ddps3ap51fv28d",
-  "version": 9,
+  "version": 10,
   "weekStart": ""
 }
