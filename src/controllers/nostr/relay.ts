@@ -26,14 +26,16 @@ const LIMITER_LIMIT = 300;
 
 const limiter = new TTLCache<string, number>();
 
+/** Connections for metrics purposes. */
+const connections = new Set<WebSocket>();
+
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
-  let opened = false;
   const controllers = new Map<string, AbortController>();
 
   socket.onopen = () => {
-    opened = true;
-    relayConnectionsGauge.inc();
+    connections.add(socket);
+    relayConnectionsGauge.set(connections.size);
   };
 
   socket.onmessage = (e) => {
@@ -63,9 +65,8 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   };
 
   socket.onclose = () => {
-    if (opened) {
-      relayConnectionsGauge.dec();
-    }
+    connections.delete(socket);
+    relayConnectionsGauge.set(connections.size);
 
     for (const controller of controllers.values()) {
       controller.abort();
