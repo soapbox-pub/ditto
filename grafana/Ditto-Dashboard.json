@@ -1043,7 +1043,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 28
+            "y": 33
           },
           "id": 34,
           "options": {
@@ -1243,7 +1243,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 28
+            "y": 33
           },
           "id": 25,
           "options": {
@@ -1443,7 +1443,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 28
+            "y": 33
           },
           "id": 31,
           "options": {
@@ -1643,7 +1643,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 28
+            "y": 33
           },
           "id": 32,
           "options": {
@@ -1843,7 +1843,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 35
+            "y": 40
           },
           "id": 30,
           "options": {
@@ -2043,7 +2043,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 35
+            "y": 40
           },
           "id": 35,
           "options": {
@@ -2243,7 +2243,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 35
+            "y": 40
           },
           "id": 36,
           "options": {
@@ -2443,7 +2443,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 35
+            "y": 40
           },
           "id": 28,
           "options": {
@@ -2643,7 +2643,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 42
+            "y": 47
           },
           "id": 26,
           "options": {
@@ -2843,7 +2843,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 42
+            "y": 47
           },
           "id": 29,
           "options": {
@@ -3043,7 +3043,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 42
+            "y": 47
           },
           "id": 37,
           "options": {
@@ -3243,7 +3243,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 42
+            "y": 47
           },
           "id": 33,
           "options": {
@@ -3341,40 +3341,7 @@
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "mode": "thresholds"
               },
               "mappings": [],
               "thresholds": {
@@ -3382,10 +3349,6 @@
                 "steps": [
                   {
                     "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               }
@@ -3393,23 +3356,26 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 6,
+            "h": 4,
+            "w": 3,
             "x": 0,
-            "y": 29
+            "y": 28
           },
           "id": 42,
           "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
           },
           "pluginVersion": "11.2.0",
           "targets": [
@@ -3421,13 +3387,14 @@
               "editorMode": "code",
               "expr": "ditto_cached_link_previews_size",
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "Values",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cached Link Previews",
-          "type": "timeseries"
+          "title": "Link Previews",
+          "transparent": true,
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -3438,40 +3405,7 @@
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "mode": "thresholds"
               },
               "mappings": [],
               "thresholds": {
@@ -3479,10 +3413,6 @@
                 "steps": [
                   {
                     "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               }
@@ -3490,23 +3420,26 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 6,
-            "x": 6,
-            "y": 29
+            "h": 4,
+            "w": 3,
+            "x": 3,
+            "y": 28
           },
           "id": 41,
           "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
           },
           "pluginVersion": "11.2.0",
           "targets": [
@@ -3518,13 +3451,14 @@
               "editorMode": "code",
               "expr": "ditto_cached_nip05s_size",
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "Values",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cached NIP-05 Results",
-          "type": "timeseries"
+          "title": "NIP-05 Results",
+          "transparent": true,
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -3535,40 +3469,7 @@
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "mode": "thresholds"
               },
               "mappings": [],
               "thresholds": {
@@ -3576,10 +3477,6 @@
                 "steps": [
                   {
                     "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               }
@@ -3587,23 +3484,26 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 6,
-            "x": 12,
-            "y": 29
+            "h": 4,
+            "w": 3,
+            "x": 6,
+            "y": 28
           },
           "id": 40,
           "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
           },
           "pluginVersion": "11.2.0",
           "targets": [
@@ -3615,13 +3515,14 @@
               "editorMode": "code",
               "expr": "ditto_cached_lnurls_size",
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "Values",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cached LNURL Details",
-          "type": "timeseries"
+          "title": "LNURL Details",
+          "transparent": true,
+          "type": "gauge"
         },
         {
           "datasource": {
@@ -3632,40 +3533,7 @@
           "fieldConfig": {
             "defaults": {
               "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 0,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 1,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
+                "mode": "thresholds"
               },
               "mappings": [],
               "thresholds": {
@@ -3673,10 +3541,6 @@
                 "steps": [
                   {
                     "color": "green"
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
                   }
                 ]
               }
@@ -3684,23 +3548,26 @@
             "overrides": []
           },
           "gridPos": {
-            "h": 7,
-            "w": 6,
-            "x": 18,
-            "y": 29
+            "h": 4,
+            "w": 3,
+            "x": 9,
+            "y": 28
           },
           "id": 39,
           "options": {
-            "legend": {
-              "calcs": [],
-              "displayMode": "list",
-              "placement": "bottom",
-              "showLegend": false
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             },
-            "tooltip": {
-              "mode": "single",
-              "sort": "none"
-            }
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
           },
           "pluginVersion": "11.2.0",
           "targets": [
@@ -3712,13 +3579,14 @@
               "editorMode": "code",
               "expr": "ditto_cached_favicons_size",
               "instant": false,
-              "legendFormat": "__auto",
+              "legendFormat": "Values",
               "range": true,
               "refId": "A"
             }
           ],
-          "title": "Cached Domain Favicons",
-          "type": "timeseries"
+          "title": "Domain Favicons",
+          "transparent": true,
+          "type": "gauge"
         }
       ],
       "title": "Cache",
@@ -4335,8 +4203,7 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": null
+                "color": "green"
               },
               {
                 "color": "red",
@@ -4952,6 +4819,6 @@
   "timezone": "browser",
   "title": "Ditto",
   "uid": "ddps3ap51fv28d",
-  "version": 8,
+  "version": 9,
   "weekStart": ""
 }
