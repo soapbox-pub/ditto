@@ -59,7 +59,7 @@ class EventsDB extends NPostgres {
   }
 
   /** Insert an event (and its tags) into the database. */
-  async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
+  override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
     this.console.debug('EVENT', JSON.stringify(event));
     dbEventsCounter.inc({ kind: event.kind });
@@ -72,7 +72,7 @@ class EventsDB extends NPostgres {
 
     try {
       await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
-    } catch (e) {
+    } catch (e: any) {
       if (e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
       } else if (e.message === 'Cannot replace an event with an older event') {
@@ -144,7 +144,7 @@ class EventsDB extends NPostgres {
     }
   }
 
-  protected getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
+  protected override getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
     if (filter.search) {
       const tokens = NIP50.parseInput(filter.search);
 
@@ -172,7 +172,7 @@ class EventsDB extends NPostgres {
   }
 
   /** Get events for filters from the database. */
-  async query(
+  override async query(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
   ): Promise<NostrEvent[]> {
@@ -200,13 +200,13 @@ class EventsDB extends NPostgres {
   }
 
   /** Delete events based on filters from the database. */
-  async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
+  override async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     this.console.debug('DELETE', JSON.stringify(filters));
     return super.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
   /** Get number of events that would be returned by filters. */
-  async count(
+  override async count(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number } = {},
   ): Promise<{ count: number; approximate: any }> {
@@ -218,7 +218,7 @@ class EventsDB extends NPostgres {
   }
 
   /** Return only the tags that should be indexed. */
-  static indexTags(event: NostrEvent): string[][] {
+  static override indexTags(event: NostrEvent): string[][] {
     const tagCounts: Record<string, number> = {};
 
     function getCount(name: string) {
@@ -325,7 +325,7 @@ class EventsDB extends NPostgres {
     return filters;
   }
 
-  async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
+  override async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
     return super.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
   }
 }

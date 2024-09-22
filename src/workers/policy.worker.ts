@@ -45,7 +45,7 @@ export class CustomPolicy implements NPolicy {
     try {
       const Policy = (await import(path)).default;
       this.policy = new Policy({ store });
-    } catch (e) {
+    } catch (e: any) {
       if (e.message.includes('Module not found')) {
         this.policy = new NoOpPolicy();
       }

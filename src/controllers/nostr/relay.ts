@@ -104,7 +104,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
       for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
         send(['EVENT', subId, event]);
       }
-    } catch (e) {
+    } catch (e: any) {
       if (e instanceof RelayError) {
         send(['CLOSED', subId, e.message]);
       } else if (e.message.includes('timeout')) {
