@@ -106,7 +106,7 @@ export async function updateTrendingTags(
 
     await handleEvent(label, signal);
     console.info(`Trending ${l} updated.`);
-  } catch (e) {
+  } catch (e: any) {
     console.error(`Error updating trending ${l}: ${e.message}`);
   }
 }
