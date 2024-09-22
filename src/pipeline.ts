@@ -62,14 +62,17 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   const kysely = await Storages.kysely();
 
-  await storeEvent(purifyEvent(event), signal);
-  await Promise.all([
-    handleZaps(kysely, event),
-    parseMetadata(event, signal),
-    setLanguage(event),
-    generateSetEvents(event),
-    streamOut(event),
-  ]);
+  try {
+    await storeEvent(purifyEvent(event), signal);
+    await Promise.all([
+      handleZaps(kysely, event),
+      parseMetadata(event, signal),
+      setLanguage(event),
+    ]);
+  } finally {
+    await generateSetEvents(event);
+    await streamOut(event);
+  }
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
