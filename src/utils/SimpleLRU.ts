@@ -22,7 +22,13 @@ export class SimpleLRU<
 
   constructor(fetchFn: FetchFn<K, V, { signal: AbortSignal }>, private opts: SimpleLRUOpts<K, V>) {
     this.cache = new LRUCache({
-      fetchMethod: (key, _staleValue, { signal }) => fetchFn(key, { signal: signal as unknown as AbortSignal }),
+      async fetchMethod(key, _staleValue, { signal }) {
+        try {
+          return await fetchFn(key, { signal: signal as unknown as AbortSignal });
+        } catch {
+          return null as unknown as V;
+        }
+      },
       ...opts,
     });
   }
@@ -32,7 +38,7 @@ export class SimpleLRU<
 
     this.opts.gauge?.set(this.cache.size);
 
-    if (result === undefined) {
+    if (result === undefined || result === null) {
       throw new Error('SimpleLRU: fetch failed');
     }
 
