@@ -31,7 +31,7 @@ try {
     adminPubkey: Conf.pubkey,
   });
   console.debug(`Using custom policy: ${Conf.policy}`);
-} catch (e) {
+} catch (e: any) {
   if (e.message.includes('Module not found')) {
     console.debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
   } else {
