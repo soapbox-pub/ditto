@@ -61,6 +61,8 @@ const LIMITER_LIMIT = 100;
 
 const limiter = new TTLCache<string, number>();
 
+const connections = new Set<WebSocket>();
+
 const streamingController: AppController = async (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
@@ -126,7 +128,8 @@ const streamingController: AppController = async (c) => {
   }
 
   socket.onopen = async () => {
-    streamingConnectionsGauge.inc();
+    connections.add(socket);
+    streamingConnectionsGauge.set(connections.size);
 
     if (!stream) return;
     const topicFilter = await topicToFilter(stream, c.req.query(), pubkey);
@@ -186,7 +189,8 @@ const streamingController: AppController = async (c) => {
   };
 
   socket.onclose = () => {
-    streamingConnectionsGauge.dec();
+    connections.delete(socket);
+    streamingConnectionsGauge.set(connections.size);
     controller.abort();
   };
 
