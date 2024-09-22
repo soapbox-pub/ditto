@@ -792,7 +792,6 @@
     },
     {
       "datasource": {
-        "default": false,
         "type": "prometheus",
         "uid": "${prometheus}"
       },
@@ -902,7 +901,6 @@
       "panels": [
         {
           "datasource": {
-            "default": false,
             "type": "prometheus",
             "uid": "${prometheus}"
           },
@@ -950,7 +948,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1026,7 +1025,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 33
+            "y": 28
           },
           "id": 34,
           "options": {
@@ -1150,7 +1149,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1226,7 +1226,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 33
+            "y": 28
           },
           "id": 25,
           "options": {
@@ -1350,7 +1350,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1426,7 +1427,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 33
+            "y": 28
           },
           "id": 31,
           "options": {
@@ -1550,7 +1551,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1626,7 +1628,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 33
+            "y": 28
           },
           "id": 32,
           "options": {
@@ -1750,7 +1752,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -1826,7 +1829,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 40
+            "y": 35
           },
           "id": 30,
           "options": {
@@ -1950,7 +1953,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2026,7 +2030,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 40
+            "y": 35
           },
           "id": 35,
           "options": {
@@ -2150,7 +2154,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2226,7 +2231,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 40
+            "y": 35
           },
           "id": 36,
           "options": {
@@ -2350,7 +2355,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2426,7 +2432,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 40
+            "y": 35
           },
           "id": 28,
           "options": {
@@ -2550,7 +2556,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2626,7 +2633,7 @@
             "h": 7,
             "w": 6,
             "x": 0,
-            "y": 47
+            "y": 42
           },
           "id": 26,
           "options": {
@@ -2750,7 +2757,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -2826,7 +2834,7 @@
             "h": 7,
             "w": 6,
             "x": 6,
-            "y": 47
+            "y": 42
           },
           "id": 29,
           "options": {
@@ -2950,7 +2958,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3026,7 +3035,7 @@
             "h": 7,
             "w": 6,
             "x": 12,
-            "y": 47
+            "y": 42
           },
           "id": 37,
           "options": {
@@ -3150,7 +3159,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   },
                   {
                     "color": "red",
@@ -3226,7 +3236,7 @@
             "h": 7,
             "w": 6,
             "x": 18,
-            "y": 47
+            "y": 42
           },
           "id": 33,
           "options": {
@@ -3313,6 +3323,198 @@
         "x": 0,
         "y": 28
       },
+      "id": 43,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "description": "Number of active connections opened by clients to the Streaming API.",
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "thresholds"
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 3,
+            "x": 0,
+            "y": 50
+          },
+          "id": 44,
+          "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showThresholdLabels": false,
+            "showThresholdMarkers": true,
+            "sizing": "auto"
+          },
+          "pluginVersion": "11.2.0",
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "ditto_streaming_connections",
+              "instant": false,
+              "legendFormat": "__auto",
+              "range": true,
+              "refId": "A"
+            }
+          ],
+          "title": "Streaming Clients",
+          "type": "gauge"
+        },
+        {
+          "datasource": {
+            "default": false,
+            "type": "prometheus",
+            "uid": "${prometheus}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 0,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 6,
+            "w": 21,
+            "x": 3,
+            "y": 50
+          },
+          "id": 45,
+          "options": {
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": true
+            },
+            "tooltip": {
+              "mode": "single",
+              "sort": "none"
+            }
+          },
+          "targets": [
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_streaming_server_messages_total[$__rate_interval])",
+              "instant": false,
+              "legendFormat": "Server",
+              "range": true,
+              "refId": "A"
+            },
+            {
+              "datasource": {
+                "type": "prometheus",
+                "uid": "${prometheus}"
+              },
+              "editorMode": "code",
+              "expr": "increase(ditto_streaming_client_messages_total[$__rate_interval])",
+              "hide": false,
+              "instant": false,
+              "legendFormat": "Client",
+              "range": true,
+              "refId": "B"
+            }
+          ],
+          "title": "Streaming Messages",
+          "type": "timeseries"
+        }
+      ],
+      "title": "Streaming",
+      "type": "row"
+    },
+    {
+      "collapsed": true,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
       "id": 38,
       "panels": [
         {
@@ -3331,7 +3533,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -3342,7 +3545,7 @@
             "h": 4,
             "w": 3,
             "x": 0,
-            "y": 28
+            "y": 51
           },
           "id": 42,
           "options": {
@@ -3395,7 +3598,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -3406,7 +3610,7 @@
             "h": 4,
             "w": 3,
             "x": 3,
-            "y": 28
+            "y": 51
           },
           "id": 41,
           "options": {
@@ -3459,7 +3663,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -3470,7 +3675,7 @@
             "h": 4,
             "w": 3,
             "x": 6,
-            "y": 28
+            "y": 51
           },
           "id": 40,
           "options": {
@@ -3523,7 +3728,8 @@
                 "mode": "absolute",
                 "steps": [
                   {
-                    "color": "green"
+                    "color": "green",
+                    "value": null
                   }
                 ]
               }
@@ -3534,7 +3740,7 @@
             "h": 4,
             "w": 3,
             "x": 9,
-            "y": 28
+            "y": 51
           },
           "id": 39,
           "options": {
@@ -3581,7 +3787,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 30
       },
       "id": 21,
       "panels": [],
@@ -3764,7 +3970,7 @@
         "h": 11,
         "w": 15,
         "x": 0,
-        "y": 30
+        "y": 31
       },
       "id": 13,
       "options": {
@@ -3823,7 +4029,6 @@
     },
     {
       "datasource": {
-        "name": "${postgres}",
         "type": "grafana-postgresql-datasource",
         "uid": "${postgres}"
       },
@@ -3920,7 +4125,7 @@
         "h": 11,
         "w": 9,
         "x": 15,
-        "y": 30
+        "y": 31
       },
       "id": 14,
       "options": {
@@ -3971,7 +4176,6 @@
     },
     {
       "datasource": {
-        "name": "${postgres}",
         "type": "grafana-postgresql-datasource",
         "uid": "${postgres}"
       },
@@ -3997,7 +4201,7 @@
         "h": 9,
         "w": 7,
         "x": 0,
-        "y": 41
+        "y": 42
       },
       "id": 16,
       "options": {
@@ -4068,7 +4272,6 @@
     },
     {
       "datasource": {
-        "name": "${postgres}",
         "type": "grafana-postgresql-datasource",
         "uid": "${postgres}"
       },
@@ -4094,7 +4297,7 @@
         "h": 9,
         "w": 8,
         "x": 7,
-        "y": 41
+        "y": 42
       },
       "id": 17,
       "options": {
@@ -4164,7 +4367,6 @@
     },
     {
       "datasource": {
-        "name": "${postgres}",
         "type": "grafana-postgresql-datasource",
         "uid": "${postgres}"
       },
@@ -4186,7 +4388,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4258,7 +4461,7 @@
         "h": 9,
         "w": 9,
         "x": 15,
-        "y": 41
+        "y": 42
       },
       "id": 18,
       "options": {
@@ -4313,7 +4516,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 50
+        "y": 51
       },
       "id": 23,
       "panels": [],
@@ -4322,7 +4525,6 @@
     },
     {
       "datasource": {
-        "default": false,
         "type": "prometheus",
         "uid": "${prometheus}"
       },
@@ -4370,7 +4572,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4449,7 +4652,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 52
       },
       "id": 9,
       "options": {
@@ -4486,7 +4689,6 @@
     },
     {
       "datasource": {
-        "default": false,
         "type": "prometheus",
         "uid": "${prometheus}"
       },
@@ -4534,7 +4736,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4586,7 +4789,7 @@
         "h": 12,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 64
       },
       "id": 5,
       "options": {
@@ -4621,7 +4824,6 @@
     },
     {
       "datasource": {
-        "default": false,
         "type": "prometheus",
         "uid": "${prometheus}"
       },
@@ -4669,7 +4871,8 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green"
+                "color": "green",
+                "value": null
               },
               {
                 "color": "red",
@@ -4684,7 +4887,7 @@
         "h": 11,
         "w": 24,
         "x": 0,
-        "y": 75
+        "y": 76
       },
       "id": 19,
       "options": {
@@ -4791,6 +4994,6 @@
   "timezone": "browser",
   "title": "Ditto",
   "uid": "ddps3ap51fv28d",
-  "version": 10,
+  "version": 11,
   "weekStart": ""
 }
