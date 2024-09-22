@@ -17,6 +17,16 @@ export const streamingConnectionsGauge = new Gauge({
   help: 'Number of active connections to the streaming API',
 });
 
+export const streamingServerMessagesCounter = new Counter({
+  name: 'ditto_streaming_server_messages_total',
+  help: 'Total number of messages sent from the streaming API',
+});
+
+export const streamingClientMessagesCounter = new Counter({
+  name: 'ditto_streaming_client_messages_total',
+  help: 'Total number of messages received by the streaming API',
+});
+
 export const fetchCounter = new Counter({
   name: 'ditto_fetch_total',
   help: 'Total number of fetch requests',

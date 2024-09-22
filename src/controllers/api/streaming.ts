@@ -4,7 +4,11 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { streamingConnectionsGauge } from '@/metrics.ts';
+import {
+  streamingClientMessagesCounter,
+  streamingConnectionsGauge,
+  streamingServerMessagesCounter,
+} from '@/metrics.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -96,6 +100,7 @@ const streamingController: AppController = async (c) => {
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
       debug('send', e.event, e.payload);
+      streamingServerMessagesCounter.inc();
       socket.send(JSON.stringify(e));
     }
   }
@@ -172,6 +177,8 @@ const streamingController: AppController = async (c) => {
   };
 
   socket.onmessage = (e) => {
+    streamingClientMessagesCounter.inc();
+
     if (ip) {
       const count = limiter.get(ip) ?? 0;
       limiter.set(ip, count + 1, { ttl: LIMITER_WINDOW });
