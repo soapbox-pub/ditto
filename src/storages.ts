@@ -2,6 +2,7 @@
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { internalSubscriptionsSizeGauge } from '@/metrics.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { SearchStore } from '@/storages/search-store.ts';
@@ -61,7 +62,7 @@ export class Storages {
   /** Internal pubsub relay between controllers and the pipeline. */
   public static async pubsub(): Promise<InternalRelay> {
     if (!this._pubsub) {
-      this._pubsub = Promise.resolve(new InternalRelay());
+      this._pubsub = Promise.resolve(new InternalRelay({ gauge: internalSubscriptionsSizeGauge }));
     }
     return this._pubsub;
   }
