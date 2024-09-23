@@ -1,4 +1,4 @@
-import Debug from '@soapbox/stickynotes/debug';
+import { Stickynotes } from '@soapbox/stickynotes';
 import TTLCache from '@isaacs/ttlcache';
 import {
   NostrClientCLOSE,
@@ -30,7 +30,7 @@ const limiter = new TTLCache<string, number>();
 /** Connections for metrics purposes. */
 const connections = new Set<WebSocket>();
 
-const debug = Debug('ditto:relay');
+const console = new Stickynotes('ditto:relay');
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
@@ -144,7 +144,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        debug(e);
+        console.error(e);
       }
     }
   }
