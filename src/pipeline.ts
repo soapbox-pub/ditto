@@ -49,7 +49,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
 
   if (event.kind !== 24133 && event.pubkey !== Conf.pubkey) {
-    await policyFilter(event);
+    await policyFilter(event, signal);
   }
 
   await hydrateEvent(event, signal);
@@ -75,11 +75,11 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
 }
 
-async function policyFilter(event: NostrEvent): Promise<void> {
+async function policyFilter(event: NostrEvent, signal: AbortSignal): Promise<void> {
   const console = new Stickynotes('ditto:policy');
 
   try {
-    const result = await policyWorker.call(event);
+    const result = await policyWorker.call(event, signal);
     policyEventsCounter.inc({ ok: String(result[2]) });
     console.log(JSON.stringify(result));
     RelayError.assert(result);
