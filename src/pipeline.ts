@@ -136,7 +136,7 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<unde
   const store = await Storages.db();
 
   await store.transaction(async (store, kysely) => {
-    await updateStats({ event, store, kysely });
+    await updateStats({ event, store, kysely }).catch((e) => console.error(e));
     await store.event(event, { signal });
   });
 }
