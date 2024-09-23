@@ -1,5 +1,5 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { Stickynotes } from '@soapbox/stickynotes';
 import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
 import lande from 'lande';
@@ -23,7 +23,7 @@ import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
 
-const debug = Debug('ditto:pipeline');
+const console = new Stickynotes('ditto:pipeline');
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -41,7 +41,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (encounterEvent(event)) return;
   if (await existsInDB(event)) return;
 
-  debug(`NostrEvent<${event.kind}> ${event.id}`);
+  console.info(`NostrEvent<${event.kind}> ${event.id}`);
   pipelineEventsCounter.inc({ kind: event.kind });
 
   if (isProtectedEvent(event)) {
@@ -76,18 +76,18 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 }
 
 async function policyFilter(event: NostrEvent): Promise<void> {
-  const debug = Debug('ditto:policy');
+  const console = new Stickynotes('ditto:policy');
 
   try {
     const result = await policyWorker.call(event);
     policyEventsCounter.inc({ ok: String(result[2]) });
-    debug(JSON.stringify(result));
+    console.log(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
     if (e instanceof RelayError) {
       throw e;
     } else {
-      console.error('POLICY ERROR:', e);
+      console.error(e);
       throw new RelayError('blocked', 'policy error');
     }
   }
