@@ -6,6 +6,8 @@ import * as Comlink from 'comlink';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
+import '@/workers/handlers/abortsignal.ts';
+
 // @ts-ignore Don't try to access the env from this worker.
 Deno.env = new Map<string, string>();
 
@@ -25,8 +27,8 @@ export class CustomPolicy implements NPolicy {
   private policy: NPolicy = new ReadOnlyPolicy();
 
   // deno-lint-ignore require-await
-  async call(event: NostrEvent): Promise<NostrRelayOK> {
-    return this.policy.call(event);
+  async call(event: NostrEvent, signal?: AbortSignal): Promise<NostrRelayOK> {
+    return this.policy.call(event, signal);
   }
 
   async init({ path, cwd, databaseUrl, adminPubkey }: PolicyInit): Promise<void> {
