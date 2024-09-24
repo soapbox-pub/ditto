@@ -1,6 +1,6 @@
 import 'deno-safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
-import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/nostrify/policies';
+import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
 import { DittoDB } from '@/db/DittoDB.ts';

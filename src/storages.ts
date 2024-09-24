@@ -15,7 +15,7 @@ export class Storages {
   private static _db: Promise<EventsDB> | undefined;
   private static _database: Promise<DittoDatabase> | undefined;
   private static _admin: Promise<AdminStore> | undefined;
-  private static _client: Promise<NPool> | undefined;
+  private static _client: Promise<NPool<NRelay1>> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
 
@@ -68,7 +68,7 @@ export class Storages {
   }
 
   /** Relay pool storage. */
-  public static async client(): Promise<NPool> {
+  public static async client(): Promise<NPool<NRelay1>> {
     if (!this._client) {
       this._client = (async () => {
         const db = await this.db();

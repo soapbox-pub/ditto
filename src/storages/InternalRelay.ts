@@ -79,4 +79,8 @@ export class InternalRelay implements NRelay {
   async query(): Promise<NostrEvent[]> {
     return [];
   }
+
+  async close(): Promise<void> {
+    return Promise.resolve();
+  }
 }
