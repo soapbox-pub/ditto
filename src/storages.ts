@@ -2,6 +2,7 @@
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
+import { internalSubscriptionsSizeGauge } from '@/metrics.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { SearchStore } from '@/storages/search-store.ts';
@@ -14,7 +15,7 @@ export class Storages {
   private static _db: Promise<EventsDB> | undefined;
   private static _database: Promise<DittoDatabase> | undefined;
   private static _admin: Promise<AdminStore> | undefined;
-  private static _client: Promise<NPool> | undefined;
+  private static _client: Promise<NPool<NRelay1>> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
   private static _search: Promise<SearchStore> | undefined;
 
@@ -61,13 +62,13 @@ export class Storages {
   /** Internal pubsub relay between controllers and the pipeline. */
   public static async pubsub(): Promise<InternalRelay> {
     if (!this._pubsub) {
-      this._pubsub = Promise.resolve(new InternalRelay());
+      this._pubsub = Promise.resolve(new InternalRelay({ gauge: internalSubscriptionsSizeGauge }));
     }
     return this._pubsub;
   }
 
   /** Relay pool storage. */
-  public static async client(): Promise<NPool> {
+  public static async client(): Promise<NPool<NRelay1>> {
     if (!this._client) {
       this._client = (async () => {
         const db = await this.db();

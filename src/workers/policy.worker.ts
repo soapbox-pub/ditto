@@ -1,10 +1,12 @@
 import 'deno-safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
-import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/nostrify/policies';
+import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
+
+import '@/workers/handlers/abortsignal.ts';
 
 // @ts-ignore Don't try to access the env from this worker.
 Deno.env = new Map<string, string>();
@@ -25,8 +27,8 @@ export class CustomPolicy implements NPolicy {
   private policy: NPolicy = new ReadOnlyPolicy();
 
   // deno-lint-ignore require-await
-  async call(event: NostrEvent): Promise<NostrRelayOK> {
-    return this.policy.call(event);
+  async call(event: NostrEvent, signal?: AbortSignal): Promise<NostrRelayOK> {
+    return this.policy.call(event, signal);
   }
 
   async init({ path, cwd, databaseUrl, adminPubkey }: PolicyInit): Promise<void> {
@@ -45,7 +47,7 @@ export class CustomPolicy implements NPolicy {
     try {
       const Policy = (await import(path)).default;
       this.policy = new Policy({ store });
-    } catch (e) {
+    } catch (e: any) {
       if (e.message.includes('Module not found')) {
         this.policy = new NoOpPolicy();
       }

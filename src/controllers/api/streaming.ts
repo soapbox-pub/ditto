@@ -5,7 +5,11 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { streamingConnectionsGauge } from '@/metrics.ts';
+import {
+  streamingClientMessagesCounter,
+  streamingConnectionsGauge,
+  streamingServerMessagesCounter,
+} from '@/metrics.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -61,6 +65,8 @@ const LIMITER_LIMIT = 100;
 
 const limiter = new TTLCache<string, number>();
 
+const connections = new Set<WebSocket>();
+
 const streamingController: AppController = async (c) => {
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
@@ -94,6 +100,7 @@ const streamingController: AppController = async (c) => {
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
       debug('send', e.event, e.payload);
+      streamingServerMessagesCounter.inc();
       socket.send(JSON.stringify(e));
     }
   }
@@ -126,7 +133,8 @@ const streamingController: AppController = async (c) => {
   }
 
   socket.onopen = async () => {
-    streamingConnectionsGauge.inc();
+    connections.add(socket);
+    streamingConnectionsGauge.set(connections.size);
 
     if (!stream) return;
     const topicFilter = await topicToFilter(stream, c.req.query(), pubkey);
@@ -169,6 +177,8 @@ const streamingController: AppController = async (c) => {
   };
 
   socket.onmessage = (e) => {
+    streamingClientMessagesCounter.inc();
+
     if (ip) {
       const count = limiter.get(ip) ?? 0;
       limiter.set(ip, count + 1, { ttl: LIMITER_WINDOW });
@@ -186,7 +196,8 @@ const streamingController: AppController = async (c) => {
   };
 
   socket.onclose = () => {
-    streamingConnectionsGauge.dec();
+    connections.delete(socket);
+    streamingConnectionsGauge.set(connections.size);
     controller.abort();
   };
 

@@ -17,10 +17,20 @@ export const streamingConnectionsGauge = new Gauge({
   help: 'Number of active connections to the streaming API',
 });
 
-export const fetchCounter = new Counter({
-  name: 'ditto_fetch_total',
+export const streamingServerMessagesCounter = new Counter({
+  name: 'ditto_streaming_server_messages_total',
+  help: 'Total number of messages sent from the streaming API',
+});
+
+export const streamingClientMessagesCounter = new Counter({
+  name: 'ditto_streaming_client_messages_total',
+  help: 'Total number of messages received by the streaming API',
+});
+
+export const fetchResponsesCounter = new Counter({
+  name: 'ditto_fetch_responses_total',
   help: 'Total number of fetch requests',
-  labelNames: ['method'],
+  labelNames: ['method', 'status'],
 });
 
 export const firehoseEventsCounter = new Counter({
@@ -83,4 +93,40 @@ export const dbAvailableConnectionsGauge = new Gauge({
 export const dbQueryDurationHistogram = new Histogram({
   name: 'ditto_db_query_duration_ms',
   help: 'Duration of database queries',
+});
+
+export const cachedFaviconsSizeGauge = new Gauge({
+  name: 'ditto_cached_favicons_size',
+  help: 'Number of domain favicons in cache',
+});
+
+export const cachedLnurlsSizeGauge = new Gauge({
+  name: 'ditto_cached_lnurls_size',
+  help: 'Number of LNURL details in cache',
+});
+
+export const cachedNip05sSizeGauge = new Gauge({
+  name: 'ditto_cached_nip05s_size',
+  help: 'Number of NIP-05 results in cache',
+});
+
+export const cachedLinkPreviewSizeGauge = new Gauge({
+  name: 'ditto_cached_link_previews_size',
+  help: 'Number of link previews in cache',
+});
+
+export const internalSubscriptionsSizeGauge = new Gauge({
+  name: 'ditto_internal_subscriptions_size',
+  help: "Number of active subscriptions to Ditto's internal relay",
+});
+
+export const relayPoolRelaysSizeGauge = new Gauge({
+  name: 'ditto_relay_pool_relays_size',
+  help: 'Number of relays in the relay pool',
+  labelNames: ['ready_state'],
+});
+
+export const relayPoolSubscriptionsSizeGauge = new Gauge({
+  name: 'ditto_relay_pool_subscriptions_size',
+  help: 'Number of active subscriptions to the relay pool',
 });

@@ -10,9 +10,14 @@ import {
 } from '@nostrify/nostrify';
 import { Machina } from '@nostrify/nostrify/utils';
 import { matchFilter } from 'nostr-tools';
+import { Gauge } from 'prom-client';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { purifyEvent } from '@/utils/purify.ts';
+
+interface InternalRelayOpts {
+  gauge?: Gauge;
+}
 
 /**
  * PubSub event store for streaming events within the application.
@@ -20,6 +25,8 @@ import { purifyEvent } from '@/utils/purify.ts';
  */
 export class InternalRelay implements NRelay {
   private subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
+
+  constructor(private opts: InternalRelayOpts = {}) {}
 
   async *req(
     filters: NostrFilter[],
@@ -31,6 +38,7 @@ export class InternalRelay implements NRelay {
     yield ['EOSE', id];
 
     this.subs.set(id, { filters, machina });
+    this.opts.gauge?.set(this.subs.size);
 
     try {
       for await (const event of machina) {
@@ -38,6 +46,7 @@ export class InternalRelay implements NRelay {
       }
     } finally {
       this.subs.delete(id);
+      this.opts.gauge?.set(this.subs.size);
     }
   }
 
@@ -69,5 +78,9 @@ export class InternalRelay implements NRelay {
 
   async query(): Promise<NostrEvent[]> {
     return [];
+  }
+
+  async close(): Promise<void> {
+    return Promise.resolve();
   }
 }

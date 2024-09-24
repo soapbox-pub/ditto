@@ -1,5 +1,5 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { Stickynotes } from '@soapbox/stickynotes';
 import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
 import lande from 'lande';
@@ -23,7 +23,7 @@ import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
 
-const debug = Debug('ditto:pipeline');
+const console = new Stickynotes('ditto:pipeline');
 
 /**
  * Common pipeline function to process (and maybe store) events.
@@ -41,15 +41,15 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (encounterEvent(event)) return;
   if (await existsInDB(event)) return;
 
-  debug(`NostrEvent<${event.kind}> ${event.id}`);
+  console.info(`NostrEvent<${event.kind}> ${event.id}`);
   pipelineEventsCounter.inc({ kind: event.kind });
 
   if (isProtectedEvent(event)) {
     throw new RelayError('invalid', 'protected event');
   }
 
-  if (event.kind !== 24133) {
-    await policyFilter(event);
+  if (event.kind !== 24133 && event.pubkey !== Conf.pubkey) {
+    await policyFilter(event, signal);
   }
 
   await hydrateEvent(event, signal);
@@ -62,29 +62,32 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   const kysely = await Storages.kysely();
 
-  await storeEvent(purifyEvent(event), signal);
-  await Promise.all([
-    handleZaps(kysely, event),
-    parseMetadata(event, signal),
-    setLanguage(event),
-    generateSetEvents(event),
-    streamOut(event),
-  ]);
+  try {
+    await storeEvent(purifyEvent(event), signal);
+    await Promise.all([
+      handleZaps(kysely, event),
+      parseMetadata(event, signal),
+      setLanguage(event),
+    ]);
+  } finally {
+    await generateSetEvents(event);
+    await streamOut(event);
+  }
 }
 
-async function policyFilter(event: NostrEvent): Promise<void> {
-  const debug = Debug('ditto:policy');
+async function policyFilter(event: NostrEvent, signal: AbortSignal): Promise<void> {
+  const console = new Stickynotes('ditto:policy');
 
   try {
-    const result = await policyWorker.call(event);
+    const result = await policyWorker.call(event, signal);
     policyEventsCounter.inc({ ok: String(result[2]) });
-    debug(JSON.stringify(result));
+    console.log(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
     if (e instanceof RelayError) {
       throw e;
     } else {
-      console.error('POLICY ERROR:', e);
+      console.error(e);
       throw new RelayError('blocked', 'policy error');
     }
   }
@@ -133,7 +136,7 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<unde
   const store = await Storages.db();
 
   await store.transaction(async (store, kysely) => {
-    await updateStats({ event, store, kysely });
+    await updateStats({ event, store, kysely }).catch((e) => console.error(e));
     await store.event(event, { signal });
   });
 }
@@ -157,8 +160,8 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
 
     if (search) {
-      await kysely.insertInto('author_search')
-        .values({ pubkey: event.pubkey, search })
+      await kysely.insertInto('author_stats')
+        .values({ pubkey: event.pubkey, search, followers_count: 0, following_count: 0, notes_count: 0 })
         .onConflict((oc) => oc.column('pubkey').doUpdateSet({ search }))
         .execute();
     }

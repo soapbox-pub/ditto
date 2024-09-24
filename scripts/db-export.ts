@@ -102,7 +102,7 @@ async function exportEvents(args: ExportFilter) {
   let filter: NostrFilter = {};
   try {
     filter = buildFilter(args);
-  } catch (e) {
+  } catch (e: any) {
     die(1, e.message || e.toString());
   }
 

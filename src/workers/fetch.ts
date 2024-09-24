@@ -3,7 +3,7 @@ import * as Comlink from 'comlink';
 import { FetchWorker } from './fetch.worker.ts';
 import './handlers/abortsignal.ts';
 
-import { fetchCounter } from '@/metrics.ts';
+import { fetchResponsesCounter } from '@/metrics.ts';
 
 const worker = new Worker(new URL('./fetch.worker.ts', import.meta.url), { type: 'module' });
 const client = Comlink.wrap<typeof FetchWorker>(worker);
@@ -23,11 +23,18 @@ const ready = new Promise<void>((resolve) => {
  */
 const fetchWorker: typeof fetch = async (...args) => {
   await ready;
+
   const [url, init] = serializeFetchArgs(args);
   const { body, signal, ...rest } = init;
-  fetchCounter.inc({ method: init.method });
+
   const result = await client.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
-  return new Response(...result);
+  const response = new Response(...result);
+
+  const { method } = init;
+  const { status } = response;
+  fetchResponsesCounter.inc({ method, status });
+
+  return response;
 };
 
 /** Take arguments to `fetch`, and turn them into something we can send over Comlink. */

@@ -4,6 +4,8 @@ import * as Comlink from 'comlink';
 import { Conf } from '@/config.ts';
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
 
+import '@/workers/handlers/abortsignal.ts';
+
 const console = new Stickynotes('ditto:policy');
 
 export const policyWorker = Comlink.wrap<CustomPolicy>(
@@ -31,7 +33,7 @@ try {
     adminPubkey: Conf.pubkey,
   });
   console.debug(`Using custom policy: ${Conf.policy}`);
-} catch (e) {
+} catch (e: any) {
   if (e.message.includes('Module not found')) {
     console.debug('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
   } else {

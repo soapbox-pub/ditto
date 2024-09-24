@@ -1,3 +1,4 @@
+import { Stickynotes } from '@soapbox/stickynotes';
 import TTLCache from '@isaacs/ttlcache';
 import {
   NostrClientCLOSE,
@@ -26,14 +27,18 @@ const LIMITER_LIMIT = 300;
 
 const limiter = new TTLCache<string, number>();
 
+/** Connections for metrics purposes. */
+const connections = new Set<WebSocket>();
+
+const console = new Stickynotes('ditto:relay');
+
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
-  let opened = false;
   const controllers = new Map<string, AbortController>();
 
   socket.onopen = () => {
-    opened = true;
-    relayConnectionsGauge.inc();
+    connections.add(socket);
+    relayConnectionsGauge.set(connections.size);
   };
 
   socket.onmessage = (e) => {
@@ -63,9 +68,8 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   };
 
   socket.onclose = () => {
-    if (opened) {
-      relayConnectionsGauge.dec();
-    }
+    connections.delete(socket);
+    relayConnectionsGauge.set(connections.size);
 
     for (const controller of controllers.values()) {
       controller.abort();
@@ -103,7 +107,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
       for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
         send(['EVENT', subId, event]);
       }
-    } catch (e) {
+    } catch (e: any) {
       if (e instanceof RelayError) {
         send(['CLOSED', subId, e.message]);
       } else if (e.message.includes('timeout')) {

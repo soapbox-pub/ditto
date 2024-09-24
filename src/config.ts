@@ -209,6 +209,12 @@ class Conf {
   static get firehoseConcurrency(): number {
     return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? (Conf.pg.poolSize * 0.25)));
   }
+  /** Nostr event kinds of events to listen for on the firehose. */
+  static get firehoseKinds(): number[] {
+    return (Deno.env.get('FIREHOSE_KINDS') ?? '0, 1, 3, 5, 6, 7, 9735, 10002')
+      .split(/[, ]+/g)
+      .map(Number);
+  }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
@@ -241,6 +247,30 @@ class Conf {
   static get zapSplitsEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
   }
+  /** Cache settings. */
+  static caches = {
+    /** NIP-05 cache settings. */
+    get nip05(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_NIP05_MAX') || 3000),
+        ttl: Number(Deno.env.get('DITTO_CACHE_NIP05_TTL') || 1 * 60 * 60 * 1000),
+      };
+    },
+    /** Favicon cache settings. */
+    get favicon(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_FAVICON_MAX') || 500),
+        ttl: Number(Deno.env.get('DITTO_CACHE_FAVICON_TTL') || 1 * 60 * 60 * 1000),
+      };
+    },
+    /** Link preview cache settings. */
+    get linkPreview(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_MAX') || 1000),
+        ttl: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_TTL') || 12 * 60 * 60 * 1000),
+      };
+    },
+  };
 }
 
 const optionalBooleanSchema = z

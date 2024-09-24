@@ -1,6 +1,7 @@
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
 import Debug from '@soapbox/stickynotes/debug';
 
+import { cachedLnurlsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
@@ -20,7 +21,7 @@ const lnurlCache = new SimpleLRU<string, LNURLDetails>(
       throw e;
     }
   },
-  { max: 1000, ttl: Time.minutes(30) },
+  { max: 1000, ttl: Time.minutes(30), gauge: cachedLnurlsSizeGauge },
 );
 
 /** Get an LNURL from a lud06 or lud16. */
