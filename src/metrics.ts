@@ -27,10 +27,10 @@ export const streamingClientMessagesCounter = new Counter({
   help: 'Total number of messages received by the streaming API',
 });
 
-export const fetchCounter = new Counter({
-  name: 'ditto_fetch_total',
+export const fetchResponsesCounter = new Counter({
+  name: 'ditto_fetch_responses_total',
   help: 'Total number of fetch requests',
-  labelNames: ['method'],
+  labelNames: ['method', 'status'],
 });
 
 export const firehoseEventsCounter = new Counter({
