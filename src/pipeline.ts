@@ -145,6 +145,8 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<unde
     // We can't catch this in the transaction because the error aborts the transaction on the Postgres side.
     if (e instanceof Error && e.message.includes('event_stats' satisfies keyof DittoTables)) {
       await store.event(event, { signal });
+    } else {
+      throw e;
     }
   }
 }
