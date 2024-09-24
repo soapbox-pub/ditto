@@ -37,4 +37,10 @@ export interface DittoEvent extends NostrEvent {
   reported_notes?: DittoEvent[];
   /** Admin event relationship. */
   info?: DittoEvent;
+  /** Kind 1 being zapped */
+  zapped?: DittoEvent;
+  /** Kind 0 or pubkey that zapped */
+  zap_sender?: DittoEvent | string;
+  zap_amount?: number;
+  zap_message?: string;
 }

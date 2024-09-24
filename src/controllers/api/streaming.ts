@@ -1,3 +1,4 @@
+import TTLCache from '@isaacs/ttlcache';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 import { z } from 'zod';
@@ -16,7 +17,6 @@ import { Storages } from '@/storages.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
-import TTLCache from '@isaacs/ttlcache';
 
 const debug = Debug('ditto:streaming');
 

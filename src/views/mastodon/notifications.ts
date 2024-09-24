@@ -6,14 +6,8 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-export interface RenderNotificationOpts {
+interface RenderNotificationOpts {
   viewerPubkey: string;
-  zap?: {
-    zapSender?: NostrEvent | NostrEvent['pubkey']; // kind 0 or pubkey
-    zappedPost?: NostrEvent;
-    amount?: number;
-    message?: string;
-  };
 }
 
 function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
@@ -120,23 +114,23 @@ async function renderNameGrant(event: DittoEvent) {
 }
 
 async function renderZap(event: DittoEvent, opts: RenderNotificationOpts) {
-  if (!opts.zap?.zapSender) return;
+  if (!event.zap_sender) return;
 
-  const { amount = 0, message = '' } = opts.zap;
-  if (amount < 1) return;
+  const { zap_amount = 0, zap_message = '' } = event;
+  if (zap_amount < 1) return;
 
-  const account = typeof opts.zap.zapSender !== 'string'
-    ? await renderAccount(opts.zap.zapSender)
-    : await accountFromPubkey(opts.zap.zapSender);
+  const account = typeof event.zap_sender !== 'string'
+    ? await renderAccount(event.zap_sender)
+    : await accountFromPubkey(event.zap_sender);
 
   return {
     id: notificationId(event),
     type: 'ditto:zap',
-    amount,
-    message,
+    amount: zap_amount,
+    message: zap_message,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
-    ...(opts.zap?.zappedPost ? { status: await renderStatus(opts.zap?.zappedPost, opts) } : {}),
+    ...(event.zapped ? { status: await renderStatus(event.zapped, opts) } : {}),
   };
 }
 

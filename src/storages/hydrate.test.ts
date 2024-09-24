@@ -143,3 +143,37 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
   };
   assertEquals(reportEvent, expectedEvent);
 });
+
+Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 --- WITHOUT stats', async () => {
+  const relay = new MockRelay();
+  await using db = await createTestDB();
+
+  const zapSender = await eventFixture('kind-0-jack');
+  const zapReceipt = await eventFixture('kind-9735-jack-zap-patrick');
+  const zappedPost = await eventFixture('kind-1-being-zapped');
+  const zapReceiver = await eventFixture('kind-0-patrick');
+
+  // Save events to database
+  await relay.event(zapSender);
+  await relay.event(zapReceipt);
+  await relay.event(zappedPost);
+  await relay.event(zapReceiver);
+
+  await hydrateEvents({
+    events: [zapReceipt],
+    store: relay,
+    kysely: db.kysely,
+  });
+
+  const expectedEvent: DittoEvent = {
+    ...zapReceipt,
+    zap_sender: zapSender,
+    zapped: {
+      ...zappedPost,
+      author: zapReceiver,
+    },
+    zap_amount: 5225000, // millisats
+    zap_message: '🫂',
+  };
+  assertEquals(zapReceipt, expectedEvent);
+});
