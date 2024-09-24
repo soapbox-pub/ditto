@@ -135,10 +135,18 @@ async function storeEvent(event: DittoEvent, signal?: AbortSignal): Promise<unde
   if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
 
-  await store.transaction(async (store, kysely) => {
-    await updateStats({ event, store, kysely }).catch((e) => console.error(e));
-    await store.event(event, { signal });
-  });
+  try {
+    await store.transaction(async (store, kysely) => {
+      await updateStats({ event, store, kysely });
+      await store.event(event, { signal });
+    });
+  } catch (e) {
+    // If the failure is only because of updateStats (which runs first), insert the event anyway.
+    // We can't catch this in the transaction because the error aborts the transaction on the Postgres side.
+    if (e instanceof Error && e.message.includes('event_stats' satisfies keyof DittoTables)) {
+      await store.event(event, { signal });
+    }
+  }
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
