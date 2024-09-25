@@ -6,16 +6,23 @@ import { Kysely } from 'kysely';
 import { DittoDatabase, DittoDatabaseOpts } from '@/db/DittoDatabase.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { KyselyLogger } from '@/db/KyselyLogger.ts';
+import { isWorker } from '@/utils/worker.ts';
 
 export class DittoPglite {
   static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
+    const url = new URL(databaseUrl);
+
+    if (url.protocol === 'file:' && isWorker()) {
+      throw new Error('PGlite is not supported in worker threads.');
+    }
+
+    const pglite = new PGlite(databaseUrl, {
+      extensions: { pg_trgm },
+      debug: opts?.debug,
+    });
+
     const kysely = new Kysely<DittoTables>({
-      dialect: new PgliteDialect({
-        database: new PGlite(databaseUrl, {
-          extensions: { pg_trgm },
-          debug: opts?.debug,
-        }),
-      }),
+      dialect: new PgliteDialect({ database: pglite }),
       log: KyselyLogger,
     });
 
