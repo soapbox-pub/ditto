@@ -67,7 +67,7 @@ class PolicyWorker implements NPolicy {
         return;
       }
 
-      throw new Error(`DITTO_POLICY (error importing policy): ${Conf.policy}`, e);
+      throw new Error(`DITTO_POLICY (error importing policy): ${Conf.policy}`);
     }
   }
 }
