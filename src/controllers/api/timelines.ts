@@ -47,7 +47,9 @@ const publicTimelineController: AppController = (c) => {
     search.push(`language:${language}`);
   }
 
-  filter.search = search.join(' ');
+  if (search.length) {
+    filter.search = search.join(' ');
+  }
 
   return renderStatuses(c, [filter]);
 };
