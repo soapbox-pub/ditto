@@ -1,3 +1,4 @@
+import ISO6391 from 'iso-639-1';
 import { NostrFilter } from '@nostrify/nostrify';
 import { z } from 'zod';
 
@@ -20,11 +21,21 @@ const homeTimelineController: AppController = async (c) => {
 const publicQuerySchema = z.object({
   local: booleanParamSchema.catch(false),
   instance: z.string().optional().catch(undefined),
+  language: z.string().max(2).transform((val, ctx) => {
+    if (!ISO6391.validate(val)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Not a valid language in ISO-639-1 format',
+      });
+      return z.NEVER;
+    }
+    return val;
+  }).optional().catch(undefined),
 });
 
 const publicTimelineController: AppController = (c) => {
   const params = c.get('pagination');
-  const { local, instance } = publicQuerySchema.parse(c.req.query());
+  const { local, instance, language } = publicQuerySchema.parse(c.req.query());
 
   const filter: NostrFilter = { kinds: [1], ...params };
 
@@ -32,6 +43,10 @@ const publicTimelineController: AppController = (c) => {
     filter.search = `domain:${Conf.url.host}`;
   } else if (instance) {
     filter.search = `domain:${instance}`;
+  }
+
+  if (language) {
+    filter.search = filter.search + ' ' + `language:${language}`;
   }
 
   return renderStatuses(c, [filter]);
