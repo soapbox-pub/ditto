@@ -81,7 +81,7 @@ async function policyFilter(event: NostrEvent, signal: AbortSignal): Promise<voi
   try {
     const result = await policyWorker.call(event, signal);
     policyEventsCounter.inc({ ok: String(result[2]) });
-    console.log(JSON.stringify(result));
+    console.debug(JSON.stringify(result));
     RelayError.assert(result);
   } catch (e) {
     if (e instanceof RelayError) {

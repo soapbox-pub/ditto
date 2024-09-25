@@ -1,6 +1,6 @@
 import 'deno-safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
-import { NoOpPolicy, ReadOnlyPolicy } from '@nostrify/policies';
+import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -15,8 +15,6 @@ Deno.env = new Map<string, string>();
 interface PolicyInit {
   /** Path to the policy module (https, jsr, file, etc) */
   path: string;
-  /** Current working directory. */
-  cwd: string;
   /** Database URL to connect to. */
   databaseUrl: string;
   /** Admin pubkey to use for EventsDB checks. */
@@ -31,10 +29,8 @@ export class CustomPolicy implements NPolicy {
     return this.policy.call(event, signal);
   }
 
-  async init({ path, cwd, databaseUrl, adminPubkey }: PolicyInit): Promise<void> {
-    // HACK: PGlite uses `path.resolve`, which requires read permission on Deno (which we don't want to give).
-    // We can work around this getting the cwd from the caller and overwriting `Deno.cwd`.
-    Deno.cwd = () => cwd;
+  async init({ path, databaseUrl, adminPubkey }: PolicyInit): Promise<void> {
+    const Policy = (await import(path)).default;
 
     const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
 
@@ -44,15 +40,7 @@ export class CustomPolicy implements NPolicy {
       timeout: 1_000,
     });
 
-    try {
-      const Policy = (await import(path)).default;
-      this.policy = new Policy({ store });
-    } catch (e: any) {
-      if (e.message.includes('Module not found')) {
-        this.policy = new NoOpPolicy();
-      }
-      throw e;
-    }
+    this.policy = new Policy({ store });
   }
 }
 
