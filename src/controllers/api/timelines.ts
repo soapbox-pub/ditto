@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { type AppContext, type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { getFeedPubkeys } from '@/queries.ts';
-import { booleanParamSchema } from '@/schema.ts';
+import { booleanParamSchema, languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
@@ -18,21 +18,36 @@ const homeTimelineController: AppController = async (c) => {
 };
 
 const publicQuerySchema = z.object({
-  local: booleanParamSchema.catch(false),
-  instance: z.string().optional().catch(undefined),
+  local: booleanParamSchema.default('false'),
+  instance: z.string().optional(),
+  language: languageSchema.optional(),
 });
 
 const publicTimelineController: AppController = (c) => {
   const params = c.get('pagination');
-  const { local, instance } = publicQuerySchema.parse(c.req.query());
+  const result = publicQuerySchema.safeParse(c.req.query());
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  const { local, instance, language } = result.data;
 
   const filter: NostrFilter = { kinds: [1], ...params };
 
+  const search: `${string}:${string}`[] = [];
+
   if (local) {
-    filter.search = `domain:${Conf.url.host}`;
+    search.push(`domain:${Conf.url.host}`);
   } else if (instance) {
-    filter.search = `domain:${instance}`;
+    search.push(`domain:${instance}`);
   }
+
+  if (language) {
+    search.push(`language:${language}`);
+  }
+
+  filter.search = search.join(' ');
 
   return renderStatuses(c, [filter]);
 };

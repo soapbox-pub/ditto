@@ -1,3 +1,4 @@
+import ISO6391 from 'iso-639-1';
 import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
@@ -40,12 +41,24 @@ const fileSchema = z.custom<File>((value) => value instanceof File);
 
 const percentageSchema = z.coerce.number().int().gte(1).lte(100);
 
+const languageSchema = z.string().transform((val, ctx) => {
+  if (!ISO6391.validate(val)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Not a valid language in ISO-639-1 format',
+    });
+    return z.NEVER;
+  }
+  return val;
+});
+
 export {
   booleanParamSchema,
   decode64Schema,
   fileSchema,
   filteredArray,
   hashtagSchema,
+  languageSchema,
   percentageSchema,
   safeUrlSchema,
 };

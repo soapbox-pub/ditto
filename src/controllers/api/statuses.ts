@@ -1,6 +1,5 @@
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import ISO6391 from 'iso-639-1';
 import 'linkify-plugin-hashtag';
 import linkify from 'linkifyjs';
 import { nip19 } from 'nostr-tools';
@@ -14,6 +13,7 @@ import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts'
 import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
+import { languageSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
@@ -26,7 +26,7 @@ import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const createStatusSchema = z.object({
   in_reply_to_id: n.id().nullish(),
-  language: z.string().refine(ISO6391.validate).nullish(),
+  language: languageSchema.nullish(),
   media_ids: z.string().array().nullish(),
   poll: z.object({
     options: z.string().array(),
