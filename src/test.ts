@@ -5,6 +5,7 @@ import { Conf } from '@/config.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { purifyEvent } from '@/utils/purify.ts';
+import { sql } from 'kysely';
 
 /** Import an event fixture by name in tests. */
 export async function eventFixture(name: string): Promise<NostrEvent> {
@@ -34,7 +35,6 @@ export function genEvent(t: Partial<NostrEvent> = {}, sk: Uint8Array = generateS
 /** Create a database for testing. It uses `TEST_DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB() {
   const { testDatabaseUrl } = Conf;
-  const { protocol } = new URL(testDatabaseUrl);
   const { kysely } = DittoDB.create(testDatabaseUrl, { poolSize: 1 });
 
   await DittoDB.migrate(kysely);
@@ -49,27 +49,15 @@ export async function createTestDB() {
     store,
     kysely,
     [Symbol.asyncDispose]: async () => {
-      // If we're testing against real Postgres, we will reuse the database
-      // between tests, so we should drop the tables to keep each test fresh.
-      if (['postgres:', 'postgresql:'].includes(protocol)) {
-        for (
-          const table of [
-            'author_stats',
-            'event_stats',
-            'event_zaps',
-            'kysely_migration',
-            'kysely_migration_lock',
-            'nip46_tokens',
-            'pubkey_domains',
-            'nostr_events',
-            'event_zaps',
-            'author_search',
-          ]
-        ) {
-          await kysely.schema.dropTable(table).ifExists().cascade().execute();
-        }
-        await kysely.destroy();
+      const { rows } = await sql<
+        { tablename: string }
+      >`select tablename from pg_tables where schemaname = current_schema()`.execute(kysely);
+
+      for (const { tablename } of rows) {
+        await kysely.schema.dropTable(tablename).ifExists().cascade().execute();
       }
+
+      await kysely.destroy();
     },
   };
 }
