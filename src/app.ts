@@ -114,6 +114,7 @@ import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
 import '@/startup.ts';
+import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
@@ -178,6 +179,7 @@ app.get('/.well-known/nodeinfo', nodeInfoController);
 app.get('/.well-known/nostr.json', nostrController);
 
 app.get('/nodeinfo/:version', nodeInfoSchemaController);
+app.get('/manifest.webmanifest', manifestController);
 
 app.get('/api/v1/instance', instanceV1Controller);
 app.get('/api/v2/instance', instanceV2Controller);
