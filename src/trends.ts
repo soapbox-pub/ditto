@@ -1,4 +1,4 @@
-import ISO6391, { LanguageCode } from 'iso-639-1';
+import { LanguageCode } from 'iso-639-1';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
