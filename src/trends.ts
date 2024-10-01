@@ -1,5 +1,5 @@
 import { LanguageCode } from 'iso-639-1';
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
 
@@ -20,8 +20,8 @@ export async function getTrendingTagValues(
   tagNames: string[],
   /** Filter of eligible events. */
   filter: NostrFilter,
-  /** Only return trending events of 'language' */
-  language?: LanguageCode,
+  /** Results must be inside 'languagesIds' */
+  languagesIds?: string[],
 ): Promise<{ value: string; authors: number; uses: number }[]> {
   let query = kysely.with('trends', (db) => {
     let query = db
@@ -54,14 +54,13 @@ export async function getTrendingTagValues(
     return query;
   })
     .selectFrom(['trends'])
-    .innerJoin('nostr_events', 'trends.value', 'nostr_events.id')
     .select(['value', 'authors', 'uses']);
 
-  if (language) {
-    query = query.where('nostr_events.language', '=', language);
+  if (languagesIds) {
+    query = query.where('trends.value', 'in', languagesIds);
   }
 
-  query = query.orderBy('authors desc');
+  query = query.orderBy('authors desc').orderBy('uses desc');
 
   if (typeof filter.limit === 'number') {
     query = query.limit(filter.limit);
@@ -95,13 +94,24 @@ export async function updateTrendingTags(
 
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
+  let languagesIds: NostrEvent['id'][] = [];
+  if (language) {
+    const result = (await kysely.selectFrom('nostr_events')
+      .select('id')
+      .where('language', '=', language)
+      .where('nostr_events.created_at', '>=', yesterday)
+      .where('nostr_events.created_at', '<=', now)
+      .execute()).map((event) => event.id);
+    languagesIds = result;
+  }
+
   try {
     const trends = await getTrendingTagValues(kysely, tagNames, {
       kinds,
       since: yesterday,
       until: now,
       limit,
-    }, language);
+    }, languagesIds);
 
     if (!trends.length) {
       console.info(`No trending ${l} found. Skipping.`);
@@ -110,19 +120,14 @@ export async function updateTrendingTags(
 
     const signer = new AdminSigner();
 
-    const tags = [
-      ['L', 'pub.ditto.trends'],
-      ['l', l, 'pub.ditto.trends'],
-      ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
-    ];
-    if (language) {
-      tags.push(['lang', language]);
-    }
-
     const label = await signer.signEvent({
       kind: 1985,
       content: '',
-      tags,
+      tags: [
+        ['L', 'pub.ditto.trends'],
+        ['l', languagesIds.length ? `${l}.${language}` : l, 'pub.ditto.trends'],
+        ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
+      ],
       created_at: Math.floor(Date.now() / 1000),
     });
 
@@ -145,7 +150,7 @@ export function updateTrendingZappedEvents(): Promise<void> {
 
 /** Update trending events. */
 export async function updateTrendingEvents(): Promise<void> {
-  const languages = Conf.trendLanguages;
+  const languages = Conf.preferredLanguages;
   if (!languages) return updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']);
 
   const promise: Promise<void>[] = [];
