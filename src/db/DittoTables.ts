@@ -9,6 +9,7 @@ export interface DittoTables extends NPostgresSchema {
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
+  push_subscriptions: PushSubscriptionRow;
 }
 
 type NostrEventsRow = NPostgresSchema['nostr_events'] & {
@@ -54,4 +55,29 @@ interface EventZapRow {
   sender_pubkey: string;
   amount_millisats: number;
   comment: string;
+}
+
+interface PushSubscriptionRow {
+  id: bigint;
+  pubkey: string;
+  endpoint: string;
+  key_p256dh: string;
+  key_auth: string;
+  data: {
+    alerts?: {
+      mention?: boolean;
+      status?: boolean;
+      reblog?: boolean;
+      follow?: boolean;
+      follow_request?: boolean;
+      favourite?: boolean;
+      poll?: boolean;
+      update?: boolean;
+      'admin.sign_up'?: boolean;
+      'admin.report'?: boolean;
+    };
+    policy?: 'all' | 'followed' | 'follower' | 'none';
+  } | null;
+  created_at: Date;
+  updated_at: Date;
 }
