@@ -12,5 +12,5 @@ export interface DittoUpload {
 
 export const dittoUploads = new LRUCache<string, DittoUpload>({
   max: 1000,
-  ttl: Time.minutes(15),
+  ttl: Time.hours(6),
 });
