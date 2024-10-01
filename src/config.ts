@@ -248,9 +248,9 @@ class Conf {
   static get zapSplitsEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
   }
-  /** Filter trends by languages. */
-  static get trendLanguages(): LanguageCode[] | undefined {
-    return Deno.env.get('TREND_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
+  /** Languages this server wishes to highlight. Used when querying trends.*/
+  static get preferredLanguages(): LanguageCode[] | undefined {
+    return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
   }
   /** Cache settings. */
   static caches = {
