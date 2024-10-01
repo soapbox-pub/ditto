@@ -94,7 +94,9 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITH language parameter", async (
     .where('id', '=', post2.id)
     .execute();
 
-  const trends = await getTrendingTagValues(db.kysely, ['e'], { kinds: [1, 7] }, 'pt');
+  const languagesIds = (await db.store.query([{ search: 'language:pt' }])).map((event) => event.id);
+
+  const trends = await getTrendingTagValues(db.kysely, ['e'], { kinds: [1, 7] }, languagesIds);
 
   // portuguese post
   const expected = [{ value: post1.id, authors: numberOfAuthorsWhoLikedPost1, uses: post1uses }];
