@@ -1,3 +1,4 @@
+import * as dotenv from '@std/dotenv';
 import { z } from 'zod';
 
 import {
@@ -7,6 +8,12 @@ import {
   updateTrendingPubkeys,
   updateTrendingZappedEvents,
 } from '@/trends.ts';
+
+await dotenv.load({
+  export: true,
+  defaultsPath: null,
+  examplePath: null,
+});
 
 const trendSchema = z.enum(['pubkeys', 'zapped_events', 'events', 'hashtags', 'links']);
 const trends = trendSchema.array().parse(Deno.args);
