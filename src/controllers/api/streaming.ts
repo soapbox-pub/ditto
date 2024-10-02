@@ -14,6 +14,7 @@ import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
+import { getTokenHash } from '@/utils/auth.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
@@ -233,14 +234,15 @@ async function topicToFilter(
 async function getTokenPubkey(token: string): Promise<string | undefined> {
   if (token.startsWith('token1')) {
     const kysely = await Storages.kysely();
+    const tokenHash = await getTokenHash(token as `token1${string}`);
 
-    const { user_pubkey } = await kysely
-      .selectFrom('nip46_tokens')
-      .select(['user_pubkey', 'server_seckey', 'relays'])
-      .where('api_token', '=', token)
+    const { pubkey } = await kysely
+      .selectFrom('auth_tokens')
+      .select('pubkey')
+      .where('token_hash', '=', tokenHash)
       .executeTakeFirstOrThrow();
 
-    return user_pubkey;
+    return pubkey;
   } else {
     return bech32ToPubkey(token);
   }

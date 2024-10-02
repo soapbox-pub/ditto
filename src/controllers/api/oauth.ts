@@ -1,14 +1,14 @@
 import { NConnectSigner, NSchema as n, NSecSigner } from '@nostrify/nostrify';
-import { bech32 } from '@scure/base';
 import { escape } from 'entities';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import { generateSecretKey } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
-import { Storages } from '@/storages.ts';
+import { encryptSecretKey, generateToken } from '@/utils/auth.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -82,36 +82,28 @@ async function getToken(
   { pubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
 ): Promise<`token1${string}`> {
   const kysely = await Storages.kysely();
-  const token = generateToken();
+  const { token, hash } = await generateToken();
 
-  const serverSeckey = generateSecretKey();
-  const serverPubkey = getPublicKey(serverSeckey);
+  const nip46Seckey = generateSecretKey();
 
   const signer = new NConnectSigner({
     pubkey,
-    signer: new NSecSigner(serverSeckey),
+    signer: new NSecSigner(nip46Seckey),
     relay: await Storages.pubsub(), // TODO: Use the relays from the request.
     timeout: 60_000,
   });
 
   await signer.connect(secret);
 
-  await kysely.insertInto('nip46_tokens').values({
-    api_token: token,
-    user_pubkey: pubkey,
-    server_seckey: serverSeckey,
-    server_pubkey: serverPubkey,
-    relays: JSON.stringify(relays),
-    connected_at: new Date(),
+  await kysely.insertInto('auth_tokens').values({
+    token_hash: hash,
+    pubkey,
+    nip46_sk_enc: await encryptSecretKey(Conf.seckey, nip46Seckey),
+    nip46_relays: relays,
+    created_at: new Date(),
   }).execute();
 
   return token;
-}
-
-/** Generate a bech32 token for the API. */
-function generateToken(): `token1${string}` {
-  const words = bech32.toWords(generateSecretKey());
-  return bech32.encode('token', words);
 }
 
 /** Display the OAuth form. */
