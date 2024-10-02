@@ -22,8 +22,15 @@
     "clean:deps": "deno cache --reload src/app.ts",
     "db:populate-search": "deno run -A scripts/db-populate-search.ts"
   },
-  "unstable": ["cron", "ffi", "kv", "worker-options"],
-  "exclude": ["./public"],
+  "unstable": [
+    "cron",
+    "ffi",
+    "kv",
+    "worker-options"
+  ],
+  "exclude": [
+    "./public"
+  ],
   "imports": {
     "@/": "./src/",
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.47",
@@ -68,7 +75,6 @@
     "linkify-string": "npm:linkify-string@^4.1.1",
     "linkifyjs": "npm:linkifyjs@^4.1.1",
     "lru-cache": "npm:lru-cache@^10.2.2",
-    "nostr-relaypool": "npm:nostr-relaypool2@0.6.34",
     "nostr-tools": "npm:nostr-tools@2.5.1",
     "nostr-wasm": "npm:nostr-wasm@^0.1.0",
     "path-to-regexp": "npm:path-to-regexp@^7.1.0",
@@ -84,14 +90,24 @@
     "~/fixtures/": "./fixtures/"
   },
   "lint": {
-    "include": ["src/", "scripts/"],
+    "include": [
+      "src/",
+      "scripts/"
+    ],
     "rules": {
-      "tags": ["recommended"],
-      "exclude": ["no-explicit-any"]
+      "tags": [
+        "recommended"
+      ],
+      "exclude": [
+        "no-explicit-any"
+      ]
     }
   },
   "fmt": {
-    "include": ["src/", "scripts/"],
+    "include": [
+      "src/",
+      "scripts/"
+    ],
     "useTabs": false,
     "lineWidth": 120,
     "indentWidth": 2,
