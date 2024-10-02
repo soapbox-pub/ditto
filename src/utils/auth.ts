@@ -28,3 +28,27 @@ export async function getTokenHash(token: `token1${string}`): Promise<Uint8Array
 
   return new Uint8Array(buffer);
 }
+
+/**
+ * Encrypt a secret key with AES-GCM.
+ * This function is used to store the secret key in the database.
+ */
+export async function encryptSecretKey(sk: Uint8Array, decrypted: Uint8Array): Promise<Uint8Array> {
+  const secretKey = await crypto.subtle.importKey('raw', sk, { name: 'AES-GCM' }, false, ['encrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const buffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, secretKey, decrypted);
+
+  return new Uint8Array([...iv, ...new Uint8Array(buffer)]);
+}
+
+/**
+ * Decrypt a secret key with AES-GCM.
+ * This function is used to retrieve the secret key from the database.
+ */
+export async function decryptSecretKey(sk: Uint8Array, encrypted: Uint8Array): Promise<Uint8Array> {
+  const secretKey = await crypto.subtle.importKey('raw', sk, { name: 'AES-GCM' }, false, ['decrypt']);
+  const iv = encrypted.slice(0, 12);
+  const buffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, secretKey, encrypted.slice(12));
+
+  return new Uint8Array(buffer);
+}
