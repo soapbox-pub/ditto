@@ -1,9 +1,10 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { encodeHex } from '@std/encoding/hex';
 import { EventTemplate, nip13 } from 'nostr-tools';
 
 import { decode64Schema } from '@/schema.ts';
 import { signedEventSchema } from '@/schemas/nostr.ts';
-import { eventAge, findTag, nostrNow, sha256 } from '@/utils.ts';
+import { eventAge, findTag, nostrNow } from '@/utils.ts';
 import { Time } from '@/utils/time.ts';
 
 /** Decode a Nostr event from a base64 encoded string. */
@@ -41,11 +42,10 @@ function validateAuthEvent(req: Request, event: NostrEvent, opts: ParseAuthReque
     .refine((event) => pow ? nip13.getPow(event.id) >= pow : true, 'Insufficient proof of work')
     .refine(validateBody, 'Event payload does not match request body');
 
-  function validateBody(event: NostrEvent) {
+  async function validateBody(event: NostrEvent): Promise<boolean> {
     if (!validatePayload) return true;
-    return req.clone().text()
-      .then(sha256)
-      .then((hash) => hash === tagValue(event, 'payload'));
+    const payload = await getPayload(req);
+    return payload === tagValue(event, 'payload');
   }
 
   return schema.safeParseAsync(event);
@@ -62,7 +62,7 @@ async function buildAuthEventTemplate(req: Request, opts: ParseAuthRequestOpts =
   ];
 
   if (validatePayload) {
-    const payload = await req.clone().text().then(sha256);
+    const payload = await getPayload(req);
     tags.push(['payload', payload]);
   }
 
@@ -72,6 +72,14 @@ async function buildAuthEventTemplate(req: Request, opts: ParseAuthRequestOpts =
     tags,
     created_at: nostrNow(),
   };
+}
+
+/** Get a SHA-256 hash of the request body encoded as a hex string. */
+async function getPayload(req: Request): Promise<string> {
+  const text = await req.clone().text();
+  const bytes = new TextEncoder().encode(text);
+  const buffer = await crypto.subtle.digest('SHA-256', bytes);
+  return encodeHex(buffer);
 }
 
 /** Get the value for the first matching tag name in the event. */

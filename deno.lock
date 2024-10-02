@@ -97,7 +97,6 @@
       "npm:lint-staged": "npm:lint-staged@15.2.2",
       "npm:lru-cache@^10.2.0": "npm:lru-cache@10.2.2",
       "npm:lru-cache@^10.2.2": "npm:lru-cache@10.2.2",
-      "npm:nostr-relaypool2@0.6.34": "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1": "npm:nostr-tools@2.5.1",
       "npm:nostr-tools@^2.5.0": "npm:nostr-tools@2.5.1",
       "npm:nostr-tools@^2.7.0": "npm:nostr-tools@2.7.0",
@@ -583,10 +582,6 @@
         "integrity": "sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA==",
         "dependencies": {}
       },
-      "@noble/ciphers@0.2.0": {
-        "integrity": "sha512-6YBxJDAapHSdd3bLDv6x2wRPwq4QFMUaB3HvljNBUTThDd12eSm7/3F+2lnfzx2jvM+S6Nsy0jEt9QbPqSwqRw==",
-        "dependencies": {}
-      },
       "@noble/ciphers@0.5.3": {
         "integrity": "sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w==",
         "dependencies": {}
@@ -988,12 +983,6 @@
           "jsdom": "jsdom@24.0.0"
         }
       },
-      "isomorphic-ws@5.0.0_ws@8.17.0": {
-        "integrity": "sha512-muId7Zzn9ywDsyXgTIafTry2sV3nySZeUDe6YedVd1Hvuuep5AsIlqK+XefWpYTyJG5e503F2xIuT2lcU6rCSw==",
-        "dependencies": {
-          "ws": "ws@8.17.0"
-        }
-      },
       "jsdom@24.0.0": {
         "integrity": "sha512-UDS2NayCvmXSXVP6mpTj+73JnNQadZlr9N68189xib2tx5Mls7swlTNao26IoHv46BZJFvXygyRtyXd1feAk1A==",
         "dependencies": {
@@ -1154,25 +1143,6 @@
           "whatwg-url": "whatwg-url@5.0.0"
         }
       },
-      "nostr-relaypool2@0.6.34": {
-        "integrity": "sha512-e3FDh9w/wQkY513mvoJps1Hc/Y5wiWXeBM6MD+YKSyAg+px+/8uHSSHAuHhlavw7oOEOvEsIGlMDMc57DG3MOA==",
-        "dependencies": {
-          "isomorphic-ws": "isomorphic-ws@5.0.0_ws@8.17.0",
-          "nostr-tools": "nostr-tools@1.17.0",
-          "safe-stable-stringify": "safe-stable-stringify@2.4.3"
-        }
-      },
-      "nostr-tools@1.17.0": {
-        "integrity": "sha512-LZmR8GEWKZeElbFV5Xte75dOeE9EFUW/QLI1Ncn3JKn0kFddDKEfBbFN8Mu4TMs+L4HR/WTPha2l+PPuRnJcMw==",
-        "dependencies": {
-          "@noble/ciphers": "@noble/ciphers@0.2.0",
-          "@noble/curves": "@noble/curves@1.1.0",
-          "@noble/hashes": "@noble/hashes@1.3.1",
-          "@scure/base": "@scure/base@1.1.1",
-          "@scure/bip32": "@scure/bip32@1.3.1",
-          "@scure/bip39": "@scure/bip39@1.2.1"
-        }
-      },
       "nostr-tools@2.5.1": {
         "integrity": "sha512-bpkhGGAhdiCN0irfV+xoH3YP5CQeOXyXzUq7SYeM6D56xwTXZCPEmBlUGqFVfQidvRsoVeVxeAiOXW2c2HxoRQ==",
         "dependencies": {
@@ -1301,10 +1271,6 @@
       },
       "rrweb-cssom@0.6.0": {
         "integrity": "sha512-APM0Gt1KoXBz0iIkkdB/kfvGOwC4UuJFeG/c+yV7wSc7q96cG/kJ0HiYCnzivD9SB53cLV1MlHFNfOuPaadYSw==",
-        "dependencies": {}
-      },
-      "safe-stable-stringify@2.4.3": {
-        "integrity": "sha512-e2bDA2WJT0wxseVd4lsDP4+3ONX6HpMXQa1ZhFQ7SU+GjvORCmShbCMltrtIDfkYhVHrOcPtj+KhmDBdPdZD1g==",
         "dependencies": {}
       },
       "safer-buffer@2.1.2": {
@@ -2183,7 +2149,6 @@
       "npm:linkify-string@^4.1.1",
       "npm:linkifyjs@^4.1.1",
       "npm:lru-cache@^10.2.2",
-      "npm:nostr-relaypool2@0.6.34",
       "npm:nostr-tools@2.5.1",
       "npm:nostr-wasm@^0.1.0",
       "npm:path-to-regexp@^7.1.0",
