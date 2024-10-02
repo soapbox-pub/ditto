@@ -1,4 +1,4 @@
-import { Nullable } from 'kysely';
+import { Generated, Nullable } from 'kysely';
 
 import { NPostgresSchema } from '@nostrify/db';
 
@@ -58,11 +58,11 @@ interface EventZapRow {
 }
 
 interface PushSubscriptionRow {
-  id: bigint;
+  id: Generated<bigint>;
   pubkey: string;
   endpoint: string;
-  key_p256dh: string;
-  key_auth: string;
+  p256dh: string;
+  auth: string;
   data: {
     alerts?: {
       mention?: boolean;
@@ -78,6 +78,6 @@ interface PushSubscriptionRow {
     };
     policy?: 'all' | 'followed' | 'follower' | 'none';
   } | null;
-  created_at: Date;
-  updated_at: Date;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }

@@ -230,6 +230,8 @@ async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
     const pubsub = await Storages.pubsub();
     await pubsub.event(event);
+
+    // TODO: Web Push
   }
 }
 
