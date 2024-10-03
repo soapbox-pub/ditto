@@ -1,5 +1,4 @@
-import { LanguageCode } from 'iso-639-1';
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrFilter } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
 
@@ -20,48 +19,39 @@ export async function getTrendingTagValues(
   tagNames: string[],
   /** Filter of eligible events. */
   filter: NostrFilter,
-  /** Results must be inside 'languagesIds' */
-  languagesIds?: string[],
+  /** If present, only tag values in this list are permitted to trend. */
+  values?: string[],
 ): Promise<{ value: string; authors: number; uses: number }[]> {
-  let query = kysely.with('trends', (db) => {
-    let query = db
-      .selectFrom([
-        'nostr_events',
-        sql<{ key: string; value: string }>`jsonb_each_text(nostr_events.tags_index)`.as('kv'),
-        sql<{ key: string; value: string }>`jsonb_array_elements_text(kv.value::jsonb)`.as('element'),
-      ])
-      .select(({ fn }) => [
-        fn<string>('lower', ['element.value']).as('value'),
-        fn.agg<number>('count', ['nostr_events.pubkey']).distinct().as('authors'),
-        fn.countAll<number>().as('uses'),
-      ])
-      .where('kv.key', '=', (eb) => eb.fn.any(eb.val(tagNames)))
-      .groupBy((eb) => eb.fn<string>('lower', ['element.value']))
-      .orderBy((eb) => eb.fn.agg('count', ['nostr_events.pubkey']).distinct(), 'desc');
+  let query = kysely
+    .selectFrom([
+      'nostr_events',
+      sql<{ key: string; value: string }>`jsonb_each_text(nostr_events.tags_index)`.as('kv'),
+      sql<{ key: string; value: string }>`jsonb_array_elements_text(kv.value::jsonb)`.as('element'),
+    ])
+    .select(({ fn }) => [
+      fn<string>('lower', ['element.value']).as('value'),
+      fn.agg<number>('count', ['nostr_events.pubkey']).distinct().as('authors'),
+      fn.countAll<number>().as('uses'),
+    ])
+    .where('kv.key', '=', (eb) => eb.fn.any(eb.val(tagNames)))
+    .groupBy((eb) => eb.fn<string>('lower', ['element.value']))
+    .orderBy('authors desc').orderBy('uses desc');
 
-    if (filter.kinds) {
-      query = query.where('nostr_events.kind', '=', ({ fn, val }) => fn.any(val(filter.kinds)));
-    }
-    if (filter.authors) {
-      query = query.where('nostr_events.pubkey', '=', ({ fn, val }) => fn.any(val(filter.authors)));
-    }
-    if (typeof filter.since === 'number') {
-      query = query.where('nostr_events.created_at', '>=', filter.since);
-    }
-    if (typeof filter.until === 'number') {
-      query = query.where('nostr_events.created_at', '<=', filter.until);
-    }
-    return query;
-  })
-    .selectFrom(['trends'])
-    .select(['value', 'authors', 'uses']);
-
-  if (languagesIds) {
-    query = query.where('trends.value', 'in', languagesIds);
+  if (filter.kinds) {
+    query = query.where('nostr_events.kind', '=', ({ fn, val }) => fn.any(val(filter.kinds)));
   }
-
-  query = query.orderBy('authors desc').orderBy('uses desc');
-
+  if (filter.authors) {
+    query = query.where('nostr_events.pubkey', '=', ({ fn, val }) => fn.any(val(filter.authors)));
+  }
+  if (typeof filter.since === 'number') {
+    query = query.where('nostr_events.created_at', '>=', filter.since);
+  }
+  if (typeof filter.until === 'number') {
+    query = query.where('nostr_events.created_at', '<=', filter.until);
+  }
+  if (values) {
+    query = query.where('element.value', 'in', values);
+  }
   if (typeof filter.limit === 'number') {
     query = query.limit(filter.limit);
   }
@@ -83,7 +73,7 @@ export async function updateTrendingTags(
   limit: number,
   extra = '',
   aliases?: string[],
-  language?: LanguageCode,
+  values?: string[],
 ) {
   console.info(`Updating trending ${l}...`);
   const kysely = await Storages.kysely();
@@ -94,25 +84,15 @@ export async function updateTrendingTags(
 
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
-  let languagesIds: NostrEvent['id'][] = [];
-  if (language) {
-    const result = (await kysely.selectFrom('nostr_events')
-      .select('id')
-      .where('language', '=', language)
-      .where('nostr_events.created_at', '>=', yesterday)
-      .where('nostr_events.created_at', '<=', now)
-      .execute()).map((event) => event.id);
-    languagesIds = result;
-  }
-
   try {
     const trends = await getTrendingTagValues(kysely, tagNames, {
       kinds,
       since: yesterday,
       until: now,
       limit,
-    }, languagesIds);
+    }, values);
 
+    console.log(trends);
     if (!trends.length) {
       console.info(`No trending ${l} found. Skipping.`);
       return;
@@ -125,7 +105,7 @@ export async function updateTrendingTags(
       content: '',
       tags: [
         ['L', 'pub.ditto.trends'],
-        ['l', languagesIds.length ? `${l}.${language}` : l, 'pub.ditto.trends'],
+        ['l', l, 'pub.ditto.trends'],
         ...trends.map(({ value, authors, uses }) => [tagName, value, extra, authors.toString(), uses.toString()]),
       ],
       created_at: Math.floor(Date.now() / 1000),
@@ -150,16 +130,30 @@ export function updateTrendingZappedEvents(): Promise<void> {
 
 /** Update trending events. */
 export async function updateTrendingEvents(): Promise<void> {
-  const languages = Conf.preferredLanguages;
-  if (!languages) return updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']);
+  const results: Promise<void>[] = [
+    updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']),
+  ];
 
-  const promise: Promise<void>[] = [];
+  const kysely = await Storages.kysely();
 
-  for (const language of languages) {
-    promise.push(updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q'], language));
+  for (const language of Conf.preferredLanguages ?? []) {
+    const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
+    const now = Math.floor(Date.now() / 1000);
+
+    const rows = await kysely
+      .selectFrom('nostr_events')
+      .select('nostr_events.id')
+      .where('nostr_events.language', '=', language)
+      .where('nostr_events.created_at', '>=', yesterday)
+      .where('nostr_events.created_at', '<=', now)
+      .execute();
+
+    const ids = rows.map((row) => row.id);
+
+    results.push(updateTrendingTags(`#e.${language}`, 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q'], ids));
   }
 
-  await Promise.allSettled(promise);
+  await Promise.allSettled(results);
 }
 
 /** Update trending hashtags. */
