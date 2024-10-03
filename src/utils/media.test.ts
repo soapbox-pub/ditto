@@ -7,6 +7,10 @@ Deno.test('getUrlMediaType', () => {
   assertEquals(getUrlMediaType('https://example.com/index.html'), 'text/html');
   assertEquals(getUrlMediaType('https://example.com/yolo'), undefined);
   assertEquals(getUrlMediaType('https://example.com/'), undefined);
+  assertEquals(
+    getUrlMediaType('https://gitlab.com/soapbox-pub/nostrify/-/blob/main/packages/policies/WoTPolicy.ts'),
+    'application/typescript',
+  );
 });
 
 Deno.test('isPermittedMediaType', () => {
