@@ -99,6 +99,25 @@ class Conf {
       },
     },
   };
+  /**
+   * BIP-32 derivation paths for different crypto use-cases.
+   * The `DITTO_NSEC` is used as the seed.
+   * Keys can be rotated by changing the derviation path.
+   */
+  static wallet = {
+    /** Private key for AES-GCM encryption in the Postgres database. */
+    get dbKeyPath(): string {
+      return Deno.env.get('WALLET_DB_KEY_PATH') || "m/0'/1'";
+    },
+    /** Private key for AES-GCM encryption of captcha answer data. */
+    get captchaKeyPath(): string {
+      return Deno.env.get('WALLET_CAPTCHA_KEY_PATH') || "m/0'/2'";
+    },
+    /** VAPID private key path. */
+    get vapidKeyPath(): string {
+      return Deno.env.get('WALLET_VAPID_KEY_PATH') || "m/0'/3'";
+    },
+  };
   /** Character limit to enforce for posts made through Mastodon API. */
   static get postCharLimit(): number {
     return Number(Deno.env.get('POST_CHAR_LIMIT') || 5000);
