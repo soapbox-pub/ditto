@@ -73,6 +73,7 @@
       "npm:@noble/secp256k1@^2.0.0": "npm:@noble/secp256k1@2.1.0",
       "npm:@scure/base@^1.1.6": "npm:@scure/base@1.1.6",
       "npm:@scure/bip32@^1.4.0": "npm:@scure/bip32@1.4.0",
+      "npm:@scure/bip32@^1.5.0": "npm:@scure/bip32@1.5.0",
       "npm:@scure/bip39@^1.3.0": "npm:@scure/bip39@1.3.0",
       "npm:@types/node": "npm:@types/node@18.16.19",
       "npm:comlink-async-generator": "npm:comlink-async-generator@0.0.1",
@@ -604,6 +605,12 @@
           "@noble/hashes": "@noble/hashes@1.4.0"
         }
       },
+      "@noble/curves@1.6.0": {
+        "integrity": "sha512-TlaHRXDehJuRNR9TfZDNQ45mMEd5dwUwmicsafcIX4SsNiqnCHKjE/1alYPd/lDRVhxdhUAlv8uEhMCI5zjIJQ==",
+        "dependencies": {
+          "@noble/hashes": "@noble/hashes@1.5.0"
+        }
+      },
       "@noble/hashes@1.3.1": {
         "integrity": "sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA==",
         "dependencies": {}
@@ -614,6 +621,10 @@
       },
       "@noble/hashes@1.4.0": {
         "integrity": "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==",
+        "dependencies": {}
+      },
+      "@noble/hashes@1.5.0": {
+        "integrity": "sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA==",
         "dependencies": {}
       },
       "@noble/secp256k1@2.1.0": {
@@ -632,6 +643,10 @@
         "integrity": "sha512-ok9AWwhcgYuGG3Zfhyqg+zwl+Wn5uE+dwC0NV/2qQkx4dABbb/bx96vWu8NSj+BNjjSjno+JRYRjle1jV08k3g==",
         "dependencies": {}
       },
+      "@scure/base@1.1.9": {
+        "integrity": "sha512-8YKhl8GHiNI/pU2VMaofa2Tor7PJRAjwQLBBuilkJ9L5+13yVbC7JO/wS7piioAvPSwR3JKM1IJ/u4xQzbcXKg==",
+        "dependencies": {}
+      },
       "@scure/bip32@1.3.1": {
         "integrity": "sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==",
         "dependencies": {
@@ -646,6 +661,14 @@
           "@noble/curves": "@noble/curves@1.4.0",
           "@noble/hashes": "@noble/hashes@1.4.0",
           "@scure/base": "@scure/base@1.1.6"
+        }
+      },
+      "@scure/bip32@1.5.0": {
+        "integrity": "sha512-8EnFYkqEQdnkuGBVpCzKxyIwDCBLDVj3oiX0EKUFre/tOjL/Hqba1D6n/8RcmaQy4f95qQFrO2A8Sr6ybh4NRw==",
+        "dependencies": {
+          "@noble/curves": "@noble/curves@1.6.0",
+          "@noble/hashes": "@noble/hashes@1.5.0",
+          "@scure/base": "@scure/base@1.1.9"
         }
       },
       "@scure/bip39@1.2.1": {
@@ -2132,6 +2155,7 @@
       "npm:@isaacs/ttlcache@^1.4.1",
       "npm:@noble/secp256k1@^2.0.0",
       "npm:@scure/base@^1.1.6",
+      "npm:@scure/bip32@^1.5.0",
       "npm:comlink-async-generator@^0.0.1",
       "npm:comlink@^4.4.1",
       "npm:commander@12.1.0",
