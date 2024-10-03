@@ -5,7 +5,6 @@ ENV PORT 5000
 
 WORKDIR /app
 RUN mkdir -p data && chown -R deno data
-USER deno
 COPY . .
 RUN deno cache src/server.ts
 RUN apt-get update && apt-get install -y unzip curl
