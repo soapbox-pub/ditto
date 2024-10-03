@@ -197,7 +197,8 @@ const createStatusController: AppController = async (c) => {
 
   const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
-  const author = await getAuthor(await c.get('signer')?.getPublicKey()!);
+  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const author = pubkey ? await getAuthor(pubkey) : undefined;
 
   if (Conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
@@ -210,7 +211,7 @@ const createStatusController: AppController = async (c) => {
         tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString(), dittoZapSplit[pubkey].message]);
       }
       if (totalSplit) {
-        tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+        tags.push(['zap', pubkey, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
       }
     }
   }
