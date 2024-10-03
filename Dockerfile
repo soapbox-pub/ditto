@@ -1,5 +1,5 @@
 FROM denoland/deno:1.44.2
-EXPOSE 4036
+EXPOSE 5000
 
 ENV PORT 5000
 
