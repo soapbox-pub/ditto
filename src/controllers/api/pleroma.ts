@@ -1,26 +1,20 @@
-import { NSchema as n, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
+import { configSchema } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
+import { getConfigs, getPleromaConfig } from '@/utils/frontendConfig.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const store = await Storages.db();
-  const configs = await getConfigs(store, c.req.raw.signal);
-  const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
+  const frontendConfig = await getPleromaConfig(store, c.req.raw.signal);
 
   if (frontendConfig) {
-    const schema = elixirTupleSchema.transform(({ tuple }) => tuple).array();
-    const data = schema.parse(frontendConfig.value).reduce<Record<string, unknown>>((result, [name, data]) => {
-      result[name.replace(/^:/, '')] = data;
-      return result;
-    }, {});
-    return c.json(data);
+    return c.json(frontendConfig);
   } else {
     return c.json({});
   }
@@ -69,24 +63,6 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
 
   return c.json({});
 };
-
-async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaConfig[]> {
-  const { pubkey } = Conf;
-
-  const [event] = await store.query([{
-    kinds: [30078],
-    authors: [pubkey],
-    '#d': ['pub.ditto.pleroma.config'],
-    limit: 1,
-  }], { signal });
-
-  try {
-    const decrypted = await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content);
-    return n.json().pipe(configSchema.array()).catch([]).parse(decrypted);
-  } catch (_e) {
-    return [];
-  }
-}
 
 const pleromaAdminTagSchema = z.object({
   nicknames: z.string().array(),
