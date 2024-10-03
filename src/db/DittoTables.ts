@@ -59,6 +59,7 @@ interface EventZapRow {
 interface PushSubscriptionRow {
   id: Generated<bigint>;
   pubkey: string;
+  token_hash: Uint8Array;
   endpoint: string;
   p256dh: string;
   auth: string;

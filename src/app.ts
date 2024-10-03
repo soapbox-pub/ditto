@@ -263,7 +263,7 @@ app.get('/api/v1/mutes', requireSigner, mutesController);
 app.get('/api/v1/markers', requireProof(), markersController);
 app.post('/api/v1/markers', requireProof(), updateMarkersController);
 
-app.post('/api/v1/push/subscription', requireSigner, pushSubscribeController);
+app.post('/api/v1/push/subscription', requireProof(), pushSubscribeController);
 
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);

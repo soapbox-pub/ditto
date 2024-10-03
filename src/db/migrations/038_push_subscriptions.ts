@@ -5,7 +5,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .createTable('push_subscriptions')
     .addColumn('id', 'bigint', (c) => c.primaryKey().autoIncrement())
     .addColumn('pubkey', 'char(64)', (c) => c.notNull())
-    .addColumn('token', 'char(64)', (c) => c.notNull())
+    .addColumn('token_hash', 'bytea', (c) => c.references('auth_tokens.token_hash').onDelete('cascade').notNull())
     .addColumn('endpoint', 'text', (c) => c.notNull())
     .addColumn('p256dh', 'text', (c) => c.notNull())
     .addColumn('auth', 'text', (c) => c.notNull())
