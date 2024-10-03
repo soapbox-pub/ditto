@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import '@/config.ts';
 
 import {
   updateTrendingEvents,

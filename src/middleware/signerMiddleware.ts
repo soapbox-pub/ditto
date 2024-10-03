@@ -3,9 +3,11 @@ import { NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { AppMiddleware } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { Storages } from '@/storages.ts';
+import { decryptSecretKey, getTokenHash } from '@/utils/auth.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
@@ -21,14 +23,17 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
     if (bech32.startsWith('token1')) {
       try {
         const kysely = await Storages.kysely();
+        const tokenHash = await getTokenHash(bech32 as `token1${string}`);
 
-        const { user_pubkey, server_seckey, relays } = await kysely
-          .selectFrom('nip46_tokens')
-          .select(['user_pubkey', 'server_seckey', 'relays'])
-          .where('api_token', '=', bech32)
+        const { pubkey, nip46_sk_enc, nip46_relays } = await kysely
+          .selectFrom('auth_tokens')
+          .select(['pubkey', 'nip46_sk_enc', 'nip46_relays'])
+          .where('token_hash', '=', tokenHash)
           .executeTakeFirstOrThrow();
 
-        c.set('signer', new ConnectSigner(user_pubkey, new NSecSigner(server_seckey), JSON.parse(relays)));
+        const nep46Seckey = await decryptSecretKey(Conf.seckey, nip46_sk_enc);
+
+        c.set('signer', new ConnectSigner(pubkey, new NSecSigner(nep46Seckey), nip46_relays));
       } catch {
         throw new HTTPException(401);
       }

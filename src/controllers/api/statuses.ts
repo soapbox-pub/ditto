@@ -88,14 +88,28 @@ const createStatusController: AppController = async (c) => {
       return c.json({ error: 'Original post not found.' }, 404);
     }
 
-    const root = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
+    const rootId = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
+    const root = rootId === ancestor.id ? ancestor : await getEvent(rootId);
 
-    tags.push(['e', root, Conf.relay, 'root']);
-    tags.push(['e', data.in_reply_to_id, Conf.relay, 'reply']);
+    if (root) {
+      tags.push(['e', root.id, Conf.relay, 'root', root.pubkey]);
+    } else {
+      tags.push(['e', rootId, Conf.relay, 'root']);
+    }
+
+    tags.push(['e', ancestor.id, Conf.relay, 'reply', ancestor.pubkey]);
   }
 
+  let quoted: DittoEvent | undefined;
+
   if (data.quote_id) {
-    tags.push(['q', data.quote_id]);
+    quoted = await getEvent(data.quote_id);
+
+    if (!quoted) {
+      return c.json({ error: 'Quoted post not found.' }, 404);
+    }
+
+    tags.push(['q', quoted.id, Conf.relay, '', quoted.pubkey]);
   }
 
   if (data.sensitive && data.spoiler_text) {
@@ -143,7 +157,7 @@ const createStatusController: AppController = async (c) => {
       }
 
       try {
-        return `nostr:${nip19.npubEncode(pubkey)}`;
+        return `nostr:${nip19.nprofileEncode({ pubkey, relays: [Conf.relay] })}`;
       } catch {
         return match;
       }
@@ -159,7 +173,7 @@ const createStatusController: AppController = async (c) => {
   }
 
   for (const pubkey of pubkeys) {
-    tags.push(['p', pubkey]);
+    tags.push(['p', pubkey, Conf.relay]);
   }
 
   for (const link of linkify.find(data.status ?? '')) {
@@ -175,10 +189,16 @@ const createStatusController: AppController = async (c) => {
     .map(({ url }) => url)
     .filter((url): url is string => Boolean(url));
 
-  const quoteCompat = data.quote_id ? `\n\nnostr:${nip19.noteEncode(data.quote_id)}` : '';
+  const quoteCompat = quoted
+    ? `\n\nnostr:${
+      nip19.neventEncode({ id: quoted.id, kind: quoted.kind, author: quoted.pubkey, relays: [Conf.relay] })
+    }`
+    : '';
+
   const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
 
-  const author = await getAuthor(await c.get('signer')?.getPublicKey()!);
+  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const author = pubkey ? await getAuthor(pubkey) : undefined;
 
   if (Conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
@@ -191,7 +211,7 @@ const createStatusController: AppController = async (c) => {
         tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString(), dittoZapSplit[pubkey].message]);
       }
       if (totalSplit) {
-        tags.push(['zap', author?.pubkey as string, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+        tags.push(['zap', pubkey, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
       }
     }
   }
@@ -223,7 +243,7 @@ const deleteStatusController: AppController = async (c) => {
     if (event.pubkey === pubkey) {
       await createEvent({
         kind: 5,
-        tags: [['e', id, Conf.relay]],
+        tags: [['e', id, Conf.relay, '', pubkey]],
       }, c);
 
       const author = await getAuthor(event.pubkey);
@@ -281,7 +301,7 @@ const favouriteController: AppController = async (c) => {
       kind: 7,
       content: '+',
       tags: [
-        ['e', target.id, Conf.relay],
+        ['e', target.id, Conf.relay, '', target.pubkey],
         ['p', target.pubkey, Conf.relay],
       ],
     }, c);
@@ -324,7 +344,7 @@ const reblogStatusController: AppController = async (c) => {
   const reblogEvent = await createEvent({
     kind: 6,
     tags: [
-      ['e', event.id, Conf.relay],
+      ['e', event.id, Conf.relay, '', event.pubkey],
       ['p', event.pubkey, Conf.relay],
     ],
   }, c);
@@ -361,7 +381,7 @@ const unreblogStatusController: AppController = async (c) => {
 
   await createEvent({
     kind: 5,
-    tags: [['e', repostEvent.id, Conf.relay]],
+    tags: [['e', repostEvent.id, Conf.relay, '', repostEvent.pubkey]],
   }, c);
 
   return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
@@ -413,7 +433,7 @@ const bookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
+      (tags) => addTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -440,7 +460,7 @@ const unbookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
+      (tags) => deleteTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -467,7 +487,7 @@ const pinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', eventId, Conf.relay]),
+      (tags) => addTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -496,7 +516,7 @@ const unpinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', eventId, Conf.relay]),
+      (tags) => deleteTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -540,8 +560,8 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['e', target.id, Conf.relay],
-        ['p', target.pubkey],
+        ['e', target.id, Conf.relay, '', target.pubkey],
+        ['p', target.pubkey, Conf.relay],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
         ['lnurl', lnurl],
@@ -553,7 +573,7 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['p', target.pubkey],
+        ['p', target.pubkey, Conf.relay],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
         ['lnurl', lnurl],

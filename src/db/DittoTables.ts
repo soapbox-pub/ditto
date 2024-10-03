@@ -4,7 +4,7 @@ import { NPostgresSchema } from '@nostrify/db';
 
 export interface DittoTables extends NPostgresSchema {
   nostr_events: NostrEventsRow;
-  nip46_tokens: NIP46TokenRow;
+  auth_tokens: AuthTokenRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
@@ -33,13 +33,12 @@ interface EventStatsRow {
   zaps_amount: number;
 }
 
-interface NIP46TokenRow {
-  api_token: string;
-  user_pubkey: string;
-  server_seckey: Uint8Array;
-  server_pubkey: string;
-  relays: string;
-  connected_at: Date;
+interface AuthTokenRow {
+  token_hash: Uint8Array;
+  pubkey: string;
+  nip46_sk_enc: Uint8Array;
+  nip46_relays: string[];
+  created_at: Date;
 }
 
 interface PubkeyDomainRow {

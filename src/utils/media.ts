@@ -1,4 +1,4 @@
-import { typeByExtension } from '@std/media-types';
+import { typeByExtension as _typeByExtension } from '@std/media-types';
 
 /** Get media type of the filename in the URL by its extension, if any. */
 export function getUrlMediaType(url: string): string | undefined {
@@ -21,4 +21,14 @@ export function getUrlMediaType(url: string): string | undefined {
 export function isPermittedMediaType(mediaType: string, permitted: string[]): boolean {
   const [baseType, _subType] = mediaType.split('/');
   return permitted.includes(baseType);
+}
+
+/** Custom type-by-extension with overrides. */
+function typeByExtension(ext: string): string | undefined {
+  switch (ext) {
+    case 'ts':
+      return 'application/typescript';
+    default:
+      return _typeByExtension(ext);
+  }
 }

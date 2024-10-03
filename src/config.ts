@@ -1,4 +1,5 @@
 import os from 'node:os';
+import ISO6391, { LanguageCode } from 'iso-639-1';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -246,6 +247,10 @@ class Conf {
   /** Whether zap splits should be enabled. */
   static get zapSplitsEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
+  }
+  /** Languages this server wishes to highlight. Used when querying trends.*/
+  static get preferredLanguages(): LanguageCode[] | undefined {
+    return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
   }
   /** Cache settings. */
   static caches = {
