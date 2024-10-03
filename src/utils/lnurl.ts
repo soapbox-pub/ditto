@@ -1,5 +1,5 @@
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
-import Debug from '@soapbox/stickynotes/debug';
+import { Stickynotes } from '@soapbox/stickynotes';
 
 import { cachedLnurlsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
@@ -7,17 +7,17 @@ import { Time } from '@/utils/time.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 import { NostrEvent } from '@nostrify/nostrify';
 
-const debug = Debug('ditto:lnurl');
+const console = new Stickynotes('ditto:lnurl');
 
 const lnurlCache = new SimpleLRU<string, LNURLDetails>(
   async (lnurl, { signal }) => {
-    debug(`Lookup ${lnurl}`);
+    console.debug(`Lookup ${lnurl}`);
     try {
       const result = await LNURL.lookup(lnurl, { fetch: fetchWorker, signal });
-      debug(`Found: ${lnurl}`);
+      console.debug(`Found: ${lnurl}`);
       return result;
     } catch (e) {
-      debug(`Not found: ${lnurl}`);
+      console.debug(`Not found: ${lnurl}`);
       throw e;
     }
   },
