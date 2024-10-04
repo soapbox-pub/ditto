@@ -1,4 +1,4 @@
-import { createCanvas, loadImage } from '@gfx/canvas-wasm';
+import { createCanvas, Image, loadImage } from '@gfx/canvas-wasm';
 import TTLCache from '@isaacs/ttlcache';
 import { z } from 'zod';
 
@@ -17,16 +17,15 @@ interface Dimensions {
 }
 
 const captchas = new TTLCache<string, Point>();
+const imagesAsync = getImages();
 
 const BG_SIZE = { w: 370, h: 400 };
 const PUZZLE_SIZE = { w: 65, h: 65 };
 
 /** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
-  const { bg, puzzle, solution } = await generateCaptcha(
-    await Deno.readFile(new URL('../../assets/captcha/bg/tj-holowaychuk.jpg', import.meta.url)),
-    await Deno.readFile(new URL('../../assets/captcha/puzzle-mask.png', import.meta.url)),
-    await Deno.readFile(new URL('../../assets/captcha/puzzle-hole.png', import.meta.url)),
+  const { bg, puzzle, solution } = generateCaptcha(
+    await imagesAsync,
     BG_SIZE,
     PUZZLE_SIZE,
   );
@@ -47,11 +46,44 @@ export const captchaController: AppController = async (c) => {
   });
 };
 
+interface CaptchaImages {
+  bgImages: Image[];
+  puzzleMask: Image;
+  puzzleHole: Image;
+}
+
+async function getImages(): Promise<CaptchaImages> {
+  const bgImages = await getBackgroundImages();
+
+  const puzzleMask = await loadImage(
+    await Deno.readFile(new URL('../../assets/captcha/puzzle-mask.png', import.meta.url)),
+  );
+  const puzzleHole = await loadImage(
+    await Deno.readFile(new URL('../../assets/captcha/puzzle-hole.png', import.meta.url)),
+  );
+
+  return { bgImages, puzzleMask, puzzleHole };
+}
+
+async function getBackgroundImages(): Promise<Image[]> {
+  const path = new URL('../../assets/captcha/bg/', import.meta.url);
+
+  const images: Image[] = [];
+
+  for await (const dirEntry of Deno.readDir(path)) {
+    if (dirEntry.isFile && dirEntry.name.endsWith('.jpg')) {
+      const file = await Deno.readFile(new URL(dirEntry.name, path));
+      const image = await loadImage(file);
+      images.push(image);
+    }
+  }
+
+  return images;
+}
+
 /** Generate a puzzle captcha, returning canvases for the board and piece. */
-async function generateCaptcha(
-  from: Uint8Array,
-  mask: Uint8Array,
-  hole: Uint8Array,
+function generateCaptcha(
+  { bgImages, puzzleMask, puzzleHole }: CaptchaImages,
   bgSize: Dimensions,
   puzzleSize: Dimensions,
 ) {
@@ -61,19 +93,16 @@ async function generateCaptcha(
   const ctx = bg.getContext('2d');
   const pctx = puzzle.getContext('2d');
 
-  const bgImage = await loadImage(from);
-  const maskImage = await loadImage(mask);
-  const holeImage = await loadImage(hole);
-
   const solution = generateSolution(bgSize, puzzleSize);
+  const bgImage = bgImages[Math.floor(Math.random() * bgImages.length)];
 
   // Draw the background image.
   ctx.drawImage(bgImage, 0, 0, bg.width, bg.height);
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.drawImage(holeImage, solution.x, solution.y, puzzle.width, puzzle.height);
+  ctx.drawImage(puzzleHole, solution.x, solution.y, puzzle.width, puzzle.height);
 
   // Draw the puzzle piece.
-  pctx.drawImage(maskImage, 0, 0, puzzle.width, puzzle.height);
+  pctx.drawImage(puzzleMask, 0, 0, puzzle.width, puzzle.height);
   pctx.globalCompositeOperation = 'source-in';
   pctx.drawImage(bgImage, solution.x, solution.y, puzzle.width, puzzle.height, 0, 0, puzzle.width, puzzle.height);
 
