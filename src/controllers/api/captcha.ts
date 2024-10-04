@@ -27,7 +27,7 @@ export const captchaController: AppController = async (c) => {
 
   return c.json({
     type: 'puzzle',
-    token: crypto.randomUUID(),
+    token: crypto.randomUUID(), // Useless, but Pleroma does it.
     puzzle: puzzle.toDataURL(),
     piece: piece.toDataURL(),
     answer_data: encodeBase64(encrypted),
