@@ -5,6 +5,7 @@
       "jsr:@b-fuze/deno-dom@^0.1.47": "jsr:@b-fuze/deno-dom@0.1.48",
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4": "jsr:@bradenmacdonald/s3-lite-client@0.7.6",
       "jsr:@denosaurs/plug@1.0.3": "jsr:@denosaurs/plug@1.0.3",
+      "jsr:@gfx/canvas-wasm@^0.4.2": "jsr:@gfx/canvas-wasm@0.4.2",
       "jsr:@gleasonator/policy": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.2.0": "jsr:@gleasonator/policy@0.2.0",
       "jsr:@gleasonator/policy@0.4.0": "jsr:@gleasonator/policy@0.4.0",
@@ -53,6 +54,7 @@
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
       "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.2",
       "jsr:@std/encoding@0.213.1": "jsr:@std/encoding@0.213.1",
+      "jsr:@std/encoding@1.0.5": "jsr:@std/encoding@1.0.5",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.3",
       "jsr:@std/encoding@^0.224.1": "jsr:@std/encoding@0.224.3",
       "jsr:@std/fmt@0.213.1": "jsr:@std/fmt@0.213.1",
@@ -136,6 +138,12 @@
           "jsr:@std/fmt@0.213.1",
           "jsr:@std/fs@0.213.1",
           "jsr:@std/path@0.213.1"
+        ]
+      },
+      "@gfx/canvas-wasm@0.4.2": {
+        "integrity": "d653be3bd12cb2fa9bbe5d1b1f041a81b91d80b68502761204aaf60e4592532a",
+        "dependencies": [
+          "jsr:@std/encoding@1.0.5"
         ]
       },
       "@gleasonator/policy@0.2.0": {
@@ -469,6 +477,9 @@
       },
       "@std/encoding@0.224.3": {
         "integrity": "5e861b6d81be5359fad4155e591acf17c0207b595112d1840998bb9f476dbdaf"
+      },
+      "@std/encoding@1.0.5": {
+        "integrity": "ecf363d4fc25bd85bd915ff6733a7e79b67e0e7806334af15f4645c569fefc04"
       },
       "@std/fmt@0.213.1": {
         "integrity": "a06d31777566d874b9c856c10244ac3e6b660bdec4c82506cd46be052a1082c3"
@@ -2135,6 +2146,7 @@
     "dependencies": [
       "jsr:@b-fuze/deno-dom@^0.1.47",
       "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
+      "jsr:@gfx/canvas-wasm@^0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@nostrify/db@^0.35.0",
