@@ -1,6 +1,9 @@
 import { createCanvas, loadImage } from '@gfx/canvas-wasm';
+import { encodeBase64 } from '@std/encoding/base64';
 
 import { AppController } from '@/app.ts';
+import { DittoWallet } from '@/DittoWallet.ts';
+import { aesEncrypt } from '@/utils/aes.ts';
 
 export const captchaController: AppController = async (c) => {
   const { puzzle, piece, solution } = await generateCaptcha(
@@ -14,9 +17,20 @@ export const captchaController: AppController = async (c) => {
     },
   );
 
+  const answerData = {
+    solution,
+    created_at: new Date().toISOString(),
+  };
+
+  const encoded = new TextEncoder().encode(JSON.stringify(answerData));
+  const encrypted = await aesEncrypt(DittoWallet.captchaKey, encoded);
+
   return c.json({
+    type: 'puzzle',
+    token: crypto.randomUUID(),
     puzzle: puzzle.toDataURL(),
     piece: piece.toDataURL(),
+    answer_data: encodeBase64(encrypted),
   });
 };
 

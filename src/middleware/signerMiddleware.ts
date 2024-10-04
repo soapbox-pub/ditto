@@ -7,7 +7,8 @@ import { Conf } from '@/config.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { Storages } from '@/storages.ts';
-import { decryptSecretKey, getTokenHash } from '@/utils/auth.ts';
+import { aesDecrypt } from '@/utils/aes.ts';
+import { getTokenHash } from '@/utils/auth.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
@@ -31,7 +32,7 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
           .where('token_hash', '=', tokenHash)
           .executeTakeFirstOrThrow();
 
-        const nep46Seckey = await decryptSecretKey(Conf.seckey, nip46_sk_enc);
+        const nep46Seckey = await aesDecrypt(Conf.seckey, nip46_sk_enc);
 
         c.set('signer', new ConnectSigner(pubkey, new NSecSigner(nep46Seckey), nip46_relays));
       } catch {
