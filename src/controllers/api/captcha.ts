@@ -18,14 +18,17 @@ interface Dimensions {
 
 const captchas = new TTLCache<string, Point>();
 
+const BG_SIZE = { w: 370, h: 400 };
+const PUZZLE_SIZE = { w: 65, h: 65 };
+
 /** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
   const { bg, puzzle, solution } = await generateCaptcha(
     await Deno.readFile(new URL('../../assets/captcha/bg/tj-holowaychuk.jpg', import.meta.url)),
     await Deno.readFile(new URL('../../assets/captcha/puzzle-mask.png', import.meta.url)),
     await Deno.readFile(new URL('../../assets/captcha/puzzle-hole.png', import.meta.url)),
-    { w: 370, h: 400 },
-    { w: 65, h: 65 },
+    BG_SIZE,
+    PUZZLE_SIZE,
   );
 
   const id = crypto.randomUUID();
@@ -110,15 +113,9 @@ export const captchaVerifyController: AppController = async (c) => {
     return c.json({ error: 'Captcha expired' }, { status: 410 });
   }
 
-  const dim = { w: 65, h: 65 };
-  const point = result.data;
+  const solved = verifySolution(PUZZLE_SIZE, result.data, solution);
 
-  const success = areIntersecting(
-    { ...point, ...dim },
-    { ...solution, ...dim },
-  );
-
-  if (success) {
+  if (solved) {
     captchas.delete(id);
 
     await createAdminEvent({
@@ -135,6 +132,13 @@ export const captchaVerifyController: AppController = async (c) => {
 
   return c.json({ error: 'Incorrect solution' }, { status: 400 });
 };
+
+function verifySolution(puzzleSize: Dimensions, point: Point, solution: Point): boolean {
+  return areIntersecting(
+    { ...point, ...puzzleSize },
+    { ...solution, ...puzzleSize },
+  );
+}
 
 type Rectangle = Point & Dimensions;
 
