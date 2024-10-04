@@ -24,10 +24,10 @@ export const captchaController: AppController = async (c) => {
     await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
     await Deno.readFile(new URL('../../../captcha/puzzle.png', import.meta.url)),
     {
-      cw: 300,
-      ch: 300,
-      pw: 50,
-      ph: 50,
+      cw: 370,
+      ch: 400,
+      pw: 65,
+      ph: 65,
       alpha: 0.8,
     },
   );
@@ -132,7 +132,7 @@ export const captchaVerifyController: AppController = async (c) => {
     return c.json({ error: 'Captcha expired' }, { status: 410 });
   }
 
-  const dim = { w: 50, h: 50 };
+  const dim = { w: 65, h: 65 };
   const point = result.data;
 
   const success = areIntersecting(
