@@ -21,9 +21,9 @@ const captchas = new TTLCache<string, Point>();
 /** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
   const { bg, puzzle, solution } = await generateCaptcha(
-    await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
-    await Deno.readFile(new URL('../../../captcha/puzzle-mask.png', import.meta.url)),
-    await Deno.readFile(new URL('../../../captcha/puzzle-hole.png', import.meta.url)),
+    await Deno.readFile(new URL('../../assets/captcha/bg/tj-holowaychuk.jpg', import.meta.url)),
+    await Deno.readFile(new URL('../../assets/captcha/puzzle-mask.png', import.meta.url)),
+    await Deno.readFile(new URL('../../assets/captcha/puzzle-hole.png', import.meta.url)),
     { w: 370, h: 400 },
     { w: 65, h: 65 },
   );
