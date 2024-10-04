@@ -38,7 +38,7 @@ import {
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
-import { captchaController } from '@/controllers/api/captcha.ts';
+import { captchaController, captchaVerifyController } from '@/controllers/api/captcha.ts';
 import {
   adminRelaysController,
   adminSetRelaysController,
@@ -280,6 +280,7 @@ app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
 app.get('/api/v1/ditto/captcha', captchaController);
+app.post('/api/v1/ditto/captcha/:id/verify', requireSigner, captchaVerifyController);
 
 app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);

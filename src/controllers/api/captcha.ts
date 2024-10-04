@@ -1,5 +1,6 @@
 import { createCanvas, loadImage } from '@gfx/canvas-wasm';
 import TTLCache from '@isaacs/ttlcache';
+import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
@@ -7,6 +8,11 @@ import { Conf } from '@/config.ts';
 interface Point {
   x: number;
   y: number;
+}
+
+interface Dimensions {
+  w: number;
+  h: number;
 }
 
 const captchas = new TTLCache<string, Point>();
@@ -102,4 +108,53 @@ function getPieceCoords(cw: number, ch: number, pw: number, ph: number): Point {
   const y = Math.floor(Math.random() * (ch - ph));
 
   return { x, y };
+}
+
+const pointSchema = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+
+/** Verify the captcha solution and sign an event in the database. */
+export const captchaVerifyController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const result = pointSchema.safeParse(await c.req.json());
+
+  if (!result.success) {
+    return c.json({ error: 'Invalid input' }, { status: 422 });
+  }
+
+  const solution = captchas.get(id);
+
+  if (!solution) {
+    return c.json({ error: 'Captcha expired' }, { status: 410 });
+  }
+
+  const dim = { w: 50, h: 50 };
+  const point = result.data;
+
+  const success = areIntersecting(
+    { ...point, ...dim },
+    { ...solution, ...dim },
+  );
+
+  if (success) {
+    captchas.delete(id);
+    return new Response(null, { status: 204 });
+  }
+
+  return c.json({ error: 'Incorrect solution' }, { status: 400 });
+};
+
+type Rectangle = Point & Dimensions;
+
+function areIntersecting(rect1: Rectangle, rect2: Rectangle, threshold = 0.5) {
+  const r1cx = rect1.x + rect1.w / 2;
+  const r2cx = rect2.x + rect2.w / 2;
+  const r1cy = rect1.y + rect1.h / 2;
+  const r2cy = rect2.y + rect2.h / 2;
+  const dist = Math.sqrt((r2cx - r1cx) ** 2 + (r2cy - r1cy) ** 2);
+  const e1 = Math.sqrt(rect1.h ** 2 + rect1.w ** 2) / 2;
+  const e2 = Math.sqrt(rect2.h ** 2 + rect2.w ** 2) / 2;
+  return dist < (e1 + e2) * threshold;
 }
