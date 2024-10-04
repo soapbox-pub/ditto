@@ -20,7 +20,7 @@ const captchas = new TTLCache<string, Point>();
 
 /** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
-  const { puzzle, piece, solution } = await generateCaptcha(
+  const { bg, puzzle, solution } = await generateCaptcha(
     await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
     await Deno.readFile(new URL('../../../captcha/puzzle.png', import.meta.url)),
     {
@@ -39,10 +39,10 @@ export const captchaController: AppController = async (c) => {
   captchas.set(id, solution, { ttl });
 
   return c.json({
-    type: 'puzzle',
     id,
+    type: 'puzzle',
+    bg: bg.toDataURL(),
     puzzle: puzzle.toDataURL(),
-    piece: piece.toDataURL(),
     created_at: now.toISOString(),
     expires_at: new Date(now.getTime() + ttl).toISOString(),
   });
@@ -61,22 +61,22 @@ async function generateCaptcha(
   },
 ) {
   const { pw, ph, cw, ch, alpha } = opts;
-  const puzzle = createCanvas(cw, ch);
-  const ctx = puzzle.getContext('2d');
+  const bg = createCanvas(cw, ch);
+  const ctx = bg.getContext('2d');
   const image = await loadImage(from);
   ctx.drawImage(image, 0, 0, image.width(), image.height(), 0, 0, cw, ch);
 
-  const piece = createCanvas(pw, ph);
-  const pctx = piece.getContext('2d');
+  const puzzle = createCanvas(pw, ph);
+  const pctx = puzzle.getContext('2d');
 
-  const solution = getPieceCoords(puzzle.width, puzzle.height, pw, ph);
+  const solution = getPieceCoords(bg.width, bg.height, pw, ph);
 
   // Draw the piece onto the puzzle piece canvas but only where the mask allows
   const maskImage = await loadImage(mask);
   pctx.globalCompositeOperation = 'source-over';
   pctx.drawImage(maskImage, 0, 0, pw, ph);
   pctx.globalCompositeOperation = 'source-in';
-  pctx.drawImage(puzzle, solution.x, solution.y, pw, ph, 0, 0, pw, ph);
+  pctx.drawImage(bg, solution.x, solution.y, pw, ph, 0, 0, pw, ph);
 
   // Reset composite operation
   pctx.globalCompositeOperation = 'source-over';
@@ -95,8 +95,8 @@ async function generateCaptcha(
   ctx.drawImage(tempCanvas, solution.x, solution.y, pw, ph);
 
   return {
+    bg,
     puzzle,
-    piece,
     solution,
   };
 }
