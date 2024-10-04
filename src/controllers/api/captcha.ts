@@ -24,12 +24,8 @@ export const captchaController: AppController = async (c) => {
     await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
     await Deno.readFile(new URL('../../../captcha/puzzle-mask.png', import.meta.url)),
     await Deno.readFile(new URL('../../../captcha/puzzle-hole.png', import.meta.url)),
-    {
-      cw: 370,
-      ch: 400,
-      pw: 65,
-      ph: 65,
-    },
+    { w: 370, h: 400 },
+    { w: 65, h: 65 },
   );
 
   const id = crypto.randomUUID();
@@ -53,33 +49,30 @@ async function generateCaptcha(
   from: Uint8Array,
   mask: Uint8Array,
   hole: Uint8Array,
-  opts: {
-    pw: number;
-    ph: number;
-    cw: number;
-    ch: number;
-  },
+  bgSize: Dimensions,
+  puzzleSize: Dimensions,
 ) {
-  const { pw, ph, cw, ch } = opts;
-  const bg = createCanvas(cw, ch);
-  const ctx = bg.getContext('2d');
-  const image = await loadImage(from);
-  ctx.drawImage(image, 0, 0, image.width(), image.height(), 0, 0, cw, ch);
+  const bg = createCanvas(bgSize.w, bgSize.h);
+  const puzzle = createCanvas(puzzleSize.w, puzzleSize.h);
 
-  const puzzle = createCanvas(pw, ph);
+  const ctx = bg.getContext('2d');
   const pctx = puzzle.getContext('2d');
 
-  const solution = getPieceCoords(bg.width, bg.height, pw, ph);
-
+  const bgImage = await loadImage(from);
   const maskImage = await loadImage(mask);
   const holeImage = await loadImage(hole);
 
-  pctx.drawImage(maskImage, 0, 0, pw, ph);
-  pctx.globalCompositeOperation = 'source-in';
-  pctx.drawImage(bg, solution.x, solution.y, pw, ph, 0, 0, pw, ph);
+  const solution = generateSolution(bgSize, puzzleSize);
 
+  // Draw the background image.
+  ctx.drawImage(bgImage, 0, 0, bg.width, bg.height);
   ctx.globalCompositeOperation = 'source-atop';
-  ctx.drawImage(holeImage, solution.x, solution.y, pw, ph);
+  ctx.drawImage(holeImage, solution.x, solution.y, puzzle.width, puzzle.height);
+
+  // Draw the puzzle piece.
+  pctx.drawImage(maskImage, 0, 0, puzzle.width, puzzle.height);
+  pctx.globalCompositeOperation = 'source-in';
+  pctx.drawImage(bgImage, solution.x, solution.y, puzzle.width, puzzle.height, 0, 0, puzzle.width, puzzle.height);
 
   return {
     bg,
@@ -88,14 +81,12 @@ async function generateCaptcha(
   };
 }
 
-function getPieceCoords(cw: number, ch: number, pw: number, ph: number): Point {
-  // Random x coordinate such that the piece fits within the canvas horizontally
-  const x = Math.floor(Math.random() * (cw - pw));
-
-  // Random y coordinate such that the piece fits within the canvas vertically
-  const y = Math.floor(Math.random() * (ch - ph));
-
-  return { x, y };
+/** Random coordinates such that the piece fits within the canvas. */
+function generateSolution(bgSize: Dimensions, puzzleSize: Dimensions): Point {
+  return {
+    x: Math.floor(Math.random() * (bgSize.w - puzzleSize.w)),
+    y: Math.floor(Math.random() * (bgSize.h - puzzleSize.h)),
+  };
 }
 
 const pointSchema = z.object({
