@@ -279,8 +279,13 @@ app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysContro
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
-app.get('/api/v1/ditto/captcha', captchaController);
-app.post('/api/v1/ditto/captcha/:id/verify', requireProof(), captchaVerifyController);
+app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captchaController);
+app.post(
+  '/api/v1/ditto/captcha/:id/verify',
+  rateLimitMiddleware(8, Time.minutes(1)),
+  requireProof(),
+  captchaVerifyController,
+);
 
 app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
