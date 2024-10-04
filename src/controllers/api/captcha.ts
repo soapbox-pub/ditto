@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { createAdminEvent } from '@/utils/api.ts';
 
 interface Point {
   x: number;
@@ -119,6 +120,7 @@ const pointSchema = z.object({
 export const captchaVerifyController: AppController = async (c) => {
   const id = c.req.param('id');
   const result = pointSchema.safeParse(await c.req.json());
+  const pubkey = await c.get('signer')!.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Invalid input' }, { status: 422 });
@@ -140,6 +142,16 @@ export const captchaVerifyController: AppController = async (c) => {
 
   if (success) {
     captchas.delete(id);
+
+    await createAdminEvent({
+      kind: 1985,
+      tags: [
+        ['L', 'pub.ditto.captcha'],
+        ['l', 'solved', 'pub.ditto.captcha'],
+        ['p', pubkey, Conf.relay],
+      ],
+    }, c);
+
     return new Response(null, { status: 204 });
   }
 
