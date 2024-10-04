@@ -22,13 +22,13 @@ const captchas = new TTLCache<string, Point>();
 export const captchaController: AppController = async (c) => {
   const { bg, puzzle, solution } = await generateCaptcha(
     await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
-    await Deno.readFile(new URL('../../../captcha/puzzle.png', import.meta.url)),
+    await Deno.readFile(new URL('../../../captcha/puzzle-mask.png', import.meta.url)),
+    await Deno.readFile(new URL('../../../captcha/puzzle-hole.png', import.meta.url)),
     {
       cw: 370,
       ch: 400,
       pw: 65,
       ph: 65,
-      alpha: 0.8,
     },
   );
 
@@ -52,15 +52,15 @@ export const captchaController: AppController = async (c) => {
 async function generateCaptcha(
   from: Uint8Array,
   mask: Uint8Array,
+  hole: Uint8Array,
   opts: {
     pw: number;
     ph: number;
     cw: number;
     ch: number;
-    alpha: number;
   },
 ) {
-  const { pw, ph, cw, ch, alpha } = opts;
+  const { pw, ph, cw, ch } = opts;
   const bg = createCanvas(cw, ch);
   const ctx = bg.getContext('2d');
   const image = await loadImage(from);
@@ -71,28 +71,15 @@ async function generateCaptcha(
 
   const solution = getPieceCoords(bg.width, bg.height, pw, ph);
 
-  // Draw the piece onto the puzzle piece canvas but only where the mask allows
   const maskImage = await loadImage(mask);
-  pctx.globalCompositeOperation = 'source-over';
+  const holeImage = await loadImage(hole);
+
   pctx.drawImage(maskImage, 0, 0, pw, ph);
   pctx.globalCompositeOperation = 'source-in';
   pctx.drawImage(bg, solution.x, solution.y, pw, ph, 0, 0, pw, ph);
 
-  // Reset composite operation
-  pctx.globalCompositeOperation = 'source-over';
-
-  // Create a temporary canvas to draw the darkened shape
-  const tempCanvas = createCanvas(pw, ph);
-  const tempCtx = tempCanvas.getContext('2d');
-
-  // Draw the darkened shape onto the temporary canvas but only where the mask allows
-  tempCtx.fillStyle = `rgba(0, 0, 0, ${alpha})`;
-  tempCtx.fillRect(0, 0, pw, ph);
-  tempCtx.globalCompositeOperation = 'destination-in';
-  tempCtx.drawImage(maskImage, 0, 0, pw, ph);
-
-  // Draw the temporary canvas onto the puzzle at the piece's location
-  ctx.drawImage(tempCanvas, solution.x, solution.y, pw, ph);
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.drawImage(holeImage, solution.x, solution.y, pw, ph);
 
   return {
     bg,
