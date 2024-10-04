@@ -1,10 +1,17 @@
 import { createCanvas, loadImage } from '@gfx/canvas-wasm';
-import { encodeBase64 } from '@std/encoding/base64';
+import TTLCache from '@isaacs/ttlcache';
 
 import { AppController } from '@/app.ts';
-import { DittoWallet } from '@/DittoWallet.ts';
-import { aesEncrypt } from '@/utils/aes.ts';
+import { Conf } from '@/config.ts';
 
+interface Point {
+  x: number;
+  y: number;
+}
+
+const captchas = new TTLCache<string, Point>();
+
+/** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
   const { puzzle, piece, solution } = await generateCaptcha(
     await Deno.readFile(new URL('../../../captcha/tj-holowaychuk.jpg', import.meta.url)),
@@ -18,28 +25,23 @@ export const captchaController: AppController = async (c) => {
     },
   );
 
-  const answerData = {
-    solution,
-    created_at: new Date().toISOString(),
-  };
+  const id = crypto.randomUUID();
+  const now = new Date();
+  const ttl = Conf.captchaTTL;
 
-  const encoded = new TextEncoder().encode(JSON.stringify(answerData));
-  const encrypted = await aesEncrypt(DittoWallet.captchaKey, encoded);
+  captchas.set(id, solution, { ttl });
 
   return c.json({
     type: 'puzzle',
-    token: crypto.randomUUID(), // Useless, but Pleroma does it.
+    id,
     puzzle: puzzle.toDataURL(),
     piece: piece.toDataURL(),
-    answer_data: encodeBase64(encrypted),
+    created_at: now.toISOString(),
+    expires_at: new Date(now.getTime() + ttl).toISOString(),
   });
 };
 
-interface Point {
-  x: number;
-  y: number;
-}
-
+/** Generate a puzzle captcha, returning canvases for the board and piece. */
 async function generateCaptcha(
   from: Uint8Array,
   mask: Uint8Array,

@@ -39,11 +39,6 @@ export class DittoWallet {
     return this.deriveKey(Conf.wallet.dbKeyPath);
   }
 
-  /** Captcha encryption key for encrypting answer data in AES-GCM. */
-  static get captchaKey(): Uint8Array {
-    return this.deriveKey(Conf.wallet.captchaKeyPath);
-  }
-
   /** VAPID secret key, used for web push notifications. ES256. */
   static get vapidKey(): Uint8Array {
     return this.deriveKey(Conf.wallet.vapidKeyPath);
