@@ -1,4 +1,4 @@
-import ISO6391 from 'iso-639-1';
+import ISO6391, { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
@@ -42,6 +42,7 @@ const fileSchema = z.custom<File>((value) => value instanceof File);
 const percentageSchema = z.coerce.number().int().gte(1).lte(100);
 
 const languageSchema = z.string().transform((val, ctx) => {
+  val = val.toLowerCase();
   if (!ISO6391.validate(val)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -49,7 +50,7 @@ const languageSchema = z.string().transform((val, ctx) => {
     });
     return z.NEVER;
   }
-  return val;
+  return val as LanguageCode;
 });
 
 export {
