@@ -1,4 +1,4 @@
-import { createCanvas, Image, loadImage } from '@gfx/canvas-wasm';
+import { CanvasRenderingContext2D, createCanvas, Image, loadImage } from '@gfx/canvas-wasm';
 import TTLCache from '@isaacs/ttlcache';
 import { z } from 'zod';
 
@@ -98,19 +98,42 @@ function generateCaptcha(
 
   // Draw the background image.
   ctx.drawImage(bgImage, 0, 0, bg.width, bg.height);
-  ctx.globalCompositeOperation = 'source-atop';
-  ctx.drawImage(puzzleHole, solution.x, solution.y, puzzle.width, puzzle.height);
+  addNoise(ctx, bg.width, bg.height);
 
   // Draw the puzzle piece.
   pctx.drawImage(puzzleMask, 0, 0, puzzle.width, puzzle.height);
   pctx.globalCompositeOperation = 'source-in';
-  pctx.drawImage(bgImage, solution.x, solution.y, puzzle.width, puzzle.height, 0, 0, puzzle.width, puzzle.height);
+  pctx.drawImage(bg, solution.x, solution.y, puzzle.width, puzzle.height, 0, 0, puzzle.width, puzzle.height);
+
+  // Draw the hole.
+  ctx.globalCompositeOperation = 'source-atop';
+  ctx.drawImage(puzzleHole, solution.x, solution.y, puzzle.width, puzzle.height);
 
   return {
     bg,
     puzzle,
     solution,
   };
+}
+
+/**
+ * Add a small amount of noise to the image.
+ * This protects against an attacker pregenerating every possible solution and then doing a reverse-lookup.
+ */
+function addNoise(ctx: CanvasRenderingContext2D, width: number, height: number): void {
+  const imageData = ctx.getImageData(0, 0, width, height);
+
+  // Loop over every pixel.
+  for (let i = 0; i < imageData.data.length; i += 4) {
+    // Add/subtract a small amount from each color channel.
+    // We skip i+3 because that's the alpha channel, which we don't want to modify.
+    for (let j = 0; j < 3; j++) {
+      const alteration = Math.floor(Math.random() * 11) - 5; // Vary between -5 and +5
+      imageData.data[i + j] = Math.min(Math.max(imageData.data[i + j] + alteration, 0), 255);
+    }
+  }
+
+  ctx.putImageData(imageData, 0, 0);
 }
 
 /** Random coordinates such that the piece fits within the canvas. */
