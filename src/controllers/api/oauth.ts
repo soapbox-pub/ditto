@@ -8,7 +8,8 @@ import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
-import { encryptSecretKey, generateToken } from '@/utils/auth.ts';
+import { aesEncrypt } from '@/utils/aes.ts';
+import { generateToken } from '@/utils/auth.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -98,7 +99,7 @@ async function getToken(
   await kysely.insertInto('auth_tokens').values({
     token_hash: hash,
     pubkey,
-    nip46_sk_enc: await encryptSecretKey(Conf.seckey, nip46Seckey),
+    nip46_sk_enc: await aesEncrypt(Conf.seckey, nip46Seckey),
     nip46_relays: relays,
     created_at: new Date(),
   }).execute();

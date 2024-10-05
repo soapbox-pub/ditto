@@ -99,6 +99,10 @@ class Conf {
       },
     },
   };
+  /** Time-to-live for captchas in milliseconds. */
+  static get captchaTTL(): number {
+    return Number(Deno.env.get('CAPTCHA_TTL') || 5 * 60 * 1000);
+  }
   /**
    * BIP-32 derivation paths for different crypto use-cases.
    * The `DITTO_NSEC` is used as the seed.
@@ -108,10 +112,6 @@ class Conf {
     /** Private key for AES-GCM encryption in the Postgres database. */
     get dbKeyPath(): string {
       return Deno.env.get('WALLET_DB_KEY_PATH') || "m/0'/1'";
-    },
-    /** Private key for AES-GCM encryption of captcha answer data. */
-    get captchaKeyPath(): string {
-      return Deno.env.get('WALLET_CAPTCHA_KEY_PATH') || "m/0'/2'";
     },
     /** VAPID private key path. */
     get vapidKeyPath(): string {
