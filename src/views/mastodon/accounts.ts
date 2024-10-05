@@ -87,6 +87,9 @@ async function renderAccount(
         nostr: {
           nip05,
         },
+        ditto: {
+          captcha_solved: false,
+        },
       }
       : undefined,
     statuses_count: event.author_stats?.notes_count ?? 0,
