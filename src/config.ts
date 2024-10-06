@@ -1,4 +1,5 @@
 import os from 'node:os';
+import ISO6391, { LanguageCode } from 'iso-639-1';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -96,6 +97,25 @@ class Conf {
       get timelines(): number {
         return Number(Deno.env.get('DB_TIMEOUT_TIMELINES') || 15_000);
       },
+    },
+  };
+  /** Time-to-live for captchas in milliseconds. */
+  static get captchaTTL(): number {
+    return Number(Deno.env.get('CAPTCHA_TTL') || 5 * 60 * 1000);
+  }
+  /**
+   * BIP-32 derivation paths for different crypto use-cases.
+   * The `DITTO_NSEC` is used as the seed.
+   * Keys can be rotated by changing the derviation path.
+   */
+  static wallet = {
+    /** Private key for AES-GCM encryption in the Postgres database. */
+    get dbKeyPath(): string {
+      return Deno.env.get('WALLET_DB_KEY_PATH') || "m/0'/1'";
+    },
+    /** VAPID private key path. */
+    get vapidKeyPath(): string {
+      return Deno.env.get('WALLET_VAPID_KEY_PATH') || "m/0'/3'";
     },
   };
   /** Character limit to enforce for posts made through Mastodon API. */
@@ -246,6 +266,10 @@ class Conf {
   /** Whether zap splits should be enabled. */
   static get zapSplitsEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('ZAP_SPLITS_ENABLED')) ?? false;
+  }
+  /** Languages this server wishes to highlight. Used when querying trends.*/
+  static get preferredLanguages(): LanguageCode[] | undefined {
+    return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
   }
   /** Cache settings. */
   static caches = {

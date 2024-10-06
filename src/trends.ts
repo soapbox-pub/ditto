@@ -19,6 +19,8 @@ export async function getTrendingTagValues(
   tagNames: string[],
   /** Filter of eligible events. */
   filter: NostrFilter,
+  /** If present, only tag values in this list are permitted to trend. */
+  values?: string[],
 ): Promise<{ value: string; authors: number; uses: number }[]> {
   let query = kysely
     .selectFrom([
@@ -33,7 +35,7 @@ export async function getTrendingTagValues(
     ])
     .where('kv.key', '=', (eb) => eb.fn.any(eb.val(tagNames)))
     .groupBy((eb) => eb.fn<string>('lower', ['element.value']))
-    .orderBy((eb) => eb.fn.agg('count', ['nostr_events.pubkey']).distinct(), 'desc');
+    .orderBy('authors desc').orderBy('uses desc');
 
   if (filter.kinds) {
     query = query.where('nostr_events.kind', '=', ({ fn, val }) => fn.any(val(filter.kinds)));
@@ -46,6 +48,9 @@ export async function getTrendingTagValues(
   }
   if (typeof filter.until === 'number') {
     query = query.where('nostr_events.created_at', '<=', filter.until);
+  }
+  if (values) {
+    query = query.where('element.value', 'in', values);
   }
   if (typeof filter.limit === 'number') {
     query = query.limit(filter.limit);
@@ -68,6 +73,7 @@ export async function updateTrendingTags(
   limit: number,
   extra = '',
   aliases?: string[],
+  values?: string[],
 ) {
   console.info(`Updating trending ${l}...`);
   const kysely = await Storages.kysely();
@@ -84,8 +90,9 @@ export async function updateTrendingTags(
       since: yesterday,
       until: now,
       limit,
-    });
+    }, values);
 
+    console.log(trends);
     if (!trends.length) {
       console.info(`No trending ${l} found. Skipping.`);
       return;
@@ -122,8 +129,31 @@ export function updateTrendingZappedEvents(): Promise<void> {
 }
 
 /** Update trending events. */
-export function updateTrendingEvents(): Promise<void> {
-  return updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']);
+export async function updateTrendingEvents(): Promise<void> {
+  const results: Promise<void>[] = [
+    updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']),
+  ];
+
+  const kysely = await Storages.kysely();
+
+  for (const language of Conf.preferredLanguages ?? []) {
+    const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
+    const now = Math.floor(Date.now() / 1000);
+
+    const rows = await kysely
+      .selectFrom('nostr_events')
+      .select('nostr_events.id')
+      .where('nostr_events.language', '=', language)
+      .where('nostr_events.created_at', '>=', yesterday)
+      .where('nostr_events.created_at', '<=', now)
+      .execute();
+
+    const ids = rows.map((row) => row.id);
+
+    results.push(updateTrendingTags(`#e.${language}`, 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q'], ids));
+  }
+
+  await Promise.allSettled(results);
 }
 
 /** Update trending hashtags. */

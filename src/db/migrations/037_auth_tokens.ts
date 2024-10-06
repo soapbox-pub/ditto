@@ -1,7 +1,8 @@
 import { Kysely, sql } from 'kysely';
 
-import { encryptSecretKey, getTokenHash } from '@/utils/auth.ts';
 import { Conf } from '@/config.ts';
+import { aesEncrypt } from '@/utils/aes.ts';
+import { getTokenHash } from '@/utils/auth.ts';
 
 interface DB {
   nip46_tokens: {
@@ -38,7 +39,7 @@ export async function up(db: Kysely<DB>): Promise<void> {
     await db.insertInto('auth_tokens').values({
       token_hash: await getTokenHash(token.api_token),
       pubkey: token.user_pubkey,
-      nip46_sk_enc: await encryptSecretKey(Conf.seckey, token.server_seckey),
+      nip46_sk_enc: await aesEncrypt(Conf.seckey, token.server_seckey),
       nip46_relays: JSON.parse(token.relays),
       created_at: token.connected_at,
     }).execute();

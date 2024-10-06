@@ -49,15 +49,24 @@ const verifyCredentialsController: AppController = async (c) => {
   const signer = c.get('signer')!;
   const pubkey = await signer.getPublicKey();
 
-  const eventsDB = await Storages.db();
+  const store = await Storages.db();
 
-  const [author, [settingsStore]] = await Promise.all([
+  const [author, [settingsStore], [captcha]] = await Promise.all([
     getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
 
-    eventsDB.query([{
-      authors: [pubkey],
+    store.query([{
       kinds: [30078],
+      authors: [pubkey],
       '#d': ['pub.ditto.pleroma_settings_store'],
+      limit: 1,
+    }]),
+
+    store.query([{
+      kinds: [1985],
+      authors: [Conf.pubkey],
+      '#L': ['pub.ditto.captcha'],
+      '#l': ['solved'],
+      '#p': [pubkey],
       limit: 1,
     }]),
   ]);
@@ -72,6 +81,10 @@ const verifyCredentialsController: AppController = async (c) => {
     } catch {
       // Ignore
     }
+  }
+
+  if (captcha && account.source) {
+    account.source.ditto.captcha_solved = true;
   }
 
   return c.json(account);

@@ -18,7 +18,7 @@ interface PolicyInit {
   /** Database URL to connect to. */
   databaseUrl: string;
   /** Admin pubkey to use for EventsDB checks. */
-  adminPubkey: string;
+  pubkey: string;
 }
 
 export class CustomPolicy implements NPolicy {
@@ -29,18 +29,18 @@ export class CustomPolicy implements NPolicy {
     return this.policy.call(event, signal);
   }
 
-  async init({ path, databaseUrl, adminPubkey }: PolicyInit): Promise<void> {
+  async init({ path, databaseUrl, pubkey }: PolicyInit): Promise<void> {
     const Policy = (await import(path)).default;
 
     const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
 
     const store = new EventsDB({
       kysely,
-      pubkey: adminPubkey,
+      pubkey,
       timeout: 1_000,
     });
 
-    this.policy = new Policy({ store });
+    this.policy = new Policy({ store, pubkey });
   }
 }
 

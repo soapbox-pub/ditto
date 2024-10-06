@@ -34,6 +34,9 @@ export interface MastodonAccount {
     nostr: {
       nip05?: string;
     };
+    ditto: {
+      captcha_solved: boolean;
+    };
   };
   statuses_count: number;
   uri: string;
