@@ -58,7 +58,7 @@ export const pushSubscribeController: AppController = async (c) => {
 
   const { subscription, data } = result.data;
 
-  await kysely
+  const { id } = await kysely
     .insertInto('push_subscriptions')
     .values({
       pubkey: await signer.getPublicKey(),
@@ -68,7 +68,14 @@ export const pushSubscribeController: AppController = async (c) => {
       auth: subscription.keys.auth,
       data,
     })
-    .execute();
+    .returning('id')
+    .executeTakeFirstOrThrow();
 
-  return c.json({});
+  return c.json({
+    id,
+    endpoint: subscription.endpoint,
+    alerts: data?.alerts ?? {},
+    policy: data?.policy ?? 'all',
+    // TODO: server_key
+  });
 };
