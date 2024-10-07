@@ -20,9 +20,9 @@
       "jsr:@gleasonator/policy@0.6.4": "jsr:@gleasonator/policy@0.6.4",
       "jsr:@gleasonator/policy@0.7.0": "jsr:@gleasonator/policy@0.7.0",
       "jsr:@gleasonator/policy@0.7.1": "jsr:@gleasonator/policy@0.7.1",
-      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.6.2",
+      "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.6.3",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
-      "jsr:@nostrify/db@^0.35.0": "jsr:@nostrify/db@0.35.0",
+      "jsr:@nostrify/db@^0.36.1": "jsr:@nostrify/db@0.36.1",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
       "jsr:@nostrify/nostrify@^0.22.5": "jsr:@nostrify/nostrify@0.22.5",
@@ -62,7 +62,7 @@
       "jsr:@std/fs@^0.229.3": "jsr:@std/fs@0.229.3",
       "jsr:@std/internal@^1.0.0": "jsr:@std/internal@1.0.4",
       "jsr:@std/io@^0.223.0": "jsr:@std/io@0.223.0",
-      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.8",
+      "jsr:@std/io@^0.224": "jsr:@std/io@0.224.9",
       "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.213.1": "jsr:@std/path@0.213.1",
@@ -260,13 +260,16 @@
       "@hono/hono@4.6.2": {
         "integrity": "35fcf3be4687825080b01bed7bbe2ac66f8d8b8939f0bad459661bf3b46d916f"
       },
+      "@hono/hono@4.6.3": {
+        "integrity": "a1f5a18cd12a0db54755b0461dd5a4e2d93a6f85403073eb710103eacc42daf3"
+      },
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
       },
-      "@nostrify/db@0.35.0": {
-        "integrity": "637191c41812544e361b7997dc44ea098f8bd7efebb28f37a8a7142a0ecada8d",
+      "@nostrify/db@0.36.1": {
+        "integrity": "b65b89ca6fe98d9dbcc0402b5c9c07b8430c2c91f84ba4128ff2eeed70c3d49f",
         "dependencies": [
-          "jsr:@nostrify/nostrify@^0.35.0",
+          "jsr:@nostrify/nostrify@^0.36.0",
           "jsr:@nostrify/types@^0.35.0",
           "npm:kysely@^0.27.3",
           "npm:nostr-tools@^2.7.0"
@@ -554,6 +557,12 @@
       },
       "@std/io@0.224.8": {
         "integrity": "f525d05d51fd873de6352b9afcf35cab9ab5dc448bf3c20e0c8b521ded9be392",
+        "dependencies": [
+          "jsr:@std/bytes@^1.0.2"
+        ]
+      },
+      "@std/io@0.224.9": {
+        "integrity": "4414664b6926f665102e73c969cfda06d2c4c59bd5d0c603fd4f1b1c840d6ee3",
         "dependencies": [
           "jsr:@std/bytes@^1.0.2"
         ]
@@ -2149,7 +2158,7 @@
       "jsr:@gfx/canvas-wasm@^0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@^0.35.0",
+      "jsr:@nostrify/db@^0.36.1",
       "jsr:@nostrify/nostrify@^0.36.0",
       "jsr:@nostrify/policies@^0.35.0",
       "jsr:@soapbox/kysely-pglite@^1.0.0",

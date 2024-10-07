@@ -41,7 +41,7 @@
     "@isaacs/ttlcache": "npm:@isaacs/ttlcache@^1.4.1",
     "@lambdalisue/async": "jsr:@lambdalisue/async@^2.1.1",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
-    "@nostrify/db": "jsr:@nostrify/db@^0.35.0",
+    "@nostrify/db": "jsr:@nostrify/db@^0.36.1",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.36.0",
     "@nostrify/policies": "jsr:@nostrify/policies@^0.35.0",
     "@scure/base": "npm:@scure/base@^1.1.6",
