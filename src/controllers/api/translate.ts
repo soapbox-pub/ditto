@@ -38,18 +38,7 @@ const translateController: AppController = async (c) => {
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
-  const kysely = await Storages.kysely();
-
-  let sourceLang = (await kysely
-    .selectFrom('nostr_events')
-    .select('language').where('id', '=', id)
-    .limit(1)
-    .execute())[0]?.language as LanguageCode | undefined;
-  if (!sourceLang) {
-    sourceLang = undefined;
-  }
-
-  if (targetLang.toLowerCase() === sourceLang?.toLowerCase()) {
+  if (targetLang.toLowerCase() === event?.language?.toLowerCase()) {
     return c.json({ error: 'Source and target languages are the same. No translation needed.' }, 400);
   }
 
@@ -75,7 +64,7 @@ const translateController: AppController = async (c) => {
       status?.spoiler_text ?? '',
       mediaAttachments,
       null,
-      sourceLang,
+      event.language,
       targetLang,
       { signal },
     );
