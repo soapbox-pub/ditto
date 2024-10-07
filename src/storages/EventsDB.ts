@@ -1,5 +1,6 @@
 // deno-lint-ignore-file require-await
 
+import { LanguageCode } from 'iso-639-1';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
@@ -12,6 +13,7 @@ import { RelayError } from '@/RelayError.ts';
 import { isNostrId, isURL } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = ({ event, count, value }: {
@@ -175,7 +177,7 @@ class EventsDB extends NPostgres {
   override async query(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
-  ): Promise<NostrEvent[]> {
+  ): Promise<DittoEvent[]> {
     filters = await this.expandFilters(filters);
 
     for (const filter of filters) {
@@ -197,6 +199,20 @@ class EventsDB extends NPostgres {
     this.console.debug('REQ', JSON.stringify(filters));
 
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+  }
+
+  /** Parse an event row from the database. */
+  protected override parseEventRow(row: Pick<DittoTables['nostr_events'], keyof NostrEvent | 'language'>): DittoEvent {
+    return {
+      id: row.id,
+      kind: row.kind,
+      pubkey: row.pubkey,
+      content: row.content,
+      created_at: Number(row.created_at),
+      tags: row.tags,
+      sig: row.sig,
+      language: (row.language || undefined) as LanguageCode,
+    };
   }
 
   /** Delete events based on filters from the database. */
