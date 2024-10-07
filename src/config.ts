@@ -252,6 +252,18 @@ class Conf {
   static get preferredLanguages(): LanguageCode[] | undefined {
     return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
   }
+  /** Translation provider used to translate posts. */
+  static get translationProvider(): string | undefined {
+    return Deno.env.get('TRANSLATION_PROVIDER')?.toLowerCase();
+  }
+  /** Translation provider URL endpoint. */
+  static get translationProviderEndpoint(): string | undefined {
+    return Deno.env.get('TRANSLATION_PROVIDER_ENDPOINT');
+  }
+  /** Translation provider API KEY. */
+  static get translationProviderApiKey(): string | undefined {
+    return Deno.env.get('TRANSLATION_PROVIDER_API_KEY');
+  }
   /** Cache settings. */
   static caches = {
     /** NIP-05 cache settings. */
