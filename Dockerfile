@@ -1,6 +1,4 @@
 FROM denoland/deno:1.44.2
-EXPOSE 5000
-
 ENV PORT 5000
 
 WORKDIR /app

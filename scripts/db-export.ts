@@ -63,7 +63,7 @@ export function buildFilter(args: ExportFilter) {
     if (invalid) throw new Error(`ERROR: Invalid pubkey ${invalid} supplied.`);
     filter.authors = authors;
   }
-  if (ids) {
+  if (ids && ids.length) {
     const invalid = findInvalid(ids);
     if (invalid) throw new Error(`ERROR: Invalid event ID ${invalid} supplied.`);
     filter.ids = ids;

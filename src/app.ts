@@ -5,6 +5,8 @@ import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
 
+import '@/startup.ts';
+
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -36,6 +38,7 @@ import {
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
+import { captchaController, captchaVerifyController } from '@/controllers/api/captcha.ts';
 import {
   adminRelaysController,
   adminSetRelaysController,
@@ -114,7 +117,6 @@ import { errorHandler } from '@/controllers/error.ts';
 import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
 import { indexController } from '@/controllers/site.ts';
-import '@/startup.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
@@ -282,6 +284,14 @@ app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysContro
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
+
+app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captchaController);
+app.post(
+  '/api/v1/ditto/captcha/:id/verify',
+  rateLimitMiddleware(8, Time.minutes(1)),
+  requireProof(),
+  captchaVerifyController,
+);
 
 app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
