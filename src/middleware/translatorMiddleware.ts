@@ -11,7 +11,7 @@ export const translatorMiddleware: AppMiddleware = async (c, next) => {
   const translationProvider = Conf.translationProvider;
 
   switch (translationProvider) {
-    case 'DeepL'.toLowerCase():
+    case 'deepl':
       if (apiKey) {
         c.set(
           'translator',
@@ -19,7 +19,7 @@ export const translatorMiddleware: AppMiddleware = async (c, next) => {
         );
       }
       break;
-    case 'Libretranslate'.toLowerCase():
+    case 'libretranslate':
       if (apiKey) {
         c.set(
           'translator',

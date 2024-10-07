@@ -7,7 +7,7 @@ import { getLanguage } from '@/test.ts';
 const endpoint = Conf.translationProviderEndpoint;
 const apiKey = Conf.translationProviderApiKey;
 const translationProvider = Conf.translationProvider;
-const deepL = 'DeepL'.toLowerCase();
+const deepL = 'deepl';
 
 Deno.test('Translate status with EMPTY media_attachments and WITHOUT poll', {
   ignore: !(translationProvider === deepL && apiKey),

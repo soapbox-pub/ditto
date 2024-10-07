@@ -273,7 +273,7 @@ class Conf {
   }
   /** Translation provider used to translate posts. */
   static get translationProvider(): string | undefined {
-    return Deno.env.get('TRANSLATION_PROVIDER')?.toLowerCase();
+    return Deno.env.get('TRANSLATION_PROVIDER');
   }
   /** Translation provider URL endpoint. */
   static get translationProviderEndpoint(): string | undefined {
