@@ -146,10 +146,12 @@ class EventsDB extends NPostgres {
     }
   }
 
+  // @ts-ignore The type is correct, but NPostgres doesn't realize it. I don't think it's solvable without modifying NPostgres again, which I don't think is worth it for this.
   protected override getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
     if (filter.search) {
       const tokens = NIP50.parseInput(filter.search);
 
+      // @ts-ignore The type is correct, but NPostgres doesn't realize it. I don't think it's solvable without modifying NPostgres again, which I don't think is worth it for this.
       let query = super.getFilterQuery(trx, {
         ...filter,
         search: tokens.filter((t) => typeof t === 'string').join(' '),
