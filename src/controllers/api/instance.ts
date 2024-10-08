@@ -116,7 +116,6 @@ const instanceV2Controller: AppController = async (c) => {
         characters_reserved_per_url: 23,
       },
       media_attachments: {
-        supported_mime_types: [],
         image_size_limit: 16777216,
         image_matrix_limit: 33177600,
         video_size_limit: 103809024,
