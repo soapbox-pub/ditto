@@ -133,6 +133,10 @@ const instanceV2Controller: AppController = async (c) => {
         enabled: false,
       },
     },
+    nostr: {
+      pubkey: Conf.pubkey,
+      relay: `${wsProtocol}//${host}/relay`,
+    },
     pleroma: {
       metadata: {
         features,
