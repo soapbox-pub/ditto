@@ -146,16 +146,14 @@ class EventsDB extends NPostgres {
     }
   }
 
-  // @ts-ignore The type is correct, but NPostgres doesn't realize it. I don't think it's solvable without modifying NPostgres again, which I don't think is worth it for this.
   protected override getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
     if (filter.search) {
       const tokens = NIP50.parseInput(filter.search);
 
-      // @ts-ignore The type is correct, but NPostgres doesn't realize it. I don't think it's solvable without modifying NPostgres again, which I don't think is worth it for this.
       let query = super.getFilterQuery(trx, {
         ...filter,
         search: tokens.filter((t) => typeof t === 'string').join(' '),
-      }) as SelectQueryBuilder<DittoTables, 'nostr_events', Pick<DittoTables['nostr_events'], keyof NostrEvent>>;
+      }) as SelectQueryBuilder<DittoTables, 'nostr_events', DittoTables['nostr_events']>;
 
       const languages = new Set<string>();
 
@@ -204,7 +202,7 @@ class EventsDB extends NPostgres {
   }
 
   /** Parse an event row from the database. */
-  protected override parseEventRow(row: Pick<DittoTables['nostr_events'], keyof NostrEvent | 'language'>): DittoEvent {
+  protected override parseEventRow(row: DittoTables['nostr_events']): DittoEvent {
     return {
       id: row.id,
       kind: row.kind,
