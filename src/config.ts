@@ -1,5 +1,6 @@
 import os from 'node:os';
 import ISO6391, { LanguageCode } from 'iso-639-1';
+import { generateVapidKeys } from '@negrel/webpush';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
@@ -81,6 +82,9 @@ class Conf {
   /** PGlite debug level. 0 disables logging. */
   static get pgliteDebug(): 0 | 1 | 2 | 3 | 4 | 5 {
     return Number(Deno.env.get('PGLITE_DEBUG') || 0) as 0 | 1 | 2 | 3 | 4 | 5;
+  }
+  static get vapidKeys(): Promise<CryptoKeyPair> {
+    return generateVapidKeys(); // FIXME: get the key from environment.
   }
   static db = {
     /** Database query timeout configurations. */

@@ -4,24 +4,28 @@ import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
 import lande from 'lande';
 import { LRUCache } from 'lru-cache';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
+import { MastodonPush } from '@/types/MastodonPush.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
-import { policyWorker } from '@/workers/policy.ts';
-import { verifyEventWorker } from '@/workers/verify.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { policyWorker } from '@/workers/policy.ts';
+import { verifyEventWorker } from '@/workers/verify.ts';
 
 const console = new Stickynotes('ditto:pipeline');
 
@@ -72,6 +76,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   } finally {
     await generateSetEvents(event);
     await streamOut(event);
+    await webPush(event);
   }
 }
 
@@ -230,8 +235,43 @@ async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
     const pubsub = await Storages.pubsub();
     await pubsub.event(event);
+  }
+}
 
-    // TODO: Web Push
+async function webPush(event: NostrEvent): Promise<void> {
+  if (!isFresh(event)) {
+    return;
+  }
+
+  const kysely = await Storages.kysely();
+
+  const rows = await kysely
+    .selectFrom('push_subscriptions')
+    .selectAll()
+    .where('pubkey', 'in', [...getTagSet(event.tags, 'p')])
+    .execute();
+
+  for (const row of rows) {
+    const notification = await renderNotification(event, { viewerPubkey: row.pubkey });
+    if (!notification) {
+      continue;
+    }
+
+    const subscription = {
+      endpoint: row.endpoint,
+      keys: {
+        auth: row.auth,
+        p256dh: row.p256dh,
+      },
+    };
+
+    const message: MastodonPush = {
+      notification_id: notification.id,
+      notification_type: notification.type,
+      access_token: nip19.npubEncode(row.pubkey),
+    };
+
+    await DittoPush.push(subscription, message);
   }
 }
 

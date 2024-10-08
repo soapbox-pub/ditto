@@ -6,10 +6,10 @@
  */
 export interface MastodonPush {
   access_token: string;
-  preferred_locale: string;
+  preferred_locale?: string;
   notification_id: string;
   notification_type: string;
-  icon: string;
-  title: string;
-  body: string;
+  icon?: string;
+  title?: string;
+  body?: string;
 }

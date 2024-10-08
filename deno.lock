@@ -22,6 +22,9 @@
       "jsr:@gleasonator/policy@0.7.1": "jsr:@gleasonator/policy@0.7.1",
       "jsr:@hono/hono@^4.4.6": "jsr:@hono/hono@4.6.2",
       "jsr:@lambdalisue/async@^2.1.1": "jsr:@lambdalisue/async@2.1.1",
+      "jsr:@negrel/http-ece@0.6.0": "jsr:@negrel/http-ece@0.6.0",
+      "jsr:@negrel/webpush": "jsr:@negrel/webpush@0.3.0",
+      "jsr:@negrel/webpush@^0.3.0": "jsr:@negrel/webpush@0.3.0",
       "jsr:@nostrify/db@^0.35.0": "jsr:@nostrify/db@0.35.0",
       "jsr:@nostrify/nostrify@^0.22.1": "jsr:@nostrify/nostrify@0.22.5",
       "jsr:@nostrify/nostrify@^0.22.4": "jsr:@nostrify/nostrify@0.22.4",
@@ -44,6 +47,7 @@
       "jsr:@std/assert@^0.223.0": "jsr:@std/assert@0.223.0",
       "jsr:@std/assert@^0.224.0": "jsr:@std/assert@0.224.0",
       "jsr:@std/assert@^0.225.1": "jsr:@std/assert@0.225.3",
+      "jsr:@std/bytes@0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^0.223.0": "jsr:@std/bytes@0.223.0",
       "jsr:@std/bytes@^0.224.0": "jsr:@std/bytes@0.224.0",
       "jsr:@std/bytes@^1.0.0-rc.3": "jsr:@std/bytes@1.0.0",
@@ -54,6 +58,7 @@
       "jsr:@std/crypto@^0.224.0": "jsr:@std/crypto@0.224.0",
       "jsr:@std/dotenv@^0.224.0": "jsr:@std/dotenv@0.224.2",
       "jsr:@std/encoding@0.213.1": "jsr:@std/encoding@0.213.1",
+      "jsr:@std/encoding@0.224.0": "jsr:@std/encoding@0.224.0",
       "jsr:@std/encoding@1.0.5": "jsr:@std/encoding@1.0.5",
       "jsr:@std/encoding@^0.224.0": "jsr:@std/encoding@0.224.3",
       "jsr:@std/encoding@^0.224.1": "jsr:@std/encoding@0.224.3",
@@ -64,8 +69,10 @@
       "jsr:@std/io@^0.223.0": "jsr:@std/io@0.223.0",
       "jsr:@std/io@^0.224": "jsr:@std/io@0.224.8",
       "jsr:@std/json@^0.223.0": "jsr:@std/json@0.223.0",
+      "jsr:@std/media-types@0.224.0": "jsr:@std/media-types@0.224.0",
       "jsr:@std/media-types@^0.224.1": "jsr:@std/media-types@0.224.1",
       "jsr:@std/path@0.213.1": "jsr:@std/path@0.213.1",
+      "jsr:@std/path@0.224.0": "jsr:@std/path@0.224.0",
       "jsr:@std/path@1.0.0-rc.1": "jsr:@std/path@1.0.0-rc.1",
       "jsr:@std/path@^0.213.1": "jsr:@std/path@0.213.1",
       "jsr:@std/streams@^0.223.0": "jsr:@std/streams@0.223.0",
@@ -262,6 +269,23 @@
       },
       "@lambdalisue/async@2.1.1": {
         "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
+      },
+      "@negrel/http-ece@0.6.0": {
+        "integrity": "7afdd81b86ea5b21a9677b323c01c3338705e11cc2bfed250870f5349d8f86f7",
+        "dependencies": [
+          "jsr:@std/bytes@0.224.0",
+          "jsr:@std/encoding@0.224.0"
+        ]
+      },
+      "@negrel/webpush@0.3.0": {
+        "integrity": "5200a56e81668f2debadea228fbeabfe0eda2ee85a56786611dd97950bc51b23",
+        "dependencies": [
+          "jsr:@negrel/http-ece@0.6.0",
+          "jsr:@std/bytes@0.224.0",
+          "jsr:@std/encoding@0.224.0",
+          "jsr:@std/media-types@0.224.0",
+          "jsr:@std/path@0.224.0"
+        ]
       },
       "@nostrify/db@0.35.0": {
         "integrity": "637191c41812544e361b7997dc44ea098f8bd7efebb28f37a8a7142a0ecada8d",
@@ -475,6 +499,9 @@
       "@std/encoding@0.213.1": {
         "integrity": "fcbb6928713dde941a18ca5db88ca1544d0755ec8fb20fe61e2dc8144b390c62"
       },
+      "@std/encoding@0.224.0": {
+        "integrity": "efb6dca97d3e9c31392bd5c8cfd9f9fc9decf5a1f4d1f78af7900a493bcf89b5"
+      },
       "@std/encoding@0.224.3": {
         "integrity": "5e861b6d81be5359fad4155e591acf17c0207b595112d1840998bb9f476dbdaf"
       },
@@ -564,6 +591,9 @@
           "jsr:@std/streams@^0.223.0"
         ]
       },
+      "@std/media-types@0.224.0": {
+        "integrity": "5ac87989393f8cb1c81bee02aef6f5d4c8289b416deabc04f9ad25dff292d0b0"
+      },
       "@std/media-types@0.224.1": {
         "integrity": "9e69a5daed37c5b5c6d3ce4731dc191f80e67f79bed392b0957d1d03b87f11e1"
       },
@@ -571,6 +601,12 @@
         "integrity": "f187bf278a172752e02fcbacf6bd78a335ed320d080a7ed3a5a59c3e88abc673",
         "dependencies": [
           "jsr:@std/assert@^0.213.1"
+        ]
+      },
+      "@std/path@0.224.0": {
+        "integrity": "55bca6361e5a6d158b9380e82d4981d82d338ec587de02951e2b7c3a24910ee6",
+        "dependencies": [
+          "jsr:@std/assert@^0.224.0"
         ]
       },
       "@std/path@1.0.0-rc.1": {
@@ -2149,6 +2185,7 @@
       "jsr:@gfx/canvas-wasm@^0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
+      "jsr:@negrel/webpush@^0.3.0",
       "jsr:@nostrify/db@^0.35.0",
       "jsr:@nostrify/nostrify@^0.36.0",
       "jsr:@nostrify/policies@^0.35.0",
