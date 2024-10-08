@@ -8,8 +8,7 @@ import { getEvent } from '@/queries.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 const translateSchema = z.object({
-  //lang: languageSchema, // Correct property name, as stated by Mastodon docs
-  target_language: languageSchema, // Property name soapbox sends
+  lang: languageSchema,
 });
 
 const translateController: AppController = async (c) => {
@@ -25,8 +24,7 @@ const translateController: AppController = async (c) => {
     return c.json({ error: 'No translator configured.' }, 500);
   }
 
-  const { target_language } = result.data;
-  const targetLang = target_language;
+  const { lang } = result.data;
   const id = c.req.param('id');
 
   const event = await getEvent(id, { signal });
@@ -36,13 +34,13 @@ const translateController: AppController = async (c) => {
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
-  if (targetLang.toLowerCase() === event?.language?.toLowerCase()) {
+  if (lang.toLowerCase() === event?.language?.toLowerCase()) {
     return c.json({ error: 'Source and target languages are the same. No translation needed.' }, 400);
   }
 
   const status = await renderStatus(event, { viewerPubkey });
 
-  const translatedId = `${target_language}-${id}` as dittoTranslationsKey;
+  const translatedId = `${lang}-${id}` as dittoTranslationsKey;
   const translationCache = dittoTranslations.get(translatedId);
 
   if (translationCache) {
@@ -63,7 +61,7 @@ const translateController: AppController = async (c) => {
       mediaAttachments,
       null,
       event.language,
-      targetLang,
+      lang,
       { signal },
     );
     dittoTranslations.set(translatedId, translation);
