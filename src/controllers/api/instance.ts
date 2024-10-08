@@ -7,6 +7,15 @@ import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
 
+const features = [
+  'exposable_reactions',
+  'mastodon_api',
+  'mastodon_api_streaming',
+  'pleroma_emoji_reactions',
+  'quote_posting',
+  'v2_suggestions',
+];
+
 const instanceV1Controller: AppController = async (c) => {
   const { host, protocol } = Conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
@@ -39,14 +48,7 @@ const instanceV1Controller: AppController = async (c) => {
     },
     pleroma: {
       metadata: {
-        features: [
-          'exposable_reactions',
-          'mastodon_api',
-          'mastodon_api_streaming',
-          'pleroma_emoji_reactions',
-          'quote_posting',
-          'v2_suggestions',
-        ],
+        features,
       },
     },
     languages: ['en'],
@@ -129,6 +131,15 @@ const instanceV2Controller: AppController = async (c) => {
       },
       translation: {
         enabled: false,
+      },
+    },
+    nostr: {
+      pubkey: Conf.pubkey,
+      relay: `${wsProtocol}//${host}/relay`,
+    },
+    pleroma: {
+      metadata: {
+        features,
       },
     },
     registrations: {
