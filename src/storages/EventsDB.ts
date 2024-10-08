@@ -30,6 +30,8 @@ interface EventsDBOpts {
   pubkey: string;
   /** Timeout in milliseconds for database queries. */
   timeout: number;
+  /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
+  pure?: boolean;
 }
 
 /** SQL database storage adapter for Nostr events. */
@@ -203,7 +205,7 @@ class EventsDB extends NPostgres {
 
   /** Parse an event row from the database. */
   protected override parseEventRow(row: DittoTables['nostr_events']): DittoEvent {
-    return {
+    const event: DittoEvent = {
       id: row.id,
       kind: row.kind,
       pubkey: row.pubkey,
@@ -211,8 +213,17 @@ class EventsDB extends NPostgres {
       created_at: Number(row.created_at),
       tags: row.tags,
       sig: row.sig,
-      language: (row.language || undefined) as LanguageCode,
     };
+
+    if (this.opts.pure) {
+      return event;
+    }
+
+    if (row.language) {
+      event.language = row.language as LanguageCode;
+    }
+
+    return event;
   }
 
   /** Delete events based on filters from the database. */
