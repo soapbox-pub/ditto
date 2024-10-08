@@ -41,7 +41,7 @@ const fileSchema = z.custom<File>((value) => value instanceof File);
 
 const percentageSchema = z.coerce.number().int().gte(1).lte(100);
 
-const languageSchema = z.string().transform((val, ctx) => {
+const languageSchema = z.string().transform<LanguageCode>((val, ctx) => {
   val = (val.toLowerCase()).split('-')[0]; // pt-BR -> pt
   if (!ISO6391.validate(val)) {
     ctx.addIssue({
