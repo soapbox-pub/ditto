@@ -1,9 +1,7 @@
-import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { languageSchema } from '@/schema.ts';
-import { Storages } from '@/storages.ts';
 import { dittoTranslations, dittoTranslationsKey } from '@/translators/translator.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getEvent } from '@/queries.ts';
