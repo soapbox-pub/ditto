@@ -10,7 +10,7 @@ import {
 import { languageSchema } from '@/schema.ts';
 
 interface DeepLTranslatorOpts {
-  /** DeepL endpoint to use. Default: 'https://api.deepl.com '*/
+  /** DeepL endpoint to use. Default: 'https://api.deepl.com' */
   endpoint?: string;
   /** DeepL API key. */
   apiKey: string;
