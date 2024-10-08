@@ -36,9 +36,6 @@ const instanceV1Controller: AppController = async (c) => {
         max_characters: Conf.postCharLimit,
         max_media_attachments: 20,
       },
-      translation: {
-        enabled: true,
-      },
     },
     pleroma: {
       metadata: {
