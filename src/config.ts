@@ -275,13 +275,21 @@ class Conf {
   static get translationProvider(): string | undefined {
     return Deno.env.get('TRANSLATION_PROVIDER');
   }
-  /** Translation provider URL endpoint. */
-  static get translationProviderEndpoint(): string | undefined {
-    return Deno.env.get('TRANSLATION_PROVIDER_ENDPOINT');
+  /** DeepL URL endpoint. */
+  static get deepLendpoint(): string | undefined {
+    return Deno.env.get('DEEPL_ENDPOINT');
   }
-  /** Translation provider API KEY. */
-  static get translationProviderApiKey(): string | undefined {
-    return Deno.env.get('TRANSLATION_PROVIDER_API_KEY');
+  /** DeepL API KEY. */
+  static get deepLapiKey(): string | undefined {
+    return Deno.env.get('DEEPL_API_KEY');
+  }
+  /** LibreTranslate URL endpoint. */
+  static get libreTranslateEndpoint(): string | undefined {
+    return Deno.env.get('LIBRETRANSLATE_ENDPOINT');
+  }
+  /** LibreTranslate API KEY. */
+  static get libreTranslateApiKey(): string | undefined {
+    return Deno.env.get('LIBRETRANSLATE_API_KEY');
   }
   /** Cache settings. */
   static caches = {

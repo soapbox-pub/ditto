@@ -4,8 +4,8 @@ import { Conf } from '@/config.ts';
 import { DeepLTranslator } from '@/translators/DeepLTranslator.ts';
 import { getLanguage } from '@/test.ts';
 
-const endpoint = Conf.translationProviderEndpoint;
-const apiKey = Conf.translationProviderApiKey;
+const endpoint = Conf.deepLendpoint;
+const apiKey = Conf.deepLapiKey;
 const translationProvider = Conf.translationProvider;
 const deepL = 'deepl';
 

@@ -4,8 +4,8 @@ import { Conf } from '@/config.ts';
 import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator.ts';
 import { getLanguage } from '@/test.ts';
 
-const endpoint = Conf.translationProviderEndpoint;
-const apiKey = Conf.translationProviderApiKey;
+const endpoint = Conf.libreTranslateEndpoint;
+const apiKey = Conf.libreTranslateApiKey;
 const translationProvider = Conf.translationProvider;
 const libreTranslate = 'libretranslate';
 

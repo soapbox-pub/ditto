@@ -6,24 +6,30 @@ import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator
 
 /** Set the translator used for translating posts. */
 export const translatorMiddleware: AppMiddleware = async (c, next) => {
-  const endpoint = Conf.translationProviderEndpoint;
-  const apiKey = Conf.translationProviderApiKey;
+  const deepLendpoint = Conf.deepLendpoint;
+  const deepLapiKey = Conf.deepLapiKey;
+  const libreTranslateEndpoint = Conf.libreTranslateEndpoint;
+  const libreTranslateApiKey = Conf.libreTranslateApiKey;
   const translationProvider = Conf.translationProvider;
 
   switch (translationProvider) {
     case 'deepl':
-      if (apiKey) {
+      if (deepLapiKey) {
         c.set(
           'translator',
-          new DeepLTranslator({ endpoint, apiKey, fetch: fetchWorker }),
+          new DeepLTranslator({ endpoint: deepLendpoint, apiKey: deepLapiKey, fetch: fetchWorker }),
         );
       }
       break;
     case 'libretranslate':
-      if (apiKey) {
+      if (libreTranslateApiKey) {
         c.set(
           'translator',
-          new LibreTranslateTranslator({ endpoint, apiKey, fetch: fetchWorker }),
+          new LibreTranslateTranslator({
+            endpoint: libreTranslateEndpoint,
+            apiKey: libreTranslateApiKey,
+            fetch: fetchWorker,
+          }),
         );
       }
       break;
