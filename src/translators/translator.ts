@@ -36,21 +36,15 @@ export type MastodonTranslation = {
 export interface DittoTranslator {
   /** Translate the 'content' into 'targetLanguage'. */
   translate(
-    /** HTML-encoded content of the status. */
-    content: string,
-    /** Spoiler warning of the status. */
-    spoilerText: string,
-    /** Media descriptions of the status. */
-    mediaAttachments: { id: string; description: string }[],
-    /** Poll of the status. */
-    poll: { id: string; options: { title: string }[] } | null,
+    texts: string[],
     /** The language of the source text/status. */
     sourceLanguage: SourceLanguage | undefined,
     /** The status content will be translated into this language. */
     targetLanguage: TargetLanguage,
     /** Custom options. */
     opts?: { signal?: AbortSignal },
-  ): Promise<DittoTranslation>;
+  ): Promise<{ results: string[]; source_lang: SourceLanguage }>;
+  getProvider(): Provider;
 }
 
 /** Includes the TARGET language and the status id.

@@ -1,12 +1,8 @@
+import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
-import {
-  DittoTranslator,
-  MastodonTranslation,
-  Provider,
-  SourceLanguage,
-  TargetLanguage,
-} from '@/translators/translator.ts';
+import { DittoTranslator, Provider, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
+import { languageSchema } from '@/schema.ts';
 
 interface LibreTranslateTranslatorOpts {
   /** Libretranslate endpoint to use. Default: 'https://libretranslate.com' */
@@ -21,97 +17,37 @@ export class LibreTranslateTranslator implements DittoTranslator {
   private readonly endpoint: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private readonly provider: Provider;
+  private static provider: Provider = 'libretranslate.com';
 
   constructor(opts: LibreTranslateTranslatorOpts) {
     this.endpoint = opts.endpoint ?? 'https://libretranslate.com';
     this.fetch = opts.fetch ?? globalThis.fetch;
-    this.provider = 'libretranslate.com';
     this.apiKey = opts.apiKey;
   }
 
   async translate(
-    contentHTMLencoded: string,
-    spoilerText: string,
-    mediaAttachments: { id: string; description: string }[],
-    poll: { id: string; options: { title: string }[] } | null,
-    sourceLanguage: SourceLanguage | undefined,
-    targetLanguage: TargetLanguage,
+    texts: string[],
+    source: SourceLanguage | undefined,
+    dest: TargetLanguage,
     opts?: { signal?: AbortSignal },
   ) {
-    const mastodonTranslation: MastodonTranslation = {
-      content: '',
-      spoiler_text: '',
-      media_attachments: [],
-      poll: null,
-      detected_source_language: 'en',
-      provider: this.provider,
-    };
-
-    const translatedContent = await this.makeRequest(contentHTMLencoded, sourceLanguage, targetLanguage, 'html', {
-      signal: opts?.signal,
-    });
-    mastodonTranslation.content = translatedContent;
-
-    if (spoilerText.length) {
-      const translatedSpoilerText = await this.makeRequest(spoilerText, sourceLanguage, targetLanguage, 'text', {
-        signal: opts?.signal,
-      });
-      mastodonTranslation.spoiler_text = translatedSpoilerText;
-    }
-
-    if (mediaAttachments) {
-      for (const media of mediaAttachments) {
-        const translatedDescription = await this.makeRequest(
-          media.description,
-          sourceLanguage,
-          targetLanguage,
-          'text',
-          {
-            signal: opts?.signal,
-          },
-        );
-        mastodonTranslation.media_attachments.push({
-          id: media.id,
-          description: translatedDescription,
-        });
-      }
-    }
-
-    if (poll) {
-      mastodonTranslation.poll = {
-        id: poll.id,
-        options: [],
-      };
-
-      for (const option of poll.options) {
-        const translatedTitle = await this.makeRequest(
-          option.title,
-          sourceLanguage,
-          targetLanguage,
-          'text',
-          {
-            signal: opts?.signal,
-          },
-        );
-        mastodonTranslation.poll.options.push({
-          title: translatedTitle,
-        });
-      }
-    }
+    const translations = await Promise.all(
+      texts.map((text) => this.translateOne(text, source, dest, 'html', { signal: opts?.signal })),
+    );
 
     return {
-      data: mastodonTranslation,
+      results: translations.map((value) => value.translatedText),
+      source_lang: translations[0]?.detectedLanguage?.language ?? source as LanguageCode, // cast is ok
     };
   }
 
-  private async makeRequest(
+  private async translateOne(
     q: string,
     sourceLanguage: string | undefined,
     targetLanguage: string,
     format: 'html' | 'text',
     opts?: { signal?: AbortSignal },
-  ): Promise<string> {
+  ) {
     const body = {
       q,
       source: sourceLanguage?.toLowerCase() ?? 'auto',
@@ -132,7 +68,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
 
     const response = await this.fetch(request);
     const json = await response.json();
-    const data = LibreTranslateTranslator.schema().parse(json).translatedText;
+    const data = LibreTranslateTranslator.schema().parse(json);
 
     return data;
   }
@@ -142,6 +78,15 @@ export class LibreTranslateTranslator implements DittoTranslator {
   private static schema() {
     return z.object({
       translatedText: z.string(),
+      /** This field is only available if the 'source' is set to 'auto' */
+      detectedLanguage: z.object({
+        language: languageSchema,
+      }).optional(),
     });
+  }
+
+  /** LibreTranslate provider. */
+  getProvider(): Provider {
+    return LibreTranslateTranslator.provider;
   }
 }

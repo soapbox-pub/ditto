@@ -1,12 +1,6 @@
 import { z } from 'zod';
 
-import {
-  DittoTranslator,
-  MastodonTranslation,
-  Provider,
-  SourceLanguage,
-  TargetLanguage,
-} from '@/translators/translator.ts';
+import { DittoTranslator, Provider, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
 import { languageSchema } from '@/schema.ts';
 
 interface DeepLTranslatorOpts {
@@ -22,45 +16,43 @@ export class DeepLTranslator implements DittoTranslator {
   private readonly endpoint: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private readonly provider: Provider;
+  private static provider: Provider = 'DeepL.com';
 
   constructor(opts: DeepLTranslatorOpts) {
     this.endpoint = opts.endpoint ?? 'https://api.deepl.com';
     this.fetch = opts.fetch ?? globalThis.fetch;
-    this.provider = 'DeepL.com';
     this.apiKey = opts.apiKey;
   }
 
   async translate(
-    contentHTMLencoded: string,
-    spoilerText: string,
-    mediaAttachments: { id: string; description: string }[],
-    poll: { id: string; options: { title: string }[] } | null,
-    sourceLanguage: SourceLanguage | undefined,
+    texts: string[],
+    source: SourceLanguage | undefined,
+    dest: TargetLanguage,
+    opts?: { signal?: AbortSignal },
+  ) {
+    const data = (await this.translateMany(texts, source, dest, opts)).translations;
+
+    return {
+      results: data.map((value) => value.text),
+      source_lang: data[0].detected_source_language,
+    };
+  }
+
+  /** DeepL translate request. */
+  private async translateMany(
+    texts: string[],
+    source: SourceLanguage | undefined,
     targetLanguage: TargetLanguage,
     opts?: { signal?: AbortSignal },
   ) {
-    // --------------------- START explanation
-    // Order of texts:
-    // 1 - contentHTMLencoded
-    // 2 - spoilerText
-    // 3 - mediaAttachments descriptions
-    // 4 - poll title options
-    const medias = mediaAttachments.map((value) => value.description);
-
-    const polls = poll?.options.map((value) => value.title) ?? [];
-
-    const text = [contentHTMLencoded, spoilerText].concat(medias, polls);
-    // --------------------- END explanation
-
     const body: any = {
-      text,
+      text: texts,
       target_lang: targetLanguage.toUpperCase(),
       tag_handling: 'html',
       split_sentences: '1',
     };
-    if (sourceLanguage) {
-      body.source_lang = sourceLanguage.toUpperCase();
+    if (source) {
+      body.source_lang = source.toUpperCase();
     }
 
     const headers = new Headers();
@@ -76,55 +68,9 @@ export class DeepLTranslator implements DittoTranslator {
 
     const response = await this.fetch(request);
     const json = await response.json();
-    const data = DeepLTranslator.schema().parse(json).translations;
+    const data = DeepLTranslator.schema().parse(json);
 
-    const mastodonTranslation: MastodonTranslation = {
-      content: '',
-      spoiler_text: '',
-      media_attachments: [],
-      poll: null,
-      detected_source_language: 'en',
-      provider: this.provider,
-    };
-
-    /** Used to keep track of the offset. When slicing, should be used as the start value. */
-    let startIndex = 0;
-    mastodonTranslation.content = data[0].text;
-    startIndex++;
-
-    mastodonTranslation.spoiler_text = data[1].text;
-    startIndex++;
-
-    if (medias.length) {
-      const mediasTranslated = data.slice(startIndex, startIndex + medias.length);
-      for (let i = 0; i < mediasTranslated.length; i++) {
-        mastodonTranslation.media_attachments.push({
-          id: mediaAttachments[i].id,
-          description: mediasTranslated[i].text,
-        });
-      }
-      startIndex += mediasTranslated.length;
-    }
-
-    if (polls.length && poll) {
-      const pollsTranslated = data.slice(startIndex);
-      mastodonTranslation.poll = {
-        id: poll.id,
-        options: [],
-      };
-      for (let i = 0; i < pollsTranslated.length; i++) {
-        mastodonTranslation.poll.options.push({
-          title: pollsTranslated[i].text,
-        });
-      }
-      startIndex += pollsTranslated.length;
-    }
-
-    mastodonTranslation.detected_source_language = data[0].detected_source_language;
-
-    return {
-      data: mastodonTranslation,
-    };
+    return data;
   }
 
   /** DeepL response schema.
@@ -138,5 +84,10 @@ export class DeepLTranslator implements DittoTranslator {
         }),
       ),
     });
+  }
+
+  /** DeepL provider. */
+  getProvider(): Provider {
+    return DeepLTranslator.provider;
   }
 }
