@@ -69,7 +69,7 @@ export class DeepLTranslator implements DittoTranslator {
     const response = await this.fetch(request);
     const json = await response.json();
     if (!response.ok) {
-      throw json;
+      throw new Error(json['message']);
     }
     const data = DeepLTranslator.schema().parse(json);
 
