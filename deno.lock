@@ -1945,7 +1945,7 @@
       "npm:formdata-helper@^0.3.0",
       "npm:hono-rate-limiter@^0.3.0",
       "npm:iso-639-1@2.1.15",
-      "npm:isomorphic-dompurify@2.16.0",
+      "npm:isomorphic-dompurify@^2.16.0",
       "npm:kysely-postgres-js@2.0.0",
       "npm:kysely@^0.27.4",
       "npm:lande@^1.0.10",
