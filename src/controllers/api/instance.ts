@@ -129,7 +129,7 @@ const instanceV2Controller: AppController = async (c) => {
         max_expiration: 2629746,
       },
       translation: {
-        enabled: false,
+        enabled: true,
       },
     },
     nostr: {

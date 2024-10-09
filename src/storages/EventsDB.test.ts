@@ -7,7 +7,7 @@ import { Conf } from '@/config.ts';
 import { createTestDB } from '@/test.ts';
 
 Deno.test('count filters', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const event1 = await eventFixture('event-1');
@@ -18,7 +18,7 @@ Deno.test('count filters', async () => {
 });
 
 Deno.test('insert and filter events', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const event1 = await eventFixture('event-1');
@@ -35,7 +35,7 @@ Deno.test('insert and filter events', async () => {
 });
 
 Deno.test('query events with domain search filter', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store, kysely } = db;
 
   const event1 = await eventFixture('event-1');
@@ -55,7 +55,7 @@ Deno.test('query events with domain search filter', async () => {
 });
 
 Deno.test('query events with language search filter', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store, kysely } = db;
 
   const en = genEvent({ kind: 1, content: 'hello world!' });
@@ -72,7 +72,7 @@ Deno.test('query events with language search filter', async () => {
 });
 
 Deno.test('delete events', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const sk = generateSecretKey();
@@ -96,7 +96,7 @@ Deno.test('delete events', async () => {
 });
 
 Deno.test("user cannot delete another user's event", async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const event = genEvent({ kind: 1, content: 'hello world', created_at: 1 });
@@ -113,7 +113,7 @@ Deno.test("user cannot delete another user's event", async () => {
 });
 
 Deno.test('admin can delete any event', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const sk = generateSecretKey();
@@ -137,7 +137,7 @@ Deno.test('admin can delete any event', async () => {
 });
 
 Deno.test('throws a RelayError when inserting an event deleted by the admin', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const event = genEvent();
@@ -154,7 +154,7 @@ Deno.test('throws a RelayError when inserting an event deleted by the admin', as
 });
 
 Deno.test('throws a RelayError when inserting an event deleted by a user', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const sk = generateSecretKey();
@@ -173,7 +173,7 @@ Deno.test('throws a RelayError when inserting an event deleted by a user', async
 });
 
 Deno.test('inserting replaceable events', async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   const sk = generateSecretKey();
@@ -190,7 +190,7 @@ Deno.test('inserting replaceable events', async () => {
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'since'", async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   await assertRejects(
@@ -201,7 +201,7 @@ Deno.test("throws a RelayError when querying an event with a large 'since'", asy
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'until'", async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   await assertRejects(
@@ -212,7 +212,7 @@ Deno.test("throws a RelayError when querying an event with a large 'until'", asy
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'kind'", async () => {
-  await using db = await createTestDB();
+  await using db = await createTestDB({ pure: true });
   const { store } = db;
 
   await assertRejects(

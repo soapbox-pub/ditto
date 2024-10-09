@@ -22,7 +22,7 @@
     "jsr:@gleasonator/policy@0.8.0": "0.8.0",
     "jsr:@hono/hono@^4.4.6": "4.6.2",
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
-    "jsr:@nostrify/db@0.35": "0.35.0",
+    "jsr:@nostrify/db@~0.36.1": "0.36.1",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.35": "0.35.0",
@@ -270,10 +270,10 @@
     "@lambdalisue/async@2.1.1": {
       "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
     },
-    "@nostrify/db@0.35.0": {
-      "integrity": "637191c41812544e361b7997dc44ea098f8bd7efebb28f37a8a7142a0ecada8d",
+    "@nostrify/db@0.36.1": {
+      "integrity": "b65b89ca6fe98d9dbcc0402b5c9c07b8430c2c91f84ba4128ff2eeed70c3d49f",
       "dependencies": [
-        "jsr:@nostrify/nostrify@0.35",
+        "jsr:@nostrify/nostrify@0.36",
         "jsr:@nostrify/types@0.35",
         "npm:kysely@~0.27.3",
         "npm:nostr-tools@^2.7.0"
@@ -2048,7 +2048,7 @@
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
-      "jsr:@nostrify/db@0.35",
+      "jsr:@nostrify/db@~0.36.1",
       "jsr:@nostrify/nostrify@0.36",
       "jsr:@nostrify/policies@0.35",
       "jsr:@soapbox/kysely-pglite@1",

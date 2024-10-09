@@ -271,6 +271,26 @@ class Conf {
   static get preferredLanguages(): LanguageCode[] | undefined {
     return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
   }
+  /** Translation provider used to translate posts. */
+  static get translationProvider(): string | undefined {
+    return Deno.env.get('TRANSLATION_PROVIDER');
+  }
+  /** DeepL URL endpoint. */
+  static get deepLendpoint(): string | undefined {
+    return Deno.env.get('DEEPL_ENDPOINT');
+  }
+  /** DeepL API KEY. */
+  static get deepLapiKey(): string | undefined {
+    return Deno.env.get('DEEPL_API_KEY');
+  }
+  /** LibreTranslate URL endpoint. */
+  static get libreTranslateEndpoint(): string | undefined {
+    return Deno.env.get('LIBRETRANSLATE_ENDPOINT');
+  }
+  /** LibreTranslate API KEY. */
+  static get libreTranslateApiKey(): string | undefined {
+    return Deno.env.get('LIBRETRANSLATE_API_KEY');
+  }
   /** Cache settings. */
   static caches = {
     /** NIP-05 cache settings. */

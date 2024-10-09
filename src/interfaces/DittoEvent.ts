@@ -1,4 +1,5 @@
 import { NostrEvent } from '@nostrify/nostrify';
+import { LanguageCode } from 'iso-639-1';
 
 /** Ditto internal stats for the event's author. */
 export interface AuthorStats {
@@ -43,4 +44,6 @@ export interface DittoEvent extends NostrEvent {
   zap_sender?: DittoEvent | string;
   zap_amount?: number;
   zap_message?: string;
+  /** Language of the event (kind 1s are more accurate). */
+  language?: LanguageCode;
 }

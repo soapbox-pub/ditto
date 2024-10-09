@@ -1,4 +1,4 @@
-import ISO6391 from 'iso-639-1';
+import ISO6391, { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
@@ -41,7 +41,8 @@ const fileSchema = z.custom<File>((value) => value instanceof File);
 
 const percentageSchema = z.coerce.number().int().gte(1).lte(100);
 
-const languageSchema = z.string().transform((val, ctx) => {
+const languageSchema = z.string().transform<LanguageCode>((val, ctx) => {
+  val = val.toLowerCase();
   if (!ISO6391.validate(val)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -49,7 +50,19 @@ const languageSchema = z.string().transform((val, ctx) => {
     });
     return z.NEVER;
   }
-  return val;
+  return val as LanguageCode;
+});
+
+const localeSchema = z.string().transform<Intl.Locale>((val, ctx) => {
+  try {
+    return new Intl.Locale(val);
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid locale',
+    });
+    return z.NEVER;
+  }
 });
 
 export {
@@ -59,6 +72,7 @@ export {
   filteredArray,
   hashtagSchema,
   languageSchema,
+  localeSchema,
   percentageSchema,
   safeUrlSchema,
 };
