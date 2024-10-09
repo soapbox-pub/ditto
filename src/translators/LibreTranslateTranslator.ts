@@ -68,6 +68,9 @@ export class LibreTranslateTranslator implements DittoTranslator {
 
     const response = await this.fetch(request);
     const json = await response.json();
+    if (!response.ok) {
+      throw json;
+    }
     const data = LibreTranslateTranslator.schema().parse(json);
 
     return data;
