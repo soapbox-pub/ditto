@@ -10,7 +10,7 @@
     "nostr:pull": "deno run -A scripts/nostr-pull.ts",
     "debug": "deno run -A --inspect src/server.ts",
     "test": "deno test -A --junit-path=./deno-test.xml",
-    "check": "deno check src/server.ts",
+    "check": "deno check --allow-import src/server.ts",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A scripts/admin-event.ts",
     "admin:role": "deno run -A scripts/admin-role.ts",
