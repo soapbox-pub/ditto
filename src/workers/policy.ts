@@ -20,6 +20,7 @@ class PolicyWorker implements NPolicy {
         new URL('./policy.worker.ts', import.meta.url),
         {
           type: 'module',
+          name: 'PolicyWorker',
           // FIXME: Disabled until Deno 2.0 adds support for `import` permission here.
           // https://github.com/denoland/deno/issues/26074
           // deno: {
