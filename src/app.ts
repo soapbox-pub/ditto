@@ -1,4 +1,4 @@
-import { Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
