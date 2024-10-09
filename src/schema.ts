@@ -42,7 +42,7 @@ const fileSchema = z.custom<File>((value) => value instanceof File);
 const percentageSchema = z.coerce.number().int().gte(1).lte(100);
 
 const languageSchema = z.string().transform<LanguageCode>((val, ctx) => {
-  val = (val.toLowerCase()).split('-')[0]; // pt-BR -> pt
+  val = val.toLowerCase();
   if (!ISO6391.validate(val)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -53,6 +53,18 @@ const languageSchema = z.string().transform<LanguageCode>((val, ctx) => {
   return val as LanguageCode;
 });
 
+const localeSchema = z.string().transform<Intl.Locale>((val, ctx) => {
+  try {
+    return new Intl.Locale(val);
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Invalid locale',
+    });
+    return z.NEVER;
+  }
+});
+
 export {
   booleanParamSchema,
   decode64Schema,
@@ -60,6 +72,7 @@ export {
   filteredArray,
   hashtagSchema,
   languageSchema,
+  localeSchema,
   percentageSchema,
   safeUrlSchema,
 };
