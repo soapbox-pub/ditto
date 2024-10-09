@@ -132,8 +132,8 @@ const translateController: AppController = async (c) => {
 
     dittoTranslations.set(translatedId, { data: mastodonTranslation });
     return c.json(mastodonTranslation, 200);
-  } catch (e: any) {
-    if (e.message?.includes('not supported')) {
+  } catch (e) {
+    if (e instanceof Error && e.message?.includes('not supported')) {
       return c.json({ error: `Translation of source language '${event.language}' not supported` }, 422);
     }
     return c.json({ error: 'Service Unavailable' }, 503);
