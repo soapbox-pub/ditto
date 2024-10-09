@@ -2,6 +2,7 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getTokenHash } from '@/utils/auth.ts';
@@ -76,6 +77,6 @@ export const pushSubscribeController: AppController = async (c) => {
     endpoint: subscription.endpoint,
     alerts: data?.alerts ?? {},
     policy: data?.policy ?? 'all',
-    // TODO: server_key
+    server_key: await Conf.vapidPublicKey,
   });
 };

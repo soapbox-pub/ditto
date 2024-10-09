@@ -20,7 +20,8 @@
     "soapbox": "curl -O https://dl.soapbox.pub/main/soapbox.zip && mkdir -p public && mv soapbox.zip public/ && cd public/ && unzip -o soapbox.zip && rm soapbox.zip",
     "trends": "deno run -A scripts/trends.ts",
     "clean:deps": "deno cache --reload src/app.ts",
-    "db:populate-search": "deno run -A scripts/db-populate-search.ts"
+    "db:populate-search": "deno run -A scripts/db-populate-search.ts",
+    "vapid": "deno run -A scripts/vapid.ts"
   },
   "unstable": [
     "cron",

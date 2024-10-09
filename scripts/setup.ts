@@ -1,3 +1,5 @@
+import { generateVapidKeys } from '@negrel/webpush';
+import { encodeBase64 } from '@std/encoding/base64';
 import { exists } from '@std/fs/exists';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 import question from 'question-deno';
@@ -93,6 +95,15 @@ if (vars.DITTO_UPLOADER === 'local') {
   vars.UPLOADS_DIR = await question('input', 'Local uploads directory', Conf.uploadsDir);
   const mediaDomain = await question('input', 'Media domain', `media.${domain}`);
   vars.MEDIA_DOMAIN = `https://${mediaDomain}`;
+}
+
+const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY');
+if (VAPID_PRIVATE_KEY) {
+  vars.VAPID_PRIVATE_KEY = VAPID_PRIVATE_KEY;
+} else {
+  const { privateKey } = await generateVapidKeys({ extractable: true });
+  const bytes = await crypto.subtle.exportKey('pkcs8', privateKey);
+  vars.VAPID_PRIVATE_KEY = encodeBase64(bytes);
 }
 
 console.log('Writing to .env file...');

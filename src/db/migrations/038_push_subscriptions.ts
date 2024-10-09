@@ -3,7 +3,7 @@ import { Kysely, sql } from 'kysely';
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createTable('push_subscriptions')
-    .addColumn('id', 'bigint', (c) => c.primaryKey().autoIncrement())
+    .addColumn('id', 'bigserial', (c) => c.primaryKey())
     .addColumn('pubkey', 'char(64)', (c) => c.notNull())
     .addColumn('token_hash', 'bytea', (c) => c.references('auth_tokens.token_hash').onDelete('cascade').notNull())
     .addColumn('endpoint', 'text', (c) => c.notNull())
