@@ -227,7 +227,13 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requireSigner, bookmarkC
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requireSigner, unbookmarkController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requireSigner, pinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requireSigner, unpinController);
-app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/translate', requireSigner, translatorMiddleware, translateController);
+app.post(
+  '/api/v1/statuses/:id{[0-9a-f]{64}}/translate',
+  requireSigner,
+  rateLimitMiddleware(30, Time.minutes(1)),
+  translatorMiddleware,
+  translateController,
+);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requireSigner, reblogStatusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requireSigner, unreblogStatusController);
 app.post('/api/v1/statuses', requireSigner, createStatusController);
