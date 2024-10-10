@@ -230,7 +230,7 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requireSigner, unpinControl
 app.post(
   '/api/v1/statuses/:id{[0-9a-f]{64}}/translate',
   requireSigner,
-  rateLimitMiddleware(30, Time.minutes(1)),
+  rateLimitMiddleware(15, Time.minutes(1)),
   translatorMiddleware,
   translateController,
 );
