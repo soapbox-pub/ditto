@@ -1,7 +1,7 @@
 import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
-import { DittoTranslator, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
+import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { languageSchema } from '@/schema.ts';
 
 interface LibreTranslateTranslatorOpts {
@@ -28,8 +28,8 @@ export class LibreTranslateTranslator implements DittoTranslator {
 
   async translate(
     texts: string[],
-    source: SourceLanguage | undefined,
-    dest: TargetLanguage,
+    source: LanguageCode | undefined,
+    dest: LanguageCode,
     opts?: { signal?: AbortSignal },
   ) {
     const translations = await Promise.all(

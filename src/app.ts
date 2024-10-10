@@ -120,6 +120,7 @@ import { indexController } from '@/controllers/site.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
+import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
@@ -129,7 +130,6 @@ import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
-import { DittoTranslator } from '@/translators/translator.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 
 interface AppEnv extends HonoEnv {

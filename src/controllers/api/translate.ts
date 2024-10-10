@@ -2,10 +2,11 @@ import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { localeSchema } from '@/schema.ts';
-import { dittoTranslations, dittoTranslationsKey, MastodonTranslation } from '@/translators/translator.ts';
-import { parseBody } from '@/utils/api.ts';
+import { translationCache } from '@/caches/translationCache.ts';
+import { MastodonTranslation } from '@/entities/MastodonTranslation.ts';
 import { getEvent } from '@/queries.ts';
+import { localeSchema } from '@/schema.ts';
+import { parseBody } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 const translateSchema = z.object({
@@ -45,11 +46,11 @@ const translateController: AppController = async (c) => {
     return c.json({ error: 'Bad request.', schema: result.error }, 400);
   }
 
-  const translatedId = `${lang}-${id}` as dittoTranslationsKey;
-  const translationCache = dittoTranslations.get(translatedId);
+  const cacheKey: `${LanguageCode}-${string}` = `${lang}-${id}`;
+  const cached = translationCache.get(cacheKey);
 
-  if (translationCache) {
-    return c.json(translationCache.data, 200);
+  if (cached) {
+    return c.json(cached.data, 200);
   }
 
   const mediaAttachments = status?.media_attachments.map((value) => {
@@ -68,7 +69,7 @@ const translateController: AppController = async (c) => {
       media_attachments: [],
       poll: null,
       detected_source_language: event.language ?? 'en',
-      provider: translator.getProvider(),
+      provider: translator.provider,
     };
 
     if ((status?.poll as MastodonTranslation['poll'])?.options) {
@@ -130,10 +131,10 @@ const translateController: AppController = async (c) => {
 
     mastodonTranslation.detected_source_language = data.source_lang;
 
-    dittoTranslations.set(translatedId, { data: mastodonTranslation });
+    translationCache.set(cacheKey, { data: mastodonTranslation });
     return c.json(mastodonTranslation, 200);
   } catch (e) {
-    if (e instanceof Error && e.message?.includes('not supported')) {
+    if (e instanceof Error && e.message.includes('not supported')) {
       return c.json({ error: `Translation of source language '${event.language}' not supported` }, 422);
     }
     return c.json({ error: 'Service Unavailable' }, 503);
