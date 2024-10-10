@@ -4,15 +4,18 @@ import { Conf } from '@/config.ts';
 import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator.ts';
 import { getLanguage } from '@/test.ts';
 
-const endpoint = Conf.libreTranslateEndpoint;
-const apiKey = Conf.libreTranslateApiKey;
-const translationProvider = Conf.translationProvider;
-const libreTranslate = 'libretranslate';
+const {
+  libretranslateBaseUrl: baseUrl,
+  libretranslateApiKey: apiKey,
+  translationProvider,
+} = Conf;
+
+const libretranslate = 'libretranslate';
 
 Deno.test('LibreTranslate translation with source language omitted', {
-  ignore: !(translationProvider === libreTranslate && apiKey),
+  ignore: !(translationProvider === libretranslate && apiKey),
 }, async () => {
-  const translator = new LibreTranslateTranslator({ fetch: fetch, endpoint, apiKey: apiKey as string });
+  const translator = new LibreTranslateTranslator({ fetch: fetch, baseUrl, apiKey: apiKey! });
 
   const data = await translator.translate(
     [
@@ -31,9 +34,9 @@ Deno.test('LibreTranslate translation with source language omitted', {
 });
 
 Deno.test('LibreTranslate translation with source language set', {
-  ignore: !(translationProvider === libreTranslate && apiKey),
+  ignore: !(translationProvider === libretranslate && apiKey),
 }, async () => {
-  const translator = new LibreTranslateTranslator({ fetch: fetch, endpoint, apiKey: apiKey as string });
+  const translator = new LibreTranslateTranslator({ fetch: fetch, baseUrl, apiKey: apiKey! });
 
   const data = await translator.translate(
     [
