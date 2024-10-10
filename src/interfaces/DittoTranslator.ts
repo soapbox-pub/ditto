@@ -2,6 +2,8 @@ import type { LanguageCode } from 'iso-639-1';
 
 /** DittoTranslator class, used for status translation. */
 export interface DittoTranslator {
+  /** Provider name, eg `DeepL.com` */
+  provider: string;
   /** Translate the 'content' into 'targetLanguage'. */
   translate(
     /** Texts to translate. */
@@ -13,6 +15,4 @@ export interface DittoTranslator {
     /** Custom options. */
     opts?: { signal?: AbortSignal },
   ): Promise<{ results: string[]; source_lang: LanguageCode }>;
-  /** Provider name, eg `DeepL.com` */
-  provider: string;
 }
