@@ -1,7 +1,7 @@
 import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
-import { DittoTranslator, Provider, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
+import { DittoTranslator, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
 import { languageSchema } from '@/schema.ts';
 
 interface LibreTranslateTranslatorOpts {
@@ -17,7 +17,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
   private readonly endpoint: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private static provider: Provider = 'libretranslate.com';
+  private static provider = 'libretranslate.com';
 
   constructor(opts: LibreTranslateTranslatorOpts) {
     this.endpoint = opts.endpoint ?? 'https://libretranslate.com';
@@ -37,7 +37,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
 
     return {
       results: translations.map((value) => value.translatedText),
-      source_lang: translations[0]?.detectedLanguage?.language ?? source as LanguageCode, // cast is ok
+      source_lang: (translations[0]?.detectedLanguage?.language ?? source) as LanguageCode, // cast is ok
     };
   }
 
@@ -89,7 +89,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
   }
 
   /** LibreTranslate provider. */
-  getProvider(): Provider {
+  getProvider(): string {
     return LibreTranslateTranslator.provider;
   }
 }

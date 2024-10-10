@@ -3,9 +3,6 @@ import { LRUCache } from 'lru-cache';
 
 import { Time } from '@/utils/time.ts';
 
-/** Supported providers. */
-export type Provider = 'DeepL.com' | 'libretranslate.com';
-
 /** Original language of the post */
 export type SourceLanguage = LanguageCode;
 
@@ -29,7 +26,7 @@ export type MastodonTranslation = {
   //** The language of the source text, as auto-detected by the machine translation provider. */
   detected_source_language: SourceLanguage;
   /** The service that provided the machine translation. */
-  provider: Provider;
+  provider: string;
 };
 
 /** DittoTranslator class, used for status translation. */
@@ -44,7 +41,7 @@ export interface DittoTranslator {
     /** Custom options. */
     opts?: { signal?: AbortSignal },
   ): Promise<{ results: string[]; source_lang: SourceLanguage }>;
-  getProvider(): Provider;
+  getProvider(): string;
 }
 
 /** Includes the TARGET language and the status id.

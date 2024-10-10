@@ -1,6 +1,7 @@
+import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
-import { DittoTranslator, Provider, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
+import { DittoTranslator, SourceLanguage, TargetLanguage } from '@/translators/translator.ts';
 import { languageSchema } from '@/schema.ts';
 
 interface DeepLTranslatorOpts {
@@ -16,7 +17,7 @@ export class DeepLTranslator implements DittoTranslator {
   private readonly endpoint: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private static provider: Provider = 'DeepL.com';
+  private static provider = 'DeepL.com';
 
   constructor(opts: DeepLTranslatorOpts) {
     this.endpoint = opts.endpoint ?? 'https://api.deepl.com';
@@ -34,7 +35,7 @@ export class DeepLTranslator implements DittoTranslator {
 
     return {
       results: data.map((value) => value.text),
-      source_lang: data[0].detected_source_language,
+      source_lang: data[0].detected_source_language as LanguageCode,
     };
   }
 
@@ -90,7 +91,7 @@ export class DeepLTranslator implements DittoTranslator {
   }
 
   /** DeepL provider. */
-  getProvider(): Provider {
+  getProvider(): string {
     return DeepLTranslator.provider;
   }
 }
