@@ -4,6 +4,7 @@
     "jsr:@b-fuze/deno-dom@~0.1.47": "0.1.48",
     "jsr:@bradenmacdonald/s3-lite-client@~0.7.4": "0.7.6",
     "jsr:@denosaurs/plug@1.0.3": "1.0.3",
+    "jsr:@esroyo/scoped-performance@^3.1.0": "3.1.0",
     "jsr:@gfx/canvas-wasm@~0.4.2": "0.4.2",
     "jsr:@gleasonator/policy@*": "0.2.0",
     "jsr:@gleasonator/policy@0.2.0": "0.2.0",
@@ -141,6 +142,9 @@
         "jsr:@std/fs@0.213.1",
         "jsr:@std/path@0.213.1"
       ]
+    },
+    "@esroyo/scoped-performance@3.1.0": {
+      "integrity": "e6a12a1d4edb32cbea7afce005123c1ef684e1815bf9b6caadfbf3e89fe66222"
     },
     "@gfx/canvas-wasm@0.4.2": {
       "integrity": "d653be3bd12cb2fa9bbe5d1b1f041a81b91d80b68502761204aaf60e4592532a",
@@ -2062,6 +2066,7 @@
     "dependencies": [
       "jsr:@b-fuze/deno-dom@~0.1.47",
       "jsr:@bradenmacdonald/s3-lite-client@~0.7.4",
+      "jsr:@esroyo/scoped-performance@^3.1.0",
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
