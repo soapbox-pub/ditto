@@ -12,6 +12,12 @@ export const httpResponsesCounter = new Counter({
   labelNames: ['method', 'path', 'status'],
 });
 
+export const httpResponseDurationHistogram = new Histogram({
+  name: 'ditto_http_response_duration_seconds',
+  help: 'Histogram of HTTP response times in seconds',
+  labelNames: ['method', 'path', 'status'],
+});
+
 export const streamingConnectionsGauge = new Gauge({
   name: 'ditto_streaming_connections',
   help: 'Number of active connections to the streaming API',
