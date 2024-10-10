@@ -20,6 +20,7 @@
     "jsr:@gleasonator/policy@0.7.0": "0.7.0",
     "jsr:@gleasonator/policy@0.7.1": "0.7.1",
     "jsr:@gleasonator/policy@0.8.0": "0.8.0",
+    "jsr:@gleasonator/policy@0.8.1": "0.8.1",
     "jsr:@hono/hono@^4.4.6": "4.6.2",
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@nostrify/db@~0.36.1": "0.36.1",
@@ -35,6 +36,7 @@
     "jsr:@nostrify/policies@0.35": "0.35.0",
     "jsr:@nostrify/policies@0.36": "0.36.0",
     "jsr:@nostrify/policies@~0.33.1": "0.33.1",
+    "jsr:@nostrify/policies@~0.36.1": "0.36.1",
     "jsr:@nostrify/types@0.30": "0.30.1",
     "jsr:@nostrify/types@0.35": "0.35.0",
     "jsr:@nostrify/types@~0.30.1": "0.30.1",
@@ -240,6 +242,13 @@
         "jsr:@nostrify/policies@0.36"
       ]
     },
+    "@gleasonator/policy@0.8.1": {
+      "integrity": "32bc3da39f9fa0f8c4ab1d1d6f7ddf44c3c19ffbca34a7344b8ae9233e852fdb",
+      "dependencies": [
+        "jsr:@nostrify/nostrify@0.36",
+        "jsr:@nostrify/policies@~0.36.1"
+      ]
+    },
     "@hono/hono@4.4.6": {
       "integrity": "aa557ca9930787ee86b9ca1730691f1ce1c379174c2cb244d5934db2b6314453"
     },
@@ -409,6 +418,14 @@
     },
     "@nostrify/policies@0.36.0": {
       "integrity": "ad1930de48ce03cdf34da456af1563b487581d1d86683cd416ad760ae40b1fb3",
+      "dependencies": [
+        "jsr:@nostrify/nostrify@0.36",
+        "jsr:@nostrify/types@0.35",
+        "npm:nostr-tools@^2.7.0"
+      ]
+    },
+    "@nostrify/policies@0.36.1": {
+      "integrity": "6d59af115a687fcd18b6caebab0e4f50ee6cdb0aafa2aacd0aec2065021275b4",
       "dependencies": [
         "jsr:@nostrify/nostrify@0.36",
         "jsr:@nostrify/types@0.35",
