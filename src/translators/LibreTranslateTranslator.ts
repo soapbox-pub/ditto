@@ -57,13 +57,14 @@ export class LibreTranslateTranslator implements DittoTranslator {
       api_key: this.apiKey,
     };
 
-    const headers = new Headers();
-    headers.append('Content-Type', 'application/json');
+    const url = new URL('/translate', this.baseUrl);
 
-    const request = new Request(new URL('/translate', this.baseUrl), {
+    const request = new Request(url, {
       method: 'POST',
       body: JSON.stringify(body),
-      headers,
+      headers: {
+        'Content-Type': 'application/json',
+      },
       signal: opts?.signal,
     });
 
