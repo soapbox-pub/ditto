@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { translationCache } from '@/caches/translationCache.ts';
 import { MastodonTranslation } from '@/entities/MastodonTranslation.ts';
+import { cachedTranslationsSizeGauge } from '@/metrics.ts';
 import { getEvent } from '@/queries.ts';
 import { localeSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
@@ -50,7 +51,7 @@ const translateController: AppController = async (c) => {
   const cached = translationCache.get(cacheKey);
 
   if (cached) {
-    return c.json(cached.data, 200);
+    return c.json(cached, 200);
   }
 
   const mediaAttachments = status?.media_attachments.map((value) => {
@@ -131,7 +132,9 @@ const translateController: AppController = async (c) => {
 
     mastodonTranslation.detected_source_language = data.source_lang;
 
-    translationCache.set(cacheKey, { data: mastodonTranslation });
+    translationCache.set(cacheKey, mastodonTranslation);
+    cachedTranslationsSizeGauge.set(translationCache.size);
+
     return c.json(mastodonTranslation, 200);
   } catch (e) {
     if (e instanceof Error && e.message.includes('not supported')) {

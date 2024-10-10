@@ -121,6 +121,11 @@ export const cachedLinkPreviewSizeGauge = new Gauge({
   help: 'Number of link previews in cache',
 });
 
+export const cachedTranslationsSizeGauge = new Gauge({
+  name: 'ditto_cached_translations_size',
+  help: 'Number of translated statuses in cache',
+});
+
 export const internalSubscriptionsSizeGauge = new Gauge({
   name: 'ditto_internal_subscriptions_size',
   help: "Number of active subscriptions to Ditto's internal relay",

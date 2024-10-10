@@ -314,6 +314,13 @@ class Conf {
         ttl: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_TTL') || 12 * 60 * 60 * 1000),
       };
     },
+    /** Translation cache settings. */
+    get translation(): { max: number; ttl: number } {
+      return {
+        max: Number(Deno.env.get('DITTO_CACHE_TRANSLATION_MAX') || 1000),
+        ttl: Number(Deno.env.get('DITTO_CACHE_TRANSLATION_TTL') || 6 * 60 * 60 * 1000),
+      };
+    },
   };
 }
 
