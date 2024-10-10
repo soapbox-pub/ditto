@@ -9,12 +9,14 @@ export const KyselyLogger: Logger = (event) => {
   const { query, queryDurationMillis } = event;
   const { sql, parameters } = query;
 
+  const queryDurationSeconds = queryDurationMillis / 1000;
+
   dbQueriesCounter.inc();
-  dbQueryDurationHistogram.observe(queryDurationMillis);
+  dbQueryDurationHistogram.observe(queryDurationSeconds);
 
   console.debug(
     sql,
     JSON.stringify(parameters),
-    `\x1b[90m(${(queryDurationMillis / 1000).toFixed(2)}s)\x1b[0m`,
+    `\x1b[90m(${(queryDurationSeconds / 1000).toFixed(2)}s)\x1b[0m`,
   );
 };

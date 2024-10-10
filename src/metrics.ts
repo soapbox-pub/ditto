@@ -97,7 +97,7 @@ export const dbAvailableConnectionsGauge = new Gauge({
 });
 
 export const dbQueryDurationHistogram = new Histogram({
-  name: 'ditto_db_query_duration_ms',
+  name: 'ditto_db_query_duration_seconds',
   help: 'Duration of database queries',
 });
 
