@@ -6,7 +6,7 @@ import { languageSchema } from '@/schema.ts';
 
 interface LibreTranslateTranslatorOpts {
   /** Libretranslate endpoint to use. Default: 'https://libretranslate.com' */
-  endpoint?: string;
+  baseUrl?: string;
   /** Libretranslate API key. */
   apiKey: string;
   /** Custom fetch implementation. */
@@ -14,13 +14,14 @@ interface LibreTranslateTranslatorOpts {
 }
 
 export class LibreTranslateTranslator implements DittoTranslator {
-  private readonly endpoint: string;
+  private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private static provider = 'libretranslate.com';
+
+  readonly provider = 'libretranslate.com';
 
   constructor(opts: LibreTranslateTranslatorOpts) {
-    this.endpoint = opts.endpoint ?? 'https://libretranslate.com';
+    this.baseUrl = opts.baseUrl ?? 'https://libretranslate.com';
     this.fetch = opts.fetch ?? globalThis.fetch;
     this.apiKey = opts.apiKey;
   }
@@ -59,7 +60,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
     const headers = new Headers();
     headers.append('Content-Type', 'application/json');
 
-    const request = new Request(this.endpoint + '/translate', {
+    const request = new Request(new URL('/translate', this.baseUrl), {
       method: 'POST',
       body: JSON.stringify(body),
       headers,
@@ -86,10 +87,5 @@ export class LibreTranslateTranslator implements DittoTranslator {
         language: languageSchema,
       }).optional(),
     });
-  }
-
-  /** LibreTranslate provider. */
-  getProvider(): string {
-    return LibreTranslateTranslator.provider;
   }
 }

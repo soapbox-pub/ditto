@@ -276,19 +276,19 @@ class Conf {
     return Deno.env.get('TRANSLATION_PROVIDER');
   }
   /** DeepL URL endpoint. */
-  static get deepLendpoint(): string | undefined {
-    return Deno.env.get('DEEPL_ENDPOINT');
+  static get deeplBaseUrl(): string | undefined {
+    return Deno.env.get('DEEPL_BASE_URL');
   }
   /** DeepL API KEY. */
-  static get deepLapiKey(): string | undefined {
+  static get deeplApiKey(): string | undefined {
     return Deno.env.get('DEEPL_API_KEY');
   }
   /** LibreTranslate URL endpoint. */
-  static get libreTranslateEndpoint(): string | undefined {
-    return Deno.env.get('LIBRETRANSLATE_ENDPOINT');
+  static get libretranslateBaseUrl(): string | undefined {
+    return Deno.env.get('LIBRETRANSLATE_BASE_URL');
   }
   /** LibreTranslate API KEY. */
-  static get libreTranslateApiKey(): string | undefined {
+  static get libretranslateApiKey(): string | undefined {
     return Deno.env.get('LIBRETRANSLATE_API_KEY');
   }
   /** Cache settings. */

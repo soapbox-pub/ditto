@@ -5,8 +5,8 @@ import { DittoTranslator, SourceLanguage, TargetLanguage } from '@/translators/t
 import { languageSchema } from '@/schema.ts';
 
 interface DeepLTranslatorOpts {
-  /** DeepL endpoint to use. Default: 'https://api.deepl.com' */
-  endpoint?: string;
+  /** DeepL base URL to use. Default: 'https://api.deepl.com' */
+  baseUrl?: string;
   /** DeepL API key. */
   apiKey: string;
   /** Custom fetch implementation. */
@@ -14,13 +14,14 @@ interface DeepLTranslatorOpts {
 }
 
 export class DeepLTranslator implements DittoTranslator {
-  private readonly endpoint: string;
+  private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly fetch: typeof fetch;
-  private static provider = 'DeepL.com';
+
+  readonly provider = 'DeepL.com';
 
   constructor(opts: DeepLTranslatorOpts) {
-    this.endpoint = opts.endpoint ?? 'https://api.deepl.com';
+    this.baseUrl = opts.baseUrl ?? 'https://api.deepl.com';
     this.fetch = opts.fetch ?? globalThis.fetch;
     this.apiKey = opts.apiKey;
   }
@@ -31,11 +32,11 @@ export class DeepLTranslator implements DittoTranslator {
     dest: TargetLanguage,
     opts?: { signal?: AbortSignal },
   ) {
-    const data = (await this.translateMany(texts, source, dest, opts)).translations;
+    const { translations } = await this.translateMany(texts, source, dest, opts);
 
     return {
-      results: data.map((value) => value.text),
-      source_lang: data[0].detected_source_language as LanguageCode,
+      results: translations.map((value) => value.text),
+      source_lang: translations[0]?.detected_source_language as LanguageCode,
     };
   }
 
@@ -56,25 +57,26 @@ export class DeepLTranslator implements DittoTranslator {
       body.source_lang = source.toUpperCase();
     }
 
-    const headers = new Headers();
-    headers.append('Authorization', 'DeepL-Auth-Key' + ' ' + this.apiKey);
-    headers.append('Content-Type', 'application/json');
+    const url = new URL('/v2/translate', this.baseUrl);
 
-    const request = new Request(this.endpoint + '/v2/translate', {
+    const request = new Request(url, {
       method: 'POST',
       body: JSON.stringify(body),
-      headers,
+      headers: {
+        'Authorization': `DeepL-Auth-Key ${this.apiKey}`,
+        'Content-Type': 'application/json',
+      },
       signal: opts?.signal,
     });
 
     const response = await this.fetch(request);
     const json = await response.json();
+
     if (!response.ok) {
       throw new Error(json['message']);
     }
-    const data = DeepLTranslator.schema().parse(json);
 
-    return data;
+    return DeepLTranslator.schema().parse(json);
   }
 
   /** DeepL response schema.
@@ -88,10 +90,5 @@ export class DeepLTranslator implements DittoTranslator {
         }),
       ),
     });
-  }
-
-  /** DeepL provider. */
-  getProvider(): string {
-    return DeepLTranslator.provider;
   }
 }

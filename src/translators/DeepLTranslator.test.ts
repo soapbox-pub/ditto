@@ -4,15 +4,18 @@ import { Conf } from '@/config.ts';
 import { DeepLTranslator } from '@/translators/DeepLTranslator.ts';
 import { getLanguage } from '@/test.ts';
 
-const endpoint = Conf.deepLendpoint;
-const apiKey = Conf.deepLapiKey;
-const translationProvider = Conf.translationProvider;
-const deepL = 'deepl';
+const {
+  deeplBaseUrl: baseUrl,
+  deeplApiKey: apiKey,
+  translationProvider,
+} = Conf;
+
+const deepl = 'deepl';
 
 Deno.test('DeepL translation with source language omitted', {
-  ignore: !(translationProvider === deepL && apiKey),
+  ignore: !(translationProvider === deepl && apiKey),
 }, async () => {
-  const translator = new DeepLTranslator({ fetch: fetch, endpoint, apiKey: apiKey as string });
+  const translator = new DeepLTranslator({ fetch: fetch, baseUrl, apiKey: apiKey! });
 
   const data = await translator.translate(
     [
@@ -31,9 +34,9 @@ Deno.test('DeepL translation with source language omitted', {
 });
 
 Deno.test('DeepL translation with source language set', {
-  ignore: !(translationProvider === deepL && apiKey),
+  ignore: !(translationProvider === deepl && apiKey),
 }, async () => {
-  const translator = new DeepLTranslator({ fetch: fetch, endpoint, apiKey: apiKey as string });
+  const translator = new DeepLTranslator({ fetch: fetch, baseUrl, apiKey: apiKey as string });
 
   const data = await translator.translate(
     [

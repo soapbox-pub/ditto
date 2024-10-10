@@ -6,33 +6,22 @@ import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator
 
 /** Set the translator used for translating posts. */
 export const translatorMiddleware: AppMiddleware = async (c, next) => {
-  const deepLendpoint = Conf.deepLendpoint;
-  const deepLapiKey = Conf.deepLapiKey;
-  const libreTranslateEndpoint = Conf.libreTranslateEndpoint;
-  const libreTranslateApiKey = Conf.libreTranslateApiKey;
-  const translationProvider = Conf.translationProvider;
+  switch (Conf.translationProvider) {
+    case 'deepl': {
+      const { deeplApiKey: apiKey, deeplBaseUrl: baseUrl } = Conf;
+      if (apiKey) {
+        c.set('translator', new DeepLTranslator({ baseUrl, apiKey, fetch: fetchWorker }));
+      }
+      break;
+    }
 
-  switch (translationProvider) {
-    case 'deepl':
-      if (deepLapiKey) {
-        c.set(
-          'translator',
-          new DeepLTranslator({ endpoint: deepLendpoint, apiKey: deepLapiKey, fetch: fetchWorker }),
-        );
+    case 'libretranslate': {
+      const { libretranslateApiKey: apiKey, libretranslateBaseUrl: baseUrl } = Conf;
+      if (apiKey) {
+        c.set('translator', new LibreTranslateTranslator({ baseUrl, apiKey, fetch: fetchWorker }));
       }
       break;
-    case 'libretranslate':
-      if (libreTranslateApiKey) {
-        c.set(
-          'translator',
-          new LibreTranslateTranslator({
-            endpoint: libreTranslateEndpoint,
-            apiKey: libreTranslateApiKey,
-            fetch: fetchWorker,
-          }),
-        );
-      }
-      break;
+    }
   }
 
   await next();

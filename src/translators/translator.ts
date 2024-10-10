@@ -41,7 +41,8 @@ export interface DittoTranslator {
     /** Custom options. */
     opts?: { signal?: AbortSignal },
   ): Promise<{ results: string[]; source_lang: SourceLanguage }>;
-  getProvider(): string;
+  /** Provider name, eg `DeepL.com` */
+  provider: string;
 }
 
 /** Includes the TARGET language and the status id.
