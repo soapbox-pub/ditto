@@ -879,7 +879,7 @@
             "uid": "${prometheus}"
           },
           "editorMode": "code",
-          "expr": "increase(ditto_db_query_duration_ms_sum[$__rate_interval])",
+          "expr": "increase(ditto_db_query_duration_seconds_sum[$__rate_interval])",
           "instant": false,
           "legendFormat": "Time",
           "range": true,
