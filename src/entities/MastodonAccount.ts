@@ -54,7 +54,7 @@ export interface MastodonAccount {
     is_moderator: boolean;
     is_suggested: boolean;
     is_local: boolean;
-    settings_store: unknown;
+    settings_store?: Record<string, unknown>;
     tags: string[];
   };
   nostr: {
