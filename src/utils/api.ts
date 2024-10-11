@@ -1,4 +1,4 @@
-import { Context } from '@hono/hono';
+import { type Context } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';

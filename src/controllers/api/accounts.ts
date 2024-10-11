@@ -276,7 +276,6 @@ const updateCredentialsController: AppController = async (c) => {
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
-  const store = await Storages.db();
 
   if (!result.success) {
     return c.json(result.error, 422);

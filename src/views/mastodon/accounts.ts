@@ -1,4 +1,4 @@
-import { type NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NSchema as n } from '@nostrify/nostrify';
 import { escape } from 'entities';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
