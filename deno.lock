@@ -79,7 +79,6 @@
     "npm:@noble/secp256k1@2": "2.1.0",
     "npm:@scure/base@^1.1.6": "1.1.6",
     "npm:@scure/bip32@^1.4.0": "1.4.0",
-    "npm:@scure/bip32@^1.5.0": "1.5.0",
     "npm:@scure/bip39@^1.3.0": "1.3.0",
     "npm:@types/node@*": "18.16.19",
     "npm:comlink-async-generator@*": "0.0.1",
@@ -306,7 +305,7 @@
         "jsr:@std/encoding@~0.224.1",
         "npm:@noble/hashes",
         "npm:@scure/base",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:kysely@~0.27.3",
         "npm:lru-cache@^10.2.0",
@@ -320,7 +319,7 @@
       "dependencies": [
         "jsr:@std/encoding@~0.224.1",
         "npm:@scure/base",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:kysely@~0.27.3",
         "npm:lru-cache@^10.2.0",
@@ -336,7 +335,7 @@
         "jsr:@std/crypto",
         "jsr:@std/encoding@~0.224.1",
         "npm:@scure/base",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
@@ -349,7 +348,7 @@
       "dependencies": [
         "jsr:@nostrify/types@~0.30.1",
         "jsr:@std/encoding@~0.224.1",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
@@ -362,7 +361,7 @@
       "dependencies": [
         "jsr:@nostrify/types@~0.30.1",
         "jsr:@std/encoding@~0.224.1",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
@@ -375,7 +374,7 @@
       "dependencies": [
         "jsr:@nostrify/types@0.35",
         "jsr:@std/encoding@~0.224.1",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
@@ -390,7 +389,7 @@
         "jsr:@std/crypto",
         "jsr:@std/encoding@~0.224.1",
         "npm:@scure/base",
-        "npm:@scure/bip32@^1.4.0",
+        "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
@@ -649,12 +648,6 @@
         "@noble/hashes@1.4.0"
       ]
     },
-    "@noble/curves@1.6.0": {
-      "integrity": "sha512-TlaHRXDehJuRNR9TfZDNQ45mMEd5dwUwmicsafcIX4SsNiqnCHKjE/1alYPd/lDRVhxdhUAlv8uEhMCI5zjIJQ==",
-      "dependencies": [
-        "@noble/hashes@1.5.0"
-      ]
-    },
     "@noble/hashes@1.3.1": {
       "integrity": "sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA=="
     },
@@ -663,9 +656,6 @@
     },
     "@noble/hashes@1.4.0": {
       "integrity": "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg=="
-    },
-    "@noble/hashes@1.5.0": {
-      "integrity": "sha512-1j6kQFb7QRru7eKN3ZDvRcP13rugwdxZqCjbiAVZfIJwgj2A65UmT4TgARXGlXgnRkORLTDTrO19ZErt7+QXgA=="
     },
     "@noble/secp256k1@2.1.0": {
       "integrity": "sha512-XLEQQNdablO0XZOIniFQimiXsZDNwaYgL96dZwC54Q30imSbAOFf3NKtepc+cXyuZf5Q1HCgbqgZ2UFFuHVcEw=="
@@ -678,9 +668,6 @@
     },
     "@scure/base@1.1.6": {
       "integrity": "sha512-ok9AWwhcgYuGG3Zfhyqg+zwl+Wn5uE+dwC0NV/2qQkx4dABbb/bx96vWu8NSj+BNjjSjno+JRYRjle1jV08k3g=="
-    },
-    "@scure/base@1.1.9": {
-      "integrity": "sha512-8YKhl8GHiNI/pU2VMaofa2Tor7PJRAjwQLBBuilkJ9L5+13yVbC7JO/wS7piioAvPSwR3JKM1IJ/u4xQzbcXKg=="
     },
     "@scure/bip32@1.3.1": {
       "integrity": "sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==",
@@ -696,14 +683,6 @@
         "@noble/curves@1.4.0",
         "@noble/hashes@1.4.0",
         "@scure/base@1.1.6"
-      ]
-    },
-    "@scure/bip32@1.5.0": {
-      "integrity": "sha512-8EnFYkqEQdnkuGBVpCzKxyIwDCBLDVj3oiX0EKUFre/tOjL/Hqba1D6n/8RcmaQy4f95qQFrO2A8Sr6ybh4NRw==",
-      "dependencies": [
-        "@noble/curves@1.6.0",
-        "@noble/hashes@1.5.0",
-        "@scure/base@1.1.9"
       ]
     },
     "@scure/bip39@1.2.1": {
@@ -2096,7 +2075,6 @@
       "npm:@isaacs/ttlcache@^1.4.1",
       "npm:@noble/secp256k1@2",
       "npm:@scure/base@^1.1.6",
-      "npm:@scure/bip32@^1.5.0",
       "npm:comlink-async-generator@^0.0.1",
       "npm:comlink@^4.4.1",
       "npm:commander@12.1.0",

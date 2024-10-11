@@ -46,7 +46,6 @@
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.36.0",
     "@nostrify/policies": "jsr:@nostrify/policies@^0.35.0",
     "@scure/base": "npm:@scure/base@^1.1.6",
-    "@scure/bip32": "npm:@scure/bip32@^1.5.0",
     "@sentry/deno": "https://deno.land/x/sentry@7.112.2/index.mjs",
     "@soapbox/kysely-pglite": "jsr:@soapbox/kysely-pglite@^1.0.0",
     "@soapbox/stickynotes": "jsr:@soapbox/stickynotes@^0.4.0",
