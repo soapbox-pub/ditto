@@ -9,15 +9,15 @@ linkify.registerCustomProtocol('nostr', true);
  */
 export function detectLanguage(text: string, minConfidence: number): LanguageCode | undefined {
   // It's better to remove the emojis first
-  const sanitizedText = (linkify.tokenize(
-    text.replaceAll(/\p{Extended_Pictographic}/gu, '')
+  const sanitizedText = linkify.tokenize(
+    text
+      .replaceAll(/\p{Extended_Pictographic}/gu, '')
       .replaceAll(/[\s\uFEFF\u00A0\u200B-\u200D\u{0FE0E}]+/gu, ' '),
-  )
-    .reduce(
-      (acc, { t, v }) => t === 'text' ? acc + v : acc,
-      '',
-    )).trim();
-  if (sanitizedText.length < 10) return; // heuristics
+  ).reduce((acc, { t, v }) => t === 'text' ? acc + v : acc, '').trim();
+
+  if (sanitizedText.length < 10) { // heuristics
+    return;
+  }
 
   const [topResult] = lande(
     sanitizedText,
