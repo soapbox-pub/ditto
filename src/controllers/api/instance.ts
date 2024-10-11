@@ -142,7 +142,7 @@ const instanceV2Controller: AppController = async (c) => {
       },
     },
     registrations: {
-      enabled: false,
+      enabled: true,
       approval_required: false,
       message: null,
       url: null,
