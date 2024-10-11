@@ -18,6 +18,7 @@ import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 import { Time } from '@/utils/time.ts';
+import { purifyEvent } from '@/utils/purify.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -105,7 +106,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
     try {
       for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
-        send(['EVENT', subId, event]);
+        send(['EVENT', subId, purifyEvent(event)]);
       }
     } catch (e: any) {
       if (e instanceof RelayError) {
@@ -137,7 +138,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
     relayEventsCounter.inc({ kind: event.kind.toString() });
     try {
       // This will store it (if eligible) and run other side-effects.
-      await pipeline.handleEvent(event, AbortSignal.timeout(1000));
+      await pipeline.handleEvent(purifyEvent(event), AbortSignal.timeout(1000));
       send(['OK', event.id, true, '']);
     } catch (e) {
       if (e instanceof RelayError) {

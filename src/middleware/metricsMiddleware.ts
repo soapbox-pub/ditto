@@ -1,9 +1,14 @@
+import { ScopedPerformance } from '@esroyo/scoped-performance';
 import { MiddlewareHandler } from '@hono/hono';
 
-import { httpRequestsCounter, httpResponsesCounter } from '@/metrics.ts';
+import { httpRequestsCounter, httpResponseDurationHistogram, httpResponsesCounter } from '@/metrics.ts';
 
 /** Prometheus metrics middleware that tracks HTTP requests by methods and responses by status code. */
 export const metricsMiddleware: MiddlewareHandler = async (c, next) => {
+  // Start a timer to measure the duration of the response.
+  using perf = new ScopedPerformance();
+  perf.mark('start');
+
   // HTTP Request.
   const { method } = c.req;
   httpRequestsCounter.inc({ method });
@@ -17,4 +22,8 @@ export const metricsMiddleware: MiddlewareHandler = async (c, next) => {
   // Tries to find actual route names first before falling back on potential middleware handlers like `app.use('*')`.
   const path = c.req.matchedRoutes.find((r) => r.method !== 'ALL')?.path ?? c.req.routePath;
   httpResponsesCounter.inc({ method, status, path });
+
+  // Measure the duration of the response.
+  const { duration } = perf.measure('total', 'start');
+  httpResponseDurationHistogram.observe({ method, status, path }, duration / 1000);
 };

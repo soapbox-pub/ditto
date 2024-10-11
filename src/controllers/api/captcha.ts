@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { createAdminEvent } from '@/utils/api.ts';
+import { updateUser } from '@/utils/api.ts';
 
 interface Point {
   x: number;
@@ -169,16 +169,7 @@ export const captchaVerifyController: AppController = async (c) => {
 
   if (solved) {
     captchas.delete(id);
-
-    await createAdminEvent({
-      kind: 1985,
-      tags: [
-        ['L', 'pub.ditto.captcha'],
-        ['l', 'solved', 'pub.ditto.captcha'],
-        ['p', pubkey, Conf.relay],
-      ],
-    }, c);
-
+    await updateUser(pubkey, { captcha_solved: true }, c);
     return new Response(null, { status: 204 });
   }
 

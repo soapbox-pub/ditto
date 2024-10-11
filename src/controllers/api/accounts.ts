@@ -51,7 +51,7 @@ const verifyCredentialsController: AppController = async (c) => {
 
   const store = await Storages.db();
 
-  const [author, [settingsStore], [captcha]] = await Promise.all([
+  const [author, [settingsEvent]] = await Promise.all([
     getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
 
     store.query([{
@@ -60,32 +60,18 @@ const verifyCredentialsController: AppController = async (c) => {
       '#d': ['pub.ditto.pleroma_settings_store'],
       limit: 1,
     }]),
-
-    store.query([{
-      kinds: [1985],
-      authors: [Conf.pubkey],
-      '#L': ['pub.ditto.captcha'],
-      '#l': ['solved'],
-      '#p': [pubkey],
-      limit: 1,
-    }]),
   ]);
 
+  let settingsStore: Record<string, unknown> | undefined;
+  try {
+    settingsStore = n.json().pipe(z.record(z.string(), z.unknown())).parse(settingsEvent?.content);
+  } catch {
+    // Do nothing
+  }
+
   const account = author
-    ? await renderAccount(author, { withSource: true })
-    : await accountFromPubkey(pubkey, { withSource: true });
-
-  if (settingsStore) {
-    try {
-      account.pleroma.settings_store = JSON.parse(settingsStore.content);
-    } catch {
-      // Ignore
-    }
-  }
-
-  if (captcha && account.source) {
-    account.source.ditto.captcha_solved = true;
-  }
+    ? await renderAccount(author, { withSource: true, settingsStore })
+    : await accountFromPubkey(pubkey, { withSource: true, settingsStore });
 
   return c.json(account);
 };
@@ -280,7 +266,7 @@ const updateCredentialsSchema = z.object({
   bot: z.boolean().optional(),
   discoverable: z.boolean().optional(),
   nip05: z.string().email().or(z.literal('')).optional(),
-  pleroma_settings_store: z.unknown().optional(),
+  pleroma_settings_store: z.record(z.string(), z.unknown()).optional(),
   lud16: z.string().email().or(z.literal('')).optional(),
   website: z.string().url().or(z.literal('')).optional(),
 });
@@ -339,8 +325,8 @@ const updateCredentialsController: AppController = async (c) => {
     c,
   );
 
-  const account = await renderAccount(event, { withSource: true });
   const settingsStore = result.data.pleroma_settings_store;
+  const account = await renderAccount(event, { withSource: true, settingsStore });
 
   if (settingsStore) {
     await createEvent({
@@ -349,8 +335,6 @@ const updateCredentialsController: AppController = async (c) => {
       content: JSON.stringify(settingsStore),
     }, c);
   }
-
-  account.pleroma.settings_store = settingsStore;
 
   return c.json(account);
 };

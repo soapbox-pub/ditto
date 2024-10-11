@@ -129,7 +129,7 @@ const instanceV2Controller: AppController = async (c) => {
         max_expiration: 2629746,
       },
       translation: {
-        enabled: false,
+        enabled: Boolean(Conf.translationProvider),
       },
     },
     nostr: {
@@ -142,7 +142,7 @@ const instanceV2Controller: AppController = async (c) => {
       },
     },
     registrations: {
-      enabled: false,
+      enabled: true,
       approval_required: false,
       message: null,
       url: null,

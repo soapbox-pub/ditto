@@ -37,7 +37,7 @@ export class CustomPolicy implements NPolicy {
     const store = new EventsDB({
       kysely,
       pubkey,
-      timeout: 1_000,
+      timeout: 5_000,
     });
 
     this.policy = new Policy({ store, pubkey });

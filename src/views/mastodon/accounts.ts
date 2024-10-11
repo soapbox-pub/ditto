@@ -12,16 +12,18 @@ import { faviconCache } from '@/utils/favicon.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
-interface ToAccountOpts {
-  withSource?: boolean;
-}
+type ToAccountOpts = {
+  withSource: true;
+  settingsStore: Record<string, unknown> | undefined;
+} | {
+  withSource?: false;
+};
 
 async function renderAccount(
   event: Omit<DittoEvent, 'id' | 'sig'>,
   opts: ToAccountOpts = {},
   signal = AbortSignal.timeout(3000),
 ): Promise<MastodonAccount> {
-  const { withSource = false } = opts;
   const { pubkey } = event;
 
   const names = getTagSet(event.user?.tags ?? [], 'n');
@@ -76,7 +78,7 @@ async function renderAccount(
     locked: false,
     note: about ? escape(about) : '',
     roles: [],
-    source: withSource
+    source: opts.withSource
       ? {
         fields: [],
         language: '',
@@ -88,7 +90,7 @@ async function renderAccount(
           nip05,
         },
         ditto: {
-          captcha_solved: false,
+          captcha_solved: names.has('captcha_solved'),
         },
       }
       : undefined,
@@ -107,7 +109,7 @@ async function renderAccount(
       is_moderator: names.has('admin') || names.has('moderator'),
       is_suggested: names.has('suggested'),
       is_local: parsed05?.domain === Conf.url.host,
-      settings_store: undefined as unknown,
+      settings_store: opts.withSource ? opts.settingsStore : undefined,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],
       favicon: favicon?.toString(),
     },

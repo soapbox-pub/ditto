@@ -1,4 +1,4 @@
-import { Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
@@ -113,6 +113,7 @@ import {
   trendingStatusesController,
   trendingTagsController,
 } from '@/controllers/api/trends.ts';
+import { translateController } from '@/controllers/api/translate.ts';
 import { errorHandler } from '@/controllers/error.ts';
 import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
@@ -120,6 +121,7 @@ import { indexController } from '@/controllers/site.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
+import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
@@ -129,6 +131,7 @@ import { requireSigner } from '@/middleware/requireSigner.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
+import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -144,6 +147,8 @@ interface AppEnv extends HonoEnv {
     pagination: { since?: number; until?: number; limit: number };
     /** Normalized list pagination params. */
     listPagination: { offset: number; limit: number };
+    /** Translation service. */
+    translator?: DittoTranslator;
   };
 }
 
@@ -223,6 +228,13 @@ app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/bookmark', requireSigner, bookmarkC
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unbookmark', requireSigner, unbookmarkController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/pin', requireSigner, pinController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unpin', requireSigner, unpinController);
+app.post(
+  '/api/v1/statuses/:id{[0-9a-f]{64}}/translate',
+  requireSigner,
+  rateLimitMiddleware(15, Time.minutes(1)),
+  translatorMiddleware,
+  translateController,
+);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/reblog', requireSigner, reblogStatusController);
 app.post('/api/v1/statuses/:id{[0-9a-f]{64}}/unreblog', requireSigner, unreblogStatusController);
 app.post('/api/v1/statuses', requireSigner, createStatusController);

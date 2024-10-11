@@ -1,4 +1,4 @@
-import { Generated, Nullable } from 'kysely';
+import { Generated } from 'kysely';
 
 import { NPostgresSchema } from '@nostrify/db';
 
@@ -13,7 +13,7 @@ export interface DittoTables extends NPostgresSchema {
 }
 
 type NostrEventsRow = NPostgresSchema['nostr_events'] & {
-  language: Nullable<string>;
+  language: string | null;
 };
 
 interface AuthorStatsRow {

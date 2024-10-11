@@ -12,6 +12,12 @@ export const httpResponsesCounter = new Counter({
   labelNames: ['method', 'path', 'status'],
 });
 
+export const httpResponseDurationHistogram = new Histogram({
+  name: 'ditto_http_response_duration_seconds',
+  help: 'Histogram of HTTP response times in seconds',
+  labelNames: ['method', 'path', 'status'],
+});
+
 export const streamingConnectionsGauge = new Gauge({
   name: 'ditto_streaming_connections',
   help: 'Number of active connections to the streaming API',
@@ -91,7 +97,7 @@ export const dbAvailableConnectionsGauge = new Gauge({
 });
 
 export const dbQueryDurationHistogram = new Histogram({
-  name: 'ditto_db_query_duration_ms',
+  name: 'ditto_db_query_duration_seconds',
   help: 'Duration of database queries',
 });
 
@@ -113,6 +119,11 @@ export const cachedNip05sSizeGauge = new Gauge({
 export const cachedLinkPreviewSizeGauge = new Gauge({
   name: 'ditto_cached_link_previews_size',
   help: 'Number of link previews in cache',
+});
+
+export const cachedTranslationsSizeGauge = new Gauge({
+  name: 'ditto_cached_translations_size',
+  help: 'Number of translated statuses in cache',
 });
 
 export const internalSubscriptionsSizeGauge = new Gauge({

@@ -5,7 +5,7 @@ import './handlers/abortsignal.ts';
 
 import { fetchResponsesCounter } from '@/metrics.ts';
 
-const worker = new Worker(new URL('./fetch.worker.ts', import.meta.url), { type: 'module' });
+const worker = new Worker(new URL('./fetch.worker.ts', import.meta.url), { type: 'module', name: 'fetchWorker' });
 const client = Comlink.wrap<typeof FetchWorker>(worker);
 
 // Wait for the worker to be ready before we start using it.
