@@ -1,8 +1,6 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
-import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
-import lande from 'lande';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
@@ -22,6 +20,7 @@ import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { detectLanguage } from '@/utils/language.ts';
 
 const console = new Stickynotes('ditto:pipeline');
 
@@ -200,23 +199,19 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
 /** Update the event in the database and set its language. */
 async function setLanguage(event: NostrEvent): Promise<void> {
-  const [topResult] = lande(event.content);
+  if (event.kind !== 1) return;
 
-  if (topResult) {
-    const [iso6393, confidence] = topResult;
-    const locale = new Intl.Locale(iso6393);
+  const language = detectLanguage(event.content, 0.90);
+  if (!language) return;
 
-    if (confidence >= 0.95 && ISO6391.validate(locale.language)) {
-      const kysely = await Storages.kysely();
-      try {
-        await kysely.updateTable('nostr_events')
-          .set('language', locale.language)
-          .where('id', '=', event.id)
-          .execute();
-      } catch {
-        // do nothing
-      }
-    }
+  const kysely = await Storages.kysely();
+  try {
+    await kysely.updateTable('nostr_events')
+      .set('language', language)
+      .where('id', '=', event.id)
+      .execute();
+  } catch {
+    // do nothing
   }
 }
 
