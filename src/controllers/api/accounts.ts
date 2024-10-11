@@ -51,22 +51,13 @@ const verifyCredentialsController: AppController = async (c) => {
 
   const store = await Storages.db();
 
-  const [author, [settingsEvent], [captcha]] = await Promise.all([
+  const [author, [settingsEvent]] = await Promise.all([
     getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
 
     store.query([{
       kinds: [30078],
       authors: [pubkey],
       '#d': ['pub.ditto.pleroma_settings_store'],
-      limit: 1,
-    }]),
-
-    store.query([{
-      kinds: [1985],
-      authors: [Conf.pubkey],
-      '#L': ['pub.ditto.captcha'],
-      '#l': ['solved'],
-      '#p': [pubkey],
       limit: 1,
     }]),
   ]);
@@ -79,8 +70,8 @@ const verifyCredentialsController: AppController = async (c) => {
   }
 
   const account = author
-    ? await renderAccount(author, { withSource: true, settingsStore, captcha })
-    : await accountFromPubkey(pubkey, { withSource: true, settingsStore, captcha });
+    ? await renderAccount(author, { withSource: true, settingsStore })
+    : await accountFromPubkey(pubkey, { withSource: true, settingsStore });
 
   return c.json(account);
 };
@@ -335,17 +326,8 @@ const updateCredentialsController: AppController = async (c) => {
     c,
   );
 
-  const [captcha] = await store.query([{
-    kinds: [1985],
-    authors: [Conf.pubkey],
-    '#L': ['pub.ditto.captcha'],
-    '#l': ['solved'],
-    '#p': [pubkey],
-    limit: 1,
-  }]);
-
   const settingsStore = result.data.pleroma_settings_store;
-  const account = await renderAccount(event, { withSource: true, settingsStore, captcha });
+  const account = await renderAccount(event, { withSource: true, settingsStore });
 
   if (settingsStore) {
     await createEvent({
