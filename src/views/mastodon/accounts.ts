@@ -1,4 +1,4 @@
-import { type NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { NSchema as n } from '@nostrify/nostrify';
 import { escape } from 'entities';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
@@ -15,7 +15,6 @@ import { renderEmojis } from '@/views/mastodon/emojis.ts';
 type ToAccountOpts = {
   withSource: true;
   settingsStore: Record<string, unknown> | undefined;
-  captcha: NostrEvent | undefined;
 } | {
   withSource?: false;
 };
@@ -91,7 +90,7 @@ async function renderAccount(
           nip05,
         },
         ditto: {
-          captcha_solved: Boolean(opts.captcha),
+          captcha_solved: names.has('captcha_solved'),
         },
       }
       : undefined,
