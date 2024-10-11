@@ -3,6 +3,7 @@ import { Stickynotes } from '@soapbox/stickynotes';
 import ISO6391 from 'iso-639-1';
 import { Kysely, sql } from 'kysely';
 import lande from 'lande';
+import linkify from 'linkifyjs';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
@@ -200,7 +201,16 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
 
 /** Update the event in the database and set its language. */
 async function setLanguage(event: NostrEvent): Promise<void> {
-  const [topResult] = lande(event.content);
+  const contentWithoutEmoji = event.content.replace(
+    /[\p{Emoji}\p{Emoji_Modifier}\p{Emoji_Component}\p{Emoji_Modifier_Base}\p{Emoji_Presentation}]/gu,
+    '',
+  );
+  const contentWithoutLinks = linkify.tokenize(contentWithoutEmoji).reduce((accumulator, current) => {
+    if (current.t === 'text') return accumulator + current.v;
+    return accumulator;
+  }, '');
+  const parsedContent = contentWithoutLinks;
+  const [topResult] = lande(parsedContent);
 
   if (topResult) {
     const [iso6393, confidence] = topResult;
