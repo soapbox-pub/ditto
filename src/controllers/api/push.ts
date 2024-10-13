@@ -9,7 +9,7 @@ import { getTokenHash } from '@/utils/auth.ts';
 
 const pushSubscribeSchema = z.object({
   subscription: z.object({
-    endpoint: z.string(),
+    endpoint: z.string().url(),
     keys: z.object({
       p256dh: z.string(),
       auth: z.string(),
