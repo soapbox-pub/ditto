@@ -226,8 +226,8 @@ Deno.test('NPostgres.query with search', async (t) => {
   await using db = await createTestDB({ pure: true });
   const { store } = db;
 
-  const eventA = genEvent({ kind: 1, content: 'Fediverse is vegan' });
-  const eventB = genEvent({ kind: 1, content: 'Im vegan btw' });
+  const eventA = genEvent({ kind: 1, content: 'Fediverse is vegan', created_at: 0 });
+  const eventB = genEvent({ kind: 1, content: 'Im vegan btw', created_at: 1 });
 
   await store.event(eventA);
   await store.event(eventB);
@@ -237,7 +237,7 @@ Deno.test('NPostgres.query with search', async (t) => {
   });
 
   await t.step('match multiple events', async () => {
-    assertEquals(await store.query([{ search: 'vegan' }]), [eventA, eventB]);
+    assertEquals(await store.query([{ search: 'vegan' }]), [eventB, eventA]);
   });
 
   await t.step("don't match nonsense queries", async () => {
