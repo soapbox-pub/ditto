@@ -7,6 +7,15 @@ import { Storages } from '@/storages.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getTokenHash } from '@/utils/auth.ts';
 
+/** https://docs.joinmastodon.org/entities/WebPushSubscription/ */
+interface MastodonPushSubscription {
+  id: string;
+  endpoint: string;
+  server_key: string;
+  alerts: Record<string, boolean>;
+  policy: 'all' | 'followed' | 'follower' | 'none';
+}
+
 const pushSubscribeSchema = z.object({
   subscription: z.object({
     endpoint: z.string().url(),
@@ -33,20 +42,13 @@ const pushSubscribeSchema = z.object({
 });
 
 export const pushSubscribeController: AppController = async (c) => {
-  const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
+  const vapidPublicKey = await Conf.vapidPublicKey;
 
-  const header = c.req.header('authorization');
-  const match = header?.match(BEARER_REGEX);
-
-  if (!match) {
-    return c.json({ error: 'Unauthorized' }, 401);
+  if (!vapidPublicKey) {
+    return c.json({ error: 'The administrator of this server has not enabled Web Push notifications.' }, 404);
   }
 
-  const [_, accessToken] = match;
-
-  if (!accessToken.startsWith('token1')) {
-    return c.json({ error: 'Unauthorized' }, 401);
-  }
+  const accessToken = getAccessToken(c.req.raw);
 
   const kysely = await Storages.kysely();
   const signer = c.get('signer')!;
@@ -82,11 +84,56 @@ export const pushSubscribeController: AppController = async (c) => {
       .executeTakeFirstOrThrow();
   });
 
-  return c.json({
-    id,
-    endpoint: subscription.endpoint,
-    alerts: data?.alerts ?? {},
-    policy: data?.policy ?? 'all',
-    server_key: await Conf.vapidPublicKey,
-  });
+  return c.json(
+    {
+      id: id.toString(),
+      endpoint: subscription.endpoint,
+      alerts: data?.alerts ?? {},
+      policy: data?.policy ?? 'all',
+      server_key: vapidPublicKey,
+    } satisfies MastodonPushSubscription,
+  );
 };
+
+export const getSubscriptionController: AppController = async (c) => {
+  const vapidPublicKey = await Conf.vapidPublicKey;
+
+  if (!vapidPublicKey) {
+    return c.json({ error: 'The administrator of this server has not enabled Web Push notifications.' }, 404);
+  }
+
+  const accessToken = getAccessToken(c.req.raw);
+
+  const kysely = await Storages.kysely();
+  const tokenHash = await getTokenHash(accessToken as `token1${string}`);
+
+  const row = await kysely
+    .selectFrom('push_subscriptions')
+    .selectAll()
+    .where('token_hash', '=', tokenHash)
+    .executeTakeFirstOrThrow();
+
+  return c.json(
+    {
+      id: row.id.toString(),
+      endpoint: row.endpoint,
+      alerts: row.data?.alerts ?? {},
+      policy: row.data?.policy ?? 'all',
+      server_key: vapidPublicKey,
+    } satisfies MastodonPushSubscription,
+  );
+};
+
+/** Get access token from HTTP headers, but only if it's a `token1`. Otherwise return undefined. */
+function getAccessToken(request: Request): `token1${string}` | undefined {
+  const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
+
+  const authorization = request.headers.get('authorization');
+  const match = authorization?.match(BEARER_REGEX);
+
+  const [_, accessToken] = match ?? [];
+
+  if (accessToken?.startsWith('token1')) {
+    return accessToken as `token1${string}`;
+  }
+}
