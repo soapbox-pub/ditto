@@ -239,11 +239,16 @@ async function webPush(event: NostrEvent): Promise<void> {
   }
 
   const kysely = await Storages.kysely();
+  const pubkeys = getTagSet(event.tags, 'p');
+
+  if (!pubkeys.size) {
+    return;
+  }
 
   const rows = await kysely
     .selectFrom('push_subscriptions')
     .selectAll()
-    .where('pubkey', 'in', [...getTagSet(event.tags, 'p')])
+    .where('pubkey', 'in', [...pubkeys])
     .execute();
 
   for (const row of rows) {
