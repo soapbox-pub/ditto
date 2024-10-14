@@ -9,7 +9,7 @@ import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
+import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -67,15 +67,21 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   try {
     await storeEvent(purifyEvent(event), signal);
-    await Promise.all([
+  } finally {
+    // This needs to run in steps, and should not block the API from responding.
+    Promise.all([
       handleZaps(kysely, event),
       parseMetadata(event, signal),
       setLanguage(event),
-    ]);
-  } finally {
-    await generateSetEvents(event);
-    await streamOut(event);
-    await webPush(event);
+      generateSetEvents(event),
+    ])
+      .then(() =>
+        Promise.all([
+          streamOut(event),
+          webPush(event),
+        ])
+      )
+      .catch(console.warn);
   }
 }
 
@@ -280,6 +286,7 @@ async function webPush(event: NostrEvent): Promise<void> {
     };
 
     await DittoPush.push(subscription, message);
+    webPushNotificationsCounter.inc({ type: notification.type });
   }
 }
 

@@ -141,3 +141,9 @@ export const relayPoolSubscriptionsSizeGauge = new Gauge({
   name: 'ditto_relay_pool_subscriptions_size',
   help: 'Number of active subscriptions to the relay pool',
 });
+
+export const webPushNotificationsCounter = new Counter({
+  name: 'ditto_web_push_notifications_total',
+  help: 'Total number of Web Push notifications sent',
+  labelNames: ['type'],
+});
