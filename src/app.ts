@@ -4,9 +4,11 @@ import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
+import { Kysely } from 'kysely';
 
 import '@/startup.ts';
 
+import { DittoTables } from '@/db/DittoTables.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -133,7 +135,7 @@ import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 
-interface AppEnv extends HonoEnv {
+export interface AppEnv extends HonoEnv {
   Variables: {
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
@@ -141,6 +143,8 @@ interface AppEnv extends HonoEnv {
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
+    /** Kysely instance for the database. */
+    kysely: Kysely<DittoTables>;
     /** Storage for the user, might filter out unwanted content. */
     store: NStore;
     /** Normalized pagination params. */
