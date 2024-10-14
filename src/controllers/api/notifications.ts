@@ -74,6 +74,31 @@ const notificationsController: AppController = async (c) => {
   return renderNotifications(filters, types, params, c);
 };
 
+const notificationController: AppController = async (c) => {
+  const id = c.req.param('id');
+  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const store = c.get('store');
+
+  // Remove the timestamp from the ID.
+  const eventId = id.replace(/^\d+-/, '');
+
+  const [event] = await store.query([{ ids: [eventId] }]);
+
+  if (!event) {
+    return c.json({ error: 'Event not found' }, { status: 404 });
+  }
+
+  await hydrateEvents({ events: [event], store });
+
+  const notification = await renderNotification(event, { viewerPubkey: pubkey });
+
+  if (!notification) {
+    return c.json({ error: 'Notification not found' }, { status: 404 });
+  }
+
+  return c.json(notification);
+};
+
 async function renderNotifications(
   filters: NostrFilter[],
   types: Set<string>,
@@ -106,4 +131,4 @@ async function renderNotifications(
   return paginated(c, events, notifications);
 }
 
-export { notificationsController };
+export { notificationController, notificationsController };

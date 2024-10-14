@@ -60,7 +60,7 @@ import {
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
 import { mediaController, updateMediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
-import { notificationsController } from '@/controllers/api/notifications.ts';
+import { notificationController, notificationsController } from '@/controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from '@/controllers/api/oauth.ts';
 import {
   configController,
@@ -273,6 +273,8 @@ app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
 
 app.get('/api/v1/notifications', requireSigner, notificationsController);
+app.get('/api/v1/notifications/:id', requireSigner, notificationController);
+
 app.get('/api/v1/favourites', requireSigner, favouritesController);
 app.get('/api/v1/bookmarks', requireSigner, bookmarksController);
 app.get('/api/v1/blocks', requireSigner, blocksController);
