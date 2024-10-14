@@ -273,6 +273,10 @@ async function webPush(event: NostrEvent): Promise<void> {
       notification_id: notification.id,
       notification_type: notification.type,
       access_token: nip19.npubEncode(row.pubkey),
+      preferred_locale: 'en',
+      title: notification.account.display_name || notification.account.username,
+      icon: notification.account.avatar_static,
+      body: event.content,
     };
 
     await DittoPush.push(subscription, message);
