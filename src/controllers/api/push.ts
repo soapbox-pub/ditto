@@ -42,9 +42,9 @@ export const pushSubscribeController: AppController = async (c) => {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
-  const [_, bech32] = match;
+  const [_, accessToken] = match;
 
-  if (!bech32.startsWith('token1')) {
+  if (!accessToken.startsWith('token1')) {
     return c.json({ error: 'Unauthorized' }, 401);
   }
 
@@ -59,18 +59,28 @@ export const pushSubscribeController: AppController = async (c) => {
 
   const { subscription, data } = result.data;
 
-  const { id } = await kysely
-    .insertInto('push_subscriptions')
-    .values({
-      pubkey: await signer.getPublicKey(),
-      token_hash: await getTokenHash(bech32 as `token1${string}`),
-      endpoint: subscription.endpoint,
-      p256dh: subscription.keys.p256dh,
-      auth: subscription.keys.auth,
-      data,
-    })
-    .returning('id')
-    .executeTakeFirstOrThrow();
+  const pubkey = await signer.getPublicKey();
+  const tokenHash = await getTokenHash(accessToken as `token1${string}`);
+
+  const { id } = await kysely.transaction().execute(async (trx) => {
+    await trx
+      .deleteFrom('push_subscriptions')
+      .where('token_hash', '=', tokenHash)
+      .execute();
+
+    return trx
+      .insertInto('push_subscriptions')
+      .values({
+        pubkey,
+        token_hash: tokenHash,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+        data,
+      })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+  });
 
   return c.json({
     id,
