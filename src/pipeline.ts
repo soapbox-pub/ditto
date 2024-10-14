@@ -252,6 +252,10 @@ async function webPush(event: NostrEvent): Promise<void> {
     .execute();
 
   for (const row of rows) {
+    if (row.pubkey === event.pubkey) {
+      continue; // Don't notify authors about their own events.
+    }
+
     const notification = await renderNotification(event, { viewerPubkey: row.pubkey });
     if (!notification) {
       continue;
