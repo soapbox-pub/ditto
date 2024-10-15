@@ -3,7 +3,8 @@ import ISO6391, { LanguageCode } from 'iso-639-1';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
-import { decodeBase64, encodeBase64 } from '@std/encoding/base64';
+import { decodeBase64 } from '@std/encoding/base64';
+import { encodeBase64Url } from '@std/encoding/base64url';
 
 import { getEcdsaPublicKey } from '@/utils/crypto.ts';
 
@@ -93,7 +94,7 @@ class Conf {
         if (keys) {
           const { publicKey } = keys;
           const bytes = await crypto.subtle.exportKey('raw', publicKey);
-          return encodeBase64(bytes);
+          return encodeBase64Url(bytes);
         }
       })();
     }
