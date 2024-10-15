@@ -2,7 +2,6 @@ import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
-import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
@@ -14,7 +13,6 @@ import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { MastodonPush } from '@/types/MastodonPush.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { detectLanguage } from '@/utils/language.ts';
@@ -22,7 +20,7 @@ import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 
@@ -257,12 +255,14 @@ async function webPush(event: NostrEvent): Promise<void> {
     .execute();
 
   for (const row of rows) {
-    if (row.pubkey === event.pubkey) {
+    const viewerPubkey = row.pubkey;
+
+    if (viewerPubkey === event.pubkey) {
       continue; // Don't notify authors about their own events.
     }
 
-    const notification = await renderNotification(event, { viewerPubkey: row.pubkey });
-    if (!notification) {
+    const message = await renderWebPushNotification(event, viewerPubkey);
+    if (!message) {
       continue;
     }
 
@@ -274,18 +274,8 @@ async function webPush(event: NostrEvent): Promise<void> {
       },
     };
 
-    const message: MastodonPush = {
-      notification_id: notification.id,
-      notification_type: notification.type,
-      access_token: nip19.npubEncode(row.pubkey),
-      preferred_locale: 'en',
-      title: notification.account.display_name || notification.account.username,
-      icon: notification.account.avatar_static,
-      body: event.content,
-    };
-
     await DittoPush.push(subscription, message);
-    webPushNotificationsCounter.inc({ type: notification.type });
+    webPushNotificationsCounter.inc({ type: message.notification_type });
   }
 }
 

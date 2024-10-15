@@ -44,7 +44,7 @@ async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
 
   return {
     id: notificationId(event),
-    type: 'mention',
+    type: 'mention' as const,
     created_at: nostrDate(event.created_at).toISOString(),
     account: status.account,
     status: status,
@@ -59,7 +59,7 @@ async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
 
   return {
     id: notificationId(event),
-    type: 'reblog',
+    type: 'reblog' as const,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
     status,
@@ -74,7 +74,7 @@ async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) 
 
   return {
     id: notificationId(event),
-    type: 'favourite',
+    type: 'favourite' as const,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
     status,
@@ -89,7 +89,7 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
 
   return {
     id: notificationId(event),
-    type: 'pleroma:emoji_reaction',
+    type: 'pleroma:emoji_reaction' as const,
     emoji: event.content,
     emoji_url: event.tags.find(([name, value]) => name === 'emoji' && `:${value}:` === event.content)?.[2],
     created_at: nostrDate(event.created_at).toISOString(),
@@ -106,7 +106,7 @@ async function renderNameGrant(event: DittoEvent) {
 
   return {
     id: notificationId(event),
-    type: 'ditto:name_grant',
+    type: 'ditto:name_grant' as const,
     name: d,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
@@ -125,7 +125,7 @@ async function renderZap(event: DittoEvent, opts: RenderNotificationOpts) {
 
   return {
     id: notificationId(event),
-    type: 'ditto:zap',
+    type: 'ditto:zap' as const,
     amount: zap_amount,
     message: zap_message,
     created_at: nostrDate(event.created_at).toISOString(),
