@@ -33,20 +33,22 @@ type MastodonNotification = NonNullable<Awaited<ReturnType<typeof renderNotifica
 function renderTitle(notification: MastodonNotification): string {
   const { account } = notification;
 
+  const name = account.display_name || account.username;
+
   switch (notification.type) {
     case 'ditto:name_grant':
       return `You were granted the name ${notification.name}`;
     case 'ditto:zap':
-      return `${account.display_name} zapped you ${notification.amount} sats`;
+      return `${name} zapped you ${notification.amount} sats`;
     case 'pleroma:emoji_reaction':
-      return `${account.display_name} reacted to your post`;
+      return `${name} reacted to your post`;
     case 'favourite':
-      return `${account.display_name} liked your post`;
+      return `${name} liked your post`;
     case 'mention':
-      return `${account.display_name} mentioned you`;
+      return `${name} mentioned you`;
     case 'reblog':
-      return `${account.display_name} reposted your post`;
+      return `${name} reposted your post`;
     default:
-      return account.display_name || account.username;
+      return name;
   }
 }
