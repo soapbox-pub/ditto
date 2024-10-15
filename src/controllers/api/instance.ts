@@ -104,7 +104,7 @@ const instanceV2Controller: AppController = async (c) => {
         streaming: `${wsProtocol}//${host}`,
       },
       vapid: {
-        public_key: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=',
+        public_key: await Conf.vapidPublicKey,
       },
       accounts: {
         max_featured_tags: 10,

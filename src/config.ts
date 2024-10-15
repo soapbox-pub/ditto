@@ -3,6 +3,9 @@ import ISO6391, { LanguageCode } from 'iso-639-1';
 import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
+import { decodeBase64, encodeBase64 } from '@std/encoding/base64';
+
+import { getEcdsaPublicKey } from '@/utils/crypto.ts';
 
 /** Load environment config from `.env` */
 await dotenv.load({
@@ -81,6 +84,43 @@ class Conf {
   /** PGlite debug level. 0 disables logging. */
   static get pgliteDebug(): 0 | 1 | 2 | 3 | 4 | 5 {
     return Number(Deno.env.get('PGLITE_DEBUG') || 0) as 0 | 1 | 2 | 3 | 4 | 5;
+  }
+  private static _vapidPublicKey: Promise<string | undefined> | undefined;
+  static get vapidPublicKey(): Promise<string | undefined> {
+    if (!this._vapidPublicKey) {
+      this._vapidPublicKey = (async () => {
+        const keys = await Conf.vapidKeys;
+        if (keys) {
+          const { publicKey } = keys;
+          const bytes = await crypto.subtle.exportKey('raw', publicKey);
+          return encodeBase64(bytes);
+        }
+      })();
+    }
+
+    return this._vapidPublicKey;
+  }
+  static get vapidKeys(): Promise<CryptoKeyPair | undefined> {
+    return (async () => {
+      const encoded = Deno.env.get('VAPID_PRIVATE_KEY');
+
+      if (!encoded) {
+        return;
+      }
+
+      const keyData = decodeBase64(encoded);
+
+      const privateKey = await crypto.subtle.importKey(
+        'pkcs8',
+        keyData,
+        { name: 'ECDSA', namedCurve: 'P-256' },
+        true,
+        ['sign'],
+      );
+      const publicKey = await getEcdsaPublicKey(privateKey, true);
+
+      return { privateKey, publicKey };
+    })();
   }
   static db = {
     /** Database query timeout configurations. */

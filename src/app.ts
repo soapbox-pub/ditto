@@ -4,9 +4,11 @@ import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
+import { Kysely } from 'kysely';
 
 import '@/startup.ts';
 
+import { DittoTables } from '@/db/DittoTables.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -58,7 +60,7 @@ import {
 import { markersController, updateMarkersController } from '@/controllers/api/markers.ts';
 import { mediaController, updateMediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
-import { notificationsController } from '@/controllers/api/notifications.ts';
+import { notificationController, notificationsController } from '@/controllers/api/notifications.ts';
 import { createTokenController, oauthAuthorizeController, oauthController } from '@/controllers/api/oauth.ts';
 import {
   configController,
@@ -71,6 +73,7 @@ import {
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
+import { getSubscriptionController, pushSubscribeController } from '@/controllers/api/push.ts';
 import { deleteReactionController, reactionController, reactionsController } from '@/controllers/api/reactions.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
 import {
@@ -132,7 +135,7 @@ import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 
-interface AppEnv extends HonoEnv {
+export interface AppEnv extends HonoEnv {
   Variables: {
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
@@ -140,6 +143,8 @@ interface AppEnv extends HonoEnv {
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
+    /** Kysely instance for the database. */
+    kysely: Kysely<DittoTables>;
     /** Storage for the user, might filter out unwanted content. */
     store: NStore;
     /** Normalized pagination params. */
@@ -268,6 +273,8 @@ app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
 
 app.get('/api/v1/notifications', requireSigner, notificationsController);
+app.get('/api/v1/notifications/:id', requireSigner, notificationController);
+
 app.get('/api/v1/favourites', requireSigner, favouritesController);
 app.get('/api/v1/bookmarks', requireSigner, bookmarksController);
 app.get('/api/v1/blocks', requireSigner, blocksController);
@@ -275,6 +282,9 @@ app.get('/api/v1/mutes', requireSigner, mutesController);
 
 app.get('/api/v1/markers', requireProof(), markersController);
 app.post('/api/v1/markers', requireProof(), updateMarkersController);
+
+app.get('/api/v1/push/subscription', requireSigner, getSubscriptionController);
+app.post('/api/v1/push/subscription', requireProof(), pushSubscribeController);
 
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);

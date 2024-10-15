@@ -2,25 +2,29 @@ import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
 import { LRUCache } from 'lru-cache';
+import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { pipelineEventsCounter, policyEventsCounter } from '@/metrics.ts';
+import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
+import { MastodonPush } from '@/types/MastodonPush.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
-import { policyWorker } from '@/workers/policy.ts';
-import { verifyEventWorker } from '@/workers/verify.ts';
 import { getAmount } from '@/utils/bolt11.ts';
+import { detectLanguage } from '@/utils/language.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { detectLanguage } from '@/utils/language.ts';
+import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { policyWorker } from '@/workers/policy.ts';
+import { verifyEventWorker } from '@/workers/verify.ts';
 
 const console = new Stickynotes('ditto:pipeline');
 
@@ -63,14 +67,21 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   try {
     await storeEvent(purifyEvent(event), signal);
-    await Promise.all([
+  } finally {
+    // This needs to run in steps, and should not block the API from responding.
+    Promise.all([
       handleZaps(kysely, event),
       parseMetadata(event, signal),
       setLanguage(event),
-    ]);
-  } finally {
-    await generateSetEvents(event);
-    await streamOut(event);
+      generateSetEvents(event),
+    ])
+      .then(() =>
+        Promise.all([
+          streamOut(event),
+          webPush(event),
+        ])
+      )
+      .catch(console.warn);
   }
 }
 
@@ -225,6 +236,57 @@ async function streamOut(event: NostrEvent): Promise<void> {
   if (isFresh(event)) {
     const pubsub = await Storages.pubsub();
     await pubsub.event(event);
+  }
+}
+
+async function webPush(event: NostrEvent): Promise<void> {
+  if (!isFresh(event)) {
+    return;
+  }
+
+  const kysely = await Storages.kysely();
+  const pubkeys = getTagSet(event.tags, 'p');
+
+  if (!pubkeys.size) {
+    return;
+  }
+
+  const rows = await kysely
+    .selectFrom('push_subscriptions')
+    .selectAll()
+    .where('pubkey', 'in', [...pubkeys])
+    .execute();
+
+  for (const row of rows) {
+    if (row.pubkey === event.pubkey) {
+      continue; // Don't notify authors about their own events.
+    }
+
+    const notification = await renderNotification(event, { viewerPubkey: row.pubkey });
+    if (!notification) {
+      continue;
+    }
+
+    const subscription = {
+      endpoint: row.endpoint,
+      keys: {
+        auth: row.auth,
+        p256dh: row.p256dh,
+      },
+    };
+
+    const message: MastodonPush = {
+      notification_id: notification.id,
+      notification_type: notification.type,
+      access_token: nip19.npubEncode(row.pubkey),
+      preferred_locale: 'en',
+      title: notification.account.display_name || notification.account.username,
+      icon: notification.account.avatar_static,
+      body: event.content,
+    };
+
+    await DittoPush.push(subscription, message);
+    webPushNotificationsCounter.inc({ type: notification.type });
   }
 }
 

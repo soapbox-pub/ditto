@@ -1,3 +1,5 @@
+import { Generated } from 'kysely';
+
 import { NPostgresSchema } from '@nostrify/db';
 
 export interface DittoTables extends NPostgresSchema {
@@ -7,6 +9,7 @@ export interface DittoTables extends NPostgresSchema {
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
+  push_subscriptions: PushSubscriptionRow;
 }
 
 type NostrEventsRow = NPostgresSchema['nostr_events'] & {
@@ -51,4 +54,30 @@ interface EventZapRow {
   sender_pubkey: string;
   amount_millisats: number;
   comment: string;
+}
+
+interface PushSubscriptionRow {
+  id: Generated<bigint>;
+  pubkey: string;
+  token_hash: Uint8Array;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  data: {
+    alerts?: {
+      mention?: boolean;
+      status?: boolean;
+      reblog?: boolean;
+      follow?: boolean;
+      follow_request?: boolean;
+      favourite?: boolean;
+      poll?: boolean;
+      update?: boolean;
+      'admin.sign_up'?: boolean;
+      'admin.report'?: boolean;
+    };
+    policy?: 'all' | 'followed' | 'follower' | 'none';
+  } | null;
+  created_at: Generated<Date>;
+  updated_at: Generated<Date>;
 }
