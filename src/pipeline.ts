@@ -69,19 +69,18 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     await storeEvent(purifyEvent(event), signal);
   } finally {
     // This needs to run in steps, and should not block the API from responding.
-    Promise.all([
+    Promise.allSettled([
       handleZaps(kysely, event),
       parseMetadata(event, signal),
       setLanguage(event),
       generateSetEvents(event),
     ])
       .then(() =>
-        Promise.all([
+        Promise.allSettled([
           streamOut(event),
           webPush(event),
         ])
-      )
-      .catch(console.warn);
+      );
   }
 }
 
