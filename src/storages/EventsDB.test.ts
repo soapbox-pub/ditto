@@ -221,3 +221,26 @@ Deno.test("throws a RelayError when querying an event with a large 'kind'", asyn
     'kind filter too far into the future',
   );
 });
+
+Deno.test('NPostgres.query with search', async (t) => {
+  await using db = await createTestDB({ pure: true });
+  const { store } = db;
+
+  const eventA = genEvent({ kind: 1, content: 'Fediverse is vegan', created_at: 0 });
+  const eventB = genEvent({ kind: 1, content: 'Im vegan btw', created_at: 1 });
+
+  await store.event(eventA);
+  await store.event(eventB);
+
+  await t.step('match single event', async () => {
+    assertEquals(await store.query([{ search: 'Fediverse' }]), [eventA]);
+  });
+
+  await t.step('match multiple events', async () => {
+    assertEquals(await store.query([{ search: 'vegan' }]), [eventB, eventA]);
+  });
+
+  await t.step("don't match nonsense queries", async () => {
+    assertEquals(await store.query([{ search: "this shouldn't match" }]), []);
+  });
+});

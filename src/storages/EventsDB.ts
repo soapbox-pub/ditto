@@ -337,7 +337,7 @@ class EventsDB extends NPostgres {
 
         // Re-serialize the search string without the domain key. :facepalm:
         filter.search = tokens
-          .filter((t) => typeof t === 'object' && t.key !== 'domain')
+          .filter((t) => typeof t === 'string' || typeof t === 'object' && t.key !== 'domain')
           .map((t) => typeof t === 'object' ? `${t.key}:${t.value}` : t)
           .join(' ');
       }
