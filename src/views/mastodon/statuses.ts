@@ -25,7 +25,12 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   if (depth > 2 || depth < 0) return;
 
-  const note = nip19.noteEncode(event.id);
+  const nevent = nip19.neventEncode({
+    id: event.id,
+    author: event.pubkey,
+    kind: event.kind,
+    relays: [Conf.relay],
+  });
 
   const account = event.author
     ? await renderAccount({ ...event.author, author_stats: event.author_stats })
@@ -138,7 +143,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     url: Conf.local(`/@${account.acct}/${event.id}`),
     zapped: Boolean(zapEvent),
     ditto: {
-      external_url: Conf.external(note),
+      external_url: Conf.external(nevent),
     },
     pleroma: {
       emoji_reactions: reactions,

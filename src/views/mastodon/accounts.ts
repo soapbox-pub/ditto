@@ -45,6 +45,7 @@ async function renderAccount(
   } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
+  const nprofile = nip19.nprofileEncode({ pubkey, relays: [Conf.relay] });
   const parsed05 = await parseAndVerifyNip05(nip05, pubkey, signal);
   const acct = parsed05?.handle || npub;
 
@@ -100,7 +101,7 @@ async function renderAccount(
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
-      external_url: Conf.external(npub),
+      external_url: Conf.external(nprofile),
     },
     domain: parsed05?.domain,
     pleroma: {
