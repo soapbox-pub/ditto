@@ -1,4 +1,4 @@
-import { assertEquals } from '@std/assert';
+import { assert, assertEquals } from '@std/assert';
 
 import { Conf } from '@/config.ts';
 import { DeepLTranslator } from '@/translators/DeepLTranslator.ts';
@@ -52,4 +52,23 @@ Deno.test('DeepL translation with source language set', {
   assertEquals(getLanguage(data.results[0]), 'en');
   assertEquals(getLanguage(data.results[1]), 'en');
   assertEquals(getLanguage(data.results[2]), 'en');
+});
+
+Deno.test("DeepL translation doesn't alter Nostr URIs", {
+  ignore: !(translationProvider === deepl && apiKey),
+}, async () => {
+  const translator = new DeepLTranslator({ fetch: fetch, baseUrl, apiKey: apiKey as string });
+
+  const patrick =
+    'nostr:nprofile1qy2hwumn8ghj7erfw36x7tnsw43z7un9d3shjqpqgujeqakgt7fyp6zjggxhyy7ft623qtcaay5lkc8n8gkry4cvnrzqep59se';
+  const danidfra =
+    'nostr:nprofile1qy2hwumn8ghj7erfw36x7tnsw43z7un9d3shjqpqe6tnvlr46lv3lwdu80r07kanhk6jcxy5r07w9umgv9kuhu9dl5hsz44l8s';
+
+  const input =
+    `Thanks to work by ${patrick} and ${danidfra} , it's now possible to filter the global feed by language on #Ditto!`;
+
+  const { results: [output] } = await translator.translate([input], 'en', 'pt');
+
+  assert(output.includes(patrick));
+  assert(output.includes(danidfra));
 });
