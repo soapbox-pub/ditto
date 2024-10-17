@@ -51,7 +51,7 @@ import {
   statusZapSplitsController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
-import { emptyArrayController, emptyObjectController, notImplementedController } from '@/controllers/api/fallback.ts';
+import { emptyArrayController, notImplementedController } from '@/controllers/api/fallback.ts';
 import {
   instanceDescriptionController,
   instanceV1Controller,
@@ -61,7 +61,12 @@ import { markersController, updateMarkersController } from '@/controllers/api/ma
 import { mediaController, updateMediaController } from '@/controllers/api/media.ts';
 import { mutesController } from '@/controllers/api/mutes.ts';
 import { notificationController, notificationsController } from '@/controllers/api/notifications.ts';
-import { createTokenController, oauthAuthorizeController, oauthController } from '@/controllers/api/oauth.ts';
+import {
+  createTokenController,
+  oauthAuthorizeController,
+  oauthController,
+  revokeTokenController,
+} from '@/controllers/api/oauth.ts';
 import {
   configController,
   frontendConfigController,
@@ -201,7 +206,7 @@ app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
 
 app.post('/oauth/token', createTokenController);
-app.post('/oauth/revoke', emptyObjectController);
+app.post('/oauth/revoke', revokeTokenController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 

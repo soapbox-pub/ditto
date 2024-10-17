@@ -9,7 +9,7 @@ import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
 import { aesEncrypt } from '@/utils/aes.ts';
-import { generateToken } from '@/utils/auth.ts';
+import { generateToken, getTokenHash } from '@/utils/auth.ts';
 
 const passwordGrantSchema = z.object({
   grant_type: z.literal('password'),
@@ -77,6 +77,37 @@ const createTokenController: AppController = async (c) => {
         created_at: nostrNow(),
       });
   }
+};
+
+// This endpoint only requires the token.
+// I don't think having the app credentials solves anything.
+const revokeTokenSchema = z.object({
+  token: z.string(),
+});
+
+/**
+ * Mastodon OAuth token revocation.
+ * https://docs.joinmastodon.org/methods/oauth/#revoke
+ */
+const revokeTokenController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = revokeTokenSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  const { token } = result.data;
+
+  const kysely = await Storages.kysely();
+  const tokenHash = await getTokenHash(token as `token1${string}`);
+
+  await kysely
+    .deleteFrom('auth_tokens')
+    .where('token_hash', '=', tokenHash)
+    .execute();
+
+  return c.json({});
 };
 
 async function getToken(
@@ -229,4 +260,4 @@ function addCodeToRedirectUri(redirectUri: string, code: string, state?: string)
   return url.toString();
 }
 
-export { createTokenController, oauthAuthorizeController, oauthController };
+export { createTokenController, oauthAuthorizeController, oauthController, revokeTokenController };
