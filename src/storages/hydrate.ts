@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { fallbackAuthor } from '@/utils.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
 import { getAmount } from '@/utils/bolt11.ts';
@@ -98,7 +99,8 @@ export function assembleEvents(
   }));
 
   for (const event of a) {
-    event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
+    event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e)) ??
+      fallbackAuthor(event.pubkey);
     event.user = b.find((e) => matchFilter({ kinds: [30382], authors: [admin], '#d': [event.pubkey] }, e));
     event.info = b.find((e) => matchFilter({ kinds: [30383], authors: [admin], '#d': [event.id] }, e));
 
