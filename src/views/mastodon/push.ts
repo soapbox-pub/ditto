@@ -39,7 +39,7 @@ function renderTitle(notification: MastodonNotification): string {
     case 'ditto:name_grant':
       return `You were granted the name ${notification.name}`;
     case 'ditto:zap':
-      return `${name} zapped you ${notification.amount} sats`;
+      return `${name} zapped you ${Math.floor(notification.amount / 1000)} sats`;
     case 'pleroma:emoji_reaction':
       return `${name} reacted to your post`;
     case 'favourite':
