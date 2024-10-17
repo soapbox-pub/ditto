@@ -5,10 +5,11 @@ import { serverMetaSchema } from '@/schemas/nostr.ts';
 
 /** Like NostrMetadata, but some fields are required and also contains some extra fields. */
 export interface InstanceMetadata extends NostrMetadata {
-  name: string;
   about: string;
-  tagline: string;
   email: string;
+  name: string;
+  picture: string;
+  tagline: string;
   event?: NostrEvent;
 }
 
@@ -31,6 +32,7 @@ export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): 
     about: meta.about ?? 'Nostr community server',
     tagline: meta.tagline ?? meta.about ?? 'Nostr community server',
     email: meta.email ?? `postmaster@${Conf.url.host}`,
+    picture: meta.picture ?? Conf.local('/images/avi.png'),
     event,
   };
 }
