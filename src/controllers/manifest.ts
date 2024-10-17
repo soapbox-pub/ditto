@@ -7,12 +7,19 @@ export const manifestController: AppController = async (c) => {
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
 
   const manifest: WebManifestCombined = {
+    description: meta.about,
+    display: 'standalone',
+    icons: [{
+      src: meta.picture,
+      sizes: '192x192',
+    }, {
+      src: meta.picture,
+      sizes: '512x512',
+    }],
     name: meta.name,
+    scope: '/',
     short_name: meta.name,
     start_url: '/',
-    display: 'standalone',
-    scope: '/',
-    description: meta.about,
   };
 
   return c.json(manifest, {
