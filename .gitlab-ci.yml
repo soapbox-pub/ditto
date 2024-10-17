@@ -21,11 +21,15 @@ check:
 test:
   stage: test
   script: 
-    - deno task test --coverage=cov_profile
+    - sleep 1 && deno task test --coverage=cov_profile
     - deno coverage cov_profile
   coverage: /All files[^\|]*\|[^\|]*\s+([\d\.]+)/
+  services:
+    - postgres:16
   variables:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
+    TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+    POSTGRES_HOST_AUTH_METHOD: trust
   artifacts:
     when: always
     paths:
@@ -33,12 +37,3 @@ test:
     reports:
       junit: deno-test.xml
 
-postgres:
-  stage: test
-  script: sleep 1 && deno task test
-  services:
-    - postgres:16
-  variables:
-    DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
-    TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
-    POSTGRES_HOST_AUTH_METHOD: trust
