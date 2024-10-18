@@ -28,7 +28,7 @@ test:
     - postgres:16
   variables:
     DITTO_NSEC: nsec1zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zyg3zygs4rm7hz
-    TEST_DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
+    DATABASE_URL: postgres://postgres:postgres@postgres:5432/postgres
     POSTGRES_HOST_AUTH_METHOD: trust
   artifacts:
     when: always
