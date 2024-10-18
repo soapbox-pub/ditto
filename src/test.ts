@@ -34,10 +34,9 @@ export function genEvent(t: Partial<NostrEvent> = {}, sk: Uint8Array = generateS
   return purifyEvent(event);
 }
 
-/** Create a database for testing. It uses `TEST_DATABASE_URL`, or creates an in-memory database by default. */
+/** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const { testDatabaseUrl } = Conf;
-  const { kysely } = DittoDB.create(testDatabaseUrl, { poolSize: 1 });
+  const { kysely } = DittoDB.create(Conf.databaseUrl, { poolSize: 1 });
 
   await DittoDB.migrate(kysely);
 

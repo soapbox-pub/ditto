@@ -70,10 +70,6 @@ class Conf {
   static get databaseUrl(): string {
     return Deno.env.get('DATABASE_URL') ?? 'file://data/pgdata';
   }
-  /** Database to use in tests. */
-  static get testDatabaseUrl(): string {
-    return Deno.env.get('TEST_DATABASE_URL') ?? 'memory://';
-  }
   /** PGlite debug level. 0 disables logging. */
   static get pgliteDebug(): 0 | 1 | 2 | 3 | 4 | 5 {
     return Number(Deno.env.get('PGLITE_DEBUG') || 0) as 0 | 1 | 2 | 3 | 4 | 5;
