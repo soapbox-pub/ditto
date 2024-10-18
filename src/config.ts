@@ -1,19 +1,11 @@
 import os from 'node:os';
 import ISO6391, { LanguageCode } from 'iso-639-1';
-import * as dotenv from '@std/dotenv';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { z } from 'zod';
 import { decodeBase64 } from '@std/encoding/base64';
 import { encodeBase64Url } from '@std/encoding/base64url';
 
 import { getEcdsaPublicKey } from '@/utils/crypto.ts';
-
-/** Load environment config from `.env` */
-await dotenv.load({
-  export: true,
-  defaultsPath: null,
-  examplePath: null,
-});
 
 /** Application-wide configuration. */
 class Conf {
