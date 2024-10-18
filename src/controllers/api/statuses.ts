@@ -560,7 +560,7 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['e', target.id, Conf.relay, '', target.pubkey],
+        ['e', target.id, Conf.relay],
         ['p', target.pubkey, Conf.relay],
         ['amount', amount.toString()],
         ['relays', Conf.relay],
