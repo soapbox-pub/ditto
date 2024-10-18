@@ -57,7 +57,8 @@ export async function createTestDB(opts?: { pure?: boolean }) {
       >`select tablename from pg_tables where schemaname = current_schema()`.execute(kysely);
 
       for (const { tablename } of rows) {
-        await kysely.schema.dropTable(tablename).ifExists().cascade().execute();
+        if (tablename.startsWith('kysely_')) continue;
+        await sql`truncate table ${sql.ref(tablename)} cascade`.execute(kysely);
       }
 
       await kysely.destroy();
