@@ -1,4 +1,4 @@
-image: denoland/deno:2.0.1
+image: denoland/deno:2.0.2
 
 default:
   interruptible: true
@@ -36,4 +36,3 @@ test:
       - deno-test.xml
     reports:
       junit: deno-test.xml
-
