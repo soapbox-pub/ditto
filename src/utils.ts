@@ -74,6 +74,30 @@ function isURL(value: unknown): boolean {
   return z.string().url().safeParse(value).success;
 }
 
-export { bech32ToPubkey, eventAge, findTag, isNostrId, isURL, type Nip05, nostrDate, nostrNow, parseNip05 };
+/** Render an empty author event so other things can stick to it. */
+function fallbackAuthor(pubkey: string): NostrEvent {
+  return {
+    kind: 0,
+    pubkey,
+    content: '',
+    tags: [],
+    created_at: nostrNow(),
+    id: '',
+    sig: '',
+  };
+}
+
+export {
+  bech32ToPubkey,
+  eventAge,
+  fallbackAuthor,
+  findTag,
+  isNostrId,
+  isURL,
+  type Nip05,
+  nostrDate,
+  nostrNow,
+  parseNip05,
+};
 
 export { Time } from '@/utils/time.ts';

@@ -6,6 +6,7 @@ import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { fallbackAuthor } from '@/utils.ts';
 import { findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 const debug = Debug('ditto:queries');
@@ -38,15 +39,21 @@ const getEvent = async (
     .then(([event]) => event);
 };
 
-/** Get a Nostr `set_medatadata` event for a user's pubkey. */
-const getAuthor = async (pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> => {
+/**
+ * Get a Nostr `set_medatadata` event for a user's pubkey.
+ * @deprecated Use `store.query` directly.
+ */
+async function getAuthor(pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> {
   const store = await Storages.db();
   const { signal = AbortSignal.timeout(1000) } = opts;
 
-  return await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, store, signal }))
-    .then(([event]) => event);
-};
+  const events = await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal });
+  const event = events[0] ?? fallbackAuthor(pubkey);
+
+  await hydrateEvents({ events: [event], store, signal });
+
+  return event;
+}
 
 /** Get users the given pubkey follows. */
 const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {

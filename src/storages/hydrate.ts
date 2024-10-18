@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { fallbackAuthor } from '@/utils.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
 import { getAmount } from '@/utils/bolt11.ts';
@@ -225,6 +226,7 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 }
 
 /** Collect authors from the events. */
+<<<<<<< HEAD
 function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set<string>();
 
@@ -247,10 +249,20 @@ function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEve
     pubkeys.add(event.pubkey);
   }
 
-  return store.query(
+  const authors = await store.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
+
+  for (const pubkey of pubkeys) {
+    const author = authors.find((e) => matchFilter({ kinds: [0], authors: [pubkey] }, e));
+    if (author) {
+      const fallback = fallbackAuthor(pubkey);
+      authors.push(fallback);
+    }
+  }
+
+  return authors;
 }
 
 /** Collect users from the events. */
