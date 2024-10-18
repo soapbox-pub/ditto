@@ -226,7 +226,7 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 }
 
 /** Collect authors from the events. */
-function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set<string>();
 
   for (const event of events) {
