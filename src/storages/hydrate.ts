@@ -66,10 +66,6 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
-  for (const event of await gatherZapSender({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
   const stats = {
     authors: await gatherAuthorStats(cache, kysely as Kysely<DittoTables>),
     events: await gatherEventStats(cache, kysely as Kysely<DittoTables>),
@@ -231,13 +227,26 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
 
 /** Collect authors from the events. */
 async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const pubkeys = new Set(events.map((event) => {
-    if (event.kind === 9735) { // FIXME: This code doesn't belong in this function.
-      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
-      if (pubkey) return pubkey;
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 9735) {
+      const zapReceiver = event.tags.find(([name]) => name === 'p')?.[1];
+      if (zapReceiver) {
+        pubkeys.add(zapReceiver);
+      }
+
+      const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
+      const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
+      // By getting the pubkey from the zap request we guarantee who is the sender
+      // some clients don't put the P tag in the zap receipt...
+      const zapSender = zapRequest?.pubkey;
+      if (zapSender) {
+        pubkeys.add(zapSender);
+      }
     }
-    return event.pubkey;
-  }));
+    pubkeys.add(event.pubkey);
+  }
 
   const authors = await store.query(
     [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
@@ -343,29 +352,6 @@ function gatherZapped({ events, store, signal }: HydrateOpts): Promise<DittoEven
 
   return store.query(
     [{ ids: [...ids], limit: ids.size }],
-    { signal },
-  );
-}
-
-/** Collect author that zapped. */
-function gatherZapSender({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const pubkeys = new Set<string>();
-
-  for (const event of events) {
-    if (event.kind === 9735) {
-      const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
-      const zapRequest = n.json().pipe(n.event()).optional().catch(undefined).parse(zapRequestString);
-      // By getting the pubkey from the zap request we guarantee who is the sender
-      // some clients don't put the P tag in the zap receipt...
-      const zapSender = zapRequest?.pubkey;
-      if (zapSender) {
-        pubkeys.add(zapSender);
-      }
-    }
-  }
-
-  return store.query(
-    [{ kinds: [0], limit: pubkeys.size }],
     { signal },
   );
 }
