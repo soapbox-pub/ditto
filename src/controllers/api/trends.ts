@@ -3,10 +3,12 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
+import { paginated } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
 let trendingHashtagsCache = getTrendingHashtags().catch((e) => {
@@ -110,20 +112,16 @@ async function getTrendingLinks() {
   }));
 }
 
-const trendingStatusesQuerySchema = z.object({
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
-  offset: z.number().nonnegative().catch(0),
-});
-
 const trendingStatusesController: AppController = async (c) => {
   const store = await Storages.db();
-  const { limit, offset } = trendingStatusesQuerySchema.parse(c.req.query());
+  const { limit, offset, until } = paginationSchema.parse(c.req.query());
 
   const [label] = await store.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': ['#e'],
     authors: [Conf.pubkey],
+    until,
     limit: 1,
   }]);
 
@@ -148,7 +146,7 @@ const trendingStatusesController: AppController = async (c) => {
     events.map((event) => renderStatus(event, {})),
   );
 
-  return c.json(statuses.filter(Boolean));
+  return paginated(c, results, statuses);
 };
 
 interface TrendingTag {
