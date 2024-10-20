@@ -1,4 +1,3 @@
-import { NostrEvent } from '@nostrify/nostrify';
 import { Kysely } from 'kysely';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -7,7 +6,7 @@ export interface DittoDatabase {
   readonly kysely: Kysely<DittoTables>;
   readonly poolSize: number;
   readonly availableConnections: number;
-  readonly listenNostr: (onEvent: (event: NostrEvent) => void) => void;
+  listen(channel: string, callback: (payload: string) => void): void;
 }
 
 export interface DittoDatabaseOpts {

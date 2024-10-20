@@ -1,4 +1,3 @@
-import { NostrEvent } from '@nostrify/nostrify';
 import {
   BinaryOperationNode,
   FunctionNode,
@@ -41,10 +40,8 @@ export class DittoPostgres {
       log: KyselyLogger,
     });
 
-    const listenNostr = (onEvent: (event: NostrEvent) => void): void => {
-      pg.listen('nostr_event', (payload) => {
-        onEvent(JSON.parse(payload));
-      });
+    const listen = (channel: string, callback: (payload: string) => void): void => {
+      pg.listen(channel, callback);
     };
 
     return {
@@ -55,7 +52,7 @@ export class DittoPostgres {
       get availableConnections() {
         return pg.connections.idle;
       },
-      listenNostr,
+      listen,
     };
   }
 }

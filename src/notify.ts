@@ -6,11 +6,12 @@ import { Storages } from '@/storages.ts';
 const sem = new Semaphore(1);
 
 export async function startNotify(): Promise<void> {
-  const { listenNostr } = await Storages.database();
+  const { listen } = await Storages.database();
 
-  listenNostr((event) => {
+  listen('nostr_event', (payload) => {
     sem.lock(async () => {
       try {
+        const event = JSON.parse(payload);
         await pipeline.handleEvent(event, AbortSignal.timeout(5000));
       } catch (e) {
         console.warn(e);
