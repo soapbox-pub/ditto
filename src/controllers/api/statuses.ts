@@ -224,7 +224,7 @@ const createStatusController: AppController = async (c) => {
           dittoZapSplit[zapPubkey].message,
         ]);
       }
-      if (pubkey in dittoZapSplit === false) {
+      if (totalSplit && !dittoZapSplit[pubkey]) {
         tags.push(['zap', pubkey, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
       }
     }
