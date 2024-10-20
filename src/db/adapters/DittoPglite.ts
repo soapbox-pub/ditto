@@ -1,5 +1,6 @@
 import { PGlite } from '@electric-sql/pglite';
 import { pg_trgm } from '@electric-sql/pglite/contrib/pg_trgm';
+import { NostrEvent } from '@nostrify/nostrify';
 import { PgliteDialect } from '@soapbox/kysely-pglite';
 import { Kysely } from 'kysely';
 
@@ -26,10 +27,17 @@ export class DittoPglite {
       log: KyselyLogger,
     });
 
+    const listenNostr = (onEvent: (event: NostrEvent) => void): void => {
+      pglite.listen('nostr_event', (payload) => {
+        onEvent(JSON.parse(payload));
+      });
+    };
+
     return {
       kysely,
       poolSize: 1,
       availableConnections: 1,
+      listenNostr,
     };
   }
 }
