@@ -205,12 +205,26 @@ const createStatusController: AppController = async (c) => {
     const lnurl = getLnurl(meta);
     const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
     if (lnurl && dittoZapSplit) {
-      let totalSplit = 0;
-      for (const pubkey in dittoZapSplit) {
-        totalSplit += dittoZapSplit[pubkey].weight;
-        tags.push(['zap', pubkey, Conf.relay, dittoZapSplit[pubkey].weight.toString(), dittoZapSplit[pubkey].message]);
+      const totalSplit = Object.values(dittoZapSplit).reduce((total, { weight }) => total + weight, 0);
+      for (const zapPubkey in dittoZapSplit) {
+        if (zapPubkey === pubkey) {
+          tags.push([
+            'zap',
+            zapPubkey,
+            Conf.relay,
+            (Math.max(0, 100 - totalSplit) + dittoZapSplit[zapPubkey].weight).toString(),
+          ]);
+          continue;
+        }
+        tags.push([
+          'zap',
+          zapPubkey,
+          Conf.relay,
+          dittoZapSplit[zapPubkey].weight.toString(),
+          dittoZapSplit[zapPubkey].message,
+        ]);
       }
-      if (totalSplit) {
+      if (pubkey in dittoZapSplit === false) {
         tags.push(['zap', pubkey, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
       }
     }
