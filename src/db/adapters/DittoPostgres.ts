@@ -40,6 +40,10 @@ export class DittoPostgres {
       log: KyselyLogger,
     });
 
+    const listen = (channel: string, callback: (payload: string) => void): void => {
+      pg.listen(channel, callback);
+    };
+
     return {
       kysely,
       get poolSize() {
@@ -48,6 +52,7 @@ export class DittoPostgres {
       get availableConnections() {
         return pg.connections.idle;
       },
+      listen,
     };
   }
 }

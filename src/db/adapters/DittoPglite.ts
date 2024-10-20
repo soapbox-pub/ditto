@@ -26,10 +26,15 @@ export class DittoPglite {
       log: KyselyLogger,
     });
 
+    const listen = (channel: string, callback: (payload: string) => void): void => {
+      pglite.listen(channel, callback);
+    };
+
     return {
       kysely,
       poolSize: 1,
       availableConnections: 1,
+      listen,
     };
   }
 }

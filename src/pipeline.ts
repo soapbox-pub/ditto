@@ -40,7 +40,6 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   }
   if (!(await verifyEventWorker(event))) return;
   if (encounterEvent(event)) return;
-  if (await existsInDB(event)) return;
 
   console.info(`NostrEvent<${event.kind}> ${event.id}`);
   pipelineEventsCounter.inc({ kind: event.kind });
@@ -109,13 +108,6 @@ function encounterEvent(event: NostrEvent): boolean {
     encounters.set(event.id, true);
   }
   return encountered;
-}
-
-/** Check if the event already exists in the database. */
-async function existsInDB(event: DittoEvent): Promise<boolean> {
-  const store = await Storages.db();
-  const events = await store.query([{ ids: [event.id], limit: 1 }]);
-  return events.length > 0;
 }
 
 /** Check whether the event has a NIP-70 `-` tag. */

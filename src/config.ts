@@ -249,6 +249,13 @@ class Conf {
       .split(/[, ]+/g)
       .map(Number);
   }
+  /**
+   * Whether Ditto should subscribe to Nostr events from the Postgres database itself.
+   * This would make Nostr events inserted directly into Postgres available to the streaming API and relay.
+   */
+  static get notifyEnabled(): boolean {
+    return optionalBooleanSchema.parse(Deno.env.get('NOTIFY_ENABLED')) ?? false;
+  }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
