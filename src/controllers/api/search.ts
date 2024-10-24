@@ -20,6 +20,7 @@ const searchQuerySchema = z.object({
   following: z.boolean().default(false),
   account_id: n.id().optional(),
   limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
+  offset: z.coerce.number().nonnegative().catch(0),
 });
 
 type SearchQuery = z.infer<typeof searchQuerySchema>;
@@ -77,7 +78,7 @@ const searchController: AppController = async (c) => {
 
 /** Get events for the search params. */
 async function searchEvents(
-  { q, type, limit, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
+  { q, type, limit, offset, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
   signal: AbortSignal,
 ): Promise<NostrEvent[]> {
   // Hashtag search is not supported.
@@ -98,7 +99,7 @@ async function searchEvents(
     const kysely = await Storages.kysely();
 
     const followedPubkeys = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
-    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, followedPubkeys });
+    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, offset, followedPubkeys });
 
     filter.authors = [...searchPubkeys];
     filter.search = undefined;
