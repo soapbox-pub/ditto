@@ -111,7 +111,7 @@ const revokeTokenController: AppController = async (c) => {
 };
 
 async function getToken(
-  { pubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
+  { pubkey: bunkerPubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
 ): Promise<`token1${string}`> {
   const kysely = await Storages.kysely();
   const { token, hash } = await generateToken();
@@ -119,17 +119,19 @@ async function getToken(
   const nip46Seckey = generateSecretKey();
 
   const signer = new NConnectSigner({
-    pubkey,
+    pubkey: bunkerPubkey,
     signer: new NSecSigner(nip46Seckey),
     relay: await Storages.pubsub(), // TODO: Use the relays from the request.
     timeout: 60_000,
   });
 
   await signer.connect(secret);
+  const userPubkey = await signer.getPublicKey();
 
   await kysely.insertInto('auth_tokens').values({
     token_hash: hash,
-    pubkey,
+    pubkey: userPubkey,
+    bunker_pubkey: bunkerPubkey,
     nip46_sk_enc: await aesEncrypt(Conf.seckey, nip46Seckey),
     nip46_relays: relays,
     created_at: new Date(),

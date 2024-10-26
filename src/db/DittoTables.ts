@@ -37,6 +37,7 @@ interface EventStatsRow {
 interface AuthTokenRow {
   token_hash: Uint8Array;
   pubkey: string;
+  bunker_pubkey: string;
   nip46_sk_enc: Uint8Array;
   nip46_relays: string[];
   created_at: Date;

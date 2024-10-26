@@ -26,15 +26,23 @@ export const signerMiddleware: AppMiddleware = async (c, next) => {
         const kysely = await Storages.kysely();
         const tokenHash = await getTokenHash(bech32 as `token1${string}`);
 
-        const { pubkey, nip46_sk_enc, nip46_relays } = await kysely
+        const { pubkey: userPubkey, bunker_pubkey: bunkerPubkey, nip46_sk_enc, nip46_relays } = await kysely
           .selectFrom('auth_tokens')
-          .select(['pubkey', 'nip46_sk_enc', 'nip46_relays'])
+          .select(['pubkey', 'bunker_pubkey', 'nip46_sk_enc', 'nip46_relays'])
           .where('token_hash', '=', tokenHash)
           .executeTakeFirstOrThrow();
 
         const nep46Seckey = await aesDecrypt(Conf.seckey, nip46_sk_enc);
 
-        c.set('signer', new ConnectSigner(pubkey, new NSecSigner(nep46Seckey), nip46_relays));
+        c.set(
+          'signer',
+          new ConnectSigner({
+            bunkerPubkey,
+            userPubkey,
+            signer: new NSecSigner(nep46Seckey),
+            relays: nip46_relays,
+          }),
+        );
       } catch {
         throw new HTTPException(401);
       }
