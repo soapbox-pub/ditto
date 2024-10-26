@@ -327,7 +327,7 @@ class EventsDB extends NPostgres {
             .where('domain', 'in', [...domains]);
 
           if (filter.authors) {
-            query.where('pubkey', 'in', filter.authors);
+            query.where('pubkey', 'in', filter.authors); // isn't Kysely immutable?
           }
 
           const pubkeys = await query.execute().then((rows) => rows.map((row) => row.pubkey));
