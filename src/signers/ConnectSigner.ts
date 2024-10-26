@@ -4,6 +4,13 @@ import { NConnectSigner, NostrEvent, NostrSigner } from '@nostrify/nostrify';
 
 import { Storages } from '@/storages.ts';
 
+interface ConnectSignerOpts {
+  bunkerPubkey: string;
+  userPubkey: string;
+  signer: NostrSigner;
+  relays?: string[];
+}
+
 /**
  * NIP-46 signer.
  *
@@ -12,13 +19,13 @@ import { Storages } from '@/storages.ts';
 export class ConnectSigner implements NostrSigner {
   private signer: Promise<NConnectSigner>;
 
-  constructor(private pubkey: string, signer: NostrSigner, private relays?: string[]) {
-    this.signer = this.init(signer);
+  constructor(private opts: ConnectSignerOpts) {
+    this.signer = this.init(opts.signer);
   }
 
   async init(signer: NostrSigner): Promise<NConnectSigner> {
     return new NConnectSigner({
-      pubkey: this.pubkey,
+      pubkey: this.opts.bunkerPubkey,
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
       relay: await Storages.pubsub(),
       signer,
@@ -30,8 +37,8 @@ export class ConnectSigner implements NostrSigner {
     const signer = await this.signer;
     try {
       return await signer.signEvent(event);
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
         throw new HTTPException(408, { message: 'The event was not signed quickly enough' });
       } else {
         throw e;
@@ -44,8 +51,8 @@ export class ConnectSigner implements NostrSigner {
       const signer = await this.signer;
       try {
         return await signer.nip04.encrypt(pubkey, plaintext);
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
             message: 'Text was not encrypted quickly enough',
           });
@@ -59,8 +66,8 @@ export class ConnectSigner implements NostrSigner {
       const signer = await this.signer;
       try {
         return await signer.nip04.decrypt(pubkey, ciphertext);
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
             message: 'Text was not decrypted quickly enough',
           });
@@ -76,8 +83,8 @@ export class ConnectSigner implements NostrSigner {
       const signer = await this.signer;
       try {
         return await signer.nip44.encrypt(pubkey, plaintext);
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
             message: 'Text was not encrypted quickly enough',
           });
@@ -91,8 +98,8 @@ export class ConnectSigner implements NostrSigner {
       const signer = await this.signer;
       try {
         return await signer.nip44.decrypt(pubkey, ciphertext);
-      } catch (e: any) {
-        if (e.name === 'AbortError') {
+      } catch (e) {
+        if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
             message: 'Text was not decrypted quickly enough',
           });
@@ -105,12 +112,12 @@ export class ConnectSigner implements NostrSigner {
 
   // Prevent unnecessary NIP-46 round-trips.
   async getPublicKey(): Promise<string> {
-    return this.pubkey;
+    return this.opts.userPubkey;
   }
 
   /** Get the user's relays if they passed in an `nprofile` auth token. */
   async getRelays(): Promise<Record<string, { read: boolean; write: boolean }>> {
-    return this.relays?.reduce<Record<string, { read: boolean; write: boolean }>>((acc, relay) => {
+    return this.opts.relays?.reduce<Record<string, { read: boolean; write: boolean }>>((acc, relay) => {
       acc[relay] = { read: true, write: true };
       return acc;
     }, {}) ?? {};
