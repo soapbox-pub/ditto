@@ -1,11 +1,11 @@
 import { NUploader } from '@nostrify/nostrify';
 import { z } from 'zod';
-import { probe } from '@jcayzac/image-information';
+import sharp from 'sharp';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { encode } from 'blurhash';
 import { encodeHex } from '@std/encoding/hex';
 
-const console = new Stickynotes('ditto:ipfs:uploader');
+const console = new Stickynotes('ditto:uploader:ipfs');
 
 export interface IPFSUploaderOpts {
   baseUrl: string;
@@ -25,6 +25,9 @@ function toByteArray(f: File): Promise<Uint8Array> {
     reader.readAsArrayBuffer(f);
   });
 }
+type Nip94Metadata =
+  & Record<'url' | 'm', string>
+  & Partial<Record<'x' | 'ox' | 'size' | 'dim' | 'blurhash' | 'cid', string>>;
 
 /**
  * IPFS uploader. It expects an IPFS node up and running.
@@ -55,29 +58,44 @@ export class IPFSUploader implements NUploader {
     });
 
     const { Hash: cid } = IPFSUploader.schema().parse(await response.json());
-    const tags: [['url', string], ...string[][]] = [
-      ['url', new URL(`/ipfs/${cid}`, this.baseUrl).toString()],
-      ['m', file.type],
-      ['cid', cid],
-      ['size', file.size.toString()],
-    ];
+    const tags: Nip94Metadata = {
+      url: new URL(`/ipfs/${cid}`, this.baseUrl).toString(),
+      m: file.type,
+      cid,
+      size: file.size.toString(),
+    };
 
     try {
       const buffer = await toByteArray(file);
       const hash = await crypto.subtle.digest('SHA-256', buffer).then(encodeHex);
-      tags.push(['x', hash], ['ox', hash]);
-      const metadata = probe(buffer);
-      if (metadata) {
-        // sane default from https://github.com/woltapp/blurhash readme
-        const blurhash = encode(new Uint8ClampedArray(buffer), metadata.width, metadata.height, 4, 4);
-        tags.push(['blurhash', blurhash]);
-        tags.push(['dim', `${metadata.width}x${metadata.height}`]);
+      tags.x = tags.ox = hash;
+      const img = sharp(buffer);
+      const metadata = await img.metadata();
+
+      if (metadata.width && metadata.height) {
+        tags.dim = `${metadata.width}x${metadata.height}`;
+        const pixels = await img
+          .raw()
+          .ensureAlpha()
+          .toBuffer({ resolveWithObject: true })
+          .then((buf) => {
+            return new Uint8ClampedArray(buf.data);
+          });
+        tags.blurhash = encode(
+          pixels,
+          metadata.width,
+          metadata.height,
+          // sane default from https://github.com/woltapp/blurhash readme
+          4,
+          4,
+        );
       }
     } catch (e) {
       console.error(`Error parsing ipfs metadata: ${e}`);
     }
 
-    return tags;
+    console.debug(tags);
+    return Object.entries(tags) as [['url', string], ...string[][]];
   }
 
   async delete(cid: string, opts?: { signal?: AbortSignal }): Promise<void> {
