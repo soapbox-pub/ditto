@@ -1,10 +1,29 @@
 import { NUploader } from '@nostrify/nostrify';
 import { z } from 'zod';
+import { probe } from '@jcayzac/image-information';
+import { Stickynotes } from '@soapbox/stickynotes';
+import { encode } from 'blurhash';
+import { encodeHex } from '@std/encoding/hex';
+
+const console = new Stickynotes('ditto:ipfs:uploader');
 
 export interface IPFSUploaderOpts {
   baseUrl: string;
   apiUrl?: string;
   fetch?: typeof fetch;
+}
+
+function toByteArray(f: File): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener('loadend', (m) => {
+      if (m?.target?.result instanceof ArrayBuffer) {
+        resolve(new Uint8Array(m.target.result));
+      } else reject('Error loading file: readAsArrayBufferFailed');
+    });
+    reader.addEventListener('error', (e) => reject(e));
+    reader.readAsArrayBuffer(f);
+  });
 }
 
 /**
@@ -36,13 +55,29 @@ export class IPFSUploader implements NUploader {
     });
 
     const { Hash: cid } = IPFSUploader.schema().parse(await response.json());
-
-    return [
+    const tags: [['url', string], ...string[][]] = [
       ['url', new URL(`/ipfs/${cid}`, this.baseUrl).toString()],
       ['m', file.type],
       ['cid', cid],
       ['size', file.size.toString()],
     ];
+
+    try {
+      const buffer = await toByteArray(file);
+      const hash = await crypto.subtle.digest('SHA-256', buffer).then(encodeHex);
+      tags.push(['x', hash], ['ox', hash]);
+      const metadata = probe(buffer);
+      if (metadata) {
+        // sane default from https://github.com/woltapp/blurhash readme
+        const blurhash = encode(new Uint8ClampedArray(buffer), metadata.width, metadata.height, 4, 4);
+        tags.push(['blurhash', blurhash]);
+        tags.push(['dim', `${metadata.width}x${metadata.height}`]);
+      }
+    } catch (e) {
+      console.error(`Error parsing ipfs metadata: ${e}`);
+    }
+
+    return tags;
   }
 
   async delete(cid: string, opts?: { signal?: AbortSignal }): Promise<void> {

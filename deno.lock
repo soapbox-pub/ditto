@@ -80,12 +80,14 @@
     "jsr:@std/streams@0.223": "0.223.0",
     "npm:@electric-sql/pglite@~0.2.8": "0.2.8",
     "npm:@isaacs/ttlcache@^1.4.1": "1.4.1",
+    "npm:@jcayzac/image-information@1.1.1": "1.1.1",
     "npm:@noble/hashes@^1.4.0": "1.4.0",
     "npm:@noble/secp256k1@2": "2.1.0",
     "npm:@scure/base@^1.1.6": "1.1.6",
     "npm:@scure/bip32@^1.4.0": "1.4.0",
     "npm:@scure/bip39@^1.3.0": "1.3.0",
     "npm:@types/node@*": "18.16.19",
+    "npm:blurhash@2.0.5": "2.0.5",
     "npm:comlink-async-generator@*": "0.0.1",
     "npm:comlink-async-generator@^0.0.1": "0.0.1",
     "npm:comlink@^4.4.1": "4.4.1",
@@ -658,6 +660,12 @@
     "@isaacs/ttlcache@1.4.1": {
       "integrity": "sha512-RQgQ4uQ+pLbqXfOmieB91ejmLwvSgv9nLx6sT6sD83s7umBypgg+OIBOBbEUiJXrfpnp9j0mRhYYdzp9uqq3lA=="
     },
+    "@jcayzac/image-information@1.1.1": {
+      "integrity": "sha512-WXM5RTu3tTuAPXPx4ytbywjqTxnjBUWM1sY+7A9UPqPwQbM9V3jkY/rzo1OJ6VYSpogFdK4cyc+o9FZFZLW+nw==",
+      "dependencies": [
+        "image-size"
+      ]
+    },
     "@noble/ciphers@0.5.3": {
       "integrity": "sha512-B0+6IIHiqEs3BPMT0hcRmHvEj2QHOLu+uwt+tqDDeVd0oyVzh7BPrDcPjRnV1PV/5LaknXJJQvOuRGR0zQJz+w=="
     },
@@ -768,6 +776,9 @@
     },
     "bintrees@1.0.2": {
       "integrity": "sha512-VOMgTMwjAaUG580SXn3LacVgjurrbMme7ZZNYGSSV7mmtY6QQRh0Eg3pwIcntQ77DErK1L0NxkbetjcoXzVwKw=="
+    },
+    "blurhash@2.0.5": {
+      "integrity": "sha512-cRygWd7kGBQO3VEhPiTgq4Wc43ctsM+o46urrmPOiuAe+07fzlSB9OJVdpgDL0jPqXUVQ9ht7aq7kxOeJHRK+w=="
     },
     "braces@3.0.2": {
       "integrity": "sha512-b8um+L1RzM3WDSzvhm6gIz1yfTbBt6YTlcEKAvsmqCZZFw46z626lVj9j1yEPW33H5H+lBQpZMP1k8l+78Ha0A==",
@@ -986,6 +997,15 @@
       "dependencies": [
         "safer-buffer"
       ]
+    },
+    "image-size@1.1.1": {
+      "integrity": "sha512-541xKlUw6jr/6gGuk92F+mYM5zaFAc5ahphvkqvNe2bQ6gVBkd6bfrmVJ2t4KDAfikAYZyIqTnktX3i6/aQDrQ==",
+      "dependencies": [
+        "queue"
+      ]
+    },
+    "inherits@2.0.4": {
+      "integrity": "sha512-k/vGaX4/Yla3WzyMCvTQOXYeIHvqOKtnqBduzTHpzpQZzAskKMhZ2K+EnBiSM9zGSoIFeMpXKxa4dYeZIQqewQ=="
     },
     "is-fullwidth-code-point@4.0.0": {
       "integrity": "sha512-O4L094N2/dZ7xqVdrXhh9r1KODPJpFms8B5sGdJLPy664AgvXsreZUyCQQNItZRDlYug4xStLjNp/sz3HvBowQ=="
@@ -1259,6 +1279,12 @@
     },
     "punycode@2.3.1": {
       "integrity": "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="
+    },
+    "queue@6.0.2": {
+      "integrity": "sha512-iHZWu+q3IdFZFX36ro/lKBkSvfkztY5Y7HMiPlOUjhupPcG2JMfst2KKEpu5XndviX/3UhFbRngUPNKtgvtZiA==",
+      "dependencies": [
+        "inherits"
+      ]
     },
     "restore-cursor@4.0.0": {
       "integrity": "sha512-I9fPXU9geO9bHOt9pHHOhOkYerIMsmVaWB0rA2AI9ERh/+x/i7MV5HKBNrg+ljO5eoPVgCcnFuRjJ9uH6I/3eg==",
@@ -2104,12 +2130,14 @@
       "jsr:@std/streams@0.223",
       "npm:@electric-sql/pglite@~0.2.8",
       "npm:@isaacs/ttlcache@^1.4.1",
+      "npm:@jcayzac/image-information@1.1.1",
       "npm:@noble/secp256k1@2",
       "npm:@scure/base@^1.1.6",
       "npm:comlink-async-generator@^0.0.1",
       "npm:comlink@^4.4.1",
       "npm:commander@12.1.0",
       "npm:entities@^4.5.0",
+      "npm:fast-blurhash@1.1.4",
       "npm:fast-stable-stringify@1",
       "npm:formdata-helper@0.3",
       "npm:hono-rate-limiter@0.3",
