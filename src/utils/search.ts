@@ -34,8 +34,10 @@ export async function getPubkeysBySearch(
   return new Set(Array.from(followingPubkeys.union(pubkeys)));
 }
 
-/** Get kind 1 ids whose content matches 'q'
- *  It supports NIP-50 extensions */
+/**
+ * Get kind 1 ids whose content matches `q`.
+ * It supports NIP-50 extensions.
+ */
 export async function getIdsBySearch(
   kysely: Kysely<DittoTables>,
   opts: { q: string; limit: number; offset: number },
