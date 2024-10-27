@@ -44,13 +44,13 @@ export async function getIdsBySearch(
 ): Promise<Set<string>> {
   const { q, limit, offset } = opts;
 
-  const lexemes = await kysely.selectNoFrom(
+  const [lexeme] = await kysely.selectNoFrom(
     sql`phraseto_tsquery(${q})` as unknown as SelectExpression<DittoTables, never>,
   )
     .execute() as { phraseto_tsquery: 'string' }[];
 
   // if it's just stop words, don't bother making a request to the database
-  if (!lexemes[0].phraseto_tsquery) {
+  if (!lexeme.phraseto_tsquery) {
     return new Set();
   }
 
