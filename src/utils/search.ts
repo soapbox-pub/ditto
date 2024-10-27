@@ -90,7 +90,7 @@ export async function getIdsBySearch(
     query = query.where('pubkey', 'in', pubkeys);
   }
 
-  let queryWithoutPhraseto_tsquery = query;
+  let fallbackQuery = query;
   if (parsedSearch) {
     query = query.where('search', '@@', sql`phraseto_tsquery(${parsedSearch})`);
   }
@@ -99,12 +99,12 @@ export async function getIdsBySearch(
 
   // If there is no ids, fallback to `plainto_tsquery`
   if (!ids.size) {
-    queryWithoutPhraseto_tsquery = queryWithoutPhraseto_tsquery.where(
+    fallbackQuery = fallbackQuery.where(
       'search',
       '@@',
       sql`plainto_tsquery(${parsedSearch})`,
     );
-    const ids = new Set((await queryWithoutPhraseto_tsquery.execute()).map(({ id }) => id));
+    const ids = new Set((await fallbackQuery.execute()).map(({ id }) => id));
     return ids;
   }
 
