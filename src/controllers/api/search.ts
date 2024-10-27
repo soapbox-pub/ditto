@@ -11,7 +11,7 @@ import { nip05Cache } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getFollowedPubkeys } from '@/queries.ts';
-import { getPubkeysBySearch } from '@/utils/search.ts';
+import { getIdsBySearch, getPubkeysBySearch } from '@/utils/search.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -94,14 +94,21 @@ async function searchEvents(
     limit,
   };
 
+  const kysely = await Storages.kysely();
+
   // For account search, use a special index, and prioritize followed accounts.
   if (type === 'accounts') {
-    const kysely = await Storages.kysely();
-
     const followedPubkeys = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
     const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, offset, followedPubkeys });
 
     filter.authors = [...searchPubkeys];
+    filter.search = undefined;
+  }
+
+  // For status search, use a specific query so it supports offset and is open to customizations.
+  if (type === 'statuses') {
+    const ids = await getIdsBySearch(kysely, { q, limit, offset });
+    filter.ids = [...ids];
     filter.search = undefined;
   }
 
