@@ -83,7 +83,9 @@ export function extractIdentifier(value: string): string | undefined {
     return value;
   }
 
-  if (tldts.parse(value).isIcann && tldts.parse(value).domain) {
+  const { isIcann, domain } = tldts.parse(value);
+
+  if (isIcann && domain) {
     return value;
   }
 }
