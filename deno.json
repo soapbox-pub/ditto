@@ -68,7 +68,6 @@
     "entities": "npm:entities@^4.5.0",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
     "formdata-helper": "npm:formdata-helper@^0.3.0",
-    "get-pixels": "npm:get-pixels@3.3.3",
     "hono-rate-limiter": "npm:hono-rate-limiter@^0.3.0",
     "iso-639-1": "npm:iso-639-1@2.1.15",
     "isomorphic-dompurify": "npm:isomorphic-dompurify@^2.16.0",

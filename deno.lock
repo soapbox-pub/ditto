@@ -2292,7 +2292,6 @@
       "npm:entities@^4.5.0",
       "npm:fast-stable-stringify@1",
       "npm:formdata-helper@0.3",
-      "npm:get-pixels@3.3.3",
       "npm:hono-rate-limiter@0.3",
       "npm:iso-639-1@2.1.15",
       "npm:isomorphic-dompurify@^2.16.0",
