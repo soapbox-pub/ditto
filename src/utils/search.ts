@@ -1,4 +1,4 @@
-import { Kysely, type SelectExpression, sql } from 'kysely';
+import { Kysely, sql } from 'kysely';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { NIP50 } from '@nostrify/nostrify';
@@ -44,13 +44,10 @@ export async function getIdsBySearch(
 ): Promise<Set<string>> {
   const { q, limit, offset } = opts;
 
-  const [lexeme] = await kysely.selectNoFrom(
-    sql`phraseto_tsquery(${q})` as unknown as SelectExpression<DittoTables, never>,
-  )
-    .execute() as { phraseto_tsquery: 'string' }[];
+  const [lexemes] = (await sql<{ phraseto_tsquery: 'string' }>`SELECT phraseto_tsquery(${q})`.execute(kysely)).rows;
 
   // if it's just stop words, don't bother making a request to the database
-  if (!lexeme.phraseto_tsquery) {
+  if (!lexemes.phraseto_tsquery) {
     return new Set();
   }
 
