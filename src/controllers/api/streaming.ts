@@ -1,6 +1,6 @@
 import TTLCache from '@isaacs/ttlcache';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { Stickynotes } from '@soapbox/stickynotes';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -19,7 +19,7 @@ import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
-const debug = Debug('ditto:streaming');
+const console = new Stickynotes('ditto:streaming');
 
 /**
  * Streaming timelines/categories.
@@ -100,7 +100,7 @@ const streamingController: AppController = async (c) => {
 
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
-      debug('send', e.event, e.payload);
+      console.debug('send', e.event, e.payload);
       streamingServerMessagesCounter.inc();
       socket.send(JSON.stringify(e));
     }
@@ -129,7 +129,7 @@ const streamingController: AppController = async (c) => {
         }
       }
     } catch (e) {
-      debug('streaming error:', e);
+      console.debug('streaming error:', e);
     }
   }
 
