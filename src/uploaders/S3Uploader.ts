@@ -7,7 +7,6 @@ import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
 
 import { Conf } from '@/config.ts';
-import { getOptionalNip94Metadata } from '@/utils/image-metadata.ts';
 
 export interface S3UploaderOpts {
   endPoint: string;
@@ -45,12 +44,14 @@ export class S3Uploader implements NUploader {
 
     const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
 
-    return Object.entries({
-      url: new URL(path, Conf.mediaDomain).toString(),
-      m: file.type,
-      size: file.size.toString(),
-      ...await getOptionalNip94Metadata(file),
-    }) as [['url', string], ...string[][]];
+    const url = new URL(path, Conf.mediaDomain).toString();
+
+    return [
+      ['url', url],
+      ['m', file.type],
+      ['x', sha256],
+      ['size', file.size.toString()],
+    ];
   }
 
   async delete(objectName: string) {

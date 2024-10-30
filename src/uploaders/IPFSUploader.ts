@@ -1,6 +1,5 @@
 import { NUploader } from '@nostrify/nostrify';
 import { z } from 'zod';
-import { getOptionalNip94Metadata } from '@/utils/image-metadata.ts';
 
 export interface IPFSUploaderOpts {
   baseUrl: string;
@@ -38,13 +37,12 @@ export class IPFSUploader implements NUploader {
 
     const { Hash: cid } = IPFSUploader.schema().parse(await response.json());
 
-    return Object.entries({
-      url: new URL(`/ipfs/${cid}`, this.baseUrl).toString(),
-      m: file.type,
-      cid,
-      size: file.size.toString(),
-      ...await getOptionalNip94Metadata(file),
-    }) as [['url', string], ...string[][]];
+    return [
+      ['url', new URL(`/ipfs/${cid}`, this.baseUrl).toString()],
+      ['m', file.type],
+      ['cid', cid],
+      ['size', file.size.toString()],
+    ];
   }
 
   async delete(cid: string, opts?: { signal?: AbortSignal }): Promise<void> {
