@@ -258,8 +258,8 @@ const accountStatusesController: AppController = async (c) => {
 };
 
 const updateCredentialsSchema = z.object({
-  display_name: z.string().optional(),
-  note: z.string().optional(),
+  display_name: z.coerce.string().optional(),
+  note: z.coerce.string().optional(),
   avatar: fileSchema.or(z.literal('')).optional(),
   header: fileSchema.or(z.literal('')).optional(),
   locked: z.boolean().optional(),
