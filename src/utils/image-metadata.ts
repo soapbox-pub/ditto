@@ -6,7 +6,7 @@ import { Stickynotes } from '@soapbox/stickynotes';
 
 const console = new Stickynotes('ditto:uploaders');
 
-function toByteArray(f: File): Promise<Uint8Array> {
+export function toByteArray(f: File): Promise<Uint8Array> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.addEventListener('loadend', (m) => {
