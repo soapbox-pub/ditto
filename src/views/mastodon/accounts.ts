@@ -1,5 +1,4 @@
 import { NSchema as n } from '@nostrify/nostrify';
-import { escape } from 'entities';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
@@ -7,6 +6,7 @@ import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
+import { parseNoteContent } from '@/utils/note.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { faviconCache } from '@/utils/favicon.ts';
 import { nostrDate, nostrNow } from '@/utils.ts';
@@ -57,6 +57,7 @@ async function renderAccount(
       favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`);
     }
   }
+  const { html } = parseNoteContent(about || '', []);
 
   return {
     id: pubkey,
@@ -77,7 +78,7 @@ async function renderAccount(
     header_static: banner,
     last_status_at: null,
     locked: false,
-    note: about ? escape(about) : '',
+    note: html,
     roles: [],
     source: opts.withSource
       ? {
