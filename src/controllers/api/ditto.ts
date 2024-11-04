@@ -4,7 +4,7 @@ import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { type DittoUpload, dittoUploads } from '@/DittoUploads.ts';
+import { dittoUploads } from '@/DittoUploads.ts';
 import { addTag } from '@/utils/tags.ts';
 import { getAuthor } from '@/queries.ts';
 import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
@@ -22,7 +22,6 @@ import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
-import { thumbnailSchema } from '@/schemas/activitypub.ts';
 
 const markerSchema = z.enum(['read', 'write']);
 
