@@ -3,16 +3,17 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { configSchema, elixirTupleSchema, type PleromaConfig } from '@/schemas/pleroma-api.ts';
+import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
+import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const store = await Storages.db();
-  const configs = await getConfigs(store, c.req.raw.signal);
-  const frontendConfig = configs.find(({ group, key }) => group === ':pleroma' && key === ':frontend_configurations');
+  const configDB = await getConfigs(store, c.req.raw.signal);
+  const frontendConfig = configDB.get(':pleroma', ':frontend_configurations');
 
   if (frontendConfig) {
     const schema = elixirTupleSchema.transform(({ tuple }) => tuple).array();
@@ -40,14 +41,7 @@ const updateConfigController: AppController = async (c) => {
   const configs = await getConfigs(store, c.req.raw.signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
-  for (const { group, key, value } of newConfigs) {
-    const index = configs.findIndex((c) => c.group === group && c.key === key);
-    if (index === -1) {
-      configs.push({ group, key, value });
-    } else {
-      configs[index].value = value;
-    }
-  }
+  configs.merge(newConfigs);
 
   await createAdminEvent({
     kind: 30078,
@@ -70,7 +64,7 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
   return c.json({});
 };
 
-async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaConfig[]> {
+async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaConfigDB> {
   const { pubkey } = Conf;
 
   const [event] = await store.query([{
@@ -80,11 +74,16 @@ async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaCo
     limit: 1,
   }], { signal });
 
+  if (!event) {
+    return new PleromaConfigDB([]);
+  }
+
   try {
     const decrypted = await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content);
-    return n.json().pipe(configSchema.array()).catch([]).parse(decrypted);
+    const configs = n.json().pipe(configSchema.array()).catch([]).parse(decrypted);
+    return new PleromaConfigDB(configs);
   } catch (_e) {
-    return [];
+    return new PleromaConfigDB([]);
   }
 }
 
