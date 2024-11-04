@@ -169,6 +169,11 @@ const app = new Hono<AppEnv>({ strict: false });
 
 const debug = Debug('ditto:http');
 
+/** User-provided files in the gitignored `public/` directory. */
+const publicFiles = serveStatic({ root: './public/' });
+/** Static files provided by the Ditto repo, checked into git. */
+const staticFiles = serveStatic({ root: './static/' });
+
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
 app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
@@ -362,12 +367,9 @@ app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
 app.use('/api/*', notImplementedController);
-app.use('/.well-known/*', notImplementedController);
+app.use('/.well-known/*', publicFiles, notImplementedController);
 app.use('/nodeinfo/*', notImplementedController);
 app.use('/oauth/*', notImplementedController);
-
-const publicFiles = serveStatic({ root: './public/' });
-const staticFiles = serveStatic({ root: './static/' });
 
 // Known frontend routes
 app.get('/:acct{@.*}', frontendController);
