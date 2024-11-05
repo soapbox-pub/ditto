@@ -297,6 +297,8 @@ const updateInstanceSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   /** Mastodon doesn't have this field. */
+  short_description: z.string().optional(),
+  /** Mastodon doesn't have this field. */
   screenshot_ids: z.string().array().nullish(),
   /** Mastodon doesn't have this field. */
   thumbnail_id: z.string().optional(),
@@ -318,6 +320,7 @@ export const updateInstanceController: AppController = async (c) => {
       const {
         title,
         description,
+        short_description,
         screenshot_ids,
         thumbnail_id,
       } = result.data;
@@ -360,6 +363,7 @@ export const updateInstanceController: AppController = async (c) => {
 
       meta.name = title ?? meta.name;
       meta.about = description ?? meta.about;
+      meta.tagline = short_description ?? meta.tagline;
       meta.screenshots = screenshot_ids ? screenshots : meta.screenshots;
       meta.picture = thumbnailUrl ?? meta.picture;
       delete meta.event;
