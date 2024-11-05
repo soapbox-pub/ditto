@@ -362,6 +362,7 @@ export const updateInstanceController: AppController = async (c) => {
       meta.about = description ?? meta.about;
       meta.screenshots = screenshot_ids ? screenshots : meta.screenshots;
       meta.picture = thumbnailUrl ?? meta.picture;
+      delete meta.event;
 
       return {
         kind: 0,
