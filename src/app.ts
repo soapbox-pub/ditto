@@ -49,6 +49,7 @@ import {
   nameRequestController,
   nameRequestsController,
   statusZapSplitsController,
+  updateInstanceController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, notImplementedController } from '@/controllers/api/fallback.ts';
@@ -307,6 +308,8 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
+
+app.put('/api/v1/admin/ditto/instance', requireRole('admin'), updateInstanceController);
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);

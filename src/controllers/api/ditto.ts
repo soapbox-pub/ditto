@@ -1,19 +1,24 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { HTTPException } from '@hono/hono/http-exception';
 import { z } from 'zod';
 
-import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { AppController } from '@/app.ts';
-import { addTag } from '@/utils/tags.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginated, parseBody } from '@/utils/api.ts';
+import { dittoUploads } from '@/DittoUploads.ts';
+import { addTag } from '@/utils/tags.ts';
+import { getAuthor } from '@/queries.ts';
+import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { getAuthor } from '@/queries.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { screenshotsSchema } from '@/schemas/nostr.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
+import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
+import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
@@ -286,4 +291,87 @@ export const statusZapSplitsController: AppController = async (c) => {
   }))).filter((zapSplit) => zapSplit.weight > 0);
 
   return c.json(zapSplits, 200);
+};
+
+const updateInstanceSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  /** Mastodon doesn't have this field. */
+  screenshot_ids: z.string().array().nullish(),
+  /** Mastodon doesn't have this field. */
+  thumbnail_id: z.string().optional(),
+}).strict();
+
+export const updateInstanceController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = updateInstanceSchema.safeParse(body);
+  const pubkey = Conf.pubkey;
+
+  if (!result.success) {
+    return c.json(result.error, 422);
+  }
+
+  await updateEvent(
+    { kinds: [0], authors: [pubkey], limit: 1 },
+    async (_) => {
+      const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+      const {
+        title,
+        description,
+        screenshot_ids,
+        thumbnail_id,
+      } = result.data;
+
+      const thumbnailUrl: string | undefined = (() => {
+        if (!thumbnail_id) {
+          return undefined;
+        }
+
+        const upload = dittoUploads.get(thumbnail_id);
+
+        if (!upload) {
+          throw new HTTPException(422, { message: 'Uploaded attachment is no longer available.' });
+        }
+        return upload.url;
+      })();
+
+      const screenshots: z.infer<typeof screenshotsSchema> = (screenshot_ids ?? []).map((id) => {
+        const upload = dittoUploads.get(id);
+
+        if (!upload) {
+          throw new HTTPException(422, { message: 'Uploaded attachment is no longer available.' });
+        }
+
+        const data = renderAttachment(upload);
+
+        if (!data?.url || !data.meta?.original) {
+          throw new HTTPException(422, { message: 'Image must have an URL and size dimensions.' });
+        }
+
+        const screenshot = {
+          src: data.url,
+          label: data.description,
+          sizes: `${data?.meta?.original?.width}x${data?.meta?.original?.height}`,
+          type: data?.type, // FIX-ME, I BEG YOU: Returns just `image` instead of a valid MIME type
+        };
+
+        return screenshot;
+      });
+
+      meta.name = title ?? meta.name;
+      meta.about = description ?? meta.about;
+      meta.screenshots = screenshot_ids ? screenshots : meta.screenshots;
+      meta.picture = thumbnailUrl ?? meta.picture;
+      delete meta.event;
+
+      return {
+        kind: 0,
+        content: JSON.stringify(meta),
+        tags: [],
+      };
+    },
+    c,
+  );
+
+  return c.json(204);
 };

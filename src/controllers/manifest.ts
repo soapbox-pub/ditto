@@ -20,6 +20,7 @@ export const manifestController: AppController = async (c) => {
     scope: '/',
     short_name: meta.name,
     start_url: '/',
+    screenshots: meta.screenshots,
   };
 
   return c.json(manifest, {

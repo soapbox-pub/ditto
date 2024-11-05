@@ -65,6 +65,11 @@ const localeSchema = z.string().transform<Intl.Locale>((val, ctx) => {
   }
 });
 
+/** White-space separated list of sizes, each in the format <number with up to 4 digits>x<number with up to 4 digits> or with "X" in upper case. */
+const sizesSchema = z.string().refine((value) =>
+  value.split(' ').every((v) => /^[1-9]\d{0,3}[xX][1-9]\d{0,3}$/.test(v))
+);
+
 export {
   booleanParamSchema,
   decode64Schema,
@@ -75,4 +80,5 @@ export {
   localeSchema,
   percentageSchema,
   safeUrlSchema,
+  sizesSchema,
 };
