@@ -3,7 +3,7 @@ import { HTTPException } from '@hono/hono/http-exception';
 import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
-import { getOptionalNip94Metadata, toByteArray } from '@/utils/image-metadata.ts';
+import { getOptionalNip94Metadata } from '@/utils/image-metadata.ts';
 import type { Nip94MetadataOptional } from '@/interfaces/Nip94Metadata.ts';
 import { encodeHex } from '@std/encoding/hex';
 
@@ -53,7 +53,8 @@ export async function uploadFile(
     }
   }
   if (!tagMap.has('x') || !tagMap.has('ox')) {
-    const hash = metadata?.x || await crypto.subtle.digest('SHA-256', await toByteArray(file)).then(encodeHex);
+    const hash = metadata?.x ||
+      await crypto.subtle.digest('SHA-256', await new Response(file.stream()).bytes()).then(encodeHex);
     tags.push(['x', hash!]);
     tags.push(['ox', hash!]);
   }

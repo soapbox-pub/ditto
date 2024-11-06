@@ -6,23 +6,10 @@ import { Stickynotes } from '@soapbox/stickynotes';
 
 const console = new Stickynotes('ditto:uploaders');
 
-export function toByteArray(f: File): Promise<Uint8Array> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.addEventListener('loadend', (m) => {
-      if (m?.target?.result instanceof ArrayBuffer) {
-        resolve(new Uint8Array(m.target.result));
-      } else reject('Error loading file: readAsArrayBufferFailed');
-    });
-    reader.addEventListener('error', (e) => reject(e));
-    reader.readAsArrayBuffer(f);
-  });
-}
-
 export async function getOptionalNip94Metadata(f: File): Promise<Nip94MetadataOptional> {
   const tags: Nip94MetadataOptional = {};
   try {
-    const buffer = await toByteArray(f);
+    const buffer = await new Response(f.stream()).bytes();
     const hash = await crypto.subtle.digest('SHA-256', buffer).then(encodeHex);
     tags.x = tags.ox = hash;
     const img = sharp(buffer);
