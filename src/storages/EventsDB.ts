@@ -321,13 +321,13 @@ class EventsDB extends NPostgres {
         }
 
         if (domains.size) {
-          const query = this.opts.kysely
+          let query = this.opts.kysely
             .selectFrom('pubkey_domains')
             .select('pubkey')
             .where('domain', 'in', [...domains]);
 
           if (filter.authors) {
-            query.where('pubkey', 'in', filter.authors);
+            query = query.where('pubkey', 'in', filter.authors);
           }
 
           const pubkeys = await query.execute().then((rows) => rows.map((row) => row.pubkey));

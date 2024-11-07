@@ -1,3 +1,4 @@
+import { HTTPException } from '@hono/hono/http-exception';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -62,7 +63,7 @@ export const pushSubscribeController: AppController = async (c) => {
   const { subscription, data } = result.data;
 
   const pubkey = await signer.getPublicKey();
-  const tokenHash = await getTokenHash(accessToken as `token1${string}`);
+  const tokenHash = await getTokenHash(accessToken);
 
   const { id } = await kysely.transaction().execute(async (trx) => {
     await trx
@@ -105,13 +106,17 @@ export const getSubscriptionController: AppController = async (c) => {
   const accessToken = getAccessToken(c.req.raw);
 
   const kysely = await Storages.kysely();
-  const tokenHash = await getTokenHash(accessToken as `token1${string}`);
+  const tokenHash = await getTokenHash(accessToken);
 
   const row = await kysely
     .selectFrom('push_subscriptions')
     .selectAll()
     .where('token_hash', '=', tokenHash)
-    .executeTakeFirstOrThrow();
+    .executeTakeFirst();
+
+  if (!row) {
+    return c.json({ error: 'Record not found' }, 404);
+  }
 
   return c.json(
     {
@@ -124,8 +129,11 @@ export const getSubscriptionController: AppController = async (c) => {
   );
 };
 
-/** Get access token from HTTP headers, but only if it's a `token1`. Otherwise return undefined. */
-function getAccessToken(request: Request): `token1${string}` | undefined {
+/**
+ * Get access token from HTTP headers, but only if it's a `token1`.
+ * Otherwise throw an `HTTPException` with a 401.
+ */
+function getAccessToken(request: Request): `token1${string}` {
   const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
   const authorization = request.headers.get('authorization');
@@ -136,4 +144,6 @@ function getAccessToken(request: Request): `token1${string}` | undefined {
   if (accessToken?.startsWith('token1')) {
     return accessToken as `token1${string}`;
   }
+
+  throw new HTTPException(401, { message: 'The access token is invalid' });
 }

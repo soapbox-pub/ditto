@@ -96,6 +96,7 @@ const instanceV2Controller: AppController = async (c) => {
         '@2x': meta.picture,
       },
     },
+    screenshots: meta.screenshots,
     languages: [
       'en',
     ],
