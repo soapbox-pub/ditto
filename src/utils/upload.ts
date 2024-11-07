@@ -46,6 +46,7 @@ export async function uploadFile(
   const x = tags.find(([key]) => key === 'x')?.[1];
   const m = tags.find(([key]) => key === 'm')?.[1];
   const dim = tags.find(([key]) => key === 'dim')?.[1];
+  const size = tags.find(([key]) => key === 'size')?.[1];
   const blurhash = tags.find(([key]) => key === 'blurhash')?.[1];
 
   if (!x) {
@@ -55,6 +56,10 @@ export async function uploadFile(
 
   if (!m) {
     tags.push(['m', file.type]);
+  }
+
+  if (!size) {
+    tags.push(['size', file.size.toString()]);
   }
 
   // If the uploader didn't already, try to get a blurhash and media dimensions.
