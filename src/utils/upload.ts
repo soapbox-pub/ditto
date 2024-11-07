@@ -57,7 +57,9 @@ export async function uploadFile(
     tags.push(['m', file.type]);
   }
 
-  if (!blurhash || !dim) {
+  // If the uploader didn't already, try to get a blurhash and media dimensions.
+  // This requires `MEDIA_ANALYZE=true` to be configured because it comes with security tradeoffs.
+  if (Conf.mediaAnalyze && (!blurhash || !dim)) {
     try {
       const bytes = await new Response(file.stream()).bytes();
       const img = sharp(bytes);

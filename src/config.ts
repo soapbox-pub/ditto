@@ -201,6 +201,13 @@ class Conf {
 
     return value;
   }
+  /**
+   * Whether to analyze media metadata with [blurhash](https://www.npmjs.com/package/blurhash) and [sharp](https://www.npmjs.com/package/sharp).
+   * This is prone to security vulnerabilities, which is why it's not enabled by default.
+   */
+  static get mediaAnalyze(): boolean {
+    return optionalBooleanSchema.parse(Deno.env.get('MEDIA_ANALYZE')) ?? false;
+  }
   /** Max upload size for files in number of bytes. Default 100MiB. */
   static get maxUploadSize(): number {
     return Number(Deno.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);
