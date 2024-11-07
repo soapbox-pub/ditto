@@ -1,10 +1,8 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { HTTPException } from '@hono/hono/http-exception';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { dittoUploads } from '@/DittoUploads.ts';
 import { addTag } from '@/utils/tags.ts';
 import { getAuthor } from '@/queries.ts';
 import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
@@ -18,7 +16,6 @@ import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
-import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
@@ -294,14 +291,15 @@ export const statusZapSplitsController: AppController = async (c) => {
 };
 
 const updateInstanceSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
+  title: z.string(),
+  description: z.string(),
+  short_description: z.string(),
   /** Mastodon doesn't have this field. */
-  short_description: z.string().optional(),
-  /** Mastodon doesn't have this field. */
-  screenshot_ids: z.string().array().nullish(),
-  /** Mastodon doesn't have this field. */
-  thumbnail_id: z.string().optional(),
+  screenshots: screenshotsSchema,
+  /** https://docs.joinmastodon.org/entities/Instance/#thumbnail-url */
+  thumbnail: z.object({
+    url: z.string().url(),
+  }),
 }).strict();
 
 export const updateInstanceController: AppController = async (c) => {
@@ -321,51 +319,15 @@ export const updateInstanceController: AppController = async (c) => {
         title,
         description,
         short_description,
-        screenshot_ids,
-        thumbnail_id,
+        screenshots,
+        thumbnail,
       } = result.data;
 
-      const thumbnailUrl: string | undefined = (() => {
-        if (!thumbnail_id) {
-          return undefined;
-        }
-
-        const upload = dittoUploads.get(thumbnail_id);
-
-        if (!upload) {
-          throw new HTTPException(422, { message: 'Uploaded attachment is no longer available.' });
-        }
-        return upload.url;
-      })();
-
-      const screenshots: z.infer<typeof screenshotsSchema> = (screenshot_ids ?? []).map((id) => {
-        const upload = dittoUploads.get(id);
-
-        if (!upload) {
-          throw new HTTPException(422, { message: 'Uploaded attachment is no longer available.' });
-        }
-
-        const data = renderAttachment(upload);
-
-        if (!data?.url || !data.meta?.original) {
-          throw new HTTPException(422, { message: 'Image must have an URL and size dimensions.' });
-        }
-
-        const screenshot = {
-          src: data.url,
-          label: data.description,
-          sizes: `${data?.meta?.original?.width}x${data?.meta?.original?.height}`,
-          type: data?.type, // FIX-ME, I BEG YOU: Returns just `image` instead of a valid MIME type
-        };
-
-        return screenshot;
-      });
-
-      meta.name = title ?? meta.name;
-      meta.about = description ?? meta.about;
-      meta.tagline = short_description ?? meta.tagline;
-      meta.screenshots = screenshot_ids ? screenshots : meta.screenshots;
-      meta.picture = thumbnailUrl ?? meta.picture;
+      meta.name = title;
+      meta.about = description;
+      meta.tagline = short_description;
+      meta.screenshots = screenshots;
+      meta.picture = thumbnail.url;
       delete meta.event;
 
       return {

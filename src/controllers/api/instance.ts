@@ -97,6 +97,7 @@ const instanceV2Controller: AppController = async (c) => {
       },
     },
     screenshots: meta.screenshots,
+    short_description: meta.tagline,
     languages: [
       'en',
     ],
