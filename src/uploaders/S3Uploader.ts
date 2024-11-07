@@ -43,7 +43,6 @@ export class S3Uploader implements NUploader {
     const { pathStyle, bucket } = Conf.s3;
 
     const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
-
     const url = new URL(path, Conf.mediaDomain).toString();
 
     return [

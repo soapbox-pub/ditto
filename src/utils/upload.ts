@@ -1,11 +1,15 @@
 import { HTTPException } from '@hono/hono/http-exception';
+import { Stickynotes } from '@soapbox/stickynotes';
+import { crypto } from '@std/crypto';
+import { encodeHex } from '@std/encoding/hex';
+import { encode } from 'blurhash';
+import sharp from 'sharp';
 
 import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
-import { getOptionalNip94Metadata } from '@/utils/image-metadata.ts';
-import type { Nip94MetadataOptional } from '@/interfaces/Nip94Metadata.ts';
-import { encodeHex } from '@std/encoding/hex';
+
+const console = new Stickynotes('ditto:uploader');
 
 interface FileMeta {
   pubkey: string;
@@ -33,30 +37,50 @@ export async function uploadFile(
   }
 
   const tags = await uploader.upload(file, { signal });
-  const tagMap = tags.reduce((map, value) => map.set(value[0], value.slice(1)), new Map<string, string[]>());
-
   const url = tags[0][1];
 
   if (description) {
     tags.push(['alt', description]);
   }
 
-  let metadata: Nip94MetadataOptional | undefined;
-  if (!tagMap.has('dim')) {
-    // blurhash needs us to call sharp() anyway to decode the image data.
-    // all getOptionalNip94Metadata does is call these in sequence, plus
-    // one extra sha256 which is whatever (and actually does come in handy later.)
-    metadata ??= await getOptionalNip94Metadata(file);
-    tags.push(['dim', metadata.dim!]);
-    if (!tagMap.has('blurhash')) {
-      tags.push(['blurhash', metadata.blurhash!]);
-    }
+  const x = tags.find(([key]) => key === 'x')?.[1];
+  const m = tags.find(([key]) => key === 'm')?.[1];
+  const dim = tags.find(([key]) => key === 'dim')?.[1];
+  const blurhash = tags.find(([key]) => key === 'blurhash')?.[1];
+
+  if (!x) {
+    const sha256 = encodeHex(await crypto.subtle.digest('SHA-256', file.stream()));
+    tags.push(['x', sha256]);
   }
-  if (!tagMap.has('x') || !tagMap.has('ox')) {
-    const hash = metadata?.x ||
-      await crypto.subtle.digest('SHA-256', await new Response(file.stream()).bytes()).then(encodeHex);
-    tags.push(['x', hash!]);
-    tags.push(['ox', hash!]);
+
+  if (!m) {
+    tags.push(['m', file.type]);
+  }
+
+  if (!blurhash || !dim) {
+    try {
+      const bytes = await new Response(file.stream()).bytes();
+      const img = sharp(bytes);
+
+      const { width, height } = await img.metadata();
+
+      if (!dim && (width && height)) {
+        tags.push(['dim', `${width}x${height}`]);
+      }
+
+      if (!blurhash && (width && height)) {
+        const pixels = await img
+          .raw()
+          .ensureAlpha()
+          .toBuffer({ resolveWithObject: false })
+          .then((buffer) => new Uint8ClampedArray(buffer));
+
+        const blurhash = encode(pixels, width, height, 4, 4);
+        tags.push(['blurhash', blurhash]);
+      }
+    } catch (e) {
+      console.error(`Error parsing image metadata: ${e}`);
+    }
   }
 
   const upload = {
