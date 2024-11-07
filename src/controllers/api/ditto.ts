@@ -1,10 +1,8 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { HTTPException } from '@hono/hono/http-exception';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { dittoUploads } from '@/DittoUploads.ts';
 import { addTag } from '@/utils/tags.ts';
 import { getAuthor } from '@/queries.ts';
 import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
@@ -18,7 +16,6 @@ import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
-import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
