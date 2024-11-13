@@ -46,6 +46,7 @@
     "jsr:@nostrify/types@0.35": "0.35.0",
     "jsr:@nostrify/types@~0.30.1": "0.30.1",
     "jsr:@soapbox/kysely-pglite@1": "1.0.0",
+    "jsr:@soapbox/safe-fetch@2": "2.0.0",
     "jsr:@soapbox/stickynotes@0.4": "0.4.0",
     "jsr:@std/assert@0.223": "0.223.0",
     "jsr:@std/assert@0.224": "0.224.0",
@@ -120,6 +121,7 @@
     "npm:prom-client@^15.1.2": "15.1.2",
     "npm:sharp@~0.33.5": "0.33.5",
     "npm:tldts@^6.0.14": "6.1.18",
+    "npm:tldts@^6.1.61": "6.1.61",
     "npm:tseep@^1.2.1": "1.2.1",
     "npm:type-fest@^4.3.0": "4.18.2",
     "npm:unfurl.js@^6.4.0": "6.4.0",
@@ -481,6 +483,12 @@
       "integrity": "0954b1bf3deab051c479cba966b1e6ed5a0a966aa21d1f40143ec8f5efcd475d",
       "dependencies": [
         "npm:kysely@~0.27.4"
+      ]
+    },
+    "@soapbox/safe-fetch@2.0.0": {
+      "integrity": "f451d686501c76a0faa058fe9d2073676282a8a42c3b93c59159eb9191f11b5f",
+      "dependencies": [
+        "npm:tldts@^6.1.61"
       ]
     },
     "@soapbox/stickynotes@0.4.0": {
@@ -1522,6 +1530,9 @@
     "tldts-core@6.1.49": {
       "integrity": "sha512-ctRO/wzBasOCxAStJG/60Qe8/QpGmaVPsE8djdk0vioxN4uCOgKoveH71Qc2EOmVMIjVf0BjigI5p9ZDuLOygg=="
     },
+    "tldts-core@6.1.61": {
+      "integrity": "sha512-In7VffkDWUPgwa+c9picLUxvb0RltVwTkSgMNFgvlGSWveCzGBemBqTsgJCL4EDFWZ6WH0fKTsot6yNhzy3ZzQ=="
+    },
     "tldts@6.1.18": {
       "integrity": "sha512-F+6zjPFnFxZ0h6uGb8neQWwHQm8u3orZVFribsGq4eBgEVrzSkHxzWS2l6aKr19T1vXiOMFjqfff4fQt+WgJFg==",
       "dependencies": [
@@ -1532,6 +1543,12 @@
       "integrity": "sha512-E5se9HuCyfwWvmc0JiXiocOw+Cm4tlJCKewdB5RKMH8MmtiTsQCc+yu5BBYB5ZN4lNbz8Xg65bqJ1odS9+RhIA==",
       "dependencies": [
         "tldts-core@6.1.49"
+      ]
+    },
+    "tldts@6.1.61": {
+      "integrity": "sha512-rv8LUyez4Ygkopqn+M6OLItAOT9FF3REpPQDkdMx5ix8w4qkuE7Vo2o/vw1nxKQYmJDV8JpAMJQr1b+lTKf0FA==",
+      "dependencies": [
+        "tldts-core@6.1.61"
       ]
     },
     "to-regex-range@5.0.1": {
@@ -2181,8 +2198,6 @@
     "https://deno.land/x/sentry@7.112.2/index.mjs": "04382d5c2f4e233ba389611db46f77943b2a7f6efbeaaf31193f6e586f4366ef",
     "https://esm.sh/kysely@0.17.1/dist/esm/index-nodeless.js": "9c23bfd307118e3ccd3a9f0ec1261fc3451fb5301aa34aa6f28e05156818755a",
     "https://esm.sh/v135/kysely@0.17.1/denonext/dist/esm/index-nodeless.js": "6f73bbf2d73bc7e96cdabf941c4ae8c12f58fd7b441031edec44c029aed9532b",
-    "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/load.ts": "3f74ab08cf97d4a3e6994cb79422e9b0069495e017416858121d5ff8ae04ac2a",
-    "https://gitlab.com/soapbox-pub/deno-safe-fetch/-/raw/v1.0.0/mod.ts": "5f505cd265aefbcb687cde6f98c79344d3292ee1dd978e85e5ffa84a617c6682",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/deps.ts": "b3dbecae69c30a5f161323b8c8ebd91d9af1eceb98fafab3091c7281a4b64fed",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/mod.ts": "662438fd3909984bb8cbaf3fd44d2121e949d11301baf21d6c3f057ccf9887de",
     "https://gitlab.com/soapbox-pub/kysely-deno-postgres/-/raw/b4725e74ad6ca359ba0e370b55dbb8bb845a8a83/src/PostgreSQLDriver.ts": "ea5a523bceeed420858b744beeb95d48976cb2b0d3f519a68b65a8229036cf6a",
@@ -2272,6 +2287,7 @@
       "jsr:@nostrify/nostrify@0.36",
       "jsr:@nostrify/policies@0.35",
       "jsr:@soapbox/kysely-pglite@1",
+      "jsr:@soapbox/safe-fetch@2",
       "jsr:@soapbox/stickynotes@0.4",
       "jsr:@std/assert@~0.225.1",
       "jsr:@std/cli@0.223",

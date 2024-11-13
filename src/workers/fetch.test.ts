@@ -5,9 +5,9 @@ import { fetchWorker } from '@/workers/fetch.ts';
 Deno.test({
   name: 'fetchWorker',
   async fn() {
-    const response = await fetchWorker('http://httpbin.org/get');
+    const response = await fetchWorker('https://httpbingo.org/get');
     const json = await response.json();
-    assertEquals(json.headers.Host, 'httpbin.org');
+    assertEquals(json.headers.Host, ['httpbingo.org']);
   },
   sanitizeResources: false,
 });
@@ -19,7 +19,7 @@ Deno.test({
     const signal = controller.signal;
 
     setTimeout(() => controller.abort(), 100);
-    assertRejects(() => fetchWorker('http://httpbin.org/delay/10', { signal }));
+    assertRejects(() => fetchWorker('https://httpbingo.org/delay/10', { signal }));
 
     await new Promise<void>((resolve) => {
       signal.addEventListener('abort', () => resolve(), { once: true });
