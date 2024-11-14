@@ -20,7 +20,7 @@ check:
 
 test:
   stage: test
-  script: 
+  script:
     - sleep 1 && deno task test --coverage=cov_profile
     - deno coverage cov_profile
   coverage: /All files[^\|]*\|[^\|]*\s+([\d\.]+)/
