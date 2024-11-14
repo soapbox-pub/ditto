@@ -32,7 +32,7 @@ const screenshotsSchema = z.array(z.object({
     'play',
   ]).optional(),
   /** https://developer.mozilla.org/en-US/docs/Web/Manifest/screenshots#sizes */
-  sizes: sizesSchema,
+  sizes: sizesSchema.optional(),
   /** Absolute URL. */
   src: z.string().url(),
   /** MIME type of the image. */
