@@ -21,16 +21,15 @@ class PolicyWorker implements NPolicy {
         {
           type: 'module',
           name: 'PolicyWorker',
-          // FIXME: Disabled until Deno 2.0 adds support for `import` permission here.
-          // https://github.com/denoland/deno/issues/26074
-          // deno: {
-          //   permissions: {
-          //     read: [Conf.denoDir, Conf.policy, Conf.dataDir],
-          //     write: [Conf.dataDir],
-          //     net: 'inherit',
-          //     env: false,
-          //   },
-          // },
+          deno: {
+            permissions: {
+              read: [Conf.denoDir, Conf.policy, Conf.dataDir],
+              write: [Conf.dataDir],
+              net: 'inherit',
+              env: false,
+              import: true,
+            },
+          },
         },
       ),
     );

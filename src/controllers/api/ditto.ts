@@ -1,19 +1,21 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
-import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { AppController } from '@/app.ts';
-import { addTag } from '@/utils/tags.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { Conf } from '@/config.ts';
-import { createEvent, paginated, parseBody } from '@/utils/api.ts';
+import { addTag } from '@/utils/tags.ts';
+import { getAuthor } from '@/queries.ts';
+import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { getAuthor } from '@/queries.ts';
+import { AdminSigner } from '@/signers/AdminSigner.ts';
+import { screenshotsSchema } from '@/schemas/nostr.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
+import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
@@ -286,4 +288,56 @@ export const statusZapSplitsController: AppController = async (c) => {
   }))).filter((zapSplit) => zapSplit.weight > 0);
 
   return c.json(zapSplits, 200);
+};
+
+const updateInstanceSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  short_description: z.string(),
+  /** Mastodon doesn't have this field. */
+  screenshots: screenshotsSchema,
+  /** https://docs.joinmastodon.org/entities/Instance/#thumbnail-url */
+  thumbnail: z.object({
+    url: z.string().url(),
+  }),
+}).strict();
+
+export const updateInstanceController: AppController = async (c) => {
+  const body = await parseBody(c.req.raw);
+  const result = updateInstanceSchema.safeParse(body);
+  const pubkey = Conf.pubkey;
+
+  if (!result.success) {
+    return c.json(result.error, 422);
+  }
+
+  await updateEvent(
+    { kinds: [0], authors: [pubkey], limit: 1 },
+    async (_) => {
+      const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+      const {
+        title,
+        description,
+        short_description,
+        screenshots,
+        thumbnail,
+      } = result.data;
+
+      meta.name = title;
+      meta.about = description;
+      meta.tagline = short_description;
+      meta.screenshots = screenshots;
+      meta.picture = thumbnail.url;
+      delete meta.event;
+
+      return {
+        kind: 0,
+        content: JSON.stringify(meta),
+        tags: [],
+      };
+    },
+    c,
+  );
+
+  return c.json(204);
 };

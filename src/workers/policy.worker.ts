@@ -1,4 +1,4 @@
-import 'deno-safe-fetch/load';
+import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';

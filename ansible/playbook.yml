@@ -3,6 +3,13 @@
   hosts: all
   become: true
   tasks:
+    - name: Update Deno
+      shell:
+        cmd: curl -fsSL https://deno.land/x/install/install.sh | sh
+      environment:
+        DENO_INSTALL: /usr/local
+      become_user: root
+
     - name: Update Soapbox
       shell:
         cmd: deno task soapbox

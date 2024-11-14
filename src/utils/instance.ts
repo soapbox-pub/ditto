@@ -1,7 +1,8 @@
 import { NostrEvent, NostrMetadata, NSchema as n, NStore } from '@nostrify/nostrify';
+import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
-import { serverMetaSchema } from '@/schemas/nostr.ts';
+import { screenshotsSchema, serverMetaSchema } from '@/schemas/nostr.ts';
 
 /** Like NostrMetadata, but some fields are required and also contains some extra fields. */
 export interface InstanceMetadata extends NostrMetadata {
@@ -11,6 +12,7 @@ export interface InstanceMetadata extends NostrMetadata {
   picture: string;
   tagline: string;
   event?: NostrEvent;
+  screenshots: z.infer<typeof screenshotsSchema>;
 }
 
 /** Get and parse instance metadata from the kind 0 of the admin user. */
@@ -34,5 +36,6 @@ export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): 
     email: meta.email ?? `postmaster@${Conf.url.host}`,
     picture: meta.picture ?? Conf.local('/images/thumbnail.png'),
     event,
+    screenshots: meta.screenshots ?? [],
   };
 }

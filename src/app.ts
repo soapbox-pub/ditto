@@ -49,6 +49,7 @@ import {
   nameRequestController,
   nameRequestsController,
   statusZapSplitsController,
+  updateInstanceController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
 import { emptyArrayController, notImplementedController } from '@/controllers/api/fallback.ts';
@@ -168,6 +169,11 @@ type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response
 const app = new Hono<AppEnv>({ strict: false });
 
 const debug = Debug('ditto:http');
+
+/** User-provided files in the gitignored `public/` directory. */
+const publicFiles = serveStatic({ root: './public/' });
+/** Static files provided by the Ditto repo, checked into git. */
+const staticFiles = serveStatic({ root: './static/' });
 
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
@@ -303,6 +309,8 @@ app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAd
 app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
 
+app.put('/api/v1/admin/ditto/instance', requireRole('admin'), updateInstanceController);
+
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
 
@@ -362,12 +370,9 @@ app.get('/api/v1/conversations', emptyArrayController);
 app.get('/api/v1/lists', emptyArrayController);
 
 app.use('/api/*', notImplementedController);
-app.use('/.well-known/*', notImplementedController);
+app.use('/.well-known/*', publicFiles, notImplementedController);
 app.use('/nodeinfo/*', notImplementedController);
 app.use('/oauth/*', notImplementedController);
-
-const publicFiles = serveStatic({ root: './public/' });
-const staticFiles = serveStatic({ root: './static/' });
 
 // Known frontend routes
 app.get('/:acct{@.*}', frontendController);
