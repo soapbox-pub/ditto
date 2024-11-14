@@ -6,4 +6,4 @@ Note that Mastodon API is **not** ActivityPub. It is not the API used to federat
 
 Mastodon is built in Ruby on Rails, and its API is inspired by Twitter's legacy REST API. Rails, being an MVC framework, has "models", which it maps directly to "Entities" in its API.
 
-Endpoints return either a single Entity, or an array of Entities. Entities  Entities are JSON objects with a specific structure, and are documented in the [Mastodon API documentation](https://docs.joinmastodon.org/api/).
+Endpoints return either a single Entity, or an array of Entities. Entities Entities are JSON objects with a specific structure, and are documented in the [Mastodon API documentation](https://docs.joinmastodon.org/api/).

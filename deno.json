@@ -95,10 +95,6 @@
     "~/fixtures/": "./fixtures/"
   },
   "lint": {
-    "include": [
-      "src/",
-      "scripts/"
-    ],
     "rules": {
       "tags": [
         "recommended"
@@ -109,10 +105,6 @@
     }
   },
   "fmt": {
-    "include": [
-      "src/",
-      "scripts/"
-    ],
     "useTabs": false,
     "lineWidth": 120,
     "indentWidth": 2,

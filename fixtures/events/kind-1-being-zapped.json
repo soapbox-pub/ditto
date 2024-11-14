@@ -1,1 +1,13 @@
-{"kind":1,"id":"02e52f80e2e6a3ad0993e9c4a7b4e6afc79d067c6ff9c6df3fb2896342dee2df","pubkey":"47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4","created_at":1724609131,"tags":[["e","677c701036eae20632a7677ee6eece0c62e259d5c72864d78a3bbe419c0d2d2c","wss://gleasonator.dev/relay","root"],["e","677c701036eae20632a7677ee6eece0c62e259d5c72864d78a3bbe419c0d2d2c","wss://gleasonator.dev/relay","reply"],["p","82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2"]],"content":"Please I don't want to go back to the shoe factory","sig":"ce6ca329701eec5db0b182bd52c48777b9eccaac298180a6601d8c5156060d944768d71376e7d24c24cefb6619d1467f6a30e0ca574d68f748b38c784e4ced59"}
+{
+  "kind": 1,
+  "id": "02e52f80e2e6a3ad0993e9c4a7b4e6afc79d067c6ff9c6df3fb2896342dee2df",
+  "pubkey": "47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4",
+  "created_at": 1724609131,
+  "tags": [
+    ["e", "677c701036eae20632a7677ee6eece0c62e259d5c72864d78a3bbe419c0d2d2c", "wss://gleasonator.dev/relay", "root"],
+    ["e", "677c701036eae20632a7677ee6eece0c62e259d5c72864d78a3bbe419c0d2d2c", "wss://gleasonator.dev/relay", "reply"],
+    ["p", "82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2"]
+  ],
+  "content": "Please I don't want to go back to the shoe factory",
+  "sig": "ce6ca329701eec5db0b182bd52c48777b9eccaac298180a6601d8c5156060d944768d71376e7d24c24cefb6619d1467f6a30e0ca574d68f748b38c784e4ced59"
+}
