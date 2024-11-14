@@ -1,0 +1,291 @@
+{
+  "configs": [{
+    "db": [
+      ":soapbox_fe"
+    ],
+    "group": ":pleroma",
+    "key": ":frontend_configurations",
+    "value": [
+      {
+        "tuple": [
+          ":pleroma_fe",
+          {
+            ":alwaysShowSubjectInput": true,
+            ":background": "/images/city.jpg",
+            ":collapseMessageWithSubject": false,
+            ":disableChat": false,
+            ":greentext": false,
+            ":hideFilteredStatuses": false,
+            ":hideMutedPosts": false,
+            ":hidePostStats": false,
+            ":hideSitename": false,
+            ":hideUserStats": false,
+            ":loginMethod": "password",
+            ":logo": "/static/logo.svg",
+            ":logoMargin": ".1em",
+            ":logoMask": true,
+            ":minimalScopesMode": false,
+            ":noAttachmentLinks": false,
+            ":nsfwCensorImage": "",
+            ":postContentType": "text/plain",
+            ":redirectRootLogin": "/main/friends",
+            ":redirectRootNoLogin": "/main/all",
+            ":scopeCopy": true,
+            ":showFeaturesPanel": true,
+            ":showInstanceSpecificPanel": false,
+            ":sidebarRight": false,
+            ":subjectLineBehavior": "email",
+            ":theme": "pleroma-dark",
+            ":webPushNotifications": false
+          }
+        ]
+      },
+      {
+        "tuple": [
+          ":soapbox_fe",
+          {
+            "aboutPages": {},
+            "ads": [
+              {
+                "card": {
+                  "height": 564,
+                  "image": "https://media.gleasonator.com/3c331456d0d0f9f9ad91eab0efbb4df22a044f92bdf6ef349b26de97db5ca3bd.png",
+                  "type": "link",
+                  "url": "https://www.veganbodybuilding.com/",
+                  "width": 564
+                }
+              },
+              {
+                "card": {
+                  "height": 250,
+                  "image": "https://media.gleasonator.com/22590c7cb3edd8ac82660301be980c6fcad6b96a320e24f709ad0571a29ea0aa.png",
+                  "type": "link",
+                  "url": "https://poa.st",
+                  "width": 300
+                }
+              }
+            ],
+            "allowedEmoji": [
+              "👍",
+              "⚡",
+              "❤",
+              "😂",
+              "😯",
+              "😢",
+              "😡"
+            ],
+            "authenticatedProfile": false,
+            "banner": "",
+            "betaPages": {},
+            "brandColor": "#1ca82b",
+            "colors": {
+              "accent": {
+                "100": "#eafae7",
+                "200": "#caf4c3",
+                "300": "#6bdf58",
+                "400": "#55da40",
+                "50": "#f4fdf3",
+                "500": "#2bd110",
+                "600": "#27bc0e",
+                "700": "#209d0c",
+                "800": "#0d3f05",
+                "900": "#082803"
+              },
+              "accent-blue": "#199727",
+              "danger": {
+                "100": "#fee2e2",
+                "200": "#fecaca",
+                "300": "#fca5a5",
+                "400": "#f87171",
+                "50": "#fef2f2",
+                "500": "#ef4444",
+                "600": "#dc2626",
+                "700": "#b91c1c",
+                "800": "#991b1b",
+                "900": "#7f1d1d"
+              },
+              "gradient-end": "#2bd110",
+              "gradient-start": "#1ca82b",
+              "gray": {
+                "100": "#f1f6f2",
+                "200": "#dde8de",
+                "300": "#9ebfa2",
+                "400": "#91b595",
+                "50": "#f8faf8",
+                "500": "#75a37a",
+                "600": "#69936e",
+                "700": "#4c504c",
+                "800": "#233125",
+                "900": "#161f17"
+              },
+              "greentext": "#789922",
+              "primary": {
+                "100": "#e8f6ea",
+                "200": "#c6e9ca",
+                "300": "#60c26b",
+                "400": "#49b955",
+                "50": "#f4fbf4",
+                "500": "#1ca82b",
+                "600": "#199727",
+                "700": "#157e20",
+                "800": "#08320d",
+                "900": "#052008"
+              },
+              "secondary": {
+                "100": "#eafae7",
+                "200": "#cef4c3",
+                "300": "#7cdf58",
+                "400": "#71da40",
+                "50": "#f9fdf3",
+                "500": "#359713",
+                "600": "#4ebc0e",
+                "700": "#2f9d0c",
+                "800": "#173f05",
+                "900": "#282828"
+              },
+              "success": {
+                "100": "#dcfce7",
+                "200": "#bbf7d0",
+                "300": "#86efac",
+                "400": "#4ade80",
+                "50": "#f0fdf4",
+                "500": "#22c55e",
+                "600": "#16a34a",
+                "700": "#15803d",
+                "800": "#166534",
+                "900": "#14532d"
+              }
+            },
+            "copyright": "♥2022. Copying is an act of love. Please copy and share.",
+            "cryptoAddresses": [
+              {
+                "address": "bc1q9cx35adpm73aq2fw40ye6ts8hfxqzjr5unwg0n",
+                "ticker": "btc"
+              },
+              {
+                "address": "0xAc9aB5Fc04Dc1cB1789Af75b523Bd23C70B2D717",
+                "ticker": "eth"
+              },
+              {
+                "address": "D5zVZs6jrRakaPVGiErkQiHt9sayzm6V5D",
+                "ticker": "doge"
+              },
+              {
+                "address": "0x541a45cb212b57f41393427fb15335fc89c35851",
+                "ticker": "ubq"
+              },
+              {
+                "address": "45JDCLrjJ4bgVUSbbs2yjy9m5Mf4VLPW8fG7jw9sq5u69rXZZopQogZNeyYkMBnXpkaip4p4QwaaJNhdTotPa9g44DBCzdK",
+                "ticker": "xmr"
+              },
+              {
+                "address": "ltc1qda645jdf4jszwxcvsn32ykdhemvlx7yl9n5gz9",
+                "ticker": "ltc"
+              },
+              {
+                "address": "bitcoincash:qpcfnm9w8uemax38yqhyg58zn2ptpf6szvkr0n48a7",
+                "ticker": "bch"
+              },
+              {
+                "address": "XnB5p4JvL3So91A1c1MERozZEjeMSsAD7J",
+                "ticker": "dash"
+              },
+              {
+                "address": "t1PHZX5ZjY7y61iC19A958W9hdyH3SiLJuF",
+                "ticker": "zec"
+              },
+              {
+                "address": "0xB81BAEE10d163404a1c60045a872a0da9E258465",
+                "ticker": "etc"
+              },
+              {
+                "address": "AGTLRXapPYpxt3PLdiXEs8y4kLw6Qy3C4t",
+                "ticker": "btg"
+              },
+              {
+                "address": "SbQcFUDi7kKyxkmskzW3w74x68H5eUrg76",
+                "ticker": "dgb"
+              },
+              {
+                "address": "N7nompUVxz5ATrzRVTzw7CaAJoSiVtEcQx",
+                "ticker": "nmc"
+              },
+              {
+                "address": "3AQcUgCbF6ymiR4HGCU8ANx9SqbzL6nx8r",
+                "ticker": "vtc"
+              }
+            ],
+            "cryptoDonatePanel": {
+              "limit": 1
+            },
+            "customCss": [],
+            "defaultSettings": {
+              "themeMode": "system"
+            },
+            "displayFqn": true,
+            "extensions": {
+              "ads": {
+                "enabled": false,
+                "interval": 40,
+                "provider": "soapbox"
+              },
+              "patron": {
+                "enabled": true
+              }
+            },
+            "features": {
+              "accountAliases": true
+            },
+            "feedInjection": true,
+            "gdpr": false,
+            "greentext": true,
+            "logo": "https://media.gleasonator.com/0c760b3ecdbc993ba47b785d0adecf0ec71fd9c59808e27d0665b9f77a32d8de.png",
+            "mediaPreview": false,
+            "mobilePages": {},
+            "navlinks": {
+              "homeFooter": [
+                {
+                  "title": "About",
+                  "url": "/about"
+                },
+                {
+                  "title": "Terms of Service",
+                  "url": "/about/tos"
+                },
+                {
+                  "title": "Privacy Policy",
+                  "url": "/about/privacy"
+                },
+                {
+                  "title": "DMCA",
+                  "url": "/about/dmca"
+                },
+                {
+                  "title": "Source Code",
+                  "url": "/about#opensource"
+                }
+              ]
+            },
+            "promoPanel": {
+              "items": [
+                {
+                  "icon": "music",
+                  "text": "Gleasonator theme song",
+                  "url": "https://media.gleasonator.com/custom/261905_gleasonator_song.mp3"
+                }
+              ]
+            },
+            "redirectRootNoLogin": "",
+            "sentryDsn": "https://95c1dd3284d7284134928059844ba086@o4505999744499712.ingest.sentry.io/4505999904931840",
+            "singleUserMode": false,
+            "singleUserModeProfile": "",
+            "tileServer": "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+            "tileServerAttribution": "© OpenStreetMap Contributors",
+            "verifiedCanEditName": true,
+            "verifiedIcon": ""
+          }
+        ]
+      }
+    ]
+  }]
+}

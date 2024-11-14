@@ -1,8 +1,7 @@
 import type { PleromaConfig } from '@/schemas/pleroma-api.ts';
 
 export class PleromaConfigDB {
-  constructor(private configs: PleromaConfig[]) {
-  }
+  constructor(private configs: PleromaConfig[]) {}
 
   get(group: string, key: string): PleromaConfig | undefined {
     return this.configs.find((c) => c.group === group && c.key === key);
