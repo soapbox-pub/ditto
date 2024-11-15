@@ -19,12 +19,16 @@ export const cspMiddleware = (): AppMiddleware => {
     const configDB = await configDBCache;
     const sentryDsn = configDB.getIn(':pleroma', ':frontend_configurations', ':soapbox_fe', 'sentryDsn');
 
+    const connectSrc = ["'self'", 'blob:', origin, `${wsProtocol}//${host}`];
+
+    if (typeof sentryDsn === 'string') {
+      connectSrc.push(sentryDsn);
+    }
+
     const policies = [
       'upgrade-insecure-requests',
       `script-src 'self'`,
-      `connect-src 'self' blob: ${origin} ${wsProtocol}//${host}` + typeof sentryDsn === 'string'
-        ? ` ${sentryDsn}`
-        : '',
+      `connect-src ${connectSrc.join(' ')}`,
       `media-src 'self' https:`,
       `img-src 'self' data: blob: https:`,
       `default-src 'none'`,
