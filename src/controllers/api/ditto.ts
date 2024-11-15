@@ -311,10 +311,11 @@ export const updateInstanceController: AppController = async (c) => {
     return c.json(result.error, 422);
   }
 
+  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+
   await updateAdminEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },
-    async (_) => {
-      const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+    (_) => {
       const {
         title,
         description,
