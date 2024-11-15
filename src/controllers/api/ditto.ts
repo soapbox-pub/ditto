@@ -300,7 +300,7 @@ const updateInstanceSchema = z.object({
   thumbnail: z.object({
     url: z.string().url(),
   }),
-}).strict();
+});
 
 export const updateInstanceController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
