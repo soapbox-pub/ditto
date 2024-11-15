@@ -22,7 +22,12 @@ export const cspMiddleware = (): AppMiddleware => {
     const connectSrc = ["'self'", 'blob:', origin, `${wsProtocol}//${host}`];
 
     if (typeof sentryDsn === 'string') {
-      connectSrc.push(sentryDsn);
+      try {
+        const dsn = new URL(sentryDsn);
+        connectSrc.push(dsn.origin);
+      } catch {
+        // Ignore
+      }
     }
 
     const policies = [
