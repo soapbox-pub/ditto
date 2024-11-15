@@ -1,15 +1,39 @@
 import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
+import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
+import { Storages } from '@/storages.ts';
+import { getPleromaConfigs } from '@/utils/pleroma.ts';
+
+let configDBCache: Promise<PleromaConfigDB> | undefined;
 
 export const cspMiddleware = (): AppMiddleware => {
   return async (c, next) => {
+    const store = await Storages.db();
+
+    if (!configDBCache) {
+      configDBCache = getPleromaConfigs(store);
+    }
+
     const { host, protocol, origin } = Conf.url;
     const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
+    const configDB = await configDBCache;
+    const sentryDsn = configDB.getIn(':pleroma', ':frontend_configurations', ':soapbox_fe', 'sentryDsn');
+
+    const connectSrc = ["'self'", 'blob:', origin, `${wsProtocol}//${host}`];
+
+    if (typeof sentryDsn === 'string') {
+      try {
+        const dsn = new URL(sentryDsn);
+        connectSrc.push(dsn.origin);
+      } catch {
+        // Ignore
+      }
+    }
 
     const policies = [
       'upgrade-insecure-requests',
       `script-src 'self'`,
-      `connect-src 'self' blob: ${origin} ${wsProtocol}//${host}`,
+      `connect-src ${connectSrc.join(' ')}`,
       `media-src 'self' https:`,
       `img-src 'self' data: blob: https:`,
       `default-src 'none'`,
