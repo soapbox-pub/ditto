@@ -111,12 +111,12 @@ function updateListAdminEvent(
 /** Fetch existing event, update it, then publish the new admin event. */
 async function updateAdminEvent<E extends EventStub>(
   filter: UpdateEventFilter,
-  fn: (prev: NostrEvent | undefined) => E,
+  fn: (prev: NostrEvent | undefined) => E | Promise<E>,
   c: AppContext,
 ): Promise<NostrEvent> {
   const store = await Storages.db();
   const [prev] = await store.query([filter], { limit: 1, signal: c.req.raw.signal });
-  return createAdminEvent(fn(prev), c);
+  return createAdminEvent(await fn(prev), c);
 }
 
 function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {

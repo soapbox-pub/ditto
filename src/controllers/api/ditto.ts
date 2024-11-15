@@ -5,7 +5,7 @@ import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { addTag } from '@/utils/tags.ts';
 import { getAuthor } from '@/queries.ts';
-import { createEvent, paginated, parseBody, updateEvent } from '@/utils/api.ts';
+import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -311,7 +311,7 @@ export const updateInstanceController: AppController = async (c) => {
     return c.json(result.error, 422);
   }
 
-  await updateEvent(
+  await updateAdminEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },
     async (_) => {
       const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
