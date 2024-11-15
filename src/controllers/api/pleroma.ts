@@ -1,4 +1,3 @@
-import { NSchema as n, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -8,11 +7,11 @@ import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
-import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
+import { getPleromaConfigs } from '@/utils/pleroma.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const store = await Storages.db();
-  const configDB = await getConfigs(store, c.req.raw.signal);
+  const configDB = await getPleromaConfigs(store, c.req.raw.signal);
   const frontendConfig = configDB.get(':pleroma', ':frontend_configurations');
 
   if (frontendConfig) {
@@ -29,7 +28,7 @@ const frontendConfigController: AppController = async (c) => {
 
 const configController: AppController = async (c) => {
   const store = await Storages.db();
-  const configs = await getConfigs(store, c.req.raw.signal);
+  const configs = await getPleromaConfigs(store, c.req.raw.signal);
   return c.json({ configs, need_reboot: false });
 };
 
@@ -38,7 +37,7 @@ const updateConfigController: AppController = async (c) => {
   const { pubkey } = Conf;
 
   const store = await Storages.db();
-  const configs = await getConfigs(store, c.req.raw.signal);
+  const configs = await getPleromaConfigs(store, c.req.raw.signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   configs.merge(newConfigs);
@@ -63,29 +62,6 @@ const pleromaAdminDeleteStatusController: AppController = async (c) => {
 
   return c.json({});
 };
-
-async function getConfigs(store: NStore, signal: AbortSignal): Promise<PleromaConfigDB> {
-  const { pubkey } = Conf;
-
-  const [event] = await store.query([{
-    kinds: [30078],
-    authors: [pubkey],
-    '#d': ['pub.ditto.pleroma.config'],
-    limit: 1,
-  }], { signal });
-
-  if (!event) {
-    return new PleromaConfigDB([]);
-  }
-
-  try {
-    const decrypted = await new AdminSigner().nip44.decrypt(Conf.pubkey, event.content);
-    const configs = n.json().pipe(configSchema.array()).catch([]).parse(decrypted);
-    return new PleromaConfigDB(configs);
-  } catch (_e) {
-    return new PleromaConfigDB([]);
-  }
-}
 
 const pleromaAdminTagSchema = z.object({
   nicknames: z.string().array(),
