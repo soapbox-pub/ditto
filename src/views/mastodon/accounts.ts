@@ -43,7 +43,7 @@ async function renderAccount(
     lud06,
     lud16,
     website,
-    fields,
+    fields: _fields,
   } = n.json().pipe(metadataSchema).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
@@ -60,6 +60,7 @@ async function renderAccount(
     }
   }
   const { html } = parseNoteContent(about || '', []);
+  const fields = _fields?.map(([name, value]) => ({ name, value, verified_at: null })) ?? [];
 
   return {
     id: pubkey,
@@ -71,7 +72,7 @@ async function renderAccount(
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields: fields?.map(([name, value]) => ({ name, value, verified_at: null })) ?? [],
+    fields,
     follow_requests_count: 0,
     followers_count: event.author_stats?.followers_count ?? 0,
     following_count: event.author_stats?.following_count ?? 0,
@@ -84,7 +85,7 @@ async function renderAccount(
     roles: [],
     source: opts.withSource
       ? {
-        fields: [],
+        fields,
         language: '',
         note: about || '',
         privacy: 'public',
