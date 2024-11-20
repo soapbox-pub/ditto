@@ -9,6 +9,11 @@ const signedEventSchema = n.event()
   .refine((event) => event.id === getEventHash(event), 'Event ID does not match hash')
   .refine(verifyEvent, 'Event signature is invalid');
 
+/** Kind 0 standardized fields extended with Ditto custom fields. */
+const metadataSchema = n.metadata().and(z.object({
+  fields: z.tuple([z.string(), z.string()]).array().optional().catch(undefined),
+}));
+
 /**
  * Stored in the kind 0 content.
  * https://developer.mozilla.org/en-US/docs/Web/Manifest/screenshots
@@ -63,4 +68,12 @@ const emojiTagSchema = z.tuple([z.literal('emoji'), z.string(), z.string().url()
 /** NIP-30 custom emoji tag. */
 type EmojiTag = z.infer<typeof emojiTagSchema>;
 
-export { type EmojiTag, emojiTagSchema, relayInfoDocSchema, screenshotsSchema, serverMetaSchema, signedEventSchema };
+export {
+  type EmojiTag,
+  emojiTagSchema,
+  metadataSchema,
+  relayInfoDocSchema,
+  screenshotsSchema,
+  serverMetaSchema,
+  signedEventSchema,
+};

@@ -2,7 +2,6 @@ import { type Context } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import Debug from '@soapbox/stickynotes/debug';
-import { parseFormData } from 'formdata-helper';
 import { EventTemplate } from 'nostr-tools';
 import * as TypeFest from 'type-fest';
 
@@ -13,6 +12,7 @@ import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
+import { parseFormData } from '@/utils/formdata.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 
 const debug = Debug('ditto:api');
@@ -182,7 +182,11 @@ async function parseBody(req: Request): Promise<unknown> {
   switch (req.headers.get('content-type')?.split(';')[0]) {
     case 'multipart/form-data':
     case 'application/x-www-form-urlencoded':
-      return parseFormData(await req.formData());
+      try {
+        return parseFormData(await req.formData());
+      } catch {
+        throw new HTTPException(400, { message: 'Invalid form data' });
+      }
     case 'application/json':
       return req.json();
   }
