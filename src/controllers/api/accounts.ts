@@ -15,6 +15,7 @@ import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts'
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderRelationship } from '@/views/mastodon/relationships.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
+import { metadataSchema } from '@/schemas/nostr.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
@@ -269,6 +270,7 @@ const updateCredentialsSchema = z.object({
   pleroma_settings_store: z.record(z.string(), z.unknown()).optional(),
   lud16: z.string().email().or(z.literal('')).optional(),
   website: z.string().url().or(z.literal('')).optional(),
+  fields_attributes: z.object({ name: z.string(), value: z.string() }).array().optional(),
 });
 
 const updateCredentialsController: AppController = async (c) => {
@@ -284,11 +286,12 @@ const updateCredentialsController: AppController = async (c) => {
   const event = await updateEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },
     async (prev) => {
-      const meta = n.json().pipe(n.metadata()).catch({}).parse(prev.content);
+      const meta = n.json().pipe(metadataSchema).catch({}).parse(prev.content);
       const {
         avatar: avatarFile,
         header: headerFile,
         display_name,
+        fields_attributes,
         note,
         nip05,
         lud16,
@@ -315,6 +318,10 @@ const updateCredentialsController: AppController = async (c) => {
       if (nip05 === '') delete meta.nip05;
       if (lud16 === '') delete meta.lud16;
       if (website === '') delete meta.website;
+
+      if (fields_attributes) {
+        meta.fields = fields_attributes.map(({ name, value }) => [name, value]);
+      }
 
       return {
         kind: 0,

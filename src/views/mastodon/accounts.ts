@@ -4,6 +4,7 @@ import { nip19, UnsignedEvent } from 'nostr-tools';
 import { Conf } from '@/config.ts';
 import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { metadataSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
 import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 import { parseNoteContent } from '@/utils/note.ts';
@@ -42,7 +43,8 @@ async function renderAccount(
     lud06,
     lud16,
     website,
-  } = n.json().pipe(n.metadata()).catch({}).parse(event.content);
+    fields,
+  } = n.json().pipe(metadataSchema).catch({}).parse(event.content);
 
   const npub = nip19.npubEncode(pubkey);
   const nprofile = nip19.nprofileEncode({ pubkey, relays: [Conf.relay] });
@@ -69,7 +71,7 @@ async function renderAccount(
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields: [],
+    fields: fields?.map(([name, value]) => ({ name, value, verified_at: null })) ?? [],
     follow_requests_count: 0,
     followers_count: event.author_stats?.followers_count ?? 0,
     following_count: event.author_stats?.following_count ?? 0,
