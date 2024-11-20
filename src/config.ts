@@ -350,6 +350,17 @@ class Conf {
       };
     },
   };
+  static profileFields = {
+    get maxFields(): number {
+      return Number(Deno.env.get('PROFILE_FIELDS_MAX_FIELDS') || 10);
+    },
+    get nameLength(): number {
+      return Number(Deno.env.get('PROFILE_FIELDS_NAME_LENGTH') || 255);
+    },
+    get valueLength(): number {
+      return Number(Deno.env.get('PROFILE_FIELDS_VALUE_LENGTH') || 2047);
+    },
+  };
 }
 
 const optionalBooleanSchema = z

@@ -50,7 +50,9 @@ const instanceV1Controller: AppController = async (c) => {
       metadata: {
         features,
         fields_limits: {
-          max_fields: 10,
+          max_fields: Conf.profileFields.maxFields,
+          name_length: Conf.profileFields.nameLength,
+          value_length: Conf.profileFields.valueLength,
         },
       },
     },
@@ -145,7 +147,9 @@ const instanceV2Controller: AppController = async (c) => {
       metadata: {
         features,
         fields_limits: {
-          max_fields: 10,
+          max_fields: Conf.profileFields.maxFields,
+          name_length: Conf.profileFields.nameLength,
+          value_length: Conf.profileFields.valueLength,
         },
       },
     },
