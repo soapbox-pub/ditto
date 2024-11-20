@@ -49,6 +49,9 @@ const instanceV1Controller: AppController = async (c) => {
     pleroma: {
       metadata: {
         features,
+        fields_limits: {
+          max_fields: 10,
+        },
       },
     },
     languages: ['en'],
@@ -141,6 +144,9 @@ const instanceV2Controller: AppController = async (c) => {
     pleroma: {
       metadata: {
         features,
+        fields_limits: {
+          max_fields: 10,
+        },
       },
     },
     registrations: {
