@@ -79,7 +79,7 @@ async function renderAccount(
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields,
+    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, []).html })),
     follow_requests_count: 0,
     followers_count: event.author_stats?.followers_count ?? 0,
     following_count: event.author_stats?.following_count ?? 0,
