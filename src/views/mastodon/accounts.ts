@@ -60,7 +60,7 @@ async function renderAccount(
     }
   }
   const { html } = parseNoteContent(about || '', []);
-  const fields = _fields?.map(([name, value]) => ({ name, value, verified_at: null })) ?? [];
+  const fields = _fields?.slice(0, 10).map(([name, value]) => ({ name, value, verified_at: null })) ?? [];
 
   return {
     id: pubkey,
