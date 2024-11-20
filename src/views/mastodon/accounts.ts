@@ -60,7 +60,14 @@ async function renderAccount(
     }
   }
   const { html } = parseNoteContent(about || '', []);
-  const fields = _fields?.map(([name, value]) => ({ name, value, verified_at: null })) ?? [];
+
+  const fields = _fields
+    ?.slice(0, Conf.profileFields.maxFields)
+    .map(([name, value]) => ({
+      name: name.slice(0, Conf.profileFields.nameLength),
+      value: value.slice(0, Conf.profileFields.valueLength),
+      verified_at: null,
+    })) ?? [];
 
   return {
     id: pubkey,
