@@ -31,7 +31,7 @@ const importUsers = async (
     try {
       await doEvent(event);
     } catch (error) {
-      if (error.message.includes('violates unique constraint')) {
+      if (error instanceof Error && error.message.includes('violates unique constraint')) {
         console.warn(`Skipping existing event ${event.id}...`);
       } else {
         console.error(error);

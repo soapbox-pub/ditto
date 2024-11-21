@@ -56,7 +56,7 @@ if (import.meta.main) {
             })
             .then(async (blob) =>
               await pngToIco(Buffer.from(await blob.arrayBuffer()))
-                .then(async (buf) => await Deno.writeFile('./public/favicon.ico', buf))
+                .then(async (buf) => await Deno.writeFile('./public/favicon.ico', new Uint8Array(buf)))
             );
         } catch (e) {
           die(1, `Error generating favicon from url ${image}: "${e}". Please check this or try again without --image.`);
