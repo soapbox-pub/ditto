@@ -10,7 +10,7 @@
     "nostr:pull": "deno run -A --env-file --deny-read=.env scripts/nostr-pull.ts",
     "debug": "deno run -A --env-file --deny-read=.env --inspect src/server.ts",
     "test": "deno test -A --env-file=.env.test --deny-read=.env --junit-path=./deno-test.xml",
-    "check": "deno check --allow-import src/server.ts",
+    "check": "deno check --allow-import .",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A --env-file --deny-read=.env scripts/admin-event.ts",
     "admin:role": "deno run -A --env-file --deny-read=.env scripts/admin-role.ts",

@@ -30,7 +30,7 @@ for await (const line of readable) {
       await store.event(event);
       console.warn(`(${count}) Event<${event.kind}> ${event.id}`);
     } catch (error) {
-      if (error.message.includes('violates unique constraint')) {
+      if (error instanceof Error && error.message.includes('violates unique constraint')) {
         console.warn(`(${count}) Skipping existing event... ${event.id}`);
       } else {
         console.error(error);

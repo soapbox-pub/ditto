@@ -12,9 +12,12 @@ for await (const msg of store.req([{ kinds: [0] }])) {
     const search = [name, nip05].filter(Boolean).join(' ').trim();
 
     try {
-      await kysely.insertInto('author_search').values({
+      await kysely.insertInto('author_stats').values({
         pubkey,
         search,
+        followers_count: 0,
+        following_count: 0,
+        notes_count: 0,
       }).onConflict(
         (oc) =>
           oc.column('pubkey')
