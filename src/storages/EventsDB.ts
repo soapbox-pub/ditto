@@ -10,7 +10,7 @@ import { nip27 } from 'nostr-tools';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { dbEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
-import { isNostrId, isURL } from '@/utils.ts';
+import { isNostrId } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -49,7 +49,7 @@ class EventsDB extends NPostgres {
     'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
     'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
-    'proxy': ({ count, value }) => count === 0 && isURL(value),
+    'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
     't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,

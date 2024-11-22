@@ -1,6 +1,5 @@
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { z } from 'zod';
 
 /** Get the current time in Nostr format. */
 const nostrNow = (): number => Math.floor(Date.now() / 1000);
@@ -69,11 +68,6 @@ function isNostrId(value: unknown): boolean {
   return n.id().safeParse(value).success;
 }
 
-/** Test whether the value is a URL. */
-function isURL(value: unknown): boolean {
-  return z.string().url().safeParse(value).success;
-}
-
 /** Render an empty author event so other things can stick to it. */
 function fallbackAuthor(pubkey: string): NostrEvent {
   return {
@@ -87,17 +81,6 @@ function fallbackAuthor(pubkey: string): NostrEvent {
   };
 }
 
-export {
-  bech32ToPubkey,
-  eventAge,
-  fallbackAuthor,
-  findTag,
-  isNostrId,
-  isURL,
-  type Nip05,
-  nostrDate,
-  nostrNow,
-  parseNip05,
-};
+export { bech32ToPubkey, eventAge, fallbackAuthor, findTag, isNostrId, type Nip05, nostrDate, nostrNow, parseNip05 };
 
 export { Time } from '@/utils/time.ts';
