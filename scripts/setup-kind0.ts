@@ -7,7 +7,7 @@ import { Conf } from '@/config.ts';
 import pngToIco from 'png-to-ico';
 import { Storages } from '@/storages.ts';
 
-function die(code: number, ...args: any[]) {
+function die(code: number, ...args: unknown[]) {
   console.error(...args);
   Deno.exit(code);
 }

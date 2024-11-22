@@ -47,15 +47,13 @@ export class DeepLTranslator implements DittoTranslator {
     targetLanguage: LanguageCode,
     opts?: { signal?: AbortSignal },
   ) {
-    const body: any = {
+    const body = {
       text: texts,
       target_lang: targetLanguage.toUpperCase(),
       tag_handling: 'html',
       split_sentences: '1',
+      source_lang: source?.toUpperCase(),
     };
-    if (source) {
-      body.source_lang = source.toUpperCase();
-    }
 
     const url = new URL('/v2/translate', this.baseUrl);
 

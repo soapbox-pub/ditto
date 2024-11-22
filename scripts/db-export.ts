@@ -38,7 +38,7 @@ function findInvalid(arr: string[], predicate = (v: string) => !/[a-f0-9]{64}/.t
   return arr.find(predicate);
 }
 
-function die(code: number, ...args: any[]) {
+function die(code: number, ...args: unknown[]) {
   console.error(...args);
   Deno.exit(code);
 }
