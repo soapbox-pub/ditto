@@ -76,10 +76,10 @@ class EventsDB extends NPostgres {
 
     try {
       await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
-    } catch (e: any) {
-      if (e.message === 'Cannot add a deleted event') {
+    } catch (e) {
+      if (e instanceof Error && e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
-      } else if (e.message === 'Cannot replace an event with an older event') {
+      } else if (e instanceof Error && e.message === 'Cannot replace an event with an older event') {
         return;
       } else {
         throw e;

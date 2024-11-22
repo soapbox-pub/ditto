@@ -113,8 +113,8 @@ export async function updateTrendingTags(
 
     await handleEvent(label, signal);
     console.info(`Trending ${l} updated.`);
-  } catch (e: any) {
-    console.error(`Error updating trending ${l}: ${e.message}`);
+  } catch (e) {
+    console.error(`Error updating trending ${l}: ${e instanceof Error ? e.message : e}`);
   }
 }
 

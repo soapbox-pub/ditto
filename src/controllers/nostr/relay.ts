@@ -108,10 +108,10 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
       for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
         send(['EVENT', subId, purifyEvent(event)]);
       }
-    } catch (e: any) {
+    } catch (e) {
       if (e instanceof RelayError) {
         send(['CLOSED', subId, e.message]);
-      } else if (e.message.includes('timeout')) {
+      } else if (e instanceof Error && e.message.includes('timeout')) {
         send(['CLOSED', subId, 'error: the relay could not respond fast enough']);
       } else {
         send(['CLOSED', subId, 'error: something went wrong']);

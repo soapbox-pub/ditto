@@ -102,8 +102,8 @@ async function exportEvents(args: ExportFilter) {
   let filter: NostrFilter = {};
   try {
     filter = buildFilter(args);
-  } catch (e: any) {
-    die(1, e.message || e.toString());
+  } catch (e) {
+    die(1, e instanceof Error ? e.message : e);
   }
 
   let count = 0;
