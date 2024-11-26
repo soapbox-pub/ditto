@@ -98,6 +98,7 @@ const accountLookupController: AppController = async (c) => {
 
   const event = await lookupAccount(decodeURIComponent(acct));
   if (event) {
+    assertAuthenticated(c, event);
     return c.json(await renderAccount(event));
   }
   try {
