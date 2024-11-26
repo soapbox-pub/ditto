@@ -16,7 +16,7 @@ import { lookupPubkey } from '@/utils/lookup.ts';
 import { languageSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
+import { assertAuthenticated, createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
@@ -48,13 +48,18 @@ const createStatusSchema = z.object({
 
 const statusController: AppController = async (c) => {
   const id = c.req.param('id');
+  const signal = AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(1500)]);
 
-  const event = await getEvent(id, {
-    signal: AbortSignal.timeout(1500),
-  });
+  const event = await getEvent(id, { signal });
+
+  if (event?.author) {
+    assertAuthenticated(c, event.author);
+  }
 
   if (event) {
-    return c.json(await renderStatus(event, { viewerPubkey: await c.get('signer')?.getPublicKey() }));
+    const viewerPubkey = await c.get('signer')?.getPublicKey();
+    const status = await renderStatus(event, { viewerPubkey });
+    return c.json(status);
   }
 
   return c.json({ error: 'Event not found.' }, 404);

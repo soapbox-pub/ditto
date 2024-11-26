@@ -9,7 +9,7 @@ import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { uploadFile } from '@/utils/upload.ts';
 import { nostrNow } from '@/utils.ts';
-import { createEvent, paginated, parseBody, updateEvent, updateListEvent } from '@/utils/api.ts';
+import { assertAuthenticated, createEvent, paginated, parseBody, updateEvent, updateListEvent } from '@/utils/api.ts';
 import { extractIdentifier, lookupAccount, lookupPubkey } from '@/utils/lookup.ts';
 import { renderAccounts, renderEventAccounts, renderStatuses } from '@/views.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
@@ -82,6 +82,7 @@ const accountController: AppController = async (c) => {
 
   const event = await getAuthor(pubkey);
   if (event) {
+    assertAuthenticated(c, event);
     return c.json(await renderAccount(event));
   } else {
     return c.json(await accountFromPubkey(pubkey));
@@ -204,7 +205,15 @@ const accountStatusesController: AppController = async (c) => {
 
   const store = await Storages.db();
 
-  const [user] = await store.query([{ kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 }], { signal });
+  const [[author], [user]] = await Promise.all([
+    store.query([{ kinds: [0], authors: [pubkey], limit: 1 }], { signal }),
+    store.query([{ kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 }], { signal }),
+  ]);
+
+  if (author) {
+    assertAuthenticated(c, author);
+  }
+
   const names = getTagSet(user?.tags ?? [], 'n');
 
   if (names.has('disabled')) {
