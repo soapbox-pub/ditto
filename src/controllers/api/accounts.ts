@@ -1,4 +1,4 @@
-import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -288,59 +288,78 @@ const updateCredentialsController: AppController = async (c) => {
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
+  const store = await Storages.db();
 
   if (!result.success) {
     return c.json(result.error, 422);
   }
 
-  const event = await updateEvent(
-    { kinds: [0], authors: [pubkey], limit: 1 },
-    async (prev) => {
-      const meta = n.json().pipe(metadataSchema).catch({}).parse(prev.content);
-      const {
-        avatar: avatarFile,
-        header: headerFile,
-        display_name,
-        fields_attributes,
-        note,
-        nip05,
-        lud16,
-        website,
-        bot,
-      } = result.data;
+  const kind0fields = {
+    avatar: result.data.avatar,
+    header: result.data.header,
+    display_name: result.data.display_name,
+    fields_attributes: result.data.fields_attributes,
+    note: result.data.note,
+    nip05: result.data.nip05,
+    lud16: result.data.lud16,
+    website: result.data.website,
+    bot: result.data.bot,
+  };
+  const values = Object.values(kind0fields).filter((value) => value !== undefined);
+  let event: NostrEvent;
 
-      const [avatar, header] = await Promise.all([
-        avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
-        headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
-      ]);
+  if (values.length) {
+    event = await updateEvent(
+      { kinds: [0], authors: [pubkey], limit: 1 },
+      async (prev) => {
+        const meta = n.json().pipe(metadataSchema).catch({}).parse(prev.content);
+        const {
+          avatar: avatarFile,
+          header: headerFile,
+          display_name,
+          fields_attributes,
+          note,
+          nip05,
+          lud16,
+          website,
+          bot,
+        } = kind0fields;
 
-      meta.name = display_name ?? meta.name;
-      meta.about = note ?? meta.about;
-      meta.picture = avatar?.url ?? meta.picture;
-      meta.banner = header?.url ?? meta.banner;
-      meta.nip05 = nip05 ?? meta.nip05;
-      meta.lud16 = lud16 ?? meta.lud16;
-      meta.website = website ?? meta.website;
-      meta.bot = bot ?? meta.bot;
+        const [avatar, header] = await Promise.all([
+          avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
+          headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
+        ]);
 
-      if (avatarFile === '') delete meta.picture;
-      if (headerFile === '') delete meta.banner;
-      if (nip05 === '') delete meta.nip05;
-      if (lud16 === '') delete meta.lud16;
-      if (website === '') delete meta.website;
+        meta.name = display_name ?? meta.name;
+        meta.about = note ?? meta.about;
+        meta.picture = avatar?.url ?? meta.picture;
+        meta.banner = header?.url ?? meta.banner;
+        meta.nip05 = nip05 ?? meta.nip05;
+        meta.lud16 = lud16 ?? meta.lud16;
+        meta.website = website ?? meta.website;
+        meta.bot = bot ?? meta.bot;
 
-      if (fields_attributes) {
-        meta.fields = fields_attributes.map(({ name, value }) => [name, value]);
-      }
+        if (avatarFile === '') delete meta.picture;
+        if (headerFile === '') delete meta.banner;
+        if (nip05 === '') delete meta.nip05;
+        if (lud16 === '') delete meta.lud16;
+        if (website === '') delete meta.website;
 
-      return {
-        kind: 0,
-        content: JSON.stringify(meta),
-        tags: [],
-      };
-    },
-    c,
-  );
+        if (fields_attributes) {
+          meta.fields = fields_attributes.map(({ name, value }) => [name, value]);
+        }
+
+        return {
+          kind: 0,
+          content: JSON.stringify(meta),
+          tags: [],
+        };
+      },
+      c,
+    );
+  } else {
+    [event] = await store.query([{ kinds: [0], authors: [pubkey] }]);
+  }
 
   const settingsStore = result.data.pleroma_settings_store;
   const account = await renderAccount(event, { withSource: true, settingsStore });
