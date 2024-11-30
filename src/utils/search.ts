@@ -87,6 +87,13 @@ export async function getIdsBySearch(
     query = query.where('pubkey', 'in', pubkeys);
   }
 
+  // If there is not a specific content to search, return the query already
+  // This is useful if the person only makes a query search such as `domain:patrickdosreis.com`
+  if (!parsedSearch.length) {
+    const ids = new Set((await query.execute()).map(({ id }) => id));
+    return ids;
+  }
+
   let fallbackQuery = query;
   if (parsedSearch) {
     query = query.where('search', '@@', sql`phraseto_tsquery(${parsedSearch})`);
