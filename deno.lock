@@ -25,6 +25,7 @@
     "jsr:@gleasonator/policy@0.9.0": "0.9.0",
     "jsr:@gleasonator/policy@0.9.1": "0.9.1",
     "jsr:@gleasonator/policy@0.9.2": "0.9.2",
+    "jsr:@gleasonator/policy@0.9.3": "0.9.3",
     "jsr:@hono/hono@^4.4.6": "4.6.2",
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
@@ -281,6 +282,13 @@
     },
     "@gleasonator/policy@0.9.2": {
       "integrity": "ded1e6535a01474f025c0f023c4956b9cf169a719c09fd8899ffa5b107fbbd74",
+      "dependencies": [
+        "jsr:@nostrify/nostrify@0.36",
+        "jsr:@nostrify/policies@~0.36.1"
+      ]
+    },
+    "@gleasonator/policy@0.9.3": {
+      "integrity": "7a682747c1b843b8f39b3c4f4787f6e21188fe0a1b1e5b896edfbadb4a11405f",
       "dependencies": [
         "jsr:@nostrify/nostrify@0.36",
         "jsr:@nostrify/policies@~0.36.1"
