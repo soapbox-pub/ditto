@@ -114,7 +114,7 @@ const createStatusController: AppController = async (c) => {
       return c.json({ error: 'Quoted post not found.' }, 404);
     }
 
-    tags.push(['q', quoted.id, Conf.relay, '', quoted.pubkey]);
+    tags.push(['q', quoted.id, Conf.relay, quoted.pubkey]);
   }
 
   if (data.sensitive && data.spoiler_text) {
