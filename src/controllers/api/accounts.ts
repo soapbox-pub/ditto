@@ -20,6 +20,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
+import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -350,12 +351,14 @@ const updateCredentialsController: AppController = async (c) => {
     );
   }
 
-  if (!event) {
-    return c.json({ error: 'Account not found.' }, 400);
-  }
-
   const settingsStore = result.data.pleroma_settings_store;
-  const account = await renderAccount(event, { withSource: true, settingsStore });
+
+  let account: MastodonAccount;
+  if (event) {
+    account = await renderAccount(event, { withSource: true, settingsStore });
+  } else {
+    account = await accountFromPubkey(pubkey, { withSource: true, settingsStore });
+  }
 
   if (settingsStore) {
     await createEvent({
