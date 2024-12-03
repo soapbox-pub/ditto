@@ -290,6 +290,7 @@ const updateCredentialsController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
   const store = await Storages.db();
+  const signal = c.req.raw.signal;
 
   if (!result.success) {
     return c.json(result.error, 422);
@@ -355,6 +356,7 @@ const updateCredentialsController: AppController = async (c) => {
 
   let account: MastodonAccount;
   if (event) {
+    await hydrateEvents({ events: [event], store, signal });
     account = await renderAccount(event, { withSource: true, settingsStore });
   } else {
     account = await accountFromPubkey(pubkey, { withSource: true, settingsStore });
