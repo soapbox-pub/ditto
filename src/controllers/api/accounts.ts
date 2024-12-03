@@ -295,7 +295,7 @@ const updateCredentialsController: AppController = async (c) => {
   }
 
   const keys = Object.keys(result.data);
-  let event: NostrEvent;
+  let event: NostrEvent | undefined;
 
   if (keys.length === 1 && keys[0] === 'pleroma_settings_store') {
     event = (await store.query([{ kinds: [0], authors: [pubkey] }]))[0];
@@ -348,6 +348,10 @@ const updateCredentialsController: AppController = async (c) => {
       },
       c,
     );
+  }
+
+  if (!event) {
+    return c.json({ error: 'Account not found.' }, 400);
   }
 
   const settingsStore = result.data.pleroma_settings_store;
