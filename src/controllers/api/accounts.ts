@@ -1,4 +1,4 @@
-import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -20,6 +20,7 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
+import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 
 const usernameSchema = z
   .string().min(1).max(30)
@@ -288,62 +289,76 @@ const updateCredentialsController: AppController = async (c) => {
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
+  const store = await Storages.db();
 
   if (!result.success) {
     return c.json(result.error, 422);
   }
 
-  const event = await updateEvent(
-    { kinds: [0], authors: [pubkey], limit: 1 },
-    async (prev) => {
-      const meta = n.json().pipe(metadataSchema).catch({}).parse(prev.content);
-      const {
-        avatar: avatarFile,
-        header: headerFile,
-        display_name,
-        fields_attributes,
-        note,
-        nip05,
-        lud16,
-        website,
-        bot,
-      } = result.data;
+  const keys = Object.keys(result.data);
+  let event: NostrEvent | undefined;
 
-      const [avatar, header] = await Promise.all([
-        avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
-        headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
-      ]);
+  if (keys.length === 1 && keys[0] === 'pleroma_settings_store') {
+    event = (await store.query([{ kinds: [0], authors: [pubkey] }]))[0];
+  } else {
+    event = await updateEvent(
+      { kinds: [0], authors: [pubkey], limit: 1 },
+      async (prev) => {
+        const meta = n.json().pipe(metadataSchema).catch({}).parse(prev.content);
+        const {
+          avatar: avatarFile,
+          header: headerFile,
+          display_name,
+          fields_attributes,
+          note,
+          nip05,
+          lud16,
+          website,
+          bot,
+        } = result.data;
 
-      meta.name = display_name ?? meta.name;
-      meta.about = note ?? meta.about;
-      meta.picture = avatar?.url ?? meta.picture;
-      meta.banner = header?.url ?? meta.banner;
-      meta.nip05 = nip05 ?? meta.nip05;
-      meta.lud16 = lud16 ?? meta.lud16;
-      meta.website = website ?? meta.website;
-      meta.bot = bot ?? meta.bot;
+        const [avatar, header] = await Promise.all([
+          avatarFile ? uploadFile(c, avatarFile, { pubkey }) : undefined,
+          headerFile ? uploadFile(c, headerFile, { pubkey }) : undefined,
+        ]);
 
-      if (avatarFile === '') delete meta.picture;
-      if (headerFile === '') delete meta.banner;
-      if (nip05 === '') delete meta.nip05;
-      if (lud16 === '') delete meta.lud16;
-      if (website === '') delete meta.website;
+        meta.name = display_name ?? meta.name;
+        meta.about = note ?? meta.about;
+        meta.picture = avatar?.url ?? meta.picture;
+        meta.banner = header?.url ?? meta.banner;
+        meta.nip05 = nip05 ?? meta.nip05;
+        meta.lud16 = lud16 ?? meta.lud16;
+        meta.website = website ?? meta.website;
+        meta.bot = bot ?? meta.bot;
 
-      if (fields_attributes) {
-        meta.fields = fields_attributes.map(({ name, value }) => [name, value]);
-      }
+        if (avatarFile === '') delete meta.picture;
+        if (headerFile === '') delete meta.banner;
+        if (nip05 === '') delete meta.nip05;
+        if (lud16 === '') delete meta.lud16;
+        if (website === '') delete meta.website;
 
-      return {
-        kind: 0,
-        content: JSON.stringify(meta),
-        tags: [],
-      };
-    },
-    c,
-  );
+        if (fields_attributes) {
+          meta.fields = fields_attributes.map(({ name, value }) => [name, value]);
+        }
+
+        return {
+          kind: 0,
+          content: JSON.stringify(meta),
+          tags: [],
+        };
+      },
+      c,
+    );
+  }
 
   const settingsStore = result.data.pleroma_settings_store;
-  const account = await renderAccount(event, { withSource: true, settingsStore });
+
+  let account: MastodonAccount;
+  if (event) {
+    account = await renderAccount(event, { withSource: true, settingsStore });
+  } else {
+    account = await accountFromPubkey(pubkey, { withSource: true, settingsStore });
+  }
 
   if (settingsStore) {
     await createEvent({
