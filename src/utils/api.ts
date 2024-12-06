@@ -292,7 +292,7 @@ function assertAuthenticated(c: AppContext, author: NostrEvent): void {
     !c.get('signer') && author.tags.some(([name, value, ns]) =>
       name === 'l' &&
       value === '!no-unauthenticated' &&
-      ns === 'com.atproto.label.defs#selfLabels'
+      ns === 'com.atproto.label.defs#selfLabel'
     )
   ) {
     throw new HTTPException(401, { message: 'Sign-in required.' });
