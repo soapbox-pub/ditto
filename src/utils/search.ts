@@ -79,10 +79,11 @@ export async function getIdsBySearch(
   }
 
   if (domains.size) {
-    const pubkeys = kysely
+    const pubkeys = (await kysely
       .selectFrom('pubkey_domains')
       .select('pubkey')
-      .where('domain', 'in', [...domains]);
+      .where('domain', 'in', [...domains])
+      .execute()).map(({ pubkey }) => pubkey);
 
     query = query.where('pubkey', 'in', pubkeys);
   }
