@@ -12,7 +12,7 @@ import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
-import { booleanParamSchema, percentageSchema } from '@/schema.ts';
+import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
@@ -23,7 +23,7 @@ import { updateListAdminEvent } from '@/utils/api.ts';
 const markerSchema = z.enum(['read', 'write']);
 
 const relaySchema = z.object({
-  url: z.string().url(),
+  url: wsUrlSchema,
   marker: markerSchema.optional(),
 });
 
