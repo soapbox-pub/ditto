@@ -3,6 +3,7 @@ import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
 import { internalSubscriptionsSizeGauge } from '@/metrics.ts';
+import { wsUrlSchema } from '@/schema.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { SearchStore } from '@/storages/search-store.ts';
@@ -80,7 +81,9 @@ export class Storages {
         const tags = relayList?.tags ?? [];
 
         const activeRelays = tags.reduce((acc, [name, url, marker]) => {
-          if (name === 'r' && (!marker || marker === 'write')) {
+          const valid = wsUrlSchema.safeParse(url).success;
+
+          if (valid && name === 'r' && (!marker || marker === 'write')) {
             acc.push(url);
           }
           return acc;
