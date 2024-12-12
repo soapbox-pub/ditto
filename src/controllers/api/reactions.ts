@@ -30,7 +30,7 @@ const reactionController: AppController = async (c) => {
     kind: 7,
     content: emoji,
     created_at: Math.floor(Date.now() / 1000),
-    tags: [['e', id]],
+    tags: [['e', id], ['p', event.pubkey]],
   }, c);
 
   await hydrateEvents({ events: [event], store });
