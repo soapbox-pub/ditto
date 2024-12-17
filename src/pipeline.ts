@@ -31,8 +31,7 @@ const console = new Stickynotes('ditto:pipeline');
  * It is idempotent, so it can be called multiple times for the same event.
  */
 async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  // Integer max value for Postgres. TODO: switch to a bigint in 2038.
-  if (event.created_at >= 2_147_483_647) {
+  if (eventAge(event) < -Time.minutes(1)) {
     throw new RelayError('invalid', 'event too far in the future');
   }
   // Integer max value for Postgres.
