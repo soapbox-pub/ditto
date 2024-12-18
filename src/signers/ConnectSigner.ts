@@ -25,6 +25,7 @@ export class ConnectSigner implements NostrSigner {
 
   async init(signer: NostrSigner): Promise<NConnectSigner> {
     return new NConnectSigner({
+      encryption: 'nip44',
       pubkey: this.opts.bunkerPubkey,
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
       relay: await Storages.pubsub(),

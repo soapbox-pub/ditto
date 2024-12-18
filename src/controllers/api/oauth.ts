@@ -119,6 +119,7 @@ async function getToken(
   const nip46Seckey = generateSecretKey();
 
   const signer = new NConnectSigner({
+    encryption: 'nip44',
     pubkey: bunkerPubkey,
     signer: new NSecSigner(nip46Seckey),
     relay: await Storages.pubsub(), // TODO: Use the relays from the request.
