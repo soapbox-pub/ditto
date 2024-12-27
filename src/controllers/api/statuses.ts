@@ -149,7 +149,7 @@ const createStatusController: AppController = async (c) => {
 
   const pubkeys = new Set<string>();
 
-  const content = await asyncReplaceAll(
+  let content = await asyncReplaceAll(
     data.status ?? '',
     /(?<![\w/])@([\w@+._]+)(?![\w/\.])/g,
     async (match, username) => {
@@ -190,18 +190,6 @@ const createStatusController: AppController = async (c) => {
     }
   }
 
-  const mediaUrls: string[] = media
-    .map(({ url }) => url)
-    .filter((url): url is string => Boolean(url));
-
-  const quoteCompat = quoted
-    ? `\n\nnostr:${
-      nip19.neventEncode({ id: quoted.id, kind: quoted.kind, author: quoted.pubkey, relays: [Conf.relay] })
-    }`
-    : '';
-
-  const mediaCompat = mediaUrls.length ? `\n\n${mediaUrls.join('\n')}` : '';
-
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const author = pubkey ? await getAuthor(pubkey) : undefined;
 
@@ -235,9 +223,33 @@ const createStatusController: AppController = async (c) => {
     }
   }
 
+  const mediaUrls: string[] = media
+    .map(({ url }) => url)
+    .filter((url): url is string => Boolean(url));
+
+  if (quoted) {
+    if (content) {
+      content += '\n\n';
+    }
+    const nevent = nip19.neventEncode({
+      id: quoted.id,
+      kind: quoted.kind,
+      author: quoted.pubkey,
+      relays: [Conf.relay],
+    });
+    content += `nostr:${nevent}`;
+  }
+
+  if (mediaUrls.length) {
+    if (content) {
+      content += '\n\n';
+    }
+    content += mediaUrls.join('\n');
+  }
+
   const event = await createEvent({
     kind: 1,
-    content: content + quoteCompat + mediaCompat,
+    content,
     tags,
   }, c);
 
