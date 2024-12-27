@@ -231,7 +231,11 @@ app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requireSigner, followC
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requireSigner, unfollowController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
-app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses', accountStatusesController);
+app.get(
+  '/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses',
+  rateLimitMiddleware(12, Time.seconds(30)),
+  accountStatusesController,
+);
 app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}', accountController);
 
 app.get('/api/v1/statuses/:id{[0-9a-f]{64}}/favourited_by', favouritedByController);
@@ -264,10 +268,10 @@ app.put(
 );
 app.post('/api/v2/media', mediaController);
 
-app.get('/api/v1/timelines/home', rateLimitMiddleware(5, Time.seconds(30)), requireSigner, homeTimelineController);
-app.get('/api/v1/timelines/public', rateLimitMiddleware(5, Time.seconds(30)), publicTimelineController);
-app.get('/api/v1/timelines/tag/:hashtag', rateLimitMiddleware(5, Time.seconds(30)), hashtagTimelineController);
-app.get('/api/v1/timelines/suggested', rateLimitMiddleware(5, Time.seconds(30)), suggestedTimelineController);
+app.get('/api/v1/timelines/home', rateLimitMiddleware(8, Time.seconds(30)), requireSigner, homeTimelineController);
+app.get('/api/v1/timelines/public', rateLimitMiddleware(8, Time.seconds(30)), publicTimelineController);
+app.get('/api/v1/timelines/tag/:hashtag', rateLimitMiddleware(8, Time.seconds(30)), hashtagTimelineController);
+app.get('/api/v1/timelines/suggested', rateLimitMiddleware(8, Time.seconds(30)), suggestedTimelineController);
 
 app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
@@ -275,7 +279,7 @@ app.get('/api/v2/search', searchController);
 
 app.get('/api/pleroma/frontend_configurations', frontendConfigController);
 
-app.get('/api/v1/trends/statuses', rateLimitMiddleware(5, Time.seconds(30)), trendingStatusesController);
+app.get('/api/v1/trends/statuses', rateLimitMiddleware(8, Time.seconds(30)), trendingStatusesController);
 app.get('/api/v1/trends/links', trendingLinksController);
 app.get('/api/v1/trends/tags', trendingTagsController);
 app.get('/api/v1/trends', trendingTagsController);
@@ -283,7 +287,7 @@ app.get('/api/v1/trends', trendingTagsController);
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
 
-app.get('/api/v1/notifications', rateLimitMiddleware(5, Time.seconds(30)), requireSigner, notificationsController);
+app.get('/api/v1/notifications', rateLimitMiddleware(8, Time.seconds(30)), requireSigner, notificationsController);
 app.get('/api/v1/notifications/:id', requireSigner, notificationController);
 
 app.get('/api/v1/favourites', requireSigner, favouritesController);
