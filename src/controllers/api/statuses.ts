@@ -149,6 +149,26 @@ const createStatusController: AppController = async (c) => {
 
   const pubkeys = new Set<string>();
 
+  let content = await asyncReplaceAll(
+    data.status ?? '',
+    /(?<![\w/])@([\w@+._]+)(?![\w/\.])/g,
+    async (match, username) => {
+      const pubkey = await lookupPubkey(username);
+      if (!pubkey) return match;
+
+      // Content addressing (default)
+      if (!data.to) {
+        pubkeys.add(pubkey);
+      }
+
+      try {
+        return `nostr:${nip19.nprofileEncode({ pubkey, relays: [Conf.relay] })}`;
+      } catch {
+        return match;
+      }
+    },
+  );
+
   // Explicit addressing
   for (const to of data.to ?? []) {
     const pubkey = await lookupPubkey(to);
@@ -207,33 +227,17 @@ const createStatusController: AppController = async (c) => {
     .map(({ url }) => url)
     .filter((url): url is string => Boolean(url));
 
-  let content = await asyncReplaceAll(
-    data.status ?? '',
-    /(?<![\w/])@([\w@+._]+)(?![\w/\.])/g,
-    async (match, username) => {
-      const pubkey = await lookupPubkey(username);
-      if (!pubkey) return match;
-
-      // Content addressing (default)
-      if (!data.to) {
-        pubkeys.add(pubkey);
-      }
-
-      try {
-        return `nostr:${nip19.nprofileEncode({ pubkey, relays: [Conf.relay] })}`;
-      } catch {
-        return match;
-      }
-    },
-  );
-
   if (quoted) {
     if (content) {
       content += '\n\n';
     }
-    content += `nostr:${
-      nip19.neventEncode({ id: quoted.id, kind: quoted.kind, author: quoted.pubkey, relays: [Conf.relay] })
-    }`;
+    const nevent = nip19.neventEncode({
+      id: quoted.id,
+      kind: quoted.kind,
+      author: quoted.pubkey,
+      relays: [Conf.relay],
+    });
+    content += `nostr:${nevent}`;
   }
 
   if (mediaUrls.length) {
