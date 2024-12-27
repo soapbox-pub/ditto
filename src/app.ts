@@ -229,8 +229,16 @@ app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/mute', requireSigner, muteContr
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unmute', requireSigner, unmuteController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/follow', requireSigner, followController);
 app.post('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/unfollow', requireSigner, unfollowController);
-app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers', followersController);
-app.get('/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following', followingController);
+app.get(
+  '/api/v1/accounts/:pubkey{[0-9a-f]{64}}/followers',
+  rateLimitMiddleware(8, Time.seconds(30)),
+  followersController,
+);
+app.get(
+  '/api/v1/accounts/:pubkey{[0-9a-f]{64}}/following',
+  rateLimitMiddleware(8, Time.seconds(30)),
+  followingController,
+);
 app.get(
   '/api/v1/accounts/:pubkey{[0-9a-f]{64}}/statuses',
   rateLimitMiddleware(12, Time.seconds(30)),
