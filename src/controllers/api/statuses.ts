@@ -397,7 +397,7 @@ const unreblogStatusController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const store = await Storages.db();
 
-  const [event] = await store.query([{ ids: [eventId], kinds: [1] }]);
+  const [event] = await store.query([{ ids: [eventId], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Record not found' }, 404);
   }
@@ -429,13 +429,13 @@ const quotesController: AppController = async (c) => {
   const params = c.get('pagination');
   const store = await Storages.db();
 
-  const [event] = await store.query([{ ids: [id], kinds: [1] }]);
+  const [event] = await store.query([{ ids: [id], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
   }
 
   const quotes = await store
-    .query([{ kinds: [1], '#q': [event.id], ...params }])
+    .query([{ kinds: [1, 20], '#q': [event.id], ...params }])
     .then((events) => hydrateEvents({ events, store }));
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();

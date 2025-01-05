@@ -47,7 +47,7 @@ const importUsers = async (
     if (!profilesOnly) {
       matched.push(
         ...await conn.query(
-          authors.map((author) => ({ kinds: [1], authors: [author], limit: 200 })),
+          authors.map((author) => ({ kinds: [1, 20], authors: [author], limit: 200 })),
         ),
       );
     }

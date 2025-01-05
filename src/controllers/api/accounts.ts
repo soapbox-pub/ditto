@@ -234,7 +234,7 @@ const accountStatusesController: AppController = async (c) => {
 
   const filter: NostrFilter = {
     authors: [pubkey],
-    kinds: [1, 6],
+    kinds: [1, 6, 20],
     since,
     until,
     limit,
@@ -473,7 +473,7 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await store.query([{ kinds: [1], ids }], { signal })
+  const events1 = await store.query([{ kinds: [1, 20], ids }], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();
