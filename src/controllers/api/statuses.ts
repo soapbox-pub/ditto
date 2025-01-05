@@ -290,7 +290,7 @@ const deleteStatusController: AppController = async (c) => {
 const contextController: AppController = async (c) => {
   const id = c.req.param('id');
   const store = c.get('store');
-  const event = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const [event] = await store.query([{ kinds: [1, 20], ids: [id] }]);
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
   async function renderStatuses(events: NostrEvent[]) {
@@ -325,7 +325,8 @@ const contextController: AppController = async (c) => {
 
 const favouriteController: AppController = async (c) => {
   const id = c.req.param('id');
-  const target = await getEvent(id, { kind: 1, relations: ['author', 'event_stats', 'author_stats'] });
+  const store = await Storages.db();
+  const [target] = await store.query([{ ids: [id], kinds: [1, 20] }]);
 
   if (target) {
     await createEvent({
@@ -336,6 +337,8 @@ const favouriteController: AppController = async (c) => {
         ['p', target.pubkey, Conf.relay],
       ],
     }, c);
+
+    await hydrateEvents({ events: [target], store });
 
     const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
 
@@ -397,7 +400,7 @@ const unreblogStatusController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const store = await Storages.db();
 
-  const [event] = await store.query([{ ids: [eventId], kinds: [1] }]);
+  const [event] = await store.query([{ ids: [eventId], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Record not found' }, 404);
   }
@@ -429,13 +432,13 @@ const quotesController: AppController = async (c) => {
   const params = c.get('pagination');
   const store = await Storages.db();
 
-  const [event] = await store.query([{ ids: [id], kinds: [1] }]);
+  const [event] = await store.query([{ ids: [id], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
   }
 
   const quotes = await store
-    .query([{ kinds: [1], '#q': [event.id], ...params }])
+    .query([{ kinds: [1, 20], '#q': [event.id], ...params }])
     .then((events) => hydrateEvents({ events, store }));
 
   const viewerPubkey = await c.get('signer')?.getPublicKey();

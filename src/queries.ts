@@ -16,7 +16,7 @@ interface GetEventOpts {
   signal?: AbortSignal;
   /** Event kind. */
   kind?: number;
-  /** Relations to include on the event. */
+  /** @deprecated Relations to include on the event. */
   relations?: DittoRelation[];
 }
 

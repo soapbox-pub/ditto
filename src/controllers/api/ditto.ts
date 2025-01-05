@@ -260,7 +260,7 @@ export const statusZapSplitsController: AppController = async (c) => {
   const id = c.req.param('id');
   const { signal } = c.req.raw;
 
-  const [event] = await store.query([{ kinds: [1], ids: [id], limit: 1 }], { signal });
+  const [event] = await store.query([{ kinds: [1, 20], ids: [id], limit: 1 }], { signal });
   if (!event) {
     return c.json({ error: 'Event not found' }, 404);
   }

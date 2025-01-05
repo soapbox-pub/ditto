@@ -252,7 +252,7 @@ class Conf {
   }
   /** Nostr event kinds of events to listen for on the firehose. */
   static get firehoseKinds(): number[] {
-    return (Deno.env.get('FIREHOSE_KINDS') ?? '0, 1, 3, 5, 6, 7, 9735, 10002')
+    return (Deno.env.get('FIREHOSE_KINDS') ?? '0, 1, 3, 5, 6, 7, 20, 9735, 10002')
       .split(/[, ]+/g)
       .map(Number);
   }

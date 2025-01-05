@@ -214,20 +214,20 @@ async function topicToFilter(
 
   switch (topic) {
     case 'public':
-      return { kinds: [1, 6] };
+      return { kinds: [1, 6, 20] };
     case 'public:local':
-      return { kinds: [1, 6], search: `domain:${host}` };
+      return { kinds: [1, 6, 20], search: `domain:${host}` };
     case 'hashtag':
-      if (query.tag) return { kinds: [1, 6], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1, 6], '#t': [query.tag], search: `domain:${host}` };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}` };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
+      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
   }
 }
 
