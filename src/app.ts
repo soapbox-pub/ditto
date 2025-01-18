@@ -407,11 +407,17 @@ app.get('/notice/*', frontendController);
 app.get('/timeline/*', frontendController);
 
 // Known static file routes
+app.get('/sw.js', publicFiles);
 app.get('/favicon.ico', publicFiles, staticFiles);
 app.get('/images/*', publicFiles, staticFiles);
 app.get('/instance/*', publicFiles);
-app.get('/packs/*', publicFiles);
-app.get('/sw.js', publicFiles);
+
+// Packs contains immutable static files
+app.get('/packs/*', async (c, next) => {
+  c.header('Cache-Control', 'public, max-age=31536000, immutable');
+  c.header('Strict-Transport-Security', '"max-age=31536000" always');
+  await next();
+}, publicFiles);
 
 // Site index
 app.get('/', frontendController, indexController);
