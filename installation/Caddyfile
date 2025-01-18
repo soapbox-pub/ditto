@@ -1,0 +1,23 @@
+example.com {
+  @public path /packs/* /instance/* /images/* /favicon.ico /sw.js /sw.js.map
+
+  handle /packs/* {
+    root * /opt/ditto/public
+    header Cache-Control "public, max-age=31536000, immutable"
+    header Strict-Transport-Security "max-age=31536000"
+    file_server
+  }
+
+  handle @public {
+    root * /opt/ditto/public
+    file_server
+  }
+
+  handle /metrics {
+    respond "Access denied" 403
+  }
+
+  handle {
+    reverse_proxy :4036
+  }
+}
