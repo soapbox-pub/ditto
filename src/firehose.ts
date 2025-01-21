@@ -27,7 +27,7 @@ export async function startFirehose(): Promise<void> {
 
       sem.lock(async () => {
         try {
-          await pipeline.handleEvent(event, AbortSignal.timeout(5000));
+          await pipeline.handleEvent(event, { source: 'firehose', signal: AbortSignal.timeout(5000) });
         } catch (e) {
           console.warn(e);
         }

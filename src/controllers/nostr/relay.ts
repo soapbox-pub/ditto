@@ -138,7 +138,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
     relayEventsCounter.inc({ kind: event.kind.toString() });
     try {
       // This will store it (if eligible) and run other side-effects.
-      await pipeline.handleEvent(purifyEvent(event), AbortSignal.timeout(1000));
+      await pipeline.handleEvent(purifyEvent(event), { source: 'relay', signal: AbortSignal.timeout(1000) });
       send(['OK', event.id, true, '']);
     } catch (e) {
       if (e instanceof RelayError) {
