@@ -151,7 +151,7 @@ const createStatusController: AppController = async (c) => {
 
   let content = await asyncReplaceAll(
     data.status ?? '',
-    /(?<![\w/])@([\w@+._]+)(?![\w/\.])/g,
+    /(?<![\w/])@([\w@+._-]+)(?![\w/\.])/g,
     async (match, username) => {
       const pubkey = await lookupPubkey(username);
       if (!pubkey) return match;
