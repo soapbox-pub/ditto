@@ -18,6 +18,7 @@ import { getTokenHash } from '@/utils/auth.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { HTTPException } from '@hono/hono/http-exception';
 
 const console = new Stickynotes('ditto:streaming');
 
@@ -236,13 +237,17 @@ async function getTokenPubkey(token: string): Promise<string | undefined> {
     const kysely = await Storages.kysely();
     const tokenHash = await getTokenHash(token as `token1${string}`);
 
-    const { pubkey } = await kysely
+    const row = await kysely
       .selectFrom('auth_tokens')
       .select('pubkey')
       .where('token_hash', '=', tokenHash)
-      .executeTakeFirstOrThrow();
+      .executeTakeFirst();
 
-    return pubkey;
+    if (!row) {
+      throw new HTTPException(401, { message: 'Invalid access token' });
+    }
+
+    return row.pubkey;
   } else {
     return bech32ToPubkey(token);
   }
