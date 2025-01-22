@@ -197,12 +197,13 @@ const accountStatusesQuerySchema = z.object({
   limit: z.coerce.number().nonnegative().transform((v) => Math.min(v, 40)).catch(20),
   exclude_replies: booleanParamSchema.optional(),
   tagged: z.string().optional(),
+  only_media: z.coerce.boolean().catch(false),
 });
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
   const { since, until } = c.get('pagination');
-  const { pinned, limit, exclude_replies, tagged } = accountStatusesQuerySchema.parse(c.req.query());
+  const { pinned, limit, exclude_replies, tagged, only_media } = accountStatusesQuerySchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
   const store = await Storages.db();
@@ -239,6 +240,10 @@ const accountStatusesController: AppController = async (c) => {
     until,
     limit,
   };
+
+  if (only_media) {
+    filter.search = 'only_media:true';
+  }
 
   if (tagged) {
     filter['#t'] = [tagged];
