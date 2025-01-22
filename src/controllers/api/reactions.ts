@@ -20,7 +20,7 @@ const reactionController: AppController = async (c) => {
   }
 
   const store = await Storages.db();
-  const [event] = await store.query([{ kinds: [1], ids: [id], limit: 1 }]);
+  const [event] = await store.query([{ kinds: [1, 20], ids: [id], limit: 1 }]);
 
   if (!event) {
     return c.json({ error: 'Status not found' }, 404);
@@ -56,7 +56,7 @@ const deleteReactionController: AppController = async (c) => {
   }
 
   const [event] = await store.query([
-    { kinds: [1], ids: [id], limit: 1 },
+    { kinds: [1, 20], ids: [id], limit: 1 },
   ]);
 
   if (!event) {

@@ -308,6 +308,7 @@ class EventsDB extends NPostgres {
       case 0:
         return EventsDB.buildUserSearchContent(event);
       case 1:
+      case 20:
         return nip27.replaceAll(event.content, () => '');
       case 30009:
         return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));

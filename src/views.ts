@@ -75,7 +75,7 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
   const store = await Storages.db();
   const { limit } = c.get('pagination');
 
-  const events = await store.query([{ kinds: [1], ids, limit }], { signal })
+  const events = await store.query([{ kinds: [1, 20], ids, limit }], { signal })
     .then((events) => hydrateEvents({ events, store, signal }));
 
   if (!events.length) {

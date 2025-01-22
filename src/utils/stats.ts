@@ -273,7 +273,7 @@ export async function countAuthorStats(
 ): Promise<DittoTables['author_stats']> {
   const [{ count: followers_count }, { count: notes_count }, [followList], [kind0]] = await Promise.all([
     store.count([{ kinds: [3], '#p': [pubkey] }]),
-    store.count([{ kinds: [1], authors: [pubkey] }]),
+    store.count([{ kinds: [1, 20], authors: [pubkey] }]),
     store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
     store.query([{ kinds: [0], authors: [pubkey], limit: 1 }]),
   ]);

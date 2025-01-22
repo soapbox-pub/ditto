@@ -161,7 +161,7 @@ async function updateNames(k: number, d: string, n: Record<string, boolean>, c: 
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await pipeline.handleEvent(event, c.req.raw.signal);
+    await pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
     const client = await Storages.client();
     await client.event(purifyEvent(event));
   } catch (e) {
@@ -261,24 +261,6 @@ function paginatedList(
   return c.json(results, 200, headers);
 }
 
-/** JSON-LD context. */
-type LDContext = (string | Record<string, string | Record<string, string>>)[];
-
-/** Add a basic JSON-LD context to ActivityStreams object, if it doesn't already exist. */
-function maybeAddContext<T>(object: T): T & { '@context': LDContext } {
-  return {
-    '@context': ['https://www.w3.org/ns/activitystreams'],
-    ...object,
-  };
-}
-
-/** Like hono's `c.json()` except returns JSON-LD. */
-function activityJson<T, P extends string>(c: Context<any, P>, object: T) {
-  const response = c.json(maybeAddContext(object));
-  response.headers.set('content-type', 'application/activity+json; charset=UTF-8');
-  return response;
-}
-
 /** Rewrite the URL of the request object to use the local domain. */
 function localRequest(c: Context): Request {
   return Object.create(c.req.raw, {
@@ -300,7 +282,6 @@ function assertAuthenticated(c: AppContext, author: NostrEvent): void {
 }
 
 export {
-  activityJson,
   assertAuthenticated,
   createAdminEvent,
   createEvent,

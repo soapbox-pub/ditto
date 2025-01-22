@@ -18,6 +18,7 @@ import { getTokenHash } from '@/utils/auth.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
+import { HTTPException } from '@hono/hono/http-exception';
 
 const console = new Stickynotes('ditto:streaming');
 
@@ -214,20 +215,20 @@ async function topicToFilter(
 
   switch (topic) {
     case 'public':
-      return { kinds: [1, 6] };
+      return { kinds: [1, 6, 20] };
     case 'public:local':
-      return { kinds: [1, 6], search: `domain:${host}` };
+      return { kinds: [1, 6, 20], search: `domain:${host}` };
     case 'hashtag':
-      if (query.tag) return { kinds: [1, 6], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag] };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1, 6], '#t': [query.tag], search: `domain:${host}` };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}` };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
+      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
   }
 }
 
@@ -236,13 +237,17 @@ async function getTokenPubkey(token: string): Promise<string | undefined> {
     const kysely = await Storages.kysely();
     const tokenHash = await getTokenHash(token as `token1${string}`);
 
-    const { pubkey } = await kysely
+    const row = await kysely
       .selectFrom('auth_tokens')
       .select('pubkey')
       .where('token_hash', '=', tokenHash)
-      .executeTakeFirstOrThrow();
+      .executeTakeFirst();
 
-    return pubkey;
+    if (!row) {
+      throw new HTTPException(401, { message: 'Invalid access token' });
+    }
+
+    return row.pubkey;
   } else {
     return bech32ToPubkey(token);
   }

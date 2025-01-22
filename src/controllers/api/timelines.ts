@@ -14,7 +14,7 @@ const homeTimelineController: AppController = async (c) => {
   const params = c.get('pagination');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const authors = [...await getFeedPubkeys(pubkey)];
-  return renderStatuses(c, [{ authors, kinds: [1, 6], ...params }]);
+  return renderStatuses(c, [{ authors, kinds: [1, 6, 20], ...params }]);
 };
 
 const publicQuerySchema = z.object({
@@ -33,7 +33,7 @@ const publicTimelineController: AppController = (c) => {
 
   const { local, instance, language } = result.data;
 
-  const filter: NostrFilter = { kinds: [1], ...params };
+  const filter: NostrFilter = { kinds: [1, 20], ...params };
 
   const search: `${string}:${string}`[] = [];
 
@@ -57,7 +57,7 @@ const publicTimelineController: AppController = (c) => {
 const hashtagTimelineController: AppController = (c) => {
   const hashtag = c.req.param('hashtag')!.toLowerCase();
   const params = c.get('pagination');
-  return renderStatuses(c, [{ kinds: [1], '#t': [hashtag], ...params }]);
+  return renderStatuses(c, [{ kinds: [1, 20], '#t': [hashtag], ...params }]);
 };
 
 const suggestedTimelineController: AppController = async (c) => {
@@ -70,7 +70,7 @@ const suggestedTimelineController: AppController = async (c) => {
 
   const authors = [...getTagSet(follows?.tags ?? [], 'p')];
 
-  return renderStatuses(c, [{ authors, kinds: [1], ...params }]);
+  return renderStatuses(c, [{ authors, kinds: [1, 20], ...params }]);
 };
 
 /** Render statuses for timelines. */

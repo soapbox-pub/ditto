@@ -1,7 +1,6 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { Stickynotes } from '@soapbox/stickynotes';
 import { Kysely, sql } from 'kysely';
-import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
@@ -23,14 +22,25 @@ import { getTagSet } from '@/utils/tags.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
+import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 
 const console = new Stickynotes('ditto:pipeline');
+
+interface PipelineOpts {
+  signal: AbortSignal;
+  source: 'relay' | 'api' | 'firehose' | 'pipeline' | 'notify' | 'internal';
+}
 
 /**
  * Common pipeline function to process (and maybe store) events.
  * It is idempotent, so it can be called multiple times for the same event.
  */
-async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
+async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void> {
+  // Skip events that have already been encountered.
+  if (pipelineEncounters.get(event.id)) {
+    throw new RelayError('duplicate', 'already have this event');
+  }
+  // Reject events that are too far in the future.
   if (eventAge(event) < -Time.minutes(1)) {
     throw new RelayError('invalid', 'event too far in the future');
   }
@@ -51,11 +61,12 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
   if (!(await verifyEventWorker(event))) {
     throw new RelayError('invalid', 'invalid signature');
   }
-  // Skip events that have been recently encountered.
-  // We must do this after verifying the signature.
-  if (encounterEvent(event)) {
+  // Recheck encountered after async ops.
+  if (pipelineEncounters.has(event.id)) {
     throw new RelayError('duplicate', 'already have this event');
   }
+  // Set the event as encountered after verifying the signature.
+  pipelineEncounters.set(event.id, true);
 
   // Log the event.
   console.info(`NostrEvent<${event.kind}> ${event.id}`);
@@ -71,12 +82,12 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
 
   // Ensure the event doesn't violate the policy.
   if (event.pubkey !== Conf.pubkey) {
-    await policyFilter(event, signal);
+    await policyFilter(event, opts.signal);
   }
 
   // Prepare the event for additional checks.
   // FIXME: This is kind of hacky. Should be reorganized to fetch only what's needed for each stage.
-  await hydrateEvent(event, signal);
+  await hydrateEvent(event, opts.signal);
 
   // Ensure that the author is not banned.
   const n = getTagSet(event.user?.tags ?? [], 'n');
@@ -93,15 +104,24 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
     return;
   }
 
+  // Events received through notify are thought to already be in the database, so they only need to be streamed.
+  if (opts.source === 'notify') {
+    await Promise.all([
+      streamOut(event),
+      webPush(event),
+    ]);
+    return;
+  }
+
   const kysely = await Storages.kysely();
 
   try {
-    await storeEvent(purifyEvent(event), signal);
+    await storeEvent(purifyEvent(event), opts.signal);
   } finally {
     // This needs to run in steps, and should not block the API from responding.
     Promise.allSettled([
       handleZaps(kysely, event),
-      parseMetadata(event, signal),
+      parseMetadata(event, opts.signal),
       setLanguage(event),
       setMimeType(event),
       generateSetEvents(event),
@@ -131,17 +151,6 @@ async function policyFilter(event: NostrEvent, signal: AbortSignal): Promise<voi
       throw new RelayError('blocked', 'policy error');
     }
   }
-}
-
-const encounters = new LRUCache<string, true>({ max: 1000 });
-
-/** Encounter the event, and return whether it has already been encountered. */
-function encounterEvent(event: NostrEvent): boolean {
-  const encountered = !!encounters.get(event.id);
-  if (!encountered) {
-    encounters.set(event.id, true);
-  }
-  return encountered;
 }
 
 /** Check whether the event has a NIP-70 `-` tag. */
@@ -346,7 +355,7 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
       created_at: Math.floor(Date.now() / 1000),
     });
 
-    await handleEvent(rel, AbortSignal.timeout(1000));
+    await handleEvent(rel, { source: 'pipeline', signal: AbortSignal.timeout(1000) });
   }
 
   if (event.kind === 3036 && tagsAdmin) {
@@ -364,7 +373,7 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
       created_at: Math.floor(Date.now() / 1000),
     });
 
-    await handleEvent(rel, AbortSignal.timeout(1000));
+    await handleEvent(rel, { source: 'pipeline', signal: AbortSignal.timeout(1000) });
   }
 }
 

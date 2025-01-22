@@ -111,7 +111,7 @@ export async function updateTrendingTags(
       created_at: Math.floor(Date.now() / 1000),
     });
 
-    await handleEvent(label, signal);
+    await handleEvent(label, { source: 'internal', signal });
     console.info(`Trending ${l} updated.`);
   } catch (e) {
     console.error(`Error updating trending ${l}: ${e instanceof Error ? e.message : e}`);

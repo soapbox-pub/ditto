@@ -166,7 +166,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   if (n.id().safeParse(q).success) {
     const filters: NostrFilter[] = [];
     if (accounts) filters.push({ kinds: [0], authors: [q] });
-    if (statuses) filters.push({ kinds: [1], ids: [q] });
+    if (statuses) filters.push({ kinds: [1, 20], ids: [q] });
     return filters;
   }
 
@@ -184,10 +184,10 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
         if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
         break;
       case 'note':
-        if (statuses) filters.push({ kinds: [1], ids: [result.data] });
+        if (statuses) filters.push({ kinds: [1, 20], ids: [result.data] });
         break;
       case 'nevent':
-        if (statuses) filters.push({ kinds: [1], ids: [result.data.id] });
+        if (statuses) filters.push({ kinds: [1, 20], ids: [result.data.id] });
         break;
     }
     return filters;

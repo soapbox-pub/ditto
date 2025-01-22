@@ -102,21 +102,21 @@ export function assembleEvents(
     if (event.kind === 1) {
       const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
       if (id) {
-        event.quote = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.quote = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
     }
 
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
-        event.repost = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.repost = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
     }
 
     if (event.kind === 7) {
       const id = event.tags.findLast(([name]) => name === 'e')?.[1];
       if (id) {
-        event.reacted = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.reacted = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
     }
 
@@ -130,7 +130,7 @@ export function assembleEvents(
       const ids = event.tags.filter(([name]) => name === 'e').map(([_name, value]) => value);
 
       for (const id of ids) {
-        const reported = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        const reported = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
         if (reported) {
           reportedEvents.push(reported);
         }
@@ -146,7 +146,7 @@ export function assembleEvents(
 
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
-        event.zapped = b.find((e) => matchFilter({ kinds: [1], ids: [id] }, e));
+        event.zapped = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
 
       const zapRequestString = event?.tags?.find(([name]) => name === 'description')?.[1];
@@ -313,7 +313,7 @@ function gatherReportedNotes({ events, store, signal }: HydrateOpts): Promise<Di
   }
 
   return store.query(
-    [{ kinds: [1], ids: [...ids], limit: ids.size }],
+    [{ kinds: [1, 20], ids: [...ids], limit: ids.size }],
     { signal },
   );
 }

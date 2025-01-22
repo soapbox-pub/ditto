@@ -134,7 +134,7 @@ const trendingStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const results = await store.query([{ kinds: [1], ids }])
+  const results = await store.query([{ kinds: [1, 20], ids }])
     .then((events) => hydrateEvents({ events, store }));
 
   // Sort events in the order they appear in the label.

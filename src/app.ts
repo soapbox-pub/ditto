@@ -133,6 +133,7 @@ import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
+import { notActivitypubMiddleware } from '@/middleware/notActivitypubMiddleware.ts';
 import { paginationMiddleware } from '@/middleware/paginationMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { requireSigner } from '@/middleware/requireSigner.ts';
@@ -179,7 +180,6 @@ app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
 app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
 app.use('/.well-known/*', metricsMiddleware, logger(debug));
-app.use('/users/*', metricsMiddleware, logger(debug));
 app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
 app.use('/oauth/*', metricsMiddleware, logger(debug));
 
@@ -400,18 +400,24 @@ app.use('/oauth/*', notImplementedController);
 app.get('/:acct{@.*}', frontendController);
 app.get('/:acct{@.*}/*', frontendController);
 app.get('/:bech32{^[\x21-\x7E]{1,83}1[023456789acdefghjklmnpqrstuvwxyz]{6,}$}', frontendController);
-app.get('/users/*', frontendController);
+app.get('/users/*', notActivitypubMiddleware, frontendController);
 app.get('/tags/*', frontendController);
 app.get('/statuses/*', frontendController);
 app.get('/notice/*', frontendController);
 app.get('/timeline/*', frontendController);
 
 // Known static file routes
+app.get('/sw.js', publicFiles);
 app.get('/favicon.ico', publicFiles, staticFiles);
 app.get('/images/*', publicFiles, staticFiles);
 app.get('/instance/*', publicFiles);
-app.get('/packs/*', publicFiles);
-app.get('/sw.js', publicFiles);
+
+// Packs contains immutable static files
+app.get('/packs/*', async (c, next) => {
+  c.header('Cache-Control', 'public, max-age=31536000, immutable');
+  c.header('Strict-Transport-Security', '"max-age=31536000" always');
+  await next();
+}, publicFiles);
 
 // Site index
 app.get('/', frontendController, indexController);
