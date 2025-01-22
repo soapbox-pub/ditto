@@ -158,16 +158,41 @@ class EventsDB extends NPostgres {
       }) as SelectQueryBuilder<DittoTables, 'nostr_events', DittoTables['nostr_events']>;
 
       const languages = new Set<string>();
+      let exact_mime_type: string | undefined;
+      let partial_mime_type: string | undefined;
+      let only_media: boolean | undefined;
 
       for (const token of tokens) {
         if (typeof token === 'object' && token.key === 'language') {
           languages.add(token.value);
+        }
+        if (typeof token === 'object' && token.key === 'exact_mime_type') {
+          exact_mime_type = token.value;
+        }
+        if (typeof token === 'object' && token.key === 'partial_mime_type') {
+          partial_mime_type = token.value;
+        }
+        if (typeof token === 'object' && token.key === 'only_media') {
+          if (token.value === 'true') only_media = true;
+          if (token.value === 'false') only_media = false;
         }
       }
 
       if (languages.size) {
         query = query.where('language', 'in', [...languages]);
       }
+      if (exact_mime_type) {
+        query = query.where('mime_type', '=', exact_mime_type);
+      }
+      if (partial_mime_type) {
+        query = query.where(
+          (eb) => eb.fn('split_part', [eb.ref('mime_type'), eb.val('/'), eb.val(1)]),
+          '=',
+          partial_mime_type,
+        );
+      }
+      if (only_media) query = query.where('mime_type', 'is not', null);
+      if (only_media === false) query = query.where('mime_type', 'is', null);
 
       return query;
     }

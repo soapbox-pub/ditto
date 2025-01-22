@@ -103,6 +103,7 @@ async function handleEvent(event: DittoEvent, signal: AbortSignal): Promise<void
       handleZaps(kysely, event),
       parseMetadata(event, signal),
       setLanguage(event),
+      setMimeType(event),
       generateSetEvents(event),
     ])
       .then(() =>
@@ -241,6 +242,25 @@ async function setLanguage(event: NostrEvent): Promise<void> {
   try {
     await kysely.updateTable('nostr_events')
       .set('language', language)
+      .where('id', '=', event.id)
+      .execute();
+  } catch {
+    // do nothing
+  }
+}
+
+/** Update the event in the database and set its MIME type. */
+async function setMimeType(event: NostrEvent): Promise<void> {
+  const imeta = event.tags.find(([value]) => value === 'imeta');
+  if (!imeta) return;
+
+  const mime_type = imeta.find((value) => value?.split(' ')[0] === 'm')?.split(' ')[1];
+  if (!mime_type) return;
+
+  const kysely = await Storages.kysely();
+  try {
+    await kysely.updateTable('nostr_events')
+      .set('mime_type', mime_type)
       .where('id', '=', event.id)
       .execute();
   } catch {

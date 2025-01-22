@@ -14,6 +14,7 @@ export interface DittoTables extends NPostgresSchema {
 
 type NostrEventsRow = NPostgresSchema['nostr_events'] & {
   language: string | null;
+  mime_type: string | null;
 };
 
 interface AuthorStatsRow {
