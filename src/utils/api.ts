@@ -161,7 +161,7 @@ async function updateNames(k: number, d: string, n: Record<string, boolean>, c: 
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   debug('EVENT', event);
   try {
-    await pipeline.handleEvent(event, c.req.raw.signal);
+    await pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
     const client = await Storages.client();
     await client.event(purifyEvent(event));
   } catch (e) {
