@@ -30,11 +30,11 @@ export async function down(db: Kysely<any>): Promise<void> {
 
   await db.schema
     .dropIndex('nostr_events_mime_type_prefix_idx')
-    .on('nostr_events')
+    .ifExists()
     .execute();
 
   await db.schema
     .dropIndex('nostr_events_mime_type_hash_idx')
-    .on('nostr_events')
+    .ifExists()
     .execute();
 }
