@@ -2,6 +2,7 @@ import { MiddlewareHandler } from '@hono/hono';
 
 const ACTIVITYPUB_TYPES = [
   'application/activity+json',
+  'application/ld+json',
   'application/ld+json; profile="https://www.w3.org/ns/activitystreams"',
 ];
 
