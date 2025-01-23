@@ -178,7 +178,7 @@ const publicFiles = serveStatic({ root: './public/' });
 const staticFiles = serveStatic({ root: './static/' });
 
 app.use('*', cacheControlMiddleware({ noStore: true }));
-app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
+app.use('*', rateLimitMiddleware(300, Time.minutes(5), false));
 
 app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
 app.use('/.well-known/*', metricsMiddleware, logger(debug));
