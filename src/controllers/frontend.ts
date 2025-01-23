@@ -31,6 +31,7 @@ export const frontendController: AppMiddleware = async (c, next) => {
       try {
         const entities = await getEntities(params ?? {});
         const meta = renderMetadata(c.req.url, entities);
+        c.header('Cache-Control', 'max-age=30, public, stale-while-revalidate=30');
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
         console.log(`Error building meta tags: ${e}`);

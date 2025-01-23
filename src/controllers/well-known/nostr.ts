@@ -14,7 +14,7 @@ const emptyResult: NostrJson = { names: {}, relays: {} };
 const nostrController: AppController = async (c) => {
   // If there are no query parameters, this will always return an empty result.
   if (!Object.entries(c.req.queries()).length) {
-    c.header('Cache-Control', 'max-age=31536000, public, immutable');
+    c.header('Cache-Control', 'max-age=31536000, public, immutable, stale-while-revalidate=86400');
     return c.json(emptyResult);
   }
 
@@ -26,14 +26,14 @@ const nostrController: AppController = async (c) => {
 
   if (!name || !pointer) {
     // Not found, cache for 5 minutes.
-    c.header('Cache-Control', 'max-age=300, public');
+    c.header('Cache-Control', 'max-age=300, public, stale-while-revalidate=30');
     return c.json(emptyResult);
   }
 
   const { pubkey, relays = [] } = pointer;
 
-  // It's found, so cache for 12 hours.
-  c.header('Cache-Control', 'max-age=43200, public');
+  // It's found, so cache for 6 hours.
+  c.header('Cache-Control', 'max-age=21600, public, stale-while-revalidate=3600');
 
   return c.json(
     {
