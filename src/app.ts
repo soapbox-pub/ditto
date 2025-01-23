@@ -131,6 +131,7 @@ import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { notActivitypubMiddleware } from '@/middleware/notActivitypubMiddleware.ts';
@@ -198,15 +199,39 @@ app.use(
 
 app.get('/metrics', metricsController);
 
-app.get('/.well-known/nodeinfo', nodeInfoController);
+app.get(
+  '/.well-known/nodeinfo',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  nodeInfoController,
+);
 app.get('/.well-known/nostr.json', nostrController);
 
-app.get('/nodeinfo/:version', nodeInfoSchemaController);
-app.get('/manifest.webmanifest', manifestController);
+app.get(
+  '/nodeinfo/:version',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  nodeInfoSchemaController,
+);
+app.get(
+  '/manifest.webmanifest',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  manifestController,
+);
 
-app.get('/api/v1/instance', instanceV1Controller);
-app.get('/api/v2/instance', instanceV2Controller);
-app.get('/api/v1/instance/extended_description', instanceDescriptionController);
+app.get(
+  '/api/v1/instance',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceV1Controller,
+);
+app.get(
+  '/api/v2/instance',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceV2Controller,
+);
+app.get(
+  '/api/v1/instance/extended_description',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceDescriptionController,
+);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
@@ -295,12 +320,28 @@ app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
 app.get('/api/v2/search', searchController);
 
-app.get('/api/pleroma/frontend_configurations', frontendConfigController);
+app.get(
+  '/api/pleroma/frontend_configurations',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  frontendConfigController,
+);
 
 app.get('/api/v1/trends/statuses', rateLimitMiddleware(8, Time.seconds(30)), trendingStatusesController);
-app.get('/api/v1/trends/links', trendingLinksController);
-app.get('/api/v1/trends/tags', trendingTagsController);
-app.get('/api/v1/trends', trendingTagsController);
+app.get(
+  '/api/v1/trends/links',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingLinksController,
+);
+app.get(
+  '/api/v1/trends/tags',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingTagsController,
+);
+app.get(
+  '/api/v1/trends',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingTagsController,
+);
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
@@ -344,7 +385,11 @@ app.post(
   captchaVerifyController,
 );
 
-app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
+app.get(
+  '/api/v1/ditto/zap_splits',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, public: true }),
+  getZapSplitsController,
+);
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
@@ -408,16 +453,36 @@ app.get('/timeline/*', frontendController);
 
 // Known static file routes
 app.get('/sw.js', publicFiles);
-app.get('/favicon.ico', publicFiles, staticFiles);
-app.get('/images/*', publicFiles, staticFiles);
-app.get('/instance/*', publicFiles);
+app.get(
+  '/favicon.ico',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+  staticFiles,
+);
+app.get(
+  '/images/*',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+  staticFiles,
+);
+app.get(
+  '/instance/*',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+);
 
 // Packs contains immutable static files
-app.get('/packs/*', async (c, next) => {
-  c.header('Cache-Control', 'public, max-age=31536000, immutable');
-  c.header('Strict-Transport-Security', '"max-age=31536000" always');
-  await next();
-}, publicFiles);
+app.get(
+  '/packs/*',
+  cacheControlMiddleware({
+    maxAge: 31536000,
+    staleWhileRevalidate: 86400,
+    staleIfError: 21600,
+    public: true,
+    immutable: true,
+  }),
+  publicFiles,
+);
 
 // Site index
 app.get('/', frontendController, indexController);

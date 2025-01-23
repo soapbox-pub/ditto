@@ -1,6 +1,13 @@
-import { type Context } from '@hono/hono';
+import { Handler } from '@hono/hono';
 
-const emptyArrayController = (c: Context) => c.json([]);
-const notImplementedController = (c: Context) => Promise.resolve(c.json({ error: 'Not implemented' }, 404));
+const emptyArrayController: Handler = (c) => {
+  c.header('Cache-Control', 'max-age=300, public, stale-while-revalidate=60');
+  return c.json([]);
+};
+
+const notImplementedController: Handler = (c) => {
+  c.header('Cache-Control', 'max-age=300, public, stale-while-revalidate=60');
+  return c.json({ error: 'Not implemented' }, 404);
+};
 
 export { emptyArrayController, notImplementedController };
