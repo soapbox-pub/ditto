@@ -414,8 +414,7 @@ app.get('/instance/*', publicFiles);
 
 // Packs contains immutable static files
 app.get('/packs/*', async (c, next) => {
-  c.header('Cache-Control', 'public, max-age=31536000, immutable');
-  c.header('Strict-Transport-Security', '"max-age=31536000" always');
+  c.header('Cache-Control', 'max-age=31536000, public, immutable');
   await next();
 }, publicFiles);
 
