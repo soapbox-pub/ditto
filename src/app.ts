@@ -177,6 +177,7 @@ const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
 const staticFiles = serveStatic({ root: './static/' });
 
+app.use('*', cacheControlMiddleware({ noStore: true }));
 app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
 
 app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
