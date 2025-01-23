@@ -2,6 +2,8 @@ import { ErrorHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 
 export const errorHandler: ErrorHandler = (err, c) => {
+  c.header('Cache-Control', 'no-store');
+
   if (err instanceof HTTPException) {
     if (err.res) {
       return err.res;

@@ -9,6 +9,10 @@ export function rateLimitMiddleware(limit: number, windowMs: number): Middleware
   return rateLimiter({
     limit,
     windowMs,
+    handler: (c) => {
+      c.header('Cache-Control', 'no-store');
+      return c.text('Too many requests, please try again later.', 429);
+    },
     skip: (c) => !c.req.header('x-real-ip'),
     keyGenerator: (c) => c.req.header('x-real-ip')!,
   });
