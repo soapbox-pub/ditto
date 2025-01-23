@@ -131,6 +131,7 @@ import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { notActivitypubMiddleware } from '@/middleware/notActivitypubMiddleware.ts';
@@ -413,10 +414,7 @@ app.get('/images/*', publicFiles, staticFiles);
 app.get('/instance/*', publicFiles);
 
 // Packs contains immutable static files
-app.get('/packs/*', async (c, next) => {
-  c.header('Cache-Control', 'max-age=31536000, public, immutable');
-  await next();
-}, publicFiles);
+app.get('/packs/*', cacheControlMiddleware({ maxAge: 31536000, public: true, immutable: true }), publicFiles);
 
 // Site index
 app.get('/', frontendController, indexController);
