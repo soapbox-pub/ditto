@@ -1,4 +1,5 @@
 import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
 import { logger } from '@hono/hono/logger';
@@ -179,19 +180,18 @@ const staticFiles = serveStatic({ root: './static/' });
 
 app.use('*', cacheControlMiddleware({ noStore: true }));
 
-app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
-app.use('/.well-known/*', metricsMiddleware, logger(debug));
-app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
-app.use('/oauth/*', metricsMiddleware, logger(debug));
-
-app.get('/api/v1/streaming', metricsMiddleware, streamingController);
-app.get('/relay', metricsMiddleware, relayController);
-
-app.use(
-  '*',
+const ratelimit = every(
   rateLimitMiddleware(30, Time.seconds(5), false),
   rateLimitMiddleware(300, Time.minutes(5), false),
 );
+
+app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware, logger(debug));
+app.use('/.well-known/*', metricsMiddleware, ratelimit, logger(debug));
+app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logger(debug));
+app.use('/oauth/*', metricsMiddleware, ratelimit, logger(debug));
+
+app.get('/api/v1/streaming', metricsMiddleware, ratelimit, streamingController);
+app.get('/relay', metricsMiddleware, ratelimit, relayController);
 
 app.use(
   '*',
@@ -491,10 +491,10 @@ app.get(
 );
 
 // Site index
-app.get('/', frontendController, indexController);
+app.get('/', ratelimit, frontendController, indexController);
 
 // Fallback
-app.get('*', publicFiles, staticFiles, frontendController);
+app.get('*', publicFiles, staticFiles, ratelimit, frontendController);
 
 app.onError(errorHandler);
 
