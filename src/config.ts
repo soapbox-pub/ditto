@@ -261,7 +261,7 @@ class Conf {
    * This would make Nostr events inserted directly into Postgres available to the streaming API and relay.
    */
   static get notifyEnabled(): boolean {
-    return optionalBooleanSchema.parse(Deno.env.get('NOTIFY_ENABLED')) ?? false;
+    return optionalBooleanSchema.parse(Deno.env.get('NOTIFY_ENABLED')) ?? true;
   }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
