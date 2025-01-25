@@ -248,7 +248,7 @@ class Conf {
   }
   /** Number of events the firehose is allowed to process at one time before they have to wait in a queue. */
   static get firehoseConcurrency(): number {
-    return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? (Conf.pg.poolSize * 0.25)));
+    return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? 1));
   }
   /** Nostr event kinds of events to listen for on the firehose. */
   static get firehoseKinds(): number[] {
