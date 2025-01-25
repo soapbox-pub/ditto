@@ -267,14 +267,6 @@ class Conf {
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
   }
-  /** Crawler User-Agent regex to render link previews to. */
-  static get crawlerRegex(): RegExp {
-    return new RegExp(
-      Deno.env.get('CRAWLER_REGEX') ||
-        'googlebot|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterestbot|slackbot|vkShare|W3C_Validator|whatsapp|mastodon|pleroma|Discordbot|AhrefsBot|SEMrushBot|MJ12bot|SeekportBot|Synapse|Matrix',
-      'i',
-    );
-  }
   /** User-Agent to use when fetching link previews. Pretend to be Facebook by default. */
   static get fetchUserAgent(): string {
     return Deno.env.get('DITTO_FETCH_USER_AGENT') ?? 'facebookexternalhit';

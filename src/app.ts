@@ -126,7 +126,6 @@ import { translateController } from '@/controllers/api/translate.ts';
 import { errorHandler } from '@/controllers/error.ts';
 import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
-import { indexController } from '@/controllers/site.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
@@ -490,10 +489,7 @@ app.get(
   publicFiles,
 );
 
-// Site index
-app.get('/', ratelimit, frontendController, indexController);
-
-// Fallback
+app.get('/', ratelimit, frontendController);
 app.get('*', publicFiles, staticFiles, ratelimit, frontendController);
 
 app.onError(errorHandler);
