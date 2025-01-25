@@ -35,7 +35,7 @@ export class MemoryRateLimiter implements RateLimiter {
       return curr;
     }
 
-    if (prev) {
+    if (prev && prev.resetAt > new Date()) {
       this.current.set(key, prev);
       this.previous.delete(key);
       return prev;
