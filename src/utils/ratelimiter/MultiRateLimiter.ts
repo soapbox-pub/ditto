@@ -3,7 +3,7 @@ import { RateLimiter, RateLimiterClient } from './types.ts';
 export class MultiRateLimiter {
   constructor(private limiters: RateLimiter[]) {}
 
-  client(key: string): RateLimiterClient {
+  client(key: string): MultiRateLimiterClient {
     return new MultiRateLimiterClient(key, this.limiters);
   }
 }
@@ -15,16 +15,22 @@ class MultiRateLimiterClient implements RateLimiterClient {
     }
   }
 
+  /** Returns the _active_ limiter, which is either the first exceeded or the first. */
+  get limiter(): RateLimiter {
+    const exceeded = this.limiters.find((limiter) => limiter.client(this.key).remaining < 0);
+    return exceeded ?? this.limiters[0];
+  }
+
   get hits(): number {
-    return this.limiters[0].client(this.key).hits;
+    return this.limiter.client(this.key).hits;
   }
 
   get resetAt(): Date {
-    return this.limiters[0].client(this.key).resetAt;
+    return this.limiter.client(this.key).resetAt;
   }
 
   get remaining(): number {
-    return this.limiters[0].client(this.key).remaining;
+    return this.limiter.client(this.key).remaining;
   }
 
   hit(n?: number): void {

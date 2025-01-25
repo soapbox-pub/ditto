@@ -34,6 +34,8 @@ Deno.test('MultiRateLimiter', async (t) => {
   });
 
   await t.step('throws when hit if second limit exceeded', () => {
+    assertEquals(limiter.client('test').limiter, limiter1);
     assertThrows(() => limiter.client('test').hit(), Error);
+    assertEquals(limiter.client('test').limiter, limiter2);
   });
 });
