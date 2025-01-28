@@ -1,4 +1,6 @@
 // deno-lint-ignore-file require-await
+import { logi } from '@soapbox/logi';
+
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -89,7 +91,12 @@ export class Storages {
           return acc;
         }, []);
 
-        console.log(`pool: connecting to ${activeRelays.length} relays.`);
+        logi({
+          level: 'info',
+          ns: 'ditto.pool',
+          message: `connecting to ${activeRelays.length} relays`,
+          relays: activeRelays,
+        });
 
         return new NPool({
           open(url) {

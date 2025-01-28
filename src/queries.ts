@@ -1,5 +1,4 @@
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
 
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
@@ -8,8 +7,6 @@ import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { fallbackAuthor } from '@/utils.ts';
 import { findReplyTag, getTagSet } from '@/utils/tags.ts';
-
-const debug = Debug('ditto:queries');
 
 interface GetEventOpts {
   /** Signal to abort the request. */
@@ -20,12 +17,14 @@ interface GetEventOpts {
   relations?: DittoRelation[];
 }
 
-/** Get a Nostr event by its ID. */
+/**
+ * Get a Nostr event by its ID.
+ * @deprecated Use `store.query` directly.
+ */
 const getEvent = async (
   id: string,
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
-  debug(`getEvent: ${id}`);
   const store = await Storages.db();
   const { kind, signal = AbortSignal.timeout(1000) } = opts;
 

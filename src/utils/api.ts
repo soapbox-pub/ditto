@@ -1,7 +1,7 @@
 import { type Context } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { logi } from '@soapbox/logi';
 import { EventTemplate } from 'nostr-tools';
 import * as TypeFest from 'type-fest';
 
@@ -14,8 +14,6 @@ import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseFormData } from '@/utils/formdata.ts';
 import { purifyEvent } from '@/utils/purify.ts';
-
-const debug = Debug('ditto:api');
 
 /** EventTemplate with defaults. */
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
@@ -159,7 +157,7 @@ async function updateNames(k: number, d: string, n: Record<string, boolean>, c: 
 
 /** Push the event through the pipeline, rethrowing any RelayError. */
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
-  debug('EVENT', event);
+  logi({ level: 'info', ns: 'ditto.event', source: 'api', id: event.id, kind: event.kind });
   try {
     await pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
     const client = await Storages.client();

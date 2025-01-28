@@ -9,6 +9,8 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createAdminEvent, paginated, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
+import { logi } from '@soapbox/logi';
+import { errorJson } from '@/utils/log.ts';
 
 const adminAccountQuerySchema = z.object({
   local: booleanParamSchema.optional(),
@@ -148,11 +150,15 @@ const adminActionController: AppController = async (c) => {
   if (data.type === 'suspend') {
     n.disabled = true;
     n.suspended = true;
-    store.remove([{ authors: [authorId] }]).catch(console.warn);
+    store.remove([{ authors: [authorId] }]).catch((e: unknown) => {
+      logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
+    });
   }
   if (data.type === 'revoke_name') {
     n.revoke_name = true;
-    store.remove([{ kinds: [30360], authors: [Conf.pubkey], '#p': [authorId] }]).catch(console.warn);
+    store.remove([{ kinds: [30360], authors: [Conf.pubkey], '#p': [authorId] }]).catch((e: unknown) => {
+      logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
+    });
   }
 
   await updateUser(authorId, n, c);

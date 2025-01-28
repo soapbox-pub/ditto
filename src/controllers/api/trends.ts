@@ -1,4 +1,5 @@
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
+import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
@@ -9,10 +10,17 @@ import { Storages } from '@/storages.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { paginated } from '@/utils/api.ts';
+import { errorJson } from '@/utils/log.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-let trendingHashtagsCache = getTrendingHashtags().catch((e) => {
-  console.error(`Failed to get trending hashtags: ${e}`);
+let trendingHashtagsCache = getTrendingHashtags().catch((e: unknown) => {
+  logi({
+    level: 'error',
+    ns: 'ditto.trends.api',
+    type: 'tags',
+    message: 'Failed to get trending hashtags',
+    error: errorJson(e),
+  });
   return Promise.resolve([]);
 });
 
@@ -21,7 +29,13 @@ Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
     const trends = await getTrendingHashtags();
     trendingHashtagsCache = Promise.resolve(trends);
   } catch (e) {
-    console.error(e);
+    logi({
+      level: 'error',
+      ns: 'ditto.trends.api',
+      type: 'tags',
+      message: 'Failed to get trending hashtags',
+      error: errorJson(e),
+    });
   }
 });
 
@@ -57,8 +71,14 @@ async function getTrendingHashtags() {
   });
 }
 
-let trendingLinksCache = getTrendingLinks().catch((e) => {
-  console.error(`Failed to get trending links: ${e}`);
+let trendingLinksCache = getTrendingLinks().catch((e: unknown) => {
+  logi({
+    level: 'error',
+    ns: 'ditto.trends.api',
+    type: 'links',
+    message: 'Failed to get trending links',
+    error: errorJson(e),
+  });
   return Promise.resolve([]);
 });
 
@@ -67,7 +87,13 @@ Deno.cron('update trending links cache', '50 * * * *', async () => {
     const trends = await getTrendingLinks();
     trendingLinksCache = Promise.resolve(trends);
   } catch (e) {
-    console.error(e);
+    logi({
+      level: 'error',
+      ns: 'ditto.trends.api',
+      type: 'links',
+      message: 'Failed to get trending links',
+      error: errorJson(e),
+    });
   }
 });
 

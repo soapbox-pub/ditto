@@ -2,6 +2,7 @@ import { logi } from '@soapbox/logi';
 import { Logger } from 'kysely';
 
 import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
+import { errorJson } from '@/utils/log.ts';
 
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
@@ -27,10 +28,6 @@ export const KyselyLogger: Logger = (event) => {
   }
 
   if (event.level === 'error') {
-    const error = event.error instanceof Error
-      ? { name: event.error.name, message: event.error.message }
-      : { name: 'unknown', message: 'Unknown error' };
-
-    logi({ level: 'error', ns: 'ditto.sql', sql, parameters, error, duration });
+    logi({ level: 'error', ns: 'ditto.sql', sql, parameters, error: errorJson(event.error), duration });
   }
 };

@@ -1,13 +1,12 @@
 import { Semaphore } from '@lambdalisue/async';
-import { Stickynotes } from '@soapbox/stickynotes';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
 import { Storages } from '@/storages.ts';
+import { logi } from '@soapbox/logi';
 
 const sem = new Semaphore(1);
-const console = new Stickynotes('ditto:notify');
 
 export async function startNotify(): Promise<void> {
   const { listen } = await Storages.database();
@@ -15,9 +14,11 @@ export async function startNotify(): Promise<void> {
 
   listen('nostr_event', (id) => {
     if (pipelineEncounters.has(id)) {
-      console.debug(`Skip event ${id} because it was already in the pipeline`);
+      logi({ level: 'debug', ns: 'ditto.notify', id, skipped: true });
       return;
     }
+
+    logi({ level: 'debug', ns: 'ditto.notify', id, skipped: false });
 
     sem.lock(async () => {
       try {
@@ -26,10 +27,11 @@ export async function startNotify(): Promise<void> {
         const [event] = await store.query([{ ids: [id], limit: 1 }], { signal });
 
         if (event) {
+          logi({ level: 'debug', ns: 'ditto.event', source: 'notify', id: event.id, kind: event.kind });
           await pipeline.handleEvent(event, { source: 'notify', signal });
         }
-      } catch (e) {
-        console.warn(e);
+      } catch {
+        // Ignore
       }
     });
   });

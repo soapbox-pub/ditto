@@ -3,7 +3,8 @@
 import { LanguageCode } from 'iso-639-1';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import { Kysely, SelectQueryBuilder } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
@@ -36,8 +37,6 @@ interface EventsDBOpts {
 
 /** SQL database storage adapter for Nostr events. */
 class EventsDB extends NPostgres {
-  private console = new Stickynotes('ditto:db:events');
-
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'a': ({ count }) => count < 15,
@@ -65,7 +64,7 @@ class EventsDB extends NPostgres {
   /** Insert an event (and its tags) into the database. */
   override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
-    this.console.debug('EVENT', JSON.stringify(event));
+    logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
     dbEventsCounter.inc({ kind: event.kind });
 
     if (await this.isDeletedAdmin(event)) {
@@ -198,7 +197,7 @@ class EventsDB extends NPostgres {
 
     if (opts.signal?.aborted) return Promise.resolve([]);
 
-    this.console.debug('REQ', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.req', source: 'db', filters: filters as JsonValue });
 
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
@@ -228,7 +227,7 @@ class EventsDB extends NPostgres {
 
   /** Delete events based on filters from the database. */
   override async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
-    this.console.debug('DELETE', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.remove', source: 'db', filters: filters as JsonValue });
     return super.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
@@ -239,7 +238,7 @@ class EventsDB extends NPostgres {
   ): Promise<{ count: number; approximate: any }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
-    this.console.debug('COUNT', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.count', source: 'db', filters: filters as JsonValue });
 
     return super.count(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }

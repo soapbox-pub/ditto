@@ -1,5 +1,8 @@
 import { ErrorHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
+import { logi } from '@soapbox/logi';
+
+import { errorJson } from '@/utils/log.ts';
 
 export const errorHandler: ErrorHandler = (err, c) => {
   c.header('Cache-Control', 'no-store');
@@ -16,7 +19,7 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
   }
 
-  console.error(err);
+  logi({ level: 'error', ns: 'ditto.http', message: 'Unhandled error', error: errorJson(err) });
 
   return c.json({ error: 'Something went wrong' }, 500);
 };

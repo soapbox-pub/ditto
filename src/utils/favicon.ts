@@ -1,5 +1,5 @@
 import { DOMParser } from '@b-fuze/deno-dom';
-import Debug from '@soapbox/stickynotes/debug';
+import { logi } from '@soapbox/logi';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
@@ -7,18 +7,16 @@ import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
-const debug = Debug('ditto:favicon');
-
 const faviconCache = new SimpleLRU<string, URL>(
-  async (key, { signal }) => {
-    debug(`Fetching favicon ${key}`);
-    const tld = tldts.parse(key);
+  async (domain, { signal }) => {
+    logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'started' });
+    const tld = tldts.parse(domain);
 
     if (!tld.isIcann || tld.isIp || tld.isPrivate) {
-      throw new Error(`Invalid favicon domain: ${key}`);
+      throw new Error(`Invalid favicon domain: ${domain}`);
     }
 
-    const rootUrl = new URL('/', `https://${key}/`);
+    const rootUrl = new URL('/', `https://${domain}/`);
     const response = await fetchWorker(rootUrl, { signal });
     const html = await response.text();
 
@@ -28,15 +26,28 @@ const faviconCache = new SimpleLRU<string, URL>(
     if (link) {
       const href = link.getAttribute('href');
       if (href) {
+        let url: URL | undefined;
+
         try {
-          return new URL(href);
+          url = new URL(href);
         } catch {
-          return new URL(href, rootUrl);
+          try {
+            url = new URL(href, rootUrl);
+          } catch {
+            // fall through
+          }
+        }
+
+        if (url) {
+          logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'found', url });
+          return url;
         }
       }
     }
 
-    throw new Error(`Favicon not found: ${key}`);
+    logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'failed' });
+
+    throw new Error(`Favicon not found: ${domain}`);
   },
   { ...Conf.caches.favicon, gauge: cachedFaviconsSizeGauge },
 );
