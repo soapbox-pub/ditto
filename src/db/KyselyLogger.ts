@@ -3,6 +3,7 @@ import { Logger } from 'kysely';
 
 import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
 import { errorJson } from '@/utils/log.ts';
+import { JsonValue } from '@std/json';
 
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
@@ -14,14 +15,7 @@ export const KyselyLogger: Logger = (event) => {
   dbQueriesCounter.inc();
   dbQueryDurationHistogram.observe(duration);
 
-  /** Parameters serialized to JSON. */
-  const parameters = query.parameters.map((parameter) => {
-    try {
-      return JSON.stringify(parameter);
-    } catch {
-      return String(parameter);
-    }
-  });
+  const parameters = query.parameters.map(serializeParameter);
 
   if (event.level === 'query') {
     logi({ level: 'debug', ns: 'ditto.sql', sql, parameters, duration });
@@ -31,3 +25,21 @@ export const KyselyLogger: Logger = (event) => {
     logi({ level: 'error', ns: 'ditto.sql', sql, parameters, error: errorJson(event.error), duration });
   }
 };
+
+/** Serialize parameter to JSON. */
+function serializeParameter(parameter: unknown): JsonValue {
+  if (Array.isArray(parameter)) {
+    return parameter.map(serializeParameter);
+  }
+  if (
+    typeof parameter === 'string' || typeof parameter === 'number' || typeof parameter === 'boolean' ||
+    parameter === null
+  ) {
+    return parameter;
+  }
+  try {
+    return JSON.stringify(parameter);
+  } catch {
+    return String(parameter);
+  }
+}
