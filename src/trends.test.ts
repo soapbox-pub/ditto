@@ -16,9 +16,11 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITHOUT language parameter", asyn
   const post1uses = numberOfAuthorsWhoLikedPost1 * post1multiplier;
   for (let i = 0; i < numberOfAuthorsWhoLikedPost1; i++) {
     const sk = generateSecretKey();
-    events.push(
-      genEvent({ kind: 7, content: '+', tags: Array(post1multiplier).fill([...['e', post1.id]]) }, sk),
-    );
+    for (let j = 0; j < post1multiplier; j++) {
+      events.push(
+        genEvent({ kind: 7, content: '+', tags: [['e', post1.id, `${j}`]] }, sk),
+      );
+    }
   }
   events.push(post1);
 
@@ -29,9 +31,11 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITHOUT language parameter", asyn
   const post2uses = numberOfAuthorsWhoLikedPost2 * post2multiplier;
   for (let i = 0; i < numberOfAuthorsWhoLikedPost2; i++) {
     const sk = generateSecretKey();
-    events.push(
-      genEvent({ kind: 7, content: '+', tags: Array(post2multiplier).fill([...['e', post2.id]]) }, sk),
-    );
+    for (let j = 0; j < post2multiplier; j++) {
+      events.push(
+        genEvent({ kind: 7, content: '+', tags: [['e', post2.id, `${j}`]] }, sk),
+      );
+    }
   }
   events.push(post2);
 
@@ -62,9 +66,11 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITH language parameter", async (
   const post1uses = numberOfAuthorsWhoLikedPost1 * post1multiplier;
   for (let i = 0; i < numberOfAuthorsWhoLikedPost1; i++) {
     const sk = generateSecretKey();
-    events.push(
-      genEvent({ kind: 7, content: '+', tags: Array(post1multiplier).fill([...['e', post1.id]]) }, sk),
-    );
+    for (let j = 0; j < post1multiplier; j++) {
+      events.push(
+        genEvent({ kind: 7, content: '+', tags: [['e', post1.id, `${j}`]] }, sk),
+      );
+    }
   }
   events.push(post1);
 
@@ -74,9 +80,11 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITH language parameter", async (
   const post2multiplier = 1;
   for (let i = 0; i < numberOfAuthorsWhoLikedPost2; i++) {
     const sk = generateSecretKey();
-    events.push(
-      genEvent({ kind: 7, content: '+', tags: Array(post2multiplier).fill([...['e', post2.id]]) }, sk),
-    );
+    for (let j = 0; j < post2multiplier; j++) {
+      events.push(
+        genEvent({ kind: 7, content: '+', tags: [['e', post2.id, `${j}`]] }, sk),
+      );
+    }
   }
   events.push(post2);
 

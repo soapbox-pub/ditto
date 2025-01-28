@@ -4,6 +4,7 @@ import { generateSecretKey } from 'nostr-tools';
 import { RelayError } from '@/RelayError.ts';
 import { eventFixture, genEvent } from '@/test.ts';
 import { Conf } from '@/config.ts';
+import { EventsDB } from '@/storages/EventsDB.ts';
 import { createTestDB } from '@/test.ts';
 
 Deno.test('count filters', async () => {
@@ -243,4 +244,43 @@ Deno.test('NPostgres.query with search', async (t) => {
   await t.step("don't match nonsense queries", async () => {
     assertEquals(await store.query([{ search: "this shouldn't match" }]), []);
   });
+});
+
+Deno.test('EventsDB.indexTags indexes only the final `e` and `p` tag of kind 7 events', () => {
+  const event = {
+    kind: 7,
+    id: 'a92549a442d306b32273aa9456ba48e3851a4e6203af3f567543298ab964b35b',
+    pubkey: 'f288a224a61b7361aa9dc41a90aba8a2dff4544db0bc386728e638b21da1792c',
+    created_at: 1737908284,
+    tags: [
+      ['e', '2503cea56931fb25914866e12ffc739741539db4d6815220b9974ef0967fe3f9', '', 'root'],
+      ['p', 'fad5c18326fb26d9019f1b2aa503802f0253494701bf311d7588a1e65cb8046b'],
+      ['p', '26d6a946675e603f8de4bf6f9cef442037b70c7eee170ff06ed7673fc34c98f1'],
+      ['p', '04c960497af618ae18f5147b3e5c309ef3d8a6251768a1c0820e02c93768cc3b'],
+      ['p', '0114bb11dd8eb89bfb40669509b2a5a473d27126e27acae58257f2fd7cd95776'],
+      ['p', '9fce3aea32b35637838fb45b75be32595742e16bb3e4742cc82bb3d50f9087e6'],
+      ['p', '26bd32c67232bdf16d05e763ec67d883015eb99fd1269025224c20c6cfdb0158'],
+      ['p', 'eab0e756d32b80bcd464f3d844b8040303075a13eabc3599a762c9ac7ab91f4f'],
+      ['p', 'edcd20558f17d99327d841e4582f9b006331ac4010806efa020ef0d40078e6da'],
+      ['p', 'bd1e19980e2c91e6dc657e92c25762ca882eb9272d2579e221f037f93788de91'],
+      ['p', 'bf2376e17ba4ec269d10fcc996a4746b451152be9031fa48e74553dde5526bce'],
+      ['p', '3878d95db7b854c3a0d3b2d6b7bf9bf28b36162be64326f5521ba71cf3b45a69'],
+      ['p', 'ede3866ddfc40aa4e458952c11c67e827e3cbb8a6a4f0a934c009aa2ed2fb477'],
+      ['p', 'f288a224a61b7361aa9dc41a90aba8a2dff4544db0bc386728e638b21da1792c'],
+      ['p', '9ce71f1506ccf4b99f234af49bd6202be883a80f95a155c6e9a1c36fd7e780c7', '', 'mention'],
+      ['p', '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', '', 'mention'],
+      ['e', 'e3653ae41ffb510e5fc071555ecfbc94d2fc31e355d61d941e39a97ac6acb15b'],
+      ['p', '4e088f3087f6a7e7097ce5fe7fd884ec04ddc69ed6cdd37c55e200f7744b1792'],
+    ],
+    content: '🤙',
+    sig:
+      '44639d039a7f7fb8772fcfa13d134d3cda684ec34b6a777ead589676f9e8d81b08a24234066dcde1aacfbe193224940fba7586e7197c159757d3caf8f2b57e1b',
+  };
+
+  const tags = EventsDB.indexTags(event);
+
+  assertEquals(tags, [
+    ['e', 'e3653ae41ffb510e5fc071555ecfbc94d2fc31e355d61d941e39a97ac6acb15b'],
+    ['p', '4e088f3087f6a7e7097ce5fe7fd884ec04ddc69ed6cdd37c55e200f7744b1792'],
+  ]);
 });
