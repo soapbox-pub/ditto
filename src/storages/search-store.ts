@@ -1,5 +1,6 @@
 import { NostrEvent, NostrFilter, NRelay1, NStore } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 
 import { normalizeFilters } from '@/filter.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -13,8 +14,6 @@ interface SearchStoreOpts {
 }
 
 class SearchStore implements NStore {
-  #debug = Debug('ditto:storages:search');
-
   #fallback: NStore;
   #hydrator: NStore;
   #relay: NRelay1 | undefined;
@@ -38,11 +37,11 @@ class SearchStore implements NStore {
     if (opts?.signal?.aborted) return Promise.reject(abortError());
     if (!filters.length) return Promise.resolve([]);
 
-    this.#debug('REQ', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.req', source: 'search', filters: filters as JsonValue });
     const query = filters[0]?.search;
 
     if (this.#relay && this.#relay.socket.readyState === WebSocket.OPEN) {
-      this.#debug(`Searching for "${query}" at ${this.#relay.socket.url}...`);
+      logi({ level: 'debug', ns: 'ditto.search', query, source: 'relay', relay: this.#relay.socket.url });
 
       const events = await this.#relay.query(filters, opts);
 
@@ -52,7 +51,7 @@ class SearchStore implements NStore {
         signal: opts?.signal,
       });
     } else {
-      this.#debug(`Searching for "${query}" locally...`);
+      logi({ level: 'debug', ns: 'ditto.search', query, source: 'db' });
       return this.#fallback.query(filters, opts);
     }
   }

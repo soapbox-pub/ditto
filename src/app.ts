@@ -2,9 +2,7 @@ import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, Middle
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
-import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
 import { Kysely } from 'kysely';
 
 import '@/startup.ts';
@@ -142,6 +140,7 @@ import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
+import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 
 export interface AppEnv extends HonoEnv {
   Variables: {
@@ -170,8 +169,6 @@ type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response
 
 const app = new Hono<AppEnv>({ strict: false });
 
-const debug = Debug('ditto:http');
-
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
@@ -184,10 +181,10 @@ const ratelimit = every(
   rateLimitMiddleware(300, Time.minutes(5), false),
 );
 
-app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware, logger(debug));
-app.use('/.well-known/*', metricsMiddleware, ratelimit, logger(debug));
-app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logger(debug));
-app.use('/oauth/*', metricsMiddleware, ratelimit, logger(debug));
+app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware, logiMiddleware);
+app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
 
 app.get('/api/v1/streaming', metricsMiddleware, ratelimit, streamingController);
 app.get('/relay', metricsMiddleware, ratelimit, relayController);

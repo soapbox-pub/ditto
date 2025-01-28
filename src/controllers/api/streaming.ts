@@ -1,6 +1,6 @@
 import TTLCache from '@isaacs/ttlcache';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -15,12 +15,11 @@ import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { getTokenHash } from '@/utils/auth.ts';
+import { errorJson } from '@/utils/log.ts';
 import { bech32ToPubkey, Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 import { HTTPException } from '@hono/hono/http-exception';
-
-const console = new Stickynotes('ditto:streaming');
 
 /**
  * Streaming timelines/categories.
@@ -101,7 +100,6 @@ const streamingController: AppController = async (c) => {
 
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
-      console.debug('send', e.event, e.payload);
       streamingServerMessagesCounter.inc();
       socket.send(JSON.stringify(e));
     }
@@ -130,7 +128,7 @@ const streamingController: AppController = async (c) => {
         }
       }
     } catch (e) {
-      console.debug('streaming error:', e);
+      logi({ level: 'error', ns: 'ditto.streaming', message: 'Error in streaming', error: errorJson(e) });
     }
   }
 

@@ -1,4 +1,4 @@
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import {
   NKinds,
   NostrClientCLOSE,
@@ -17,11 +17,12 @@ import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from 
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
-import { Time } from '@/utils/time.ts';
+import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { MemoryRateLimiter } from '@/utils/ratelimiter/MemoryRateLimiter.ts';
 import { MultiRateLimiter } from '@/utils/ratelimiter/MultiRateLimiter.ts';
 import { RateLimiter } from '@/utils/ratelimiter/types.ts';
+import { Time } from '@/utils/time.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
@@ -43,8 +44,6 @@ const limiters = {
 
 /** Connections for metrics purposes. */
 const connections = new Set<WebSocket>();
-
-const console = new Stickynotes('ditto:relay');
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
@@ -169,7 +168,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        console.error(e);
+        logi({ level: 'error', ns: 'ditto.relay', message: 'Error in relay', error: errorJson(e) });
       }
     }
   }

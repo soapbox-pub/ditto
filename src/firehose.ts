@@ -1,5 +1,5 @@
 import { Semaphore } from '@lambdalisue/async';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
 import { firehoseEventsCounter } from '@/metrics.ts';
@@ -8,7 +8,6 @@ import { nostrNow } from '@/utils.ts';
 
 import * as pipeline from '@/pipeline.ts';
 
-const console = new Stickynotes('ditto:firehose');
 const sem = new Semaphore(Conf.firehoseConcurrency);
 
 /**
@@ -22,14 +21,14 @@ export async function startFirehose(): Promise<void> {
   for await (const msg of store.req([{ kinds: Conf.firehoseKinds, limit: 0, since: nostrNow() }])) {
     if (msg[0] === 'EVENT') {
       const event = msg[2];
-      console.debug(`NostrEvent<${event.kind}> ${event.id}`);
+      logi({ level: 'debug', ns: 'ditto.event', source: 'firehose', id: event.id, kind: event.kind });
       firehoseEventsCounter.inc({ kind: event.kind });
 
       sem.lock(async () => {
         try {
           await pipeline.handleEvent(event, { source: 'firehose', signal: AbortSignal.timeout(5000) });
-        } catch (e) {
-          console.warn(e);
+        } catch {
+          // Ignore
         }
       });
     }

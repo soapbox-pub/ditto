@@ -49,8 +49,8 @@
     "jsr:@nostrify/types@0.36": "0.36.0",
     "jsr:@nostrify/types@~0.30.1": "0.30.1",
     "jsr:@soapbox/kysely-pglite@1": "1.0.0",
+    "jsr:@soapbox/logi@~0.1.3": "0.1.3",
     "jsr:@soapbox/safe-fetch@2": "2.0.0",
-    "jsr:@soapbox/stickynotes@0.4": "0.4.0",
     "jsr:@std/assert@0.223": "0.223.0",
     "jsr:@std/assert@0.224": "0.224.0",
     "jsr:@std/assert@~0.213.1": "0.213.1",
@@ -526,14 +526,14 @@
         "npm:kysely@~0.27.4"
       ]
     },
+    "@soapbox/logi@0.1.3": {
+      "integrity": "1b974f26550d2eba08171f2374ae39876b55a5e7c2780a08b8d04cda86f6f5f2"
+    },
     "@soapbox/safe-fetch@2.0.0": {
       "integrity": "f451d686501c76a0faa058fe9d2073676282a8a42c3b93c59159eb9191f11b5f",
       "dependencies": [
         "npm:tldts@^6.1.61"
       ]
-    },
-    "@soapbox/stickynotes@0.4.0": {
-      "integrity": "60bfe61ab3d7e04bf708273b1e2d391a59534bdf29e54160e98d7afd328ca1ec"
     },
     "@std/assert@0.213.1": {
       "integrity": "24c28178b30c8e0782c18e8e94ea72b16282207569cdd10ffb9d1d26f2edebfe"
@@ -2353,8 +2353,8 @@
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
       "jsr:@soapbox/kysely-pglite@1",
+      "jsr:@soapbox/logi@~0.1.3",
       "jsr:@soapbox/safe-fetch@2",
-      "jsr:@soapbox/stickynotes@0.4",
       "jsr:@std/assert@~0.225.1",
       "jsr:@std/cli@0.223",
       "jsr:@std/crypto@0.224",

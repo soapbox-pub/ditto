@@ -1,45 +1,45 @@
 import { nip19 } from 'nostr-tools';
 import { NIP05, NStore } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
+import { logi } from '@soapbox/logi';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
 import { cachedNip05sSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
+import { errorJson } from '@/utils/log.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Nip05, parseNip05 } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
-const debug = Debug('ditto:nip05');
-
 const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
-  async (key, { signal }) => {
-    debug(`Lookup ${key}`);
-    const tld = tldts.parse(key);
+  async (nip05, { signal }) => {
+    const tld = tldts.parse(nip05);
 
     if (!tld.isIcann || tld.isIp || tld.isPrivate) {
-      throw new Error(`Invalid NIP-05: ${key}`);
+      throw new Error(`Invalid NIP-05: ${nip05}`);
     }
 
-    const [name, domain] = key.split('@');
+    const [name, domain] = nip05.split('@');
+
+    logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'started' });
 
     try {
       if (domain === Conf.url.host) {
         const store = await Storages.db();
         const pointer = await localNip05Lookup(store, name);
         if (pointer) {
-          debug(`Found: ${key} is ${pointer.pubkey}`);
+          logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', pubkey: pointer.pubkey });
           return pointer;
         } else {
-          throw new Error(`Not found: ${key}`);
+          throw new Error(`Not found: ${nip05}`);
         }
       } else {
-        const result = await NIP05.lookup(key, { fetch: fetchWorker, signal });
-        debug(`Found: ${key} is ${result.pubkey}`);
+        const result = await NIP05.lookup(nip05, { fetch: fetchWorker, signal });
+        logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', pubkey: result.pubkey });
         return result;
       }
     } catch (e) {
-      debug(`Not found: ${key}`);
+      logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'failed', error: errorJson(e) });
       throw e;
     }
   },

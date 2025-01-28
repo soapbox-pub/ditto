@@ -1,17 +1,15 @@
 import TTLCache from '@isaacs/ttlcache';
-import Debug from '@soapbox/stickynotes/debug';
+import { logi } from '@soapbox/logi';
 import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
 import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { cachedLinkPreviewSizeGauge } from '@/metrics.ts';
+import { errorJson } from '@/utils/log.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
-const debug = Debug('ditto:unfurl');
-
 async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {
-  debug(`Unfurling ${url}...`);
   try {
     const result = await unfurl(url, {
       fetch: (url) =>
@@ -26,7 +24,7 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
 
     const { oEmbed, title, description, canonical_url, open_graph } = result;
 
-    return {
+    const card = {
       type: oEmbed?.type || 'link',
       url: canonical_url || url,
       title: oEmbed?.title || title || '',
@@ -46,9 +44,12 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
       embed_url: '',
       blurhash: null,
     };
+
+    logi({ level: 'info', ns: 'ditto.unfurl', url, success: true });
+
+    return card;
   } catch (e) {
-    debug(`Failed to unfurl ${url}`);
-    debug(e);
+    logi({ level: 'info', ns: 'ditto.unfurl', url, success: false, error: errorJson(e) });
     return null;
   }
 }

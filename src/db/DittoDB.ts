@@ -1,12 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import { FileMigrationProvider, Kysely, Migrator } from 'kysely';
 
 import { DittoPglite } from '@/db/adapters/DittoPglite.ts';
 import { DittoPostgres } from '@/db/adapters/DittoPostgres.ts';
 import { DittoDatabase, DittoDatabaseOpts } from '@/db/DittoDatabase.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
+import { errorJson } from '@/utils/log.ts';
 
 export class DittoDB {
   /** Open a new database connection. */
@@ -36,20 +39,30 @@ export class DittoDB {
       }),
     });
 
-    console.warn('Running migrations...');
+    logi({ level: 'info', ns: 'ditto.db.migration', message: 'Running migrations...', state: 'started' });
     const { results, error } = await migrator.migrateToLatest();
 
     if (error) {
-      console.error(error);
+      logi({
+        level: 'fatal',
+        ns: 'ditto.db.migration',
+        message: 'Migration failed.',
+        state: 'failed',
+        results: results as unknown as JsonValue,
+        error: errorJson(error),
+      });
       Deno.exit(1);
     } else {
       if (!results?.length) {
-        console.warn('Everything up-to-date.');
+        logi({ level: 'info', ns: 'ditto.db.migration', message: 'Everything up-to-date.', state: 'skipped' });
       } else {
-        console.warn('Migrations finished!');
-        for (const { migrationName, status } of results!) {
-          console.warn(`  - ${migrationName}: ${status}`);
-        }
+        logi({
+          level: 'info',
+          ns: 'ditto.db.migration',
+          message: 'Migrations finished!',
+          state: 'migrated',
+          results: results as unknown as JsonValue,
+        });
       }
     }
   }

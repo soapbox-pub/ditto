@@ -1,13 +1,11 @@
 /// <reference lib="webworker" />
 
 import { safeFetch } from '@soapbox/safe-fetch';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import * as Comlink from 'comlink';
 
 import '@/workers/handlers/abortsignal.ts';
 import '@/sentry.ts';
-
-const console = new Stickynotes('ditto:fetch.worker');
 
 export const FetchWorker = {
   async fetch(
@@ -15,8 +13,10 @@ export const FetchWorker = {
     init: Omit<RequestInit, 'signal'>,
     signal: AbortSignal | null | undefined,
   ): Promise<[BodyInit, ResponseInit]> {
-    console.debug(init.method, url);
+    logi({ level: 'debug', ns: 'ditto.fetch', method: init.method ?? 'GET', url });
+
     const response = await safeFetch(url, { ...init, signal });
+
     return [
       await response.arrayBuffer(),
       {

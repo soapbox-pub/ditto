@@ -1,15 +1,15 @@
+import { logi } from '@soapbox/logi';
+
 import { AppMiddleware } from '@/app.ts';
-import { Stickynotes } from '@soapbox/stickynotes';
 import { Storages } from '@/storages.ts';
 import { getPathParams, MetadataEntities } from '@/utils/og-metadata.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
+import { errorJson } from '@/utils/log.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { renderMetadata } from '@/views/meta.ts';
 import { getAuthor, getEvent } from '@/queries.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
-
-const console = new Stickynotes('ditto:frontend');
 
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
@@ -27,7 +27,7 @@ export const frontendController: AppMiddleware = async (c) => {
         const meta = renderMetadata(c.req.url, entities);
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
-        console.log(`Error building meta tags: ${e}`);
+        logi({ level: 'error', ns: 'ditto.frontend', message: 'Error building meta tags', error: errorJson(e) });
         return c.html(content);
       }
     }

@@ -1,8 +1,9 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import { Kysely, sql } from 'kysely';
 import { z } from 'zod';
 
+import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { DittoPush } from '@/DittoPush.ts';
@@ -15,6 +16,7 @@ import { Storages } from '@/storages.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { detectLanguage } from '@/utils/language.ts';
+import { errorJson } from '@/utils/log.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
@@ -22,9 +24,6 @@ import { getTagSet } from '@/utils/tags.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
-import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
-
-const console = new Stickynotes('ditto:pipeline');
 
 interface PipelineOpts {
   signal: AbortSignal;
@@ -69,7 +68,7 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
   pipelineEncounters.set(event.id, true);
 
   // Log the event.
-  console.info(`NostrEvent<${event.kind}> ${event.id}`);
+  logi({ level: 'debug', ns: 'ditto.event', source: 'pipeline', id: event.id, kind: event.kind });
   pipelineEventsCounter.inc({ kind: event.kind });
 
   // NIP-46 events get special treatment.
@@ -135,18 +134,17 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
 }
 
 async function policyFilter(event: NostrEvent, signal: AbortSignal): Promise<void> {
-  const console = new Stickynotes('ditto:policy');
-
   try {
     const result = await policyWorker.call(event, signal);
-    policyEventsCounter.inc({ ok: String(result[2]) });
-    console.debug(JSON.stringify(result));
+    const [, , ok, reason] = result;
+    logi({ level: 'debug', ns: 'ditto.policy', id: event.id, kind: event.kind, ok, reason });
+    policyEventsCounter.inc({ ok: String(ok) });
     RelayError.assert(result);
   } catch (e) {
     if (e instanceof RelayError) {
       throw e;
     } else {
-      console.error(e);
+      logi({ level: 'error', ns: 'ditto.policy', id: event.id, kind: event.kind, error: errorJson(e) });
       throw new RelayError('blocked', 'policy error');
     }
   }
