@@ -1,4 +1,5 @@
 import { NostrFilter } from '@nostrify/nostrify';
+import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
@@ -9,7 +10,6 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createAdminEvent, paginated, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
-import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
 
 const adminAccountQuerySchema = z.object({
