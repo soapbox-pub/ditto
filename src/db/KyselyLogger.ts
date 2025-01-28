@@ -1,9 +1,9 @@
 import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import { Logger } from 'kysely';
 
 import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
 import { errorJson } from '@/utils/log.ts';
-import { JsonValue } from '@std/json';
 
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
