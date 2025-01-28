@@ -28,7 +28,7 @@ export async function lookupPubkey(value: string, signal?: AbortSignal): Promise
   try {
     const { pubkey } = await nip05Cache.fetch(value, { signal });
     return pubkey;
-  } catch (e) {
+  } catch {
     return;
   }
 }
