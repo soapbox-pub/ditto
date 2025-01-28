@@ -36,6 +36,10 @@ class Conf {
   static get port(): number {
     return parseInt(Deno.env.get('PORT') || '4036');
   }
+  /** IP addresses not affected by rate limiting. */
+  static get ipWhitelist(): string[] {
+    return Deno.env.get('IP_WHITELIST')?.split(',') || [];
+  }
   /** Relay URL to the Ditto server's relay. */
   static get relay(): `wss://${string}` | `ws://${string}` {
     const { protocol, host } = Conf.url;

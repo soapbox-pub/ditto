@@ -210,7 +210,12 @@ const relayController: AppController = (c, next) => {
     return c.text('Please use a Nostr client to connect.', 400);
   }
 
-  const ip = c.req.header('x-real-ip');
+  let ip = c.req.header('x-real-ip');
+
+  if (ip && Conf.ipWhitelist.includes(ip)) {
+    ip = undefined;
+  }
+
   if (ip) {
     const remaining = Object
       .values(limiters)
