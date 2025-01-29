@@ -13,6 +13,7 @@ export const logiMiddleware: MiddlewareHandler = async (c, next) => {
 
   const end = new Date();
   const delta = (end.getTime() - start.getTime()) / 1000;
+  const level = c.res.status >= 500 ? 'error' : 'info';
 
-  logi({ level: 'info', ns: 'ditto.http.response', method, pathname, status: c.res.status, delta });
+  logi({ level, ns: 'ditto.http.response', method, pathname, status: c.res.status, delta });
 };
