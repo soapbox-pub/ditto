@@ -8,38 +8,25 @@ import { errorJson } from '@/utils/log.ts';
 /** Log the SQL for queries. */
 export const KyselyLogger: Logger = (event) => {
   const { query, queryDurationMillis } = event;
-  const { sql } = query;
+  const { parameters, sql } = query;
 
   const duration = queryDurationMillis / 1000;
 
   dbQueriesCounter.inc();
   dbQueryDurationHistogram.observe(duration);
 
-  const parameters = query.parameters.map(serializeParameter);
-
   if (event.level === 'query') {
-    logi({ level: 'debug', ns: 'ditto.sql', sql, parameters, duration });
+    logi({ level: 'debug', ns: 'ditto.sql', sql, parameters: parameters as JsonValue, duration });
   }
 
   if (event.level === 'error') {
-    logi({ level: 'error', ns: 'ditto.sql', sql, parameters, error: errorJson(event.error), duration });
+    logi({
+      level: 'error',
+      ns: 'ditto.sql',
+      sql,
+      parameters: parameters as JsonValue,
+      error: errorJson(event.error),
+      duration,
+    });
   }
 };
-
-/** Serialize parameter to JSON. */
-function serializeParameter(parameter: unknown): JsonValue {
-  if (Array.isArray(parameter)) {
-    return parameter.map(serializeParameter);
-  }
-  if (
-    typeof parameter === 'string' || typeof parameter === 'number' || typeof parameter === 'boolean' ||
-    parameter === null
-  ) {
-    return parameter;
-  }
-  try {
-    return JSON.stringify(parameter);
-  } catch {
-    return String(parameter);
-  }
-}
