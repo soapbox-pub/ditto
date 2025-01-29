@@ -168,7 +168,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        logi({ level: 'error', ns: 'ditto.relay', message: 'Error in relay', error: errorJson(e) });
+        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e) });
       }
     }
   }

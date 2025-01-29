@@ -24,7 +24,7 @@ export class DittoPush {
           logi({
             level: 'warn',
             ns: 'ditto.push',
-            message: 'VAPID keys are not set. Push notifications will be disabled.',
+            msg: 'VAPID keys are not set. Push notifications will be disabled.',
           });
         }
       })();

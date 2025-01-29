@@ -9,6 +9,6 @@ import { Conf } from '@/config.ts';
 Deno.serve({
   port: Conf.port,
   onListen({ hostname, port }): void {
-    logi({ level: 'info', ns: 'ditto.server', message: `Listening on http://${hostname}:${port}`, hostname, port });
+    logi({ level: 'info', ns: 'ditto.server', msg: `Listening on http://${hostname}:${port}`, hostname, port });
   },
 }, app.fetch);

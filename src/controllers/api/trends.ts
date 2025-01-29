@@ -18,7 +18,7 @@ let trendingHashtagsCache = getTrendingHashtags().catch((e: unknown) => {
     level: 'error',
     ns: 'ditto.trends.api',
     type: 'tags',
-    message: 'Failed to get trending hashtags',
+    msg: 'Failed to get trending hashtags',
     error: errorJson(e),
   });
   return Promise.resolve([]);
@@ -33,7 +33,7 @@ Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
       level: 'error',
       ns: 'ditto.trends.api',
       type: 'tags',
-      message: 'Failed to get trending hashtags',
+      msg: 'Failed to get trending hashtags',
       error: errorJson(e),
     });
   }
@@ -76,7 +76,7 @@ let trendingLinksCache = getTrendingLinks().catch((e: unknown) => {
     level: 'error',
     ns: 'ditto.trends.api',
     type: 'links',
-    message: 'Failed to get trending links',
+    msg: 'Failed to get trending links',
     error: errorJson(e),
   });
   return Promise.resolve([]);
@@ -91,7 +91,7 @@ Deno.cron('update trending links cache', '50 * * * *', async () => {
       level: 'error',
       ns: 'ditto.trends.api',
       type: 'links',
-      message: 'Failed to get trending links',
+      msg: 'Failed to get trending links',
       error: errorJson(e),
     });
   }

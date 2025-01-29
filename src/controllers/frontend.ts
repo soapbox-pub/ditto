@@ -27,7 +27,7 @@ export const frontendController: AppMiddleware = async (c) => {
         const meta = renderMetadata(c.req.url, entities);
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
-        logi({ level: 'error', ns: 'ditto.frontend', message: 'Error building meta tags', error: errorJson(e) });
+        logi({ level: 'error', ns: 'ditto.frontend', msg: 'Error building meta tags', error: errorJson(e) });
         return c.html(content);
       }
     }

@@ -75,7 +75,7 @@ export async function updateTrendingTags(
   values?: string[],
 ) {
   const params = { l, tagName, kinds, limit, extra, aliases, values };
-  logi({ level: 'info', ns: 'ditto.trends', message: 'Updating trending', ...params });
+  logi({ level: 'info', ns: 'ditto.trends', msg: 'Updating trending', ...params });
 
   const kysely = await Storages.kysely();
   const signal = AbortSignal.timeout(1000);
@@ -94,9 +94,9 @@ export async function updateTrendingTags(
     }, values);
 
     if (trends.length) {
-      logi({ level: 'info', ns: 'ditto.trends', message: 'Trends found', trends, ...params });
+      logi({ level: 'info', ns: 'ditto.trends', msg: 'Trends found', trends, ...params });
     } else {
-      logi({ level: 'info', ns: 'ditto.trends', message: 'No trends found. Skipping.', ...params });
+      logi({ level: 'info', ns: 'ditto.trends', msg: 'No trends found. Skipping.', ...params });
       return;
     }
 
@@ -114,9 +114,9 @@ export async function updateTrendingTags(
     });
 
     await handleEvent(label, { source: 'internal', signal });
-    logi({ level: 'info', ns: 'ditto.trends', message: 'Trends updated', ...params });
+    logi({ level: 'info', ns: 'ditto.trends', msg: 'Trends updated', ...params });
   } catch (e) {
-    logi({ level: 'error', ns: 'ditto.trends', message: 'Error updating trends', ...params, error: errorJson(e) });
+    logi({ level: 'error', ns: 'ditto.trends', msg: 'Error updating trends', ...params, error: errorJson(e) });
   }
 }
 

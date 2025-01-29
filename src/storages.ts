@@ -94,7 +94,7 @@ export class Storages {
         logi({
           level: 'info',
           ns: 'ditto.pool',
-          message: `connecting to ${activeRelays.length} relays`,
+          msg: `connecting to ${activeRelays.length} relays`,
           relays: activeRelays,
         });
 

@@ -128,7 +128,7 @@ const streamingController: AppController = async (c) => {
         }
       }
     } catch (e) {
-      logi({ level: 'error', ns: 'ditto.streaming', message: 'Error in streaming', error: errorJson(e) });
+      logi({ level: 'error', ns: 'ditto.streaming', msg: 'Error in streaming', error: errorJson(e) });
     }
   }
 

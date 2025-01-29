@@ -39,14 +39,14 @@ export class DittoDB {
       }),
     });
 
-    logi({ level: 'info', ns: 'ditto.db.migration', message: 'Running migrations...', state: 'started' });
+    logi({ level: 'info', ns: 'ditto.db.migration', msg: 'Running migrations...', state: 'started' });
     const { results, error } = await migrator.migrateToLatest();
 
     if (error) {
       logi({
         level: 'fatal',
         ns: 'ditto.db.migration',
-        message: 'Migration failed.',
+        msg: 'Migration failed.',
         state: 'failed',
         results: results as unknown as JsonValue,
         error: errorJson(error),
@@ -54,12 +54,12 @@ export class DittoDB {
       Deno.exit(1);
     } else {
       if (!results?.length) {
-        logi({ level: 'info', ns: 'ditto.db.migration', message: 'Everything up-to-date.', state: 'skipped' });
+        logi({ level: 'info', ns: 'ditto.db.migration', msg: 'Everything up-to-date.', state: 'skipped' });
       } else {
         logi({
           level: 'info',
           ns: 'ditto.db.migration',
-          message: 'Migrations finished!',
+          msg: 'Migrations finished!',
           state: 'migrated',
           results: results as unknown as JsonValue,
         });

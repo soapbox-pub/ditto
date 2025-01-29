@@ -19,7 +19,7 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
   }
 
-  logi({ level: 'error', ns: 'ditto.http', message: 'Unhandled error', error: errorJson(err) });
+  logi({ level: 'error', ns: 'ditto.http', msg: 'Unhandled error', error: errorJson(err) });
 
   return c.json({ error: 'Something went wrong' }, 500);
 };

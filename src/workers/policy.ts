@@ -56,7 +56,7 @@ class PolicyWorker implements NPolicy {
       logi({
         level: 'info',
         ns: 'ditto.system.policy',
-        message: 'Using custom policy',
+        msg: 'Using custom policy',
         path: Conf.policy,
         enabled: true,
       });
@@ -65,7 +65,7 @@ class PolicyWorker implements NPolicy {
         logi({
           level: 'info',
           ns: 'ditto.system.policy',
-          message: 'Custom policy not found <https://docs.soapbox.pub/ditto/policies/>',
+          msg: 'Custom policy not found <https://docs.soapbox.pub/ditto/policies/>',
           path: null,
           enabled: false,
         });
@@ -77,7 +77,7 @@ class PolicyWorker implements NPolicy {
         logi({
           level: 'warn',
           ns: 'ditto.system.policy',
-          message: 'Custom policies are not supported with PGlite. The policy is disabled.',
+          msg: 'Custom policies are not supported with PGlite. The policy is disabled.',
           path: Conf.policy,
           enabled: false,
         });
