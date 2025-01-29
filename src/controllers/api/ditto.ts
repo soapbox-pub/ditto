@@ -364,7 +364,7 @@ export const createCashuWalletController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
   }
 
-  const event = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
+  const [event] = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
   if (event) {
     return c.json({ error: 'You already have a wallet 😏', schema: result.error }, 400);
   }
