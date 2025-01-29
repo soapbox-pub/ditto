@@ -1,4 +1,5 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { bytesToString } from '@scure/base';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
@@ -19,6 +20,7 @@ import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
+import { generateSecretKey } from 'nostr-tools';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -341,4 +343,64 @@ export const updateInstanceController: AppController = async (c) => {
   );
 
   return c.json(204);
+};
+
+const createCashuWalletSchema = z.object({
+  description: z.string(),
+  relays: z.set(z.string().url()),
+  mints: z.set(z.string().url()).nonempty(), // must contain at least one item
+  name: z.string(),
+});
+
+export const createCashuWalletController: AppController = async (c) => {
+  const signer = c.get('signer')!;
+  const store = c.get('store');
+  const pubkey = await signer.getPublicKey();
+  const body = await parseBody(c.req.raw);
+  const { signal } = c.req.raw;
+  const result = createCashuWalletSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  const event = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
+  if (event) {
+    return c.json({ error: 'You already have a wallet 😏', schema: result.error }, 400);
+  }
+
+  const { description, relays, mints, name } = result.data;
+  relays.add(Conf.relay);
+
+  const tags: string[][] = [];
+
+  tags.push(['d', Math.random().toString(36).substring(3)]);
+  tags.push(['name', name]);
+  tags.push(['description', description]);
+  tags.push(['unit', 'sat']);
+
+  for (const mint of mints) {
+    tags.push(['mint', mint]);
+  }
+
+  for (const relay of relays) {
+    tags.push(['relay', relay]);
+  }
+
+  const sk = generateSecretKey();
+  const privkey = bytesToString('hex', sk);
+
+  const contentTags = [
+    ['privkey', privkey],
+  ];
+  const encryptedContentTags = await signer.nip44?.encrypt(pubkey, JSON.stringify(contentTags));
+
+  // Wallet
+  await createEvent({
+    kind: 37375,
+    content: encryptedContentTags,
+    tags,
+  }, c);
+
+  return c.json(201);
 };

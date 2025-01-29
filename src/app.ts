@@ -43,6 +43,7 @@ import { captchaController, captchaVerifyController } from '@/controllers/api/ca
 import {
   adminRelaysController,
   adminSetRelaysController,
+  createCashuWalletController,
   deleteZapSplitsController,
   getZapSplitsController,
   nameRequestController,
@@ -399,6 +400,8 @@ app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSpli
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
+
+app.post('/api/v1/ditto/wallet/create', requireSigner, createCashuWalletController);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
