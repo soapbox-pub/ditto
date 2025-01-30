@@ -1,5 +1,5 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { bytesToString } from '@scure/base';
+import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
@@ -20,7 +20,7 @@ import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
-import { generateSecretKey } from 'nostr-tools';
+import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 const markerSchema = z.enum(['read', 'write']);
 
@@ -352,6 +352,10 @@ const createCashuWalletSchema = z.object({
   name: z.string(),
 });
 
+/**
+ * Creates an addressable Cashu wallet.
+ * https://github.com/nostr-protocol/nips/blob/master/60.md
+ */
 export const createCashuWalletController: AppController = async (c) => {
   const signer = c.get('signer')!;
   const store = c.get('store');
@@ -366,7 +370,7 @@ export const createCashuWalletController: AppController = async (c) => {
 
   const [event] = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
   if (event) {
-    return c.json({ error: 'You already have a wallet 😏', schema: result.error }, 400);
+    return c.json({ error: 'You already have a wallet 😏' }, 400);
   }
 
   const { description, relays, mints, name } = result.data;
@@ -374,7 +378,9 @@ export const createCashuWalletController: AppController = async (c) => {
 
   const tags: string[][] = [];
 
-  tags.push(['d', Math.random().toString(36).substring(3)]);
+  const wallet_id = Math.random().toString(36).substring(3);
+
+  tags.push(['d', wallet_id]);
   tags.push(['name', name]);
   tags.push(['description', description]);
   tags.push(['unit', 'sat']);
@@ -399,6 +405,72 @@ export const createCashuWalletController: AppController = async (c) => {
   await createEvent({
     kind: 37375,
     content: encryptedContentTags,
+    tags,
+  }, c);
+
+  return c.json({ wallet_id }, 200);
+};
+
+const createNutzapInformationSchema = z.object({
+  relays: z.array(z.string().url()),
+  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
+  wallet_id: z.string(),
+});
+
+/**
+ * Creates a replaceable Nutzap information for a specific wallet.
+ * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
+ */
+export const createNutzapInformationController: AppController = async (c) => {
+  const signer = c.get('signer')!;
+  const store = c.get('store');
+  const pubkey = await signer.getPublicKey();
+  const body = await parseBody(c.req.raw);
+  const { signal } = c.req.raw;
+  const result = createNutzapInformationSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  const nip44 = signer.nip44;
+  if (!nip44) {
+    return c.json({ error: 'Signer does not have nip 44' }, 400);
+  }
+
+  const { relays, mints, wallet_id } = result.data;
+
+  const [event] = await store.query([{ authors: [pubkey], kinds: [37375], '#d': [wallet_id] }], { signal });
+  if (!event) {
+    return c.json({ error: 'Could not find a wallet with the id: ' + wallet_id }, 400);
+  }
+
+  relays.push(Conf.relay);
+
+  const tags: string[][] = [];
+
+  for (const mint of new Set(mints)) {
+    tags.push(['mint', mint, 'sat']);
+  }
+
+  for (const relay of new Set(relays)) {
+    tags.push(['relay', relay]);
+  }
+
+  const contentTags: string[][] = JSON.parse(await nip44.decrypt(pubkey, event.content));
+
+  const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
+  if (!privkey) {
+    return c.json({ error: 'Wallet does not contain privkey' }, 400);
+  }
+
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+
+  tags.push(['pubkey', p2pk]);
+
+  // Nutzap information
+  await createEvent({
+    kind: 10019,
     tags,
   }, c);
 
