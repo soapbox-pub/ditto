@@ -1,4 +1,5 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
@@ -20,7 +21,6 @@ import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 const markerSchema = z.enum(['read', 'write']);
 
