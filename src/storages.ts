@@ -103,6 +103,11 @@ export class Storages {
             return new NRelay1(url, {
               // Skip event verification (it's done in the pipeline).
               verifyEvent: () => true,
+              log(log) {
+                if (log.level !== 'trace') {
+                  logi(log);
+                }
+              },
             });
           },
           reqRouter: async (filters) => {

@@ -35,6 +35,7 @@
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
     "jsr:@nostrify/nostrify@0.37": "0.37.0",
+    "jsr:@nostrify/nostrify@0.38": "0.38.0",
     "jsr:@nostrify/nostrify@~0.22.1": "0.22.5",
     "jsr:@nostrify/nostrify@~0.22.4": "0.22.4",
     "jsr:@nostrify/nostrify@~0.22.5": "0.22.5",
@@ -466,6 +467,21 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
+        "npm:websocket-ts",
+        "npm:zod"
+      ]
+    },
+    "@nostrify/nostrify@0.38.0": {
+      "integrity": "9ec7920057ee3a4dcbaef7e706dedea622bfdfdf0f6aac11047443f88d953deb",
+      "dependencies": [
+        "jsr:@nostrify/types@0.36",
+        "jsr:@std/crypto",
+        "jsr:@std/encoding@~0.224.1",
+        "npm:@scure/base",
+        "npm:@scure/bip32",
+        "npm:@scure/bip39",
+        "npm:lru-cache@^10.2.0",
+        "npm:nostr-tools@^2.10.4",
         "npm:websocket-ts",
         "npm:zod"
       ]
@@ -2349,7 +2365,7 @@
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@negrel/webpush@0.3",
       "jsr:@nostrify/db@~0.36.2",
-      "jsr:@nostrify/nostrify@0.37",
+      "jsr:@nostrify/nostrify@0.38",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
       "jsr:@soapbox/kysely-pglite@1",
