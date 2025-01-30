@@ -347,8 +347,8 @@ export const updateInstanceController: AppController = async (c) => {
 
 const createCashuWalletSchema = z.object({
   description: z.string(),
-  relays: z.set(z.string().url()),
-  mints: z.set(z.string().url()).nonempty(), // must contain at least one item
+  relays: z.array(z.string().url()),
+  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
   name: z.string(),
 });
 
@@ -370,7 +370,7 @@ export const createCashuWalletController: AppController = async (c) => {
   }
 
   const { description, relays, mints, name } = result.data;
-  relays.add(Conf.relay);
+  relays.push(Conf.relay);
 
   const tags: string[][] = [];
 
@@ -379,11 +379,11 @@ export const createCashuWalletController: AppController = async (c) => {
   tags.push(['description', description]);
   tags.push(['unit', 'sat']);
 
-  for (const mint of mints) {
+  for (const mint of new Set(mints)) {
     tags.push(['mint', mint]);
   }
 
-  for (const relay of relays) {
+  for (const relay of new Set(relays)) {
     tags.push(['relay', relay]);
   }
 
