@@ -1,5 +1,4 @@
-import { logi } from '@soapbox/logi';
-import { JsonValue } from '@std/json';
+import { logi, LogiValue } from '@soapbox/logi';
 import { Logger } from 'kysely';
 
 import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
@@ -16,7 +15,7 @@ export const KyselyLogger: Logger = (event) => {
   dbQueryDurationHistogram.observe(duration);
 
   if (event.level === 'query') {
-    logi({ level: 'debug', ns: 'ditto.sql', sql, parameters: parameters as JsonValue, duration });
+    logi({ level: 'debug', ns: 'ditto.sql', sql, parameters: parameters as LogiValue, duration });
   }
 
   if (event.level === 'error') {
@@ -24,7 +23,7 @@ export const KyselyLogger: Logger = (event) => {
       level: 'error',
       ns: 'ditto.sql',
       sql,
-      parameters: parameters as JsonValue,
+      parameters: parameters as LogiValue,
       error: errorJson(event.error),
       duration,
     });
