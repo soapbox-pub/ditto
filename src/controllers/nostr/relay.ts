@@ -1,4 +1,5 @@
 import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import {
   NKinds,
   NostrClientCLOSE,
@@ -64,6 +65,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
+      logi({ level: 'trace', ns: 'ditto.relay.message', data: result.data as JsonValue });
       relayMessagesCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
