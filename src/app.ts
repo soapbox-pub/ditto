@@ -109,7 +109,11 @@ import {
   zappedByController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
-import { suggestionsV1Controller, suggestionsV2Controller } from '@/controllers/api/suggestions.ts';
+import {
+  localSuggestionsController,
+  suggestionsV1Controller,
+  suggestionsV2Controller,
+} from '@/controllers/api/suggestions.ts';
 import {
   hashtagTimelineController,
   homeTimelineController,
@@ -166,7 +170,7 @@ export interface AppEnv extends HonoEnv {
 
 type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
-type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
+type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>({ strict: false });
 
@@ -348,6 +352,7 @@ app.get(
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
+app.get('/api/v2/ditto/suggestions/local', localSuggestionsController);
 
 app.get('/api/v1/notifications', rateLimitMiddleware(8, Time.seconds(30)), requireSigner, notificationsController);
 app.get('/api/v1/notifications/:id', requireSigner, notificationController);

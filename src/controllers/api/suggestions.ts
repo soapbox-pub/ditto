@@ -4,7 +4,7 @@ import { matchFilter } from 'nostr-tools';
 import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginatedList } from '@/utils/api.ts';
+import { paginated, paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
@@ -87,3 +87,24 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
     };
   }));
 }
+
+export const localSuggestionsController: AppController = async (c) => {
+  const signal = c.req.raw.signal;
+  const params = c.get('pagination');
+  const store = c.get('store');
+
+  const events = await store.query(
+    [{ kinds: [0], search: `domain:${Conf.url.host}`, ...params }],
+    { signal },
+  )
+    .then((events) => hydrateEvents({ store, events, signal }));
+
+  const suggestions = await Promise.all(events.map(async (event) => {
+    return {
+      source: 'global',
+      account: await renderAccount(event),
+    };
+  }));
+
+  return paginated(c, events, suggestions);
+};

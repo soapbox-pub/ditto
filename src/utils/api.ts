@@ -207,7 +207,8 @@ function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined 
   return `<${next}>; rel="next", <${prev}>; rel="prev"`;
 }
 
-type Entity = { id: string };
+// deno-lint-ignore ban-types
+type Entity = {};
 type HeaderRecord = Record<string, string | string[]>;
 
 /** Return results with pagination headers. Assumes chronological sorting of events. */
