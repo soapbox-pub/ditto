@@ -93,18 +93,34 @@ export const localSuggestionsController: AppController = async (c) => {
   const params = c.get('pagination');
   const store = c.get('store');
 
-  const events = await store.query(
-    [{ kinds: [0], search: `domain:${Conf.url.host}`, ...params }],
+  const grants = await store.query(
+    [{ kinds: [30360], authors: [Conf.pubkey], ...params }],
+    { signal },
+  );
+
+  const pubkeys = new Set<string>();
+
+  for (const grant of grants) {
+    const pubkey = grant.tags.find(([name]) => name === 'p')?.[1];
+    if (pubkey) {
+      pubkeys.add(pubkey);
+    }
+  }
+
+  const profiles = await store.query(
+    [{ kinds: [0], authors: [...pubkeys], search: `domain:${Conf.url.host}`, ...params }],
     { signal },
   )
     .then((events) => hydrateEvents({ store, events, signal }));
 
-  const suggestions = await Promise.all(events.map(async (event) => {
+  const suggestions = await Promise.all([...pubkeys].map(async (pubkey) => {
+    const profile = profiles.find((event) => event.pubkey === pubkey);
+
     return {
       source: 'global',
-      account: await renderAccount(event),
+      account: profile ? await renderAccount(profile) : await accountFromPubkey(pubkey),
     };
   }));
 
-  return paginated(c, events, suggestions);
+  return paginated(c, grants, suggestions);
 };
