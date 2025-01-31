@@ -166,7 +166,7 @@ export interface AppEnv extends HonoEnv {
 
 type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
-type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
+type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>({ strict: false });
 
