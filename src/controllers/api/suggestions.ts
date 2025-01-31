@@ -113,14 +113,15 @@ export const localSuggestionsController: AppController = async (c) => {
   )
     .then((events) => hydrateEvents({ store, events, signal }));
 
-  const suggestions = await Promise.all([...pubkeys].map(async (pubkey) => {
+  const suggestions = (await Promise.all([...pubkeys].map(async (pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
+    if (!profile) return;
 
     return {
       source: 'global',
-      account: profile ? await renderAccount(profile) : await accountFromPubkey(pubkey),
+      account: await renderAccount(profile),
     };
-  }));
+  }))).filter(Boolean);
 
   return paginated(c, grants, suggestions);
 };
