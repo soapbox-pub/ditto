@@ -149,7 +149,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
           send(['EVENT', subId, msg[2]]);
         }
       }
-    } catch (_e) {
+    } catch {
       controllers.delete(subId);
     }
   }
