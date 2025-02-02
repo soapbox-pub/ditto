@@ -30,11 +30,10 @@
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@~0.36.2": "0.36.2",
+    "jsr:@nostrify/db@0.37": "0.37.0",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
-    "jsr:@nostrify/nostrify@0.37": "0.37.0",
     "jsr:@nostrify/nostrify@0.38": "0.38.0",
     "jsr:@nostrify/nostrify@~0.22.1": "0.22.5",
     "jsr:@nostrify/nostrify@~0.22.4": "0.22.4",
@@ -349,10 +348,10 @@
         "jsr:@std/path@0.224.0"
       ]
     },
-    "@nostrify/db@0.36.2": {
-      "integrity": "6bf079b44fcb3ff5a85eadf9a9d4eb677fc770f1c80ad966602aa3d9dd8c88e8",
+    "@nostrify/db@0.37.0": {
+      "integrity": "77398757ff52b1cf29ad3f610a8d3fcb8da37dd3300264baa4c318b4036684ab",
       "dependencies": [
-        "jsr:@nostrify/nostrify@0.37",
+        "jsr:@nostrify/nostrify@0.38",
         "jsr:@nostrify/types@0.36",
         "npm:kysely@~0.27.3",
         "npm:nostr-tools@^2.10.4"
@@ -448,21 +447,6 @@
       "dependencies": [
         "jsr:@nostrify/types@0.35",
         "jsr:@std/encoding@~0.224.1",
-        "npm:@scure/bip32",
-        "npm:@scure/bip39",
-        "npm:lru-cache@^10.2.0",
-        "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
-        "npm:zod"
-      ]
-    },
-    "@nostrify/nostrify@0.37.0": {
-      "integrity": "fa1439cc5e9a74986c4fb799a38a9ed7bd8663c62ae2a9363ca9b987548e27a0",
-      "dependencies": [
-        "jsr:@nostrify/types@0.36",
-        "jsr:@std/crypto",
-        "jsr:@std/encoding@~0.224.1",
-        "npm:@scure/base",
         "npm:@scure/bip32",
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
@@ -2364,7 +2348,7 @@
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@~0.36.2",
+      "jsr:@nostrify/db@0.37",
       "jsr:@nostrify/nostrify@0.38",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
