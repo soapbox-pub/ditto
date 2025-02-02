@@ -3,7 +3,8 @@
 import { LanguageCode } from 'iso-639-1';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import { Kysely, SelectQueryBuilder } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
@@ -16,11 +17,19 @@ import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 /** Function to decide whether or not to index a tag. */
-type TagCondition = ({ event, count, value }: {
+type TagCondition = (opts: TagConditionOpts) => boolean;
+
+/** Options for the tag condition function. */
+interface TagConditionOpts {
+  /** Nostr event whose tags are being indexed. */
   event: NostrEvent;
+  /** Count of the current tag name so far. Each tag name has a separate counter starting at 0. */
   count: number;
+  /** Overall tag index. */
+  index: number;
+  /** Current vag value. */
   value: string;
-}) => boolean;
+}
 
 /** Options for the EventsDB store. */
 interface EventsDBOpts {
@@ -36,19 +45,17 @@ interface EventsDBOpts {
 
 /** SQL database storage adapter for Nostr events. */
 class EventsDB extends NPostgres {
-  private console = new Stickynotes('ditto:db:events');
-
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'a': ({ count }) => count < 15,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
-    'e': ({ event, count, value }) => ((event.kind === 10003) || count < 15) && isNostrId(value),
+    'e': EventsDB.eTagCondition,
     'k': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
-    'p': ({ event, count, value }) => (count < 15 || event.kind === 3) && isNostrId(value),
+    'p': EventsDB.pTagCondition,
     'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
@@ -65,7 +72,7 @@ class EventsDB extends NPostgres {
   /** Insert an event (and its tags) into the database. */
   override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
-    this.console.debug('EVENT', JSON.stringify(event));
+    logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
     dbEventsCounter.inc({ kind: event.kind });
 
     if (await this.isDeletedAdmin(event)) {
@@ -223,7 +230,7 @@ class EventsDB extends NPostgres {
 
     if (opts.signal?.aborted) return Promise.resolve([]);
 
-    this.console.debug('REQ', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.req', source: 'db', filters: filters as JsonValue });
 
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
@@ -253,7 +260,7 @@ class EventsDB extends NPostgres {
 
   /** Delete events based on filters from the database. */
   override async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
-    this.console.debug('DELETE', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.remove', source: 'db', filters: filters as JsonValue });
     return super.remove(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
@@ -264,9 +271,31 @@ class EventsDB extends NPostgres {
   ): Promise<{ count: number; approximate: any }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
-    this.console.debug('COUNT', JSON.stringify(filters));
+    logi({ level: 'debug', ns: 'ditto.count', source: 'db', filters: filters as JsonValue });
 
     return super.count(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+  }
+
+  /** Rule for indexing `e` tags. */
+  private static eTagCondition({ event, count, value, index }: TagConditionOpts): boolean {
+    if (!isNostrId(value)) return false;
+
+    if (event.kind === 7) {
+      return index === event.tags.findLastIndex(([name]) => name === 'e');
+    }
+
+    return event.kind === 10003 || count < 15;
+  }
+
+  /** Rule for indexing `p` tags. */
+  private static pTagCondition({ event, count, value, index }: TagConditionOpts): boolean {
+    if (!isNostrId(value)) return false;
+
+    if (event.kind === 7) {
+      return index === event.tags.findLastIndex(([name]) => name === 'p');
+    }
+
+    return count < 15 || event.kind === 3;
   }
 
   /** Return only the tags that should be indexed. */
@@ -281,19 +310,20 @@ class EventsDB extends NPostgres {
       tagCounts[name] = getCount(name) + 1;
     }
 
-    function checkCondition(name: string, value: string, condition: TagCondition) {
+    function checkCondition(name: string, value: string, condition: TagCondition, index: number): boolean {
       return condition({
         event,
         count: getCount(name),
         value,
+        index,
       });
     }
 
-    return event.tags.reduce<string[][]>((results, tag) => {
+    return event.tags.reduce<string[][]>((results, tag, index) => {
       const [name, value] = tag;
       const condition = EventsDB.tagConditions[name] as TagCondition | undefined;
 
-      if (value && condition && value.length < 200 && checkCondition(name, value, condition)) {
+      if (value && condition && value.length < 200 && checkCondition(name, value, condition, index)) {
         results.push(tag);
       }
 

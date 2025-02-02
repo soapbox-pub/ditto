@@ -4,7 +4,7 @@ import { matchFilter } from 'nostr-tools';
 import { AppContext, AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginatedList } from '@/utils/api.ts';
+import { paginated, paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
@@ -87,3 +87,41 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
     };
   }));
 }
+
+export const localSuggestionsController: AppController = async (c) => {
+  const signal = c.req.raw.signal;
+  const params = c.get('pagination');
+  const store = c.get('store');
+
+  const grants = await store.query(
+    [{ kinds: [30360], authors: [Conf.pubkey], ...params }],
+    { signal },
+  );
+
+  const pubkeys = new Set<string>();
+
+  for (const grant of grants) {
+    const pubkey = grant.tags.find(([name]) => name === 'p')?.[1];
+    if (pubkey) {
+      pubkeys.add(pubkey);
+    }
+  }
+
+  const profiles = await store.query(
+    [{ kinds: [0], authors: [...pubkeys], search: `domain:${Conf.url.host}`, ...params }],
+    { signal },
+  )
+    .then((events) => hydrateEvents({ store, events, signal }));
+
+  const suggestions = (await Promise.all([...pubkeys].map(async (pubkey) => {
+    const profile = profiles.find((event) => event.pubkey === pubkey);
+    if (!profile) return;
+
+    return {
+      source: 'global',
+      account: await renderAccount(profile),
+    };
+  }))).filter(Boolean);
+
+  return paginated(c, grants, suggestions);
+};

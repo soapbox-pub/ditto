@@ -36,6 +36,10 @@ class Conf {
   static get port(): number {
     return parseInt(Deno.env.get('PORT') || '4036');
   }
+  /** IP addresses not affected by rate limiting. */
+  static get ipWhitelist(): string[] {
+    return Deno.env.get('IP_WHITELIST')?.split(',') || [];
+  }
   /** Relay URL to the Ditto server's relay. */
   static get relay(): `wss://${string}` | `ws://${string}` {
     const { protocol, host } = Conf.url;
@@ -248,7 +252,7 @@ class Conf {
   }
   /** Number of events the firehose is allowed to process at one time before they have to wait in a queue. */
   static get firehoseConcurrency(): number {
-    return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? (Conf.pg.poolSize * 0.25)));
+    return Math.ceil(Number(Deno.env.get('FIREHOSE_CONCURRENCY') ?? 1));
   }
   /** Nostr event kinds of events to listen for on the firehose. */
   static get firehoseKinds(): number[] {
@@ -261,19 +265,11 @@ class Conf {
    * This would make Nostr events inserted directly into Postgres available to the streaming API and relay.
    */
   static get notifyEnabled(): boolean {
-    return optionalBooleanSchema.parse(Deno.env.get('NOTIFY_ENABLED')) ?? false;
+    return optionalBooleanSchema.parse(Deno.env.get('NOTIFY_ENABLED')) ?? true;
   }
   /** Whether to enable Ditto cron jobs. */
   static get cronEnabled(): boolean {
     return optionalBooleanSchema.parse(Deno.env.get('CRON_ENABLED')) ?? true;
-  }
-  /** Crawler User-Agent regex to render link previews to. */
-  static get crawlerRegex(): RegExp {
-    return new RegExp(
-      Deno.env.get('CRAWLER_REGEX') ||
-        'googlebot|bingbot|yandex|baiduspider|twitterbot|facebookexternalhit|rogerbot|linkedinbot|embedly|quora link preview|showyoubot|outbrain|pinterestbot|slackbot|vkShare|W3C_Validator|whatsapp|mastodon|pleroma|Discordbot|AhrefsBot|SEMrushBot|MJ12bot|SeekportBot|Synapse|Matrix',
-      'i',
-    );
   }
   /** User-Agent to use when fetching link previews. Pretend to be Facebook by default. */
   static get fetchUserAgent(): string {

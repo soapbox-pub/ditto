@@ -1,5 +1,5 @@
 import { NostrFilter } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
@@ -7,9 +7,8 @@ import { DittoTables } from '@/db/DittoTables.ts';
 import { handleEvent } from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
+import { errorJson } from '@/utils/log.ts';
 import { Time } from '@/utils/time.ts';
-
-const console = new Stickynotes('ditto:trends');
 
 /** Get trending tag values for a given tag in the given time frame. */
 export async function getTrendingTagValues(
@@ -75,7 +74,9 @@ export async function updateTrendingTags(
   aliases?: string[],
   values?: string[],
 ) {
-  console.info(`Updating trending ${l}...`);
+  const params = { l, tagName, kinds, limit, extra, aliases, values };
+  logi({ level: 'info', ns: 'ditto.trends', msg: 'Updating trending', ...params });
+
   const kysely = await Storages.kysely();
   const signal = AbortSignal.timeout(1000);
 
@@ -92,9 +93,10 @@ export async function updateTrendingTags(
       limit,
     }, values);
 
-    console.log(trends);
-    if (!trends.length) {
-      console.info(`No trending ${l} found. Skipping.`);
+    if (trends.length) {
+      logi({ level: 'info', ns: 'ditto.trends', msg: 'Trends found', trends, ...params });
+    } else {
+      logi({ level: 'info', ns: 'ditto.trends', msg: 'No trends found. Skipping.', ...params });
       return;
     }
 
@@ -112,9 +114,9 @@ export async function updateTrendingTags(
     });
 
     await handleEvent(label, { source: 'internal', signal });
-    console.info(`Trending ${l} updated.`);
+    logi({ level: 'info', ns: 'ditto.trends', msg: 'Trends updated', ...params });
   } catch (e) {
-    console.error(`Error updating trending ${l}: ${e instanceof Error ? e.message : e}`);
+    logi({ level: 'error', ns: 'ditto.trends', msg: 'Error updating trends', ...params, error: errorJson(e) });
   }
 }
 

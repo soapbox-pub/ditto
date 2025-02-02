@@ -1,9 +1,8 @@
 import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
-import { logger } from '@hono/hono/logger';
 import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
-import Debug from '@soapbox/stickynotes/debug';
 import { Kysely } from 'kysely';
 
 import '@/startup.ts';
@@ -44,6 +43,7 @@ import { captchaController, captchaVerifyController } from '@/controllers/api/ca
 import {
   adminRelaysController,
   adminSetRelaysController,
+  createCashuWalletController,
   deleteZapSplitsController,
   getZapSplitsController,
   nameRequestController,
@@ -109,7 +109,11 @@ import {
   zappedByController,
 } from '@/controllers/api/statuses.ts';
 import { streamingController } from '@/controllers/api/streaming.ts';
-import { suggestionsV1Controller, suggestionsV2Controller } from '@/controllers/api/suggestions.ts';
+import {
+  localSuggestionsController,
+  suggestionsV1Controller,
+  suggestionsV2Controller,
+} from '@/controllers/api/suggestions.ts';
 import {
   hashtagTimelineController,
   homeTimelineController,
@@ -125,12 +129,12 @@ import { translateController } from '@/controllers/api/translate.ts';
 import { errorHandler } from '@/controllers/error.ts';
 import { frontendController } from '@/controllers/frontend.ts';
 import { metricsController } from '@/controllers/metrics.ts';
-import { indexController } from '@/controllers/site.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
 import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { notActivitypubMiddleware } from '@/middleware/notActivitypubMiddleware.ts';
@@ -141,6 +145,7 @@ import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
+import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 
 export interface AppEnv extends HonoEnv {
   Variables: {
@@ -165,26 +170,29 @@ export interface AppEnv extends HonoEnv {
 
 type AppContext = Context<AppEnv>;
 type AppMiddleware = MiddlewareHandler<AppEnv>;
-type AppController = Handler<AppEnv, any, HonoInput, Response | Promise<Response>>;
+type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
 const app = new Hono<AppEnv>({ strict: false });
-
-const debug = Debug('ditto:http');
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
 const staticFiles = serveStatic({ root: './static/' });
 
-app.use('*', rateLimitMiddleware(300, Time.minutes(5)));
+app.use('*', cacheControlMiddleware({ noStore: true }));
 
-app.use('/api/*', metricsMiddleware, paginationMiddleware, logger(debug));
-app.use('/.well-known/*', metricsMiddleware, logger(debug));
-app.use('/nodeinfo/*', metricsMiddleware, logger(debug));
-app.use('/oauth/*', metricsMiddleware, logger(debug));
+const ratelimit = every(
+  rateLimitMiddleware(30, Time.seconds(5), false),
+  rateLimitMiddleware(300, Time.minutes(5), false),
+);
 
-app.get('/api/v1/streaming', metricsMiddleware, streamingController);
-app.get('/relay', metricsMiddleware, relayController);
+app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware, logiMiddleware);
+app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
+
+app.get('/api/v1/streaming', metricsMiddleware, ratelimit, streamingController);
+app.get('/relay', metricsMiddleware, ratelimit, relayController);
 
 app.use(
   '*',
@@ -198,15 +206,39 @@ app.use(
 
 app.get('/metrics', metricsController);
 
-app.get('/.well-known/nodeinfo', nodeInfoController);
+app.get(
+  '/.well-known/nodeinfo',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  nodeInfoController,
+);
 app.get('/.well-known/nostr.json', nostrController);
 
-app.get('/nodeinfo/:version', nodeInfoSchemaController);
-app.get('/manifest.webmanifest', manifestController);
+app.get(
+  '/nodeinfo/:version',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  nodeInfoSchemaController,
+);
+app.get(
+  '/manifest.webmanifest',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  manifestController,
+);
 
-app.get('/api/v1/instance', instanceV1Controller);
-app.get('/api/v2/instance', instanceV2Controller);
-app.get('/api/v1/instance/extended_description', instanceDescriptionController);
+app.get(
+  '/api/v1/instance',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceV1Controller,
+);
+app.get(
+  '/api/v2/instance',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceV2Controller,
+);
+app.get(
+  '/api/v1/instance/extended_description',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  instanceDescriptionController,
+);
 
 app.get('/api/v1/apps/verify_credentials', appCredentialsController);
 app.post('/api/v1/apps', createAppController);
@@ -295,15 +327,32 @@ app.get('/api/v1/preferences', preferencesController);
 app.get('/api/v1/search', searchController);
 app.get('/api/v2/search', searchController);
 
-app.get('/api/pleroma/frontend_configurations', frontendConfigController);
+app.get(
+  '/api/pleroma/frontend_configurations',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  frontendConfigController,
+);
 
 app.get('/api/v1/trends/statuses', rateLimitMiddleware(8, Time.seconds(30)), trendingStatusesController);
-app.get('/api/v1/trends/links', trendingLinksController);
-app.get('/api/v1/trends/tags', trendingTagsController);
-app.get('/api/v1/trends', trendingTagsController);
+app.get(
+  '/api/v1/trends/links',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingLinksController,
+);
+app.get(
+  '/api/v1/trends/tags',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingTagsController,
+);
+app.get(
+  '/api/v1/trends',
+  cacheControlMiddleware({ maxAge: 300, staleWhileRevalidate: 300, staleIfError: 21600, public: true }),
+  trendingTagsController,
+);
 
 app.get('/api/v1/suggestions', suggestionsV1Controller);
 app.get('/api/v2/suggestions', suggestionsV2Controller);
+app.get('/api/v2/ditto/suggestions/local', localSuggestionsController);
 
 app.get('/api/v1/notifications', rateLimitMiddleware(8, Time.seconds(30)), requireSigner, notificationsController);
 app.get('/api/v1/notifications/:id', requireSigner, notificationController);
@@ -344,7 +393,11 @@ app.post(
   captchaVerifyController,
 );
 
-app.get('/api/v1/ditto/zap_splits', getZapSplitsController);
+app.get(
+  '/api/v1/ditto/zap_splits',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, public: true }),
+  getZapSplitsController,
+);
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
 
 app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
@@ -352,6 +405,8 @@ app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSpli
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
+
+app.post('/api/v1/ditto/wallet/create', requireSigner, createCashuWalletController);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
@@ -408,22 +463,39 @@ app.get('/timeline/*', frontendController);
 
 // Known static file routes
 app.get('/sw.js', publicFiles);
-app.get('/favicon.ico', publicFiles, staticFiles);
-app.get('/images/*', publicFiles, staticFiles);
-app.get('/instance/*', publicFiles);
+app.get(
+  '/favicon.ico',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+  staticFiles,
+);
+app.get(
+  '/images/*',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+  staticFiles,
+);
+app.get(
+  '/instance/*',
+  cacheControlMiddleware({ maxAge: 5, staleWhileRevalidate: 5, staleIfError: 21600, public: true }),
+  publicFiles,
+);
 
 // Packs contains immutable static files
-app.get('/packs/*', async (c, next) => {
-  c.header('Cache-Control', 'public, max-age=31536000, immutable');
-  c.header('Strict-Transport-Security', '"max-age=31536000" always');
-  await next();
-}, publicFiles);
+app.get(
+  '/packs/*',
+  cacheControlMiddleware({
+    maxAge: 31536000,
+    staleWhileRevalidate: 86400,
+    staleIfError: 21600,
+    public: true,
+    immutable: true,
+  }),
+  publicFiles,
+);
 
-// Site index
-app.get('/', frontendController, indexController);
-
-// Fallback
-app.get('*', publicFiles, staticFiles, frontendController);
+app.get('/', ratelimit, frontendController);
+app.get('*', publicFiles, staticFiles, ratelimit, frontendController);
 
 app.onError(errorHandler);
 

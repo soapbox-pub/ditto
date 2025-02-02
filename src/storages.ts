@@ -1,4 +1,6 @@
 // deno-lint-ignore-file require-await
+import { logi } from '@soapbox/logi';
+
 import { Conf } from '@/config.ts';
 import { DittoDatabase } from '@/db/DittoDatabase.ts';
 import { DittoDB } from '@/db/DittoDB.ts';
@@ -89,13 +91,21 @@ export class Storages {
           return acc;
         }, []);
 
-        console.log(`pool: connecting to ${activeRelays.length} relays.`);
+        logi({
+          level: 'info',
+          ns: 'ditto.pool',
+          msg: `connecting to ${activeRelays.length} relays`,
+          relays: activeRelays,
+        });
 
         return new NPool({
           open(url) {
             return new NRelay1(url, {
               // Skip event verification (it's done in the pipeline).
               verifyEvent: () => true,
+              log(log) {
+                logi(log);
+              },
             });
           },
           reqRouter: async (filters) => {

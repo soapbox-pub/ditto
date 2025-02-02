@@ -1,6 +1,7 @@
-import { Stickynotes } from '@soapbox/stickynotes';
-import TTLCache from '@isaacs/ttlcache';
+import { logi } from '@soapbox/logi';
+import { JsonValue } from '@std/json';
 import {
+  NKinds,
   NostrClientCLOSE,
   NostrClientCOUNT,
   NostrClientEVENT,
@@ -17,21 +18,33 @@ import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from 
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
-import { Time } from '@/utils/time.ts';
+import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
+import { MemoryRateLimiter } from '@/utils/ratelimiter/MemoryRateLimiter.ts';
+import { MultiRateLimiter } from '@/utils/ratelimiter/MultiRateLimiter.ts';
+import { RateLimiter } from '@/utils/ratelimiter/types.ts';
+import { Time } from '@/utils/time.ts';
 
 /** Limit of initial events returned for a subscription. */
 const FILTER_LIMIT = 100;
 
-const LIMITER_WINDOW = Time.minutes(1);
-const LIMITER_LIMIT = 300;
-
-const limiter = new TTLCache<string, number>();
+const limiters = {
+  msg: new MemoryRateLimiter({ limit: 300, window: Time.minutes(1) }),
+  req: new MultiRateLimiter([
+    new MemoryRateLimiter({ limit: 15, window: Time.seconds(5) }),
+    new MemoryRateLimiter({ limit: 300, window: Time.minutes(5) }),
+    new MemoryRateLimiter({ limit: 1000, window: Time.hours(1) }),
+  ]),
+  event: new MultiRateLimiter([
+    new MemoryRateLimiter({ limit: 10, window: Time.seconds(10) }),
+    new MemoryRateLimiter({ limit: 100, window: Time.hours(1) }),
+    new MemoryRateLimiter({ limit: 500, window: Time.days(1) }),
+  ]),
+  ephemeral: new MemoryRateLimiter({ limit: 30, window: Time.seconds(10) }),
+};
 
 /** Connections for metrics purposes. */
 const connections = new Set<WebSocket>();
-
-const console = new Stickynotes('ditto:relay');
 
 /** Set up the Websocket connection. */
 function connectStream(socket: WebSocket, ip: string | undefined) {
@@ -43,15 +56,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   };
 
   socket.onmessage = (e) => {
-    if (ip) {
-      const count = limiter.get(ip) ?? 0;
-      limiter.set(ip, count + 1, { ttl: LIMITER_WINDOW });
-
-      if (count > LIMITER_LIMIT) {
-        socket.close(1008, 'Rate limit exceeded');
-        return;
-      }
-    }
+    if (rateLimited(limiters.msg)) return;
 
     if (typeof e.data !== 'string') {
       socket.close(1003, 'Invalid message');
@@ -60,6 +65,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
+      logi({ level: 'trace', ns: 'ditto.relay.message', data: result.data as JsonValue });
       relayMessagesCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
@@ -76,6 +82,19 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
       controller.abort();
     }
   };
+
+  function rateLimited(limiter: Pick<RateLimiter, 'client'>): boolean {
+    if (ip) {
+      const client = limiter.client(ip);
+      try {
+        client.hit();
+      } catch {
+        socket.close(1008, 'Rate limit exceeded');
+        return true;
+      }
+    }
+    return false;
+  }
 
   /** Handle client message. */
   function handleMsg(msg: NostrClientMsg) {
@@ -97,6 +116,8 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
   /** Handle REQ. Start a subscription. */
   async function handleReq([_, subId, ...filters]: NostrClientREQ): Promise<void> {
+    if (rateLimited(limiters.req)) return;
+
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
@@ -128,7 +149,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
           send(['EVENT', subId, msg[2]]);
         }
       }
-    } catch (_e) {
+    } catch {
       controllers.delete(subId);
     }
   }
@@ -136,6 +157,10 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   /** Handle EVENT. Store the event. */
   async function handleEvent([_, event]: NostrClientEVENT): Promise<void> {
     relayEventsCounter.inc({ kind: event.kind.toString() });
+
+    const limiter = NKinds.ephemeral(event.kind) ? limiters.ephemeral : limiters.event;
+    if (rateLimited(limiter)) return;
+
     try {
       // This will store it (if eligible) and run other side-effects.
       await pipeline.handleEvent(purifyEvent(event), { source: 'relay', signal: AbortSignal.timeout(1000) });
@@ -145,7 +170,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        console.error(e);
+        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e) });
       }
     }
   }
@@ -161,6 +186,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
+    if (rateLimited(limiters.req)) return;
     const store = await Storages.db();
     const { count } = await store.count(filters, { timeout: Conf.db.timeouts.relay });
     send(['COUNT', subId, { count, approximate: false }]);
@@ -186,10 +212,18 @@ const relayController: AppController = (c, next) => {
     return c.text('Please use a Nostr client to connect.', 400);
   }
 
-  const ip = c.req.header('x-real-ip');
+  let ip = c.req.header('x-real-ip');
+
+  if (ip && Conf.ipWhitelist.includes(ip)) {
+    ip = undefined;
+  }
+
   if (ip) {
-    const count = limiter.get(ip) ?? 0;
-    if (count > LIMITER_LIMIT) {
+    const remaining = Object
+      .values(limiters)
+      .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
+
+    if (remaining < 0) {
       return c.json({ error: 'Rate limit exceeded' }, 429);
     }
   }

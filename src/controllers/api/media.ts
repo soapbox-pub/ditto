@@ -1,11 +1,13 @@
+import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
+import { dittoUploads } from '@/DittoUploads.ts';
 import { fileSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
+import { errorJson } from '@/utils/log.ts';
 import { uploadFile } from '@/utils/upload.ts';
-import { dittoUploads } from '@/DittoUploads.ts';
 
 const mediaBodySchema = z.object({
   file: fileSchema,
@@ -32,7 +34,7 @@ const mediaController: AppController = async (c) => {
     const media = await uploadFile(c, file, { pubkey, description }, signal);
     return c.json(renderAttachment(media));
   } catch (e) {
-    console.error(e);
+    logi({ level: 'error', ns: 'ditto.api.media', error: errorJson(e) });
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
 };

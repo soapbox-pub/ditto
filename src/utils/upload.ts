@@ -1,5 +1,5 @@
 import { HTTPException } from '@hono/hono/http-exception';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { encode } from 'blurhash';
@@ -8,8 +8,7 @@ import sharp from 'sharp';
 import { AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
-
-const console = new Stickynotes('ditto:uploader');
+import { errorJson } from '@/utils/log.ts';
 
 interface FileMeta {
   pubkey: string;
@@ -86,7 +85,7 @@ export async function uploadFile(
         tags.push(['blurhash', blurhash]);
       }
     } catch (e) {
-      console.error(`Error parsing image metadata: ${e}`);
+      logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
     }
   }
 

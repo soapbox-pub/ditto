@@ -24,7 +24,7 @@ interface InternalRelayOpts {
  * The pipeline should push events to it, then anything in the application can subscribe to it.
  */
 export class InternalRelay implements NRelay {
-  private subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
+  readonly subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
 
   constructor(private opts: InternalRelayOpts = {}) {}
 

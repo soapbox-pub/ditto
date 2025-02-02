@@ -6,6 +6,7 @@ After=network-online.target
 [Service]
 Type=simple
 User=ditto
+SyslogIdentifier=ditto
 WorkingDirectory=/opt/ditto
 ExecStart=/usr/local/bin/deno task start
 Restart=on-failure

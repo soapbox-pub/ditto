@@ -1,13 +1,11 @@
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
-import { Stickynotes } from '@soapbox/stickynotes';
+import { logi } from '@soapbox/logi';
 import * as Comlink from 'comlink';
 
 import { Conf } from '@/config.ts';
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
 
 import '@/workers/handlers/abortsignal.ts';
-
-const console = new Stickynotes('ditto:policy');
 
 class PolicyWorker implements NPolicy {
   private worker: Comlink.Remote<CustomPolicy>;
@@ -55,16 +53,34 @@ class PolicyWorker implements NPolicy {
         pubkey: Conf.pubkey,
       });
 
-      console.warn(`Using custom policy: ${Conf.policy}`);
+      logi({
+        level: 'info',
+        ns: 'ditto.system.policy',
+        msg: 'Using custom policy',
+        path: Conf.policy,
+        enabled: true,
+      });
     } catch (e) {
       if (e instanceof Error && e.message.includes('Module not found')) {
-        console.warn('Custom policy not found <https://docs.soapbox.pub/ditto/policies/>');
+        logi({
+          level: 'info',
+          ns: 'ditto.system.policy',
+          msg: 'Custom policy not found <https://docs.soapbox.pub/ditto/policies/>',
+          path: null,
+          enabled: false,
+        });
         this.enabled = false;
         return;
       }
 
       if (e instanceof Error && e.message.includes('PGlite is not supported in worker threads')) {
-        console.warn('Custom policies are not supported with PGlite. The policy is disabled.');
+        logi({
+          level: 'warn',
+          ns: 'ditto.system.policy',
+          msg: 'Custom policies are not supported with PGlite. The policy is disabled.',
+          path: Conf.policy,
+          enabled: false,
+        });
         this.enabled = false;
         return;
       }

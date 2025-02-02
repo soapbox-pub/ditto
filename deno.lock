@@ -30,11 +30,12 @@
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@~0.36.1": "0.36.1",
+    "jsr:@nostrify/db@~0.36.2": "0.36.2",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
     "jsr:@nostrify/nostrify@0.37": "0.37.0",
+    "jsr:@nostrify/nostrify@0.38": "0.38.0",
     "jsr:@nostrify/nostrify@~0.22.1": "0.22.5",
     "jsr:@nostrify/nostrify@~0.22.4": "0.22.4",
     "jsr:@nostrify/nostrify@~0.22.5": "0.22.5",
@@ -49,8 +50,8 @@
     "jsr:@nostrify/types@0.36": "0.36.0",
     "jsr:@nostrify/types@~0.30.1": "0.30.1",
     "jsr:@soapbox/kysely-pglite@1": "1.0.0",
+    "jsr:@soapbox/logi@0.3": "0.3.0",
     "jsr:@soapbox/safe-fetch@2": "2.0.0",
-    "jsr:@soapbox/stickynotes@0.4": "0.4.0",
     "jsr:@std/assert@0.223": "0.223.0",
     "jsr:@std/assert@0.224": "0.224.0",
     "jsr:@std/assert@~0.213.1": "0.213.1",
@@ -115,6 +116,7 @@
     "npm:lru-cache@^10.2.0": "10.2.2",
     "npm:lru-cache@^10.2.2": "10.2.2",
     "npm:nostr-tools@2.5.1": "2.5.1",
+    "npm:nostr-tools@^2.10.4": "2.10.4",
     "npm:nostr-tools@^2.5.0": "2.5.1",
     "npm:nostr-tools@^2.7.0": "2.7.0",
     "npm:nostr-wasm@0.1": "0.1.0",
@@ -347,13 +349,13 @@
         "jsr:@std/path@0.224.0"
       ]
     },
-    "@nostrify/db@0.36.1": {
-      "integrity": "b65b89ca6fe98d9dbcc0402b5c9c07b8430c2c91f84ba4128ff2eeed70c3d49f",
+    "@nostrify/db@0.36.2": {
+      "integrity": "6bf079b44fcb3ff5a85eadf9a9d4eb677fc770f1c80ad966602aa3d9dd8c88e8",
       "dependencies": [
-        "jsr:@nostrify/nostrify@0.36",
-        "jsr:@nostrify/types@0.35",
+        "jsr:@nostrify/nostrify@0.37",
+        "jsr:@nostrify/types@0.36",
         "npm:kysely@~0.27.3",
-        "npm:nostr-tools@^2.7.0"
+        "npm:nostr-tools@^2.10.4"
       ]
     },
     "@nostrify/nostrify@0.22.4": {
@@ -469,6 +471,21 @@
         "npm:zod"
       ]
     },
+    "@nostrify/nostrify@0.38.0": {
+      "integrity": "9ec7920057ee3a4dcbaef7e706dedea622bfdfdf0f6aac11047443f88d953deb",
+      "dependencies": [
+        "jsr:@nostrify/types@0.36",
+        "jsr:@std/crypto",
+        "jsr:@std/encoding@~0.224.1",
+        "npm:@scure/base",
+        "npm:@scure/bip32",
+        "npm:@scure/bip39",
+        "npm:lru-cache@^10.2.0",
+        "npm:nostr-tools@^2.10.4",
+        "npm:websocket-ts",
+        "npm:zod"
+      ]
+    },
     "@nostrify/policies@0.33.0": {
       "integrity": "c946b06d0527298b4d7c9819d142a10f522ba09eee76c37525aa4acfc5d87aee",
       "dependencies": [
@@ -525,14 +542,14 @@
         "npm:kysely@~0.27.4"
       ]
     },
+    "@soapbox/logi@0.3.0": {
+      "integrity": "5aa5121e82422b0a1b5ec81790f75407c16c788d10af629cecef9a35d1b4c290"
+    },
     "@soapbox/safe-fetch@2.0.0": {
       "integrity": "f451d686501c76a0faa058fe9d2073676282a8a42c3b93c59159eb9191f11b5f",
       "dependencies": [
         "npm:tldts@^6.1.61"
       ]
-    },
-    "@soapbox/stickynotes@0.4.0": {
-      "integrity": "60bfe61ab3d7e04bf708273b1e2d391a59534bdf29e54160e98d7afd328ca1ec"
     },
     "@std/assert@0.213.1": {
       "integrity": "24c28178b30c8e0782c18e8e94ea72b16282207569cdd10ffb9d1d26f2edebfe"
@@ -1359,6 +1376,18 @@
       "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
       "dependencies": [
         "whatwg-url@5.0.0"
+      ]
+    },
+    "nostr-tools@2.10.4": {
+      "integrity": "sha512-biU7sk+jxHgVASfobg2T5ttxOGGSt69wEVBC51sHHOEaKAAdzHBLV/I2l9Rf61UzClhliZwNouYhqIso4a3HYg==",
+      "dependencies": [
+        "@noble/ciphers",
+        "@noble/curves@1.2.0",
+        "@noble/hashes@1.3.1",
+        "@scure/base@1.1.1",
+        "@scure/bip32@1.3.1",
+        "@scure/bip39@1.2.1",
+        "nostr-wasm"
       ]
     },
     "nostr-tools@2.5.1": {
@@ -2335,13 +2364,13 @@
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@~0.36.1",
-      "jsr:@nostrify/nostrify@0.37",
+      "jsr:@nostrify/db@~0.36.2",
+      "jsr:@nostrify/nostrify@0.38",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
       "jsr:@soapbox/kysely-pglite@1",
+      "jsr:@soapbox/logi@0.3",
       "jsr:@soapbox/safe-fetch@2",
-      "jsr:@soapbox/stickynotes@0.4",
       "jsr:@std/assert@~0.225.1",
       "jsr:@std/cli@0.223",
       "jsr:@std/crypto@0.224",

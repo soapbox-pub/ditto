@@ -6,7 +6,6 @@ import tldts from 'tldts';
 import { getAuthor } from '@/queries.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
-import { Stickynotes } from '@soapbox/stickynotes';
 
 /** Resolve a bech32 or NIP-05 identifier to an account. */
 export async function lookupAccount(
@@ -22,8 +21,6 @@ export async function lookupAccount(
 
 /** Resolve a bech32 or NIP-05 identifier to a pubkey. */
 export async function lookupPubkey(value: string, signal?: AbortSignal): Promise<string | undefined> {
-  const console = new Stickynotes('ditto:lookup');
-
   if (n.bech32().safeParse(value).success) {
     return bech32ToPubkey(value);
   }
@@ -31,8 +28,7 @@ export async function lookupPubkey(value: string, signal?: AbortSignal): Promise
   try {
     const { pubkey } = await nip05Cache.fetch(value, { signal });
     return pubkey;
-  } catch (e) {
-    console.debug(e);
+  } catch {
     return;
   }
 }

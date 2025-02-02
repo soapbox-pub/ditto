@@ -1,4 +1,5 @@
 import { ApplicationServer, PushMessageOptions, PushSubscriber, PushSubscription } from '@negrel/webpush';
+import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
@@ -20,7 +21,11 @@ export class DittoPush {
             vapidKeys: keys,
           });
         } else {
-          console.warn('VAPID keys are not set. Push notifications will be disabled.');
+          logi({
+            level: 'warn',
+            ns: 'ditto.push',
+            msg: 'VAPID keys are not set. Push notifications will be disabled.',
+          });
         }
       })();
     }

@@ -119,7 +119,7 @@ const instanceV2Controller: AppController = async (c) => {
       },
       statuses: {
         max_characters: Conf.postCharLimit,
-        max_media_attachments: 4,
+        max_media_attachments: 20,
         characters_reserved_per_url: 23,
       },
       media_attachments: {
