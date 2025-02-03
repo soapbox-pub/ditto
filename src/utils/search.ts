@@ -54,7 +54,7 @@ export async function getIdsBySearch(
   const tokens = NIP50.parseInput(q);
 
   const ext = tokens.filter((token) => typeof token === 'object');
-  const txt = tokens.filter((token) => typeof token === 'string').join('');
+  const txt = tokens.filter((token) => typeof token === 'string').join(' ');
 
   let query = kysely
     .selectFrom('nostr_events')
