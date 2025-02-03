@@ -53,7 +53,7 @@ export async function getIdsBySearch(
 
   const tokens = NIP50.parseInput(q);
 
-  const ext = tokens.filter((token) => typeof token === 'object');
+  const ext: Record<string, string[]> = {};
   const txt = tokens.filter((token) => typeof token === 'string').join(' ');
 
   let query = kysely
@@ -72,12 +72,19 @@ export async function getIdsBySearch(
     }
   }
 
-  if (ext.length) {
+  for (const token of tokens) {
+    if (typeof token === 'object') {
+      ext[token.key] ??= [];
+      ext[token.key].push(token.value);
+    }
+  }
+
+  for (const [key, values] of Object.entries(ext)) {
+    if (key === 'domain') continue;
+
     query = query.where((eb) =>
       eb.or(
-        ext
-          .filter((token) => token.key !== 'domain')
-          .map(({ key, value }) => eb('search_ext', '@>', { [key]: value })),
+        values.map((value) => eb('nostr_events.search_ext', '@>', { [key]: value })),
       )
     );
   }

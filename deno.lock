@@ -30,7 +30,7 @@
     "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@~0.37.2": "0.37.2",
+    "jsr:@nostrify/db@~0.37.3": "0.37.3",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
@@ -348,8 +348,8 @@
         "jsr:@std/path@0.224.0"
       ]
     },
-    "@nostrify/db@0.37.2": {
-      "integrity": "1dba9a4664bccd504de34dbdcb792377808bd8affb2712906beb687056602ce7",
+    "@nostrify/db@0.37.3": {
+      "integrity": "fe7cacd67bb817f10fb44587e832cfb042a3a0d32db29b24a487b7d006438623",
       "dependencies": [
         "jsr:@nostrify/nostrify@0.38",
         "jsr:@nostrify/types@0.36",
@@ -2348,7 +2348,7 @@
       "jsr:@hono/hono@^4.4.6",
       "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@~0.37.2",
+      "jsr:@nostrify/db@~0.37.3",
       "jsr:@nostrify/nostrify@0.38",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
