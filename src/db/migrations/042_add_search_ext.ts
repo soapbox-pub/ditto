@@ -3,7 +3,7 @@ import { Kysely, sql } from 'kysely';
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .alterTable('nostr_events')
-    .addColumn('search_ext', 'jsonb', (col) => col.notNull().defaultTo({}))
+    .addColumn('search_ext', 'jsonb', (col) => col.notNull().defaultTo(sql`'{}'::jsonb`))
     .execute();
 
   await db.schema
