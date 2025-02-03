@@ -92,6 +92,8 @@ class EventsDB extends NPostgres {
       }
     }
 
+    ext.protocol = event.tags.find(([name]) => name === 'proxy')?.[2] ?? 'nostr';
+
     return ext;
   }
 
