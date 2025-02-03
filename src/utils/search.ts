@@ -52,7 +52,9 @@ export async function getIdsBySearch(
   }
 
   const tokens = NIP50.parseInput(q);
-  const parsedSearch = tokens.filter((t) => typeof t === 'string').join(' ');
+
+  const ext = tokens.filter((token) => typeof token === 'object');
+  const txt = tokens.filter((token) => typeof token === 'string').join('');
 
   let query = kysely
     .selectFrom('nostr_events')
@@ -62,20 +64,22 @@ export async function getIdsBySearch(
     .limit(limit)
     .offset(offset);
 
-  const languages = new Set<string>();
   const domains = new Set<string>();
 
   for (const token of tokens) {
-    if (typeof token === 'object' && token.key === 'language') {
-      languages.add(token.value);
-    }
     if (typeof token === 'object' && token.key === 'domain') {
       domains.add(token.value);
     }
   }
 
-  if (languages.size) {
-    query = query.where(sql`search_ext->>'language'`, 'in', [...languages]);
+  if (ext.length) {
+    query = query.where((eb) =>
+      eb.or(
+        ext
+          .filter((token) => token.key !== 'domain')
+          .map(({ key, value }) => eb('search_ext', '@>', { [key]: value })),
+      )
+    );
   }
 
   if (domains.size) {
@@ -90,14 +94,14 @@ export async function getIdsBySearch(
 
   // If there is not a specific content to search, return the query already
   // This is useful if the person only makes a query search such as `domain:patrickdosreis.com`
-  if (!parsedSearch.length) {
+  if (!txt.length) {
     const ids = new Set((await query.execute()).map(({ id }) => id));
     return ids;
   }
 
   let fallbackQuery = query;
-  if (parsedSearch) {
-    query = query.where('search', '@@', sql`phraseto_tsquery(${parsedSearch})`);
+  if (txt) {
+    query = query.where('search', '@@', sql`phraseto_tsquery(${txt})`);
   }
 
   const ids = new Set((await query.execute()).map(({ id }) => id));
@@ -107,7 +111,7 @@ export async function getIdsBySearch(
     fallbackQuery = fallbackQuery.where(
       'search',
       '@@',
-      sql`plainto_tsquery(${parsedSearch})`,
+      sql`plainto_tsquery(${txt})`,
     );
     const ids = new Set((await fallbackQuery.execute()).map(({ id }) => id));
     return ids;
