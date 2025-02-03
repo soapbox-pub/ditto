@@ -45,7 +45,7 @@
     "@lambdalisue/async": "jsr:@lambdalisue/async@^2.1.1",
     "@negrel/webpush": "jsr:@negrel/webpush@^0.3.0",
     "@noble/secp256k1": "npm:@noble/secp256k1@^2.0.0",
-    "@nostrify/db": "jsr:@nostrify/db@^0.36.2",
+    "@nostrify/db": "jsr:@nostrify/db@^0.37.0",
     "@nostrify/nostrify": "jsr:@nostrify/nostrify@^0.38.0",
     "@nostrify/policies": "jsr:@nostrify/policies@^0.36.1",
     "@nostrify/types": "jsr:@nostrify/types@^0.36.0",

@@ -93,12 +93,12 @@ Deno.test("getTrendingTagValues(): 'e' tag and WITH language parameter", async (
   }
 
   await db.kysely.updateTable('nostr_events')
-    .set('language', 'pt')
+    .set('search_ext', { language: 'pt' })
     .where('id', '=', post1.id)
     .execute();
 
   await db.kysely.updateTable('nostr_events')
-    .set('language', 'en')
+    .set('search_ext', { language: 'en' })
     .where('id', '=', post2.id)
     .execute();
 

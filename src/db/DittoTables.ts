@@ -3,7 +3,6 @@ import { Generated } from 'kysely';
 import { NPostgresSchema } from '@nostrify/db';
 
 export interface DittoTables extends NPostgresSchema {
-  nostr_events: NostrEventsRow;
   auth_tokens: AuthTokenRow;
   author_stats: AuthorStatsRow;
   event_stats: EventStatsRow;
@@ -11,10 +10,6 @@ export interface DittoTables extends NPostgresSchema {
   event_zaps: EventZapRow;
   push_subscriptions: PushSubscriptionRow;
 }
-
-type NostrEventsRow = NPostgresSchema['nostr_events'] & {
-  language: string | null;
-};
 
 interface AuthorStatsRow {
   pubkey: string;
