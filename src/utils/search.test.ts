@@ -54,11 +54,13 @@ Deno.test('Searching for posts work', async () => {
 
   const event = genEvent({ content: "I'm not an orphan. Death is my importance", kind: 1 });
   await db.store.event(event);
-  await db.kysely.updateTable('nostr_events').set('language', 'en').where('id', '=', event.id).execute();
+  await db.kysely.updateTable('nostr_events').set('search_ext', { language: 'en' }).where('id', '=', event.id)
+    .execute();
 
   const event2 = genEvent({ content: 'The more I explore is the more I fall in love with the music I make.', kind: 1 });
   await db.store.event(event2);
-  await db.kysely.updateTable('nostr_events').set('language', 'en').where('id', '=', event2.id).execute();
+  await db.kysely.updateTable('nostr_events').set('search_ext', { language: 'en' }).where('id', '=', event2.id)
+    .execute();
 
   assertEquals(
     await getIdsBySearch(db.kysely, { q: 'Death is my importance', limit: 1, offset: 0 }), // ordered words

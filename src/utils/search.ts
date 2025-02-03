@@ -75,7 +75,7 @@ export async function getIdsBySearch(
   }
 
   if (languages.size) {
-    query = query.where('language', 'in', [...languages]);
+    query = query.where(sql`search_ext->>'language'`, 'in', [...languages]);
   }
 
   if (domains.size) {

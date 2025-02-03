@@ -197,7 +197,7 @@ const accountStatusesQuerySchema = z.object({
   limit: z.coerce.number().nonnegative().transform((v) => Math.min(v, 40)).catch(20),
   exclude_replies: booleanParamSchema.optional(),
   tagged: z.string().optional(),
-  only_media: z.coerce.boolean().catch(false),
+  only_media: z.boolean().optional(),
 });
 
 const accountStatusesController: AppController = async (c) => {
@@ -242,7 +242,7 @@ const accountStatusesController: AppController = async (c) => {
   };
 
   if (only_media) {
-    filter.search = 'only_media:true';
+    filter.search = 'media:true';
   }
 
   if (tagged) {

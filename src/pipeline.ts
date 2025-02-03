@@ -15,7 +15,6 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { eventAge, parseNip05, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
-import { detectLanguage } from '@/utils/language.ts';
 import { errorJson } from '@/utils/log.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -121,8 +120,6 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
     Promise.allSettled([
       handleZaps(kysely, event),
       parseMetadata(event, opts.signal),
-      setLanguage(event),
-      setMimeType(event),
       generateSetEvents(event),
     ])
       .then(() =>
@@ -235,43 +232,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     } catch (_e) {
       // do nothing
     }
-  }
-}
-
-/** Update the event in the database and set its language. */
-async function setLanguage(event: NostrEvent): Promise<void> {
-  if (event.kind !== 1) return;
-
-  const language = detectLanguage(event.content, 0.90);
-  if (!language) return;
-
-  const kysely = await Storages.kysely();
-  try {
-    await kysely.updateTable('nostr_events')
-      .set('language', language)
-      .where('id', '=', event.id)
-      .execute();
-  } catch {
-    // do nothing
-  }
-}
-
-/** Update the event in the database and set its MIME type. */
-async function setMimeType(event: NostrEvent): Promise<void> {
-  const imeta = event.tags.find(([value]) => value === 'imeta');
-  if (!imeta) return;
-
-  const mime_type = imeta.find((value) => value?.split(' ')[0] === 'm')?.split(' ')[1];
-  if (!mime_type) return;
-
-  const kysely = await Storages.kysely();
-  try {
-    await kysely.updateTable('nostr_events')
-      .set('mime_type', mime_type)
-      .where('id', '=', event.id)
-      .execute();
-  } catch {
-    // do nothing
   }
 }
 

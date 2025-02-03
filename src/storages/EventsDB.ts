@@ -1,11 +1,10 @@
 // deno-lint-ignore-file require-await
 
-import { LanguageCode } from 'iso-639-1';
-import { NPostgres, NPostgresSchema } from '@nostrify/db';
+import { NPostgres } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
-import { Kysely, SelectQueryBuilder } from 'kysely';
+import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -15,6 +14,7 @@ import { isNostrId } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { detectLanguage } from '@/utils/language.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = (opts: TagConditionOpts) => boolean;
@@ -62,10 +62,44 @@ class EventsDB extends NPostgres {
     't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
   };
 
+  static indexExtensions(event: NostrEvent): Record<string, string> {
+    const ext: Record<string, string> = {};
+
+    if (event.kind === 1) {
+      ext.reply = event.tags.some(([name]) => name === 'e').toString();
+
+      const language = detectLanguage(event.content, 0.90);
+
+      if (language) {
+        ext.language = language;
+      }
+    }
+
+    const imeta: string[][][] = event.tags
+      .filter(([name]) => name === 'imeta')
+      .map(([_, ...entries]) =>
+        entries.map((entry) => {
+          const split = entry.split(' ');
+          return [split[0], split.splice(1).join(' ')];
+        })
+      );
+
+    if (imeta.length) {
+      ext.media = 'true';
+    }
+
+    if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
+      ext.video = 'true';
+    }
+
+    return ext;
+  }
+
   constructor(private opts: EventsDBOpts) {
     super(opts.kysely, {
       indexTags: EventsDB.indexTags,
       indexSearch: EventsDB.searchText,
+      indexExtensions: EventsDB.indexExtensions,
     });
   }
 
@@ -155,58 +189,6 @@ class EventsDB extends NPostgres {
     }
   }
 
-  protected override getFilterQuery(trx: Kysely<NPostgresSchema>, filter: NostrFilter) {
-    if (filter.search) {
-      const tokens = NIP50.parseInput(filter.search);
-
-      let query = super.getFilterQuery(trx, {
-        ...filter,
-        search: tokens.filter((t) => typeof t === 'string').join(' '),
-      }) as SelectQueryBuilder<DittoTables, 'nostr_events', DittoTables['nostr_events']>;
-
-      const languages = new Set<string>();
-      let exact_mime_type: string | undefined;
-      let partial_mime_type: string | undefined;
-      let only_media: boolean | undefined;
-
-      for (const token of tokens) {
-        if (typeof token === 'object' && token.key === 'language') {
-          languages.add(token.value);
-        }
-        if (typeof token === 'object' && token.key === 'exact_mime_type') {
-          exact_mime_type = token.value;
-        }
-        if (typeof token === 'object' && token.key === 'partial_mime_type') {
-          partial_mime_type = token.value;
-        }
-        if (typeof token === 'object' && token.key === 'only_media') {
-          if (token.value === 'true') only_media = true;
-          if (token.value === 'false') only_media = false;
-        }
-      }
-
-      if (languages.size) {
-        query = query.where('language', 'in', [...languages]);
-      }
-      if (exact_mime_type) {
-        query = query.where('mime_type', '=', exact_mime_type);
-      }
-      if (partial_mime_type) {
-        query = query.where(
-          (eb) => eb.fn('split_part', [eb.ref('mime_type'), eb.val('/'), eb.val(1)]),
-          '=',
-          partial_mime_type,
-        );
-      }
-      if (only_media) query = query.where('mime_type', 'is not', null);
-      if (only_media === false) query = query.where('mime_type', 'is', null);
-
-      return query;
-    }
-
-    return super.getFilterQuery(trx, filter);
-  }
-
   /** Get events for filters from the database. */
   override async query(
     filters: NostrFilter[],
@@ -233,29 +215,6 @@ class EventsDB extends NPostgres {
     logi({ level: 'debug', ns: 'ditto.req', source: 'db', filters: filters as JsonValue });
 
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
-  }
-
-  /** Parse an event row from the database. */
-  protected override parseEventRow(row: DittoTables['nostr_events']): DittoEvent {
-    const event: DittoEvent = {
-      id: row.id,
-      kind: row.kind,
-      pubkey: row.pubkey,
-      content: row.content,
-      created_at: Number(row.created_at),
-      tags: row.tags,
-      sig: row.sig,
-    };
-
-    if (this.opts.pure) {
-      return event;
-    }
-
-    if (row.language) {
-      event.language = row.language as LanguageCode;
-    }
-
-    return event;
   }
 
   /** Delete events based on filters from the database. */

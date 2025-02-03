@@ -145,7 +145,7 @@ export async function updateTrendingEvents(): Promise<void> {
     const rows = await kysely
       .selectFrom('nostr_events')
       .select('nostr_events.id')
-      .where('nostr_events.language', '=', language)
+      .where(sql`nostr_events.search_ext->>'language'`, '=', language)
       .where('nostr_events.created_at', '>=', yesterday)
       .where('nostr_events.created_at', '<=', now)
       .execute();

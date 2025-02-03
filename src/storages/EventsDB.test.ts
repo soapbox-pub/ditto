@@ -65,8 +65,8 @@ Deno.test('query events with language search filter', async () => {
   await store.event(en);
   await store.event(es);
 
-  await kysely.updateTable('nostr_events').set('language', 'en').where('id', '=', en.id).execute();
-  await kysely.updateTable('nostr_events').set('language', 'es').where('id', '=', es.id).execute();
+  await kysely.updateTable('nostr_events').set('search_ext', { language: 'en' }).where('id', '=', en.id).execute();
+  await kysely.updateTable('nostr_events').set('search_ext', { language: 'es' }).where('id', '=', es.id).execute();
 
   assertEquals(await store.query([{ search: 'language:en' }]), [en]);
   assertEquals(await store.query([{ search: 'language:es' }]), [es]);
