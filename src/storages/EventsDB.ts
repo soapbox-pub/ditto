@@ -59,7 +59,8 @@ class EventsDB extends NPostgres {
     'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
-    't': ({ event, count, value }) => (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
+    't': ({ event, count, value }) =>
+      (value === value.toLowerCase()) && (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
   };
 
   static indexExtensions(event: NostrEvent): Record<string, string> {
