@@ -86,10 +86,10 @@ class EventsDB extends NPostgres {
 
     if (imeta.length) {
       ext.media = 'true';
-    }
 
-    if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
-      ext.video = 'true';
+      if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
+        ext.video = 'true';
+      }
     }
 
     return ext;
