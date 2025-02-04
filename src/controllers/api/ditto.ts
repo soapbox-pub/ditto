@@ -346,14 +346,11 @@ export const updateInstanceController: AppController = async (c) => {
 };
 
 const createCashuWalletSchema = z.object({
-  description: z.string(),
-  relays: z.array(z.string().url()),
   mints: z.array(z.string().url()).nonempty(), // must contain at least one item
-  name: z.string(),
 });
 
 /**
- * Creates an addressable Cashu wallet.
+ * Creates a replaceable Cashu wallet.
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  */
 export const createCashuWalletController: AppController = async (c) => {
@@ -365,50 +362,41 @@ export const createCashuWalletController: AppController = async (c) => {
   const result = createCashuWalletSchema.safeParse(body);
 
   if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 400);
+    return c.json({ error: 'Bad schema', schema: result.error }, 400);
   }
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
+  const nip44 = signer.nip44;
+  if (!nip44) {
+    return c.json({ error: 'Signer does not have nip 44' }, 400);
+  }
+
+  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (event) {
     return c.json({ error: 'You already have a wallet 😏' }, 400);
   }
 
-  const { description, relays, mints, name } = result.data;
-  relays.push(Conf.relay);
-
-  const tags: string[][] = [];
-
-  const wallet_id = Math.random().toString(36).substring(3);
-
-  tags.push(['d', wallet_id]);
-  tags.push(['name', name]);
-  tags.push(['description', description]);
-  tags.push(['unit', 'sat']);
-
-  for (const mint of new Set(mints)) {
-    tags.push(['mint', mint]);
-  }
-
-  for (const relay of new Set(relays)) {
-    tags.push(['relay', relay]);
-  }
+  const contentTags: string[][] = [];
 
   const sk = generateSecretKey();
   const privkey = bytesToString('hex', sk);
 
-  const contentTags = [
-    ['privkey', privkey],
-  ];
-  const encryptedContentTags = await signer.nip44?.encrypt(pubkey, JSON.stringify(contentTags));
+  contentTags.push(['privkey', privkey]);
+
+  const { mints } = result.data;
+
+  for (const mint of new Set(mints)) {
+    contentTags.push(['mint', mint]);
+  }
+
+  const encryptedContentTags = await nip44.encrypt(pubkey, JSON.stringify(contentTags));
 
   // Wallet
   await createEvent({
-    kind: 37375,
+    kind: 17375,
     content: encryptedContentTags,
-    tags,
   }, c);
 
-  return c.json({ wallet_id }, 200);
+  return c.json(201);
 };
 
 const createNutzapInformationSchema = z.object({
