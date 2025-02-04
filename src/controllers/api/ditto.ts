@@ -1,17 +1,20 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { logi } from '@soapbox/logi';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { addTag } from '@/utils/tags.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
+import { isNostrId } from '@/utils.ts';
+import { addTag } from '@/utils/tags.ts';
 import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
+import { errorJson } from '@/utils/log.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
 import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
@@ -402,7 +405,6 @@ export const createCashuWalletController: AppController = async (c) => {
 const createNutzapInformationSchema = z.object({
   relays: z.array(z.string().url()),
   mints: z.array(z.string().url()).nonempty(), // must contain at least one item
-  wallet_id: z.string(),
 });
 
 /**
@@ -418,7 +420,7 @@ export const createNutzapInformationController: AppController = async (c) => {
   const result = createNutzapInformationSchema.safeParse(body);
 
   if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 400);
+    return c.json({ error: 'Bad schema', schema: result.error }, 400);
   }
 
   const nip44 = signer.nip44;
@@ -426,11 +428,11 @@ export const createNutzapInformationController: AppController = async (c) => {
     return c.json({ error: 'Signer does not have nip 44' }, 400);
   }
 
-  const { relays, mints, wallet_id } = result.data;
+  const { relays, mints } = result.data;
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [37375], '#d': [wallet_id] }], { signal });
+  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (!event) {
-    return c.json({ error: 'Could not find a wallet with the id: ' + wallet_id }, 400);
+    return c.json({ error: 'You need to have a wallet to create a nutzap information event.' }, 400);
   }
 
   relays.push(Conf.relay);
@@ -445,11 +447,24 @@ export const createNutzapInformationController: AppController = async (c) => {
     tags.push(['relay', relay]);
   }
 
-  const contentTags: string[][] = JSON.parse(await nip44.decrypt(pubkey, event.content));
+  let decryptedContent: string;
+  try {
+    decryptedContent = await nip44.decrypt(pubkey, event.content);
+  } catch (e) {
+    logi({ level: 'error', ns: 'ditto.api', id: event.id, kind: event.kind, error: errorJson(e) });
+    return c.json({ error: 'Could not decrypt wallet content.' }, 400);
+  }
+
+  let contentTags: string[][];
+  try {
+    contentTags = JSON.parse(decryptedContent);
+  } catch {
+    return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
+  }
 
   const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
-  if (!privkey) {
-    return c.json({ error: 'Wallet does not contain privkey' }, 400);
+  if (!privkey || !isNostrId(privkey)) {
+    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 400);
   }
 
   const p2pk = getPublicKey(stringToBytes('hex', privkey));
