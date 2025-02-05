@@ -46,7 +46,7 @@ export function detectLanguage(text: string, minConfidence: number): LanguageCod
     const locale = new Intl.Locale(iso6393);
 
     if (confidence >= minConfidence && ISO6391.validate(locale.language)) {
-      return locale.language as LanguageCode;
+      return locale.language;
     }
   }
 }
