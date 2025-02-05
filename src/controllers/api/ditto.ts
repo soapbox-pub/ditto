@@ -479,3 +479,75 @@ export const createNutzapInformationController: AppController = async (c) => {
 
   return c.json(201);
 };
+
+/**
+ * Swaps all nutzaps (NIP-61) to the user's wallet (NIP-60)
+ */
+export const swapNutzapsToWalletController: AppController = async (c) => {
+  const signer = c.get('signer')!;
+  const store = c.get('store');
+  const pubkey = await signer.getPublicKey();
+  const { signal } = c.req.raw;
+
+  const nip44 = signer.nip44;
+  if (!nip44) {
+    return c.json({ error: 'Signer does not have nip 44.' }, 400);
+  }
+
+  const [wallet] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  if (!wallet) {
+    return c.json({ error: 'You need to have a wallet to swap the nutzaps into it.' }, 400);
+  }
+
+  let decryptedContent: string;
+  try {
+    decryptedContent = await nip44.decrypt(pubkey, wallet.content);
+  } catch (e) {
+    logi({ level: 'error', ns: 'ditto.api', id: wallet.id, kind: wallet.kind, error: errorJson(e) });
+    return c.json({ error: 'Could not decrypt wallet content.' }, 400);
+  }
+
+  let contentTags: string[][];
+  try {
+    contentTags = JSON.parse(decryptedContent);
+  } catch {
+    return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
+  }
+
+  const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
+  if (!privkey || !isNostrId(privkey)) {
+    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 400);
+  }
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+
+  const [nutzapInformation] = await store.query([{ authors: [pubkey], kinds: [10019] }], { signal });
+  if (!nutzapInformation) {
+    return c.json({ error: 'You need to have a nutzap information event so we can get the mints.' }, 400);
+  }
+
+  const nutzapInformationPubkey = nutzapInformation.tags.find(([name]) => name === 'pubkey')?.[1];
+  if (!nutzapInformationPubkey || (nutzapInformationPubkey !== p2pk)) {
+    return c.json({
+      error:
+        "You do not have a 'pubkey' tag in your nutzap information event or the one you have does not match the one derivated from the wallet.",
+    }, 400);
+  }
+
+  const mints = [...new Set(nutzapInformation.tags.filter(([name]) => name === 'mint').map(([_, value]) => value))];
+  if (mints.length < 1) {
+    return c.json({ error: 'You do not have any mints in your nutzap information event.' }, 400);
+  }
+
+  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
+
+  const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
+  if (nutzapHistory) {
+    nutzapsFilter.since = nutzapHistory.created_at;
+  }
+
+  const nutzaps = await store.query([nutzapsFilter], { signal });
+
+  // TODO: finally start doing the swap
+
+  return c.json(201);
+};
