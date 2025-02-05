@@ -84,6 +84,7 @@
     "jsr:@std/path@1.0.0-rc.1": "1.0.0-rc.1",
     "jsr:@std/path@~0.213.1": "0.213.1",
     "jsr:@std/streams@0.223": "0.223.0",
+    "npm:@cashu/cashu-ts@^2.2.0": "2.2.0",
     "npm:@electric-sql/pglite@~0.2.8": "0.2.8",
     "npm:@isaacs/ttlcache@^1.4.1": "1.4.1",
     "npm:@noble/hashes@^1.4.0": "1.4.0",
@@ -724,6 +725,25 @@
     }
   },
   "npm": {
+    "@cashu/cashu-ts@2.2.0": {
+      "integrity": "sha512-7b6pGyjjpm3uAJvmOL+ztpRxqp1qnmzGpydp+Pu30pOjxj93EhejPTJVrZMDJ0P35y6u5+5jIjHF4k0fpovvmg==",
+      "dependencies": [
+        "@cashu/crypto",
+        "@noble/curves@1.4.0",
+        "@noble/hashes@1.4.0",
+        "buffer"
+      ]
+    },
+    "@cashu/crypto@0.3.4": {
+      "integrity": "sha512-mfv1Pj4iL1PXzUj9NKIJbmncCLMqYfnEDqh/OPxAX0nNBt6BOnVJJLjLWFlQeYxlnEfWABSNkrqPje1t5zcyhA==",
+      "dependencies": [
+        "@noble/curves@1.8.1",
+        "@noble/hashes@1.7.1",
+        "@scure/bip32@1.6.2",
+        "@scure/bip39@1.5.4",
+        "buffer"
+      ]
+    },
     "@electric-sql/pglite@0.2.8": {
       "integrity": "sha512-0wSmQu22euBRzR5ghqyIHnBH4MfwlkL5WstOrrA3KOsjEWEglvoL/gH92JajEUA6Ufei/+qbkB2hVloC/K/RxQ=="
     },
@@ -841,6 +861,12 @@
         "@noble/hashes@1.4.0"
       ]
     },
+    "@noble/curves@1.8.1": {
+      "integrity": "sha512-warwspo+UYUPep0Q+vtdVB4Ugn8GGQj8iyB3gnRWsztmUHTI3S1nhdiWNsPUGL0vud7JlRRk1XEu7Lq1KGTnMQ==",
+      "dependencies": [
+        "@noble/hashes@1.7.1"
+      ]
+    },
     "@noble/hashes@1.3.1": {
       "integrity": "sha512-EbqwksQwz9xDRGfDST86whPBgM65E0OH/pCgqW0GBVzO22bNE+NuIbeTb714+IfSjU3aRk47EUvXIb5bTsenKA=="
     },
@@ -849,6 +875,9 @@
     },
     "@noble/hashes@1.4.0": {
       "integrity": "sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg=="
+    },
+    "@noble/hashes@1.7.1": {
+      "integrity": "sha512-B8XBPsn4vT/KJAGqDzbwztd+6Yte3P4V7iafm24bxgDe/mlRuK6xmWPuCNrKt2vDafZ8MfJLlchDG/vYafQEjQ=="
     },
     "@noble/secp256k1@2.1.0": {
       "integrity": "sha512-XLEQQNdablO0XZOIniFQimiXsZDNwaYgL96dZwC54Q30imSbAOFf3NKtepc+cXyuZf5Q1HCgbqgZ2UFFuHVcEw=="
@@ -861,6 +890,9 @@
     },
     "@scure/base@1.1.6": {
       "integrity": "sha512-ok9AWwhcgYuGG3Zfhyqg+zwl+Wn5uE+dwC0NV/2qQkx4dABbb/bx96vWu8NSj+BNjjSjno+JRYRjle1jV08k3g=="
+    },
+    "@scure/base@1.2.4": {
+      "integrity": "sha512-5Yy9czTO47mqz+/J8GM6GIId4umdCk1wc1q8rKERQulIoc8VP9pzDcghv10Tl2E7R96ZUx/PhND3ESYUQX8NuQ=="
     },
     "@scure/bip32@1.3.1": {
       "integrity": "sha512-osvveYtyzdEVbt3OfwwXFr4P2iVBL5u1Q3q4ONBfDY/UpOuXmOlbgwc1xECEboY8wIays8Yt6onaWMUdUbfl0A==",
@@ -878,6 +910,14 @@
         "@scure/base@1.1.6"
       ]
     },
+    "@scure/bip32@1.6.2": {
+      "integrity": "sha512-t96EPDMbtGgtb7onKKqxRLfE5g05k7uHnHRM2xdE6BP/ZmxaLtPek4J4KfVn/90IQNrU1IOAqMgiDtUdtbe3nw==",
+      "dependencies": [
+        "@noble/curves@1.8.1",
+        "@noble/hashes@1.7.1",
+        "@scure/base@1.2.4"
+      ]
+    },
     "@scure/bip39@1.2.1": {
       "integrity": "sha512-Z3/Fsz1yr904dduJD0NpiyRHhRYHdcnyh73FZWiV+/qhWi83wNJ3NWolYqCEN+ZWsUz2TWwajJggcRE9r1zUYg==",
       "dependencies": [
@@ -890,6 +930,13 @@
       "dependencies": [
         "@noble/hashes@1.4.0",
         "@scure/base@1.1.6"
+      ]
+    },
+    "@scure/bip39@1.5.4": {
+      "integrity": "sha512-TFM4ni0vKvCfBpohoh+/lY05i9gRbSwXWngAsF4CABQxoaOHijxuaZ2R6cStDQ5CHtHO9aGJTr4ksVJASRRyMA==",
+      "dependencies": [
+        "@noble/hashes@1.7.1",
+        "@scure/base@1.2.4"
       ]
     },
     "@types/dompurify@3.0.5": {
@@ -928,6 +975,9 @@
     "asynckit@0.4.0": {
       "integrity": "sha512-Oei9OH4tRh0YqU3GxhX79dM/mwVgvbZJaSNaRk+bshkj0S5cfHcgYakreBjrHwatXKbz+IoIdYLxrKim2MjW0Q=="
     },
+    "base64-js@1.5.1": {
+      "integrity": "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA=="
+    },
     "bintrees@1.0.2": {
       "integrity": "sha512-VOMgTMwjAaUG580SXn3LacVgjurrbMme7ZZNYGSSV7mmtY6QQRh0Eg3pwIcntQ77DErK1L0NxkbetjcoXzVwKw=="
     },
@@ -938,6 +988,13 @@
       "integrity": "sha512-b8um+L1RzM3WDSzvhm6gIz1yfTbBt6YTlcEKAvsmqCZZFw46z626lVj9j1yEPW33H5H+lBQpZMP1k8l+78Ha0A==",
       "dependencies": [
         "fill-range"
+      ]
+    },
+    "buffer@6.0.3": {
+      "integrity": "sha512-FTiCpNxtwiZZHEZbcbTIcZjERVICn9yq/pDFkTl95/AxzD1naBctN7YO68riM/gLSDY7sdrMby8hofADYuuqOA==",
+      "dependencies": [
+        "base64-js",
+        "ieee754"
       ]
     },
     "chalk@5.3.0": {
@@ -1177,6 +1234,9 @@
       "dependencies": [
         "safer-buffer"
       ]
+    },
+    "ieee754@1.2.1": {
+      "integrity": "sha512-dcyqhDvX1C46lXZcVqCpK+FtMRQVdIMN6/Df5js2zouUsqG7I6sFxitIC+7KYK29KdXOLHdu9zL4sFnoVQnqaA=="
     },
     "image-size@1.1.1": {
       "integrity": "sha512-541xKlUw6jr/6gGuk92F+mYM5zaFAc5ahphvkqvNe2bQ6gVBkd6bfrmVJ2t4KDAfikAYZyIqTnktX3i6/aQDrQ==",
@@ -2371,6 +2431,7 @@
       "jsr:@std/json@0.223",
       "jsr:@std/media-types@~0.224.1",
       "jsr:@std/streams@0.223",
+      "npm:@cashu/cashu-ts@^2.2.0",
       "npm:@electric-sql/pglite@~0.2.8",
       "npm:@isaacs/ttlcache@^1.4.1",
       "npm:@noble/secp256k1@2",

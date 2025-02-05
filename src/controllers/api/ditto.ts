@@ -1,3 +1,4 @@
+import { CashuMint, CashuWallet } from '@cashu/cashu-ts';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
