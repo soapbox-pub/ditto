@@ -75,7 +75,7 @@ export function getLanguage(text: string): LanguageCode | undefined {
     const [iso6393] = topResult;
     const locale = new Intl.Locale(iso6393);
     if (ISO6391.validate(locale.language)) {
-      return locale.language as LanguageCode;
+      return locale.language;
     }
   }
   return;

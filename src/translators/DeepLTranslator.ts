@@ -36,7 +36,7 @@ export class DeepLTranslator implements DittoTranslator {
 
     return {
       results: translations.map((value) => value.text),
-      source_lang: translations[0]?.detected_source_language as LanguageCode,
+      source_lang: translations[0]?.detected_source_language,
     };
   }
 
