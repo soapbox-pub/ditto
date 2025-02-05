@@ -22,6 +22,7 @@
     "trends": "deno run -A --env-file --deny-read=.env scripts/trends.ts",
     "clean:deps": "deno cache --reload src/app.ts",
     "db:populate-search": "deno run -A --env-file --deny-read=.env scripts/db-populate-search.ts",
+    "db:populate-extensions": "deno run -A --env-file --deny-read=.env scripts/db-populate-extensions.ts",
     "vapid": "deno run scripts/vapid.ts"
   },
   "unstable": [

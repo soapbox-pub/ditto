@@ -7,7 +7,7 @@ import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
-import { nostrDate } from '@/utils.ts';
+import { isNostrId, nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
@@ -41,8 +41,8 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   const mentionedPubkeys = [
     ...new Set(
       event.tags
-        .filter((tag) => tag[0] === 'p')
-        .map((tag) => tag[1]),
+        .filter(([name, value]) => name === 'p' && isNostrId(value))
+        .map(([, value]) => value),
     ),
   ];
 

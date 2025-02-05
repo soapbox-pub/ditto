@@ -26,3 +26,18 @@ Deno.test('Detect English language', () => {
     'en',
   );
 });
+
+Deno.test('Detects definitive texts', () => {
+  // NOTE: pass `1` as min confidence to test only the definitive patterns
+
+  // unambiguous
+  assertEquals(detectLanguage('안녕하세요.', 1), 'ko');
+  assertEquals(detectLanguage('Γειά σου!', 1), 'el');
+  assertEquals(detectLanguage('שלום!', 1), 'he');
+  assertEquals(detectLanguage('こんにちは。', 1), 'ja');
+
+  // ambiguous
+  assertEquals(detectLanguage('你好', 1), undefined);
+  assertEquals(detectLanguage('Привет', 1), undefined);
+  assertEquals(detectLanguage('Hello', 1), undefined);
+});
