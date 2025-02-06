@@ -37,23 +37,25 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
 /** Update stats for kind 1 event. */
 async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
   await updateAuthorStats(kysely, event.pubkey, (prev) => {
+    const now = event.created_at;
+
     let start = prev.streak_start;
     let end = prev.streak_end;
 
     if (start && end) { // Streak exists.
-      if (event.created_at <= end) {
+      if (now <= end) {
         // Streak cannot go backwards in time. Skip it.
-      } else if (end - start > 86400) {
+      } else if (now - end > 86400) {
         // Streak is broken. Start a new streak.
-        start = event.created_at;
-        end = event.created_at;
+        start = now;
+        end = now;
       } else {
         // Extend the streak.
-        end = event.created_at;
+        end = now;
       }
     } else { // New streak.
-      start = event.created_at;
-      end = event.created_at;
+      start = now;
+      end = now;
     }
 
     return {
