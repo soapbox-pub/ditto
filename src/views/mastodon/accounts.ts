@@ -70,12 +70,18 @@ async function renderAccount(
     })) ?? [];
 
   let streakDays = 0;
-  const streakStart = event.author_stats?.streak_start;
-  const streakEnd = event.author_stats?.streak_end;
+  let streakStart = event.author_stats?.streak_start ?? null;
+  let streakEnd = event.author_stats?.streak_end ?? null;
 
   if (streakStart && streakEnd) {
-    const delta = streakEnd - streakStart;
-    streakDays = Math.max(Math.ceil(delta / 86400), 1);
+    const broken = nostrNow() - streakEnd > 86400;
+    if (broken) {
+      streakStart = null;
+      streakEnd = null;
+    } else {
+      const delta = streakEnd - streakStart;
+      streakDays = Math.max(Math.ceil(delta / 86400), 1);
+    }
   }
 
   return {
