@@ -79,14 +79,27 @@ export async function getIdsBySearch(
     }
   }
 
-  for (const [key, values] of Object.entries(ext)) {
-    if (key === 'domain') continue;
+  for (let [key, values] of Object.entries(ext)) {
+    if (key === 'domain' || key === '-domain') continue;
 
-    query = query.where((eb) =>
-      eb.or(
-        values.map((value) => eb('nostr_events.search_ext', '@>', { [key]: value })),
-      )
-    );
+    let negated = false;
+
+    if (key.startsWith('-')) {
+      key = key.slice(1);
+      negated = true;
+    }
+
+    query = query.where((eb) => {
+      if (negated) {
+        return eb.and(
+          values.map((value) => eb.not(eb('nostr_events.search_ext', '@>', { [key]: value }))),
+        );
+      } else {
+        return eb.or(
+          values.map((value) => eb('nostr_events.search_ext', '@>', { [key]: value })),
+        );
+      }
+    });
   }
 
   if (domains.size) {
