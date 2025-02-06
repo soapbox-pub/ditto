@@ -75,7 +75,7 @@ async function renderAccount(
 
   if (streakStart && streakEnd) {
     const delta = streakEnd - streakStart;
-    streakDays = Math.ceil(delta / 86400);
+    streakDays = Math.max(Math.ceil(delta / 86400), 1);
   }
 
   return {
