@@ -546,16 +546,27 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
     nutzapsFilter.since = nutzapHistory.created_at;
   }
 
+  const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {};
+
   const nutzaps = await store.query([nutzapsFilter], { signal });
 
-  const mintsToProofs: { [key: string]: Proof[] } = {};
   nutzaps.forEach(async (event) => {
     try {
       const { mint, proofs }: { mint: string; proofs: Proof[] } = JSON.parse( // TODO: create a merge request in nostr tools or Nostrify to do this in a nice way?
         await nip44.decrypt(pubkey, event.content),
       );
       if (typeof mint === 'string') {
-        mintsToProofs[mint] = [...(mintsToProofs[mint] || []), ...proofs];
+        mintsToProofs[mint].proofs = [...(mintsToProofs[mint].proofs || []), ...proofs];
+        mintsToProofs[mint].redeemed = [
+          ...(mintsToProofs[mint].redeemed || []),
+          [
+            'e', // nutzap event that has been redeemed
+            event.id,
+            Conf.relay,
+            'redeemed',
+          ],
+          ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
+        ];
       }
     } catch {
       // do nothing, for now... (maybe print errors)
@@ -563,12 +574,12 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
   });
 
   for (const mint of Object.keys(mintsToProofs)) {
-    const token = getEncodedToken({ mint, proofs: mintsToProofs[mint] }, { version: 3 });
+    const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs }, { version: 3 });
 
     const cashuWallet = new CashuWallet(new CashuMint(mint));
     const receiveProofs = await cashuWallet.receive(token);
 
-    await createEvent({
+    const unspentProofs = await createEvent({
       kind: 7375,
       content: await nip44.encrypt(
         pubkey,
@@ -579,7 +590,22 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
       ),
     }, c);
 
-    // TODO: create the 7376 history kind, reemded marker, etc
+    const amount = receiveProofs.reduce((accumulator, current) => {
+      return accumulator + current.amount;
+    }, 0);
+
+    await createEvent({
+      kind: 7376,
+      content: await nip44.encrypt(
+        pubkey,
+        JSON.stringify([
+          ['direction', 'in'],
+          ['amount', amount],
+          ['e', unspentProofs.id, Conf.relay, 'created'],
+        ]),
+      ),
+      tags: mintsToProofs[mint].redeemed,
+    }, c);
   }
 
   return c.json(201);
