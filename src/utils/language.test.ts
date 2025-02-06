@@ -38,6 +38,7 @@ Deno.test('Detects definitive texts', () => {
 
   // ambiguous
   assertEquals(detectLanguage('你好', 1), undefined);
+  assertEquals(detectLanguage('東京', 1), undefined);
   assertEquals(detectLanguage('Привет', 1), undefined);
   assertEquals(detectLanguage('Hello', 1), undefined);
 });
