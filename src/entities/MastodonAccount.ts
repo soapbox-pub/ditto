@@ -45,6 +45,11 @@ export interface MastodonAccount {
   ditto: {
     accepts_zaps: boolean;
     external_url: string;
+    streak: {
+      days: number;
+      start: string | null;
+      end: string | null;
+    };
   };
   domain?: string;
   pleroma: {

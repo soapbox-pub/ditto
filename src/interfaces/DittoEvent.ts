@@ -6,6 +6,8 @@ export interface AuthorStats {
   followers_count: number;
   following_count: number;
   notes_count: number;
+  streak_start?: number;
+  streak_end?: number;
 }
 
 /** Ditto internal stats for the event. */
