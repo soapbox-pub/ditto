@@ -293,7 +293,7 @@ class Conf {
   }
   /** Languages this server wishes to highlight. Used when querying trends.*/
   static get preferredLanguages(): LanguageCode[] | undefined {
-    return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate) as LanguageCode[];
+    return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate);
   }
   /** Translation provider used to translate posts. */
   static get translationProvider(): string | undefined {

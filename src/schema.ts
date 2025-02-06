@@ -60,7 +60,7 @@ const languageSchema = z.string().transform<LanguageCode>((val, ctx) => {
     });
     return z.NEVER;
   }
-  return val as LanguageCode;
+  return val;
 });
 
 const localeSchema = z.string().transform<Intl.Locale>((val, ctx) => {
