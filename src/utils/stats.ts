@@ -1,5 +1,5 @@
 import { NostrEvent, NSchema as n, NStore } from '@nostrify/nostrify';
-import { Kysely, UpdateObject } from 'kysely';
+import { Insertable, Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
@@ -18,6 +18,9 @@ interface UpdateStatsOpts {
 export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOpts): Promise<void> {
   switch (event.kind) {
     case 1:
+    case 20:
+    case 1111:
+    case 30023:
       return handleEvent1(kysely, event, x);
     case 3:
       return handleEvent3(kysely, event, x, store);
@@ -34,7 +37,34 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
 
 /** Update stats for kind 1 event. */
 async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
-  await updateAuthorStats(kysely, event.pubkey, ({ notes_count }) => ({ notes_count: Math.max(0, notes_count + x) }));
+  await updateAuthorStats(kysely, event.pubkey, (prev) => {
+    const now = event.created_at;
+
+    let start = prev.streak_start;
+    let end = prev.streak_end;
+
+    if (start && end) { // Streak exists.
+      if (now <= end) {
+        // Streak cannot go backwards in time. Skip it.
+      } else if (now - end > 86400) {
+        // Streak is broken. Start a new streak.
+        start = now;
+        end = now;
+      } else {
+        // Extend the streak.
+        end = now;
+      }
+    } else { // New streak.
+      start = now;
+      end = now;
+    }
+
+    return {
+      notes_count: Math.max(0, prev.notes_count + x),
+      streak_start: start || null,
+      streak_end: end || null,
+    };
+  });
 
   const replyId = findReplyTag(event.tags)?.[1];
   const quoteId = findQuoteTag(event.tags)?.[1];
@@ -187,9 +217,9 @@ export function getAuthorStats(
 export async function updateAuthorStats(
   kysely: Kysely<DittoTables>,
   pubkey: string,
-  fn: (prev: DittoTables['author_stats']) => UpdateObject<DittoTables, 'author_stats'>,
+  fn: (prev: Insertable<DittoTables['author_stats']>) => UpdateObject<DittoTables, 'author_stats'>,
 ): Promise<void> {
-  const empty: DittoTables['author_stats'] = {
+  const empty: Insertable<DittoTables['author_stats']> = {
     pubkey,
     followers_count: 0,
     following_count: 0,
@@ -290,6 +320,8 @@ export async function countAuthorStats(
     following_count: getTagSet(followList?.tags ?? [], 'p').size,
     notes_count,
     search,
+    streak_start: null,
+    streak_end: null,
   };
 }
 

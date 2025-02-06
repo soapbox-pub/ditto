@@ -23,6 +23,7 @@
     "clean:deps": "deno cache --reload src/app.ts",
     "db:populate-search": "deno run -A --env-file --deny-read=.env scripts/db-populate-search.ts",
     "db:populate-extensions": "deno run -A --env-file --deny-read=.env scripts/db-populate-extensions.ts",
+    "db:streak:recompute": "deno run -A --env-file --deny-read=.env scripts/db-streak-recompute.ts",
     "vapid": "deno run scripts/vapid.ts"
   },
   "unstable": [
