@@ -68,7 +68,13 @@ class EventsDB extends NPostgres {
 
     if (event.kind === 1) {
       ext.reply = event.tags.some(([name]) => name === 'e').toString();
+    } else if (event.kind === 1111) {
+      ext.reply = event.tags.some(([name]) => ['e', 'E'].includes(name)).toString();
+    } else if (event.kind === 6) {
+      ext.reply = 'false';
+    }
 
+    if ([1, 20, 30023].includes(event.kind)) {
       const language = detectLanguage(event.content, 0.90);
 
       if (language) {
