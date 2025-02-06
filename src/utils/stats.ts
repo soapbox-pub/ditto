@@ -20,6 +20,7 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
     case 1:
     case 20:
     case 1111:
+    case 30023:
       return handleEvent1(kysely, event, x);
     case 3:
       return handleEvent3(kysely, event, x, store);
