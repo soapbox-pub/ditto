@@ -35,14 +35,16 @@ for await (const { pubkey } of statsQuery.stream(10)) {
     start = createdAt;
   }
 
-  await kysely
-    .updateTable('author_stats')
-    .set({
-      streak_end: end,
-      streak_start: start,
-    })
-    .where('pubkey', '=', pubkey)
-    .execute();
+  if (start && end) {
+    await kysely
+      .updateTable('author_stats')
+      .set({
+        streak_end: end,
+        streak_start: start,
+      })
+      .where('pubkey', '=', pubkey)
+      .execute();
+  }
 }
 
 Deno.exit();
