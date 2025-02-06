@@ -1,4 +1,4 @@
-import { CashuMint, CashuWallet } from '@cashu/cashu-ts';
+import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
@@ -548,7 +548,39 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
 
   const nutzaps = await store.query([nutzapsFilter], { signal });
 
-  // TODO: finally start doing the swap
+  const mintsToProofs: { [key: string]: Proof[] } = {};
+  nutzaps.forEach(async (event) => {
+    try {
+      const { mint, proofs }: { mint: string; proofs: Proof[] } = JSON.parse( // TODO: create a merge request in nostr tools or Nostrify to do this in a nice way?
+        await nip44.decrypt(pubkey, event.content),
+      );
+      if (typeof mint === 'string') {
+        mintsToProofs[mint] = [...(mintsToProofs[mint] || []), ...proofs];
+      }
+    } catch {
+      // do nothing, for now... (maybe print errors)
+    }
+  });
+
+  for (const mint of Object.keys(mintsToProofs)) {
+    const token = getEncodedToken({ mint, proofs: mintsToProofs[mint] }, { version: 3 });
+
+    const cashuWallet = new CashuWallet(new CashuMint(mint));
+    const receiveProofs = await cashuWallet.receive(token);
+
+    await createEvent({
+      kind: 7375,
+      content: await nip44.encrypt(
+        pubkey,
+        JSON.stringify({
+          mint,
+          proofs: receiveProofs,
+        }),
+      ),
+    }, c);
+
+    // TODO: create the 7376 history kind, reemded marker, etc
+  }
 
   return c.json(201);
 };
