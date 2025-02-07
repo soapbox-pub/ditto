@@ -6,11 +6,9 @@ import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { metadataSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
-import { parseAndVerifyNip05 } from '@/utils/nip05.ts';
 import { parseNoteContent } from '@/utils/note.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { faviconCache } from '@/utils/favicon.ts';
-import { nostrDate, nostrNow } from '@/utils.ts';
+import { nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
 
 type ToAccountOpts = {
@@ -20,16 +18,14 @@ type ToAccountOpts = {
   withSource?: false;
 };
 
-async function renderAccount(
-  event: Omit<DittoEvent, 'id' | 'sig'>,
-  opts: ToAccountOpts = {},
-  signal = AbortSignal.timeout(3000),
-): Promise<MastodonAccount> {
+function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpts = {}): MastodonAccount {
   const { pubkey } = event;
 
+  const stats = event.author_stats;
   const names = getTagSet(event.user?.tags ?? [], 'n');
+
   if (names.has('disabled')) {
-    const account = await accountFromPubkey(pubkey, opts);
+    const account = accountFromPubkey(pubkey, opts);
     account.pleroma.deactivated = true;
     return account;
   }
@@ -48,17 +44,14 @@ async function renderAccount(
 
   const npub = nip19.npubEncode(pubkey);
   const nprofile = nip19.nprofileEncode({ pubkey, relays: [Conf.relay] });
-  const parsed05 = await parseAndVerifyNip05(nip05, pubkey, signal);
+  const parsed05 = stats?.nip05 ? parseNip05(stats.nip05) : undefined;
   const acct = parsed05?.handle || npub;
 
-  let favicon: URL | undefined;
-  if (parsed05?.domain) {
-    try {
-      favicon = await faviconCache.fetch(parsed05.domain, { signal });
-    } catch {
-      favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`);
-    }
+  let favicon: string | undefined = stats?.favicon;
+  if (!favicon && parsed05) {
+    favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`).toString();
   }
+
   const { html } = parseNoteContent(about || '', []);
 
   const fields = _fields
@@ -70,8 +63,8 @@ async function renderAccount(
     })) ?? [];
 
   let streakDays = 0;
-  let streakStart = event.author_stats?.streak_start ?? null;
-  let streakEnd = event.author_stats?.streak_end ?? null;
+  let streakStart = stats?.streak_start ?? null;
+  let streakEnd = stats?.streak_end ?? null;
   const { streakWindow } = Conf;
 
   if (streakStart && streakEnd) {
@@ -97,8 +90,8 @@ async function renderAccount(
     emojis: renderEmojis(event),
     fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, []).html })),
     follow_requests_count: 0,
-    followers_count: event.author_stats?.followers_count ?? 0,
-    following_count: event.author_stats?.following_count ?? 0,
+    followers_count: stats?.followers_count ?? 0,
+    following_count: stats?.following_count ?? 0,
     fqn: parsed05?.handle || npub,
     header: banner,
     header_static: banner,
@@ -122,7 +115,7 @@ async function renderAccount(
         },
       }
       : undefined,
-    statuses_count: event.author_stats?.notes_count ?? 0,
+    statuses_count: stats?.notes_count ?? 0,
     uri: Conf.local(`/users/${acct}`),
     url: Conf.local(`/@${acct}`),
     username: parsed05?.nickname || npub.substring(0, 8),
@@ -144,7 +137,7 @@ async function renderAccount(
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: opts.withSource ? opts.settingsStore : undefined,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],
-      favicon: favicon?.toString(),
+      favicon,
     },
     nostr: {
       pubkey,
@@ -154,7 +147,7 @@ async function renderAccount(
   };
 }
 
-function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}): Promise<MastodonAccount> {
+function accountFromPubkey(pubkey: string, opts: ToAccountOpts = {}): MastodonAccount {
   const event: UnsignedEvent = {
     kind: 0,
     pubkey,

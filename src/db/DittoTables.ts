@@ -5,6 +5,7 @@ import { NPostgresSchema } from '@nostrify/db';
 export interface DittoTables extends NPostgresSchema {
   auth_tokens: AuthTokenRow;
   author_stats: AuthorStatsRow;
+  domain_favicons: DomainFaviconRow;
   event_stats: EventStatsRow;
   pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
@@ -19,6 +20,9 @@ interface AuthorStatsRow {
   search: string;
   streak_start: number | null;
   streak_end: number | null;
+  nip05: string | null;
+  nip05_domain: string | null;
+  nip05_hostname: string | null;
 }
 
 interface EventStatsRow {
@@ -43,6 +47,12 @@ interface AuthTokenRow {
 interface PubkeyDomainRow {
   pubkey: string;
   domain: string;
+  last_updated_at: number;
+}
+
+interface DomainFaviconRow {
+  domain: string;
+  favicon: string;
   last_updated_at: number;
 }
 

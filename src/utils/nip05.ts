@@ -11,7 +11,7 @@ import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { Nip05, parseNip05 } from '@/utils.ts';
 import { fetchWorker } from '@/workers/fetch.ts';
 
-const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
+export const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   async (nip05, { signal }) => {
     const tld = tldts.parse(nip05);
 
@@ -46,7 +46,7 @@ const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   { ...Conf.caches.nip05, gauge: cachedNip05sSizeGauge },
 );
 
-async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
+export async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
   const [grant] = await store.query([{
     kinds: [30360],
     '#d': [`${localpart}@${Conf.url.host}`],
@@ -76,5 +76,3 @@ export async function parseAndVerifyNip05(
     // do nothing
   }
 }
-
-export { localNip05Lookup, nip05Cache };

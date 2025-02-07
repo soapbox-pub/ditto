@@ -66,9 +66,30 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  const authorStats = await gatherAuthorStats(cache, kysely as Kysely<DittoTables>);
+  const eventStats = await gatherEventStats(cache, kysely as Kysely<DittoTables>);
+
+  const domains = authorStats.reduce((result, { nip05_hostname }) => {
+    if (nip05_hostname) result.add(nip05_hostname);
+    return result;
+  }, new Set<string>());
+
+  const favicons = (
+    await kysely
+      .selectFrom('domain_favicons')
+      .select(['domain', 'favicon'])
+      .where('domain', 'in', [...domains])
+      .execute()
+  )
+    .reduce((result, { domain, favicon }) => {
+      result[domain] = favicon;
+      return result;
+    }, {} as Record<string, string>);
+
   const stats = {
-    authors: await gatherAuthorStats(cache, kysely as Kysely<DittoTables>),
-    events: await gatherEventStats(cache, kysely as Kysely<DittoTables>),
+    authors: authorStats,
+    events: eventStats,
+    favicons,
   };
 
   // Dedupe events.
@@ -85,7 +106,11 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 export function assembleEvents(
   a: DittoEvent[],
   b: DittoEvent[],
-  stats: { authors: DittoTables['author_stats'][]; events: DittoTables['event_stats'][] },
+  stats: {
+    authors: DittoTables['author_stats'][];
+    events: DittoTables['event_stats'][];
+    favicons: Record<string, string>;
+  },
 ): DittoEvent[] {
   const admin = Conf.pubkey;
 
@@ -94,6 +119,10 @@ export function assembleEvents(
       ...stat,
       streak_start: stat.streak_start ?? undefined,
       streak_end: stat.streak_end ?? undefined,
+      nip05: stat.nip05 ?? undefined,
+      nip05_domain: stat.nip05_domain ?? undefined,
+      nip05_hostname: stat.nip05_hostname ?? undefined,
+      favicon: stats.favicons[stat.nip05_hostname!],
     };
     return result;
   }, {} as Record<string, DittoEvent['author_stats']>);
@@ -390,13 +419,10 @@ async function gatherAuthorStats(
     .execute();
 
   return rows.map((row) => ({
-    pubkey: row.pubkey,
+    ...row,
     followers_count: Math.max(0, row.followers_count),
     following_count: Math.max(0, row.following_count),
     notes_count: Math.max(0, row.notes_count),
-    search: row.search,
-    streak_start: row.streak_start,
-    streak_end: row.streak_end,
   }));
 }
 
