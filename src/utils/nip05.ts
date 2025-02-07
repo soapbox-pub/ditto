@@ -110,7 +110,12 @@ async function insertNip05(kysely: Kysely<DittoTables>, nip05: string, pubkey: s
           nip05_hostname: tld.hostname,
           nip05_last_verified_at: ts,
         })
-        .where('nip05_last_verified_at', '<', ts)
+        .where((eb) =>
+          eb.or([
+            eb('author_stats.nip05_last_verified_at', '<', ts),
+            eb('author_stats.nip05_last_verified_at', 'is', null),
+          ])
+        )
     )
     .execute();
 }

@@ -23,7 +23,7 @@ export const faviconCache = new SimpleLRU<string, URL>(
 
     const url = await fetchFavicon(domain, signal);
 
-    insertFavicon(kysely, domain, url.href).catch(() => {});
+    await insertFavicon(kysely, domain, url.href);
 
     return url;
   },
