@@ -429,7 +429,7 @@ export const createNutzapInformationController: AppController = async (c) => {
     return c.json({ error: 'Signer does not have nip 44' }, 400);
   }
 
-  const { relays, mints } = result.data;
+  const { relays, mints } = result.data; // TODO: get those mints and replace the mints specified in wallet, so 'nutzap information event' and the wallet always have the same mints
 
   const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (!event) {
