@@ -6,7 +6,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
     .addColumn('domain', 'varchar(253)', (col) => col.primaryKey())
     .addColumn('favicon', 'varchar(2048)', (col) => col.notNull())
     .addColumn('last_updated_at', 'integer', (col) => col.notNull())
-    .addCheckConstraint('domain_favicons_https_chk', sql`url ~* '^https:\\/\\/'`)
+    .addCheckConstraint('domain_favicons_https_chk', sql`favicon ~* '^https:\\/\\/'`)
     .execute();
 }
 

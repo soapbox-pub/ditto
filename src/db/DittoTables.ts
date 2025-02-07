@@ -23,6 +23,7 @@ interface AuthorStatsRow {
   nip05: string | null;
   nip05_domain: string | null;
   nip05_hostname: string | null;
+  nip05_last_verified_at: number | null;
 }
 
 interface EventStatsRow {

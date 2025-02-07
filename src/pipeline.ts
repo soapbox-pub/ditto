@@ -1,6 +1,6 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
-import { Kysely, sql } from 'kysely';
+import { Kysely } from 'kysely';
 import { z } from 'zod';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
@@ -13,8 +13,9 @@ import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { eventAge, parseNip05, Time } from '@/utils.ts';
+import { eventAge, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
+import { faviconCache } from '@/utils/favicon.ts';
 import { errorJson } from '@/utils/log.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -202,6 +203,12 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
   const { name, nip05 } = metadata.data;
   const result = nip05 ? await nip05Cache.fetch(nip05, { signal }).catch(() => undefined) : undefined;
 
+  // Fetch favicon.
+  const domain = nip05?.split('@')[1].toLowerCase();
+  if (domain) {
+    await faviconCache.fetch(domain, { signal });
+  }
+
   // Populate author_search.
   try {
     const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
@@ -214,24 +221,6 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     }
   } catch {
     // do nothing
-  }
-
-  if (nip05 && result && result.pubkey === event.pubkey) {
-    // Track pubkey domain.
-    try {
-      const { domain } = parseNip05(nip05);
-
-      await sql`
-      INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
-      VALUES (${event.pubkey}, ${domain}, ${event.created_at})
-      ON CONFLICT(pubkey) DO UPDATE SET
-        domain = excluded.domain,
-        last_updated_at = excluded.last_updated_at
-      WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
-      `.execute(kysely);
-    } catch (_e) {
-      // do nothing
-    }
   }
 }
 

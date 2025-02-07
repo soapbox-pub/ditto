@@ -326,6 +326,7 @@ export async function countAuthorStats(
     nip05: null,
     nip05_domain: null,
     nip05_hostname: null,
+    nip05_last_verified_at: null,
   };
 }
 

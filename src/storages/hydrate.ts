@@ -122,6 +122,7 @@ export function assembleEvents(
       nip05: stat.nip05 ?? undefined,
       nip05_domain: stat.nip05_domain ?? undefined,
       nip05_hostname: stat.nip05_hostname ?? undefined,
+      nip05_last_verified_at: stat.nip05_last_verified_at ?? undefined,
       favicon: stats.favicons[stat.nip05_hostname!],
     };
     return result;
