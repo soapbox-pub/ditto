@@ -359,7 +359,7 @@ class Conf {
   };
   /** Maximum time between events before a streak is broken, *in seconds*. */
   static get streakWindow(): number {
-    return Number(Deno.env.get('STREAK_WINDOW') || 86400);
+    return Number(Deno.env.get('STREAK_WINDOW') || 129600);
   }
 }
 
