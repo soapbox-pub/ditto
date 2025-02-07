@@ -72,15 +72,16 @@ async function renderAccount(
   let streakDays = 0;
   let streakStart = event.author_stats?.streak_start ?? null;
   let streakEnd = event.author_stats?.streak_end ?? null;
+  const { streakWindow } = Conf;
 
   if (streakStart && streakEnd) {
-    const broken = nostrNow() - streakEnd > 86400;
+    const broken = nostrNow() - streakEnd > streakWindow;
     if (broken) {
       streakStart = null;
       streakEnd = null;
     } else {
       const delta = streakEnd - streakStart;
-      streakDays = Math.max(Math.ceil(delta / 86400), 1);
+      streakDays = Math.max(Math.ceil(delta / streakWindow), 1);
     }
   }
 
