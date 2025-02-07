@@ -12,9 +12,10 @@ export function detectLanguage(text: string, minConfidence: number): LanguageCod
   // It's better to remove the emojis first
   const sanitizedText = linkify.tokenize(
     text
-      .replaceAll(/\p{Extended_Pictographic}/gu, '')
-      .replaceAll(/[\s\uFEFF\u00A0\u200B-\u200D\u{0FE0E}]+/gu, ' '),
-  ).reduce((acc, { t, v }) => t === 'text' ? acc + v : acc, '').trim();
+      .replaceAll(/\p{Extended_Pictographic}/gu, '') // strip emojis
+      .replaceAll(/[\s\uFEFF\u00A0\u200B-\u200D\u{0FE0E}]+/gu, ' '), // strip invisible characters
+  )
+    .reduce((acc, { t, v }) => t === 'text' ? acc + v : acc, '').trim();
 
   // Definite patterns for some languages.
   // Text which matches MUST unambiguously be in the given language.
@@ -30,7 +31,11 @@ export function detectLanguage(text: string, minConfidence: number): LanguageCod
 
   // If any pattern matches, the language is known.
   for (const [lang, pattern] of Object.entries(languagePatterns) as [LanguageCode, RegExp][]) {
-    if (pattern.test(text.replace(/[\p{P}\p{S}]/gu, ''))) { // strip punctuation and symbols before checking
+    const text = sanitizedText
+      .replaceAll(/[\p{P}\p{S}]/gu, '') // strip punctuation and symbols
+      .replaceAll(/\p{N}/gu, ''); // strip numbers
+
+    if (pattern.test(text)) {
       return lang;
     }
   }
