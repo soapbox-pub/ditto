@@ -1,7 +1,9 @@
+import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 
 const kysely = await Storages.kysely();
 const statsQuery = kysely.selectFrom('author_stats').select('pubkey');
+const { streakWindow } = Conf;
 
 for await (const { pubkey } of statsQuery.stream(10)) {
   const eventsQuery = kysely
@@ -21,14 +23,14 @@ for await (const { pubkey } of statsQuery.stream(10)) {
     if (!end) {
       const now = Math.floor(Date.now() / 1000);
 
-      if (now - createdAt > 86400) {
+      if (now - createdAt > streakWindow) {
         break; // streak broken
       }
 
       end = createdAt;
     }
 
-    if (start && (start - createdAt > 86400)) {
+    if (start && (start - createdAt > streakWindow)) {
       break; // streak broken
     }
 

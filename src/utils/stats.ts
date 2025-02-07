@@ -3,6 +3,7 @@ import { Insertable, Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
+import { Conf } from '@/config.ts';
 import { DittoTables } from '@/db/DittoTables.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
@@ -46,7 +47,7 @@ async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
     if (start && end) { // Streak exists.
       if (now <= end) {
         // Streak cannot go backwards in time. Skip it.
-      } else if (now - end > 86400) {
+      } else if (now - end > Conf.streakWindow) {
         // Streak is broken. Start a new streak.
         start = now;
         end = now;

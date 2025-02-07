@@ -357,6 +357,10 @@ class Conf {
       return Number(Deno.env.get('PROFILE_FIELDS_VALUE_LENGTH') || 2047);
     },
   };
+  /** Maximum time between events before a streak is broken, *in seconds*. */
+  static get streakWindow(): number {
+    return Number(Deno.env.get('STREAK_WINDOW') || 129600);
+  }
 }
 
 const optionalBooleanSchema = z
