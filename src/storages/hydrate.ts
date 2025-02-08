@@ -30,10 +30,6 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 
   const cache = [...events];
 
-  for (const event of await gatherMentions({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
   for (const event of await gatherReposts({ events: cache, store, signal })) {
     cache.push(event);
   }
@@ -43,6 +39,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   for (const event of await gatherQuotes({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherMentions({ events: cache, store, signal })) {
     cache.push(event);
   }
 
