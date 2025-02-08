@@ -589,7 +589,7 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
       const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs });
 
       const cashuWallet = new CashuWallet(new CashuMint(mint));
-      const receiveProofs = await cashuWallet.receive(token);
+      const receiveProofs = await cashuWallet.receive(token, { privkey });
 
       const unspentProofs = await createEvent({
         kind: 7375,
