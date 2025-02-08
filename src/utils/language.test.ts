@@ -35,9 +35,17 @@ Deno.test('Detects definitive texts', () => {
   assertEquals(detectLanguage('Γειά σου!', 1), 'el');
   assertEquals(detectLanguage('שלום!', 1), 'he');
   assertEquals(detectLanguage('こんにちは。', 1), 'ja');
+  assertEquals(
+    detectLanguage(
+      '最近、長女から「中学生男子全員クソ」という話を良く聞き中学生女子側の視点が分かってよかった。父からは「中学生男子は自分がクソだということを3年間かかって学習するんだよ」と言っておいた',
+      1,
+    ),
+    'ja',
+  );
 
   // ambiguous
   assertEquals(detectLanguage('你好', 1), undefined);
+  assertEquals(detectLanguage('東京', 1), undefined);
   assertEquals(detectLanguage('Привет', 1), undefined);
   assertEquals(detectLanguage('Hello', 1), undefined);
 });

@@ -17,6 +17,8 @@ interface AuthorStatsRow {
   following_count: number;
   notes_count: number;
   search: string;
+  streak_start: number | null;
+  streak_end: number | null;
 }
 
 interface EventStatsRow {

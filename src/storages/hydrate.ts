@@ -89,10 +89,22 @@ export function assembleEvents(
 ): DittoEvent[] {
   const admin = Conf.pubkey;
 
-  const eventStats = stats.events.map((stat) => ({
-    ...stat,
-    reactions: JSON.parse(stat.reactions),
-  }));
+  const authorStats = stats.authors.reduce((result, { pubkey, ...stat }) => {
+    result[pubkey] = {
+      ...stat,
+      streak_start: stat.streak_start ?? undefined,
+      streak_end: stat.streak_end ?? undefined,
+    };
+    return result;
+  }, {} as Record<string, DittoEvent['author_stats']>);
+
+  const eventStats = stats.events.reduce((result, { event_id, ...stat }) => {
+    result[event_id] = {
+      ...stat,
+      reactions: JSON.parse(stat.reactions),
+    };
+    return result;
+  }, {} as Record<string, DittoEvent['event_stats']>);
 
   for (const event of a) {
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
@@ -161,8 +173,8 @@ export function assembleEvents(
       event.zap_message = zapRequest?.content ?? '';
     }
 
-    event.author_stats = stats.authors.find((stats) => stats.pubkey === event.pubkey);
-    event.event_stats = eventStats.find((stats) => stats.event_id === event.id);
+    event.author_stats = authorStats[event.pubkey];
+    event.event_stats = eventStats[event.id];
   }
 
   return a;
@@ -383,6 +395,8 @@ async function gatherAuthorStats(
     following_count: Math.max(0, row.following_count),
     notes_count: Math.max(0, row.notes_count),
     search: row.search,
+    streak_start: row.streak_start,
+    streak_end: row.streak_end,
   }));
 }
 

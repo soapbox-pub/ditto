@@ -69,6 +69,22 @@ async function renderAccount(
       verified_at: null,
     })) ?? [];
 
+  let streakDays = 0;
+  let streakStart = event.author_stats?.streak_start ?? null;
+  let streakEnd = event.author_stats?.streak_end ?? null;
+  const { streakWindow } = Conf;
+
+  if (streakStart && streakEnd) {
+    const broken = nostrNow() - streakEnd > streakWindow;
+    if (broken) {
+      streakStart = null;
+      streakEnd = null;
+    } else {
+      const delta = streakEnd - streakStart;
+      streakDays = Math.max(Math.ceil(delta / 86400), 1);
+    }
+  }
+
   return {
     id: pubkey,
     acct,
@@ -113,6 +129,11 @@ async function renderAccount(
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
       external_url: Conf.external(nprofile),
+      streak: {
+        days: streakDays,
+        start: streakStart ? nostrDate(streakStart).toISOString() : null,
+        end: streakEnd ? nostrDate(streakEnd).toISOString() : null,
+      },
     },
     domain: parsed05?.domain,
     pleroma: {
