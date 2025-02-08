@@ -7,7 +7,7 @@ import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { Storages } from '@/storages.ts';
-import { isNostrId, nostrDate } from '@/utils.ts';
+import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
@@ -33,28 +33,14 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   });
 
   const account = event.author
-    ? await renderAccount({ ...event.author, author_stats: event.author_stats })
-    : await accountFromPubkey(event.pubkey);
+    ? renderAccount({ ...event.author, author_stats: event.author_stats })
+    : accountFromPubkey(event.pubkey);
 
   const replyId = findReplyTag(event.tags)?.[1];
 
-  const mentionedPubkeys = [
-    ...new Set(
-      event.tags
-        .filter(([name, value]) => name === 'p' && isNostrId(value))
-        .map(([, value]) => value),
-    ),
-  ];
-
   const store = await Storages.db();
 
-  const mentionedProfiles = await store.query(
-    [{ kinds: [0], authors: mentionedPubkeys, limit: mentionedPubkeys.length }],
-  );
-
-  const mentions = await Promise.all(
-    mentionedPubkeys.map((pubkey) => renderMention(pubkey, mentionedProfiles.find((event) => event.pubkey === pubkey))),
-  );
+  const mentions = event.mentions?.map((event) => renderMention(event)) ?? [];
 
   const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions);
 
@@ -170,8 +156,8 @@ async function renderReblog(event: DittoEvent, opts: RenderStatusOpts): Promise<
   };
 }
 
-async function renderMention(pubkey: string, event?: NostrEvent): Promise<MastodonMention> {
-  const account = event ? await renderAccount(event) : await accountFromPubkey(pubkey);
+function renderMention(event: NostrEvent): MastodonMention {
+  const account = renderAccount(event);
   return {
     id: account.id,
     acct: account.acct,

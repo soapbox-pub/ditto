@@ -30,6 +30,7 @@ export interface DittoEvent extends NostrEvent {
   author_domain?: string;
   author_stats?: AuthorStats;
   event_stats?: EventStats;
+  mentions?: DittoEvent[];
   user?: DittoEvent;
   repost?: DittoEvent;
   quote?: DittoEvent;

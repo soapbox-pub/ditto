@@ -30,6 +30,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 
   const cache = [...events];
 
+  for (const event of await gatherMentions({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
   for (const event of await gatherReposts({ events: cache, store, signal })) {
     cache.push(event);
   }
@@ -146,6 +150,9 @@ export function assembleEvents(
       if (id) {
         event.quote = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
+
+      const pubkeys = event.tags.filter(([name]) => name === 'p').map(([_name, value]) => value);
+      event.mentions = b.filter((e) => matchFilter({ kinds: [0], authors: pubkeys }, e));
     }
 
     if (event.kind === 6) {
@@ -267,6 +274,35 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
   );
 }
 
+/** Collect mentioned profiles from notes. */
+async function gatherMentions({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 1) {
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) {
+        pubkeys.add(pubkey);
+      }
+    }
+  }
+
+  const authors = await store.query(
+    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+
+  for (const pubkey of pubkeys) {
+    const author = authors.find((e) => matchFilter({ kinds: [0], authors: [pubkey] }, e));
+    if (!author) {
+      const fallback = fallbackAuthor(pubkey);
+      authors.push(fallback);
+    }
+  }
+
+  return authors;
+}
+
 /** Collect authors from the events. */
 async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set<string>();
@@ -297,7 +333,7 @@ async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<Di
 
   for (const pubkey of pubkeys) {
     const author = authors.find((e) => matchFilter({ kinds: [0], authors: [pubkey] }, e));
-    if (author) {
+    if (!author) {
       const fallback = fallbackAuthor(pubkey);
       authors.push(fallback);
     }
