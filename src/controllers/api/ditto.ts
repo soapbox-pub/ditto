@@ -452,7 +452,7 @@ export const createNutzapInformationController: AppController = async (c) => {
   try {
     decryptedContent = await nip44.decrypt(pubkey, event.content);
   } catch (e) {
-    logi({ level: 'error', ns: 'ditto.api', id: event.id, kind: event.kind, error: errorJson(e) });
+    logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', id: event.id, kind: event.kind, error: errorJson(e) });
     return c.json({ error: 'Could not decrypt wallet content.' }, 400);
   }
 
@@ -504,7 +504,7 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
   try {
     decryptedContent = await nip44.decrypt(pubkey, wallet.content);
   } catch (e) {
-    logi({ level: 'error', ns: 'ditto.api', id: wallet.id, kind: wallet.kind, error: errorJson(e) });
+    logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', id: wallet.id, kind: wallet.kind, error: errorJson(e) });
     return c.json({ error: 'Could not decrypt wallet content.' }, 400);
   }
 
@@ -539,7 +539,8 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
     return c.json({ error: 'You do not have any mints in your nutzap information event.' }, 400);
   }
 
-  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
+  //const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
+  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey] };
 
   const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
   if (nutzapHistory) {
@@ -550,63 +551,76 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
 
   const nutzaps = await store.query([nutzapsFilter], { signal });
 
-  nutzaps.forEach(async (event) => {
+  for (const event of nutzaps) {
     try {
-      const { mint, proofs }: { mint: string; proofs: Proof[] } = JSON.parse( // TODO: create a merge request in nostr tools or Nostrify to do this in a nice way?
-        await nip44.decrypt(pubkey, event.content),
-      );
-      if (typeof mint === 'string') {
-        mintsToProofs[mint].proofs = [...(mintsToProofs[mint].proofs || []), ...proofs];
-        mintsToProofs[mint].redeemed = [
-          ...(mintsToProofs[mint].redeemed || []),
-          [
-            'e', // nutzap event that has been redeemed
-            event.id,
-            Conf.relay,
-            'redeemed',
-          ],
-          ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
-        ];
+      const mint = event.tags.find(([name]) => name === 'u')?.[1];
+      if (!mint) {
+        continue;
       }
-    } catch {
-      // do nothing, for now... (maybe print errors)
+
+      const proof = event.tags.find(([name]) => name === 'proof')?.[1];
+      if (!proof) {
+        continue;
+      }
+
+      if (!mintsToProofs[mint]) {
+        mintsToProofs[mint] = { proofs: [], redeemed: [] };
+      }
+
+      mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...JSON.parse(proof)];
+      mintsToProofs[mint].redeemed = [
+        ...mintsToProofs[mint].redeemed,
+        [
+          'e', // nutzap event that has been redeemed
+          event.id,
+          Conf.relay,
+          'redeemed',
+        ],
+        ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
+      ];
+    } catch (e: any) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
     }
-  });
+  }
 
   // TODO: throw error if mintsToProofs is an empty object?
   for (const mint of Object.keys(mintsToProofs)) {
-    const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs }, { version: 3 });
+    try {
+      const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs });
 
-    const cashuWallet = new CashuWallet(new CashuMint(mint));
-    const receiveProofs = await cashuWallet.receive(token);
+      const cashuWallet = new CashuWallet(new CashuMint(mint));
+      const receiveProofs = await cashuWallet.receive(token);
 
-    const unspentProofs = await createEvent({
-      kind: 7375,
-      content: await nip44.encrypt(
-        pubkey,
-        JSON.stringify({
-          mint,
-          proofs: receiveProofs,
-        }),
-      ),
-    }, c);
+      const unspentProofs = await createEvent({
+        kind: 7375,
+        content: await nip44.encrypt(
+          pubkey,
+          JSON.stringify({
+            mint,
+            proofs: receiveProofs,
+          }),
+        ),
+      }, c);
 
-    const amount = receiveProofs.reduce((accumulator, current) => {
-      return accumulator + current.amount;
-    }, 0);
+      const amount = receiveProofs.reduce((accumulator, current) => {
+        return accumulator + current.amount;
+      }, 0);
 
-    await createEvent({
-      kind: 7376,
-      content: await nip44.encrypt(
-        pubkey,
-        JSON.stringify([
-          ['direction', 'in'],
-          ['amount', amount],
-          ['e', unspentProofs.id, Conf.relay, 'created'],
-        ]),
-      ),
-      tags: mintsToProofs[mint].redeemed,
-    }, c);
+      await createEvent({
+        kind: 7376,
+        content: await nip44.encrypt(
+          pubkey,
+          JSON.stringify([
+            ['direction', 'in'],
+            ['amount', amount],
+            ['e', unspentProofs.id, Conf.relay, 'created'],
+          ]),
+        ),
+        tags: mintsToProofs[mint].redeemed,
+      }, c);
+    } catch (e: any) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
+    }
   }
 
   return c.json(201);
