@@ -280,9 +280,10 @@ async function gatherMentions({ events, store, signal }: HydrateOpts): Promise<D
 
   for (const event of events) {
     if (event.kind === 1) {
-      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
-      if (pubkey) {
-        pubkeys.add(pubkey);
+      for (const [name, value] of event.tags) {
+        if (name === 'p') {
+          pubkeys.add(value);
+        }
       }
     }
   }
