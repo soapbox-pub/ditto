@@ -573,6 +573,7 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
     }
   });
 
+  // TODO: throw error if mintsToProofs is an empty object?
   for (const mint of Object.keys(mintsToProofs)) {
     const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs }, { version: 3 });
 
