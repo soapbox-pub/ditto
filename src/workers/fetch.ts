@@ -27,6 +27,10 @@ const fetchWorker: typeof fetch = async (...args) => {
   const [url, init] = serializeFetchArgs(args);
   const { body, signal, ...rest } = init;
 
+  if (signal?.aborted) {
+    throw new DOMException('The signal has been aborted', 'AbortError');
+  }
+
   const result = await client.fetch(url, { ...rest, body: await prepareBodyForWorker(body) }, signal);
   const response = new Response(...result);
 
