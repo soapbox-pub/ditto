@@ -214,7 +214,7 @@ async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise
   const eventNewer = !lastVerified || event.created_at > lastVerified;
 
   try {
-    if (nip05 !== authorStats?.nip05 && eventNewer) {
+    if (nip05 !== authorStats?.nip05 && eventNewer || !lastVerified) {
       if (nip05) {
         const tld = tldts.parse(nip05);
         if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
