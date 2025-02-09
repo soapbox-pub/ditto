@@ -1,4 +1,4 @@
-import { Semaphore } from '@lambdalisue/async';
+import { Semaphore } from '@core/asyncutil';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 import { Conf } from '@/config.ts';

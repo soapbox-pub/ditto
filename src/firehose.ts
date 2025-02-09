@@ -1,4 +1,4 @@
-import { Semaphore } from '@lambdalisue/async';
+import { Semaphore } from '@core/asyncutil';
 import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
