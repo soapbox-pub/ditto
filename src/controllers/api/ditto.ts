@@ -539,8 +539,7 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
     return c.json({ error: 'You do not have any mints in your nutzap information event.' }, 400);
   }
 
-  //const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
-  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey] };
+  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints }; // TODO: index 'u' tags
 
   const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
   if (nutzapHistory) {
