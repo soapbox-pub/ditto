@@ -1,19 +1,19 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
 import { logi } from '@soapbox/logi';
+import { safeFetch } from '@soapbox/safe-fetch';
 import { JsonValue } from '@std/json';
 
 import { cachedLnurlsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { errorJson } from '@/utils/log.ts';
 import { Time } from '@/utils/time.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
 
 const lnurlCache = new SimpleLRU<string, LNURLDetails>(
   async (lnurl, { signal }) => {
     logi({ level: 'info', ns: 'ditto.lnurl', lnurl, state: 'started' });
     try {
-      const details = await LNURL.lookup(lnurl, { fetch: fetchWorker, signal });
+      const details = await LNURL.lookup(lnurl, { fetch: safeFetch, signal });
       logi({ level: 'info', ns: 'ditto.lnurl', lnurl, state: 'found', details: details as unknown as JsonValue });
       return details;
     } catch (e) {
@@ -62,7 +62,7 @@ async function getInvoice(params: CallbackParams, signal?: AbortSignal): Promise
   const { pr } = await LNURL.callback(
     details.callback,
     params,
-    { fetch: fetchWorker, signal },
+    { fetch: safeFetch, signal },
   );
 
   return pr;
