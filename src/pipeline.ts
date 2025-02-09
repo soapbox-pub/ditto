@@ -1,6 +1,7 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
-import { Kysely } from 'kysely';
+import { Kysely, UpdateObject } from 'kysely';
+import tldts from 'tldts';
 import { z } from 'zod';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
@@ -120,7 +121,7 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
     // This needs to run in steps, and should not block the API from responding.
     Promise.allSettled([
       handleZaps(kysely, event),
-      parseMetadata(event, opts.signal),
+      updateAuthorData(event, opts.signal),
       generateSetEvents(event),
     ])
       .then(() =>
@@ -190,18 +191,47 @@ async function storeEvent(event: NostrEvent, signal?: AbortSignal): Promise<unde
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
-async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<void> {
+async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise<void> {
   if (event.kind !== 0) return;
 
   // Parse metadata.
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
+  const { name, nip05 } = metadata.data;
+
   const kysely = await Storages.kysely();
 
-  // Get nip05.
-  const { name, nip05 } = metadata.data;
-  const result = nip05 ? await nip05Cache.fetch(nip05, { signal }).catch(() => undefined) : undefined;
+  const updates: UpdateObject<DittoTables, 'author_stats'> = {};
+
+  const authorStats = await kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', event.pubkey)
+    .executeTakeFirst();
+
+  const lastVerified = authorStats?.nip05_last_verified_at;
+  const eventNewer = !lastVerified || event.created_at > lastVerified;
+
+  if (nip05 !== authorStats?.nip05 && eventNewer) {
+    if (nip05) {
+      const tld = tldts.parse(nip05);
+      if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
+        const pointer = await nip05Cache.fetch(nip05.toLowerCase(), { signal });
+        if (pointer.pubkey === event.pubkey) {
+          updates.nip05 = nip05;
+          updates.nip05_domain = tld.domain;
+          updates.nip05_hostname = tld.hostname;
+          updates.nip05_last_verified_at = event.created_at;
+        }
+      }
+    } else {
+      updates.nip05 = null;
+      updates.nip05_domain = null;
+      updates.nip05_hostname = null;
+      updates.nip05_last_verified_at = event.created_at;
+    }
+  }
 
   // Fetch favicon.
   const domain = nip05?.split('@')[1].toLowerCase();
@@ -209,18 +239,24 @@ async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<vo
     await faviconCache.fetch(domain, { signal });
   }
 
-  // Populate author_search.
-  try {
-    const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
+  const search = [name, nip05].filter(Boolean).join(' ').trim();
 
-    if (search) {
-      await kysely.insertInto('author_stats')
-        .values({ pubkey: event.pubkey, search, followers_count: 0, following_count: 0, notes_count: 0 })
-        .onConflict((oc) => oc.column('pubkey').doUpdateSet({ search }))
-        .execute();
-    }
-  } catch {
-    // do nothing
+  if (search !== authorStats?.search) {
+    updates.search = search;
+  }
+
+  if (Object.keys(updates).length) {
+    await kysely.insertInto('author_stats')
+      .values({
+        pubkey: event.pubkey,
+        followers_count: 0,
+        following_count: 0,
+        notes_count: 0,
+        search,
+        ...updates,
+      })
+      .onConflict((oc) => oc.column('pubkey').doUpdateSet(updates))
+      .execute();
   }
 }
 
@@ -353,4 +389,4 @@ async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
   }
 }
 
-export { handleEvent, handleZaps };
+export { handleEvent, handleZaps, updateAuthorData };
