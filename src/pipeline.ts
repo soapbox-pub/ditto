@@ -240,7 +240,11 @@ async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise
   // Fetch favicon.
   const domain = nip05?.split('@')[1].toLowerCase();
   if (domain) {
-    await faviconCache.fetch(domain, { signal });
+    try {
+      await faviconCache.fetch(domain, { signal });
+    } catch {
+      // Fallthrough.
+    }
   }
 
   const search = [name, nip05].filter(Boolean).join(' ').trim();
