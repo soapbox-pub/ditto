@@ -1,4 +1,4 @@
-import { Semaphore } from '@lambdalisue/async';
+import { Semaphore } from '@core/asyncutil';
 import { NostrEvent } from '@nostrify/nostrify';
 import { JsonParseStream } from '@std/json/json-parse-stream';
 import { TextLineStream } from '@std/streams/text-line-stream';
