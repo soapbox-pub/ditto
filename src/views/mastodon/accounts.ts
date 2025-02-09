@@ -47,11 +47,6 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
   const parsed05 = stats?.nip05 ? parseNip05(stats.nip05) : undefined;
   const acct = parsed05?.handle || npub;
 
-  let favicon: string | undefined = stats?.favicon;
-  if (!favicon && parsed05) {
-    favicon = new URL('/favicon.ico', `https://${parsed05.domain}/`).toString();
-  }
-
   const { html } = parseNoteContent(about || '', []);
 
   const fields = _fields
@@ -137,7 +132,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
       is_local: parsed05?.domain === Conf.url.host,
       settings_store: opts.withSource ? opts.settingsStore : undefined,
       tags: [...getTagSet(event.user?.tags ?? [], 't')],
-      favicon,
+      favicon: stats?.favicon,
     },
     nostr: {
       pubkey,

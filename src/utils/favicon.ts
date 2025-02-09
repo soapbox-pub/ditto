@@ -85,6 +85,16 @@ async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> 
     }
   }
 
+  // Fallback to checking `/favicon.ico` of the domain.
+  const url = new URL('/favicon.ico', `https://${domain}/`);
+  const fallback = await fetchWorker(url, { method: 'HEAD', signal });
+  const contentType = fallback.headers.get('content-type');
+
+  if (fallback.ok && contentType === 'image/vnd.microsoft.icon') {
+    logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'found', url });
+    return url;
+  }
+
   logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'failed' });
 
   throw new Error(`Favicon not found: ${domain}`);
