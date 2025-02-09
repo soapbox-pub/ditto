@@ -1,11 +1,11 @@
 import { DOMParser } from '@b-fuze/deno-dom';
 import { logi } from '@soapbox/logi';
+import { safeFetch } from '@soapbox/safe-fetch';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
 import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
 
 const faviconCache = new SimpleLRU<string, URL>(
   async (domain, { signal }) => {
@@ -17,7 +17,7 @@ const faviconCache = new SimpleLRU<string, URL>(
     }
 
     const rootUrl = new URL('/', `https://${domain}/`);
-    const response = await fetchWorker(rootUrl, { signal });
+    const response = await safeFetch(rootUrl, { signal });
     const html = await response.text();
 
     const doc = new DOMParser().parseFromString(html, 'text/html');
