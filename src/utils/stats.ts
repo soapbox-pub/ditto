@@ -323,6 +323,10 @@ export async function countAuthorStats(
     search,
     streak_start: null,
     streak_end: null,
+    nip05: null,
+    nip05_domain: null,
+    nip05_hostname: null,
+    nip05_last_verified_at: null,
   };
 }
 

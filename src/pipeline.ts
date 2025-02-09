@@ -1,6 +1,7 @@
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
-import { Kysely, sql } from 'kysely';
+import { Kysely, UpdateObject } from 'kysely';
+import tldts from 'tldts';
 import { z } from 'zod';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
@@ -13,8 +14,9 @@ import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
-import { eventAge, parseNip05, Time } from '@/utils.ts';
+import { eventAge, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
+import { faviconCache } from '@/utils/favicon.ts';
 import { errorJson } from '@/utils/log.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -119,7 +121,7 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
     // This needs to run in steps, and should not block the API from responding.
     Promise.allSettled([
       handleZaps(kysely, event),
-      parseMetadata(event, opts.signal),
+      updateAuthorData(event, opts.signal),
       generateSetEvents(event),
     ])
       .then(() =>
@@ -189,49 +191,80 @@ async function storeEvent(event: NostrEvent, signal?: AbortSignal): Promise<unde
 }
 
 /** Parse kind 0 metadata and track indexes in the database. */
-async function parseMetadata(event: NostrEvent, signal: AbortSignal): Promise<void> {
+async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise<void> {
   if (event.kind !== 0) return;
 
   // Parse metadata.
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(event.content);
   if (!metadata.success) return;
 
+  const { name, nip05 } = metadata.data;
+
   const kysely = await Storages.kysely();
 
-  // Get nip05.
-  const { name, nip05 } = metadata.data;
-  const result = nip05 ? await nip05Cache.fetch(nip05, { signal }).catch(() => undefined) : undefined;
+  const updates: UpdateObject<DittoTables, 'author_stats'> = {};
 
-  // Populate author_search.
+  const authorStats = await kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', event.pubkey)
+    .executeTakeFirst();
+
+  const lastVerified = authorStats?.nip05_last_verified_at;
+  const eventNewer = !lastVerified || event.created_at > lastVerified;
+
   try {
-    const search = result?.pubkey === event.pubkey ? [name, nip05].filter(Boolean).join(' ').trim() : name ?? '';
-
-    if (search) {
-      await kysely.insertInto('author_stats')
-        .values({ pubkey: event.pubkey, search, followers_count: 0, following_count: 0, notes_count: 0 })
-        .onConflict((oc) => oc.column('pubkey').doUpdateSet({ search }))
-        .execute();
+    if (nip05 !== authorStats?.nip05 && eventNewer || !lastVerified) {
+      if (nip05) {
+        const tld = tldts.parse(nip05);
+        if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
+          const pointer = await nip05Cache.fetch(nip05.toLowerCase(), { signal });
+          if (pointer.pubkey === event.pubkey) {
+            updates.nip05 = nip05;
+            updates.nip05_domain = tld.domain;
+            updates.nip05_hostname = tld.hostname;
+            updates.nip05_last_verified_at = event.created_at;
+          }
+        }
+      } else {
+        updates.nip05 = null;
+        updates.nip05_domain = null;
+        updates.nip05_hostname = null;
+        updates.nip05_last_verified_at = event.created_at;
+      }
     }
   } catch {
-    // do nothing
+    // Fallthrough.
   }
 
-  if (nip05 && result && result.pubkey === event.pubkey) {
-    // Track pubkey domain.
+  // Fetch favicon.
+  const domain = nip05?.split('@')[1].toLowerCase();
+  if (domain) {
     try {
-      const { domain } = parseNip05(nip05);
-
-      await sql`
-      INSERT INTO pubkey_domains (pubkey, domain, last_updated_at)
-      VALUES (${event.pubkey}, ${domain}, ${event.created_at})
-      ON CONFLICT(pubkey) DO UPDATE SET
-        domain = excluded.domain,
-        last_updated_at = excluded.last_updated_at
-      WHERE excluded.last_updated_at > pubkey_domains.last_updated_at
-      `.execute(kysely);
-    } catch (_e) {
-      // do nothing
+      await faviconCache.fetch(domain, { signal });
+    } catch {
+      // Fallthrough.
     }
+  }
+
+  const search = [name, nip05].filter(Boolean).join(' ').trim();
+
+  if (search !== authorStats?.search) {
+    updates.search = search;
+  }
+
+  if (Object.keys(updates).length) {
+    await kysely.insertInto('author_stats')
+      .values({
+        pubkey: event.pubkey,
+        followers_count: 0,
+        following_count: 0,
+        notes_count: 0,
+        search,
+        ...updates,
+      })
+      .onConflict((oc) => oc.column('pubkey').doUpdateSet(updates))
+      .execute();
   }
 }
 
@@ -364,4 +397,4 @@ async function handleZaps(kysely: Kysely<DittoTables>, event: NostrEvent) {
   }
 }
 
-export { handleEvent, handleZaps };
+export { handleEvent, handleZaps, updateAuthorData };
