@@ -13,6 +13,10 @@ export const FetchWorker = {
     init: Omit<RequestInit, 'signal'>,
     signal: AbortSignal | null | undefined,
   ): Promise<[BodyInit, ResponseInit]> {
+    if (signal?.aborted) {
+      throw new DOMException('The signal has been aborted', 'AbortError');
+    }
+
     logi({ level: 'debug', ns: 'ditto.fetch', state: 'started', method: init.method ?? 'GET', url });
 
     const response = await safeFetch(url, { ...init, signal });
