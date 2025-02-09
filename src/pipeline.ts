@@ -213,24 +213,28 @@ async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise
   const lastVerified = authorStats?.nip05_last_verified_at;
   const eventNewer = !lastVerified || event.created_at > lastVerified;
 
-  if (nip05 !== authorStats?.nip05 && eventNewer) {
-    if (nip05) {
-      const tld = tldts.parse(nip05);
-      if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
-        const pointer = await nip05Cache.fetch(nip05.toLowerCase(), { signal });
-        if (pointer.pubkey === event.pubkey) {
-          updates.nip05 = nip05;
-          updates.nip05_domain = tld.domain;
-          updates.nip05_hostname = tld.hostname;
-          updates.nip05_last_verified_at = event.created_at;
+  try {
+    if (nip05 !== authorStats?.nip05 && eventNewer) {
+      if (nip05) {
+        const tld = tldts.parse(nip05);
+        if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
+          const pointer = await nip05Cache.fetch(nip05.toLowerCase(), { signal });
+          if (pointer.pubkey === event.pubkey) {
+            updates.nip05 = nip05;
+            updates.nip05_domain = tld.domain;
+            updates.nip05_hostname = tld.hostname;
+            updates.nip05_last_verified_at = event.created_at;
+          }
         }
+      } else {
+        updates.nip05 = null;
+        updates.nip05_domain = null;
+        updates.nip05_hostname = null;
+        updates.nip05_last_verified_at = event.created_at;
       }
-    } else {
-      updates.nip05 = null;
-      updates.nip05_domain = null;
-      updates.nip05_hostname = null;
-      updates.nip05_last_verified_at = event.created_at;
     }
+  } catch {
+    // Fallthrough.
   }
 
   // Fetch favicon.

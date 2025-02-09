@@ -45,6 +45,7 @@ async function insertFavicon(kysely: Kysely<DittoTables>, domain: string, favico
   await kysely
     .insertInto('domain_favicons')
     .values({ domain, favicon, last_updated_at: nostrNow() })
+    .onConflict((oc) => oc.column('domain').doUpdateSet({ favicon, last_updated_at: nostrNow() }))
     .execute();
 }
 
