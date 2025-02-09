@@ -1,4 +1,4 @@
-import { Semaphore } from '@lambdalisue/async';
+import { Semaphore } from '@core/asyncutil';
 
 import { updateAuthorData } from '@/pipeline.ts';
 import { Storages } from '@/storages.ts';

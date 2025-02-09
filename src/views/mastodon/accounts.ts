@@ -69,7 +69,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
       streakEnd = null;
     } else {
       const delta = streakEnd - streakStart;
-      streakDays = Math.max(Math.ceil(delta / streakWindow), 1);
+      streakDays = Math.max(Math.ceil(delta / 86400), 1);
     }
   }
 

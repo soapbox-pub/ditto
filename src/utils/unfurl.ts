@@ -1,5 +1,6 @@
 import TTLCache from '@isaacs/ttlcache';
 import { logi } from '@soapbox/logi';
+import { safeFetch } from '@soapbox/safe-fetch';
 import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
@@ -7,13 +8,12 @@ import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { cachedLinkPreviewSizeGauge } from '@/metrics.ts';
 import { errorJson } from '@/utils/log.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
 
 async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {
   try {
     const result = await unfurl(url, {
       fetch: (url) =>
-        fetchWorker(url, {
+        safeFetch(url, {
           headers: {
             'Accept': 'text/html, application/xhtml+xml',
             'User-Agent': Conf.fetchUserAgent,

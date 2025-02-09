@@ -1,5 +1,6 @@
 import { DOMParser } from '@b-fuze/deno-dom';
 import { logi } from '@soapbox/logi';
+import { safeFetch } from '@soapbox/safe-fetch';
 import { Kysely } from 'kysely';
 import tldts from 'tldts';
 
@@ -9,7 +10,6 @@ import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
 
 export const faviconCache = new SimpleLRU<string, URL>(
   async (domain, { signal }) => {
@@ -58,7 +58,7 @@ async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> 
   }
 
   const rootUrl = new URL('/', `https://${domain}/`);
-  const response = await fetchWorker(rootUrl, { signal });
+  const response = await safeFetch(rootUrl, { signal });
   const html = await response.text();
 
   const doc = new DOMParser().parseFromString(html, 'text/html');
@@ -88,7 +88,7 @@ async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> 
 
   // Fallback to checking `/favicon.ico` of the domain.
   const url = new URL('/favicon.ico', `https://${domain}/`);
-  const fallback = await fetchWorker(url, { method: 'HEAD', signal });
+  const fallback = await safeFetch(url, { method: 'HEAD', signal });
   const contentType = fallback.headers.get('content-type');
 
   if (fallback.ok && contentType === 'image/vnd.microsoft.icon') {

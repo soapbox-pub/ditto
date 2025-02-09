@@ -1,6 +1,7 @@
 import { nip19 } from 'nostr-tools';
 import { NIP05, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
+import { safeFetch } from '@soapbox/safe-fetch';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
@@ -8,7 +9,6 @@ import { cachedNip05sSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { fetchWorker } from '@/workers/fetch.ts';
 
 export const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
   async (nip05, { signal }) => {
@@ -43,7 +43,7 @@ async function getNip05(
         throw new Error(`Not found: ${nip05}`);
       }
     } else {
-      const pointer = await NIP05.lookup(nip05, { fetch: fetchWorker, signal });
+      const pointer = await NIP05.lookup(nip05, { fetch: safeFetch, signal });
       logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', source: 'fetch', pubkey: pointer.pubkey });
       return pointer;
     }
