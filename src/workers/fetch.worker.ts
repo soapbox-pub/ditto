@@ -13,9 +13,18 @@ export const FetchWorker = {
     init: Omit<RequestInit, 'signal'>,
     signal: AbortSignal | null | undefined,
   ): Promise<[BodyInit, ResponseInit]> {
-    logi({ level: 'debug', ns: 'ditto.fetch', method: init.method ?? 'GET', url });
+    logi({ level: 'debug', ns: 'ditto.fetch', state: 'started', method: init.method ?? 'GET', url });
 
     const response = await safeFetch(url, { ...init, signal });
+
+    logi({
+      level: 'debug',
+      ns: 'ditto.fetch',
+      state: 'finished',
+      method: init.method ?? 'GET',
+      url,
+      status: response.status,
+    });
 
     return [
       await response.arrayBuffer(),
