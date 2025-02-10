@@ -34,6 +34,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  for (const event of await gatherQuotes({ events: cache, store, signal })) {
+    cache.push(event);
+  }
+
   for (const event of await gatherProfiles({ events: cache, store, signal })) {
     cache.push(event);
   }
@@ -198,13 +202,6 @@ function gatherRelatedEvents({ events, store, signal }: HydrateOpts): Promise<Di
   const ids = new Set<string>();
 
   for (const event of events) {
-    // Quoted events
-    if (event.kind === 1) {
-      const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
-      if (id) {
-        ids.add(id);
-      }
-    }
     // Reposted events
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
@@ -230,6 +227,25 @@ function gatherRelatedEvents({ events, store, signal }: HydrateOpts): Promise<Di
     // Zapped events
     if (event.kind === 9735) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+  }
+
+  return store.query(
+    [{ ids: [...ids], limit: ids.size }],
+    { signal },
+  );
+}
+
+/** Collect quotes from the events. */
+function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const ids = new Set<string>();
+
+  for (const event of events) {
+    if (event.kind === 1) {
+      const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
       if (id) {
         ids.add(id);
       }
