@@ -6,6 +6,7 @@ import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
+import { z } from 'zod';
 
 import { DittoTables } from '@/db/DittoTables.ts';
 import { dbEventsCounter } from '@/metrics.ts';
@@ -61,6 +62,10 @@ class EventsDB extends NPostgres {
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
     't': ({ event, count, value }) =>
       (value === value.toLowerCase()) && (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
+    'u': ({ count, value }) => {
+      const { success } = z.string().url().safeParse(value); // maybe find a better library specific for validating web urls
+      return count < 15 && success;
+    },
   };
 
   static indexExtensions(event: NostrEvent): Record<string, string> {
