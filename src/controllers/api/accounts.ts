@@ -241,12 +241,22 @@ const accountStatusesController: AppController = async (c) => {
     limit,
   };
 
+  const search: string[] = [];
+
   if (only_media) {
-    filter.search = 'media:true';
+    search.push('media:true');
+  }
+
+  if (exclude_replies) {
+    search.push('reply:false');
   }
 
   if (tagged) {
     filter['#t'] = [tagged];
+  }
+
+  if (search.length) {
+    filter.search = search.join(' ');
   }
 
   const opts = { signal, limit, timeout: Conf.db.timeouts.timelines };
