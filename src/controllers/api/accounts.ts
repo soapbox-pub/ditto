@@ -197,7 +197,7 @@ const accountStatusesQuerySchema = z.object({
   limit: z.coerce.number().nonnegative().transform((v) => Math.min(v, 40)).catch(20),
   exclude_replies: booleanParamSchema.optional(),
   tagged: z.string().optional(),
-  only_media: z.coerce.boolean().optional(),
+  only_media: booleanParamSchema.optional(),
 });
 
 const accountStatusesController: AppController = async (c) => {
