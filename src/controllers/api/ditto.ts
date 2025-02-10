@@ -429,7 +429,7 @@ export const createNutzapInformationController: AppController = async (c) => {
     return c.json({ error: 'Signer does not have nip 44' }, 400);
   }
 
-  const { relays, mints } = result.data; // TODO: get those mints and replace the mints specified in wallet, so 'nutzap information event' and the wallet always have the same mints
+  const { relays, mints } = result.data; // TODO: MAYBE get those mints and replace the mints specified in wallet, so 'nutzap information event' and the wallet always have the same mints
 
   const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (!event) {
@@ -539,7 +539,7 @@ export const swapNutzapsToWalletController: AppController = async (c) => {
     return c.json({ error: 'You do not have any mints in your nutzap information event.' }, 400);
   }
 
-  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints }; // TODO: index 'u' tags
+  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
 
   const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
   if (nutzapHistory) {
