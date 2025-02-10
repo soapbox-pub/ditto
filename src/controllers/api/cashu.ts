@@ -11,10 +11,10 @@ import { isNostrId } from '@/utils.ts';
 import { createEvent, parseBody } from '@/utils/api.ts';
 import { errorJson } from '@/utils/log.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
-import { requireSigner } from '@/middleware/requireSigner.ts';
+import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 
-const app = new Hono();
+const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 
 // CASHU_MINTS = ['https://mint.cashu.io/1', 'https://mint.cashu.io/2', 'https://mint.cashu.io/3']
 
@@ -55,7 +55,7 @@ const createCashuWalletSchema = z.object({
  * Creates a replaceable Cashu wallet.
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  */
-app.post('/wallet', storeMiddleware, signerMiddleware, requireSigner, async (c) => {
+app.post('/wallet', requireNip44Signer, async (c) => {
   const signer = c.get('signer');
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
@@ -65,11 +65,6 @@ app.post('/wallet', storeMiddleware, signerMiddleware, requireSigner, async (c) 
 
   if (!result.success) {
     return c.json({ error: 'Bad schema', schema: result.error }, 400);
-  }
-
-  const nip44 = signer.nip44;
-  if (!nip44) {
-    return c.json({ error: 'Signer does not have nip 44' }, 400);
   }
 
   const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
@@ -90,7 +85,7 @@ app.post('/wallet', storeMiddleware, signerMiddleware, requireSigner, async (c) 
     contentTags.push(['mint', mint]);
   }
 
-  const encryptedContentTags = await nip44.encrypt(pubkey, JSON.stringify(contentTags));
+  const encryptedContentTags = await signer.nip44.encrypt(pubkey, JSON.stringify(contentTags));
 
   // Wallet
   await createEvent({

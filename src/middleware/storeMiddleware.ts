@@ -1,9 +1,14 @@
-import { AppMiddleware } from '@/app.ts';
+import { MiddlewareHandler } from '@hono/hono';
+import { NostrSigner, NStore } from '@nostrify/nostrify';
+
 import { UserStore } from '@/storages/UserStore.ts';
 import { Storages } from '@/storages.ts';
 
 /** Store middleware. */
-export const storeMiddleware: AppMiddleware = async (c, next) => {
+export const storeMiddleware: MiddlewareHandler<{ Variables: { signer?: NostrSigner; store: NStore } }> = async (
+  c,
+  next,
+) => {
   const pubkey = await c.get('signer')?.getPublicKey();
 
   if (pubkey) {
