@@ -9,6 +9,8 @@ const relayInfoController: AppController = async (c) => {
   const store = await Storages.db();
   const meta = await getInstanceMetadata(store, c.req.raw.signal);
 
+  c.res.headers.set('access-control-allow-origin', '*');
+
   return c.json({
     name: meta.name,
     description: meta.about,
