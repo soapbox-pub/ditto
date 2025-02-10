@@ -4,7 +4,7 @@ import { assertEquals, assertRejects } from '@std/assert';
 Deno.test("SimpleLRU doesn't repeat failed calls", async () => {
   let calls = 0;
 
-  const cache = new SimpleLRU(
+  using cache = new SimpleLRU(
     // deno-lint-ignore require-await
     async () => {
       calls++;

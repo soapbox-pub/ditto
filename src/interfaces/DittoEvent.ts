@@ -8,6 +8,11 @@ export interface AuthorStats {
   notes_count: number;
   streak_start?: number;
   streak_end?: number;
+  nip05?: string;
+  nip05_domain?: string;
+  nip05_hostname?: string;
+  nip05_last_verified_at?: number;
+  favicon?: string;
 }
 
 /** Ditto internal stats for the event. */
@@ -25,6 +30,7 @@ export interface DittoEvent extends NostrEvent {
   author_domain?: string;
   author_stats?: AuthorStats;
   event_stats?: EventStats;
+  mentions?: DittoEvent[];
   user?: DittoEvent;
   repost?: DittoEvent;
   quote?: DittoEvent;

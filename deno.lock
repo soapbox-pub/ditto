@@ -3,6 +3,7 @@
   "specifiers": {
     "jsr:@b-fuze/deno-dom@~0.1.47": "0.1.48",
     "jsr:@bradenmacdonald/s3-lite-client@~0.7.4": "0.7.6",
+    "jsr:@core/asyncutil@^1.2.0": "1.2.0",
     "jsr:@denosaurs/plug@1.0.3": "1.0.3",
     "jsr:@esroyo/scoped-performance@^3.1.0": "3.1.0",
     "jsr:@gfx/canvas-wasm@~0.4.2": "0.4.2",
@@ -28,7 +29,6 @@
     "jsr:@gleasonator/policy@0.9.3": "0.9.3",
     "jsr:@gleasonator/policy@0.9.4": "0.9.4",
     "jsr:@hono/hono@^4.4.6": "4.6.15",
-    "jsr:@lambdalisue/async@^2.1.1": "2.1.1",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
     "jsr:@nostrify/db@0.38": "0.38.0",
@@ -153,6 +153,9 @@
       "dependencies": [
         "jsr:@std/io@0.224"
       ]
+    },
+    "@core/asyncutil@1.2.0": {
+      "integrity": "9967f15190c60df032c13f72ce5ac73d185c34f31c53dc918d8800025854c118"
     },
     "@denosaurs/plug@1.0.3": {
       "integrity": "b010544e386bea0ff3a1d05e0c88f704ea28cbd4d753439c2f1ee021a85d4640",
@@ -337,9 +340,6 @@
     },
     "@hono/hono@4.6.15": {
       "integrity": "935b3b12e98e4b22bcd1aa4dbe6587321e431c79829eba61f535b4ede39fd8b1"
-    },
-    "@lambdalisue/async@2.1.1": {
-      "integrity": "1fc9bc6f4ed50215cd2f7217842b18cea80f81c25744f88f8c5eb4be5a1c9ab4"
     },
     "@negrel/http-ece@0.6.0": {
       "integrity": "7afdd81b86ea5b21a9677b323c01c3338705e11cc2bfed250870f5349d8f86f7",
@@ -2427,10 +2427,10 @@
     "dependencies": [
       "jsr:@b-fuze/deno-dom@~0.1.47",
       "jsr:@bradenmacdonald/s3-lite-client@~0.7.4",
+      "jsr:@core/asyncutil@^1.2.0",
       "jsr:@esroyo/scoped-performance@^3.1.0",
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
-      "jsr:@lambdalisue/async@^2.1.1",
       "jsr:@negrel/webpush@0.3",
       "jsr:@nostrify/db@0.38",
       "jsr:@nostrify/nostrify@~0.38.1",

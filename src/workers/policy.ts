@@ -5,8 +5,6 @@ import * as Comlink from 'comlink';
 import { Conf } from '@/config.ts';
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
 
-import '@/workers/handlers/abortsignal.ts';
-
 class PolicyWorker implements NPolicy {
   private worker: Comlink.Remote<CustomPolicy>;
   private ready: Promise<void>;
