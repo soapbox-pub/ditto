@@ -1,9 +1,10 @@
 // deno-lint-ignore-file require-await
 
-import { NPostgres } from '@nostrify/db';
+import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
+import { LanguageCode } from 'iso-639-1';
 import { Kysely } from 'kysely';
 import { nip27 } from 'nostr-tools';
 import { z } from 'zod';
@@ -229,6 +230,25 @@ class EventsDB extends NPostgres {
     logi({ level: 'debug', ns: 'ditto.req', source: 'db', filters: filters as JsonValue });
 
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+  }
+
+  /** Parse an event row from the database. */
+  protected override parseEventRow(row: NPostgresSchema['nostr_events']): DittoEvent {
+    const event: DittoEvent = {
+      id: row.id,
+      kind: row.kind,
+      pubkey: row.pubkey,
+      content: row.content,
+      created_at: Number(row.created_at),
+      tags: row.tags,
+      sig: row.sig,
+    };
+
+    if (!this.opts.pure) {
+      event.language = row.search_ext.language as LanguageCode | undefined;
+    }
+
+    return event;
   }
 
   /** Delete events based on filters from the database. */
