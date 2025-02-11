@@ -2,9 +2,9 @@ import { Env as HonoEnv, Hono } from '@hono/hono';
 import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
-import { assertEquals, assertExists } from '@std/assert';
+import { assertEquals, assertExists, assertObjectMatch } from '@std/assert';
 
-import { createTestDB } from '@/test.ts';
+import { createTestDB, genEvent } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';
@@ -95,4 +95,54 @@ Deno.test('PUT /wallet must be successful', {
   assertEquals([nutzap_info.tags.find(([name]) => name === 'relay')?.[1]!], [
     'ws://localhost:4036/relay',
   ]);
+});
+
+Deno.test('PUT /wallet must NOT be successful', {
+  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
+  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
+}, async () => {
+  await using db = await createTestDB();
+  const store = db.store;
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+
+  const app = new Hono<AppEnv>().use(
+    async (c, next) => {
+      c.set('signer', signer);
+      await next();
+    },
+    async (c, next) => {
+      c.set('store', store);
+      await next();
+    },
+  ).route('/', cashuApp);
+
+  const response = await app.request('/wallet', {
+    method: 'PUT',
+    headers: [['content-type', 'application/json']],
+    body: JSON.stringify({
+      mints: [], // no mints should throw an error
+    }),
+  });
+
+  const body = await response.json();
+
+  assertEquals(response.status, 400);
+  assertObjectMatch(body, { error: 'Bad schema' });
+
+  await db.store.event(genEvent({ kind: 17375 }, sk));
+
+  const response2 = await app.request('/wallet', {
+    method: 'PUT',
+    headers: [['content-type', 'application/json']],
+    body: JSON.stringify({
+      mints: ['https://mint.heart.com'],
+    }),
+  });
+
+  const body2 = await response2.json();
+
+  assertEquals(response2.status, 400);
+  assertEquals(body2, { error: 'You already have a wallet 😏' });
 });
