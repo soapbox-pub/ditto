@@ -1,13 +1,13 @@
 import { Env as HonoEnv, Hono } from '@hono/hono';
-import { NostrSigner, NSchema as n, NSecSigner, NStore } from '@nostrify/nostrify';
+import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { assertEquals, assertExists } from '@std/assert';
-import { z } from 'zod';
 
 import { createTestDB } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
+import { walletSchema } from '@/schema.ts';
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -28,13 +28,6 @@ Deno.test('PUT /wallet must be successful', {
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
   const nostrPrivateKey = bytesToString('hex', sk);
-
-  const expectedResponseSchema = z.object({
-    pubkey_p2pk: n.id(),
-    mints: z.array(z.string()).nonempty(),
-    relays: z.array(z.string()).nonempty(),
-    balance: z.number(),
-  });
 
   const app = new Hono<AppEnv>().use(
     async (c, next) => {
@@ -68,7 +61,7 @@ Deno.test('PUT /wallet must be successful', {
   assertExists(wallet);
   assertEquals(wallet.kind, 17375);
 
-  const { data, success } = expectedResponseSchema.safeParse(await response.json());
+  const { data, success } = walletSchema.safeParse(await response.json());
 
   assertEquals(success, true);
   if (!data) return; // get rid of typescript error possibly undefined

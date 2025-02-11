@@ -13,6 +13,9 @@ import { errorJson } from '@/utils/log.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
+import { walletSchema } from '@/schema.ts';
+
+type Wallet = z.infer<typeof walletSchema>;
 
 const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 
@@ -33,13 +36,6 @@ const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 /* GET /api/v1/ditto/cashu/wallet -> Wallet, 404 */
 /* PUT /api/v1/ditto/cashu/wallet -> Wallet */
 /* DELETE /api/v1/ditto/cashu/wallet -> 204 */
-
-export interface Wallet {
-  pubkey_p2pk: string;
-  mints: string[];
-  relays: string[];
-  balance: number;
-}
 
 interface Nutzap {
   amount: number;
