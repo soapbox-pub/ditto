@@ -19,9 +19,11 @@ import { getAmount } from '@/utils/bolt11.ts';
 import { faviconCache } from '@/utils/favicon.ts';
 import { errorJson } from '@/utils/log.ts';
 import { nip05Cache } from '@/utils/nip05.ts';
+import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { updateStats } from '@/utils/stats.ts';
 import { getTagSet } from '@/utils/tags.ts';
+import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
@@ -122,6 +124,7 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
     Promise.allSettled([
       handleZaps(kysely, event),
       updateAuthorData(event, opts.signal),
+      prewarmLinkPreview(event, opts.signal),
       generateSetEvents(event),
     ])
       .then(() =>
@@ -265,6 +268,13 @@ async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise
       })
       .onConflict((oc) => oc.column('pubkey').doUpdateSet(updates))
       .execute();
+  }
+}
+
+async function prewarmLinkPreview(event: NostrEvent, signal: AbortSignal): Promise<void> {
+  const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), []);
+  if (firstUrl) {
+    await unfurlCardCached(firstUrl, signal);
   }
 }
 
