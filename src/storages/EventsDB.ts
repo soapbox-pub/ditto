@@ -63,7 +63,7 @@ class EventsDB extends NPostgres {
     't': ({ event, count, value }) =>
       (value === value.toLowerCase()) && (event.kind === 1985 ? count < 20 : count < 5) && value.length < 50,
     'u': ({ count, value }) => {
-      const { success } = z.string().url().safeParse(value); // maybe find a better library specific for validating web urls
+      const { success } = z.string().url().safeParse(value); // TODO: maybe find a better library specific for validating web urls
       return count < 15 && success;
     },
   };

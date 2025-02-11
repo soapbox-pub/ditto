@@ -20,8 +20,6 @@ const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 
 // Mint: https://github.com/cashubtc/nuts/blob/main/06.md
 
-// src/controllers/api/cashu.ts
-
 // app.get('/mints') -> Mint[]
 
 // app.get(swapMiddleware, '/wallet') -> Wallet, 404
@@ -36,142 +34,89 @@ const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 /* PUT /api/v1/ditto/cashu/wallet -> Wallet */
 /* DELETE /api/v1/ditto/cashu/wallet -> 204 */
 
-interface Wallet {
-  pubkey: string;
+export interface Wallet {
+  pubkey_p2pk: string;
   mints: string[];
   relays: string[];
   balance: number;
 }
 
-interface NutZap {
-  // ???
+interface Nutzap {
+  amount: number;
+  event_id?: string;
+  mint: string; // mint the nutzap was created
+  recipient_pubkey: string;
 }
 
-const createCashuWalletSchema = z.object({
-  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
+const createCashuWalletAndNutzapInfoSchema = z.object({
+  mints: z.array(z.string().url()).nonempty().transform((val) => {
+    return [...new Set(val)];
+  }),
 });
 
 /**
- * Creates a replaceable Cashu wallet.
+ * Creates a replaceable Cashu wallet and a replaceable nutzap information event.
  * https://github.com/nostr-protocol/nips/blob/master/60.md
+ * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-app.post('/wallet', requireNip44Signer, async (c) => {
+app.put('/wallet', requireNip44Signer, async (c) => {
   const signer = c.get('signer');
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const { signal } = c.req.raw;
-  const result = createCashuWalletSchema.safeParse(body);
+  const result = createCashuWalletAndNutzapInfoSchema.safeParse(body);
 
   if (!result.success) {
     return c.json({ error: 'Bad schema', schema: result.error }, 400);
   }
+
+  const { mints } = result.data;
 
   const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (event) {
     return c.json({ error: 'You already have a wallet 😏' }, 400);
   }
 
-  const contentTags: string[][] = [];
+  const walletContentTags: string[][] = [];
 
   const sk = generateSecretKey();
   const privkey = bytesToString('hex', sk);
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-  contentTags.push(['privkey', privkey]);
+  walletContentTags.push(['privkey', privkey]);
 
-  const { mints } = result.data;
-
-  for (const mint of new Set(mints)) {
-    contentTags.push(['mint', mint]);
+  for (const mint of mints) {
+    walletContentTags.push(['mint', mint]);
   }
 
-  const encryptedContentTags = await signer.nip44.encrypt(pubkey, JSON.stringify(contentTags));
+  const encryptedWalletContentTags = await signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
 
   // Wallet
   await createEvent({
     kind: 17375,
-    content: encryptedContentTags,
+    content: encryptedWalletContentTags,
   }, c);
-
-  return c.json(wallet);
-});
-
-const createNutzapInformationSchema = z.object({
-  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
-});
-
-/**
- * Creates a replaceable Nutzap information for a specific wallet.
- * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
- */
-// TODO: Remove this, combine logic with `app.post('/wallet')`
-app.post('/wallet/info', async (c) => {
-  const signer = c.get('signer')!;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const body = await parseBody(c.req.raw);
-  const { signal } = c.req.raw;
-  const result = createNutzapInformationSchema.safeParse(body);
-
-  if (!result.success) {
-    return c.json({ error: 'Bad schema', schema: result.error }, 400);
-  }
-
-  const nip44 = signer.nip44;
-  if (!nip44) {
-    return c.json({ error: 'Signer does not have nip 44' }, 400);
-  }
-
-  const { relays, mints } = result.data; // TODO: MAYBE get those mints and replace the mints specified in wallet, so 'nutzap information event' and the wallet always have the same mints
-
-  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
-  if (!event) {
-    return c.json({ error: 'You need to have a wallet to create a nutzap information event.' }, 400);
-  }
-
-  relays.push(Conf.relay);
-
-  const tags: string[][] = [];
-
-  for (const mint of new Set(mints)) {
-    tags.push(['mint', mint, 'sat']);
-  }
-
-  for (const relay of new Set(relays)) {
-    tags.push(['relay', relay]);
-  }
-
-  let decryptedContent: string;
-  try {
-    decryptedContent = await nip44.decrypt(pubkey, event.content);
-  } catch (e) {
-    logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', id: event.id, kind: event.kind, error: errorJson(e) });
-    return c.json({ error: 'Could not decrypt wallet content.' }, 400);
-  }
-
-  let contentTags: string[][];
-  try {
-    contentTags = JSON.parse(decryptedContent);
-  } catch {
-    return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
-  }
-
-  const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
-  if (!privkey || !isNostrId(privkey)) {
-    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 400);
-  }
-
-  const p2pk = getPublicKey(stringToBytes('hex', privkey));
-
-  tags.push(['pubkey', p2pk]);
 
   // Nutzap information
   await createEvent({
     kind: 10019,
-    tags,
+    tags: [
+      ...mints.map((mint) => ['mint', mint, 'sat']),
+      ['relay', Conf.relay], // TODO: add more relays once things get more stable
+      ['pubkey', p2pk],
+    ],
   }, c);
 
-  return c.json(201);
+  // TODO: hydrate wallet and add a 'balance' field when a 'renderWallet' view function is created
+  const walletEntity: Wallet = {
+    pubkey_p2pk: p2pk,
+    mints,
+    relays: [Conf.relay],
+    balance: 0, // Newly created wallet, balance is zero.
+  };
+
+  return c.json(walletEntity, 200);
 });
 
 /**
