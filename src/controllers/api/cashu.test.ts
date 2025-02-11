@@ -97,7 +97,7 @@ Deno.test('PUT /wallet must be successful', {
   ]);
 });
 
-Deno.test('PUT /wallet must NOT be successful', {
+Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', {
   sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
   sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
 }, async () => {
@@ -130,10 +130,32 @@ Deno.test('PUT /wallet must NOT be successful', {
 
   assertEquals(response.status, 400);
   assertObjectMatch(body, { error: 'Bad schema' });
+});
+
+Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
+  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
+  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
+}, async () => {
+  await using db = await createTestDB();
+  const store = db.store;
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+
+  const app = new Hono<AppEnv>().use(
+    async (c, next) => {
+      c.set('signer', signer);
+      await next();
+    },
+    async (c, next) => {
+      c.set('store', store);
+      await next();
+    },
+  ).route('/', cashuApp);
 
   await db.store.event(genEvent({ kind: 17375 }, sk));
 
-  const response2 = await app.request('/wallet', {
+  const response = await app.request('/wallet', {
     method: 'PUT',
     headers: [['content-type', 'application/json']],
     body: JSON.stringify({
@@ -141,8 +163,8 @@ Deno.test('PUT /wallet must NOT be successful', {
     }),
   });
 
-  const body2 = await response2.json();
+  const body2 = await response.json();
 
-  assertEquals(response2.status, 400);
+  assertEquals(response.status, 400);
   assertEquals(body2, { error: 'You already have a wallet 😏' });
 });
