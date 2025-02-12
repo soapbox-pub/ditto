@@ -47,8 +47,16 @@ Deno.test('query events with domain search filter', async () => {
   assertEquals(await store.query([{ search: '' }]), [event1]);
 
   await kysely
-    .insertInto('pubkey_domains')
-    .values({ pubkey: event1.pubkey, domain: 'localhost:4036', last_updated_at: event1.created_at })
+    .insertInto('author_stats')
+    .values({
+      pubkey: event1.pubkey,
+      nip05_domain: 'localhost:4036',
+      nip05_last_verified_at: event1.created_at,
+      followers_count: 0,
+      following_count: 0,
+      notes_count: 0,
+      search: '',
+    })
     .execute();
 
   assertEquals(await store.query([{ kinds: [1], search: 'domain:localhost:4036' }]), [event1]);
