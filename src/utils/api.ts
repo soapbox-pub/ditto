@@ -207,12 +207,10 @@ function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined 
   return `<${next}>; rel="next", <${prev}>; rel="prev"`;
 }
 
-// deno-lint-ignore ban-types
-type Entity = {};
 type HeaderRecord = Record<string, string | string[]>;
 
 /** Return results with pagination headers. Assumes chronological sorting of events. */
-function paginated(c: AppContext, events: NostrEvent[], entities: (Entity | undefined)[], headers: HeaderRecord = {}) {
+function paginated(c: AppContext, events: NostrEvent[], body: object | unknown[], headers: HeaderRecord = {}) {
   const link = buildLinkHeader(c.req.url, events);
 
   if (link) {
@@ -220,7 +218,7 @@ function paginated(c: AppContext, events: NostrEvent[], entities: (Entity | unde
   }
 
   // Filter out undefined entities.
-  const results = entities.filter((entity): entity is Entity => Boolean(entity));
+  const results = Array.isArray(body) ? body.filter(Boolean) : body;
   return c.json(results, 200, headers);
 }
 
