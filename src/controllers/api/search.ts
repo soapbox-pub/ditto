@@ -12,6 +12,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getFollowedPubkeys } from '@/queries.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
+import { paginated } from '@/utils/api.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -19,14 +20,14 @@ const searchQuerySchema = z.object({
   resolve: booleanParamSchema.optional().transform(Boolean),
   following: z.boolean().default(false),
   account_id: n.id().optional(),
-  limit: z.coerce.number().catch(20).transform((value) => Math.min(Math.max(value, 0), 40)),
   offset: z.coerce.number().nonnegative().catch(0),
 });
 
-type SearchQuery = z.infer<typeof searchQuerySchema>;
+type SearchQuery = z.infer<typeof searchQuerySchema> & { since?: number; until?: number; limit: number };
 
 const searchController: AppController = async (c) => {
   const result = searchQuerySchema.safeParse(c.req.query());
+  const params = c.get('pagination');
   const { signal } = c.req.raw;
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
@@ -34,14 +35,14 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const event = await lookupEvent(result.data, signal);
+  const event = await lookupEvent({ ...result.data, ...params }, signal);
   const lookup = extractIdentifier(result.data.q);
 
   // Render account from pubkey.
   if (!event && lookup) {
     const pubkey = await lookupPubkey(lookup);
     return c.json({
-      accounts: pubkey ? [await accountFromPubkey(pubkey)] : [],
+      accounts: pubkey ? [accountFromPubkey(pubkey)] : [],
       statuses: [],
       hashtags: [],
     });
@@ -52,7 +53,8 @@ const searchController: AppController = async (c) => {
   if (event) {
     events = [event];
   }
-  events.push(...(await searchEvents({ ...result.data, viewerPubkey }, signal)));
+
+  events.push(...(await searchEvents({ ...result.data, ...params, viewerPubkey }, signal)));
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -69,16 +71,18 @@ const searchController: AppController = async (c) => {
     ),
   ]);
 
-  return c.json({
+  const body = {
     accounts,
     statuses,
     hashtags: [],
-  });
+  };
+
+  return paginated(c, events, body);
 };
 
 /** Get events for the search params. */
 async function searchEvents(
-  { q, type, limit, offset, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
+  { q, type, since, until, limit, offset, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
   signal: AbortSignal,
 ): Promise<NostrEvent[]> {
   // Hashtag search is not supported.
@@ -91,6 +95,8 @@ async function searchEvents(
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
     search: q,
+    since,
+    until,
     limit,
   };
 

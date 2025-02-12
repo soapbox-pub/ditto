@@ -31,7 +31,6 @@
     "jsr:@hono/hono@^4.4.6": "4.6.15",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@0.38": "0.38.0",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
@@ -355,15 +354,6 @@
         "jsr:@std/encoding@0.224.0",
         "jsr:@std/media-types@0.224.0",
         "jsr:@std/path@0.224.0"
-      ]
-    },
-    "@nostrify/db@0.38.0": {
-      "integrity": "44118756b95f747779839f0e578a5e1dbca164ec44edb8885bd1c99840775e8a",
-      "dependencies": [
-        "jsr:@nostrify/nostrify@~0.38.1",
-        "jsr:@nostrify/types@0.36",
-        "npm:kysely@~0.27.3",
-        "npm:nostr-tools@^2.10.4"
       ]
     },
     "@nostrify/nostrify@0.22.4": {
@@ -2372,7 +2362,7 @@
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@0.38",
+      "jsr:@nostrify/db@0.39",
       "jsr:@nostrify/nostrify@~0.38.1",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
