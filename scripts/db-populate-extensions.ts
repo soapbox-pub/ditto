@@ -1,25 +1,26 @@
+import { NostrEvent } from '@nostrify/nostrify';
+
 import { Storages } from '@/storages.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
-const store = await Storages.db();
 const kysely = await Storages.kysely();
 
-for await (const msg of store.req([{}])) {
-  if (msg[0] === 'EVENT') {
-    const event = msg[2];
+const query = kysely
+  .selectFrom('nostr_events')
+  .select(['id', 'kind', 'content', 'pubkey', 'tags', 'created_at', 'sig']);
 
-    const ext = EventsDB.indexExtensions(event);
+for await (const row of query.stream()) {
+  const event: NostrEvent = { ...row, created_at: Number(row.created_at) };
+  const ext = EventsDB.indexExtensions(event);
 
-    try {
-      await kysely.updateTable('nostr_events')
-        .set('search_ext', ext)
-        .where('id', '=', event.id)
-        .execute();
-    } catch {
-      // do nothing
-    }
-  } else {
-    break;
+  try {
+    await kysely
+      .updateTable('nostr_events')
+      .set('search_ext', ext)
+      .where('id', '=', event.id)
+      .execute();
+  } catch {
+    // do nothing
   }
 }
 
