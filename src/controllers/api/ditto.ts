@@ -1,21 +1,15 @@
-import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { logi } from '@soapbox/logi';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
-import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
-import { isNostrId } from '@/utils.ts';
 import { addTag } from '@/utils/tags.ts';
 import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { errorJson } from '@/utils/log.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
 import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
@@ -249,7 +243,7 @@ export const getZapSplitsController: AppController = async (c) => {
   const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
     const author = await getAuthor(pubkey);
 
-    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+    const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
     return {
       account,
@@ -278,9 +272,9 @@ export const statusZapSplitsController: AppController = async (c) => {
   const users = await store.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
   await hydrateEvents({ events: users, store, signal });
 
-  const zapSplits = (await Promise.all(pubkeys.map(async (pubkey) => {
+  const zapSplits = (await Promise.all(pubkeys.map((pubkey) => {
     const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;
-    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+    const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
     const weight = percentageSchema.catch(0).parse(zapsTag.find((name) => name[1] === pubkey)![3]) ?? 0;
 
