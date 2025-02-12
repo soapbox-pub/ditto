@@ -104,8 +104,8 @@ async function searchEvents(
 
   // For account search, use a special index, and prioritize followed accounts.
   if (type === 'accounts') {
-    const followedPubkeys = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
-    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, offset, followedPubkeys });
+    const following = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
+    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, offset, following });
 
     filter.authors = [...searchPubkeys];
     filter.search = undefined;

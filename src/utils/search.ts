@@ -5,30 +5,34 @@ import { DittoTables } from '@/db/DittoTables.ts';
 /** Get pubkeys whose name and NIP-05 is similar to 'q' */
 export async function getPubkeysBySearch(
   kysely: Kysely<DittoTables>,
-  opts: { q: string; limit: number; offset: number; followedPubkeys: Set<string> },
+  opts: { q: string; limit: number; offset: number; following: Set<string> },
 ): Promise<Set<string>> {
-  const { q, limit, followedPubkeys, offset } = opts;
+  const { q, limit, following, offset } = opts;
 
-  let query = kysely
-    .selectFrom('author_stats')
-    .select((eb) => [
-      'pubkey',
-      'search',
-      eb.fn('word_similarity', [sql`${q}`, 'search']).as('sml'),
-    ])
-    .where(() => sql`${q} <% search`)
-    .orderBy(['followers_count desc'])
-    .orderBy(['sml desc', 'search'])
+  const pubkeys = new Set<string>();
+
+  const query = kysely
+    .selectFrom('top_authors')
+    .select('pubkey')
+    .where('search', sql`%>`, q)
     .limit(limit)
     .offset(offset);
 
-  const pubkeys = new Set((await query.execute()).map(({ pubkey }) => pubkey));
+  if (following.size) {
+    const authorsQuery = query.where('pubkey', 'in', [...following]);
 
-  if (followedPubkeys.size > 0) {
-    query = query.where('pubkey', 'in', [...followedPubkeys]);
+    for (const { pubkey } of await authorsQuery.execute()) {
+      pubkeys.add(pubkey);
+    }
   }
 
-  const followingPubkeys = new Set((await query.execute()).map(({ pubkey }) => pubkey));
+  if (pubkeys.size >= limit) {
+    return pubkeys;
+  }
 
-  return new Set(Array.from(followingPubkeys.union(pubkeys)));
+  for (const { pubkey } of await query.limit(limit - pubkeys.size).execute()) {
+    pubkeys.add(pubkey);
+  }
+
+  return pubkeys;
 }

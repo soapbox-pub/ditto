@@ -9,6 +9,8 @@ export interface DittoTables extends NPostgresSchema {
   event_stats: EventStatsRow;
   event_zaps: EventZapRow;
   push_subscriptions: PushSubscriptionRow;
+  /** This is a materialized view of `author_stats` pre-sorted by followers_count. */
+  top_authors: Pick<AuthorStatsRow, 'pubkey' | 'followers_count' | 'search'>;
 }
 
 interface AuthorStatsRow {
