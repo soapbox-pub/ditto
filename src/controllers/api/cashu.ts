@@ -1,19 +1,19 @@
+import { Proof } from '@cashu/cashu-ts';
 import { Hono } from '@hono/hono';
-import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
-import { NostrFilter } from '@nostrify/nostrify';
-import { logi } from '@soapbox/logi';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
-import { isNostrId } from '@/utils.ts';
 import { createEvent, parseBody } from '@/utils/api.ts';
-import { errorJson } from '@/utils/log.ts';
 import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
+import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
+import { isNostrId } from '@/utils.ts';
+import { logi } from '@soapbox/logi';
+import { errorJson } from '@/utils/log.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -115,148 +115,58 @@ app.put('/wallet', requireNip44Signer, async (c) => {
   return c.json(walletEntity, 200);
 });
 
-/**
- * Swaps all nutzaps (NIP-61) to the user's wallet (NIP-60)
- */
-app.post('/swap', async (c) => {
-  const signer = c.get('signer')!;
+/** Gets a wallet, if it exists. */
+app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
+  const signer = c.get('signer');
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
   const { signal } = c.req.raw;
 
-  const nip44 = signer.nip44;
-  if (!nip44) {
-    return c.json({ error: 'Signer does not have nip 44.' }, 400);
+  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  if (!event) {
+    return c.json({ error: 'Wallet not found' }, 404);
   }
 
-  const [wallet] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
-  if (!wallet) {
-    return c.json({ error: 'You need to have a wallet to swap the nutzaps into it.' }, 400);
-  }
+  const decryptedContent: string[][] = JSON.parse(await signer.nip44.decrypt(pubkey, event.content));
 
-  let decryptedContent: string;
-  try {
-    decryptedContent = await nip44.decrypt(pubkey, wallet.content);
-  } catch (e) {
-    logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', id: wallet.id, kind: wallet.kind, error: errorJson(e) });
-    return c.json({ error: 'Could not decrypt wallet content.' }, 400);
-  }
-
-  let contentTags: string[][];
-  try {
-    contentTags = JSON.parse(decryptedContent);
-  } catch {
-    return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
-  }
-
-  const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
+  const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
   if (!privkey || !isNostrId(privkey)) {
-    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 400);
+    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 422);
   }
+
   const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-  const [nutzapInformation] = await store.query([{ authors: [pubkey], kinds: [10019] }], { signal });
-  if (!nutzapInformation) {
-    return c.json({ error: 'You need to have a nutzap information event so we can get the mints.' }, 400);
-  }
+  let balance = 0;
+  const mints: string[] = [];
 
-  const nutzapInformationPubkey = nutzapInformation.tags.find(([name]) => name === 'pubkey')?.[1];
-  if (!nutzapInformationPubkey || (nutzapInformationPubkey !== p2pk)) {
-    return c.json({
-      error:
-        "You do not have a 'pubkey' tag in your nutzap information event or the one you have does not match the one derivated from the wallet.",
-    }, 400);
-  }
-
-  const mints = [...new Set(nutzapInformation.tags.filter(([name]) => name === 'mint').map(([_, value]) => value))];
-  if (mints.length < 1) {
-    return c.json({ error: 'You do not have any mints in your nutzap information event.' }, 400);
-  }
-
-  const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
-
-  const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
-  if (nutzapHistory) {
-    nutzapsFilter.since = nutzapHistory.created_at;
-  }
-
-  const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {};
-
-  const nutzaps = await store.query([nutzapsFilter], { signal });
-
-  for (const event of nutzaps) {
+  const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal });
+  for (const token of tokens) {
     try {
-      const mint = event.tags.find(([name]) => name === 'u')?.[1];
-      if (!mint) {
-        continue;
+      const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
+        await signer.nip44.decrypt(pubkey, token.content),
+      );
+
+      if (!mints.includes(decryptedContent.mint)) {
+        mints.push(decryptedContent.mint);
       }
 
-      const proof = event.tags.find(([name]) => name === 'proof')?.[1];
-      if (!proof) {
-        continue;
-      }
-
-      if (!mintsToProofs[mint]) {
-        mintsToProofs[mint] = { proofs: [], redeemed: [] };
-      }
-
-      mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...JSON.parse(proof)];
-      mintsToProofs[mint].redeemed = [
-        ...mintsToProofs[mint].redeemed,
-        [
-          'e', // nutzap event that has been redeemed
-          event.id,
-          Conf.relay,
-          'redeemed',
-        ],
-        ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
-      ];
-    } catch (e: any) {
-      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
-    }
-  }
-
-  // TODO: throw error if mintsToProofs is an empty object?
-  for (const mint of Object.keys(mintsToProofs)) {
-    try {
-      const token = getEncodedToken({ mint, proofs: mintsToProofs[mint].proofs });
-
-      const cashuWallet = new CashuWallet(new CashuMint(mint));
-      const receiveProofs = await cashuWallet.receive(token, { privkey });
-
-      const unspentProofs = await createEvent({
-        kind: 7375,
-        content: await nip44.encrypt(
-          pubkey,
-          JSON.stringify({
-            mint,
-            proofs: receiveProofs,
-          }),
-        ),
-      }, c);
-
-      const amount = receiveProofs.reduce((accumulator, current) => {
+      balance += decryptedContent.proofs.reduce((accumulator, current) => {
         return accumulator + current.amount;
       }, 0);
-
-      await createEvent({
-        kind: 7376,
-        content: await nip44.encrypt(
-          pubkey,
-          JSON.stringify([
-            ['direction', 'in'],
-            ['amount', amount],
-            ['e', unspentProofs.id, Conf.relay, 'created'],
-          ]),
-        ),
-        tags: mintsToProofs[mint].redeemed,
-      }, c);
-    } catch (e: any) {
-      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
     }
   }
 
-  return c.json(201);
+  // TODO: maybe change the 'Wallet' type data structure so each mint is a key and the value are the tokens associated with a given mint
+  const walletEntity: Wallet = {
+    pubkey_p2pk: p2pk,
+    mints,
+    relays: [Conf.relay],
+    balance,
+  };
+
+  return c.json(walletEntity, 200);
 });
 
 export default app;

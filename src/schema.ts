@@ -90,6 +90,7 @@ const walletSchema = z.object({
   relays: z.array(z.string()).nonempty().transform((val) => {
     return [...new Set(val)];
   }),
+  /** Unit in sats */
   balance: z.number(),
 });
 
