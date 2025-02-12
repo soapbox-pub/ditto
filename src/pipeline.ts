@@ -161,15 +161,6 @@ function isProtectedEvent(event: NostrEvent): boolean {
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
   await hydrateEvents({ events: [event], store: await Storages.db(), signal });
-
-  const kysely = await Storages.kysely();
-  const domain = await kysely
-    .selectFrom('pubkey_domains')
-    .select('domain')
-    .where('pubkey', '=', event.pubkey)
-    .executeTakeFirst();
-
-  event.author_domain = domain?.domain;
 }
 
 /** Maybe store the event, if eligible. */

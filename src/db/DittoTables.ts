@@ -7,7 +7,6 @@ export interface DittoTables extends NPostgresSchema {
   author_stats: AuthorStatsRow;
   domain_favicons: DomainFaviconRow;
   event_stats: EventStatsRow;
-  pubkey_domains: PubkeyDomainRow;
   event_zaps: EventZapRow;
   push_subscriptions: PushSubscriptionRow;
 }
@@ -43,12 +42,6 @@ interface AuthTokenRow {
   nip46_sk_enc: Uint8Array;
   nip46_relays: string[];
   created_at: Date;
-}
-
-interface PubkeyDomainRow {
-  pubkey: string;
-  domain: string;
-  last_updated_at: number;
 }
 
 interface DomainFaviconRow {

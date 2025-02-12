@@ -27,7 +27,6 @@ export interface EventStats {
 /** Internal Event representation used by Ditto, including extra keys. */
 export interface DittoEvent extends NostrEvent {
   author?: DittoEvent;
-  author_domain?: string;
   author_stats?: AuthorStats;
   event_stats?: EventStats;
   mentions?: DittoEvent[];

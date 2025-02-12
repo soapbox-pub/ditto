@@ -371,9 +371,9 @@ class EventsDB extends NPostgres {
 
         if (domains.size) {
           let query = this.opts.kysely
-            .selectFrom('pubkey_domains')
+            .selectFrom('author_stats')
             .select('pubkey')
-            .where('domain', 'in', [...domains]);
+            .where('nip05_domain', 'in', [...domains]);
 
           if (filter.authors) {
             query = query.where('pubkey', 'in', filter.authors);
