@@ -119,6 +119,7 @@ const accountSearchQuerySchema = z.object({
 const accountSearchController: AppController = async (c) => {
   const { signal } = c.req.raw;
   const { limit } = c.get('pagination');
+
   const kysely = await Storages.kysely();
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
@@ -136,27 +137,22 @@ const accountSearchController: AppController = async (c) => {
 
   if (!event && lookup) {
     const pubkey = await lookupPubkey(lookup);
-    return c.json(pubkey ? [await accountFromPubkey(pubkey)] : []);
+    return c.json(pubkey ? [accountFromPubkey(pubkey)] : []);
   }
 
-  const followedPubkeys: Set<string> = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set();
-  const pubkeys = Array.from(await getPubkeysBySearch(kysely, { q: query, limit, offset: 0, followedPubkeys }));
+  const events: NostrEvent[] = [];
 
-  let events = event ? [event] : await store.query([{ kinds: [0], authors: pubkeys, limit }], {
-    signal,
-  });
-
-  if (!event) {
-    events = pubkeys
-      .map((pubkey) => events.find((event) => event.pubkey === pubkey))
-      .filter((event) => !!event);
+  if (event) {
+    events.push(event);
+  } else {
+    const following = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
+    const authors = [...await getPubkeysBySearch(kysely, { q: query, limit, offset: 0, following })];
+    const profiles = await store.query([{ kinds: [0], authors, limit }], { signal });
+    events.push(...profiles);
   }
-  const accounts = await hydrateEvents({ events, store, signal }).then(
-    (events) =>
-      Promise.all(
-        events.map((event) => renderAccount(event)),
-      ),
-  );
+
+  const accounts = await hydrateEvents({ events, store, signal })
+    .then((events) => events.map((event) => renderAccount(event)));
 
   return c.json(accounts);
 };
