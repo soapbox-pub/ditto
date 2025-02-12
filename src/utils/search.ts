@@ -12,10 +12,9 @@ export async function getPubkeysBySearch(
   const pubkeys = new Set<string>();
 
   const query = kysely
-    .selectFrom('author_stats')
+    .selectFrom('top_authors')
     .select('pubkey')
     .where('search', sql`%>`, q)
-    .orderBy('followers_count desc')
     .limit(limit)
     .offset(offset);
 
