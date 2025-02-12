@@ -165,4 +165,11 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
   return c.json(walletEntity, 200);
 });
 
+/** Get mints set by the CASHU_MINTS environment variable. */
+app.get('/mints', (c) => {
+  const mints = Conf.cashuMints;
+
+  return c.json({ mints }, 200);
+});
+
 export default app;
