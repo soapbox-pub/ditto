@@ -112,7 +112,7 @@ const accountLookupController: AppController = async (c) => {
 
 const accountSearchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
-  resolve: booleanParamSchema.optional().transform(Boolean),
+  resolve: booleanParamSchema.optional(),
   following: z.boolean().default(false),
 });
 
@@ -148,7 +148,13 @@ const accountSearchController: AppController = async (c) => {
     const following = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
     const authors = [...await getPubkeysBySearch(kysely, { q: query, limit, offset: 0, following })];
     const profiles = await store.query([{ kinds: [0], authors, limit }], { signal });
-    events.push(...profiles);
+
+    for (const pubkey of authors) {
+      const profile = profiles.find((event) => event.pubkey === pubkey);
+      if (profile) {
+        events.push(profile);
+      }
+    }
   }
 
   const accounts = await hydrateEvents({ events, store, signal })
