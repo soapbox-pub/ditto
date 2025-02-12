@@ -44,13 +44,11 @@ import { captchaController, captchaVerifyController } from '@/controllers/api/ca
 import {
   adminRelaysController,
   adminSetRelaysController,
-  createNutzapInformationController,
   deleteZapSplitsController,
   getZapSplitsController,
   nameRequestController,
   nameRequestsController,
   statusZapSplitsController,
-  swapNutzapsToWalletController,
   updateInstanceController,
   updateZapSplitsController,
 } from '@/controllers/api/ditto.ts';
@@ -409,9 +407,6 @@ app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
 
 app.route('/api/v1/ditto/cashu', cashuApp);
-
-app.post('/api/v1/ditto/nutzap_information/create', requireSigner, createNutzapInformationController);
-app.post('/api/v1/ditto/nutzap/swap_to_wallet', requireSigner, swapNutzapsToWalletController);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
