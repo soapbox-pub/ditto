@@ -6,6 +6,7 @@ import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import { LanguageCode } from 'iso-639-1';
 import { Kysely } from 'kysely';
+import linkify from 'linkifyjs';
 import { nip27 } from 'nostr-tools';
 import { z } from 'zod';
 
@@ -17,6 +18,7 @@ import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { detectLanguage } from '@/utils/language.ts';
+import { getMediaLinks } from '@/utils/note.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = (opts: TagConditionOpts) => boolean;
@@ -96,6 +98,12 @@ class EventsDB extends NPostgres {
           return [split[0], split.splice(1).join(' ')];
         })
       );
+
+    // quirks mode
+    if (!imeta.length && event.kind === 1) {
+      const links = linkify.find(event.content).filter(({ type }) => type === 'url');
+      imeta.push(...getMediaLinks(links));
+    }
 
     if (imeta.length) {
       ext.media = 'true';
