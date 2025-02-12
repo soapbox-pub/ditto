@@ -25,11 +25,7 @@ const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 
 // app.get('/mints') -> Mint[]
 
-// app.get(swapMiddleware, '/wallet') -> Wallet, 404
-// app.put('/wallet') -> Wallet
 // app.delete('/wallet') -> 204
-
-// app.post('/swap') Maybe make this a middleware? Also pipeline interaction.
 
 // app.post(swapMiddleware, '/nutzap');
 
