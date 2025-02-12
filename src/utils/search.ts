@@ -31,7 +31,7 @@ export async function getPubkeysBySearch(
     return pubkeys;
   }
 
-  for (const { pubkey } of await query.execute()) {
+  for (const { pubkey } of await query.limit(limit - pubkeys.size).execute()) {
     pubkeys.add(pubkey);
   }
 
