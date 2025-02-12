@@ -1,4 +1,5 @@
 import { assertEquals } from '@std/assert';
+import { sql } from 'kysely';
 
 import { createTestDB } from '@/test.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
@@ -13,6 +14,8 @@ Deno.test('fuzzy search works', async () => {
     followers_count: 0,
     following_count: 0,
   }).execute();
+
+  await sql`REFRESH MATERIALIZED VIEW top_authors`.execute(db.kysely);
 
   assertEquals(
     await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, offset: 0, following: new Set() }),
@@ -42,6 +45,8 @@ Deno.test('fuzzy search works with offset', async () => {
     followers_count: 0,
     following_count: 0,
   }).execute();
+
+  await sql`REFRESH MATERIALIZED VIEW top_authors`.execute(db.kysely);
 
   assertEquals(
     await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, offset: 1, following: new Set() }),
