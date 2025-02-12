@@ -15,17 +15,17 @@ Deno.test('fuzzy search works', async () => {
   }).execute();
 
   assertEquals(
-    await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, offset: 0, followedPubkeys: new Set() }),
+    await getPubkeysBySearch(db.kysely, { q: 'pat rick', limit: 1, offset: 0, following: new Set() }),
     new Set(),
   );
   assertEquals(
-    await getPubkeysBySearch(db.kysely, { q: 'patrick dosreis', limit: 1, offset: 0, followedPubkeys: new Set() }),
+    await getPubkeysBySearch(db.kysely, { q: 'patrick dosreis', limit: 1, offset: 0, following: new Set() }),
     new Set([
       '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
     ]),
   );
   assertEquals(
-    await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, offset: 0, followedPubkeys: new Set() }),
+    await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, offset: 0, following: new Set() }),
     new Set([
       '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4',
     ]),
@@ -44,7 +44,7 @@ Deno.test('fuzzy search works with offset', async () => {
   }).execute();
 
   assertEquals(
-    await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, offset: 1, followedPubkeys: new Set() }),
+    await getPubkeysBySearch(db.kysely, { q: 'dosreis.com', limit: 1, offset: 1, following: new Set() }),
     new Set(),
   );
 });
