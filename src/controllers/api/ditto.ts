@@ -1,16 +1,14 @@
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
-import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { Conf } from '@/config.ts';
-import { addTag } from '@/utils/tags.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
+import { addTag } from '@/utils/tags.ts';
 import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
@@ -245,7 +243,7 @@ export const getZapSplitsController: AppController = async (c) => {
   const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
     const author = await getAuthor(pubkey);
 
-    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+    const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
     return {
       account,
@@ -274,9 +272,9 @@ export const statusZapSplitsController: AppController = async (c) => {
   const users = await store.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
   await hydrateEvents({ events: users, store, signal });
 
-  const zapSplits = (await Promise.all(pubkeys.map(async (pubkey) => {
+  const zapSplits = (await Promise.all(pubkeys.map((pubkey) => {
     const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;
-    const account = author ? await renderAccount(author) : await accountFromPubkey(pubkey);
+    const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
     const weight = percentageSchema.catch(0).parse(zapsTag.find((name) => name[1] === pubkey)![3]) ?? 0;
 
@@ -343,136 +341,4 @@ export const updateInstanceController: AppController = async (c) => {
   );
 
   return c.json(204);
-};
-
-const createCashuWalletSchema = z.object({
-  description: z.string(),
-  relays: z.array(z.string().url()),
-  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
-  name: z.string(),
-});
-
-/**
- * Creates an addressable Cashu wallet.
- * https://github.com/nostr-protocol/nips/blob/master/60.md
- */
-export const createCashuWalletController: AppController = async (c) => {
-  const signer = c.get('signer')!;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const body = await parseBody(c.req.raw);
-  const { signal } = c.req.raw;
-  const result = createCashuWalletSchema.safeParse(body);
-
-  if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 400);
-  }
-
-  const [event] = await store.query([{ authors: [pubkey], kinds: [37375] }], { signal });
-  if (event) {
-    return c.json({ error: 'You already have a wallet 😏' }, 400);
-  }
-
-  const { description, relays, mints, name } = result.data;
-  relays.push(Conf.relay);
-
-  const tags: string[][] = [];
-
-  const wallet_id = Math.random().toString(36).substring(3);
-
-  tags.push(['d', wallet_id]);
-  tags.push(['name', name]);
-  tags.push(['description', description]);
-  tags.push(['unit', 'sat']);
-
-  for (const mint of new Set(mints)) {
-    tags.push(['mint', mint]);
-  }
-
-  for (const relay of new Set(relays)) {
-    tags.push(['relay', relay]);
-  }
-
-  const sk = generateSecretKey();
-  const privkey = bytesToString('hex', sk);
-
-  const contentTags = [
-    ['privkey', privkey],
-  ];
-  const encryptedContentTags = await signer.nip44?.encrypt(pubkey, JSON.stringify(contentTags));
-
-  // Wallet
-  await createEvent({
-    kind: 37375,
-    content: encryptedContentTags,
-    tags,
-  }, c);
-
-  return c.json({ wallet_id }, 200);
-};
-
-const createNutzapInformationSchema = z.object({
-  relays: z.array(z.string().url()),
-  mints: z.array(z.string().url()).nonempty(), // must contain at least one item
-  wallet_id: z.string(),
-});
-
-/**
- * Creates a replaceable Nutzap information for a specific wallet.
- * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
- */
-export const createNutzapInformationController: AppController = async (c) => {
-  const signer = c.get('signer')!;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const body = await parseBody(c.req.raw);
-  const { signal } = c.req.raw;
-  const result = createNutzapInformationSchema.safeParse(body);
-
-  if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 400);
-  }
-
-  const nip44 = signer.nip44;
-  if (!nip44) {
-    return c.json({ error: 'Signer does not have nip 44' }, 400);
-  }
-
-  const { relays, mints, wallet_id } = result.data;
-
-  const [event] = await store.query([{ authors: [pubkey], kinds: [37375], '#d': [wallet_id] }], { signal });
-  if (!event) {
-    return c.json({ error: 'Could not find a wallet with the id: ' + wallet_id }, 400);
-  }
-
-  relays.push(Conf.relay);
-
-  const tags: string[][] = [];
-
-  for (const mint of new Set(mints)) {
-    tags.push(['mint', mint, 'sat']);
-  }
-
-  for (const relay of new Set(relays)) {
-    tags.push(['relay', relay]);
-  }
-
-  const contentTags: string[][] = JSON.parse(await nip44.decrypt(pubkey, event.content));
-
-  const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
-  if (!privkey) {
-    return c.json({ error: 'Wallet does not contain privkey' }, 400);
-  }
-
-  const p2pk = getPublicKey(stringToBytes('hex', privkey));
-
-  tags.push(['pubkey', p2pk]);
-
-  // Nutzap information
-  await createEvent({
-    kind: 10019,
-    tags,
-  }, c);
-
-  return c.json(201);
 };

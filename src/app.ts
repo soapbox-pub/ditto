@@ -39,11 +39,11 @@ import {
 import { appCredentialsController, createAppController } from '@/controllers/api/apps.ts';
 import { blocksController } from '@/controllers/api/blocks.ts';
 import { bookmarksController } from '@/controllers/api/bookmarks.ts';
+import cashuApp from '@/controllers/api/cashu.ts';
 import { captchaController, captchaVerifyController } from '@/controllers/api/captcha.ts';
 import {
   adminRelaysController,
   adminSetRelaysController,
-  createCashuWalletController,
   deleteZapSplitsController,
   getZapSplitsController,
   nameRequestController,
@@ -406,7 +406,7 @@ app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSpli
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
 
-app.post('/api/v1/ditto/wallet/create', requireSigner, createCashuWalletController);
+app.route('/api/v1/ditto/cashu', cashuApp);
 
 app.post('/api/v1/reports', requireSigner, reportController);
 app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);

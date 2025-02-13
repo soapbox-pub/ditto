@@ -19,7 +19,7 @@ import { purifyEvent } from '@/utils/purify.ts';
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
+async function createEvent(t: EventStub, c: Context): Promise<NostrEvent> {
   const signer = c.get('signer');
 
   if (!signer) {

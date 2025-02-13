@@ -295,6 +295,10 @@ class Conf {
   static get preferredLanguages(): LanguageCode[] | undefined {
     return Deno.env.get('DITTO_LANGUAGES')?.split(',')?.filter(ISO6391.validate);
   }
+  /** Mints to be displayed in the UI when the user decides to create a wallet.*/
+  static get cashuMints(): string[] {
+    return Deno.env.get('CASHU_MINTS')?.split(',') ?? [];
+  }
   /** Translation provider used to translate posts. */
   static get translationProvider(): string | undefined {
     return Deno.env.get('TRANSLATION_PROVIDER');

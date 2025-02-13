@@ -1,8 +1,8 @@
+import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
-import { NSecSigner } from '@nostrify/nostrify';
+import { NostrSigner, NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { AppMiddleware } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
@@ -14,7 +14,7 @@ import { getTokenHash } from '@/utils/auth.ts';
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
 /** Make a `signer` object available to all controllers, or unset if the user isn't logged in. */
-export const signerMiddleware: AppMiddleware = async (c, next) => {
+export const signerMiddleware: MiddlewareHandler<{ Variables: { signer: NostrSigner } }> = async (c, next) => {
   const header = c.req.header('authorization');
   const match = header?.match(BEARER_REGEX);
 
