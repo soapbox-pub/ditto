@@ -61,7 +61,7 @@ export class InternalRelay implements NRelay {
               typeof t === 'object' && t.key === 'domain'
             ) as { key: 'domain'; value: string } | undefined)?.value;
 
-            if (domain === event.author_stats?.nip05_domain) {
+            if (domain === event.author_stats?.nip05_hostname) {
               machina.push(purifyEvent(event));
               break;
             }
