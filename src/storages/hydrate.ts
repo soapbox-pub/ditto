@@ -30,11 +30,7 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
 
   const cache = [...events];
 
-  for (const event of await gatherReposts({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
-  for (const event of await gatherReacted({ events: cache, store, signal })) {
+  for (const event of await gatherRelatedEvents({ events: cache, store, signal })) {
     cache.push(event);
   }
 
@@ -42,11 +38,7 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
-  for (const event of await gatherMentions({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
-  for (const event of await gatherAuthors({ events: cache, store, signal })) {
+  for (const event of await gatherProfiles({ events: cache, store, signal })) {
     cache.push(event);
   }
 
@@ -55,18 +47,6 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   for (const event of await gatherInfo({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
-  for (const event of await gatherReportedProfiles({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
-  for (const event of await gatherReportedNotes({ events: cache, store, signal })) {
-    cache.push(event);
-  }
-
-  for (const event of await gatherZapped({ events: cache, store, signal })) {
     cache.push(event);
   }
 
@@ -217,32 +197,36 @@ export function assembleEvents(
   return a;
 }
 
-/** Collect reposts from the events. */
-function gatherReposts({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+/** Collect event targets (eg reposts, quote posts, reacted posts, etc.) */
+function gatherRelatedEvents({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
   for (const event of events) {
+    // Reposted events
     if (event.kind === 6) {
       const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
         ids.add(id);
       }
     }
-  }
-
-  return store.query(
-    [{ ids: [...ids], limit: ids.size }],
-    { signal },
-  );
-}
-
-/** Collect events being reacted to by the events. */
-function gatherReacted({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const ids = new Set<string>();
-
-  for (const event of events) {
+    // Reacted events
     if (event.kind === 7) {
       const id = event.tags.findLast(([name]) => name === 'e')?.[1];
+      if (id) {
+        ids.add(id);
+      }
+    }
+    // Reported events
+    if (event.kind === 1984) {
+      for (const [name, value] of event.tags) {
+        if (name === 'e') {
+          ids.add(value);
+        }
+      }
+    }
+    // Zapped events
+    if (event.kind === 9735) {
+      const id = event.tags.find(([name]) => name === 'e')?.[1];
       if (id) {
         ids.add(id);
       }
@@ -274,11 +258,15 @@ function gatherQuotes({ events, store, signal }: HydrateOpts): Promise<DittoEven
   );
 }
 
-/** Collect mentioned profiles from notes. */
-async function gatherMentions({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+/** Collect profiles from the events. */
+async function gatherProfiles({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set<string>();
 
   for (const event of events) {
+    // Authors
+    pubkeys.add(event.pubkey);
+
+    // Mentions
     if (event.kind === 1) {
       for (const [name, value] of event.tags) {
         if (name === 'p') {
@@ -286,29 +274,14 @@ async function gatherMentions({ events, store, signal }: HydrateOpts): Promise<D
         }
       }
     }
-  }
-
-  const authors = await store.query(
-    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
-    { signal },
-  );
-
-  for (const pubkey of pubkeys) {
-    const author = authors.find((e) => matchFilter({ kinds: [0], authors: [pubkey] }, e));
-    if (!author) {
-      const fallback = fallbackAuthor(pubkey);
-      authors.push(fallback);
+    // Reported profiles
+    if (event.kind === 1984) {
+      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
+      if (pubkey) {
+        pubkeys.add(pubkey);
+      }
     }
-  }
-
-  return authors;
-}
-
-/** Collect authors from the events. */
-async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const pubkeys = new Set<string>();
-
-  for (const event of events) {
+    // Zap recipients
     if (event.kind === 9735) {
       const zapReceiver = event.tags.find(([name]) => name === 'p')?.[1];
       if (zapReceiver) {
@@ -324,7 +297,6 @@ async function gatherAuthors({ events, store, signal }: HydrateOpts): Promise<Di
         pubkeys.add(zapSender);
       }
     }
-    pubkeys.add(event.pubkey);
   }
 
   const authors = await store.query(
@@ -373,64 +345,6 @@ function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[
 
   return store.query(
     [{ kinds: [30383], authors: [Conf.pubkey], '#d': [...ids], limit: ids.size }],
-    { signal },
-  );
-}
-
-/** Collect reported notes from the events. */
-function gatherReportedNotes({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const ids = new Set<string>();
-  for (const event of events) {
-    if (event.kind === 1984) {
-      const status_ids = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]);
-      if (status_ids.length > 0) {
-        for (const id of status_ids) {
-          ids.add(id);
-        }
-      }
-    }
-  }
-
-  return store.query(
-    [{ kinds: [1, 20], ids: [...ids], limit: ids.size }],
-    { signal },
-  );
-}
-
-/** Collect reported profiles from the events. */
-function gatherReportedProfiles({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const pubkeys = new Set<string>();
-
-  for (const event of events) {
-    if (event.kind === 1984) {
-      const pubkey = event.tags.find(([name]) => name === 'p')?.[1];
-      if (pubkey) {
-        pubkeys.add(pubkey);
-      }
-    }
-  }
-
-  return store.query(
-    [{ kinds: [0], authors: [...pubkeys], limit: pubkeys.size }],
-    { signal },
-  );
-}
-
-/** Collect events being zapped. */
-function gatherZapped({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
-  const ids = new Set<string>();
-
-  for (const event of events) {
-    if (event.kind === 9735) {
-      const id = event.tags.find(([name]) => name === 'e')?.[1];
-      if (id) {
-        ids.add(id);
-      }
-    }
-  }
-
-  return store.query(
-    [{ ids: [...ids], limit: ids.size }],
     { signal },
   );
 }

@@ -22,7 +22,7 @@ interface ParsedNoteContent {
 
 /** Convert Nostr content to Mastodon API HTML. Also return parsed data. */
 function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedNoteContent {
-  const links = linkify.find(content).filter(isLinkURL);
+  const links = linkify.find(content).filter(({ type }) => type === 'url');
   const firstUrl = links.find(isNonMediaLink)?.href;
 
   const result = linkifyStr(content, {
@@ -121,11 +121,6 @@ function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
 
 function isNonMediaLink({ href }: Link): boolean {
   return /^https?:\/\//.test(href) && !getUrlMediaType(href);
-}
-
-/** Ensures the Link is a URL so it can be parsed. */
-function isLinkURL(link: Link): boolean {
-  return link.type === 'url';
 }
 
 /** Get pubkey from decoded bech32 entity, or undefined if not applicable. */

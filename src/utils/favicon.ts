@@ -91,7 +91,7 @@ async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> 
   const fallback = await safeFetch(url, { method: 'HEAD', signal });
   const contentType = fallback.headers.get('content-type');
 
-  if (fallback.ok && contentType === 'image/vnd.microsoft.icon') {
+  if (fallback.ok && ['image/vnd.microsoft.icon', 'image/x-icon'].includes(contentType!)) {
     logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'found', url });
     return url;
   }

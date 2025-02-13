@@ -1,11 +1,14 @@
 // deno-lint-ignore-file require-await
 
-import { NPostgres } from '@nostrify/db';
+import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
+import { LanguageCode } from 'iso-639-1';
 import { Kysely } from 'kysely';
+import linkify from 'linkifyjs';
 import { nip27 } from 'nostr-tools';
+import tldts from 'tldts';
 import { z } from 'zod';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -16,6 +19,7 @@ import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { detectLanguage } from '@/utils/language.ts';
+import { getMediaLinks } from '@/utils/note.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = (opts: TagConditionOpts) => boolean;
@@ -95,6 +99,12 @@ class EventsDB extends NPostgres {
           return [split[0], split.splice(1).join(' ')];
         })
       );
+
+    // quirks mode
+    if (!imeta.length && event.kind === 1) {
+      const links = linkify.find(event.content).filter(({ type }) => type === 'url');
+      imeta.push(...getMediaLinks(links));
+    }
 
     if (imeta.length) {
       ext.media = 'true';
@@ -231,6 +241,25 @@ class EventsDB extends NPostgres {
     return super.query(filters, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
   }
 
+  /** Parse an event row from the database. */
+  protected override parseEventRow(row: NPostgresSchema['nostr_events']): DittoEvent {
+    const event: DittoEvent = {
+      id: row.id,
+      kind: row.kind,
+      pubkey: row.pubkey,
+      content: row.content,
+      created_at: Number(row.created_at),
+      tags: row.tags,
+      sig: row.sig,
+    };
+
+    if (!this.opts.pure) {
+      event.language = row.search_ext.language as LanguageCode | undefined;
+    }
+
+    return event;
+  }
+
   /** Delete events based on filters from the database. */
   override async remove(filters: NostrFilter[], opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     logi({ level: 'debug', ns: 'ditto.remove', source: 'db', filters: filters as JsonValue });
@@ -342,18 +371,36 @@ class EventsDB extends NPostgres {
         const tokens = NIP50.parseInput(filter.search);
 
         const domains = new Set<string>();
+        const hostnames = new Set<string>();
 
         for (const token of tokens) {
           if (typeof token === 'object' && token.key === 'domain') {
-            domains.add(token.value);
+            const { domain, hostname } = tldts.parse(token.value);
+            if (domain === hostname) {
+              domains.add(token.value);
+            } else {
+              hostnames.add(token.value);
+            }
           }
         }
 
-        if (domains.size) {
+        if (domains.size || hostnames.size) {
           let query = this.opts.kysely
-            .selectFrom('pubkey_domains')
+            .selectFrom('author_stats')
             .select('pubkey')
-            .where('domain', 'in', [...domains]);
+            .where((eb) => {
+              const expr = [];
+              if (domains.size) {
+                expr.push(eb('nip05_domain', 'in', [...domains]));
+              }
+              if (hostnames.size) {
+                expr.push(eb('nip05_hostname', 'in', [...hostnames]));
+              }
+              if (expr.length === 1) {
+                return expr[0];
+              }
+              return eb.or(expr);
+            });
 
           if (filter.authors) {
             query = query.where('pubkey', 'in', filter.authors);

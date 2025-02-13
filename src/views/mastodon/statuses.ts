@@ -46,7 +46,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
 
   const [card, relatedEvents] = await Promise
     .all([
-      firstUrl ? unfurlCardCached(firstUrl) : null,
+      firstUrl ? unfurlCardCached(firstUrl, AbortSignal.timeout(500)) : null,
       viewerPubkey
         ? await store.query([
           { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },

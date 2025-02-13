@@ -10,11 +10,40 @@ import { paginated } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
+const homeQuerySchema = z.object({
+  exclude_replies: booleanParamSchema.optional(),
+  only_media: booleanParamSchema.optional(),
+});
+
 const homeTimelineController: AppController = async (c) => {
   const params = c.get('pagination');
   const pubkey = await c.get('signer')?.getPublicKey()!;
+  const result = homeQuerySchema.safeParse(c.req.query());
+
+  if (!result.success) {
+    return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  const { exclude_replies, only_media } = result.data;
+
   const authors = [...await getFeedPubkeys(pubkey)];
-  return renderStatuses(c, [{ authors, kinds: [1, 6, 20], ...params }]);
+  const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...params };
+
+  const search: string[] = [];
+
+  if (only_media) {
+    search.push('media:true');
+  }
+
+  if (exclude_replies) {
+    search.push('reply:false');
+  }
+
+  if (search.length) {
+    filter.search = search.join(' ');
+  }
+
+  return renderStatuses(c, [filter]);
 };
 
 const publicQuerySchema = z.object({

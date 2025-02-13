@@ -338,7 +338,7 @@ class Conf {
     /** Link preview cache settings. */
     get linkPreview(): { max: number; ttl: number } {
       return {
-        max: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_MAX') || 1000),
+        max: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_MAX') || 3000),
         ttl: Number(Deno.env.get('DITTO_CACHE_LINK_PREVIEW_TTL') || 12 * 60 * 60 * 1000),
       };
     },
