@@ -43,14 +43,14 @@ Deno.test('query events with domain search filter', async () => {
   await store.event(event1);
 
   assertEquals(await store.query([{}]), [event1]);
-  assertEquals(await store.query([{ search: 'domain:localhost:4036' }]), []);
+  assertEquals(await store.query([{ search: 'domain:gleasonator.dev' }]), []);
   assertEquals(await store.query([{ search: '' }]), [event1]);
 
   await kysely
     .insertInto('author_stats')
     .values({
       pubkey: event1.pubkey,
-      nip05_domain: 'localhost:4036',
+      nip05_domain: 'gleasonator.dev',
       nip05_last_verified_at: event1.created_at,
       followers_count: 0,
       following_count: 0,
@@ -59,7 +59,7 @@ Deno.test('query events with domain search filter', async () => {
     })
     .execute();
 
-  assertEquals(await store.query([{ kinds: [1], search: 'domain:localhost:4036' }]), [event1]);
+  assertEquals(await store.query([{ kinds: [1], search: 'domain:gleasonator.dev' }]), [event1]);
   assertEquals(await store.query([{ kinds: [1], search: 'domain:example.com' }]), []);
 });
 
