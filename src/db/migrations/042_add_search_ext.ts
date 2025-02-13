@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .alterTable('nostr_events')
     .addColumn('search_ext', 'jsonb', (col) => col.notNull().defaultTo(sql`'{}'::jsonb`))
@@ -19,7 +19,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .dropIndex('nostr_events_search_ext_idx')
     .on('nostr_events')

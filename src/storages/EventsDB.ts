@@ -270,7 +270,7 @@ class EventsDB extends NPostgres {
   override async count(
     filters: NostrFilter[],
     opts: { signal?: AbortSignal; timeout?: number } = {},
-  ): Promise<{ count: number; approximate: any }> {
+  ): Promise<{ count: number; approximate: boolean }> {
     if (opts.signal?.aborted) return Promise.reject(abortError());
 
     logi({ level: 'debug', ns: 'ditto.count', source: 'db', filters: filters as JsonValue });
@@ -428,6 +428,7 @@ class EventsDB extends NPostgres {
     return filters;
   }
 
+  // deno-lint-ignore no-explicit-any
   override async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
     return super.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
   }

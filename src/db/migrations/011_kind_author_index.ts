@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createIndex('idx_events_kind_pubkey_created_at')
     .on('events')
@@ -8,6 +8,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_events_kind_pubkey_created_at').execute();
 }

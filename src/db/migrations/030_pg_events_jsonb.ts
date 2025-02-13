@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   // Create new table and indexes.
   await db.schema
     .createTable('nostr_events_new')
@@ -132,6 +132,6 @@ If you don't want to wait, you can create a fresh database and then import your 
   await db.schema.alterTable('nostr_events_new').renameTo('nostr_events').execute();
 }
 
-export function down(_db: Kysely<any>): Promise<void> {
+export function down(_db: Kysely<unknown>): Promise<void> {
   throw new Error("Sorry, you can't migrate back from here.");
 }

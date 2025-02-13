@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await sql`
     CREATE OR REPLACE FUNCTION notify_nostr_event()
     RETURNS TRIGGER AS $$
@@ -31,7 +31,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   `.execute(db);
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await sql`DROP TRIGGER nostr_event_trigger ON nostr_events`.execute(db);
   await sql`DROP FUNCTION notify_nostr_event()`.execute(db);
 }

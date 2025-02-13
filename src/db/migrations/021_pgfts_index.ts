@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createIndex('nostr_pgfts_gin_search_vec')
     .ifNotExists()
@@ -10,6 +10,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('nostr_pgfts_gin_search_vec').ifExists().execute();
 }

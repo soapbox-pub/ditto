@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('nip46_tokens')
     .addColumn('api_token', 'text', (col) => col.primaryKey().notNull())
@@ -12,6 +12,6 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropTable('nip46_tokens').execute();
 }
