@@ -8,6 +8,7 @@ import { LanguageCode } from 'iso-639-1';
 import { Kysely } from 'kysely';
 import linkify from 'linkifyjs';
 import { nip27 } from 'nostr-tools';
+import tldts from 'tldts';
 import { z } from 'zod';
 
 import { DittoTables } from '@/db/DittoTables.ts';
@@ -370,18 +371,36 @@ class EventsDB extends NPostgres {
         const tokens = NIP50.parseInput(filter.search);
 
         const domains = new Set<string>();
+        const hostnames = new Set<string>();
 
         for (const token of tokens) {
           if (typeof token === 'object' && token.key === 'domain') {
-            domains.add(token.value);
+            const { domain, hostname } = tldts.parse(token.value);
+            if (domain === hostname) {
+              domains.add(token.value);
+            } else {
+              hostnames.add(token.value);
+            }
           }
         }
 
-        if (domains.size) {
+        if (domains.size || hostnames.size) {
           let query = this.opts.kysely
             .selectFrom('author_stats')
             .select('pubkey')
-            .where('nip05_hostname', 'in', [...domains]);
+            .where((eb) => {
+              const expr = [];
+              if (domains.size) {
+                expr.push(eb('nip05_domain', 'in', [...domains]));
+              }
+              if (hostnames.size) {
+                expr.push(eb('nip05_hostname', 'in', [...hostnames]));
+              }
+              if (expr.length === 1) {
+                return expr[0];
+              }
+              return eb.or(expr);
+            });
 
           if (filter.authors) {
             query = query.where('pubkey', 'in', filter.authors);
