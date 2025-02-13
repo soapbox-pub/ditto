@@ -12,7 +12,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getFollowedPubkeys } from '@/queries.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
-import { paginated } from '@/utils/api.ts';
+import { paginated, paginatedList } from '@/utils/api.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -77,7 +77,11 @@ const searchController: AppController = async (c) => {
     hashtags: [],
   };
 
-  return paginated(c, events, body);
+  if (result.data.type === 'accounts') {
+    return paginatedList(c, { ...result.data, ...params }, body);
+  } else {
+    return paginated(c, events, body);
+  }
 };
 
 /** Get events for the search params. */

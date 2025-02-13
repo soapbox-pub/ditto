@@ -243,18 +243,18 @@ function buildListLinkHeader(url: string, params: { offset: number; limit: numbe
 function paginatedList(
   c: AppContext,
   params: { offset: number; limit: number },
-  entities: unknown[],
+  body: object | unknown[],
   headers: HeaderRecord = {},
 ) {
   const link = buildListLinkHeader(c.req.url, params);
-  const hasMore = entities.length > 0;
+  const hasMore = Array.isArray(body) ? body.length > 0 : true;
 
   if (link) {
     headers.link = hasMore ? link : link.split(', ').find((link) => link.endsWith('; rel="prev"'))!;
   }
 
   // Filter out undefined entities.
-  const results = entities.filter(Boolean);
+  const results = Array.isArray(body) ? body.filter(Boolean) : body;
   return c.json(results, 200, headers);
 }
 
