@@ -1,5 +1,6 @@
 import { Kysely } from 'kysely';
 
+// deno-lint-ignore no-explicit-any
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .alterTable('auth_tokens')
@@ -14,7 +15,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .alterTable('auth_tokens')
     .dropColumn('bunker_pubkey')

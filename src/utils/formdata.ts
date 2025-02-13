@@ -16,10 +16,12 @@ export function parseFormData(formData: FormData): unknown {
 /** Deeply sets a value in an object based on a Rails-style nested key. */
 function deepSet(
   /** The target object to modify. */
+  // deno-lint-ignore no-explicit-any
   target: Record<string, any>,
   /** The Rails-style key (e.g., "fields_attributes[0][name]"). */
   key: string,
   /** The value to set. */
+  // deno-lint-ignore no-explicit-any
   value: any,
 ): void {
   const keys = key.match(/[^[\]]+/g); // Extract keys like ["fields_attributes", "0", "name"]

@@ -100,16 +100,6 @@
     "zod": "npm:zod@^3.23.8",
     "~/fixtures/": "./fixtures/"
   },
-  "lint": {
-    "rules": {
-      "tags": [
-        "recommended"
-      ],
-      "exclude": [
-        "no-explicit-any"
-      ]
-    }
-  },
   "fmt": {
     "useTabs": false,
     "lineWidth": 120,

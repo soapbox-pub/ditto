@@ -1,5 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
+// deno-lint-ignore no-explicit-any
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .alterTable('author_stats')
@@ -26,7 +27,7 @@ export async function up(db: Kysely<any>): Promise<void> {
   await db.schema.dropTable('author_search').execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('author_stats_search_idx').ifExists().execute();
   await db.schema.alterTable('author_stats').dropColumn('search').execute();
 }

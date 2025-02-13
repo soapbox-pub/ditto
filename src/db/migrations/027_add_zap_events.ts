@@ -1,6 +1,6 @@
 import { Kysely } from 'kysely';
 
-export async function up(db: Kysely<any>): Promise<void> {
+export async function up(db: Kysely<unknown>): Promise<void> {
   await db.schema
     .createTable('event_zaps')
     .addColumn('receipt_id', 'text', (col) => col.primaryKey())
@@ -25,7 +25,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     .execute();
 }
 
-export async function down(db: Kysely<any>): Promise<void> {
+export async function down(db: Kysely<unknown>): Promise<void> {
   await db.schema.dropIndex('idx_event_zaps_amount_millisats').ifExists().execute();
   await db.schema.dropIndex('idx_event_zaps_target_event_id').ifExists().execute();
   await db.schema.dropTable('event_zaps').execute();

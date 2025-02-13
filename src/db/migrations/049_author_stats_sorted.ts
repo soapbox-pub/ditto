@@ -1,5 +1,6 @@
 import { Kysely, sql } from 'kysely';
 
+// deno-lint-ignore no-explicit-any
 export async function up(db: Kysely<any>): Promise<void> {
   await db.schema
     .createView('top_authors')
