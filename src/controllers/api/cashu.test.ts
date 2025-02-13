@@ -18,7 +18,10 @@ interface AppEnv extends HonoEnv {
   };
 }
 
-Deno.test('PUT /wallet must be successful', async () => {
+Deno.test('PUT /wallet must be successful', {
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, async () => {
   await using db = await createTestDB();
   const store = db.store;
 
@@ -273,7 +276,15 @@ Deno.test('GET /wallet must be successful', async () => {
 });
 
 Deno.test('GET /mints must be successful', async () => {
-  const app = new Hono<AppEnv>().route('/', cashuApp);
+  await using db = await createTestDB();
+  const store = db.store;
+
+  const app = new Hono<AppEnv>().use(
+    async (c, next) => {
+      c.set('store', store);
+      await next();
+    },
+  ).route('/', cashuApp);
 
   const response = await app.request('/mints', {
     method: 'GET',
