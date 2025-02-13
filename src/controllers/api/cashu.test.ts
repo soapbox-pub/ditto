@@ -18,10 +18,7 @@ interface AppEnv extends HonoEnv {
   };
 }
 
-Deno.test('PUT /wallet must be successful', {
-  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-}, async () => {
+Deno.test('PUT /wallet must be successful', async () => {
   await using db = await createTestDB();
   const store = db.store;
 
@@ -97,10 +94,7 @@ Deno.test('PUT /wallet must be successful', {
   ]);
 });
 
-Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', {
-  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-}, async () => {
+Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
   await using db = await createTestDB();
   const store = db.store;
 
@@ -132,10 +126,7 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', {
   assertObjectMatch(body, { error: 'Bad schema' });
 });
 
-Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
-  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-}, async () => {
+Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
   await using db = await createTestDB();
   const store = db.store;
 
@@ -169,10 +160,7 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   assertEquals(body2, { error: 'You already have a wallet 😏' });
 });
 
-Deno.test('GET /wallet must be successful', {
-  sanitizeOps: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-  sanitizeResources: false, // postgres.js calls 'setTimeout' without calling 'clearTimeout'
-}, async () => {
+Deno.test('GET /wallet must be successful', async () => {
   await using db = await createTestDB();
   const store = db.store;
 
@@ -284,7 +272,7 @@ Deno.test('GET /wallet must be successful', {
   });
 });
 
-Deno.test('GET /mints must be successful', {}, async () => {
+Deno.test('GET /mints must be successful', async () => {
   const app = new Hono<AppEnv>().route('/', cashuApp);
 
   const response = await app.request('/mints', {

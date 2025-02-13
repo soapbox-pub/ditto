@@ -4,6 +4,13 @@ import { NostrSigner, NStore } from '@nostrify/nostrify';
 import { UserStore } from '@/storages/UserStore.ts';
 import { Storages } from '@/storages.ts';
 
+export const requireStore: MiddlewareHandler<{ Variables: { store: NStore } }> = async (c, next) => {
+  if (!c.get('store')) {
+    throw new Error('Store is required');
+  }
+  await next();
+};
+
 /** Store middleware. */
 export const storeMiddleware: MiddlewareHandler<{ Variables: { signer?: NostrSigner; store: NStore } }> = async (
   c,

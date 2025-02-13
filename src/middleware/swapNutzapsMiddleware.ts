@@ -2,7 +2,7 @@ import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cash
 import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { getPublicKey } from 'nostr-tools';
-import { NostrFilter, NostrSigner, NStore } from '@nostrify/nostrify';
+import { NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
 import { SetRequired } from 'type-fest';
 import { stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
@@ -11,6 +11,7 @@ import { isNostrId } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { Conf } from '@/config.ts';
 import { createEvent } from '@/utils/api.ts';
+import { z } from 'zod';
 
 /**
  * Swap nutzaps into wallet (create new events) if the user has a wallet, otheriwse, just fallthrough.
@@ -111,7 +112,22 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
           mintsToProofs[mint] = { proofs: [], redeemed: [] };
         }
 
-        mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...JSON.parse(proof)];
+        const parsed = n.json().pipe(
+          z.object({
+            id: z.string(),
+            amount: z.number(),
+            secret: z.string(),
+            C: z.string(),
+            dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
+            dleqValid: z.boolean().optional(),
+          }).array(),
+        ).safeParse(proof);
+
+        if (!parsed.success) {
+          continue;
+        }
+
+        mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...parsed.data];
         mintsToProofs[mint].redeemed = [
           ...mintsToProofs[mint].redeemed,
           [
@@ -122,8 +138,8 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
           ],
           ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
         ];
-      } catch (e: any) {
-        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
+      } catch (e) {
+        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
       }
     }
 
@@ -162,8 +178,8 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
           ),
           tags: mintsToProofs[mint].redeemed,
         }, c);
-      } catch (e: any) {
-        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: e });
+      } catch (e) {
+        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
       }
     }
   }

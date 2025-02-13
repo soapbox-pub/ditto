@@ -6,9 +6,8 @@ import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
 import { createEvent, parseBody } from '@/utils/api.ts';
-import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
 import { requireNip44Signer } from '@/middleware/requireSigner.ts';
-import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
+import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { isNostrId } from '@/utils.ts';
@@ -17,7 +16,7 @@ import { errorJson } from '@/utils/log.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
-const app = new Hono().use('*', storeMiddleware, signerMiddleware);
+const app = new Hono().use('*', requireStore);
 
 // app.delete('/wallet') -> 204
 
@@ -46,7 +45,7 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
 app.put('/wallet', requireNip44Signer, async (c) => {
-  const signer = c.get('signer');
+  const signer = c.var.signer;
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
