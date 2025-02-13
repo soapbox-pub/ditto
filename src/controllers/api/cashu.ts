@@ -19,12 +19,6 @@ type Wallet = z.infer<typeof walletSchema>;
 
 const app = new Hono().use('*', storeMiddleware, signerMiddleware);
 
-// CASHU_MINTS = ['https://mint.cashu.io/1', 'https://mint.cashu.io/2', 'https://mint.cashu.io/3']
-
-// Mint: https://github.com/cashubtc/nuts/blob/main/06.md
-
-// app.get('/mints') -> Mint[]
-
 // app.delete('/wallet') -> 204
 
 // app.post(swapMiddleware, '/nutzap');
@@ -167,6 +161,7 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 
 /** Get mints set by the CASHU_MINTS environment variable. */
 app.get('/mints', (c) => {
+  // TODO: Return full Mint information: https://github.com/cashubtc/nuts/blob/main/06.md
   const mints = Conf.cashuMints;
 
   return c.json({ mints }, 200);

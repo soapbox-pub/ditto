@@ -283,3 +283,16 @@ Deno.test('GET /wallet must be successful', {
     balance: 100,
   });
 });
+
+Deno.test('GET /mints must be successful', {}, async () => {
+  const app = new Hono<AppEnv>().route('/', cashuApp);
+
+  const response = await app.request('/mints', {
+    method: 'GET',
+  });
+
+  const body = await response.json();
+
+  assertEquals(response.status, 200);
+  assertEquals(body, { mints: [] });
+});
