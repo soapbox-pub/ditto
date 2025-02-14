@@ -87,14 +87,14 @@ const createStatusController: AppController = async (c) => {
   const tags: string[][] = [];
 
   if (data.in_reply_to_id) {
-    const ancestor = await getEvent(data.in_reply_to_id);
+    const [ancestor] = await store.query([{ ids: [data.in_reply_to_id] }]);
 
     if (!ancestor) {
       return c.json({ error: 'Original post not found.' }, 404);
     }
 
     const rootId = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
-    const root = rootId === ancestor.id ? ancestor : await getEvent(rootId);
+    const root = rootId === ancestor.id ? ancestor : await store.query([{ ids: [rootId] }]).then(([event]) => event);
 
     if (root) {
       tags.push(['e', root.id, Conf.relay, 'root', root.pubkey]);
@@ -108,7 +108,7 @@ const createStatusController: AppController = async (c) => {
   let quoted: DittoEvent | undefined;
 
   if (data.quote_id) {
-    quoted = await getEvent(data.quote_id);
+    [quoted] = await store.query([{ ids: [data.quote_id] }]);
 
     if (!quoted) {
       return c.json({ error: 'Quoted post not found.' }, 404);
