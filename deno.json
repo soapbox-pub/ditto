@@ -88,7 +88,6 @@
     "nostr-tools": "npm:nostr-tools@2.5.1",
     "nostr-wasm": "npm:nostr-wasm@^0.1.0",
     "path-to-regexp": "npm:path-to-regexp@^7.1.0",
-    "png-to-ico": "npm:png-to-ico@^2.1.8",
     "postgres": "https://gitlab.com/soapbox-pub/postgres.js/-/raw/e79d7d2039446fbf7a37d4eca0d17e94a94b8b53/deno/mod.js",
     "prom-client": "npm:prom-client@^15.1.2",
     "question-deno": "https://raw.githubusercontent.com/ocpu/question-deno/10022b8e52555335aa510adb08b0a300df3cf904/mod.ts",
