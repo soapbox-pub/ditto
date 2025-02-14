@@ -65,7 +65,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
     if (result.success) {
-      logi({ level: 'trace', ns: 'ditto.relay.message', data: result.data as JsonValue });
+      logi({ level: 'trace', ns: 'ditto.relay.message', data: result.data as JsonValue, ip });
       relayMessagesCounter.inc({ verb: result.data[0] });
       handleMsg(result.data);
     } else {
@@ -170,7 +170,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e) });
+        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e), ip });
       }
     }
   }
