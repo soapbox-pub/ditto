@@ -2,18 +2,13 @@ import { Env as HonoEnv, Hono } from '@hono/hono';
 import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
+import { stub } from '@std/testing/mock';
 import { assertEquals, assertExists, assertObjectMatch } from '@std/assert';
 
 import { createTestDB, genEvent } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';
-
-import { stub } from '@std/testing/mock';
-
-stub(globalThis, 'fetch', () => {
-  return Promise.resolve(new Response());
-});
 
 interface AppEnv extends HonoEnv {
   Variables: {
@@ -28,6 +23,7 @@ Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
+  using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
 
@@ -104,6 +100,7 @@ Deno.test('PUT /wallet must be successful', {
 });
 
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
+  using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
 
@@ -136,6 +133,7 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
 });
 
 Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
+  using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
 
@@ -170,6 +168,7 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () 
 });
 
 Deno.test('GET /wallet must be successful', async () => {
+  using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
 
@@ -282,6 +281,7 @@ Deno.test('GET /wallet must be successful', async () => {
 });
 
 Deno.test('GET /mints must be successful', async () => {
+  using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
 
@@ -301,3 +301,14 @@ Deno.test('GET /mints must be successful', async () => {
   assertEquals(response.status, 200);
   assertEquals(body, { mints: [] });
 });
+
+function mockFetch() {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+  return {
+    [Symbol.dispose]: () => {
+      mock.restore();
+    },
+  };
+}
