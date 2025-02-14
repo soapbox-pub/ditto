@@ -66,6 +66,7 @@
     "@std/json": "jsr:@std/json@^0.223.0",
     "@std/media-types": "jsr:@std/media-types@^0.224.1",
     "@std/streams": "jsr:@std/streams@^0.223.0",
+    "@std/testing": "jsr:@std/testing@^1.0.9",
     "blurhash": "npm:blurhash@2.0.5",
     "comlink": "npm:comlink@^4.4.1",
     "comlink-async-generator": "npm:comlink-async-generator@^0.0.1",
