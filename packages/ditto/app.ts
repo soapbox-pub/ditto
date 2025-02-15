@@ -178,7 +178,7 @@ const app = new Hono<AppEnv>({ strict: false });
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
-const staticFiles = serveStatic({ root: './static/' });
+const staticFiles = serveStatic({ root: new URL('./static/', import.meta.url).pathname });
 
 app.use('*', cacheControlMiddleware({ noStore: true }));
 

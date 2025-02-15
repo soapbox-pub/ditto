@@ -18,7 +18,7 @@ export const frontendController: AppMiddleware = async (c) => {
   c.header('Cache-Control', 'max-age=86400, s-maxage=30, public, stale-if-error=604800');
 
   try {
-    const content = await Deno.readTextFile(new URL('../../public/index.html', import.meta.url));
+    const content = await Deno.readTextFile(new URL('../../../public/index.html', import.meta.url));
 
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
