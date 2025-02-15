@@ -1,15 +1,17 @@
 {
-  "version": "1.1.0",
+  "workspace": [
+    "./packages/ditto"
+  ],
   "tasks": {
-    "start": "deno run -A --env-file --deny-read=.env src/server.ts",
-    "dev": "deno run -A --env-file --deny-read=.env --watch src/server.ts",
+    "start": "deno run -A --env-file --deny-read=.env packages/ditto/server.ts",
+    "dev": "deno run -A --env-file --deny-read=.env --watch packages/ditto/server.ts",
     "hook": "deno run --allow-read --allow-run --allow-write https://deno.land/x/deno_hooks@0.1.1/mod.ts",
     "db:export": "deno run -A --env-file --deny-read=.env scripts/db-export.ts",
     "db:import": "deno run -A --env-file --deny-read=.env scripts/db-import.ts",
     "db:cleanup": "deno run -A --env-file --deny-read=.env scripts/db-policy.ts",
     "db:migrate": "deno run -A --env-file --deny-read=.env scripts/db-migrate.ts",
     "nostr:pull": "deno run -A --env-file --deny-read=.env scripts/nostr-pull.ts",
-    "debug": "deno run -A --env-file --deny-read=.env --inspect src/server.ts",
+    "debug": "deno run -A --env-file --deny-read=.env --inspect packages/ditto/server.ts",
     "test": "deno test -A --env-file=.env.test --deny-read=.env --junit-path=./deno-test.xml",
     "check": "deno check --allow-import .",
     "nsec": "deno run scripts/nsec.ts",
@@ -20,7 +22,7 @@
     "stats:recompute": "deno run -A --env-file --deny-read=.env scripts/stats-recompute.ts",
     "soapbox": "curl -O https://dl.soapbox.pub/main/soapbox.zip && mkdir -p public && mv soapbox.zip public/ && cd public/ && unzip -o soapbox.zip && rm soapbox.zip",
     "trends": "deno run -A --env-file --deny-read=.env scripts/trends.ts",
-    "clean:deps": "deno cache --reload src/app.ts",
+    "clean:deps": "deno cache --reload packages/ditto/app.ts",
     "db:populate:nip05": "deno run -A --env-file --deny-read=.env scripts/db-populate-nip05.ts",
     "db:populate-search": "deno run -A --env-file --deny-read=.env scripts/db-populate-search.ts",
     "db:populate-extensions": "deno run -A --env-file --deny-read=.env scripts/db-populate-extensions.ts",
@@ -71,7 +73,6 @@
     "comlink": "npm:comlink@^4.4.1",
     "comlink-async-generator": "npm:comlink-async-generator@^0.0.1",
     "commander": "npm:commander@12.1.0",
-    "deno.json": "./deno.json",
     "entities": "npm:entities@^4.5.0",
     "fast-stable-stringify": "npm:fast-stable-stringify@^1.0.0",
     "formdata-helper": "npm:formdata-helper@^0.3.0",

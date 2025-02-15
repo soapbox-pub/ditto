@@ -8,7 +8,7 @@
       "request": "launch",
       "name": "Launch Program",
       "type": "node",
-      "program": "${workspaceFolder}/src/server.ts",
+      "program": "${workspaceFolder}/packages/ditto/server.ts",
       "cwd": "${workspaceFolder}",
       "runtimeExecutable": "deno",
       "runtimeArgs": [
