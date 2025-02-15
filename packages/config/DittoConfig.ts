@@ -1,11 +1,11 @@
 import os from 'node:os';
 import ISO6391, { type LanguageCode } from 'iso-639-1';
 import { getPublicKey, nip19 } from 'nostr-tools';
-import { z } from 'zod';
 import { decodeBase64 } from '@std/encoding/base64';
 import { encodeBase64Url } from '@std/encoding/base64url';
 
 import { getEcdsaPublicKey } from './utils/crypto.ts';
+import { optionalBooleanSchema, optionalNumberSchema } from './utils/schema.ts';
 
 /** Ditto application-wide configuration. */
 export class DittoConfig {
@@ -461,16 +461,6 @@ export class DittoConfig {
     return Number(this.env.get('STREAK_WINDOW') || 129600);
   }
 }
-
-const optionalBooleanSchema = z
-  .enum(['true', 'false'])
-  .optional()
-  .transform((value) => value !== undefined ? value === 'true' : undefined);
-
-const optionalNumberSchema = z
-  .string()
-  .optional()
-  .transform((value) => value !== undefined ? Number(value) : undefined);
 
 function mergePaths(base: string, path: string) {
   const url = new URL(
