@@ -9,7 +9,7 @@ import { optionalBooleanSchema, optionalNumberSchema } from './utils/schema.ts';
 import { mergeURLPath } from './utils/url.ts';
 
 /** Ditto application-wide configuration. */
-export class DittoConfig {
+export class DittoConf {
   constructor(private env: { get(key: string): string | undefined }) {}
 
   /** Cached parsed admin pubkey value. */

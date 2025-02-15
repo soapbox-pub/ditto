@@ -1,5 +1,5 @@
 {
-  "name": "@ditto/config",
+  "name": "@ditto/conf",
   "version": "1.1.0",
   "exports": {
     ".": "./mod.ts"
