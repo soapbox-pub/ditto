@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { decodeBase64 } from '@std/encoding/base64';
 import { encodeBase64Url } from '@std/encoding/base64url';
 
-import { getEcdsaPublicKey } from './crypto.ts';
+import { getEcdsaPublicKey } from './utils/crypto.ts';
 
 /** Ditto application-wide configuration. */
 export class DittoConfig {
