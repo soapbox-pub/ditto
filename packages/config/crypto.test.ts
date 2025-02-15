@@ -1,6 +1,6 @@
 import { assertEquals } from '@std/assert';
 
-import { getEcdsaPublicKey } from '@/utils/crypto.ts';
+import { getEcdsaPublicKey } from './crypto.ts';
 
 Deno.test('getEcdsaPublicKey', async () => {
   const { publicKey, privateKey } = await crypto.subtle.generateKey(
