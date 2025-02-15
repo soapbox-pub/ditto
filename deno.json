@@ -37,7 +37,7 @@
     "./public"
   ],
   "imports": {
-    "@/": "./src/",
+    "@/": "./packages/ditto/",
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.47",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
     "@cashu/cashu-ts": "npm:@cashu/cashu-ts@^2.2.0",
