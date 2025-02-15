@@ -75,7 +75,7 @@ export class DittoConfig {
   }
 
   /** Get a link to a nip19-encoded entity in the configured external viewer. */
-  external(path: string) {
+  external(path: string): string {
     return new URL(path, this.externalDomain).toString();
   }
 
