@@ -6,6 +6,7 @@ import { encodeBase64Url } from '@std/encoding/base64url';
 
 import { getEcdsaPublicKey } from './utils/crypto.ts';
 import { optionalBooleanSchema, optionalNumberSchema } from './utils/schema.ts';
+import { mergeURLPath } from './utils/url.ts';
 
 /** Ditto application-wide configuration. */
 export class DittoConfig {
@@ -288,7 +289,7 @@ export class DittoConfig {
 
   /** Merges the path with the localDomain. */
   local(path: string): string {
-    return mergePaths(this.localDomain, path);
+    return mergeURLPath(this.localDomain, path);
   }
 
   /** URL to send Sentry errors to. */
@@ -460,19 +461,4 @@ export class DittoConfig {
   get streakWindow(): number {
     return Number(this.env.get('STREAK_WINDOW') || 129600);
   }
-}
-
-function mergePaths(base: string, path: string) {
-  const url = new URL(
-    path.startsWith('/') ? path : new URL(path).pathname,
-    base,
-  );
-
-  if (!path.startsWith('/')) {
-    // Copy query parameters from the original URL to the new URL
-    const originalUrl = new URL(path);
-    url.search = originalUrl.search;
-  }
-
-  return url.toString();
 }
