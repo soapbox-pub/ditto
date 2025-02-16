@@ -1,9 +1,5 @@
 import { type Kysely, sql } from 'kysely';
 
-import { Conf } from '@/config.ts';
-import { aesEncrypt } from '@/utils/aes.ts';
-import { getTokenHash } from '@/utils/auth.ts';
-
 interface DB {
   nip46_tokens: {
     api_token: `token1${string}`;
@@ -31,19 +27,6 @@ export async function up(db: Kysely<DB>): Promise<void> {
     .addColumn('nip46_relays', 'jsonb', (col) => col.defaultTo('[]'))
     .addColumn('created_at', 'timestamp', (col) => col.defaultTo(sql`CURRENT_TIMESTAMP`))
     .execute();
-
-  // There are probably not that many tokens in the database yet, so this should be fine.
-  const tokens = await db.selectFrom('nip46_tokens').selectAll().execute();
-
-  for (const token of tokens) {
-    await db.insertInto('auth_tokens').values({
-      token_hash: await getTokenHash(token.api_token),
-      pubkey: token.user_pubkey,
-      nip46_sk_enc: await aesEncrypt(Conf.seckey, token.server_seckey),
-      nip46_relays: JSON.parse(token.relays),
-      created_at: token.connected_at,
-    }).execute();
-  }
 
   await db.schema.dropTable('nip46_tokens').execute();
 }

@@ -4,8 +4,6 @@ import path from 'node:path';
 import { logi } from '@soapbox/logi';
 import { FileMigrationProvider, type Kysely, Migrator } from 'kysely';
 
-import { errorJson } from '@/utils/log.ts';
-
 import { DittoPglite } from './adapters/DittoPglite.ts';
 import { DittoPostgres } from './adapters/DittoPostgres.ts';
 
@@ -51,7 +49,7 @@ export class DittoDB {
         msg: 'Migration failed.',
         state: 'failed',
         results: results as unknown as JsonValue,
-        error: errorJson(error),
+        error: error instanceof Error ? error : null,
       });
       Deno.exit(1);
     } else {
