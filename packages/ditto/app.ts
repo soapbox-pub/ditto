@@ -1,5 +1,6 @@
 import { confMw } from '@ditto/api/middleware';
 import { type DittoConf } from '@ditto/conf';
+import { DittoTables } from '@ditto/db';
 import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
@@ -9,7 +10,6 @@ import { Kysely } from 'kysely';
 
 import '@/startup.ts';
 
-import { DittoTables } from '@/db/DittoTables.ts';
 import { Time } from '@/utils/time.ts';
 
 import {

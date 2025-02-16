@@ -1,9 +1,9 @@
+import { DittoDB } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
-import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 
 // @ts-ignore Don't try to access the env from this worker.

@@ -1,10 +1,10 @@
+import { DittoDB } from '@ditto/db';
 import ISO6391, { LanguageCode } from 'iso-639-1';
 import lande from 'lande';
 import { NostrEvent } from '@nostrify/nostrify';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { sql } from 'kysely';

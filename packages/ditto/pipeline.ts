@@ -1,3 +1,4 @@
+import { DittoTables } from '@ditto/db';
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { Kysely, UpdateObject } from 'kysely';
@@ -6,7 +7,6 @@ import { z } from 'zod';
 
 import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 import { Conf } from '@/config.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@/metrics.ts';

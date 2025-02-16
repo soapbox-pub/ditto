@@ -1,10 +1,10 @@
+import { DittoTables } from '@ditto/db';
 import { NStore } from '@nostrify/nostrify';
 import { Kysely } from 'kysely';
 import { matchFilter } from 'nostr-tools';
 import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
-import { DittoTables } from '@/db/DittoTables.ts';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { fallbackAuthor } from '@/utils.ts';
