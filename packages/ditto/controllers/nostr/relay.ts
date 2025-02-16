@@ -64,9 +64,14 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     }
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
+
     if (result.success) {
-      logi({ level: 'trace', ns: 'ditto.relay.msg', verb: result.data[0], data: result.data as JsonValue, ip });
-      relayMessagesCounter.inc({ verb: result.data[0] });
+      const msg = result.data;
+      const verb = msg[0];
+
+      logi({ level: 'trace', ns: 'ditto.relay.msg', verb, msg: msg as JsonValue, ip });
+      relayMessagesCounter.inc({ verb });
+
       handleMsg(result.data);
     } else {
       relayMessagesCounter.inc();
