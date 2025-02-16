@@ -6,7 +6,6 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
@@ -66,6 +65,7 @@ const statusController: AppController = async (c) => {
 };
 
 const createStatusController: AppController = async (c) => {
+  const { conf } = c.var;
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
   const store = c.get('store');
@@ -97,12 +97,12 @@ const createStatusController: AppController = async (c) => {
     const root = rootId === ancestor.id ? ancestor : await store.query([{ ids: [rootId] }]).then(([event]) => event);
 
     if (root) {
-      tags.push(['e', root.id, Conf.relay, 'root', root.pubkey]);
+      tags.push(['e', root.id, conf.relay, 'root', root.pubkey]);
     } else {
-      tags.push(['e', rootId, Conf.relay, 'root']);
+      tags.push(['e', rootId, conf.relay, 'root']);
     }
 
-    tags.push(['e', ancestor.id, Conf.relay, 'reply', ancestor.pubkey]);
+    tags.push(['e', ancestor.id, conf.relay, 'reply', ancestor.pubkey]);
   }
 
   let quoted: DittoEvent | undefined;
@@ -114,7 +114,7 @@ const createStatusController: AppController = async (c) => {
       return c.json({ error: 'Quoted post not found.' }, 404);
     }
 
-    tags.push(['q', quoted.id, Conf.relay, quoted.pubkey]);
+    tags.push(['q', quoted.id, conf.relay, quoted.pubkey]);
   }
 
   if (data.sensitive && data.spoiler_text) {
@@ -162,7 +162,7 @@ const createStatusController: AppController = async (c) => {
       }
 
       try {
-        return `nostr:${nip19.nprofileEncode({ pubkey, relays: [Conf.relay] })}`;
+        return `nostr:${nip19.nprofileEncode({ pubkey, relays: [conf.relay] })}`;
       } catch {
         return match;
       }
@@ -178,7 +178,7 @@ const createStatusController: AppController = async (c) => {
   }
 
   for (const pubkey of pubkeys) {
-    tags.push(['p', pubkey, Conf.relay]);
+    tags.push(['p', pubkey, conf.relay]);
   }
 
   for (const link of linkify.find(data.status ?? '')) {
@@ -193,10 +193,10 @@ const createStatusController: AppController = async (c) => {
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const author = pubkey ? await getAuthor(pubkey) : undefined;
 
-  if (Conf.zapSplitsEnabled) {
+  if (conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
     const lnurl = getLnurl(meta);
-    const dittoZapSplit = await getZapSplits(store, Conf.pubkey);
+    const dittoZapSplit = await getZapSplits(store, conf.pubkey);
     if (lnurl && dittoZapSplit) {
       const totalSplit = Object.values(dittoZapSplit).reduce((total, { weight }) => total + weight, 0);
       for (const zapPubkey in dittoZapSplit) {
@@ -204,7 +204,7 @@ const createStatusController: AppController = async (c) => {
           tags.push([
             'zap',
             zapPubkey,
-            Conf.relay,
+            conf.relay,
             (Math.max(0, 100 - totalSplit) + dittoZapSplit[zapPubkey].weight).toString(),
           ]);
           continue;
@@ -212,13 +212,13 @@ const createStatusController: AppController = async (c) => {
         tags.push([
           'zap',
           zapPubkey,
-          Conf.relay,
+          conf.relay,
           dittoZapSplit[zapPubkey].weight.toString(),
           dittoZapSplit[zapPubkey].message,
         ]);
       }
       if (totalSplit && !dittoZapSplit[pubkey]) {
-        tags.push(['zap', pubkey, Conf.relay, Math.max(0, 100 - totalSplit).toString()]);
+        tags.push(['zap', pubkey, conf.relay, Math.max(0, 100 - totalSplit).toString()]);
       }
     }
   }
@@ -235,7 +235,7 @@ const createStatusController: AppController = async (c) => {
       id: quoted.id,
       kind: quoted.kind,
       author: quoted.pubkey,
-      relays: [Conf.relay],
+      relays: [conf.relay],
     });
     content += `nostr:${nevent}`;
   }
@@ -265,6 +265,7 @@ const createStatusController: AppController = async (c) => {
 };
 
 const deleteStatusController: AppController = async (c) => {
+  const { conf } = c.var;
   const id = c.req.param('id');
   const pubkey = await c.get('signer')?.getPublicKey();
 
@@ -274,7 +275,7 @@ const deleteStatusController: AppController = async (c) => {
     if (event.pubkey === pubkey) {
       await createEvent({
         kind: 5,
-        tags: [['e', id, Conf.relay, '', pubkey]],
+        tags: [['e', id, conf.relay, '', pubkey]],
       }, c);
 
       const author = await getAuthor(event.pubkey);
@@ -324,6 +325,7 @@ const contextController: AppController = async (c) => {
 };
 
 const favouriteController: AppController = async (c) => {
+  const { conf } = c.var;
   const id = c.req.param('id');
   const store = await Storages.db();
   const [target] = await store.query([{ ids: [id], kinds: [1, 20] }]);
@@ -333,8 +335,8 @@ const favouriteController: AppController = async (c) => {
       kind: 7,
       content: '+',
       tags: [
-        ['e', target.id, Conf.relay, '', target.pubkey],
-        ['p', target.pubkey, Conf.relay],
+        ['e', target.id, conf.relay, '', target.pubkey],
+        ['p', target.pubkey, conf.relay],
       ],
     }, c);
 
@@ -364,6 +366,7 @@ const favouritedByController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#boost */
 const reblogStatusController: AppController = async (c) => {
+  const { conf } = c.var;
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
 
@@ -378,8 +381,8 @@ const reblogStatusController: AppController = async (c) => {
   const reblogEvent = await createEvent({
     kind: 6,
     tags: [
-      ['e', event.id, Conf.relay, '', event.pubkey],
-      ['p', event.pubkey, Conf.relay],
+      ['e', event.id, conf.relay, '', event.pubkey],
+      ['p', event.pubkey, conf.relay],
     ],
   }, c);
 
@@ -396,6 +399,7 @@ const reblogStatusController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
+  const { conf } = c.var;
   const eventId = c.req.param('id');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const store = await Storages.db();
@@ -415,7 +419,7 @@ const unreblogStatusController: AppController = async (c) => {
 
   await createEvent({
     kind: 5,
-    tags: [['e', repostEvent.id, Conf.relay, '', repostEvent.pubkey]],
+    tags: [['e', repostEvent.id, conf.relay, '', repostEvent.pubkey]],
   }, c);
 
   return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
@@ -456,6 +460,7 @@ const quotesController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#bookmark */
 const bookmarkController: AppController = async (c) => {
+  const { conf } = c.var;
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
@@ -467,7 +472,7 @@ const bookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
+      (tags) => addTag(tags, ['e', event.id, conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -483,6 +488,7 @@ const bookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unbookmark */
 const unbookmarkController: AppController = async (c) => {
+  const { conf } = c.var;
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
@@ -494,7 +500,7 @@ const unbookmarkController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10003], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
+      (tags) => deleteTag(tags, ['e', event.id, conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -510,6 +516,7 @@ const unbookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#pin */
 const pinController: AppController = async (c) => {
+  const { conf } = c.var;
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
 
@@ -521,7 +528,7 @@ const pinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => addTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
+      (tags) => addTag(tags, ['e', event.id, conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -537,6 +544,7 @@ const pinController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unpin */
 const unpinController: AppController = async (c) => {
+  const { conf } = c.var;
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const eventId = c.req.param('id');
   const { signal } = c.req.raw;
@@ -550,7 +558,7 @@ const unpinController: AppController = async (c) => {
   if (event) {
     await updateListEvent(
       { kinds: [10001], authors: [pubkey], limit: 1 },
-      (tags) => deleteTag(tags, ['e', event.id, Conf.relay, '', event.pubkey]),
+      (tags) => deleteTag(tags, ['e', event.id, conf.relay, '', event.pubkey]),
       c,
     );
 
@@ -572,6 +580,7 @@ const zapSchema = z.object({
 });
 
 const zapController: AppController = async (c) => {
+  const { conf } = c.var;
   const body = await parseBody(c.req.raw);
   const result = zapSchema.safeParse(body);
   const { signal } = c.req.raw;
@@ -594,10 +603,10 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['e', target.id, Conf.relay],
-        ['p', target.pubkey, Conf.relay],
+        ['e', target.id, conf.relay],
+        ['p', target.pubkey, conf.relay],
         ['amount', amount.toString()],
-        ['relays', Conf.relay],
+        ['relays', conf.relay],
         ['lnurl', lnurl],
       );
     }
@@ -607,9 +616,9 @@ const zapController: AppController = async (c) => {
     lnurl = getLnurl(meta);
     if (target && lnurl) {
       tags.push(
-        ['p', target.pubkey, Conf.relay],
+        ['p', target.pubkey, conf.relay],
         ['amount', amount.toString()],
-        ['relays', Conf.relay],
+        ['relays', conf.relay],
         ['lnurl', lnurl],
       );
     }

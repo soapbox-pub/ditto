@@ -1,5 +1,4 @@
 import { AppMiddleware } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
 import { Storages } from '@/storages.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
@@ -8,13 +7,14 @@ let configDBCache: Promise<PleromaConfigDB> | undefined;
 
 export const cspMiddleware = (): AppMiddleware => {
   return async (c, next) => {
+    const { conf } = c.var;
     const store = await Storages.db();
 
     if (!configDBCache) {
       configDBCache = getPleromaConfigs(store);
     }
 
-    const { host, protocol, origin } = Conf.url;
+    const { host, protocol, origin } = conf.url;
     const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
     const configDB = await configDBCache;
     const sentryDsn = configDB.getIn(':pleroma', ':frontend_configurations', ':soapbox_fe', 'sentryDsn');

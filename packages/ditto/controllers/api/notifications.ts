@@ -2,7 +2,6 @@ import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated } from '@/utils/api.ts';
@@ -31,6 +30,7 @@ const notificationsSchema = z.object({
 });
 
 const notificationsController: AppController = async (c) => {
+  const { conf } = c.var;
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const params = c.get('pagination');
 
@@ -68,7 +68,7 @@ const notificationsController: AppController = async (c) => {
   }
 
   if (types.has('ditto:name_grant') && !account_id) {
-    filters.push({ kinds: [30360], authors: [Conf.pubkey], '#p': [pubkey], ...params });
+    filters.push({ kinds: [30360], authors: [conf.pubkey], '#p': [pubkey], ...params });
   }
 
   return renderNotifications(filters, types, params, c);
@@ -105,10 +105,11 @@ async function renderNotifications(
   params: DittoPagination,
   c: AppContext,
 ) {
+  const { conf } = c.var;
   const store = c.get('store');
   const pubkey = await c.get('signer')?.getPublicKey()!;
   const { signal } = c.req.raw;
-  const opts = { signal, limit: params.limit, timeout: Conf.db.timeouts.timelines };
+  const opts = { signal, limit: params.limit, timeout: conf.db.timeouts.timelines };
 
   const events = await store
     .query(filters, opts)
