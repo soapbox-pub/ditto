@@ -1,0 +1,6 @@
+{
+  "name": "@ditto/db",
+  "exports": {
+    ".": "./mod.ts"
+  }
+}

@@ -1,11 +1,11 @@
 import { DOMParser } from '@b-fuze/deno-dom';
+import { DittoTables } from '@ditto/db';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
 import { Kysely } from 'kysely';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { cachedFaviconsSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';

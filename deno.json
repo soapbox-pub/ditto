@@ -2,6 +2,7 @@
   "workspace": [
     "./packages/api",
     "./packages/conf",
+    "./packages/db",
     "./packages/ditto"
   ],
   "tasks": {

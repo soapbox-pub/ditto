@@ -1,9 +1,9 @@
+import { DittoTables } from '@ditto/db';
 import { NostrFilter } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { handleEvent } from '@/pipeline.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
