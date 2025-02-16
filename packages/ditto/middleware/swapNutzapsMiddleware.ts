@@ -1,4 +1,5 @@
 import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
+import { type DittoConf } from '@ditto/conf';
 import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { getPublicKey } from 'nostr-tools';
@@ -9,7 +10,6 @@ import { logi } from '@soapbox/logi';
 
 import { isNostrId } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
-import { Conf } from '@/config.ts';
 import { createEvent } from '@/utils/api.ts';
 import { z } from 'zod';
 
@@ -18,8 +18,9 @@ import { z } from 'zod';
  * Errors are only thrown if 'signer' and 'store' middlewares are not set.
  */
 export const swapNutzapsMiddleware: MiddlewareHandler<
-  { Variables: { signer: SetRequired<NostrSigner, 'nip44'>; store: NStore } }
+  { Variables: { signer: SetRequired<NostrSigner, 'nip44'>; store: NStore; conf: DittoConf } }
 > = async (c, next) => {
+  const { conf } = c.var;
   const signer = c.get('signer');
   const store = c.get('store');
 
@@ -133,7 +134,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
           [
             'e', // nutzap event that has been redeemed
             event.id,
-            Conf.relay,
+            conf.relay,
             'redeemed',
           ],
           ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
@@ -173,7 +174,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
             JSON.stringify([
               ['direction', 'in'],
               ['amount', amount],
-              ['e', unspentProofs.id, Conf.relay, 'created'],
+              ['e', unspentProofs.id, conf.relay, 'created'],
             ]),
           ),
           tags: mintsToProofs[mint].redeemed,

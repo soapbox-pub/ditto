@@ -11,7 +11,6 @@ import {
   type ParseAuthRequestOpts,
   validateAuthEvent,
 } from '@/utils/nip98.ts';
-import { Conf } from '@/config.ts';
 
 /**
  * NIP-98 auth.
@@ -35,12 +34,13 @@ type UserRole = 'user' | 'admin';
 
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
-  return withProof(async (_c, proof, next) => {
+  return withProof(async (c, proof, next) => {
+    const { conf } = c.var;
     const store = await Storages.db();
 
     const [user] = await store.query([{
       kinds: [30382],
-      authors: [Conf.pubkey],
+      authors: [conf.pubkey],
       '#d': [proof.pubkey],
       limit: 1,
     }]);
