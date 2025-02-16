@@ -1,5 +1,5 @@
-import { policyWorker } from '@/workers/policy.ts';
-import { Storages } from '@/storages.ts';
+import { policyWorker } from '../packages/ditto/workers/policy.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 const db = await Storages.db();
 let count = 0;

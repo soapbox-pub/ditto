@@ -1,5 +1,6 @@
 import { NSchema as n } from '@nostrify/nostrify';
-import { Storages } from '@/storages.ts';
+
+import { Storages } from '../packages/ditto/storages.ts';
 
 const store = await Storages.db();
 const kysely = await Storages.kysely();

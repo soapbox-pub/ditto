@@ -6,7 +6,7 @@
 import { NostrEvent, NRelay1, NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { Storages } from '@/storages.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 const store = await Storages.db();
 

@@ -1,4 +1,4 @@
-import { Storages } from '@/storages.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 // This migrates kysely internally.
 const kysely = await Storages.kysely();

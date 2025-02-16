@@ -1,6 +1,7 @@
-import { Storages } from '@/storages.ts';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Command, InvalidOptionArgumentError } from 'commander';
+
+import { Storages } from '../packages/ditto/storages.ts';
 
 interface ExportFilter {
   authors?: string[];
