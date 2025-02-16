@@ -7,8 +7,10 @@ Deno.test('isWorker from the main thread returns false', () => {
 });
 
 Deno.test('isWorker from a worker thread returns true', async () => {
+  const url = new URL('./worker.ts', import.meta.url);
+
   const script = `
-    import { isWorker } from '@/utils/worker.ts';
+    import { isWorker } from '${url.href}';
     postMessage(isWorker());
     self.close();
   `;
