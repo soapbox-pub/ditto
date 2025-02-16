@@ -1,4 +1,4 @@
-import { DittoConfig } from '@ditto/config';
+import { DittoConf } from '@ditto/conf';
 
 /** @deprecated Use middleware to set/get the config instead. */
-export const Conf = new DittoConfig(Deno.env);
+export const Conf = new DittoConf(Deno.env);
