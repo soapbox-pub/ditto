@@ -1,7 +1,6 @@
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
@@ -34,7 +33,8 @@ const configController: AppController = async (c) => {
 
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
-  const { pubkey } = Conf;
+  const { conf } = c.var;
+  const { pubkey } = conf;
 
   const store = await Storages.db();
   const configs = await getPleromaConfigs(store, c.req.raw.signal);
@@ -69,6 +69,7 @@ const pleromaAdminTagSchema = z.object({
 });
 
 const pleromaAdminTagController: AppController = async (c) => {
+  const { conf } = c.var;
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
@@ -76,7 +77,7 @@ const pleromaAdminTagController: AppController = async (c) => {
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
       (prev) => {
         const tags = prev?.tags ?? [['d', pubkey]];
 
@@ -101,6 +102,7 @@ const pleromaAdminTagController: AppController = async (c) => {
 };
 
 const pleromaAdminUntagController: AppController = async (c) => {
+  const { conf } = c.var;
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
@@ -108,7 +110,7 @@ const pleromaAdminUntagController: AppController = async (c) => {
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
       (prev) => ({
         kind: 30382,
         content: prev?.content ?? '',

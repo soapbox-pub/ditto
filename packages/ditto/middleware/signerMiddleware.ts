@@ -1,9 +1,9 @@
+import { type DittoConf } from '@ditto/conf';
 import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrSigner, NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { Conf } from '@/config.ts';
 import { ConnectSigner } from '@/signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { Storages } from '@/storages.ts';
@@ -14,7 +14,11 @@ import { getTokenHash } from '@/utils/auth.ts';
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
 /** Make a `signer` object available to all controllers, or unset if the user isn't logged in. */
-export const signerMiddleware: MiddlewareHandler<{ Variables: { signer: NostrSigner } }> = async (c, next) => {
+export const signerMiddleware: MiddlewareHandler<{ Variables: { signer: NostrSigner; conf: DittoConf } }> = async (
+  c,
+  next,
+) => {
+  const { conf } = c.var;
   const header = c.req.header('authorization');
   const match = header?.match(BEARER_REGEX);
 
@@ -32,7 +36,7 @@ export const signerMiddleware: MiddlewareHandler<{ Variables: { signer: NostrSig
           .where('token_hash', '=', tokenHash)
           .executeTakeFirstOrThrow();
 
-        const nep46Seckey = await aesDecrypt(Conf.seckey, nip46_sk_enc);
+        const nep46Seckey = await aesDecrypt(conf.seckey, nip46_sk_enc);
 
         c.set(
           'signer',

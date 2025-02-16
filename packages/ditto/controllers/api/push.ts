@@ -3,7 +3,6 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getTokenHash } from '@/utils/auth.ts';
@@ -43,7 +42,8 @@ const pushSubscribeSchema = z.object({
 });
 
 export const pushSubscribeController: AppController = async (c) => {
-  const vapidPublicKey = await Conf.vapidPublicKey;
+  const { conf } = c.var;
+  const vapidPublicKey = await conf.vapidPublicKey;
 
   if (!vapidPublicKey) {
     return c.json({ error: 'The administrator of this server has not enabled Web Push notifications.' }, 404);
@@ -97,7 +97,8 @@ export const pushSubscribeController: AppController = async (c) => {
 };
 
 export const getSubscriptionController: AppController = async (c) => {
-  const vapidPublicKey = await Conf.vapidPublicKey;
+  const { conf } = c.var;
+  const vapidPublicKey = await conf.vapidPublicKey;
 
   if (!vapidPublicKey) {
     return c.json({ error: 'The administrator of this server has not enabled Web Push notifications.' }, 404);

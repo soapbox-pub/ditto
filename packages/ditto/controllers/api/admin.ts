@@ -3,7 +3,6 @@ import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -30,6 +29,7 @@ const adminAccountQuerySchema = z.object({
 });
 
 const adminAccountsController: AppController = async (c) => {
+  const { conf } = c.var;
   const store = await Storages.db();
   const params = c.get('pagination');
   const { signal } = c.req.raw;
@@ -49,7 +49,7 @@ const adminAccountsController: AppController = async (c) => {
     }
 
     const orig = await store.query(
-      [{ kinds: [30383], authors: [Conf.pubkey], '#k': ['3036'], '#n': ['pending'], ...params }],
+      [{ kinds: [30383], authors: [conf.pubkey], '#k': ['3036'], '#n': ['pending'], ...params }],
       { signal },
     );
 
@@ -86,7 +86,7 @@ const adminAccountsController: AppController = async (c) => {
       n.push('moderator');
     }
 
-    const events = await store.query([{ kinds: [30382], authors: [Conf.pubkey], '#n': n, ...params }], { signal });
+    const events = await store.query([{ kinds: [30382], authors: [conf.pubkey], '#n': n, ...params }], { signal });
 
     const pubkeys = new Set<string>(
       events
@@ -110,7 +110,7 @@ const adminAccountsController: AppController = async (c) => {
   const filter: NostrFilter = { kinds: [0], ...params };
 
   if (local) {
-    filter.search = `domain:${Conf.url.host}`;
+    filter.search = `domain:${conf.url.host}`;
   }
 
   const events = await store.query([filter], { signal })
@@ -125,6 +125,7 @@ const adminAccountActionSchema = z.object({
 });
 
 const adminActionController: AppController = async (c) => {
+  const { conf } = c.var;
   const body = await parseBody(c.req.raw);
   const store = await Storages.db();
   const result = adminAccountActionSchema.safeParse(body);
@@ -156,7 +157,7 @@ const adminActionController: AppController = async (c) => {
   }
   if (data.type === 'revoke_name') {
     n.revoke_name = true;
-    store.remove([{ kinds: [30360], authors: [Conf.pubkey], '#p': [authorId] }]).catch((e: unknown) => {
+    store.remove([{ kinds: [30360], authors: [conf.pubkey], '#p': [authorId] }]).catch((e: unknown) => {
       logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
     });
   }
@@ -167,6 +168,7 @@ const adminActionController: AppController = async (c) => {
 };
 
 const adminApproveController: AppController = async (c) => {
+  const { conf } = c.var;
   const eventId = c.req.param('id');
   const store = await Storages.db();
 
@@ -183,7 +185,7 @@ const adminApproveController: AppController = async (c) => {
     return c.json({ error: 'Invalid NIP-05' }, 400);
   }
 
-  const [existing] = await store.query([{ kinds: [30360], authors: [Conf.pubkey], '#d': [r], limit: 1 }]);
+  const [existing] = await store.query([{ kinds: [30360], authors: [conf.pubkey], '#d': [r], limit: 1 }]);
   if (existing) {
     return c.json({ error: 'NIP-05 already granted to another user' }, 400);
   }

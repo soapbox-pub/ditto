@@ -6,8 +6,6 @@ import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
 
-import { Conf } from '@/config.ts';
-
 export interface S3UploaderOpts {
   endPoint: string;
   region: string;
@@ -18,13 +16,14 @@ export interface S3UploaderOpts {
   port?: number;
   sessionToken?: string;
   useSSL?: boolean;
+  baseUrl?: string;
 }
 
 /** S3-compatible uploader for AWS, Wasabi, DigitalOcean Spaces, and more. */
 export class S3Uploader implements NUploader {
   private client: S3Client;
 
-  constructor(opts: S3UploaderOpts) {
+  constructor(private opts: S3UploaderOpts) {
     this.client = new S3Client(opts);
   }
 
@@ -40,10 +39,10 @@ export class S3Uploader implements NUploader {
       },
     });
 
-    const { pathStyle, bucket } = Conf.s3;
+    const { pathStyle, bucket, baseUrl } = this.opts;
 
     const path = (pathStyle && bucket) ? join(bucket, filename) : filename;
-    const url = new URL(path, Conf.mediaDomain).toString();
+    const url = new URL(path, baseUrl).toString();
 
     return [
       ['url', url],

@@ -1,3 +1,5 @@
+import { confMw } from '@ditto/api/middleware';
+import { type DittoConf } from '@ditto/conf';
 import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
@@ -149,6 +151,7 @@ import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 
 export interface AppEnv extends HonoEnv {
   Variables: {
+    conf: DittoConf;
     /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
     signer?: NostrSigner;
     /** Uploader for the user to upload files. */
@@ -180,7 +183,7 @@ const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
 const staticFiles = serveStatic({ root: new URL('./static/', import.meta.url).pathname });
 
-app.use('*', cacheControlMiddleware({ noStore: true }));
+app.use(confMw(Deno.env), cacheControlMiddleware({ noStore: true }));
 
 const ratelimit = every(
   rateLimitMiddleware(30, Time.seconds(5), false),
@@ -196,7 +199,6 @@ app.get('/api/v1/streaming', metricsMiddleware, ratelimit, streamingController);
 app.get('/relay', metricsMiddleware, ratelimit, relayController);
 
 app.use(
-  '*',
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
   signerMiddleware,

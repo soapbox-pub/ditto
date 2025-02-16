@@ -1,7 +1,6 @@
 import denoJson from 'deno.json' with { type: 'json' };
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
@@ -17,7 +16,8 @@ const features = [
 ];
 
 const instanceV1Controller: AppController = async (c) => {
-  const { host, protocol } = Conf.url;
+  const { conf } = c.var;
+  const { host, protocol } = conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
@@ -29,7 +29,7 @@ const instanceV1Controller: AppController = async (c) => {
     description: meta.about,
     short_description: meta.tagline,
     registrations: true,
-    max_toot_chars: Conf.postCharLimit,
+    max_toot_chars: conf.postCharLimit,
     configuration: {
       media_attachments: {
         image_size_limit: 100000000,
@@ -42,7 +42,7 @@ const instanceV1Controller: AppController = async (c) => {
         min_expiration: 0,
       },
       statuses: {
-        max_characters: Conf.postCharLimit,
+        max_characters: conf.postCharLimit,
         max_media_attachments: 20,
       },
     },
@@ -50,9 +50,9 @@ const instanceV1Controller: AppController = async (c) => {
       metadata: {
         features,
         fields_limits: {
-          max_fields: Conf.profileFields.maxFields,
-          name_length: Conf.profileFields.nameLength,
-          value_length: Conf.profileFields.valueLength,
+          max_fields: conf.profileFields.maxFields,
+          name_length: conf.profileFields.nameLength,
+          value_length: conf.profileFields.valueLength,
         },
       },
     },
@@ -68,7 +68,7 @@ const instanceV1Controller: AppController = async (c) => {
     version,
     email: meta.email,
     nostr: {
-      pubkey: Conf.pubkey,
+      pubkey: conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
     },
     rules: [],
@@ -76,7 +76,8 @@ const instanceV1Controller: AppController = async (c) => {
 };
 
 const instanceV2Controller: AppController = async (c) => {
-  const { host, protocol } = Conf.url;
+  const { conf } = c.var;
+  const { host, protocol } = conf.url;
   const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
@@ -111,14 +112,14 @@ const instanceV2Controller: AppController = async (c) => {
         streaming: `${wsProtocol}//${host}`,
       },
       vapid: {
-        public_key: await Conf.vapidPublicKey,
+        public_key: await conf.vapidPublicKey,
       },
       accounts: {
         max_featured_tags: 10,
         max_pinned_statuses: 5,
       },
       statuses: {
-        max_characters: Conf.postCharLimit,
+        max_characters: conf.postCharLimit,
         max_media_attachments: 20,
         characters_reserved_per_url: 23,
       },
@@ -136,20 +137,20 @@ const instanceV2Controller: AppController = async (c) => {
         max_expiration: 2629746,
       },
       translation: {
-        enabled: Boolean(Conf.translationProvider),
+        enabled: Boolean(conf.translationProvider),
       },
     },
     nostr: {
-      pubkey: Conf.pubkey,
+      pubkey: conf.pubkey,
       relay: `${wsProtocol}//${host}/relay`,
     },
     pleroma: {
       metadata: {
         features,
         fields_limits: {
-          max_fields: Conf.profileFields.maxFields,
-          name_length: Conf.profileFields.nameLength,
-          value_length: Conf.profileFields.valueLength,
+          max_fields: conf.profileFields.maxFields,
+          name_length: conf.profileFields.nameLength,
+          value_length: conf.profileFields.valueLength,
         },
       },
     },

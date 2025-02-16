@@ -2,7 +2,6 @@ import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { createEvent, paginated, parseBody, updateEventInfo } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
@@ -19,6 +18,7 @@ const reportSchema = z.object({
 
 /** https://docs.joinmastodon.org/methods/reports/#post */
 const reportController: AppController = async (c) => {
+  const { conf } = c.var;
   const store = c.get('store');
   const body = await parseBody(c.req.raw);
   const result = reportSchema.safeParse(body);
@@ -36,7 +36,7 @@ const reportController: AppController = async (c) => {
 
   const tags = [
     ['p', account_id, category],
-    ['P', Conf.pubkey],
+    ['P', conf.pubkey],
   ];
 
   for (const status of status_ids) {
@@ -61,6 +61,7 @@ const adminReportsSchema = z.object({
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
 const adminReportsController: AppController = async (c) => {
+  const { conf } = c.var;
   const store = c.get('store');
   const viewerPubkey = await c.get('signer')?.getPublicKey();
 
@@ -69,7 +70,7 @@ const adminReportsController: AppController = async (c) => {
 
   const filter: NostrFilter = {
     kinds: [30383],
-    authors: [Conf.pubkey],
+    authors: [conf.pubkey],
     '#k': ['1984'],
     ...params,
   };

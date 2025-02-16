@@ -3,7 +3,6 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { getAuthor, getFollowedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, fileSchema } from '@/schema.ts';
 import { Storages } from '@/storages.ts';
@@ -22,13 +21,8 @@ import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
 import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 
-const usernameSchema = z
-  .string().min(1).max(30)
-  .regex(/^[a-z0-9_]+$/i)
-  .refine((username) => !Conf.forbiddenUsernames.includes(username), 'Username is reserved.');
-
 const createAccountSchema = z.object({
-  username: usernameSchema,
+  username: z.string().min(1).max(30).regex(/^[a-z0-9_]+$/i),
 });
 
 const createAccountController: AppController = async (c) => {
@@ -37,6 +31,10 @@ const createAccountController: AppController = async (c) => {
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
+  }
+
+  if (c.var.conf.forbiddenUsernames.includes(result.data.username)) {
+    return c.json({ error: 'Username is reserved.' }, 422);
   }
 
   return c.json({
@@ -204,7 +202,8 @@ const accountStatusesQuerySchema = z.object({
 
 const accountStatusesController: AppController = async (c) => {
   const pubkey = c.req.param('pubkey');
-  const { since, until } = c.get('pagination');
+  const { conf } = c.var;
+  const { since, until } = c.var.pagination;
   const { pinned, limit, exclude_replies, tagged, only_media } = accountStatusesQuerySchema.parse(c.req.query());
   const { signal } = c.req.raw;
 
@@ -212,7 +211,7 @@ const accountStatusesController: AppController = async (c) => {
 
   const [[author], [user]] = await Promise.all([
     store.query([{ kinds: [0], authors: [pubkey], limit: 1 }], { signal }),
-    store.query([{ kinds: [30382], authors: [Conf.pubkey], '#d': [pubkey], limit: 1 }], { signal }),
+    store.query([{ kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 }], { signal }),
   ]);
 
   if (author) {
@@ -261,7 +260,7 @@ const accountStatusesController: AppController = async (c) => {
     filter.search = search.join(' ');
   }
 
-  const opts = { signal, limit, timeout: Conf.db.timeouts.timelines };
+  const opts = { signal, limit, timeout: conf.db.timeouts.timelines };
 
   const events = await store.query([filter], opts)
     .then((events) => hydrateEvents({ events, store, signal }))

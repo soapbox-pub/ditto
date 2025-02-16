@@ -4,7 +4,6 @@ import { generateSecretKey } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
@@ -40,6 +39,7 @@ const createTokenSchema = z.discriminatedUnion('grant_type', [
 ]);
 
 const createTokenController: AppController = async (c) => {
+  const { conf } = c.var;
   const body = await parseBody(c.req.raw);
   const result = createTokenSchema.safeParse(body);
 
@@ -50,7 +50,7 @@ const createTokenController: AppController = async (c) => {
   switch (result.data.grant_type) {
     case 'nostr_bunker':
       return c.json({
-        access_token: await getToken(result.data),
+        access_token: await getToken(result.data, conf.seckey),
         token_type: 'Bearer',
         scope: 'read write follow push',
         created_at: nostrNow(),
@@ -112,6 +112,7 @@ const revokeTokenController: AppController = async (c) => {
 
 async function getToken(
   { pubkey: bunkerPubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
+  dittoSeckey: Uint8Array,
 ): Promise<`token1${string}`> {
   const kysely = await Storages.kysely();
   const { token, hash } = await generateToken();
@@ -133,7 +134,7 @@ async function getToken(
     token_hash: hash,
     pubkey: userPubkey,
     bunker_pubkey: bunkerPubkey,
-    nip46_sk_enc: await aesEncrypt(Conf.seckey, nip46Seckey),
+    nip46_sk_enc: await aesEncrypt(dittoSeckey, nip46Seckey),
     nip46_relays: relays,
     created_at: new Date(),
   }).execute();
@@ -143,6 +144,7 @@ async function getToken(
 
 /** Display the OAuth form. */
 const oauthController: AppController = (c) => {
+  const { conf } = c.var;
   const encodedUri = c.req.query('redirect_uri');
   if (!encodedUri) {
     return c.text('Missing `redirect_uri` query param.', 422);
@@ -192,7 +194,7 @@ const oauthController: AppController = (c) => {
       <input type="hidden" name="state" value="${escape(state ?? '')}">
       <button type="submit">Authorize</button>
     </form>
-    <p>Sign in with a Nostr bunker app. Please configure the app to use this relay: ${Conf.relay}</p>
+    <p>Sign in with a Nostr bunker app. Please configure the app to use this relay: ${conf.relay}</p>
   </body>
 </html>
 `);
@@ -220,6 +222,8 @@ const oauthAuthorizeSchema = z.object({
 
 /** Controller the OAuth form is POSTed to. */
 const oauthAuthorizeController: AppController = async (c) => {
+  const { conf } = c.var;
+
   /** FormData results in JSON. */
   const result = oauthAuthorizeSchema.safeParse(await parseBody(c.req.raw));
 
@@ -236,7 +240,7 @@ const oauthAuthorizeController: AppController = async (c) => {
     pubkey: bunker.hostname,
     secret: bunker.searchParams.get('secret') || undefined,
     relays: bunker.searchParams.getAll('relay'),
-  });
+  }, conf.seckey);
 
   if (redirectUri === 'urn:ietf:wg:oauth:2.0:oob') {
     return c.text(token);

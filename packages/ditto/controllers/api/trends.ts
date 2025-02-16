@@ -1,3 +1,4 @@
+import { type DittoConf } from '@ditto/conf';
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
@@ -13,7 +14,7 @@ import { paginated } from '@/utils/api.ts';
 import { errorJson } from '@/utils/log.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-let trendingHashtagsCache = getTrendingHashtags().catch((e: unknown) => {
+let trendingHashtagsCache = getTrendingHashtags(Conf).catch((e: unknown) => {
   logi({
     level: 'error',
     ns: 'ditto.trends.api',
@@ -26,7 +27,7 @@ let trendingHashtagsCache = getTrendingHashtags().catch((e: unknown) => {
 
 Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
   try {
-    const trends = await getTrendingHashtags();
+    const trends = await getTrendingHashtags(Conf);
     trendingHashtagsCache = Promise.resolve(trends);
   } catch (e) {
     logi({
@@ -50,9 +51,9 @@ const trendingTagsController: AppController = async (c) => {
   return c.json(trends.slice(offset, offset + limit));
 };
 
-async function getTrendingHashtags() {
+async function getTrendingHashtags(conf: DittoConf) {
   const store = await Storages.db();
-  const trends = await getTrendingTags(store, 't');
+  const trends = await getTrendingTags(store, 't', conf.pubkey);
 
   return trends.map((trend) => {
     const hashtag = trend.value;
@@ -65,13 +66,13 @@ async function getTrendingHashtags() {
 
     return {
       name: hashtag,
-      url: Conf.local(`/tags/${hashtag}`),
+      url: conf.local(`/tags/${hashtag}`),
       history,
     };
   });
 }
 
-let trendingLinksCache = getTrendingLinks().catch((e: unknown) => {
+let trendingLinksCache = getTrendingLinks(Conf).catch((e: unknown) => {
   logi({
     level: 'error',
     ns: 'ditto.trends.api',
@@ -84,7 +85,7 @@ let trendingLinksCache = getTrendingLinks().catch((e: unknown) => {
 
 Deno.cron('update trending links cache', '50 * * * *', async () => {
   try {
-    const trends = await getTrendingLinks();
+    const trends = await getTrendingLinks(Conf);
     trendingLinksCache = Promise.resolve(trends);
   } catch (e) {
     logi({
@@ -103,9 +104,9 @@ const trendingLinksController: AppController = async (c) => {
   return c.json(trends.slice(offset, offset + limit));
 };
 
-async function getTrendingLinks() {
+async function getTrendingLinks(conf: DittoConf) {
   const store = await Storages.db();
-  const trends = await getTrendingTags(store, 'r');
+  const trends = await getTrendingTags(store, 'r', conf.pubkey);
 
   return Promise.all(trends.map(async (trend) => {
     const link = trend.value;
@@ -139,6 +140,7 @@ async function getTrendingLinks() {
 }
 
 const trendingStatusesController: AppController = async (c) => {
+  const { conf } = c.var;
   const store = await Storages.db();
   const { limit, offset, until } = paginationSchema.parse(c.req.query());
 
@@ -146,7 +148,7 @@ const trendingStatusesController: AppController = async (c) => {
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': ['#e'],
-    authors: [Conf.pubkey],
+    authors: [conf.pubkey],
     until,
     limit: 1,
   }]);
@@ -185,12 +187,12 @@ interface TrendingTag {
   }[];
 }
 
-export async function getTrendingTags(store: NStore, tagName: string): Promise<TrendingTag[]> {
+export async function getTrendingTags(store: NStore, tagName: string, pubkey: string): Promise<TrendingTag[]> {
   const [label] = await store.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': [`#${tagName}`],
-    authors: [Conf.pubkey],
+    authors: [pubkey],
     limit: 1,
   }]);
 
@@ -213,7 +215,7 @@ export async function getTrendingTags(store: NStore, tagName: string): Promise<T
         '#L': ['pub.ditto.trends'],
         '#l': [`#${tagName}`],
         [`#${tagName}`]: [value],
-        authors: [Conf.pubkey],
+        authors: [pubkey],
         since: Math.floor(date.getTime() / 1000),
         until: Math.floor((date.getTime() + Time.days(1)) / 1000),
         limit: 1,

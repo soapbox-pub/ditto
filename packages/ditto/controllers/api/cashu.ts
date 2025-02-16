@@ -1,10 +1,10 @@
 import { CashuMint, CashuWallet, Proof } from '@cashu/cashu-ts';
+import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
-import { Conf } from '@/config.ts';
 import { createEvent, parseBody } from '@/utils/api.ts';
 import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { requireStore } from '@/middleware/storeMiddleware.ts';
@@ -16,7 +16,7 @@ import { errorJson } from '@/utils/log.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
-const app = new Hono().use('*', requireStore);
+const app = new Hono().use('*', confRequiredMw, requireStore);
 
 // app.delete('/wallet') -> 204
 
@@ -103,7 +103,7 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
 app.put('/wallet', requireNip44Signer, async (c) => {
-  const signer = c.var.signer;
+  const { conf, signer } = c.var;
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
@@ -146,7 +146,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
     kind: 10019,
     tags: [
       ...mints.map((mint) => ['mint', mint, 'sat']),
-      ['relay', Conf.relay], // TODO: add more relays once things get more stable
+      ['relay', conf.relay], // TODO: add more relays once things get more stable
       ['pubkey', p2pk],
     ],
   }, c);
@@ -155,7 +155,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
   const walletEntity: Wallet = {
     pubkey_p2pk: p2pk,
     mints,
-    relays: [Conf.relay],
+    relays: [conf.relay],
     balance: 0, // Newly created wallet, balance is zero.
   };
 
@@ -164,7 +164,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 
 /** Gets a wallet, if it exists. */
 app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
-  const signer = c.get('signer');
+  const { conf, signer } = c.var;
   const store = c.get('store');
   const pubkey = await signer.getPublicKey();
   const { signal } = c.req.raw;
@@ -209,7 +209,7 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
   const walletEntity: Wallet = {
     pubkey_p2pk: p2pk,
     mints,
-    relays: [Conf.relay],
+    relays: [conf.relay],
     balance,
   };
 
@@ -218,8 +218,10 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 
 /** Get mints set by the CASHU_MINTS environment variable. */
 app.get('/mints', (c) => {
+  const { conf } = c.var;
+
   // TODO: Return full Mint information: https://github.com/cashubtc/nuts/blob/main/06.md
-  const mints = Conf.cashuMints;
+  const mints = conf.cashuMints;
 
   return c.json({ mints }, 200);
 });
