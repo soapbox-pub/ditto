@@ -1,3 +1,4 @@
+import { cachedLinkPreviewSizeGauge } from '@ditto/metrics';
 import TTLCache from '@isaacs/ttlcache';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
@@ -6,7 +7,6 @@ import { unfurl } from 'unfurl.js';
 
 import { Conf } from '@/config.ts';
 import { PreviewCard } from '@/entities/PreviewCard.ts';
-import { cachedLinkPreviewSizeGauge } from '@/metrics.ts';
 import { errorJson } from '@/utils/log.ts';
 
 async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {

@@ -1,7 +1,6 @@
+import { httpRequestsCounter, httpResponseDurationHistogram, httpResponsesCounter } from '@ditto/metrics';
 import { ScopedPerformance } from '@esroyo/scoped-performance';
 import { MiddlewareHandler } from '@hono/hono';
-
-import { httpRequestsCounter, httpResponseDurationHistogram, httpResponsesCounter } from '@/metrics.ts';
 
 /** Prometheus metrics middleware that tracks HTTP requests by methods and responses by status code. */
 export const metricsMiddleware: MiddlewareHandler = async (c, next) => {

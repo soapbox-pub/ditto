@@ -3,7 +3,8 @@
     "./packages/api",
     "./packages/conf",
     "./packages/db",
-    "./packages/ditto"
+    "./packages/ditto",
+    "./packages/metrics"
   ],
   "tasks": {
     "start": "deno run -A --env-file --deny-read=.env packages/ditto/server.ts",

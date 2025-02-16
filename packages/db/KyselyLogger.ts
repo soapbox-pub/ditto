@@ -1,6 +1,5 @@
+import { dbQueriesCounter, dbQueryDurationHistogram } from '@ditto/metrics';
 import { logi, type LogiValue } from '@soapbox/logi';
-
-import { dbQueriesCounter, dbQueryDurationHistogram } from '@/metrics.ts';
 
 import type { Logger } from 'kysely';
 

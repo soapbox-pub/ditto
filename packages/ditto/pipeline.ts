@@ -1,4 +1,5 @@
 import { DittoTables } from '@ditto/db';
+import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@ditto/metrics';
 import { NKinds, NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { Kysely, UpdateObject } from 'kysely';
@@ -9,7 +10,6 @@ import { pipelineEncounters } from '@/caches/pipelineEncounters.ts';
 import { Conf } from '@/config.ts';
 import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';

@@ -1,4 +1,5 @@
 import { type DittoConf } from '@ditto/conf';
+import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@ditto/metrics';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import {
@@ -14,7 +15,6 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
