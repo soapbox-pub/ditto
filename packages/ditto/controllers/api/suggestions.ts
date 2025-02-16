@@ -2,7 +2,6 @@ import { NostrFilter } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
 import { AppContext, AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated, paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
@@ -24,6 +23,7 @@ export const suggestionsV2Controller: AppController = async (c) => {
 };
 
 async function renderV2Suggestions(c: AppContext, params: { offset: number; limit: number }, signal?: AbortSignal) {
+  const { conf } = c.var;
   const { offset, limit } = params;
 
   const store = c.get('store');
@@ -31,8 +31,8 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
   const pubkey = await signer?.getPublicKey();
 
   const filters: NostrFilter[] = [
-    { kinds: [30382], authors: [Conf.pubkey], '#n': ['suggested'], limit },
-    { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 },
+    { kinds: [30382], authors: [conf.pubkey], '#n': ['suggested'], limit },
+    { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [conf.pubkey], limit: 1 },
   ];
 
   if (pubkey) {
@@ -43,11 +43,11 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
   const events = await store.query(filters, { signal });
 
   const [userEvents, followsEvent, mutesEvent, trendingEvent] = [
-    events.filter((event) => matchFilter({ kinds: [30382], authors: [Conf.pubkey], '#n': ['suggested'] }, event)),
+    events.filter((event) => matchFilter({ kinds: [30382], authors: [conf.pubkey], '#n': ['suggested'] }, event)),
     pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
     pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
     events.find((event) =>
-      matchFilter({ kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [Conf.pubkey], limit: 1 }, event)
+      matchFilter({ kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [conf.pubkey], limit: 1 }, event)
     ),
   ];
 
@@ -89,12 +89,13 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
 }
 
 export const localSuggestionsController: AppController = async (c) => {
+  const { conf } = c.var;
   const signal = c.req.raw.signal;
   const params = c.get('pagination');
   const store = c.get('store');
 
   const grants = await store.query(
-    [{ kinds: [30360], authors: [Conf.pubkey], ...params }],
+    [{ kinds: [30360], authors: [conf.pubkey], ...params }],
     { signal },
   );
 
@@ -108,20 +109,20 @@ export const localSuggestionsController: AppController = async (c) => {
   }
 
   const profiles = await store.query(
-    [{ kinds: [0], authors: [...pubkeys], search: `domain:${Conf.url.host}`, ...params }],
+    [{ kinds: [0], authors: [...pubkeys], search: `domain:${conf.url.host}`, ...params }],
     { signal },
   )
     .then((events) => hydrateEvents({ store, events, signal }));
 
-  const suggestions = (await Promise.all([...pubkeys].map(async (pubkey) => {
+  const suggestions = [...pubkeys].map((pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
     if (!profile) return;
 
     return {
       source: 'global',
-      account: await renderAccount(profile),
+      account: renderAccount(profile),
     };
-  }))).filter(Boolean);
+  }).filter(Boolean);
 
   return paginated(c, grants, suggestions);
 };

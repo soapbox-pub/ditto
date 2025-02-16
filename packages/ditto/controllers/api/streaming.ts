@@ -4,7 +4,6 @@ import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import {
   streamingClientMessagesCounter,
   streamingConnectionsGauge,
@@ -69,6 +68,7 @@ const limiter = new TTLCache<string, number>();
 const connections = new Set<WebSocket>();
 
 const streamingController: AppController = async (c) => {
+  const { conf } = c.var;
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -137,7 +137,7 @@ const streamingController: AppController = async (c) => {
     streamingConnectionsGauge.set(connections.size);
 
     if (!stream) return;
-    const topicFilter = await topicToFilter(stream, c.req.query(), pubkey);
+    const topicFilter = await topicToFilter(stream, c.req.query(), pubkey, conf.url.host);
 
     if (topicFilter) {
       sub([topicFilter], async (event) => {
@@ -208,9 +208,8 @@ async function topicToFilter(
   topic: Stream,
   query: Record<string, string>,
   pubkey: string | undefined,
+  host: string,
 ): Promise<NostrFilter | undefined> {
-  const { host } = Conf.url;
-
   switch (topic) {
     case 'public':
       return { kinds: [1, 6, 20] };

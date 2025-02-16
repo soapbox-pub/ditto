@@ -1,3 +1,4 @@
+import { type DittoConf } from '@ditto/conf';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import {
@@ -12,7 +13,6 @@ import {
 } from '@nostrify/nostrify';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
@@ -47,7 +47,7 @@ const limiters = {
 const connections = new Set<WebSocket>();
 
 /** Set up the Websocket connection. */
-function connectStream(socket: WebSocket, ip: string | undefined) {
+function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoConf) {
   const controllers = new Map<string, AbortController>();
 
   socket.onopen = () => {
@@ -126,7 +126,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
     const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: Conf.db.timeouts.relay })) {
+      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: conf.db.timeouts.relay })) {
         send(['EVENT', subId, purifyEvent(event)]);
       }
     } catch (e) {
@@ -188,7 +188,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     if (rateLimited(limiters.req)) return;
     const store = await Storages.db();
-    const { count } = await store.count(filters, { timeout: Conf.db.timeouts.relay });
+    const { count } = await store.count(filters, { timeout: conf.db.timeouts.relay });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
@@ -201,6 +201,7 @@ function connectStream(socket: WebSocket, ip: string | undefined) {
 }
 
 const relayController: AppController = (c, next) => {
+  const { conf } = c.var;
   const upgrade = c.req.header('upgrade');
 
   // NIP-11: https://github.com/nostr-protocol/nips/blob/master/11.md
@@ -214,7 +215,7 @@ const relayController: AppController = (c, next) => {
 
   let ip = c.req.header('x-real-ip');
 
-  if (ip && Conf.ipWhitelist.includes(ip)) {
+  if (ip && conf.ipWhitelist.includes(ip)) {
     ip = undefined;
   }
 
@@ -229,7 +230,7 @@ const relayController: AppController = (c, next) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
-  connectStream(socket, ip);
+  connectStream(socket, ip, conf);
 
   return response;
 };

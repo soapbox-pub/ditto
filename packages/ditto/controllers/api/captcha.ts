@@ -3,7 +3,6 @@ import TTLCache from '@isaacs/ttlcache';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { updateUser } from '@/utils/api.ts';
 
 interface Point {
@@ -24,6 +23,8 @@ const PUZZLE_SIZE = { w: 65, h: 65 };
 
 /** Puzzle captcha controller. */
 export const captchaController: AppController = async (c) => {
+  const { conf } = c.var;
+
   const { bg, puzzle, solution } = generateCaptcha(
     await imagesAsync,
     BG_SIZE,
@@ -32,7 +33,7 @@ export const captchaController: AppController = async (c) => {
 
   const id = crypto.randomUUID();
   const now = new Date();
-  const ttl = Conf.captchaTTL;
+  const ttl = conf.captchaTTL;
 
   captchas.set(id, solution, { ttl });
 

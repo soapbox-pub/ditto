@@ -1,17 +1,17 @@
-import { Conf } from '@/config.ts';
-
 import type { AppController } from '@/app.ts';
 
 const nodeInfoController: AppController = (c) => {
+  const { conf } = c.var;
+
   return c.json({
     links: [
       {
         rel: 'http://nodeinfo.diaspora.software/ns/schema/2.0',
-        href: Conf.local('/nodeinfo/2.0'),
+        href: conf.local('/nodeinfo/2.0'),
       },
       {
         rel: 'http://nodeinfo.diaspora.software/ns/schema/2.1',
-        href: Conf.local('/nodeinfo/2.1'),
+        href: conf.local('/nodeinfo/2.1'),
       },
     ],
   });
