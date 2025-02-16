@@ -10,7 +10,7 @@ import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
-import { isNostrId } from '@/utils.ts';
+import { isNostrId, nostrNow } from '@/utils.ts';
 import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
 
@@ -82,6 +82,30 @@ app.post('/quote', requireNip44Signer, async (c) => {
  * https://github.com/cashubtc/nuts/blob/main/04.md#check-mint-quote-state
  */
 app.get('/quote/:quote_id', requireNip44Signer, async (c) => {
+  const signer = c.var.signer;
+  const { signal } = c.req.raw;
+  const store = c.get('store');
+  const pubkey = await signer.getPublicKey();
+  const quote_id = c.req.param('quote_id');
+
+  const events = await store.query([{ kinds: [7374], authors: [pubkey] }], { signal });
+  for (const event of events) {
+    const decryptedQuoteId = await signer.nip44.decrypt(pubkey, event.content);
+    const mintUrl = event.tags.find(([name]) => name === 'mint')?.[1];
+    const expiration = Number(event.tags.find(([name]) => name === 'expiration')?.[1]);
+    const now = nostrNow();
+
+    if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) {
+      const mint = new CashuMint(mintUrl);
+      const wallet = new CashuWallet(mint);
+      await wallet.loadMint();
+
+      const mintQuote = await wallet.checkMintQuote(quote_id);
+      return c.json(mintQuote, 200);
+    }
+  }
+
+  return c.json({ error: 'Quote not found' }, 404);
 });
 
 /**
