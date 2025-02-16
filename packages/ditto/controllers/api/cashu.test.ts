@@ -1,3 +1,4 @@
+import { confMw } from '@ditto/api/middleware';
 import { Env as HonoEnv, Hono } from '@hono/hono';
 import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
@@ -40,7 +41,10 @@ Deno.test('PUT /wallet must be successful', {
       c.set('store', store);
       await next();
     },
-  ).route('/', cashuApp);
+  );
+
+  app.use(confMw(new Map()));
+  app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
@@ -116,7 +120,10 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
       c.set('store', store);
       await next();
     },
-  ).route('/', cashuApp);
+  );
+
+  app.use(confMw(new Map()));
+  app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
@@ -149,7 +156,10 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () 
       c.set('store', store);
       await next();
     },
-  ).route('/', cashuApp);
+  );
+
+  app.use(confMw(new Map()));
+  app.route('/', cashuApp);
 
   await db.store.event(genEvent({ kind: 17375 }, sk));
 
@@ -187,7 +197,10 @@ Deno.test('GET /wallet must be successful', async () => {
       c.set('store', store);
       await next();
     },
-  ).route('/', cashuApp);
+  );
+
+  app.use(confMw(new Map()));
+  app.route('/', cashuApp);
 
   // Wallet
   await db.store.event(genEvent({
@@ -290,7 +303,10 @@ Deno.test('GET /mints must be successful', async () => {
       c.set('store', store);
       await next();
     },
-  ).route('/', cashuApp);
+  );
+
+  app.use(confMw(new Map()));
+  app.route('/', cashuApp);
 
   const response = await app.request('/mints', {
     method: 'GET',
