@@ -121,6 +121,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
         days: streakDays,
         start: streakStart ? nostrDate(streakStart).toISOString() : null,
         end: streakEnd ? nostrDate(streakEnd).toISOString() : null,
+        expires: streakEnd ? nostrDate(streakEnd + streakWindow).toISOString() : null,
       },
     },
     domain: parsed05?.domain,

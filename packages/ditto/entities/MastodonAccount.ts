@@ -49,6 +49,7 @@ export interface MastodonAccount {
       days: number;
       start: string | null;
       end: string | null;
+      expires: string | null;
     };
   };
   domain?: string;
