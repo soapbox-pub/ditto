@@ -1,4 +1,4 @@
-import { Proof } from '@cashu/cashu-ts';
+import { CashuMint, CashuWallet, Proof } from '@cashu/cashu-ts';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
@@ -32,6 +32,64 @@ interface Nutzap {
   mint: string; // mint the nutzap was created
   recipient_pubkey: string;
 }
+
+const createMintQuoteSchema = z.object({
+  mint: z.string().url(),
+  amount: z.number().int(),
+});
+
+/**
+ * Creates a new mint quote in a specific mint.
+ * https://github.com/cashubtc/nuts/blob/main/04.md#mint-quote
+ */
+app.post('/quote', requireNip44Signer, async (c) => {
+  const signer = c.var.signer;
+  const pubkey = await signer.getPublicKey();
+  const body = await parseBody(c.req.raw);
+  const result = createMintQuoteSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: 'Bad schema', schema: result.error }, 400);
+  }
+
+  const { mint: mintUrl, amount } = result.data;
+
+  try {
+    const mint = new CashuMint(mintUrl);
+    const wallet = new CashuWallet(mint);
+    await wallet.loadMint();
+
+    const mintQuote = await wallet.createMintQuote(amount);
+
+    await createEvent({
+      kind: 7374,
+      content: await signer.nip44.encrypt(pubkey, mintQuote.quote),
+      tags: [
+        ['expiration', String(mintQuote.expiry)],
+        ['mint', mintUrl],
+      ],
+    }, c);
+
+    return c.json(mintQuote, 200);
+  } catch (e) {
+    logi({ level: 'error', ns: 'ditto.api.cashu.quote', error: errorJson(e) });
+    return c.json({ error: 'Could not create mint quote' }, 500);
+  }
+});
+
+/**
+ * Returns the state of the mint quote.
+ * https://github.com/cashubtc/nuts/blob/main/04.md#check-mint-quote-state
+ */
+app.get('/quote/:quote_id', requireNip44Signer, async (c) => {
+});
+
+/**
+ * Mint new tokens.
+ * https://github.com/cashubtc/nuts/blob/main/04.md#minting-tokens
+ */
+app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
+});
 
 const createCashuWalletAndNutzapInfoSchema = z.object({
   mints: z.array(z.string().url()).nonempty().transform((val) => {
