@@ -1,9 +1,9 @@
 import { NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { Storages } from '@/storages.ts';
-import { nostrNow } from '@/utils.ts';
+import { AdminSigner } from '../packages/ditto/signers/AdminSigner.ts';
+import { Storages } from '../packages/ditto/storages.ts';
+import { nostrNow } from '../packages/ditto/utils.ts';
 
 const store = await Storages.db();
 

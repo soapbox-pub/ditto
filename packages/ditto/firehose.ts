@@ -1,8 +1,8 @@
+import { firehoseEventsCounter } from '@ditto/metrics';
 import { Semaphore } from '@core/asyncutil';
 import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
-import { firehoseEventsCounter } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 

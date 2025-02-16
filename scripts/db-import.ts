@@ -3,8 +3,8 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { JsonParseStream } from '@std/json/json-parse-stream';
 import { TextLineStream } from '@std/streams/text-line-stream';
 
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
+import { Conf } from '../packages/ditto/config.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 const store = await Storages.db();
 const sem = new Semaphore(Conf.pg.poolSize);

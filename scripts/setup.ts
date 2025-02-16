@@ -4,7 +4,7 @@ import { exists } from '@std/fs/exists';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 import question from 'question-deno';
 
-import { Conf } from '@/config.ts';
+import { Conf } from '../packages/ditto/config.ts';
 
 console.log('');
 console.log('Hello! Welcome to the Ditto setup tool. We will ask you a few questions to generate a .env file for you.');
