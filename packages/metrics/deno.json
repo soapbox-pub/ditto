@@ -1,0 +1,6 @@
+{
+  "name": "@ditto/metrics",
+  "exports": {
+    ".": "./metrics.ts"
+  }
+}

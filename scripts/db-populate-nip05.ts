@@ -1,8 +1,8 @@
 import { Semaphore } from '@core/asyncutil';
-
-import { updateAuthorData } from '@/pipeline.ts';
-import { Storages } from '@/storages.ts';
 import { NostrEvent } from '@nostrify/nostrify';
+
+import { updateAuthorData } from '../packages/ditto/pipeline.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 const kysely = await Storages.kysely();
 const sem = new Semaphore(5);

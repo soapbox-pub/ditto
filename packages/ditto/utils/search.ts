@@ -1,6 +1,5 @@
+import { DittoTables } from '@ditto/db';
 import { Kysely, sql } from 'kysely';
-
-import { DittoTables } from '@/db/DittoTables.ts';
 
 /** Get pubkeys whose name and NIP-05 is similar to 'q' */
 export async function getPubkeysBySearch(

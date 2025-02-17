@@ -1,10 +1,10 @@
+import { DittoTables } from '@ditto/db';
 import { NostrEvent, NSchema as n, NStore } from '@nostrify/nostrify';
 import { Insertable, Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
 import { Conf } from '@/config.ts';
-import { DittoTables } from '@/db/DittoTables.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 interface UpdateStatsOpts {

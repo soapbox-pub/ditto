@@ -1,11 +1,11 @@
-import { nip19 } from 'nostr-tools';
+import { cachedNip05sSizeGauge } from '@ditto/metrics';
 import { NIP05, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
+import { nip19 } from 'nostr-tools';
 import tldts from 'tldts';
 
 import { Conf } from '@/config.ts';
-import { cachedNip05sSizeGauge } from '@/metrics.ts';
 import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';

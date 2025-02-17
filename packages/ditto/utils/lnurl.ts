@@ -1,10 +1,10 @@
+import { cachedLnurlsSizeGauge } from '@ditto/metrics';
 import { NostrEvent } from '@nostrify/nostrify';
 import { LNURL, LNURLDetails } from '@nostrify/nostrify/ln';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
 import { JsonValue } from '@std/json';
 
-import { cachedLnurlsSizeGauge } from '@/metrics.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { errorJson } from '@/utils/log.ts';
 import { Time } from '@/utils/time.ts';

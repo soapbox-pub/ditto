@@ -1,10 +1,9 @@
 // deno-lint-ignore-file require-await
+import { type DittoDatabase, DittoDB } from '@ditto/db';
+import { internalSubscriptionsSizeGauge } from '@ditto/metrics';
 import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
-import { DittoDatabase } from '@/db/DittoDatabase.ts';
-import { DittoDB } from '@/db/DittoDB.ts';
-import { internalSubscriptionsSizeGauge } from '@/metrics.ts';
 import { wsUrlSchema } from '@/schema.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';

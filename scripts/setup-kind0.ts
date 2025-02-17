@@ -1,9 +1,10 @@
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Command } from 'commander';
 import { NostrEvent } from 'nostr-tools';
-import { nostrNow } from '@/utils.ts';
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
+
+import { AdminSigner } from '../packages/ditto/signers/AdminSigner.ts';
+import { nostrNow } from '../packages/ditto/utils.ts';
+import { Conf } from '../packages/ditto/config.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 function die(code: number, ...args: unknown[]) {
   console.error(...args);

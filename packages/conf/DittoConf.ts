@@ -1,4 +1,7 @@
+import Module from 'node:module';
 import os from 'node:os';
+import path from 'node:path';
+
 import ISO6391, { type LanguageCode } from 'iso-639-1';
 import { getPublicKey, nip19 } from 'nostr-tools';
 import { decodeBase64 } from '@std/encoding/base64';
@@ -346,12 +349,12 @@ export class DittoConf {
 
   /** Path to the custom policy module. Must be an absolute path, https:, npm:, or jsr: URI. */
   get policy(): string {
-    return this.env.get('DITTO_POLICY') || new URL('../data/policy.ts', import.meta.url).pathname;
+    return this.env.get('DITTO_POLICY') || path.join(this.dataDir, 'policy.ts');
   }
 
   /** Absolute path to the data directory used by Ditto. */
   get dataDir(): string {
-    return this.env.get('DITTO_DATA_DIR') || new URL('../data', import.meta.url).pathname;
+    return this.env.get('DITTO_DATA_DIR') || path.join(cwd(), 'data');
   }
 
   /** Absolute path of the Deno directory. */
@@ -461,4 +464,13 @@ export class DittoConf {
   get streakWindow(): number {
     return Number(this.env.get('STREAK_WINDOW') || 129600);
   }
+}
+
+/**
+ * HACK: get cwd without read permissions.
+ * https://github.com/denoland/deno/issues/27080#issuecomment-2504150155
+ */
+function cwd() {
+  // @ts-ignore Internal method, but it does exist.
+  return Module._nodeModulePaths('a')[0].slice(0, -15);
 }

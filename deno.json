@@ -1,8 +1,11 @@
 {
+  "version": "1.1.0",
   "workspace": [
     "./packages/api",
     "./packages/conf",
-    "./packages/ditto"
+    "./packages/db",
+    "./packages/ditto",
+    "./packages/metrics"
   ],
   "tasks": {
     "start": "deno run -A --env-file --deny-read=.env packages/ditto/server.ts",
@@ -16,6 +19,7 @@
     "debug": "deno run -A --env-file --deny-read=.env --inspect packages/ditto/server.ts",
     "test": "deno test -A --env-file=.env.test --deny-read=.env --junit-path=./deno-test.xml",
     "check": "deno check --allow-import .",
+    "lint": "deno lint --allow-import",
     "nsec": "deno run scripts/nsec.ts",
     "admin:event": "deno run -A --env-file --deny-read=.env scripts/admin-event.ts",
     "admin:role": "deno run -A --env-file --deny-read=.env scripts/admin-role.ts",
@@ -41,7 +45,6 @@
     "./public"
   ],
   "imports": {
-    "@/": "./packages/ditto/",
     "@b-fuze/deno-dom": "jsr:@b-fuze/deno-dom@^0.1.47",
     "@bradenmacdonald/s3-lite-client": "jsr:@bradenmacdonald/s3-lite-client@^0.7.4",
     "@cashu/cashu-ts": "npm:@cashu/cashu-ts@^2.2.0",

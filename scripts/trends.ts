@@ -6,7 +6,7 @@ import {
   updateTrendingLinks,
   updateTrendingPubkeys,
   updateTrendingZappedEvents,
-} from '@/trends.ts';
+} from '../packages/ditto/trends.ts';
 
 const trendSchema = z.enum(['pubkeys', 'zapped_events', 'events', 'hashtags', 'links']);
 const trends = trendSchema.array().parse(Deno.args);

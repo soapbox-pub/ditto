@@ -1,14 +1,14 @@
+import {
+  streamingClientMessagesCounter,
+  streamingConnectionsGauge,
+  streamingServerMessagesCounter,
+} from '@ditto/metrics';
 import TTLCache from '@isaacs/ttlcache';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import {
-  streamingClientMessagesCounter,
-  streamingConnectionsGauge,
-  streamingServerMessagesCounter,
-} from '@/metrics.ts';
 import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';

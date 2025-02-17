@@ -1,5 +1,5 @@
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
+import { Conf } from '../packages/ditto/config.ts';
+import { Storages } from '../packages/ditto/storages.ts';
 
 const kysely = await Storages.kysely();
 const statsQuery = kysely.selectFrom('author_stats').select('pubkey');

@@ -1,4 +1,5 @@
 import { type DittoConf } from '@ditto/conf';
+import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@ditto/metrics';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import {
@@ -14,7 +15,6 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@/metrics.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
@@ -64,9 +64,14 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     }
 
     const result = n.json().pipe(n.clientMsg()).safeParse(e.data);
+
     if (result.success) {
-      logi({ level: 'trace', ns: 'ditto.relay.message', data: result.data as JsonValue, ip });
-      relayMessagesCounter.inc({ verb: result.data[0] });
+      const msg = result.data;
+      const verb = msg[0];
+
+      logi({ level: 'trace', ns: 'ditto.relay.msg', verb, msg: msg as JsonValue, ip });
+      relayMessagesCounter.inc({ verb });
+
       handleMsg(result.data);
     } else {
       relayMessagesCounter.inc();

@@ -10,7 +10,7 @@ test:
   stage: test
   script:
     - deno fmt --check
-    - deno lint
+    - deno task lint
     - deno task check
     - deno task test --coverage=cov_profile
     - deno coverage cov_profile

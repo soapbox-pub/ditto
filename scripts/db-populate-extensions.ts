@@ -1,7 +1,7 @@
 import { NostrEvent } from '@nostrify/nostrify';
 
-import { Storages } from '@/storages.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { Storages } from '../packages/ditto/storages.ts';
+import { EventsDB } from '../packages/ditto/storages/EventsDB.ts';
 
 const kysely = await Storages.kysely();
 

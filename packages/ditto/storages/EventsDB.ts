@@ -1,6 +1,8 @@
 // deno-lint-ignore-file require-await
 
+import { DittoTables } from '@ditto/db';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
+import { dbEventsCounter } from '@ditto/metrics';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
@@ -11,8 +13,6 @@ import { nip27 } from 'nostr-tools';
 import tldts from 'tldts';
 import { z } from 'zod';
 
-import { DittoTables } from '@/db/DittoTables.ts';
-import { dbEventsCounter } from '@/metrics.ts';
 import { RelayError } from '@/RelayError.ts';
 import { isNostrId } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';

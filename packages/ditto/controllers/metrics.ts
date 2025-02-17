@@ -1,12 +1,12 @@
-import { register } from 'prom-client';
-
-import { AppController } from '@/app.ts';
 import {
   dbAvailableConnectionsGauge,
   dbPoolSizeGauge,
   relayPoolRelaysSizeGauge,
   relayPoolSubscriptionsSizeGauge,
-} from '@/metrics.ts';
+} from '@ditto/metrics';
+import { register } from 'prom-client';
+
+import { AppController } from '@/app.ts';
 import { Storages } from '@/storages.ts';
 
 /** Prometheus/OpenMetrics controller. */

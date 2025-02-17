@@ -1,7 +1,7 @@
 import { nip19 } from 'nostr-tools';
 
-import { Storages } from '@/storages.ts';
-import { refreshAuthorStats } from '@/utils/stats.ts';
+import { Storages } from '../packages/ditto/storages.ts';
+import { refreshAuthorStats } from '../packages/ditto/utils/stats.ts';
 
 let pubkey: string;
 try {
