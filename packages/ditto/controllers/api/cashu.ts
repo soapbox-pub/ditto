@@ -1,4 +1,4 @@
-import { CashuMint, CashuWallet, Proof } from '@cashu/cashu-ts';
+import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
@@ -13,6 +13,7 @@ import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { isNostrId, nostrNow } from '@/utils.ts';
 import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
+import { getAmount } from '@/utils/bolt11.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -109,13 +110,91 @@ app.get('/quote/:quote_id', requireNip44Signer, async (c) => {
 });
 
 /**
- * Mint new tokens.
+ * Checks if the quote has been paid, if it has then mint new tokens.
  * https://github.com/cashubtc/nuts/blob/main/04.md#minting-tokens
  */
 app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
+  const { conf } = c.var;
+  const signer = c.var.signer;
+  const { signal } = c.req.raw;
+  const store = c.get('store');
+  const pubkey = await signer.getPublicKey();
+  const quote_id = c.req.param('quote_id');
+
+  const expiredQuoteIds: string[] = [];
+  const deleteExpiredQuotes = async (ids: string[]) => {
+    await createEvent({
+      kind: 5,
+      tags: ids.map((id) => ['e', id, conf.relay]),
+    }, c);
+  };
+
+  const events = await store.query([{ kinds: [7374], authors: [pubkey] }], { signal });
+  for (const event of events) {
+    const decryptedQuoteId = await signer.nip44.decrypt(pubkey, event.content);
+    const mintUrl = event.tags.find(([name]) => name === 'mint')?.[1];
+    const expiration = Number(event.tags.find(([name]) => name === 'expiration')?.[1]);
+    const now = nostrNow();
+
+    try {
+      if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) {
+        const mint = new CashuMint(mintUrl);
+        const wallet = new CashuWallet(mint);
+        await wallet.loadMint();
+
+        const mintQuote = await wallet.checkMintQuote(quote_id);
+        const amount = Number(getAmount(mintQuote.request)) / 1000;
+
+        if ((mintQuote.state === MintQuoteState.PAID) && amount) {
+          const proofs = await wallet.mintProofs(amount, mintQuote.quote);
+
+          const unspentProofs = await createEvent({
+            kind: 7375,
+            content: await signer.nip44.encrypt(
+              pubkey,
+              JSON.stringify({
+                mint,
+                proofs,
+              }),
+            ),
+          }, c);
+
+          await createEvent({
+            kind: 7376,
+            content: await signer.nip44.encrypt(
+              pubkey,
+              JSON.stringify([
+                ['direction', 'in'],
+                ['amount', amount],
+                ['e', unspentProofs.id, conf.relay, 'created'],
+              ]),
+            ),
+          }, c);
+
+          expiredQuoteIds.push(event.id);
+          await deleteExpiredQuotes(expiredQuoteIds);
+
+          return c.json({ success: 'Minting successful!' }, 200);
+        } else {
+          await deleteExpiredQuotes(expiredQuoteIds);
+
+          return c.json(mintQuote, 200);
+        }
+      }
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.mint', error: errorJson(e) });
+      return c.json({ error: 'Server error' }, 500);
+    }
+
+    expiredQuoteIds.push(event.id);
+  }
+
+  await deleteExpiredQuotes(expiredQuoteIds);
+
+  return c.json({ error: 'Quote not found' }, 404);
 });
 
-const createCashuWalletAndNutzapInfoSchema = z.object({
+const createWalletSchema = z.object({
   mints: z.array(z.string().url()).nonempty().transform((val) => {
     return [...new Set(val)];
   }),
@@ -132,7 +211,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
   const pubkey = await signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const { signal } = c.req.raw;
-  const result = createCashuWalletAndNutzapInfoSchema.safeParse(body);
+  const result = createWalletSchema.safeParse(body);
 
   if (!result.success) {
     return c.json({ error: 'Bad schema', schema: result.error }, 400);
