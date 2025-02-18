@@ -1,12 +1,13 @@
 import { confMw } from '@ditto/api/middleware';
 import { Env as HonoEnv, Hono } from '@hono/hono';
 import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
+import { genEvent } from '@nostrify/nostrify/test';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { stub } from '@std/testing/mock';
 import { assertEquals, assertExists, assertObjectMatch } from '@std/assert';
 
-import { createTestDB, genEvent } from '@/test.ts';
+import { createTestDB } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';

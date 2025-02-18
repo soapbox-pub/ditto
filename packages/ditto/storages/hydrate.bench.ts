@@ -1,5 +1,6 @@
+import { jsonlEvents } from '@nostrify/nostrify/test';
+
 import { assembleEvents } from '@/storages/hydrate.ts';
-import { jsonlEvents } from '@/test.ts';
 
 const testEvents = await jsonlEvents('fixtures/hydrated.jsonl');
 const testStats = JSON.parse(await Deno.readTextFile('fixtures/stats.json'));

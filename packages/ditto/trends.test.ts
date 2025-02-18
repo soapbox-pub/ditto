@@ -1,8 +1,9 @@
 import { assertEquals } from '@std/assert';
+import { genEvent } from '@nostrify/nostrify/test';
 import { generateSecretKey, NostrEvent } from 'nostr-tools';
 
 import { getTrendingTagValues } from '@/trends.ts';
-import { createTestDB, genEvent } from '@/test.ts';
+import { createTestDB } from '@/test.ts';
 
 Deno.test("getTrendingTagValues(): 'e' tag and WITHOUT language parameter", async () => {
   await using db = await createTestDB();

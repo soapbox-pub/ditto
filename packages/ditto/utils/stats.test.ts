@@ -1,7 +1,8 @@
+import { genEvent } from '@nostrify/nostrify/test';
 import { assertEquals } from '@std/assert';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
-import { createTestDB, genEvent } from '@/test.ts';
+import { createTestDB } from '@/test.ts';
 import { countAuthorStats, getAuthorStats, getEventStats, getFollowDiff, updateStats } from '@/utils/stats.ts';
 
 Deno.test('updateStats with kind 1 increments notes count', async () => {
