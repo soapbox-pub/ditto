@@ -1,10 +1,11 @@
 import { join } from 'node:path';
 
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
-import { NUploader } from '@nostrify/nostrify';
 import { crypto } from '@std/crypto';
 import { encodeHex } from '@std/encoding/hex';
 import { extensionsByType } from '@std/media-types';
+
+import type { NUploader } from '@nostrify/nostrify';
 
 export interface S3UploaderOpts {
   endPoint: string;
