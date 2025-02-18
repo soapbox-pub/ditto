@@ -5,6 +5,7 @@
     "./packages/conf",
     "./packages/db",
     "./packages/ditto",
+    "./packages/lang",
     "./packages/metrics",
     "./packages/uploaders"
   ],

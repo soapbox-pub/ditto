@@ -1,5 +1,6 @@
-import { detectLanguage } from '@/utils/language.ts';
 import { assertEquals } from '@std/assert';
+
+import { detectLanguage } from './language.ts';
 
 Deno.test('Detect English language', () => {
   assertEquals(detectLanguage(``, 0.90), undefined);
