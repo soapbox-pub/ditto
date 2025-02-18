@@ -36,8 +36,8 @@ interface TagConditionOpts {
   value: string;
 }
 
-/** Options for the EventsDB store. */
-interface EventsDBOpts {
+/** Options for the DittoPgStore store. */
+interface DittoPgStoreOpts {
   /** Kysely instance to use. */
   kysely: Kysely<DittoTables>;
   /** Pubkey of the admin account. */
@@ -49,18 +49,18 @@ interface EventsDBOpts {
 }
 
 /** SQL database storage adapter for Nostr events. */
-class EventsDB extends NPostgres {
+class DittoPgStore extends NPostgres {
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'a': ({ count }) => count < 15,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
-    'e': EventsDB.eTagCondition,
+    'e': DittoPgStore.eTagCondition,
     'k': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
-    'p': EventsDB.pTagCondition,
+    'p': DittoPgStore.pTagCondition,
     'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
@@ -119,11 +119,11 @@ class EventsDB extends NPostgres {
     return ext;
   }
 
-  constructor(private opts: EventsDBOpts) {
+  constructor(private opts: DittoPgStoreOpts) {
     super(opts.kysely, {
-      indexTags: EventsDB.indexTags,
-      indexSearch: EventsDB.searchText,
-      indexExtensions: EventsDB.indexExtensions,
+      indexTags: DittoPgStore.indexTags,
+      indexSearch: DittoPgStore.searchText,
+      indexExtensions: DittoPgStore.indexExtensions,
     });
   }
 
@@ -323,7 +323,7 @@ class EventsDB extends NPostgres {
 
     return event.tags.reduce<string[][]>((results, tag, index) => {
       const [name, value] = tag;
-      const condition = EventsDB.tagConditions[name] as TagCondition | undefined;
+      const condition = DittoPgStore.tagConditions[name] as TagCondition | undefined;
 
       if (value && condition && value.length < 200 && checkCondition(name, value, condition, index)) {
         results.push(tag);
@@ -338,12 +338,12 @@ class EventsDB extends NPostgres {
   static searchText(event: NostrEvent): string {
     switch (event.kind) {
       case 0:
-        return EventsDB.buildUserSearchContent(event);
+        return DittoPgStore.buildUserSearchContent(event);
       case 1:
       case 20:
         return nip27.replaceAll(event.content, () => '');
       case 30009:
-        return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
+        return DittoPgStore.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
       case 30360:
         return event.tags.find(([name]) => name === 'd')?.[1] || '';
       default:
@@ -434,4 +434,4 @@ class EventsDB extends NPostgres {
   }
 }
 
-export { EventsDB };
+export { DittoPgStore };

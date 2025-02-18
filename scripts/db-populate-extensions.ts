@@ -1,7 +1,7 @@
 import { NostrEvent } from '@nostrify/nostrify';
 
 import { Storages } from '../packages/ditto/storages.ts';
-import { EventsDB } from '../packages/ditto/storages/EventsDB.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 
 const kysely = await Storages.kysely();
 
@@ -11,7 +11,7 @@ const query = kysely
 
 for await (const row of query.stream()) {
   const event: NostrEvent = { ...row, created_at: Number(row.created_at) };
-  const ext = EventsDB.indexExtensions(event);
+  const ext = DittoPgStore.indexExtensions(event);
 
   try {
     await kysely

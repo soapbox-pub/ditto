@@ -3,7 +3,7 @@ import { NostrEvent } from '@nostrify/nostrify';
 import { finalizeEvent, generateSecretKey } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { sql } from 'kysely';
 
@@ -38,7 +38,7 @@ export async function createTestDB(opts?: { pure?: boolean }) {
 
   await DittoDB.migrate(kysely);
 
-  const store = new EventsDB({
+  const store = new DittoPgStore({
     kysely,
     timeout: Conf.db.timeouts.default,
     pubkey: Conf.pubkey,
