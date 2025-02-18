@@ -1,6 +1,7 @@
 import { confMw } from '@ditto/api/middleware';
 import { type DittoConf } from '@ditto/conf';
 import { DittoTables } from '@ditto/db';
+import { type DittoTranslator } from '@ditto/translators';
 import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
@@ -134,7 +135,6 @@ import { metricsController } from '@/controllers/metrics.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
-import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
 import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';

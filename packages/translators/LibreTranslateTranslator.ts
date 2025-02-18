@@ -1,8 +1,9 @@
-import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
-import { DittoTranslator } from '@/interfaces/DittoTranslator.ts';
-import { languageSchema } from '@/schema.ts';
+import { languageSchema } from './schema.ts';
+
+import type { LanguageCode } from 'iso-639-1';
+import type { DittoTranslator } from './DittoTranslator.ts';
 
 interface LibreTranslateTranslatorOpts {
   /** Libretranslate endpoint to use. Default: 'https://libretranslate.com' */

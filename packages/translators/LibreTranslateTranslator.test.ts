@@ -1,14 +1,14 @@
+import { DittoConf } from '@ditto/conf';
+import { detectLanguage } from '@ditto/lang';
 import { assertEquals } from '@std/assert';
 
-import { Conf } from '@/config.ts';
-import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator.ts';
-import { getLanguage } from '@/test.ts';
+import { LibreTranslateTranslator } from './LibreTranslateTranslator.ts';
 
 const {
   libretranslateBaseUrl: baseUrl,
   libretranslateApiKey: apiKey,
   translationProvider,
-} = Conf;
+} = new DittoConf(Deno.env);
 
 const libretranslate = 'libretranslate';
 
@@ -28,9 +28,9 @@ Deno.test('LibreTranslate translation with source language omitted', {
   );
 
   assertEquals(data.source_lang, 'pt');
-  assertEquals(getLanguage(data.results[0]), 'ca');
-  assertEquals(getLanguage(data.results[1]), 'ca');
-  assertEquals(getLanguage(data.results[2]), 'ca');
+  assertEquals(detectLanguage(data.results[0], 0), 'ca');
+  assertEquals(detectLanguage(data.results[1], 0), 'ca');
+  assertEquals(detectLanguage(data.results[2], 0), 'ca');
 });
 
 Deno.test('LibreTranslate translation with source language set', {
@@ -49,7 +49,7 @@ Deno.test('LibreTranslate translation with source language set', {
   );
 
   assertEquals(data.source_lang, 'pt');
-  assertEquals(getLanguage(data.results[0]), 'ca');
-  assertEquals(getLanguage(data.results[1]), 'ca');
-  assertEquals(getLanguage(data.results[2]), 'ca');
+  assertEquals(detectLanguage(data.results[0], 0), 'ca');
+  assertEquals(detectLanguage(data.results[1], 0), 'ca');
+  assertEquals(detectLanguage(data.results[2], 0), 'ca');
 });
