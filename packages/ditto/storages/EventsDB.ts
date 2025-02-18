@@ -1,6 +1,7 @@
 // deno-lint-ignore-file require-await
 
 import { DittoTables } from '@ditto/db';
+import { detectLanguage } from '@ditto/lang';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { dbEventsCounter } from '@ditto/metrics';
 import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
@@ -18,7 +19,6 @@ import { isNostrId } from '@/utils.ts';
 import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { detectLanguage } from '@/utils/language.ts';
 import { getMediaLinks } from '@/utils/note.ts';
 
 /** Function to decide whether or not to index a tag. */
