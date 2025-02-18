@@ -57,7 +57,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
     let contentTags: string[][];
     try {
-      contentTags = JSON.parse(decryptedContent); // TODO: use zod
+      contentTags = z.string().array().array().parse(decryptedContent);
     } catch {
       return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
     }
