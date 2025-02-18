@@ -1,3 +1,4 @@
+import { MuteListPolicy } from '@ditto/policies';
 import {
   streamingClientMessagesCounter,
   streamingConnectionsGauge,
@@ -9,7 +10,6 @@ import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';

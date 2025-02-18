@@ -1,8 +1,8 @@
 import { MockRelay } from '@nostrify/nostrify/test';
 
 import { assertEquals } from '@std/assert';
-import { UserStore } from '@/storages/UserStore.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
+
+import { MuteListPolicy } from './MuteListPolicy.ts';
 
 import userBlack from '~/fixtures/events/kind-0-black.json' with { type: 'json' };
 import userMe from '~/fixtures/events/event-0-makes-repost-with-quote-repost.json' with { type: 'json' };
@@ -16,14 +16,12 @@ Deno.test('block event: muted user cannot post', async () => {
   const blockEventCopy = structuredClone(blockEvent);
   const event1authorUserMeCopy = structuredClone(event1authorUserMe);
 
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  const policy = new MuteListPolicy(userBlack.pubkey, relay);
 
-  const store = new UserStore(userBlackCopy.pubkey, db);
-  const policy = new MuteListPolicy(userBlack.pubkey, db);
-
-  await store.event(blockEventCopy);
-  await store.event(userBlackCopy);
-  await store.event(userMeCopy);
+  await relay.event(blockEventCopy);
+  await relay.event(userBlackCopy);
+  await relay.event(userMeCopy);
 
   const ok = await policy.call(event1authorUserMeCopy);
 
@@ -35,13 +33,11 @@ Deno.test('allow event: user is NOT muted because there is no muted event', asyn
   const userMeCopy = structuredClone(userMe);
   const event1authorUserMeCopy = structuredClone(event1authorUserMe);
 
-  const db = new MockRelay();
+  const relay = new MockRelay();
+  const policy = new MuteListPolicy(userBlack.pubkey, relay);
 
-  const store = new UserStore(userBlackCopy.pubkey, db);
-  const policy = new MuteListPolicy(userBlack.pubkey, db);
-
-  await store.event(userBlackCopy);
-  await store.event(userMeCopy);
+  await relay.event(userBlackCopy);
+  await relay.event(userMeCopy);
 
   const ok = await policy.call(event1authorUserMeCopy);
 
@@ -55,16 +51,15 @@ Deno.test('allow event: user is NOT muted because he is not in mute event', asyn
   const blockEventCopy = structuredClone(blockEvent);
   const event1copy = structuredClone(event1);
 
-  const db = new MockRelay();
+  const relay = new MockRelay();
 
-  const store = new UserStore(userBlackCopy.pubkey, db);
-  const policy = new MuteListPolicy(userBlack.pubkey, db);
+  const policy = new MuteListPolicy(userBlack.pubkey, relay);
 
-  await store.event(userBlackCopy);
-  await store.event(blockEventCopy);
-  await store.event(userMeCopy);
-  await store.event(event1copy);
-  await store.event(event1authorUserMeCopy);
+  await relay.event(userBlackCopy);
+  await relay.event(blockEventCopy);
+  await relay.event(userMeCopy);
+  await relay.event(event1copy);
+  await relay.event(event1authorUserMeCopy);
 
   const ok = await policy.call(event1copy);
 
