@@ -115,6 +115,7 @@ const accountSearchQuerySchema = z.object({
 });
 
 const accountSearchController: AppController = async (c) => {
+  const { store } = c.var;
   const { signal } = c.req.raw;
   const { limit } = c.get('pagination');
 
@@ -128,7 +129,6 @@ const accountSearchController: AppController = async (c) => {
   }
 
   const query = decodeURIComponent(result.data.q);
-  const store = await Storages.search();
 
   const lookup = extractIdentifier(query);
   const event = await lookupAccount(lookup ?? query);
