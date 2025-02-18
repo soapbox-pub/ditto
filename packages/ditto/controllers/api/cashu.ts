@@ -79,37 +79,6 @@ app.post('/quote', requireNip44Signer, async (c) => {
 });
 
 /**
- * Returns the state of the mint quote.
- * https://github.com/cashubtc/nuts/blob/main/04.md#check-mint-quote-state
- */
-app.get('/quote/:quote_id', requireNip44Signer, async (c) => {
-  const signer = c.var.signer;
-  const { signal } = c.req.raw;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const quote_id = c.req.param('quote_id');
-
-  const events = await store.query([{ kinds: [7374], authors: [pubkey] }], { signal });
-  for (const event of events) {
-    const decryptedQuoteId = await signer.nip44.decrypt(pubkey, event.content);
-    const mintUrl = event.tags.find(([name]) => name === 'mint')?.[1];
-    const expiration = Number(event.tags.find(([name]) => name === 'expiration')?.[1]);
-    const now = nostrNow();
-
-    if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) {
-      const mint = new CashuMint(mintUrl);
-      const wallet = new CashuWallet(mint);
-      await wallet.loadMint();
-
-      const mintQuote = await wallet.checkMintQuote(quote_id);
-      return c.json(mintQuote, 200);
-    }
-  }
-
-  return c.json({ error: 'Quote not found' }, 404);
-});
-
-/**
  * Checks if the quote has been paid, if it has then mint new tokens.
  * https://github.com/cashubtc/nuts/blob/main/04.md#minting-tokens
  */
@@ -174,7 +143,7 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
           expiredQuoteIds.push(event.id);
           await deleteExpiredQuotes(expiredQuoteIds);
 
-          return c.json({ success: 'Minting successful!' }, 200);
+          return c.json({ success: 'Minting successful!', state: MintQuoteState.ISSUED }, 200);
         } else {
           await deleteExpiredQuotes(expiredQuoteIds);
 
