@@ -1,4 +1,4 @@
-import { RateLimiter, RateLimiterClient } from './types.ts';
+import type { RateLimiter, RateLimiterClient } from './types.ts';
 
 export class MultiRateLimiter {
   constructor(private limiters: RateLimiter[]) {}
