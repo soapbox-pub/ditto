@@ -7,7 +7,6 @@ import { Conf } from '@/config.ts';
 import { wsUrlSchema } from '@/schema.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
 import { EventsDB } from '@/storages/EventsDB.ts';
-import { SearchStore } from '@/storages/search-store.ts';
 import { InternalRelay } from '@/storages/InternalRelay.ts';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { getRelays } from '@/utils/outbox.ts';
@@ -19,7 +18,6 @@ export class Storages {
   private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool<NRelay1>> | undefined;
   private static _pubsub: Promise<InternalRelay> | undefined;
-  private static _search: Promise<SearchStore> | undefined;
 
   public static async database(): Promise<DittoDatabase> {
     if (!this._database) {
@@ -123,18 +121,5 @@ export class Storages {
       })();
     }
     return this._client;
-  }
-
-  /** Storage to use for remote search. */
-  public static async search(): Promise<SearchStore> {
-    if (!this._search) {
-      this._search = Promise.resolve(
-        new SearchStore({
-          relay: Conf.searchRelay,
-          fallback: await this.db(),
-        }),
-      );
-    }
-    return this._search;
   }
 }
