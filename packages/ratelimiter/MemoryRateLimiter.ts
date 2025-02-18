@@ -1,5 +1,6 @@
 import { RateLimitError } from './RateLimitError.ts';
-import { RateLimiter, RateLimiterClient } from './types.ts';
+
+import type { RateLimiter, RateLimiterClient } from './types.ts';
 
 interface MemoryRateLimiterOpts {
   limit: number;

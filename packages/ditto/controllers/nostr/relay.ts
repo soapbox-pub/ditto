@@ -1,5 +1,6 @@
 import { type DittoConf } from '@ditto/conf';
 import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@ditto/metrics';
+import { MemoryRateLimiter, MultiRateLimiter, type RateLimiter } from '@ditto/ratelimiter';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import {
@@ -20,9 +21,6 @@ import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
-import { MemoryRateLimiter } from '@/utils/ratelimiter/MemoryRateLimiter.ts';
-import { MultiRateLimiter } from '@/utils/ratelimiter/MultiRateLimiter.ts';
-import { RateLimiter } from '@/utils/ratelimiter/types.ts';
 import { Time } from '@/utils/time.ts';
 
 /** Limit of initial events returned for a subscription. */

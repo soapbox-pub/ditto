@@ -8,6 +8,7 @@
     "./packages/lang",
     "./packages/metrics",
     "./packages/policies",
+    "./packages/ratelimiter",
     "./packages/translators",
     "./packages/uploaders"
   ],
