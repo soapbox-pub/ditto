@@ -1,5 +1,6 @@
-import { NUploader } from '@nostrify/nostrify';
 import { z } from 'zod';
+
+import type { NUploader } from '@nostrify/nostrify';
 
 export interface IPFSUploaderOpts {
   baseUrl: string;

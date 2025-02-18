@@ -5,7 +5,8 @@
     "./packages/conf",
     "./packages/db",
     "./packages/ditto",
-    "./packages/metrics"
+    "./packages/metrics",
+    "./packages/uploaders"
   ],
   "tasks": {
     "start": "deno run -A --env-file --deny-read=.env packages/ditto/server.ts",
