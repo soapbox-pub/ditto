@@ -34,31 +34,31 @@ export function genEvent(t: Partial<NostrEvent> = {}, sk: Uint8Array = generateS
 
 /** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const { kysely } = DittoDB.create(Conf.databaseUrl, { poolSize: 1 });
+  const db = DittoDB.create(Conf.databaseUrl, { poolSize: 1 });
 
-  await DittoDB.migrate(kysely);
+  await DittoDB.migrate(db.kysely);
 
   const store = new DittoPgStore({
-    kysely,
+    db,
     timeout: Conf.db.timeouts.default,
     pubkey: Conf.pubkey,
     pure: opts?.pure ?? false,
   });
 
   return {
+    ...db,
     store,
-    kysely,
     [Symbol.asyncDispose]: async () => {
       const { rows } = await sql<
         { tablename: string }
-      >`select tablename from pg_tables where schemaname = current_schema()`.execute(kysely);
+      >`select tablename from pg_tables where schemaname = current_schema()`.execute(db.kysely);
 
       for (const { tablename } of rows) {
         if (tablename.startsWith('kysely_')) continue;
-        await sql`truncate table ${sql.ref(tablename)} cascade`.execute(kysely);
+        await sql`truncate table ${sql.ref(tablename)} cascade`.execute(db.kysely);
       }
 
-      await kysely.destroy();
+      await db.kysely.destroy();
     },
   };
 }

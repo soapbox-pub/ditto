@@ -30,10 +30,10 @@ export class CustomPolicy implements NPolicy {
   async init({ path, databaseUrl, pubkey }: PolicyInit): Promise<void> {
     const Policy = (await import(path)).default;
 
-    const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
+    const db = DittoDB.create(databaseUrl, { poolSize: 1 });
 
     const store = new DittoPgStore({
-      kysely,
+      db,
       pubkey,
       timeout: 5_000,
     });
