@@ -32,7 +32,7 @@ export class LibreTranslateTranslator implements DittoTranslator {
     source: LanguageCode | undefined,
     dest: LanguageCode,
     opts?: { signal?: AbortSignal },
-  ) {
+  ): Promise<{ results: string[]; source_lang: LanguageCode }> {
     const translations = await Promise.all(
       texts.map((text) => this.translateOne(text, source, dest, 'html', { signal: opts?.signal })),
     );
