@@ -1,8 +1,7 @@
+import { DeepLTranslator, LibreTranslateTranslator } from '@ditto/translators';
 import { safeFetch } from '@soapbox/safe-fetch';
 
 import { AppMiddleware } from '@/app.ts';
-import { DeepLTranslator } from '@/translators/DeepLTranslator.ts';
-import { LibreTranslateTranslator } from '@/translators/LibreTranslateTranslator.ts';
 
 /** Set the translator used for translating posts. */
 export const translatorMiddleware: AppMiddleware = async (c, next) => {
