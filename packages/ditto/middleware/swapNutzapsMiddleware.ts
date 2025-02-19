@@ -93,56 +93,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
       nutzapsFilter.since = lastRedeemedNutzap.created_at;
     }
 
-    const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {}; // 'key' is the mint url
-
-    const nutzaps = await store.query([nutzapsFilter], { signal });
-
-    for (const event of nutzaps) {
-      try {
-        const mint = event.tags.find(([name]) => name === 'u')?.[1];
-        if (!mint) {
-          continue;
-        }
-
-        const proof = event.tags.find(([name]) => name === 'proof')?.[1];
-        if (!proof) {
-          continue;
-        }
-
-        if (!mintsToProofs[mint]) {
-          mintsToProofs[mint] = { proofs: [], redeemed: [] };
-        }
-
-        const parsed = n.json().pipe(
-          z.object({
-            id: z.string(),
-            amount: z.number(),
-            secret: z.string(),
-            C: z.string(),
-            dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
-            dleqValid: z.boolean().optional(),
-          }).array(),
-        ).safeParse(proof);
-
-        if (!parsed.success) {
-          continue;
-        }
-
-        mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...parsed.data];
-        mintsToProofs[mint].redeemed = [
-          ...mintsToProofs[mint].redeemed,
-          [
-            'e', // nutzap event that has been redeemed
-            event.id,
-            conf.relay,
-            'redeemed',
-          ],
-          ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
-        ];
-      } catch (e) {
-        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
-      }
-    }
+    const mintsToProofs = await getMintsToProofs(store, nutzapsFilter, conf.relay, { signal });
 
     // TODO: throw error if mintsToProofs is an empty object?
     for (const mint of Object.keys(mintsToProofs)) {
@@ -204,4 +155,80 @@ async function getLastRedeemedNutzap(
     }
   }
 }
-async function getMintsToProofs() {}
+
+/**
+ * Gets proofs from nutzaps that have not been redeemed yet.
+ * Each proof is associated with a specific mint.
+ * @param store Store used to query for the nutzaps
+ * @param nutzapsFilter Filter used to query for the nutzaps, most useful when
+ * it contains a 'since' field so it saves time and resources
+ * @param relay Relay hint where the new kind 7376 will be saved
+ * @returns MintsToProofs An object where each key is a mint url and the values are an array of proofs
+ * and an array of redeemed tags in this format:
+ * ```
+ * [
+ *    ...,
+ *    [ "e", "<9321-event-id>", "<relay-hint>", "redeemed" ], // nutzap event that has been redeemed
+ *    [ "p", "<sender-pubkey>" ] // pubkey of the author of the 9321 event (nutzap sender)
+ * ]
+ * ```
+ */
+async function getMintsToProofs(
+  store: NStore,
+  nutzapsFilter: NostrFilter,
+  relay: string,
+  opts?: { signal?: AbortSignal },
+): Promise<{ [key: string]: { proofs: Proof[]; redeemed: string[][] } }> {
+  const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {};
+
+  const nutzaps = await store.query([nutzapsFilter], { signal: opts?.signal });
+
+  for (const event of nutzaps) {
+    try {
+      const mint = event.tags.find(([name]) => name === 'u')?.[1];
+      if (!mint) {
+        continue;
+      }
+
+      const proof = event.tags.find(([name]) => name === 'proof')?.[1];
+      if (!proof) {
+        continue;
+      }
+
+      if (!mintsToProofs[mint]) {
+        mintsToProofs[mint] = { proofs: [], redeemed: [] };
+      }
+
+      const parsed = n.json().pipe(
+        z.object({
+          id: z.string(),
+          amount: z.number(),
+          secret: z.string(),
+          C: z.string(),
+          dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
+          dleqValid: z.boolean().optional(),
+        }).array(),
+      ).safeParse(proof);
+
+      if (!parsed.success) {
+        continue;
+      }
+
+      mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...parsed.data];
+      mintsToProofs[mint].redeemed = [
+        ...mintsToProofs[mint].redeemed,
+        [
+          'e', // nutzap event that has been redeemed
+          event.id,
+          relay,
+          'redeemed',
+        ],
+        ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
+      ];
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
+    }
+  }
+
+  return mintsToProofs;
+}
