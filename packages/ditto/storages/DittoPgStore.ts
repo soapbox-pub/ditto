@@ -57,14 +57,18 @@ interface DittoPgStoreOpts {
   timeout: number;
   /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
   pure?: boolean;
-  /** Chunk size for streaming events. Defaults to 100. */
+  /** Chunk size for streaming events. Defaults to 20. */
   chunkSize?: number;
+  /** Batch size for fulfilling subscriptions. Defaults to 500. */
+  batchSize?: number;
+  /** Max age (in **seconds**) an event can be to be fulfilled to realtime subscribers. */
+  maxAge?: number;
 }
 
 /** SQL database storage adapter for Nostr events. */
 export class DittoPgStore extends NPostgres {
   readonly subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
-  readonly encounters = new LRUCache<string, boolean>({ max: 100 });
+  readonly encounters = new LRUCache<string, boolean>({ max: 1000 });
 
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
@@ -103,7 +107,7 @@ export class DittoPgStore extends NPostgres {
       const [event] = await this.query([{ ids: [id] }]);
 
       if (event) {
-        this.streamOut(event);
+        await this.fulfill(event);
       }
     });
   }
@@ -117,6 +121,10 @@ export class DittoPgStore extends NPostgres {
     this.encounters.set(event.id, true);
     dbEventsCounter.inc({ kind: event.kind });
 
+    if (NKinds.ephemeral(event.kind)) {
+      return await this.fulfill(event);
+    }
+
     if (await this.isDeletedAdmin(event)) {
       throw new RelayError('blocked', 'event deleted by admin');
     }
@@ -125,7 +133,7 @@ export class DittoPgStore extends NPostgres {
 
     try {
       await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
-      this.streamOut(event);
+      this.fulfill(event); // don't await or catch (should never reject)
     } catch (e) {
       if (e instanceof Error && e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -137,19 +145,46 @@ export class DittoPgStore extends NPostgres {
     }
   }
 
-  protected matchesFilter(event: NostrEvent, filter: NostrFilter): boolean {
-    // TODO: support streaming by search.
-    return matchFilter(filter, event) && filter.search === undefined;
-  }
+  /** Fulfill active subscriptions with this event. */
+  protected async fulfill(event: NostrEvent): Promise<void> {
+    const { maxAge = 60, batchSize = 500 } = this.opts;
 
-  protected streamOut(event: NostrEvent): void {
+    const now = Math.floor(Date.now() / 1000);
+    const age = now - event.created_at;
+
+    if (age > maxAge) {
+      // Ephemeral events must be fulfilled, or else return an error to the client.
+      if (NKinds.ephemeral(event.kind)) {
+        throw new RelayError('invalid', 'event too old');
+      } else {
+        // Silently ignore old events.
+        return;
+      }
+    }
+
+    let count = 0;
+
     for (const { filters, machina } of this.subs.values()) {
       for (const filter of filters) {
+        count++;
+
         if (this.matchesFilter(event, filter)) {
           machina.push(event);
+          break;
+        }
+
+        // Yield to event loop.
+        if (count % batchSize === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
     }
+  }
+
+  /** Check if the event fulfills the filter, according to Ditto criteria. */
+  protected matchesFilter(event: NostrEvent, filter: NostrFilter): boolean {
+    // TODO: support streaming by search.
+    return typeof filter.search !== 'string' && matchFilter(filter, event);
   }
 
   /** Check if an event has been deleted by the admin. */
@@ -215,23 +250,26 @@ export class DittoPgStore extends NPostgres {
 
   override async *req(
     filters: NostrFilter[],
-    opts?: { signal?: AbortSignal },
+    opts: { timeout?: number; signal?: AbortSignal } = {},
   ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
     const subId = crypto.randomUUID();
     const normalFilters = this.normalizeFilters(filters);
 
     if (normalFilters.length) {
-      const { db, chunkSize = 100 } = this.opts;
-      const rows = this.getEventsQuery(db.kysely as unknown as Kysely<NPostgresSchema>, normalFilters).stream(
-        chunkSize,
+      const { db, timeout, chunkSize = 20 } = this.opts;
+
+      const rows = await this.withTimeout(
+        db.kysely as unknown as Kysely<NPostgresSchema>,
+        (trx) => this.getEventsQuery(trx, normalFilters).stream(chunkSize),
+        opts.timeout ?? timeout,
       );
 
       for await (const row of rows) {
         const event = this.parseEventRow(row);
         yield ['EVENT', subId, event];
 
-        if (opts?.signal?.aborted) {
-          yield ['CLOSED', subId, 'aborted'];
+        if (opts.signal?.aborted) {
+          yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
           return;
         }
       }
@@ -239,7 +277,12 @@ export class DittoPgStore extends NPostgres {
 
     yield ['EOSE', subId];
 
-    const machina = new Machina<DittoEvent>(opts?.signal);
+    if (opts.signal?.aborted) {
+      yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
+      return;
+    }
+
+    const machina = new Machina<DittoEvent>(opts.signal);
 
     this.subs.set(subId, { filters, machina });
     internalSubscriptionsSizeGauge.set(this.subs.size);
@@ -248,8 +291,12 @@ export class DittoPgStore extends NPostgres {
       for await (const event of machina) {
         yield ['EVENT', subId, event];
       }
-    } catch {
-      yield ['CLOSED', subId, 'error: something went wrong'];
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('timeout')) {
+        yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
+      } else {
+        yield ['CLOSED', subId, 'error: something went wrong'];
+      }
     } finally {
       this.subs.delete(subId);
       internalSubscriptionsSizeGauge.set(this.subs.size);
