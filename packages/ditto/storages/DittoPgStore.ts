@@ -63,6 +63,8 @@ interface DittoPgStoreOpts {
   batchSize?: number;
   /** Max age (in **seconds**) an event can be to be fulfilled to realtime subscribers. */
   maxAge?: number;
+  /** Whether to listen for events from the database with NOTIFY. */
+  notify?: boolean;
 }
 
 /** SQL database storage adapter for Nostr events. */
@@ -100,25 +102,29 @@ export class DittoPgStore extends NPostgres {
       chunkSize: opts.chunkSize,
     });
 
-    opts.db.listen('nostr_event', async (id) => {
-      if (this.encounters.has(id)) return;
-      this.encounters.set(id, true);
+    if (opts.notify) {
+      opts.db.listen('nostr_event', async (id) => {
+        if (this.encounters.has(id)) return;
+        this.encounters.set(id, true);
 
-      const [event] = await this.query([{ ids: [id] }]);
+        const [event] = await this.query([{ ids: [id] }]);
 
-      if (event) {
-        await this.fulfill(event);
-      }
-    });
+        if (event) {
+          await this.fulfill(event);
+        }
+      });
+    }
   }
 
   /** Insert an event (and its tags) into the database. */
   override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
 
-    logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
+    if (this.opts.notify) {
+      this.encounters.set(event.id, true);
+    }
 
-    this.encounters.set(event.id, true);
+    logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
     dbEventsCounter.inc({ kind: event.kind });
 
     if (NKinds.ephemeral(event.kind)) {

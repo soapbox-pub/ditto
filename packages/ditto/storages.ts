@@ -40,7 +40,12 @@ export class Storages {
     if (!this._db) {
       this._db = (async () => {
         const db = await this.database();
-        const store = new DittoPgStore({ db, pubkey: Conf.pubkey, timeout: Conf.db.timeouts.default });
+        const store = new DittoPgStore({
+          db,
+          pubkey: Conf.pubkey,
+          timeout: Conf.db.timeouts.default,
+          notify: Conf.notifyEnabled,
+        });
         await seedZapSplits(store);
         return store;
       })();
