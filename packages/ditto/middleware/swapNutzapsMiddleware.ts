@@ -7,11 +7,11 @@ import { NostrEvent, NostrFilter, NostrSigner, NSchema as n, NStore } from '@nos
 import { SetRequired } from 'type-fest';
 import { stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
+import { z } from 'zod';
 
 import { isNostrId } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { createEvent } from '@/utils/api.ts';
-import { z } from 'zod';
 
 /**
  * Swap nutzaps into wallet (create new events) if the user has a wallet, otheriwse, just fallthrough.

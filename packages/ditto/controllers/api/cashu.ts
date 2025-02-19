@@ -2,6 +2,7 @@ import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import { NSchema as n } from '@nostrify/nostrify';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
@@ -246,7 +247,12 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
     return c.json({ error: 'Wallet not found' }, 404);
   }
 
-  const decryptedContent: string[][] = JSON.parse(await signer.nip44.decrypt(pubkey, event.content));
+  const { data: decryptedContent, success } = n.json().pipe(z.string().array().array()).safeParse(
+    await signer.nip44.decrypt(pubkey, event.content),
+  );
+  if (!success) {
+    return c.json({ error: 'Could not decrypt wallet content' }, 422);
+  }
 
   const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
   if (!privkey || !isNostrId(privkey)) {
@@ -257,6 +263,13 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 
   let balance = 0;
   const mints: string[] = [];
+
+  for (const tag of decryptedContent) {
+    const isMint = tag[0] === 'mint';
+    if (isMint) {
+      mints.push(tag[1]);
+    }
+  }
 
   const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal });
   for (const token of tokens) {
