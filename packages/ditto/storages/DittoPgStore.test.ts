@@ -1,8 +1,9 @@
 import { assertEquals, assertRejects } from '@std/assert';
+import { genEvent } from '@nostrify/nostrify/test';
 import { generateSecretKey } from 'nostr-tools';
 
 import { RelayError } from '@/RelayError.ts';
-import { eventFixture, genEvent } from '@/test.ts';
+import { eventFixture } from '@/test.ts';
 import { Conf } from '@/config.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { createTestDB } from '@/test.ts';

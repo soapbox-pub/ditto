@@ -94,7 +94,7 @@ async function searchEvents(
     return Promise.resolve([]);
   }
 
-  const store = await Storages.search();
+  const store = await Storages.db();
 
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
@@ -150,7 +150,7 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
-  const store = await Storages.search();
+  const store = await Storages.db();
 
   return store.query(filters, { limit: 1, signal })
     .then((events) => hydrateEvents({ events, store, signal }))

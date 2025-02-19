@@ -1,4 +1,3 @@
-import Module from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -354,7 +353,7 @@ export class DittoConf {
 
   /** Absolute path to the data directory used by Ditto. */
   get dataDir(): string {
-    return this.env.get('DITTO_DATA_DIR') || path.join(cwd(), 'data');
+    return this.env.get('DITTO_DATA_DIR') || path.join(Deno.cwd(), 'data');
   }
 
   /** Absolute path of the Deno directory. */
@@ -464,13 +463,4 @@ export class DittoConf {
   get streakWindow(): number {
     return Number(this.env.get('STREAK_WINDOW') || 129600);
   }
-}
-
-/**
- * HACK: get cwd without read permissions.
- * https://github.com/denoland/deno/issues/27080#issuecomment-2504150155
- */
-function cwd() {
-  // @ts-ignore Internal method, but it does exist.
-  return Module._nodeModulePaths('a')[0].slice(0, -15);
 }
