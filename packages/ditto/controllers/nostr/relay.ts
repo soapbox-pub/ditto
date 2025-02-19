@@ -23,9 +23,6 @@ import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { Time } from '@/utils/time.ts';
 
-/** Limit of initial events returned for a subscription. */
-const FILTER_LIMIT = 100;
-
 const limiters = {
   msg: new MemoryRateLimiter({ limit: 300, window: Time.minutes(1) }),
   req: new MultiRateLimiter([
@@ -126,11 +123,10 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     controllers.set(subId, controller);
 
     const store = await Storages.db();
-    const pubsub = await Storages.pubsub();
 
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: conf.db.timeouts.relay })) {
-        send(['EVENT', subId, purifyEvent(event)]);
+      for await (const [verb, , ...rest] of store.req(filters, { timeout: conf.db.timeouts.relay })) {
+        send([verb, subId, ...rest] as NostrRelayMsg);
       }
     } catch (e) {
       if (e instanceof RelayError) {
@@ -142,18 +138,6 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
       }
       controllers.delete(subId);
       return;
-    }
-
-    send(['EOSE', subId]);
-
-    try {
-      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
-        if (msg[0] === 'EVENT') {
-          send(['EVENT', subId, msg[2]]);
-        }
-      }
-    } catch {
-      controllers.delete(subId);
     }
   }
 

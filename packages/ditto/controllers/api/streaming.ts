@@ -94,8 +94,6 @@ const streamingController: AppController = async (c) => {
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
   const store = await Storages.db();
-  const pubsub = await Storages.pubsub();
-
   const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
 
   function send(e: StreamingEvent) {
@@ -107,7 +105,7 @@ const streamingController: AppController = async (c) => {
 
   async function sub(filters: NostrFilter[], render: (event: NostrEvent) => Promise<StreamingEvent | undefined>) {
     try {
-      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
+      for await (const msg of store.req(filters, { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 

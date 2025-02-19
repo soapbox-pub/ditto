@@ -28,7 +28,7 @@ export class ConnectSigner implements NostrSigner {
       encryption: 'nip44',
       pubkey: this.opts.bunkerPubkey,
       // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
-      relay: await Storages.pubsub(),
+      relay: await Storages.db(),
       signer,
       timeout: 60_000,
     });
