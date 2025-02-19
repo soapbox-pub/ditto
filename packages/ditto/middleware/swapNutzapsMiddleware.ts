@@ -3,7 +3,7 @@ import { type DittoConf } from '@ditto/conf';
 import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { getPublicKey } from 'nostr-tools';
-import { NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
 import { SetRequired } from 'type-fest';
 import { stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
@@ -59,7 +59,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
     try {
       contentTags = z.string().array().array().parse(decryptedContent);
     } catch {
-      return c.json({ error: 'Could not JSON parse the decrypted wallet content.' }, 400);
+      return c.json({ error: 'Could not parse the decrypted wallet content.' }, 400);
     }
 
     const privkey = contentTags.find(([value]) => value === 'privkey')?.[1];
@@ -88,12 +88,12 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
     const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
 
-    const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
-    if (nutzapHistory) {
-      nutzapsFilter.since = nutzapHistory.created_at;
+    const lastRedeemedNutzap = await getLastRedeemedNutzap(store, pubkey, { signal });
+    if (lastRedeemedNutzap) {
+      nutzapsFilter.since = lastRedeemedNutzap.created_at;
     }
 
-    const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {};
+    const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {}; // 'key' is the mint url
 
     const nutzaps = await store.query([nutzapsFilter], { signal });
 
@@ -187,3 +187,21 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
   await next();
 };
+
+/** Returns a spending history event that contains the last redeemed nutzap. */
+async function getLastRedeemedNutzap(
+  store: NStore,
+  pubkey: string,
+  opts?: { signal?: AbortSignal },
+): Promise<NostrEvent | undefined> {
+  const events = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal: opts?.signal });
+
+  for (const event of events) {
+    const nutzap = event.tags.find(([name]) => name === 'e');
+    const redeemed = nutzap?.[3];
+    if (redeemed === 'redeemed') {
+      return event;
+    }
+  }
+}
+async function getMintsToProofs() {}
