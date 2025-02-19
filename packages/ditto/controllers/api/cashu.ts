@@ -123,7 +123,7 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
             content: await signer.nip44.encrypt(
               pubkey,
               JSON.stringify({
-                mint,
+                mint: mintUrl,
                 proofs,
               }),
             ),
