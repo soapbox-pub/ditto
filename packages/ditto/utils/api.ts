@@ -18,16 +18,16 @@ import { purifyEvent } from '@/utils/purify.ts';
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent(t: EventStub, c: Context): Promise<NostrEvent> {
-  const signer = c.get('signer');
+async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
+  const { user } = c.var;
 
-  if (!signer) {
+  if (!user) {
     throw new HTTPException(401, {
       res: c.json({ error: 'No way to sign Nostr event' }, 401),
     });
   }
 
-  const event = await signer.signEvent({
+  const event = await user.signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],

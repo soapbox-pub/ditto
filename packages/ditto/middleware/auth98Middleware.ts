@@ -3,7 +3,6 @@ import { NostrEvent } from '@nostrify/nostrify';
 
 import { type AppContext, type AppMiddleware } from '@/app.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
-import { Storages } from '@/storages.ts';
 import { localRequest } from '@/utils/api.ts';
 import {
   buildAuthEventTemplate,
@@ -40,10 +39,9 @@ type UserRole = 'user' | 'admin';
 /** Require the user to prove their role before invoking the controller. */
 function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware {
   return withProof(async (c, proof, next) => {
-    const { conf } = c.var;
-    const store = await Storages.db();
+    const { conf, relay } = c.var;
 
-    const [user] = await store.query([{
+    const [user] = await relay.query([{
       kinds: [30382],
       authors: [await conf.signer.getPublicKey()],
       '#d': [proof.pubkey],
@@ -108,6 +106,7 @@ function withProof(
 /** Get the proof over Nostr Connect. */
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
   const signer = c.var.user?.signer;
+
   if (!signer) {
     throw new HTTPException(401, {
       res: c.json({ error: 'No way to sign Nostr event' }, 401),

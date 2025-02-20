@@ -93,6 +93,7 @@ app.put('/wallet', userMiddleware({ privileged: false, required: true }), requir
   await createEvent({
     kind: 17375,
     content: encryptedWalletContentTags,
+    // @ts-ignore kill me
   }, c);
 
   // Nutzap information
@@ -103,6 +104,7 @@ app.put('/wallet', userMiddleware({ privileged: false, required: true }), requir
       ['relay', conf.relay], // TODO: add more relays once things get more stable
       ['pubkey', p2pk],
     ],
+    // @ts-ignore kill me
   }, c);
 
   // TODO: hydrate wallet and add a 'balance' field when a 'renderWallet' view function is created

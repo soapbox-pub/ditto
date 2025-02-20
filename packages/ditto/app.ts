@@ -7,6 +7,7 @@ import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@h
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
+import { createFactory } from '@hono/hono/factory';
 import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
 
 import '@/startup.ts';
@@ -137,7 +138,7 @@ import { metricsController } from '@/controllers/metrics.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
-import { auth98Middleware, requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { auth98Middleware, requireProof as _requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
@@ -197,7 +198,10 @@ const ratelimit = every(
   rateLimitMiddleware(300, Time.minutes(5), false),
 );
 
+const factory = createFactory();
 const requireSigner = userMiddleware({ privileged: false, required: true });
+const requireAdmin = factory.createHandlers(requireSigner, requireRole('admin'));
+const requireProof = factory.createHandlers(requireSigner, _requireProof());
 
 app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware(), logiMiddleware);
 app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
@@ -258,7 +262,7 @@ app.post('/oauth/revoke', revokeTokenController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/accounts', requireProof(), createAccountController);
+app.post('/api/v1/accounts', ...requireProof, createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requireSigner, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requireSigner, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);
@@ -372,25 +376,25 @@ app.get('/api/v1/bookmarks', requireSigner, bookmarksController);
 app.get('/api/v1/blocks', requireSigner, blocksController);
 app.get('/api/v1/mutes', requireSigner, mutesController);
 
-app.get('/api/v1/markers', requireProof(), markersController);
-app.post('/api/v1/markers', requireProof(), updateMarkersController);
+app.get('/api/v1/markers', ...requireProof, markersController);
+app.post('/api/v1/markers', ...requireProof, updateMarkersController);
 
 app.get('/api/v1/push/subscription', requireSigner, getSubscriptionController);
-app.post('/api/v1/push/subscription', requireProof(), pushSubscribeController);
+app.post('/api/v1/push/subscription', ...requireProof, pushSubscribeController);
 
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
 app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);
 app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, reactionController);
 app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', requireSigner, deleteReactionController);
 
-app.get('/api/v1/pleroma/admin/config', requireRole('admin'), configController);
-app.post('/api/v1/pleroma/admin/config', requireRole('admin'), updateConfigController);
-app.delete('/api/v1/pleroma/admin/statuses/:id', requireRole('admin'), pleromaAdminDeleteStatusController);
+app.get('/api/v1/pleroma/admin/config', ...requireAdmin, configController);
+app.post('/api/v1/pleroma/admin/config', ...requireAdmin, updateConfigController);
+app.delete('/api/v1/pleroma/admin/statuses/:id', ...requireAdmin, pleromaAdminDeleteStatusController);
 
-app.get('/api/v1/admin/ditto/relays', requireRole('admin'), adminRelaysController);
-app.put('/api/v1/admin/ditto/relays', requireRole('admin'), adminSetRelaysController);
+app.get('/api/v1/admin/ditto/relays', ...requireAdmin, adminRelaysController);
+app.put('/api/v1/admin/ditto/relays', ...requireAdmin, adminSetRelaysController);
 
-app.put('/api/v1/admin/ditto/instance', requireRole('admin'), updateInstanceController);
+app.put('/api/v1/admin/ditto/instance', ...requireAdmin, updateInstanceController);
 
 app.post('/api/v1/ditto/names', requireSigner, nameRequestController);
 app.get('/api/v1/ditto/names', requireSigner, nameRequestsController);
@@ -399,7 +403,7 @@ app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captch
 app.post(
   '/api/v1/ditto/captcha/:id/verify',
   rateLimitMiddleware(8, Time.minutes(1)),
-  requireProof(),
+  ...requireProof,
   captchaVerifyController,
 );
 
@@ -410,8 +414,8 @@ app.get(
 );
 app.get('/api/v1/ditto/:id{[0-9a-f]{64}}/zap_splits', statusZapSplitsController);
 
-app.put('/api/v1/admin/ditto/zap_splits', requireRole('admin'), updateZapSplitsController);
-app.delete('/api/v1/admin/ditto/zap_splits', requireRole('admin'), deleteZapSplitsController);
+app.put('/api/v1/admin/ditto/zap_splits', ...requireAdmin, updateZapSplitsController);
+app.delete('/api/v1/admin/ditto/zap_splits', ...requireAdmin, deleteZapSplitsController);
 
 app.post('/api/v1/ditto/zap', requireSigner, zapController);
 app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController);
@@ -419,35 +423,35 @@ app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController
 app.route('/api/v1/ditto/cashu', cashuApp);
 
 app.post('/api/v1/reports', requireSigner, reportController);
-app.get('/api/v1/admin/reports', requireSigner, requireRole('admin'), adminReportsController);
-app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', requireSigner, requireRole('admin'), adminReportController);
+app.get('/api/v1/admin/reports', requireSigner, ...requireAdmin, adminReportsController);
+app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', requireSigner, ...requireAdmin, adminReportController);
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/resolve',
   requireSigner,
-  requireRole('admin'),
+  ...requireAdmin,
   adminReportResolveController,
 );
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/reopen',
   requireSigner,
-  requireRole('admin'),
+  ...requireAdmin,
   adminReportReopenController,
 );
 
-app.get('/api/v1/admin/accounts', requireRole('admin'), adminAccountsController);
-app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, requireRole('admin'), adminActionController);
+app.get('/api/v1/admin/accounts', ...requireAdmin, adminAccountsController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', requireSigner, ...requireAdmin, adminActionController);
 app.post(
   '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/approve',
   requireSigner,
-  requireRole('admin'),
+  ...requireAdmin,
   adminApproveController,
 );
-app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject', requireSigner, requireRole('admin'), adminRejectController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject', requireSigner, ...requireAdmin, adminRejectController);
 
-app.put('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminTagController);
-app.delete('/api/v1/pleroma/admin/users/tag', requireRole('admin'), pleromaAdminUntagController);
-app.patch('/api/v1/pleroma/admin/users/suggest', requireRole('admin'), pleromaAdminSuggestController);
-app.patch('/api/v1/pleroma/admin/users/unsuggest', requireRole('admin'), pleromaAdminUnsuggestController);
+app.put('/api/v1/pleroma/admin/users/tag', ...requireAdmin, pleromaAdminTagController);
+app.delete('/api/v1/pleroma/admin/users/tag', ...requireAdmin, pleromaAdminUntagController);
+app.patch('/api/v1/pleroma/admin/users/suggest', ...requireAdmin, pleromaAdminSuggestController);
+app.patch('/api/v1/pleroma/admin/users/unsuggest', ...requireAdmin, pleromaAdminUnsuggestController);
 
 // Not (yet) implemented.
 app.get('/api/v1/custom_emojis', emptyArrayController);

@@ -1,13 +1,12 @@
 import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
-import { type DittoConf } from '@ditto/conf';
 import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { getPublicKey } from 'nostr-tools';
-import { NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
-import { SetRequired } from 'type-fest';
+import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
 
+import { AppEnv } from '@/app.ts';
 import { isNostrId } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { createEvent } from '@/utils/api.ts';
@@ -17,33 +16,28 @@ import { z } from 'zod';
  * Swap nutzaps into wallet (create new events) if the user has a wallet, otheriwse, just fallthrough.
  * Errors are only thrown if 'signer' and 'store' middlewares are not set.
  */
-export const swapNutzapsMiddleware: MiddlewareHandler<
-  { Variables: { signer: SetRequired<NostrSigner, 'nip44'>; store: NStore; conf: DittoConf } }
-> = async (c, next) => {
-  const { conf } = c.var;
-  const signer = c.get('signer');
-  const store = c.get('store');
+export const swapNutzapsMiddleware: MiddlewareHandler<AppEnv> = async (c, next) => {
+  const { conf, relay, user, signal } = c.var;
 
-  if (!signer) {
+  if (!user) {
     throw new HTTPException(401, { message: 'No pubkey provided' });
   }
 
-  if (!signer.nip44) {
+  if (!user.signer.nip44) {
     throw new HTTPException(401, { message: 'No NIP-44 signer provided' });
   }
 
-  if (!store) {
+  if (!relay) {
     throw new HTTPException(401, { message: 'No store provided' });
   }
 
-  const { signal } = c.req.raw;
-  const pubkey = await signer.getPublicKey();
-  const [wallet] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  const pubkey = await user.signer.getPublicKey();
+  const [wallet] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
 
   if (wallet) {
     let decryptedContent: string;
     try {
-      decryptedContent = await signer.nip44.decrypt(pubkey, wallet.content);
+      decryptedContent = await user.signer.nip44.decrypt(pubkey, wallet.content);
     } catch (e) {
       logi({
         level: 'error',
@@ -68,7 +62,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
     }
     const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-    const [nutzapInformation] = await store.query([{ authors: [pubkey], kinds: [10019] }], { signal });
+    const [nutzapInformation] = await relay.query([{ authors: [pubkey], kinds: [10019] }], { signal });
     if (!nutzapInformation) {
       return c.json({ error: 'You need to have a nutzap information event so we can get the mints.' }, 400);
     }
@@ -88,14 +82,14 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
     const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
 
-    const [nutzapHistory] = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal });
+    const [nutzapHistory] = await relay.query([{ kinds: [7376], authors: [pubkey] }], { signal });
     if (nutzapHistory) {
       nutzapsFilter.since = nutzapHistory.created_at;
     }
 
     const mintsToProofs: { [key: string]: { proofs: Proof[]; redeemed: string[][] } } = {};
 
-    const nutzaps = await store.query([nutzapsFilter], { signal });
+    const nutzaps = await relay.query([nutzapsFilter], { signal });
 
     for (const event of nutzaps) {
       try {
@@ -154,7 +148,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
         const unspentProofs = await createEvent({
           kind: 7375,
-          content: await signer.nip44.encrypt(
+          content: await user.signer.nip44.encrypt(
             pubkey,
             JSON.stringify({
               mint,
@@ -169,7 +163,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
         await createEvent({
           kind: 7376,
-          content: await signer.nip44.encrypt(
+          content: await user.signer.nip44.encrypt(
             pubkey,
             JSON.stringify([
               ['direction', 'in'],
