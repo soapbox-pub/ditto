@@ -188,7 +188,7 @@ export const updateZapSplitsController: AppController = async (c) => {
   const pubkeys = Object.keys(data);
 
   if (pubkeys.length < 1) {
-    return c.json(200);
+    return c.newResponse(null, { status: 204 });
   }
 
   await updateListAdminEvent(
@@ -200,7 +200,7 @@ export const updateZapSplitsController: AppController = async (c) => {
     c,
   );
 
-  return c.json(200);
+  return c.newResponse(null, { status: 204 });
 };
 
 const deleteZapSplitSchema = z.array(n.id()).min(1);
@@ -231,7 +231,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
     c,
   );
 
-  return c.json(200);
+  return c.newResponse(null, { status: 204 });
 };
 
 export const getZapSplitsController: AppController = async (c) => {
@@ -346,5 +346,5 @@ export const updateInstanceController: AppController = async (c) => {
     c,
   );
 
-  return c.json(204);
+  return c.newResponse(null, { status: 204 });
 };

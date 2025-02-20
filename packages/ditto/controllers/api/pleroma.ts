@@ -98,7 +98,7 @@ const pleromaAdminTagController: AppController = async (c) => {
     );
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminUntagController: AppController = async (c) => {
@@ -121,7 +121,7 @@ const pleromaAdminUntagController: AppController = async (c) => {
     );
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminSuggestSchema = z.object({
@@ -137,7 +137,7 @@ const pleromaAdminSuggestController: AppController = async (c) => {
     await updateUser(pubkey, { suggested: true }, c);
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminUnsuggestController: AppController = async (c) => {
@@ -149,7 +149,7 @@ const pleromaAdminUnsuggestController: AppController = async (c) => {
     await updateUser(pubkey, { suggested: false }, c);
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 export {

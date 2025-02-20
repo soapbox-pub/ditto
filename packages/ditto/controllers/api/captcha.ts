@@ -171,7 +171,7 @@ export const captchaVerifyController: AppController = async (c) => {
   if (solved) {
     captchas.delete(id);
     await updateUser(pubkey, { captcha_solved: true }, c);
-    return new Response(null, { status: 204 });
+    return c.newResponse(null, { status: 204 });
   }
 
   return c.json({ error: 'Incorrect solution' }, { status: 400 });
