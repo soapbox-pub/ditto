@@ -307,6 +307,8 @@ export class DittoPgStore extends NPostgres {
         yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
         return;
       }
+    } else {
+      yield ['EOSE', subId];
     }
 
     this.subs.set(subId, { filters, machina });
