@@ -32,14 +32,14 @@ export class LibreTranslateTranslator implements DittoTranslator {
     source: LanguageCode | undefined,
     dest: LanguageCode,
     opts?: { signal?: AbortSignal },
-  ): Promise<{ results: string[]; source_lang: LanguageCode }> {
+  ): Promise<{ results: string[]; sourceLang: LanguageCode }> {
     const translations = await Promise.all(
       texts.map((text) => this.translateOne(text, source, dest, 'html', { signal: opts?.signal })),
     );
 
     return {
       results: translations.map((value) => value.translatedText),
-      source_lang: (translations[0]?.detectedLanguage?.language ?? source) as LanguageCode, // cast is ok
+      sourceLang: (translations[0]?.detectedLanguage?.language ?? source) as LanguageCode, // cast is ok
     };
   }
 
@@ -71,12 +71,20 @@ export class LibreTranslateTranslator implements DittoTranslator {
 
     const response = await this.fetch(request);
     const json = await response.json();
-    if (!response.ok) {
-      throw new Error(json['error']);
-    }
-    const data = LibreTranslateTranslator.schema().parse(json);
 
-    return data;
+    console.log(json);
+
+    if (!response.ok) {
+      const result = LibreTranslateTranslator.errorSchema().safeParse(json);
+
+      if (result.success) {
+        throw new Error(result.data.error);
+      } else {
+        throw new Error(`Unexpected LibreTranslate error: ${response.statusText} (${response.status})`);
+      }
+    }
+
+    return LibreTranslateTranslator.schema().parse(json);
   }
 
   /** Libretranslate response schema.
@@ -88,6 +96,13 @@ export class LibreTranslateTranslator implements DittoTranslator {
       detectedLanguage: z.object({
         language: languageSchema,
       }).optional(),
+    });
+  }
+
+  /** Libretranslate error response schema. */
+  private static errorSchema() {
+    return z.object({
+      error: z.string(),
     });
   }
 }
