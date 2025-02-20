@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { type DittoDatabase, DittoDB } from '@ditto/db';
+import { type DittoDB, DittoPolyPg } from '@ditto/db';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 
@@ -12,25 +12,25 @@ import { seedZapSplits } from '@/utils/zap-split.ts';
 
 export class Storages {
   private static _db: Promise<DittoPgStore> | undefined;
-  private static _database: Promise<DittoDatabase> | undefined;
+  private static _database: Promise<DittoDB> | undefined;
   private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool<NRelay1>> | undefined;
 
-  public static async database(): Promise<DittoDatabase> {
+  public static async database(): Promise<DittoDB> {
     if (!this._database) {
       this._database = (async () => {
-        const db = DittoDB.create(Conf.databaseUrl, {
+        const db = DittoPolyPg.create(Conf.databaseUrl, {
           poolSize: Conf.pg.poolSize,
           debug: Conf.pgliteDebug,
         });
-        await DittoDB.migrate(db.kysely);
+        await DittoPolyPg.migrate(db.kysely);
         return db;
       })();
     }
     return this._database;
   }
 
-  public static async kysely(): Promise<DittoDatabase['kysely']> {
+  public static async kysely(): Promise<DittoDB['kysely']> {
     const { kysely } = await this.database();
     return kysely;
   }
