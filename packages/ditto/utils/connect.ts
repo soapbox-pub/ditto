@@ -20,7 +20,7 @@ export async function getClientConnectUri(signal?: AbortSignal): Promise<string>
     url: Conf.localDomain,
   };
 
-  uri.host = Conf.pubkey;
+  uri.host = await Conf.signer.getPublicKey();
   uri.searchParams.set('relay', Conf.relay);
   uri.searchParams.set('metadata', JSON.stringify(metadata));
 

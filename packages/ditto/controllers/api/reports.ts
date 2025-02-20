@@ -36,7 +36,7 @@ const reportController: AppController = async (c) => {
 
   const tags = [
     ['p', account_id, category],
-    ['P', conf.pubkey],
+    ['P', await conf.signer.getPublicKey()],
   ];
 
   for (const status of status_ids) {
@@ -70,7 +70,7 @@ const adminReportsController: AppController = async (c) => {
 
   const filter: NostrFilter = {
     kinds: [30383],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     '#k': ['1984'],
     ...params,
   };

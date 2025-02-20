@@ -10,7 +10,7 @@ Deno.test('confMw', async () => {
 
   const app = new Hono();
 
-  app.get('/', confMw(env), (c) => c.text(c.var.conf.pubkey));
+  app.get('/', confMw(env), async (c) => c.text(await c.var.conf.signer.getPublicKey()));
 
   const response = await app.request('/');
   const body = await response.text();

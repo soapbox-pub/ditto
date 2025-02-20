@@ -9,7 +9,6 @@ import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
 import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -33,7 +32,7 @@ export const adminRelaysController: AppController = async (c) => {
   const store = await Storages.db();
 
   const [event] = await store.query([
-    { kinds: [10002], authors: [conf.pubkey], limit: 1 },
+    { kinds: [10002], authors: [await conf.signer.getPublicKey()], limit: 1 },
   ]);
 
   if (!event) {
@@ -44,10 +43,11 @@ export const adminRelaysController: AppController = async (c) => {
 };
 
 export const adminSetRelaysController: AppController = async (c) => {
+  const { conf } = c.var;
   const store = await Storages.db();
   const relays = relaySchema.array().parse(await c.req.json());
 
-  const event = await new AdminSigner().signEvent({
+  const event = await conf.signer.signEvent({
     kind: 10002,
     tags: relays.map(({ url, marker }) => marker ? ['r', url, marker] : ['r', url]),
     content: '',
@@ -98,7 +98,7 @@ export const nameRequestController: AppController = async (c) => {
       ['r', name],
       ['L', 'nip05.domain'],
       ['l', name.split('@')[1], 'nip05.domain'],
-      ['p', conf.pubkey],
+      ['p', await conf.signer.getPublicKey()],
     ],
   }, c);
 
@@ -124,7 +124,7 @@ export const nameRequestsController: AppController = async (c) => {
 
   const filter: NostrFilter = {
     kinds: [30383],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     '#k': ['3036'],
     '#p': [pubkey],
     ...params,
@@ -179,7 +179,9 @@ export const updateZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const dittoZapSplit = await getZapSplits(store, conf.pubkey);
+  const adminPubkey = await conf.signer.getPublicKey();
+
+  const dittoZapSplit = await getZapSplits(store, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -192,7 +194,7 @@ export const updateZapSplitsController: AppController = async (c) => {
   }
 
   await updateListAdminEvent(
-    { kinds: [30078], authors: [conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    { kinds: [30078], authors: [adminPubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       pubkeys.reduce((accumulator, pubkey) => {
         return addTag(accumulator, ['p', pubkey, data[pubkey].weight.toString(), data[pubkey].message]);
@@ -215,7 +217,9 @@ export const deleteZapSplitsController: AppController = async (c) => {
     return c.json({ error: result.error }, 400);
   }
 
-  const dittoZapSplit = await getZapSplits(store, conf.pubkey);
+  const adminPubkey = await conf.signer.getPublicKey();
+
+  const dittoZapSplit = await getZapSplits(store, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -223,7 +227,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
   const { data } = result;
 
   await updateListAdminEvent(
-    { kinds: [30078], authors: [conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    { kinds: [30078], authors: [adminPubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       data.reduce((accumulator, currentValue) => {
         return deleteTag(accumulator, ['p', currentValue]);
@@ -238,7 +242,7 @@ export const getZapSplitsController: AppController = async (c) => {
   const { conf } = c.var;
   const store = c.get('store');
 
-  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, conf.pubkey) ?? {};
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, await conf.signer.getPublicKey()) ?? {};
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -311,7 +315,7 @@ export const updateInstanceController: AppController = async (c) => {
   const { conf } = c.var;
   const body = await parseBody(c.req.raw);
   const result = updateInstanceSchema.safeParse(body);
-  const pubkey = conf.pubkey;
+  const pubkey = await conf.signer.getPublicKey();
 
   if (!result.success) {
     return c.json(result.error, 422);

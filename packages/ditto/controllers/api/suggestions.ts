@@ -31,8 +31,8 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
   const pubkey = await signer?.getPublicKey();
 
   const filters: NostrFilter[] = [
-    { kinds: [30382], authors: [conf.pubkey], '#n': ['suggested'], limit },
-    { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [conf.pubkey], limit: 1 },
+    { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#n': ['suggested'], limit },
+    { kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [await conf.signer.getPublicKey()], limit: 1 },
   ];
 
   if (pubkey) {
@@ -41,13 +41,20 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
   }
 
   const events = await store.query(filters, { signal });
+  const adminPubkey = await conf.signer.getPublicKey();
 
   const [userEvents, followsEvent, mutesEvent, trendingEvent] = [
-    events.filter((event) => matchFilter({ kinds: [30382], authors: [conf.pubkey], '#n': ['suggested'] }, event)),
+    events.filter((event) => matchFilter({ kinds: [30382], authors: [adminPubkey], '#n': ['suggested'] }, event)),
     pubkey ? events.find((event) => matchFilter({ kinds: [3], authors: [pubkey] }, event)) : undefined,
     pubkey ? events.find((event) => matchFilter({ kinds: [10000], authors: [pubkey] }, event)) : undefined,
     events.find((event) =>
-      matchFilter({ kinds: [1985], '#L': ['pub.ditto.trends'], '#l': [`#p`], authors: [conf.pubkey], limit: 1 }, event)
+      matchFilter({
+        kinds: [1985],
+        '#L': ['pub.ditto.trends'],
+        '#l': [`#p`],
+        authors: [adminPubkey],
+        limit: 1,
+      }, event)
     ),
   ];
 
@@ -95,7 +102,7 @@ export const localSuggestionsController: AppController = async (c) => {
   const store = c.get('store');
 
   const grants = await store.query(
-    [{ kinds: [30360], authors: [conf.pubkey], ...params }],
+    [{ kinds: [30360], authors: [await conf.signer.getPublicKey()], ...params }],
     { signal },
   );
 

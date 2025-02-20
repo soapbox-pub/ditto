@@ -10,5 +10,5 @@ const testStats = JSON.parse(await Deno.readTextFile('fixtures/stats.json'));
 const events = testEvents.slice(0, 20);
 
 Deno.bench('assembleEvents with home feed', () => {
-  assembleEvents(events, testEvents, testStats);
+  assembleEvents('', events, testEvents, testStats);
 });

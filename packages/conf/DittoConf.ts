@@ -1,10 +1,11 @@
 import os from 'node:os';
 import path from 'node:path';
 
-import ISO6391, { type LanguageCode } from 'iso-639-1';
-import { getPublicKey, nip19 } from 'nostr-tools';
+import { NSecSigner } from '@nostrify/nostrify';
 import { decodeBase64 } from '@std/encoding/base64';
 import { encodeBase64Url } from '@std/encoding/base64url';
+import ISO6391, { type LanguageCode } from 'iso-639-1';
+import { nip19 } from 'nostr-tools';
 
 import { getEcdsaPublicKey } from './utils/crypto.ts';
 import { optionalBooleanSchema, optionalNumberSchema } from './utils/schema.ts';
@@ -14,35 +15,36 @@ import { mergeURLPath } from './utils/url.ts';
 export class DittoConf {
   constructor(private env: { get(key: string): string | undefined }) {}
 
-  /** Cached parsed admin pubkey value. */
-  private _pubkey: string | undefined;
+  /** Cached parsed admin signer. */
+  private _signer: NSecSigner | undefined;
 
   /** Cached parsed VAPID public key value. */
   private _vapidPublicKey: Promise<string | undefined> | undefined;
 
-  /** Ditto admin secret key in nip19 format. This is the way it's configured by an admin. */
-  get nsec(): `nsec1${string}` {
-    const value = this.env.get('DITTO_NSEC');
-    if (!value) {
+  /**
+   * Ditto admin secret key in hex format.
+   * @deprecated Use `signer` instead. TODO: handle auth tokens.
+   */
+  get seckey(): Uint8Array {
+    const nsec = this.env.get('DITTO_NSEC');
+
+    if (!nsec) {
       throw new Error('Missing DITTO_NSEC');
     }
-    if (!value.startsWith('nsec1')) {
+
+    if (!nsec.startsWith('nsec1')) {
       throw new Error('Invalid DITTO_NSEC');
     }
-    return value as `nsec1${string}`;
+
+    return nip19.decode(nsec as `nsec1${string}`).data;
   }
 
-  /** Ditto admin secret key in hex format. */
-  get seckey(): Uint8Array {
-    return nip19.decode(this.nsec).data;
-  }
-
-  /** Ditto admin public key in hex format. */
-  get pubkey(): string {
-    if (!this._pubkey) {
-      this._pubkey = getPublicKey(this.seckey);
+  /** Ditto admin signer. */
+  get signer(): NSecSigner {
+    if (!this._signer) {
+      this._signer = new NSecSigner(this.seckey);
     }
-    return this._pubkey;
+    return this._signer;
   }
 
   /** Port to use when serving the HTTP server. */

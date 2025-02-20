@@ -6,7 +6,7 @@ export async function getRelays(store: NStore, pubkey: string): Promise<Set<stri
   const relays = new Set<`wss://${string}`>();
 
   const events = await store.query([
-    { kinds: [10002], authors: [pubkey, Conf.pubkey], limit: 2 },
+    { kinds: [10002], authors: [pubkey, await Conf.signer.getPublicKey()], limit: 2 },
   ]);
 
   for (const event of events) {

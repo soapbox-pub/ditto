@@ -79,15 +79,18 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   // Dedupe events.
   const results = [...new Map(cache.map((event) => [event.id, event])).values()];
 
+  const admin = await Conf.signer.getPublicKey();
+
   // First connect all the events to each-other, then connect the connected events to the original list.
-  assembleEvents(results, results, stats);
-  assembleEvents(events, results, stats);
+  assembleEvents(admin, results, results, stats);
+  assembleEvents(admin, events, results, stats);
 
   return events;
 }
 
 /** Connect the events in list `b` to the DittoEvent fields in list `a`. */
 export function assembleEvents(
+  admin: string,
   a: DittoEvent[],
   b: DittoEvent[],
   stats: {
@@ -96,8 +99,6 @@ export function assembleEvents(
     favicons: Record<string, string>;
   },
 ): DittoEvent[] {
-  const admin = Conf.pubkey;
-
   const authorStats = stats.authors.reduce((result, { pubkey, ...stat }) => {
     result[pubkey] = {
       ...stat,
@@ -316,7 +317,7 @@ async function gatherProfiles({ events, store, signal }: HydrateOpts): Promise<D
 }
 
 /** Collect users from the events. */
-function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+async function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const pubkeys = new Set(events.map((event) => event.pubkey));
 
   if (!pubkeys.size) {
@@ -324,13 +325,13 @@ function gatherUsers({ events, store, signal }: HydrateOpts): Promise<DittoEvent
   }
 
   return store.query(
-    [{ kinds: [30382], authors: [Conf.pubkey], '#d': [...pubkeys], limit: pubkeys.size }],
+    [{ kinds: [30382], authors: [await Conf.signer.getPublicKey()], '#d': [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
 }
 
 /** Collect info events from the events. */
-function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
+async function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const ids = new Set<string>();
 
   for (const event of events) {
@@ -344,7 +345,7 @@ function gatherInfo({ events, store, signal }: HydrateOpts): Promise<DittoEvent[
   }
 
   return store.query(
-    [{ kinds: [30383], authors: [Conf.pubkey], '#d': [...ids], limit: ids.size }],
+    [{ kinds: [30383], authors: [await Conf.signer.getPublicKey()], '#d': [...ids], limit: ids.size }],
     { signal },
   );
 }

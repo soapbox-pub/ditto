@@ -18,15 +18,17 @@ export class AdminStore implements NStore {
 
     const users = await this.store.query([{
       kinds: [30382],
-      authors: [Conf.pubkey],
+      authors: [await Conf.signer.getPublicKey()],
       '#d': [...pubkeys],
       limit: pubkeys.size,
     }]);
 
+    const adminPubkey = await Conf.signer.getPublicKey();
+
     return events.filter((event) => {
       const user = users.find(
         ({ kind, pubkey, tags }) =>
-          kind === 30382 && pubkey === Conf.pubkey && tags.find(([name]) => name === 'd')?.[1] === event.pubkey,
+          kind === 30382 && pubkey === adminPubkey && tags.find(([name]) => name === 'd')?.[1] === event.pubkey,
       );
 
       const n = getTagSet(user?.tags ?? [], 'n');

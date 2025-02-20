@@ -11,7 +11,6 @@ import { Conf } from '@/config.ts';
 import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { Storages } from '@/storages.ts';
 import { eventAge, Time } from '@/utils.ts';
@@ -83,7 +82,7 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
   }
 
   // Ensure the event doesn't violate the policy.
-  if (event.pubkey !== Conf.pubkey) {
+  if (event.pubkey !== await Conf.signer.getPublicKey()) {
     await policyFilter(event, opts.signal);
   }
 
@@ -297,11 +296,12 @@ async function webPush(event: NostrEvent): Promise<void> {
 }
 
 async function generateSetEvents(event: NostrEvent): Promise<void> {
-  const tagsAdmin = event.tags.some(([name, value]) => ['p', 'P'].includes(name) && value === Conf.pubkey);
+  const signer = Conf.signer;
+  const pubkey = await signer.getPublicKey();
+
+  const tagsAdmin = event.tags.some(([name, value]) => ['p', 'P'].includes(name) && value === pubkey);
 
   if (event.kind === 1984 && tagsAdmin) {
-    const signer = new AdminSigner();
-
     const rel = await signer.signEvent({
       kind: 30383,
       content: '',
@@ -310,8 +310,8 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
         ['p', event.pubkey],
         ['k', '1984'],
         ['n', 'open'],
-        ...[...getTagSet(event.tags, 'p')].map((pubkey) => ['P', pubkey]),
-        ...[...getTagSet(event.tags, 'e')].map((pubkey) => ['e', pubkey]),
+        ...[...getTagSet(event.tags, 'p')].map((value) => ['P', value]),
+        ...[...getTagSet(event.tags, 'e')].map((value) => ['e', value]),
       ],
       created_at: Math.floor(Date.now() / 1000),
     });
@@ -320,8 +320,6 @@ async function generateSetEvents(event: NostrEvent): Promise<void> {
   }
 
   if (event.kind === 3036 && tagsAdmin) {
-    const signer = new AdminSigner();
-
     const rel = await signer.signEvent({
       kind: 30383,
       content: '',
