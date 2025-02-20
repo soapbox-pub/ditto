@@ -119,8 +119,12 @@ async function getLastRedeemedNutzap(
 }
 
 /**
- * toBeRedeemed are the nutzaps that will be redeemed and saved in the kind 7376 - https://github.com/nostr-protocol/nips/blob/master/60.md#spending-history-event
- * The tags format is: [ [ "e", "<event-id-of-created-token>", "", "redeemed" ] ]
+ * toBeRedeemed are the nutzaps that will be redeemed into a kind 7375 and saved in the kind 7376 tags
+ * The tags format is: [
+ *   [ "e", "<9321-event-id>", "<relay-hint>", "redeemed" ], // nutzap event that has been redeemed
+ *   [ "p", "<sender-pubkey>" ] // pubkey of the author of the 9321 event (nutzap sender)
+ * ]
+ * https://github.com/nostr-protocol/nips/blob/master/61.md#updating-nutzap-redemption-history
  */
 type MintsToProofs = { [key: string]: { proofs: Proof[]; toBeRedeemed: string[][] } };
 
