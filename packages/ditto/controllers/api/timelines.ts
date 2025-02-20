@@ -15,8 +15,8 @@ const homeQuerySchema = z.object({
 });
 
 const homeTimelineController: AppController = async (c) => {
-  const params = c.get('pagination');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user, pagination } = c.var;
+  const pubkey = await user?.signer.getPublicKey()!;
   const result = homeQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
@@ -26,7 +26,7 @@ const homeTimelineController: AppController = async (c) => {
   const { exclude_replies, only_media } = result.data;
 
   const authors = [...await getFeedPubkeys(pubkey)];
-  const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...params };
+  const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...pagination };
 
   const search: string[] = [];
 
@@ -90,35 +90,32 @@ const hashtagTimelineController: AppController = (c) => {
 };
 
 const suggestedTimelineController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = c.get('store');
-  const params = c.get('pagination');
+  const { conf, relay, pagination } = c.var;
 
-  const [follows] = await store.query(
+  const [follows] = await relay.query(
     [{ kinds: [3], authors: [await conf.signer.getPublicKey()], limit: 1 }],
   );
 
   const authors = [...getTagSet(follows?.tags ?? [], 'p')];
 
-  return renderStatuses(c, [{ authors, kinds: [1, 20], ...params }]);
+  return renderStatuses(c, [{ authors, kinds: [1, 20], ...pagination }]);
 };
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
-  const { conf } = c.var;
-  const { signal } = c.req.raw;
-  const store = c.get('store');
+  const { conf, relay, user, signal } = c.var;
+
   const opts = { signal, timeout: conf.db.timeouts.timelines };
 
-  const events = await store
+  const events = await relay
     .query(filters, opts)
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   if (!events.length) {
     return c.json([]);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {

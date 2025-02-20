@@ -137,7 +137,7 @@ function isProtectedEvent(event: NostrEvent): boolean {
 
 /** Hydrate the event with the user, if applicable. */
 async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<void> {
-  await hydrateEvents({ events: [event], store: await Storages.db(), signal });
+  await hydrateEvents({ events: [event], relay: await Storages.db(), signal });
 }
 
 /** Maybe store the event, if eligible. */

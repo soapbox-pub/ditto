@@ -1,5 +1,5 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoDB } from '@ditto/db';
+import { DittoPolyPg } from '@ditto/db';
 import { Hono } from '@hono/hono';
 import { MockRelay } from '@nostrify/nostrify/test';
 
@@ -7,7 +7,7 @@ import { DittoApp } from './DittoApp.ts';
 import { DittoRoute } from './DittoRoute.ts';
 
 Deno.test('DittoApp', async () => {
-  await using db = DittoDB.create('memory://');
+  await using db = DittoPolyPg.create('memory://');
   const conf = new DittoConf(new Map());
   const relay = new MockRelay();
 

@@ -152,9 +152,11 @@ const pointSchema = z.object({
 
 /** Verify the captcha solution and sign an event in the database. */
 export const captchaVerifyController: AppController = async (c) => {
+  const { user } = c.var;
+
   const id = c.req.param('id');
   const result = pointSchema.safeParse(await c.req.json());
-  const pubkey = await c.get('signer')!.getPublicKey();
+  const pubkey = await user!.signer.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Invalid input' }, { status: 422 });

@@ -1,5 +1,5 @@
 import type { DittoConf } from '@ditto/conf';
-import type { DittoDatabase } from '@ditto/db';
+import type { DittoDB } from '@ditto/db';
 import type { Env } from '@hono/hono';
 import type { NRelay } from '@nostrify/nostrify';
 
@@ -13,7 +13,7 @@ export interface DittoEnv extends Env {
      * Database object.
      * @deprecated Store data as Nostr events instead.
      */
-    db: DittoDatabase;
+    db: DittoDB;
     /** Abort signal for the request. */
     signal: AbortSignal;
   };

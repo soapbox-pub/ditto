@@ -1,11 +1,11 @@
 {
   "version": "1.1.0",
   "workspace": [
-    "./packages/api",
     "./packages/conf",
     "./packages/db",
     "./packages/ditto",
     "./packages/lang",
+    "./packages/mastoapi",
     "./packages/metrics",
     "./packages/policies",
     "./packages/ratelimiter",

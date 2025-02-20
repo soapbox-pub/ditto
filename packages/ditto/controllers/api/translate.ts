@@ -17,8 +17,9 @@ const translateSchema = z.object({
 });
 
 const translateController: AppController = async (c) => {
+  const { user, signal } = c.var;
+
   const result = translateSchema.safeParse(await parseBody(c.req.raw));
-  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
@@ -38,7 +39,7 @@ const translateController: AppController = async (c) => {
     return c.json({ error: 'Record not found' }, 400);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   if (lang.toLowerCase() === event?.language?.toLowerCase()) {
     return c.json({ error: 'Source and target languages are the same. No translation needed.' }, 400);

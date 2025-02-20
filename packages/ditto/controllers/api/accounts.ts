@@ -26,7 +26,9 @@ const createAccountSchema = z.object({
 });
 
 const createAccountController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const result = createAccountSchema.safeParse(await c.req.json());
 
   if (!result.success) {
@@ -46,15 +48,15 @@ const createAccountController: AppController = async (c) => {
 };
 
 const verifyCredentialsController: AppController = async (c) => {
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
+  const { relay, user } = c.var;
 
-  const store = await Storages.db();
+  const signer = user!.signer;
+  const pubkey = await signer.getPublicKey();
 
   const [author, [settingsEvent]] = await Promise.all([
     getAuthor(pubkey, { signal: AbortSignal.timeout(5000) }),
 
-    store.query([{
+    relay.query([{
       kinds: [30078],
       authors: [pubkey],
       '#d': ['pub.ditto.pleroma_settings_store'],
@@ -115,12 +117,10 @@ const accountSearchQuerySchema = z.object({
 });
 
 const accountSearchController: AppController = async (c) => {
-  const { store } = c.var;
-  const { signal } = c.req.raw;
-  const { limit } = c.get('pagination');
+  const { db, relay, user, pagination, signal } = c.var;
+  const { limit } = pagination;
 
-  const kysely = await Storages.kysely();
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const result = accountSearchQuerySchema.safeParse(c.req.query());
 
@@ -144,8 +144,8 @@ const accountSearchController: AppController = async (c) => {
     events.push(event);
   } else {
     const following = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
-    const authors = [...await getPubkeysBySearch(kysely, { q: query, limit, offset: 0, following })];
-    const profiles = await store.query([{ kinds: [0], authors, limit }], { signal });
+    const authors = [...await getPubkeysBySearch(db.kysely, { q: query, limit, offset: 0, following })];
+    const profiles = await relay.query([{ kinds: [0], authors, limit }], { signal });
 
     for (const pubkey of authors) {
       const profile = profiles.find((event) => event.pubkey === pubkey);
@@ -155,14 +155,16 @@ const accountSearchController: AppController = async (c) => {
     }
   }
 
-  const accounts = await hydrateEvents({ events, store, signal })
+  const accounts = await hydrateEvents({ events, relay, signal })
     .then((events) => events.map((event) => renderAccount(event)));
 
   return c.json(accounts);
 };
 
 const relationshipsController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const ids = z.array(z.string()).safeParse(c.req.queries('id[]'));
 
   if (!ids.success) {
@@ -201,17 +203,17 @@ const accountStatusesQuerySchema = z.object({
 });
 
 const accountStatusesController: AppController = async (c) => {
+  const { conf, user, signal } = c.var;
+
   const pubkey = c.req.param('pubkey');
-  const { conf } = c.var;
   const { since, until } = c.var.pagination;
   const { pinned, limit, exclude_replies, tagged, only_media } = accountStatusesQuerySchema.parse(c.req.query());
-  const { signal } = c.req.raw;
 
-  const store = await Storages.db();
+  const { relay } = c.var;
 
-  const [[author], [user]] = await Promise.all([
-    store.query([{ kinds: [0], authors: [pubkey], limit: 1 }], { signal }),
-    store.query([{ kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 }], {
+  const [[author], [userEvent]] = await Promise.all([
+    relay.query([{ kinds: [0], authors: [pubkey], limit: 1 }], { signal }),
+    relay.query([{ kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 }], {
       signal,
     }),
   ]);
@@ -220,14 +222,14 @@ const accountStatusesController: AppController = async (c) => {
     assertAuthenticated(c, author);
   }
 
-  const names = getTagSet(user?.tags ?? [], 'n');
+  const names = getTagSet(userEvent?.tags ?? [], 'n');
 
   if (names.has('disabled')) {
     return c.json([]);
   }
 
   if (pinned) {
-    const [pinEvent] = await store.query([{ kinds: [10001], authors: [pubkey], limit: 1 }], { signal });
+    const [pinEvent] = await relay.query([{ kinds: [10001], authors: [pubkey], limit: 1 }], { signal });
     if (pinEvent) {
       const pinnedEventIds = getTagSet(pinEvent.tags, 'e');
       return renderStatuses(c, [...pinnedEventIds].reverse());
@@ -264,8 +266,8 @@ const accountStatusesController: AppController = async (c) => {
 
   const opts = { signal, limit, timeout: conf.db.timeouts.timelines };
 
-  const events = await store.query([filter], opts)
-    .then((events) => hydrateEvents({ events, store, signal }))
+  const events = await relay.query([filter], opts)
+    .then((events) => hydrateEvents({ events, relay, signal }))
     .then((events) => {
       if (exclude_replies) {
         return events.filter((event) => {
@@ -276,7 +278,7 @@ const accountStatusesController: AppController = async (c) => {
       return events;
     });
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = await Promise.all(
     events.map((event) => {
@@ -303,12 +305,11 @@ const updateCredentialsSchema = z.object({
 });
 
 const updateCredentialsController: AppController = async (c) => {
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
+  const { relay, user, signal } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = updateCredentialsSchema.safeParse(body);
-  const store = await Storages.db();
-  const signal = c.req.raw.signal;
 
   if (!result.success) {
     return c.json(result.error, 422);
@@ -318,7 +319,7 @@ const updateCredentialsController: AppController = async (c) => {
   let event: NostrEvent | undefined;
 
   if (keys.length === 1 && keys[0] === 'pleroma_settings_store') {
-    event = (await store.query([{ kinds: [0], authors: [pubkey] }]))[0];
+    event = (await relay.query([{ kinds: [0], authors: [pubkey] }]))[0];
   } else {
     event = await updateEvent(
       { kinds: [0], authors: [pubkey], limit: 1 },
@@ -374,7 +375,7 @@ const updateCredentialsController: AppController = async (c) => {
 
   let account: MastodonAccount;
   if (event) {
-    await hydrateEvents({ events: [event], store, signal });
+    await hydrateEvents({ events: [event], relay, signal });
     account = await renderAccount(event, { withSource: true, settingsStore });
   } else {
     account = await accountFromPubkey(pubkey, { withSource: true, settingsStore });
@@ -393,7 +394,9 @@ const updateCredentialsController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#follow */
 const followController: AppController = async (c) => {
-  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const sourcePubkey = await user!.signer.getPublicKey();
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -410,7 +413,9 @@ const followController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#unfollow */
 const unfollowController: AppController = async (c) => {
-  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const sourcePubkey = await user!.signer.getPublicKey();
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -447,7 +452,9 @@ const unblockController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#mute */
 const muteController: AppController = async (c) => {
-  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const sourcePubkey = await user!.signer.getPublicKey();
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -462,7 +469,9 @@ const muteController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/accounts/#unmute */
 const unmuteController: AppController = async (c) => {
-  const sourcePubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const sourcePubkey = await user!.signer.getPublicKey();
   const targetPubkey = c.req.param('pubkey');
 
   await updateListEvent(
@@ -476,14 +485,12 @@ const unmuteController: AppController = async (c) => {
 };
 
 const favouritesController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const params = c.get('pagination');
-  const { signal } = c.req.raw;
+  const { relay, user, pagination, signal } = c.var;
 
-  const store = await Storages.db();
+  const pubkey = await user!.signer.getPublicKey();
 
-  const events7 = await store.query(
-    [{ kinds: [7], authors: [pubkey], ...params }],
+  const events7 = await relay.query(
+    [{ kinds: [7], authors: [pubkey], ...pagination }],
     { signal },
   );
 
@@ -491,10 +498,10 @@ const favouritesController: AppController = async (c) => {
     .map((event) => event.tags.find((tag) => tag[0] === 'e')?.[1])
     .filter((id): id is string => !!id);
 
-  const events1 = await store.query([{ kinds: [1, 20], ids }], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+  const events1 = await relay.query([{ kinds: [1, 20], ids }], { signal })
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = await Promise.all(
     events1.map((event) => renderStatus(event, { viewerPubkey })),
@@ -503,16 +510,15 @@ const favouritesController: AppController = async (c) => {
 };
 
 const familiarFollowersController: AppController = async (c) => {
-  const store = await Storages.db();
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
+  const { relay, user } = c.var;
 
+  const pubkey = await user!.signer.getPublicKey();
   const ids = z.array(z.string()).parse(c.req.queries('id[]'));
   const follows = await getFollowedPubkeys(pubkey);
 
   const results = await Promise.all(ids.map(async (id) => {
-    const followLists = await store.query([{ kinds: [3], authors: [...follows], '#p': [id] }])
-      .then((events) => hydrateEvents({ events, store }));
+    const followLists = await relay.query([{ kinds: [3], authors: [...follows], '#p': [id] }])
+      .then((events) => hydrateEvents({ events, relay }));
 
     const accounts = await Promise.all(
       followLists.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),

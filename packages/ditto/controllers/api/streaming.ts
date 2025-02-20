@@ -68,7 +68,7 @@ const limiter = new TTLCache<string, number>();
 const connections = new Set<WebSocket>();
 
 const streamingController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -93,7 +93,6 @@ const streamingController: AppController = async (c) => {
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
-  const store = await Storages.db();
   const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
 
   function send(e: StreamingEvent) {
@@ -108,7 +107,7 @@ const streamingController: AppController = async (c) => {
     render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
   ) {
     try {
-      for await (const msg of store.req([filter], { signal: controller.signal })) {
+      for await (const msg of relay.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -119,7 +118,7 @@ const streamingController: AppController = async (c) => {
             }
           }
 
-          await hydrateEvents({ events: [event], store, signal: AbortSignal.timeout(1000) });
+          await hydrateEvents({ events: [event], relay, signal: AbortSignal.timeout(1000) });
 
           const result = await render(event);
 

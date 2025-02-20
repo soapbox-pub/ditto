@@ -1,16 +1,18 @@
-import { confMw } from '@ditto/api/middleware';
-import { type DittoConf } from '@ditto/conf';
-import { DittoTables } from '@ditto/db';
+import { DittoConf } from '@ditto/conf';
+import { DittoDB } from '@ditto/db';
+import { paginationMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
+import { DittoApp, type DittoEnv } from '@ditto/router';
 import { type DittoTranslator } from '@ditto/translators';
-import { type Context, Env as HonoEnv, Handler, Hono, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
+import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
-import { NostrEvent, NostrSigner, NStore, NUploader } from '@nostrify/nostrify';
-import { Kysely } from 'kysely';
+import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
 
 import '@/startup.ts';
 
+import { Conf } from '@/config.ts';
+import { Storages } from '@/storages.ts';
 import { Time } from '@/utils/time.ts';
 
 import {
@@ -140,34 +142,33 @@ import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
 import { notActivitypubMiddleware } from '@/middleware/notActivitypubMiddleware.ts';
-import { paginationMiddleware } from '@/middleware/paginationMiddleware.ts';
 import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
-import { requireSigner } from '@/middleware/requireSigner.ts';
-import { signerMiddleware } from '@/middleware/signerMiddleware.ts';
-import { storeMiddleware } from '@/middleware/storeMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 
-export interface AppEnv extends HonoEnv {
+export interface AppEnv extends DittoEnv {
   Variables: {
     conf: DittoConf;
-    /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
-    signer?: NostrSigner;
     /** Uploader for the user to upload files. */
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
     /** Kysely instance for the database. */
-    kysely: Kysely<DittoTables>;
-    /** Storage for the user, might filter out unwanted content. */
-    store: NStore;
+    db: DittoDB;
+    /** Base database store. No content filtering. */
+    relay: NRelay;
     /** Normalized pagination params. */
     pagination: { since?: number; until?: number; limit: number };
-    /** Normalized list pagination params. */
-    listPagination: { offset: number; limit: number };
     /** Translation service. */
     translator?: DittoTranslator;
+    signal: AbortSignal;
+    user?: {
+      /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
+      signer: NostrSigner;
+      /** User's relay. Might filter out unwanted content. */
+      relay: NRelay;
+    };
   };
 }
 
@@ -176,21 +177,29 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 // deno-lint-ignore no-explicit-any
 type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
-const app = new Hono<AppEnv>({ strict: false });
+const app = new DittoApp({
+  conf: Conf,
+  db: await Storages.database(),
+  relay: await Storages.db(),
+}, {
+  strict: false,
+});
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
 /** Static files provided by the Ditto repo, checked into git. */
 const staticFiles = serveStatic({ root: new URL('./static/', import.meta.url).pathname });
 
-app.use(confMw(Deno.env), cacheControlMiddleware({ noStore: true }));
+app.use(cacheControlMiddleware({ noStore: true }));
 
 const ratelimit = every(
   rateLimitMiddleware(30, Time.seconds(5), false),
   rateLimitMiddleware(300, Time.minutes(5), false),
 );
 
-app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware, logiMiddleware);
+const requireSigner = userMiddleware({ privileged: false, required: true });
+
+app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware(), logiMiddleware);
 app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
 app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
 app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
@@ -201,10 +210,8 @@ app.get('/relay', metricsMiddleware, ratelimit, relayController);
 app.use(
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
-  signerMiddleware,
   uploaderMiddleware,
   auth98Middleware(),
-  storeMiddleware,
 );
 
 app.get('/metrics', metricsController);
@@ -251,7 +258,7 @@ app.post('/oauth/revoke', revokeTokenController);
 app.post('/oauth/authorize', oauthAuthorizeController);
 app.get('/oauth/authorize', oauthController);
 
-app.post('/api/v1/accounts', requireProof({ pow: 20 }), createAccountController);
+app.post('/api/v1/accounts', requireProof(), createAccountController);
 app.get('/api/v1/accounts/verify_credentials', requireSigner, verifyCredentialsController);
 app.patch('/api/v1/accounts/update_credentials', requireSigner, updateCredentialsController);
 app.get('/api/v1/accounts/search', accountSearchController);

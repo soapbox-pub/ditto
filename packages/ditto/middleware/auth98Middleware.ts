@@ -22,8 +22,13 @@ function auth98Middleware(opts: ParseAuthRequestOpts = {}): AppMiddleware {
     const result = await parseAuthRequest(req, opts);
 
     if (result.success) {
-      c.set('signer', new ReadOnlySigner(result.data.pubkey));
-      c.set('proof', result.data);
+      const user = {
+        relay: c.var.relay,
+        signer: new ReadOnlySigner(result.data.pubkey),
+        ...c.var.user,
+      };
+
+      c.set('user', user);
     }
 
     await next();
@@ -71,7 +76,7 @@ function withProof(
   opts?: ParseAuthRequestOpts,
 ): AppMiddleware {
   return async (c, next) => {
-    const signer = c.get('signer');
+    const signer = c.var.user?.signer;
     const pubkey = await signer?.getPublicKey();
     const proof = c.get('proof') || await obtainProof(c, opts);
 
@@ -84,7 +89,13 @@ function withProof(
       c.set('proof', proof);
 
       if (!signer) {
-        c.set('signer', new ReadOnlySigner(proof.pubkey));
+        const user = {
+          relay: c.var.relay,
+          signer: new ReadOnlySigner(proof.pubkey),
+          ...c.var.user,
+        };
+
+        c.set('user', user);
       }
 
       await handler(c, proof, next);
@@ -96,7 +107,7 @@ function withProof(
 
 /** Get the proof over Nostr Connect. */
 async function obtainProof(c: AppContext, opts?: ParseAuthRequestOpts) {
-  const signer = c.get('signer');
+  const signer = c.var.user?.signer;
   if (!signer) {
     throw new HTTPException(401, {
       res: c.json({ error: 'No way to sign Nostr event' }, 401),

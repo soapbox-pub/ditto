@@ -21,9 +21,10 @@ const mediaUpdateSchema = z.object({
 });
 
 const mediaController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user, signal } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const result = mediaBodySchema.safeParse(await parseBody(c.req.raw));
-  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);

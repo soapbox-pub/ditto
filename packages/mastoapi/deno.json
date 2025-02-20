@@ -1,5 +1,5 @@
 {
-  "name": "@ditto/api",
+  "name": "@ditto/mastoapi",
   "version": "1.1.0",
   "exports": {
     "./middleware": "./middleware/mod.ts"

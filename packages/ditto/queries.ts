@@ -19,13 +19,13 @@ interface GetEventOpts {
 
 /**
  * Get a Nostr event by its ID.
- * @deprecated Use `store.query` directly.
+ * @deprecated Use `relay.query` directly.
  */
 const getEvent = async (
   id: string,
   opts: GetEventOpts = {},
 ): Promise<DittoEvent | undefined> => {
-  const store = await Storages.db();
+  const relay = await Storages.db();
   const { kind, signal = AbortSignal.timeout(1000) } = opts;
 
   const filter: NostrFilter = { ids: [id], limit: 1 };
@@ -33,23 +33,23 @@ const getEvent = async (
     filter.kinds = [kind];
   }
 
-  return await store.query([filter], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, store, signal }))
+  return await relay.query([filter], { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, relay, signal }))
     .then(([event]) => event);
 };
 
 /**
  * Get a Nostr `set_medatadata` event for a user's pubkey.
- * @deprecated Use `store.query` directly.
+ * @deprecated Use `relay.query` directly.
  */
 async function getAuthor(pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> {
-  const store = await Storages.db();
+  const relay = await Storages.db();
   const { signal = AbortSignal.timeout(1000) } = opts;
 
-  const events = await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal });
+  const events = await relay.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal });
   const event = events[0] ?? fallbackAuthor(pubkey);
 
-  await hydrateEvents({ events: [event], store, signal });
+  await hydrateEvents({ events: [event], relay, signal });
 
   return event;
 }

@@ -267,7 +267,7 @@ function localRequest(c: Context): Request {
 /** Actors with Bluesky's `!no-unauthenticated` self-label should require authorization to view. */
 function assertAuthenticated(c: AppContext, author: NostrEvent): void {
   if (
-    !c.get('signer') && author.tags.some(([name, value, ns]) =>
+    !c.var.user && author.tags.some(([name, value, ns]) =>
       name === 'l' &&
       value === '!no-unauthenticated' &&
       ns === 'com.atproto.label.defs#selfLabel'

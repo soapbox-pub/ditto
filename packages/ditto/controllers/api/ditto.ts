@@ -28,10 +28,9 @@ const relaySchema = z.object({
 type RelayEntity = z.infer<typeof relaySchema>;
 
 export const adminRelaysController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
 
-  const [event] = await store.query([
+  const [event] = await relay.query([
     { kinds: [10002], authors: [await conf.signer.getPublicKey()], limit: 1 },
   ]);
 
@@ -43,8 +42,7 @@ export const adminRelaysController: AppController = async (c) => {
 };
 
 export const adminSetRelaysController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
   const relays = relaySchema.array().parse(await c.req.json());
 
   const event = await conf.signer.signEvent({
@@ -54,7 +52,7 @@ export const adminSetRelaysController: AppController = async (c) => {
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  await store.event(event);
+  await relay.event(event);
 
   return c.json(renderRelays(event));
 };
@@ -79,14 +77,12 @@ const nameRequestSchema = z.object({
 });
 
 export const nameRequestController: AppController = async (c) => {
-  const store = await Storages.db();
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
 
+  const pubkey = await user!.signer.getPublicKey();
   const { name, reason } = nameRequestSchema.parse(await c.req.json());
 
-  const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
+  const [existing] = await relay.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
   if (existing) {
     return c.json({ error: 'Name request already exists' }, 400);
   }
@@ -102,7 +98,7 @@ export const nameRequestController: AppController = async (c) => {
     ],
   }, c);
 
-  await hydrateEvents({ events: [event], store: await Storages.db() });
+  await hydrateEvents({ events: [event], relay });
 
   const nameRequest = await renderNameRequest(event);
   return c.json(nameRequest);
@@ -114,10 +110,8 @@ const nameRequestsSchema = z.object({
 });
 
 export const nameRequestsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
+  const { conf, relay, user, signal } = c.var;
+  const pubkey = await user!.signer.getPublicKey();
 
   const params = c.get('pagination');
   const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
@@ -137,7 +131,7 @@ export const nameRequestsController: AppController = async (c) => {
     filter['#n'] = ['rejected'];
   }
 
-  const orig = await store.query([filter]);
+  const orig = await relay.query([filter]);
   const ids = new Set<string>();
 
   for (const event of orig) {
@@ -151,8 +145,8 @@ export const nameRequestsController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await store.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
-    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
+  const events = await relay.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
+    .then((events) => hydrateEvents({ relay, events: events, signal }));
 
   const nameRequests = await Promise.all(
     events.map((event) => renderNameRequest(event)),
@@ -170,10 +164,9 @@ const zapSplitSchema = z.record(
 );
 
 export const updateZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const body = await parseBody(c.req.raw);
   const result = zapSplitSchema.safeParse(body);
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: result.error }, 400);
@@ -181,7 +174,7 @@ export const updateZapSplitsController: AppController = async (c) => {
 
   const adminPubkey = await conf.signer.getPublicKey();
 
-  const dittoZapSplit = await getZapSplits(store, adminPubkey);
+  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -208,10 +201,9 @@ export const updateZapSplitsController: AppController = async (c) => {
 const deleteZapSplitSchema = z.array(n.id()).min(1);
 
 export const deleteZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const body = await parseBody(c.req.raw);
   const result = deleteZapSplitSchema.safeParse(body);
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: result.error }, 400);
@@ -219,7 +211,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
 
   const adminPubkey = await conf.signer.getPublicKey();
 
-  const dittoZapSplit = await getZapSplits(store, adminPubkey);
+  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -239,10 +231,9 @@ export const deleteZapSplitsController: AppController = async (c) => {
 };
 
 export const getZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = c.get('store');
+  const { conf, relay } = c.var;
 
-  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, await conf.signer.getPublicKey()) ?? {};
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(relay, await conf.signer.getPublicKey()) ?? {};
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -265,11 +256,11 @@ export const getZapSplitsController: AppController = async (c) => {
 };
 
 export const statusZapSplitsController: AppController = async (c) => {
-  const store = c.get('store');
-  const id = c.req.param('id');
-  const { signal } = c.req.raw;
+  const { relay, signal } = c.var;
 
-  const [event] = await store.query([{ kinds: [1, 20], ids: [id], limit: 1 }], { signal });
+  const id = c.req.param('id');
+
+  const [event] = await relay.query([{ kinds: [1, 20], ids: [id], limit: 1 }], { signal });
   if (!event) {
     return c.json({ error: 'Event not found' }, 404);
   }
@@ -278,8 +269,8 @@ export const statusZapSplitsController: AppController = async (c) => {
 
   const pubkeys = zapsTag.map((name) => name[1]);
 
-  const users = await store.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
-  await hydrateEvents({ events: users, store, signal });
+  const users = await relay.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
+  await hydrateEvents({ events: users, relay, signal });
 
   const zapSplits = (await Promise.all(pubkeys.map((pubkey) => {
     const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;

@@ -2,33 +2,32 @@ import { NostrFilter } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
 import { AppContext, AppController } from '@/app.ts';
+import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { paginated, paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 export const suggestionsV1Controller: AppController = async (c) => {
-  const signal = c.req.raw.signal;
-  const params = c.get('listPagination');
-  const suggestions = await renderV2Suggestions(c, params, signal);
+  const { signal } = c.var;
+  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const suggestions = await renderV2Suggestions(c, { offset, limit }, signal);
   const accounts = suggestions.map(({ account }) => account);
-  return paginatedList(c, params, accounts);
+  return paginatedList(c, { offset, limit }, accounts);
 };
 
 export const suggestionsV2Controller: AppController = async (c) => {
-  const signal = c.req.raw.signal;
-  const params = c.get('listPagination');
-  const suggestions = await renderV2Suggestions(c, params, signal);
-  return paginatedList(c, params, suggestions);
+  const { signal } = c.var;
+  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const suggestions = await renderV2Suggestions(c, { offset, limit }, signal);
+  return paginatedList(c, { offset, limit }, suggestions);
 };
 
 async function renderV2Suggestions(c: AppContext, params: { offset: number; limit: number }, signal?: AbortSignal) {
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
   const { offset, limit } = params;
 
-  const store = c.get('store');
-  const signer = c.get('signer');
-  const pubkey = await signer?.getPublicKey();
+  const pubkey = await user?.signer.getPublicKey();
 
   const filters: NostrFilter[] = [
     { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#n': ['suggested'], limit },
@@ -40,7 +39,7 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
     filters.push({ kinds: [10000], authors: [pubkey], limit: 1 });
   }
 
-  const events = await store.query(filters, { signal });
+  const events = await relay.query(filters, { signal });
   const adminPubkey = await conf.signer.getPublicKey();
 
   const [userEvents, followsEvent, mutesEvent, trendingEvent] = [
@@ -79,11 +78,11 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
 
   const authors = [...pubkeys].slice(offset, offset + limit);
 
-  const profiles = await store.query(
+  const profiles = await relay.query(
     [{ kinds: [0], authors, limit: authors.length }],
     { signal },
   )
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   return Promise.all(authors.map(async (pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
@@ -96,13 +95,10 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
 }
 
 export const localSuggestionsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const signal = c.req.raw.signal;
-  const params = c.get('pagination');
-  const store = c.get('store');
+  const { conf, relay, pagination, signal } = c.var;
 
-  const grants = await store.query(
-    [{ kinds: [30360], authors: [await conf.signer.getPublicKey()], ...params }],
+  const grants = await relay.query(
+    [{ kinds: [30360], authors: [await conf.signer.getPublicKey()], ...pagination }],
     { signal },
   );
 
@@ -115,11 +111,11 @@ export const localSuggestionsController: AppController = async (c) => {
     }
   }
 
-  const profiles = await store.query(
-    [{ kinds: [0], authors: [...pubkeys], search: `domain:${conf.url.host}`, ...params }],
+  const profiles = await relay.query(
+    [{ kinds: [0], authors: [...pubkeys], search: `domain:${conf.url.host}`, ...pagination }],
     { signal },
   )
-    .then((events) => hydrateEvents({ store, events, signal }));
+    .then((events) => hydrateEvents({ relay, events, signal }));
 
   const suggestions = [...pubkeys].map((pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
