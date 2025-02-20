@@ -109,7 +109,8 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
       prewarmLinkPreview(event, opts.signal),
       generateSetEvents(event),
     ])
-      .then(() => webPush(event));
+      .then(() => webPush(event))
+      .catch(() => {});
   }
 }
 
