@@ -36,7 +36,7 @@ export class DittoPolyPg {
       provider: new FileMigrationProvider({
         fs,
         path,
-        migrationFolder: new URL(import.meta.resolve('./migrations')).pathname,
+        migrationFolder: new URL(import.meta.resolve('../migrations')).pathname,
       }),
     });
 
