@@ -190,7 +190,7 @@ async function getMintsToProofs(
         continue;
       }
 
-      const proof = event.tags.find(([name]) => name === 'proof')?.[1];
+      const proof = event.tags.find(([name]) => name === 'proof')?.[1]; // TODO: fix, multiple 'proof' tags be exist
       if (!proof) {
         continue;
       }
