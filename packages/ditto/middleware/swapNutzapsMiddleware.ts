@@ -190,8 +190,8 @@ async function getMintsToProofs(
         continue;
       }
 
-      const proof = event.tags.find(([name]) => name === 'proof')?.[1]; // TODO: fix, multiple 'proof' tags be exist
-      if (!proof) {
+      const proofs = event.tags.filter(([name]) => name === 'proof').map((tag) => tag[1]).filter(Boolean);
+      if (proofs.length < 1) {
         continue;
       }
 
@@ -207,8 +207,8 @@ async function getMintsToProofs(
           C: z.string(),
           dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
           dleqValid: z.boolean().optional(),
-        }).array(),
-      ).safeParse(proof);
+        }),
+      ).array().safeParse(proofs);
 
       if (!parsed.success) {
         continue;
