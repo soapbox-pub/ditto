@@ -54,6 +54,10 @@ export class DittoPostgres {
         return pg.connections.idle;
       },
       listen,
+      [Symbol.asyncDispose]: async () => {
+        await pg.end();
+        await kysely.destroy();
+      },
     };
   }
 }

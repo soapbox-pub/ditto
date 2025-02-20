@@ -36,6 +36,10 @@ export class DittoPglite {
       poolSize: 1,
       availableConnections: 1,
       listen,
+      [Symbol.asyncDispose]: async () => {
+        await pglite.close();
+        await kysely.destroy();
+      },
     };
   }
 }

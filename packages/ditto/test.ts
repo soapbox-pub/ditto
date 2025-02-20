@@ -38,7 +38,7 @@ export async function createTestDB(opts?: { pure?: boolean }) {
         await sql`truncate table ${sql.ref(tablename)} cascade`.execute(db.kysely);
       }
 
-      await db.kysely.destroy();
+      await db[Symbol.asyncDispose]();
     },
   };
 }
