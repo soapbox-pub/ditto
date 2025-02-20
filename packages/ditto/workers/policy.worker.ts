@@ -1,4 +1,4 @@
-import { DittoDB } from '@ditto/db';
+import { DittoDatabase } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/policies';
@@ -30,7 +30,7 @@ export class CustomPolicy implements NPolicy {
   async init({ path, databaseUrl, pubkey }: PolicyInit): Promise<void> {
     const Policy = (await import(path)).default;
 
-    const db = DittoDB.create(databaseUrl, { poolSize: 1 });
+    const db = DittoDatabase.create(databaseUrl, { poolSize: 1 });
 
     const store = new DittoPgStore({
       db,

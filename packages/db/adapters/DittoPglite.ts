@@ -6,11 +6,11 @@ import { Kysely } from 'kysely';
 import { KyselyLogger } from '../KyselyLogger.ts';
 import { isWorker } from '../utils/worker.ts';
 
-import type { DittoDatabase, DittoDatabaseOpts } from '../DittoDatabase.ts';
+import type { DittoDB, DittoDBOpts } from '../DittoDB.ts';
 import type { DittoTables } from '../DittoTables.ts';
 
 export class DittoPglite {
-  static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
+  static create(databaseUrl: string, opts?: DittoDBOpts): DittoDB {
     const url = new URL(databaseUrl);
 
     if (url.protocol === 'file:' && isWorker()) {
