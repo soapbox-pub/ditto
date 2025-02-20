@@ -2,19 +2,22 @@ import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
-import { NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { bytesToString, stringToBytes } from '@scure/base';
+import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { createEvent, parseBody } from '@/utils/api.ts';
 import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { requireStore } from '@/middleware/storeMiddleware.ts';
-import { walletSchema } from '@/schema.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
+import { walletSchema } from '@/schema.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { isNostrId, nostrNow } from '@/utils.ts';
-import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { validateAndParseWallet } from '@/utils/cashu.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -107,7 +110,7 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
     const now = nostrNow();
 
     try {
-      if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) {
+      if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) { // TODO: organize order of operations of deleting expired quote ids
         const mint = new CashuMint(mintUrl);
         const wallet = new CashuWallet(mint);
         await wallet.loadMint();
@@ -198,7 +201,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 
   const sk = generateSecretKey();
   const privkey = bytesToString('hex', sk);
-  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+  const p2pk = getPublicKey(sk);
 
   walletContentTags.push(['privkey', privkey]);
 
@@ -242,34 +245,14 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
   const pubkey = await signer.getPublicKey();
   const { signal } = c.req.raw;
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
-  if (!event) {
-    return c.json({ error: 'Wallet not found' }, 404);
+  const { data, error } = await validateAndParseWallet(store, signer, pubkey, { signal });
+  if (error) {
+    return c.json({ error: error.message }, 404);
   }
 
-  const { data: decryptedContent, success } = n.json().pipe(z.string().array().array()).safeParse(
-    await signer.nip44.decrypt(pubkey, event.content),
-  );
-  if (!success) {
-    return c.json({ error: 'Could not decrypt wallet content' }, 422);
-  }
-
-  const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
-  if (!privkey || !isNostrId(privkey)) {
-    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 422);
-  }
-
-  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+  const { p2pk, mints } = data;
 
   let balance = 0;
-  const mints: string[] = [];
-
-  for (const tag of decryptedContent) {
-    const isMint = tag[0] === 'mint';
-    if (isMint) {
-      mints.push(tag[1]);
-    }
-  }
 
   const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal });
   for (const token of tokens) {
@@ -286,7 +269,7 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
         return accumulator + current.amount;
       }, 0);
     } catch (e) {
-      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet', error: errorJson(e) });
     }
   }
 
