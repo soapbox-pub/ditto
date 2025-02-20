@@ -126,15 +126,15 @@ export class DittoPgStore extends NPostgres {
   override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
 
-    if (this.opts.notify) {
-      this.encounters.set(event.id, true);
-    }
-
     logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
     dbEventsCounter.inc({ kind: event.kind });
 
     if (NKinds.ephemeral(event.kind)) {
       return await this.fulfill(event);
+    }
+
+    if (this.opts.notify) {
+      this.encounters.set(event.id, true);
     }
 
     if (await this.isDeletedAdmin(event)) {
@@ -590,8 +590,28 @@ export class DittoPgStore extends NPostgres {
     return filters;
   }
 
-  // deno-lint-ignore no-explicit-any
-  override async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
-    return super.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
+  /** Execute the callback in a new transaction, unless the Kysely instance is already a transaction. */
+  private static override async trx<T = unknown>(
+    db: Kysely<DittoTables>,
+    callback: (trx: Kysely<DittoTables>) => Promise<T>,
+  ): Promise<T> {
+    if (db.isTransaction) {
+      return await callback(db);
+    } else {
+      return await db.transaction().execute((trx) => callback(trx));
+    }
+  }
+
+  /** Execute NPostgres functions in a transaction. */
+  // @ts-ignore gg
+  override async transaction(
+    callback: (store: DittoPgStore, kysely: Kysely<DittoTables>) => Promise<void>,
+  ): Promise<void> {
+    const { db } = this.opts;
+
+    await DittoPgStore.trx(db.kysely, async (trx) => {
+      const store = new DittoPgStore({ ...this.opts, db: { ...db, kysely: trx }, notify: false });
+      await callback(store, trx);
+    });
   }
 }

@@ -77,21 +77,24 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
   // NIP-46 events get special treatment.
   // They are exempt from policies and other side-effects, and should be streamed out immediately.
   // If streaming fails, an error should be returned.
-  if (event.kind !== 24133) {
-    // Ensure the event doesn't violate the policy.
-    if (event.pubkey !== Conf.pubkey) {
-      await policyFilter(event, opts.signal);
-    }
+  if (event.kind === 24133) {
+    const store = await Storages.db();
+    await store.event(event, { signal: opts.signal });
+  }
 
-    // Prepare the event for additional checks.
-    // FIXME: This is kind of hacky. Should be reorganized to fetch only what's needed for each stage.
-    await hydrateEvent(event, opts.signal);
+  // Ensure the event doesn't violate the policy.
+  if (event.pubkey !== Conf.pubkey) {
+    await policyFilter(event, opts.signal);
+  }
 
-    // Ensure that the author is not banned.
-    const n = getTagSet(event.user?.tags ?? [], 'n');
-    if (n.has('disabled')) {
-      throw new RelayError('blocked', 'author is blocked');
-    }
+  // Prepare the event for additional checks.
+  // FIXME: This is kind of hacky. Should be reorganized to fetch only what's needed for each stage.
+  await hydrateEvent(event, opts.signal);
+
+  // Ensure that the author is not banned.
+  const n = getTagSet(event.user?.tags ?? [], 'n');
+  if (n.has('disabled')) {
+    throw new RelayError('blocked', 'author is blocked');
   }
 
   const kysely = await Storages.kysely();
