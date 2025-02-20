@@ -68,7 +68,7 @@ const notificationsController: AppController = async (c) => {
   }
 
   if (types.has('ditto:name_grant') && !account_id) {
-    filters.push({ kinds: [30360], authors: [conf.pubkey], '#p': [pubkey], ...params });
+    filters.push({ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [pubkey], ...params });
   }
 
   return renderNotifications(filters, types, params, c);

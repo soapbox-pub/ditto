@@ -1,7 +1,6 @@
 import { Command } from 'commander';
 import { NostrEvent } from 'nostr-tools';
 
-import { AdminSigner } from '../packages/ditto/signers/AdminSigner.ts';
 import { nostrNow } from '../packages/ditto/utils.ts';
 import { Conf } from '../packages/ditto/config.ts';
 import { Storages } from '../packages/ditto/storages.ts';
@@ -36,7 +35,7 @@ if (import.meta.main) {
       content.picture = image;
       content.website = Conf.localDomain;
 
-      const signer = new AdminSigner();
+      const signer = Conf.signer;
       const bare: Omit<NostrEvent, 'id' | 'sig' | 'pubkey'> = {
         created_at: nostrNow(),
         kind: 0,

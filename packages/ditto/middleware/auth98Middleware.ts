@@ -40,7 +40,7 @@ function requireRole(role: UserRole, opts?: ParseAuthRequestOpts): AppMiddleware
 
     const [user] = await store.query([{
       kinds: [30382],
-      authors: [conf.pubkey],
+      authors: [await conf.signer.getPublicKey()],
       '#d': [proof.pubkey],
       limit: 1,
     }]);

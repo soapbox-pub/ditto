@@ -95,7 +95,7 @@ const suggestedTimelineController: AppController = async (c) => {
   const params = c.get('pagination');
 
   const [follows] = await store.query(
-    [{ kinds: [3], authors: [conf.pubkey], limit: 1 }],
+    [{ kinds: [3], authors: [await conf.signer.getPublicKey()], limit: 1 }],
   );
 
   const authors = [...getTagSet(follows?.tags ?? [], 'p')];

@@ -5,7 +5,6 @@ import { Kysely, sql } from 'kysely';
 
 import { Conf } from '@/config.ts';
 import { handleEvent } from '@/pipeline.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
 import { Time } from '@/utils/time.ts';
@@ -100,7 +99,7 @@ export async function updateTrendingTags(
       return;
     }
 
-    const signer = new AdminSigner();
+    const signer = Conf.signer;
 
     const label = await signer.signEvent({
       kind: 1985,

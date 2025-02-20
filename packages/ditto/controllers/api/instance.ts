@@ -68,7 +68,7 @@ const instanceV1Controller: AppController = async (c) => {
     version,
     email: meta.email,
     nostr: {
-      pubkey: conf.pubkey,
+      pubkey: await conf.signer.getPublicKey(),
       relay: `${wsProtocol}//${host}/relay`,
     },
     rules: [],
@@ -141,7 +141,7 @@ const instanceV2Controller: AppController = async (c) => {
       },
     },
     nostr: {
-      pubkey: conf.pubkey,
+      pubkey: await conf.signer.getPublicKey(),
       relay: `${wsProtocol}//${host}/relay`,
     },
     pleroma: {

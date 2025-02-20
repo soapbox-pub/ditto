@@ -18,7 +18,7 @@ export interface InstanceMetadata extends NostrMetadata {
 /** Get and parse instance metadata from the kind 0 of the admin user. */
 export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): Promise<InstanceMetadata> {
   const [event] = await store.query(
-    [{ kinds: [0], authors: [Conf.pubkey], limit: 1 }],
+    [{ kinds: [0], authors: [await Conf.signer.getPublicKey()], limit: 1 }],
     { signal },
   );
 

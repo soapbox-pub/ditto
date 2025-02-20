@@ -211,7 +211,9 @@ const accountStatusesController: AppController = async (c) => {
 
   const [[author], [user]] = await Promise.all([
     store.query([{ kinds: [0], authors: [pubkey], limit: 1 }], { signal }),
-    store.query([{ kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 }], { signal }),
+    store.query([{ kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 }], {
+      signal,
+    }),
   ]);
 
   if (author) {
