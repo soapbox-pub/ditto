@@ -32,14 +32,14 @@ export class LibreTranslateTranslator implements DittoTranslator {
     source: LanguageCode | undefined,
     dest: LanguageCode,
     opts?: { signal?: AbortSignal },
-  ): Promise<{ results: string[]; source_lang: LanguageCode }> {
+  ): Promise<{ results: string[]; sourceLang: LanguageCode }> {
     const translations = await Promise.all(
       texts.map((text) => this.translateOne(text, source, dest, 'html', { signal: opts?.signal })),
     );
 
     return {
       results: translations.map((value) => value.translatedText),
-      source_lang: (translations[0]?.detectedLanguage?.language ?? source) as LanguageCode, // cast is ok
+      sourceLang: (translations[0]?.detectedLanguage?.language ?? source) as LanguageCode, // cast is ok
     };
   }
 

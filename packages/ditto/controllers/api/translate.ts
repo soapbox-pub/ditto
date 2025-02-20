@@ -132,7 +132,7 @@ const translateController: AppController = async (c) => {
       }
     }
 
-    mastodonTranslation.detected_source_language = data.source_lang;
+    mastodonTranslation.detected_source_language = data.sourceLang;
 
     translationCache.set(cacheKey, mastodonTranslation);
     cachedTranslationsSizeGauge.set(translationCache.size);

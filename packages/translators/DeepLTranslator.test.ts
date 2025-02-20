@@ -26,7 +26,7 @@ Deno.test('DeepL translation with source language omitted', async () => {
     'en',
   );
 
-  assertEquals(data.source_lang, 'pt');
+  assertEquals(data.sourceLang, 'pt');
   assertEquals(detectLanguage(data.results[0], 0), 'en');
   assertEquals(detectLanguage(data.results[1], 0), 'en');
   assertEquals(detectLanguage(data.results[2], 0), 'en');
@@ -55,7 +55,7 @@ Deno.test('DeepL translation with source language set', async () => {
     'en',
   );
 
-  assertEquals(data.source_lang, 'pt');
+  assertEquals(data.sourceLang, 'pt');
   assertEquals(detectLanguage(data.results[0], 0), 'en');
   assertEquals(detectLanguage(data.results[1], 0), 'en');
   assertEquals(detectLanguage(data.results[2], 0), 'en');

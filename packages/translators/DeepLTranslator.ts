@@ -32,12 +32,12 @@ export class DeepLTranslator implements DittoTranslator {
     source: LanguageCode | undefined,
     dest: LanguageCode,
     opts?: { signal?: AbortSignal },
-  ): Promise<{ results: string[]; source_lang: LanguageCode }> {
+  ): Promise<{ results: string[]; sourceLang: LanguageCode }> {
     const { translations } = await this.translateMany(texts, source, dest, opts);
 
     return {
       results: translations.map((value) => value.text),
-      source_lang: translations[0]?.detected_source_language,
+      sourceLang: translations[0]?.detected_source_language,
     };
   }
 

@@ -14,5 +14,5 @@ export interface DittoTranslator {
     targetLanguage: LanguageCode,
     /** Custom options. */
     opts?: { signal?: AbortSignal },
-  ): Promise<{ results: string[]; source_lang: LanguageCode }>;
+  ): Promise<{ results: string[]; sourceLang: LanguageCode }>;
 }

@@ -27,7 +27,7 @@ Deno.test('LibreTranslate translation with source language omitted', {
     'ca',
   );
 
-  assertEquals(data.source_lang, 'pt');
+  assertEquals(data.sourceLang, 'pt');
   assertEquals(detectLanguage(data.results[0], 0), 'ca');
   assertEquals(detectLanguage(data.results[1], 0), 'ca');
   assertEquals(detectLanguage(data.results[2], 0), 'ca');
@@ -48,7 +48,7 @@ Deno.test('LibreTranslate translation with source language set', {
     'ca',
   );
 
-  assertEquals(data.source_lang, 'pt');
+  assertEquals(data.sourceLang, 'pt');
   assertEquals(detectLanguage(data.results[0], 0), 'ca');
   assertEquals(detectLanguage(data.results[1], 0), 'ca');
   assertEquals(detectLanguage(data.results[2], 0), 'ca');
