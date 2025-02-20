@@ -22,6 +22,7 @@ export async function createTestDB(opts?: { pure?: boolean }) {
     timeout: Conf.db.timeouts.default,
     pubkey: Conf.pubkey,
     pure: opts?.pure ?? false,
+    notify: true,
   });
 
   return {

@@ -67,9 +67,15 @@ interface DittoPgStoreOpts {
   notify?: boolean;
 }
 
+/** Realtime subscription. */
+interface Subscription {
+  filters: NostrFilter[];
+  machina: Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>;
+}
+
 /** SQL database storage adapter for Nostr events. */
 export class DittoPgStore extends NPostgres {
-  readonly subs = new Map<string, { filters: NostrFilter[]; machina: Machina<NostrEvent> }>();
+  readonly subs = new Map<string, Subscription>();
   readonly encounters = new LRUCache<string, boolean>({ max: 1000 });
 
   /** Conditions for when to index certain tags. */
@@ -170,12 +176,12 @@ export class DittoPgStore extends NPostgres {
 
     let count = 0;
 
-    for (const { filters, machina } of this.subs.values()) {
+    for (const [subId, { filters, machina }] of this.subs.entries()) {
       for (const filter of filters) {
         count++;
 
         if (this.matchesFilter(event, filter)) {
-          machina.push(event);
+          machina.push(['EVENT', subId, event]);
           break;
         }
 
@@ -258,47 +264,60 @@ export class DittoPgStore extends NPostgres {
     filters: NostrFilter[],
     opts: { timeout?: number; signal?: AbortSignal } = {},
   ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
+    const { db, chunkSize = 20 } = this.opts;
+    const { timeout = this.opts.timeout, signal } = opts;
+
     const subId = crypto.randomUUID();
     const normalFilters = this.normalizeFilters(filters);
+    const machina = new Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>(signal);
 
     if (normalFilters.length) {
-      const { db, timeout, chunkSize = 20 } = this.opts;
+      this.withTimeout(db.kysely as unknown as Kysely<NPostgresSchema>, timeout, async (trx) => {
+        const rows = this.getEventsQuery(trx, normalFilters).stream(chunkSize);
 
-      const rows = await this.withTimeout(
-        db.kysely as unknown as Kysely<NPostgresSchema>,
-        (trx) => this.getEventsQuery(trx, normalFilters).stream(chunkSize),
-        opts.timeout ?? timeout,
-      );
-
-      for await (const row of rows) {
-        const event = this.parseEventRow(row);
-        yield ['EVENT', subId, event];
-
-        if (opts.signal?.aborted) {
-          yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
-          return;
+        for await (const row of rows) {
+          const event = this.parseEventRow(row);
+          machina.push(['EVENT', subId, event]);
         }
+
+        machina.push(['EOSE', subId]);
+      }).catch((error) => {
+        if (error instanceof Error && error.message.includes('timeout')) {
+          machina.push(['CLOSED', subId, 'error: the relay could not respond fast enough']);
+        } else {
+          machina.push(['CLOSED', subId, 'error: something went wrong']);
+        }
+      });
+
+      try {
+        for await (const msg of machina) {
+          const [verb] = msg;
+
+          yield msg;
+
+          if (verb === 'EOSE') {
+            break;
+          }
+
+          if (verb === 'CLOSED') {
+            return;
+          }
+        }
+      } catch {
+        yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
+        return;
       }
     }
-
-    yield ['EOSE', subId];
-
-    if (opts.signal?.aborted) {
-      yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
-      return;
-    }
-
-    const machina = new Machina<DittoEvent>(opts.signal);
 
     this.subs.set(subId, { filters, machina });
     internalSubscriptionsSizeGauge.set(this.subs.size);
 
     try {
-      for await (const event of machina) {
-        yield ['EVENT', subId, event];
+      for await (const msg of machina) {
+        yield msg;
       }
     } catch (e) {
-      if (e instanceof Error && e.message.includes('timeout')) {
+      if (e instanceof Error && e.name === 'AbortError') {
         yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
       } else {
         yield ['CLOSED', subId, 'error: something went wrong'];

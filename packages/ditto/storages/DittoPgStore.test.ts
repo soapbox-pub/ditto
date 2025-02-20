@@ -1,4 +1,5 @@
 import { assertEquals, assertRejects } from '@std/assert';
+import { NostrRelayMsg } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
 import { generateSecretKey } from 'nostr-tools';
 
@@ -12,19 +13,26 @@ Deno.test('req streaming', async () => {
   await using db = await createTestDB({ pure: true });
   const { store: relay } = db;
 
-  const event1 = await eventFixture('event-1');
+  const msgs: NostrRelayMsg[] = [];
+  const controller = new AbortController();
 
-  const promise = new Promise((resolve) => setTimeout(() => resolve(relay.event(event1)), 0));
-
-  for await (const msg of relay.req([{ since: 0 }])) {
-    if (msg[0] === 'EVENT') {
-      assertEquals(relay.subs.size, 1);
-      assertEquals(msg[2], event1);
-      break;
+  const promise = (async () => {
+    for await (const msg of relay.req([{ since: 0 }], { signal: controller.signal })) {
+      msgs.push(msg);
     }
-  }
+  })();
+
+  const event = genEvent({ created_at: Math.floor(Date.now() / 1000) });
+  await relay.event(event);
+
+  controller.abort();
 
   await promise;
+
+  const verbs = msgs.map(([verb]) => verb);
+
+  assertEquals(verbs, ['EOSE', 'EVENT', 'CLOSED']);
+  assertEquals(msgs[1][2], event);
   assertEquals(relay.subs.size, 0); // cleanup
 });
 
