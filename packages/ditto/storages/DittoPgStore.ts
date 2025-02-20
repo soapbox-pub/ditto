@@ -262,10 +262,10 @@ export class DittoPgStore extends NPostgres {
 
   override async *req(
     filters: NostrFilter[],
-    opts: { timeout?: number; signal?: AbortSignal } = {},
+    opts: { timeout?: number; signal?: AbortSignal; limit?: number } = {},
   ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
     const { db, chunkSize = 20 } = this.opts;
-    const { timeout = this.opts.timeout, signal } = opts;
+    const { limit, timeout = this.opts.timeout, signal } = opts;
 
     filters = await this.expandFilters(filters);
 
@@ -273,11 +273,15 @@ export class DittoPgStore extends NPostgres {
     const normalFilters = this.normalizeFilters(filters);
     const machina = new Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>(signal);
 
-    if (normalFilters.length) {
+    if (normalFilters.length && limit !== 0) {
       this.withTimeout(db.kysely as unknown as Kysely<NPostgresSchema>, timeout, async (trx) => {
-        const rows = this.getEventsQuery(trx, normalFilters).stream(chunkSize);
+        let query = this.getEventsQuery(trx, normalFilters);
 
-        for await (const row of rows) {
+        if (typeof opts.limit === 'number') {
+          query = query.limit(opts.limit);
+        }
+
+        for await (const row of query.stream(chunkSize)) {
           const event = this.parseEventRow(row);
           machina.push(['EVENT', subId, event]);
         }

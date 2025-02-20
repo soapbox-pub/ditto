@@ -125,7 +125,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     const store = await Storages.db();
 
     try {
-      for await (const [verb, , ...rest] of store.req(filters, { timeout: conf.db.timeouts.relay })) {
+      for await (const [verb, , ...rest] of store.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
         send([verb, subId, ...rest] as NostrRelayMsg);
       }
     } catch (e) {
