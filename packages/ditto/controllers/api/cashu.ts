@@ -3,7 +3,7 @@ import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import { bytesToString, stringToBytes } from '@scure/base';
+import { bytesToString } from '@scure/base';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
@@ -12,11 +12,9 @@ import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
-import { isNostrId, nostrNow } from '@/utils.ts';
+import { nostrNow } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { validateAndParseWallet } from '@/utils/cashu.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
