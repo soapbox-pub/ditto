@@ -1,6 +1,6 @@
 // deno-lint-ignore-file require-await
 
-import { DittoDatabase, DittoTables } from '@ditto/db';
+import { type DittoDB, type DittoTables } from '@ditto/db';
 import { detectLanguage } from '@ditto/lang';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
 import { dbEventsCounter, internalSubscriptionsSizeGauge } from '@ditto/metrics';
@@ -50,7 +50,7 @@ interface TagConditionOpts {
 /** Options for the EventsDB store. */
 interface DittoPgStoreOpts {
   /** Kysely instance to use. */
-  db: DittoDatabase;
+  db: DittoDB;
   /** Pubkey of the admin account. */
   pubkey: string;
   /** Timeout in milliseconds for database queries. */

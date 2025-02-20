@@ -14,11 +14,11 @@ import postgres from 'postgres';
 
 import { KyselyLogger } from '../KyselyLogger.ts';
 
-import type { DittoDatabase, DittoDatabaseOpts } from '../DittoDatabase.ts';
+import type { DittoDB, DittoDBOpts } from '../DittoDB.ts';
 import type { DittoTables } from '../DittoTables.ts';
 
 export class DittoPostgres {
-  static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
+  static create(databaseUrl: string, opts?: DittoDBOpts): DittoDB {
     const pg = postgres(databaseUrl, { max: opts?.poolSize });
 
     const kysely = new Kysely<DittoTables>({
