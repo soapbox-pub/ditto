@@ -31,7 +31,7 @@
     "jsr:@hono/hono@^4.4.6": "4.6.15",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@0.39": "0.39.0",
+    "jsr:@nostrify/db@~0.39.3": "0.39.3",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
@@ -363,8 +363,8 @@
         "jsr:@std/path@0.224.0"
       ]
     },
-    "@nostrify/db@0.39.0": {
-      "integrity": "13a88c610eb15a5dd13848d5beec9170406376c9d05299ce5e5298452a5431ac",
+    "@nostrify/db@0.39.3": {
+      "integrity": "d1f1104316b33e0fd3c263086b325ee49f86859abc1a966b43bb9f9a21c15429",
       "dependencies": [
         "jsr:@nostrify/nostrify@~0.38.1",
         "jsr:@nostrify/types@0.36",
@@ -2460,7 +2460,7 @@
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@0.39",
+      "jsr:@nostrify/db@~0.39.3",
       "jsr:@nostrify/nostrify@~0.38.1",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",

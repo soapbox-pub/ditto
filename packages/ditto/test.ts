@@ -2,7 +2,7 @@ import { DittoDB } from '@ditto/db';
 import { NostrEvent } from '@nostrify/nostrify';
 
 import { Conf } from '@/config.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { sql } from 'kysely';
 
 /** Import an event fixture by name in tests. */
@@ -13,31 +13,32 @@ export async function eventFixture(name: string): Promise<NostrEvent> {
 
 /** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const { kysely } = DittoDB.create(Conf.databaseUrl, { poolSize: 1 });
+  const db = DittoDB.create(Conf.databaseUrl, { poolSize: 1 });
 
-  await DittoDB.migrate(kysely);
+  await DittoDB.migrate(db.kysely);
 
-  const store = new EventsDB({
-    kysely,
+  const store = new DittoPgStore({
+    db,
     timeout: Conf.db.timeouts.default,
     pubkey: Conf.pubkey,
     pure: opts?.pure ?? false,
+    notify: true,
   });
 
   return {
+    ...db,
     store,
-    kysely,
     [Symbol.asyncDispose]: async () => {
       const { rows } = await sql<
         { tablename: string }
-      >`select tablename from pg_tables where schemaname = current_schema()`.execute(kysely);
+      >`select tablename from pg_tables where schemaname = current_schema()`.execute(db.kysely);
 
       for (const { tablename } of rows) {
         if (tablename.startsWith('kysely_')) continue;
-        await sql`truncate table ${sql.ref(tablename)} cascade`.execute(kysely);
+        await sql`truncate table ${sql.ref(tablename)} cascade`.execute(db.kysely);
       }
 
-      await kysely.destroy();
+      await db[Symbol.asyncDispose]();
     },
   };
 }

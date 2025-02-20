@@ -1,12 +1,40 @@
 import { assertEquals, assertRejects } from '@std/assert';
+import { NostrRelayMsg } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
 import { generateSecretKey } from 'nostr-tools';
 
 import { RelayError } from '@/RelayError.ts';
 import { eventFixture } from '@/test.ts';
 import { Conf } from '@/config.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { createTestDB } from '@/test.ts';
+
+Deno.test('req streaming', async () => {
+  await using db = await createTestDB({ pure: true });
+  const { store: relay } = db;
+
+  const msgs: NostrRelayMsg[] = [];
+  const controller = new AbortController();
+
+  const promise = (async () => {
+    for await (const msg of relay.req([{ since: 0 }], { signal: controller.signal })) {
+      msgs.push(msg);
+    }
+  })();
+
+  const event = genEvent({ created_at: Math.floor(Date.now() / 1000) });
+  await relay.event(event);
+
+  controller.abort();
+
+  await promise;
+
+  const verbs = msgs.map(([verb]) => verb);
+
+  assertEquals(verbs, ['EOSE', 'EVENT', 'CLOSED']);
+  assertEquals(msgs[1][2], event);
+  assertEquals(relay.subs.size, 0); // cleanup
+});
 
 Deno.test('count filters', async () => {
   await using db = await createTestDB({ pure: true });
@@ -255,7 +283,7 @@ Deno.test('NPostgres.query with search', async (t) => {
   });
 });
 
-Deno.test('EventsDB.indexTags indexes only the final `e` and `p` tag of kind 7 events', () => {
+Deno.test('DittoPgStore.indexTags indexes only the final `e` and `p` tag of kind 7 events', () => {
   const event = {
     kind: 7,
     id: 'a92549a442d306b32273aa9456ba48e3851a4e6203af3f567543298ab964b35b',
@@ -286,7 +314,7 @@ Deno.test('EventsDB.indexTags indexes only the final `e` and `p` tag of kind 7 e
       '44639d039a7f7fb8772fcfa13d134d3cda684ec34b6a777ead589676f9e8d81b08a24234066dcde1aacfbe193224940fba7586e7197c159757d3caf8f2b57e1b',
   };
 
-  const tags = EventsDB.indexTags(event);
+  const tags = DittoPgStore.indexTags(event);
 
   assertEquals(tags, [
     ['e', 'e3653ae41ffb510e5fc071555ecfbc94d2fc31e355d61d941e39a97ac6acb15b'],

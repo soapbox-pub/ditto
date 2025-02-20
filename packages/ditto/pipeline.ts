@@ -78,8 +78,8 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
   // They are exempt from policies and other side-effects, and should be streamed out immediately.
   // If streaming fails, an error should be returned.
   if (event.kind === 24133) {
-    await streamOut(event);
-    return;
+    const store = await Storages.db();
+    await store.event(event, { signal: opts.signal });
   }
 
   // Ensure the event doesn't violate the policy.
@@ -97,24 +97,6 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
     throw new RelayError('blocked', 'author is blocked');
   }
 
-  // Ephemeral events must throw if they are not streamed out.
-  if (NKinds.ephemeral(event.kind)) {
-    await Promise.all([
-      streamOut(event),
-      webPush(event),
-    ]);
-    return;
-  }
-
-  // Events received through notify are thought to already be in the database, so they only need to be streamed.
-  if (opts.source === 'notify') {
-    await Promise.all([
-      streamOut(event),
-      webPush(event),
-    ]);
-    return;
-  }
-
   const kysely = await Storages.kysely();
 
   try {
@@ -127,12 +109,8 @@ async function handleEvent(event: DittoEvent, opts: PipelineOpts): Promise<void>
       prewarmLinkPreview(event, opts.signal),
       generateSetEvents(event),
     ])
-      .then(() =>
-        Promise.allSettled([
-          streamOut(event),
-          webPush(event),
-        ])
-      );
+      .then(() => webPush(event))
+      .catch(() => {});
   }
 }
 
@@ -165,12 +143,13 @@ async function hydrateEvent(event: DittoEvent, signal: AbortSignal): Promise<voi
 
 /** Maybe store the event, if eligible. */
 async function storeEvent(event: NostrEvent, signal?: AbortSignal): Promise<undefined> {
-  if (NKinds.ephemeral(event.kind)) return;
   const store = await Storages.db();
 
   try {
     await store.transaction(async (store, kysely) => {
-      await updateStats({ event, store, kysely });
+      if (!NKinds.ephemeral(event.kind)) {
+        await updateStats({ event, store, kysely });
+      }
       await store.event(event, { signal });
     });
   } catch (e) {
@@ -272,16 +251,6 @@ async function prewarmLinkPreview(event: NostrEvent, signal: AbortSignal): Promi
 /** Determine if the event is being received in a timely manner. */
 function isFresh(event: NostrEvent): boolean {
   return eventAge(event) < Time.minutes(1);
-}
-
-/** Distribute the event through active subscriptions. */
-async function streamOut(event: NostrEvent): Promise<void> {
-  if (!isFresh(event)) {
-    throw new RelayError('invalid', 'event too old');
-  }
-
-  const pubsub = await Storages.pubsub();
-  await pubsub.event(event);
 }
 
 async function webPush(event: NostrEvent): Promise<void> {

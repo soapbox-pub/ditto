@@ -1,16 +1,27 @@
 // deno-lint-ignore-file require-await
 
-import { DittoTables } from '@ditto/db';
+import { DittoDatabase, DittoTables } from '@ditto/db';
 import { detectLanguage } from '@ditto/lang';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
-import { dbEventsCounter } from '@ditto/metrics';
-import { NIP50, NKinds, NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { dbEventsCounter, internalSubscriptionsSizeGauge } from '@ditto/metrics';
+import {
+  NIP50,
+  NKinds,
+  NostrEvent,
+  NostrFilter,
+  NostrRelayCLOSED,
+  NostrRelayEOSE,
+  NostrRelayEVENT,
+  NSchema as n,
+} from '@nostrify/nostrify';
+import { Machina } from '@nostrify/nostrify/utils';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import { LanguageCode } from 'iso-639-1';
 import { Kysely } from 'kysely';
 import linkify from 'linkifyjs';
-import { nip27 } from 'nostr-tools';
+import { LRUCache } from 'lru-cache';
+import { matchFilter, nip27 } from 'nostr-tools';
 import tldts from 'tldts';
 import { z } from 'zod';
 
@@ -37,30 +48,47 @@ interface TagConditionOpts {
 }
 
 /** Options for the EventsDB store. */
-interface EventsDBOpts {
+interface DittoPgStoreOpts {
   /** Kysely instance to use. */
-  kysely: Kysely<DittoTables>;
+  db: DittoDatabase;
   /** Pubkey of the admin account. */
   pubkey: string;
   /** Timeout in milliseconds for database queries. */
   timeout: number;
   /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
   pure?: boolean;
+  /** Chunk size for streaming events. Defaults to 20. */
+  chunkSize?: number;
+  /** Batch size for fulfilling subscriptions. Defaults to 500. */
+  batchSize?: number;
+  /** Max age (in **seconds**) an event can be to be fulfilled to realtime subscribers. */
+  maxAge?: number;
+  /** Whether to listen for events from the database with NOTIFY. */
+  notify?: boolean;
+}
+
+/** Realtime subscription. */
+interface Subscription {
+  filters: NostrFilter[];
+  machina: Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>;
 }
 
 /** SQL database storage adapter for Nostr events. */
-class EventsDB extends NPostgres {
+export class DittoPgStore extends NPostgres {
+  readonly subs = new Map<string, Subscription>();
+  readonly encounters = new LRUCache<string, boolean>({ max: 1000 });
+
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'a': ({ count }) => count < 15,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
-    'e': EventsDB.eTagCondition,
+    'e': DittoPgStore.eTagCondition,
     'k': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'n': ({ count, value }) => count < 50 && value.length < 50,
     'P': ({ count, value }) => count === 0 && isNostrId(value),
-    'p': EventsDB.pTagCondition,
+    'p': DittoPgStore.pTagCondition,
     'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
     'r': ({ event, count }) => (event.kind === 1985 ? count < 20 : count < 3),
@@ -72,66 +100,42 @@ class EventsDB extends NPostgres {
     },
   };
 
-  static indexExtensions(event: NostrEvent): Record<string, string> {
-    const ext: Record<string, string> = {};
-
-    if (event.kind === 1) {
-      ext.reply = event.tags.some(([name]) => name === 'e').toString();
-    } else if (event.kind === 1111) {
-      ext.reply = event.tags.some(([name]) => ['e', 'E'].includes(name)).toString();
-    } else if (event.kind === 6) {
-      ext.reply = 'false';
-    }
-
-    if ([1, 20, 30023].includes(event.kind)) {
-      const language = detectLanguage(event.content, 0.90);
-
-      if (language) {
-        ext.language = language;
-      }
-    }
-
-    const imeta: string[][][] = event.tags
-      .filter(([name]) => name === 'imeta')
-      .map(([_, ...entries]) =>
-        entries.map((entry) => {
-          const split = entry.split(' ');
-          return [split[0], split.splice(1).join(' ')];
-        })
-      );
-
-    // quirks mode
-    if (!imeta.length && event.kind === 1) {
-      const links = linkify.find(event.content).filter(({ type }) => type === 'url');
-      imeta.push(...getMediaLinks(links));
-    }
-
-    if (imeta.length) {
-      ext.media = 'true';
-
-      if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
-        ext.video = 'true';
-      }
-    }
-
-    ext.protocol = event.tags.find(([name]) => name === 'proxy')?.[2] ?? 'nostr';
-
-    return ext;
-  }
-
-  constructor(private opts: EventsDBOpts) {
-    super(opts.kysely, {
-      indexTags: EventsDB.indexTags,
-      indexSearch: EventsDB.searchText,
-      indexExtensions: EventsDB.indexExtensions,
+  constructor(private opts: DittoPgStoreOpts) {
+    super(opts.db.kysely, {
+      indexTags: DittoPgStore.indexTags,
+      indexSearch: DittoPgStore.searchText,
+      indexExtensions: DittoPgStore.indexExtensions,
+      chunkSize: opts.chunkSize,
     });
+
+    if (opts.notify) {
+      opts.db.listen('nostr_event', async (id) => {
+        if (this.encounters.has(id)) return;
+        this.encounters.set(id, true);
+
+        const [event] = await this.query([{ ids: [id] }]);
+
+        if (event) {
+          await this.fulfill(event);
+        }
+      });
+    }
   }
 
   /** Insert an event (and its tags) into the database. */
   override async event(event: NostrEvent, opts: { signal?: AbortSignal; timeout?: number } = {}): Promise<void> {
     event = purifyEvent(event);
+
     logi({ level: 'debug', ns: 'ditto.event', source: 'db', id: event.id, kind: event.kind });
     dbEventsCounter.inc({ kind: event.kind });
+
+    if (NKinds.ephemeral(event.kind)) {
+      return await this.fulfill(event);
+    }
+
+    if (this.opts.notify) {
+      this.encounters.set(event.id, true);
+    }
 
     if (await this.isDeletedAdmin(event)) {
       throw new RelayError('blocked', 'event deleted by admin');
@@ -141,6 +145,7 @@ class EventsDB extends NPostgres {
 
     try {
       await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+      this.fulfill(event); // don't await or catch (should never reject)
     } catch (e) {
       if (e instanceof Error && e.message === 'Cannot add a deleted event') {
         throw new RelayError('blocked', 'event deleted by user');
@@ -150,6 +155,48 @@ class EventsDB extends NPostgres {
         throw e;
       }
     }
+  }
+
+  /** Fulfill active subscriptions with this event. */
+  protected async fulfill(event: NostrEvent): Promise<void> {
+    const { maxAge = 60, batchSize = 500 } = this.opts;
+
+    const now = Math.floor(Date.now() / 1000);
+    const age = now - event.created_at;
+
+    if (age > maxAge) {
+      // Ephemeral events must be fulfilled, or else return an error to the client.
+      if (NKinds.ephemeral(event.kind)) {
+        throw new RelayError('invalid', 'event too old');
+      } else {
+        // Silently ignore old events.
+        return;
+      }
+    }
+
+    let count = 0;
+
+    for (const [subId, { filters, machina }] of this.subs.entries()) {
+      for (const filter of filters) {
+        count++;
+
+        if (this.matchesFilter(event, filter)) {
+          machina.push(['EVENT', subId, event]);
+          break;
+        }
+
+        // Yield to event loop.
+        if (count % batchSize === 0) {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
+      }
+    }
+  }
+
+  /** Check if the event fulfills the filter, according to Ditto criteria. */
+  protected matchesFilter(event: NostrEvent, filter: NostrFilter): boolean {
+    // TODO: support streaming by search.
+    return typeof filter.search !== 'string' && matchFilter(filter, event);
   }
 
   /** Check if an event has been deleted by the admin. */
@@ -213,26 +260,88 @@ class EventsDB extends NPostgres {
     }
   }
 
+  override async *req(
+    filters: NostrFilter[],
+    opts: { timeout?: number; signal?: AbortSignal; limit?: number } = {},
+  ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
+    const { db, chunkSize = 20 } = this.opts;
+    const { limit, timeout = this.opts.timeout, signal } = opts;
+
+    filters = await this.expandFilters(filters);
+
+    const subId = crypto.randomUUID();
+    const normalFilters = this.normalizeFilters(filters);
+    const machina = new Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>(signal);
+
+    if (normalFilters.length && limit !== 0) {
+      this.withTimeout(db.kysely as unknown as Kysely<NPostgresSchema>, timeout, async (trx) => {
+        let query = this.getEventsQuery(trx, normalFilters);
+
+        if (typeof opts.limit === 'number') {
+          query = query.limit(opts.limit);
+        }
+
+        for await (const row of query.stream(chunkSize)) {
+          const event = this.parseEventRow(row);
+          machina.push(['EVENT', subId, event]);
+        }
+
+        machina.push(['EOSE', subId]);
+      }).catch((error) => {
+        if (error instanceof Error && error.message.includes('timeout')) {
+          machina.push(['CLOSED', subId, 'error: the relay could not respond fast enough']);
+        } else {
+          machina.push(['CLOSED', subId, 'error: something went wrong']);
+        }
+      });
+
+      try {
+        for await (const msg of machina) {
+          const [verb] = msg;
+
+          yield msg;
+
+          if (verb === 'EOSE') {
+            break;
+          }
+
+          if (verb === 'CLOSED') {
+            return;
+          }
+        }
+      } catch {
+        yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
+        return;
+      }
+    } else {
+      yield ['EOSE', subId];
+    }
+
+    this.subs.set(subId, { filters, machina });
+    internalSubscriptionsSizeGauge.set(this.subs.size);
+
+    try {
+      for await (const msg of machina) {
+        yield msg;
+      }
+    } catch (e) {
+      if (e instanceof Error && e.name === 'AbortError') {
+        yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
+      } else {
+        yield ['CLOSED', subId, 'error: something went wrong'];
+      }
+    } finally {
+      this.subs.delete(subId);
+      internalSubscriptionsSizeGauge.set(this.subs.size);
+    }
+  }
+
   /** Get events for filters from the database. */
   override async query(
     filters: NostrFilter[],
-    opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
+    opts: { signal?: AbortSignal; pure?: boolean; timeout?: number; limit?: number } = {},
   ): Promise<DittoEvent[]> {
     filters = await this.expandFilters(filters);
-
-    for (const filter of filters) {
-      if (filter.since && filter.since >= 2_147_483_647) {
-        throw new RelayError('invalid', 'since filter too far into the future');
-      }
-      if (filter.until && filter.until >= 2_147_483_647) {
-        throw new RelayError('invalid', 'until filter too far into the future');
-      }
-      for (const kind of filter.kinds ?? []) {
-        if (kind >= 2_147_483_647) {
-          throw new RelayError('invalid', 'kind filter too far into the future');
-        }
-      }
-    }
 
     if (opts.signal?.aborted) return Promise.resolve([]);
 
@@ -323,7 +432,7 @@ class EventsDB extends NPostgres {
 
     return event.tags.reduce<string[][]>((results, tag, index) => {
       const [name, value] = tag;
-      const condition = EventsDB.tagConditions[name] as TagCondition | undefined;
+      const condition = DittoPgStore.tagConditions[name] as TagCondition | undefined;
 
       if (value && condition && value.length < 200 && checkCondition(name, value, condition, index)) {
         results.push(tag);
@@ -334,16 +443,63 @@ class EventsDB extends NPostgres {
     }, []);
   }
 
+  static indexExtensions(event: NostrEvent): Record<string, string> {
+    const ext: Record<string, string> = {};
+
+    if (event.kind === 1) {
+      ext.reply = event.tags.some(([name]) => name === 'e').toString();
+    } else if (event.kind === 1111) {
+      ext.reply = event.tags.some(([name]) => ['e', 'E'].includes(name)).toString();
+    } else if (event.kind === 6) {
+      ext.reply = 'false';
+    }
+
+    if ([1, 20, 30023].includes(event.kind)) {
+      const language = detectLanguage(event.content, 0.90);
+
+      if (language) {
+        ext.language = language;
+      }
+    }
+
+    const imeta: string[][][] = event.tags
+      .filter(([name]) => name === 'imeta')
+      .map(([_, ...entries]) =>
+        entries.map((entry) => {
+          const split = entry.split(' ');
+          return [split[0], split.splice(1).join(' ')];
+        })
+      );
+
+    // quirks mode
+    if (!imeta.length && event.kind === 1) {
+      const links = linkify.find(event.content).filter(({ type }) => type === 'url');
+      imeta.push(...getMediaLinks(links));
+    }
+
+    if (imeta.length) {
+      ext.media = 'true';
+
+      if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
+        ext.video = 'true';
+      }
+    }
+
+    ext.protocol = event.tags.find(([name]) => name === 'proxy')?.[2] ?? 'nostr';
+
+    return ext;
+  }
+
   /** Build a search index from the event. */
   static searchText(event: NostrEvent): string {
     switch (event.kind) {
       case 0:
-        return EventsDB.buildUserSearchContent(event);
+        return DittoPgStore.buildUserSearchContent(event);
       case 1:
       case 20:
         return nip27.replaceAll(event.content, () => '');
       case 30009:
-        return EventsDB.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
+        return DittoPgStore.buildTagsSearchContent(event.tags.filter(([t]) => t !== 'alt'));
       case 30360:
         return event.tags.find(([name]) => name === 'd')?.[1] || '';
       default:
@@ -367,6 +523,18 @@ class EventsDB extends NPostgres {
     filters = structuredClone(filters);
 
     for (const filter of filters) {
+      if (filter.since && filter.since >= 2_147_483_647) {
+        throw new RelayError('invalid', 'since filter too far into the future');
+      }
+      if (filter.until && filter.until >= 2_147_483_647) {
+        throw new RelayError('invalid', 'until filter too far into the future');
+      }
+      for (const kind of filter.kinds ?? []) {
+        if (kind >= 2_147_483_647) {
+          throw new RelayError('invalid', 'kind filter too far into the future');
+        }
+      }
+
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
 
@@ -385,7 +553,7 @@ class EventsDB extends NPostgres {
         }
 
         if (domains.size || hostnames.size) {
-          let query = this.opts.kysely
+          let query = this.opts.db.kysely
             .selectFrom('author_stats')
             .select('pubkey')
             .where((eb) => {
@@ -417,21 +585,33 @@ class EventsDB extends NPostgres {
           .map((t) => typeof t === 'object' ? `${t.key}:${t.value}` : t)
           .join(' ');
       }
-
-      if (filter.kinds) {
-        // Ephemeral events are not stored, so don't bother querying for them.
-        // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
-        filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
-      }
     }
 
     return filters;
   }
 
-  // deno-lint-ignore no-explicit-any
-  override async transaction(callback: (store: NPostgres, kysely: Kysely<any>) => Promise<void>): Promise<void> {
-    return super.transaction((store, kysely) => callback(store, kysely as unknown as Kysely<DittoTables>));
+  /** Execute the callback in a new transaction, unless the Kysely instance is already a transaction. */
+  private static override async trx<T = unknown>(
+    db: Kysely<DittoTables>,
+    callback: (trx: Kysely<DittoTables>) => Promise<T>,
+  ): Promise<T> {
+    if (db.isTransaction) {
+      return await callback(db);
+    } else {
+      return await db.transaction().execute((trx) => callback(trx));
+    }
+  }
+
+  /** Execute NPostgres functions in a transaction. */
+  // @ts-ignore gg
+  override async transaction(
+    callback: (store: DittoPgStore, kysely: Kysely<DittoTables>) => Promise<void>,
+  ): Promise<void> {
+    const { db } = this.opts;
+
+    await DittoPgStore.trx(db.kysely, async (trx) => {
+      const store = new DittoPgStore({ ...this.opts, db: { ...db, kysely: trx }, notify: false });
+      await callback(store, trx);
+    });
   }
 }
-
-export { EventsDB };

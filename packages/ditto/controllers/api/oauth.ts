@@ -123,7 +123,7 @@ async function getToken(
     encryption: 'nip44',
     pubkey: bunkerPubkey,
     signer: new NSecSigner(nip46Seckey),
-    relay: await Storages.pubsub(), // TODO: Use the relays from the request.
+    relay: await Storages.db(), // TODO: Use the relays from the request.
     timeout: 60_000,
   });
 

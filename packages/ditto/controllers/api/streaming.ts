@@ -94,8 +94,6 @@ const streamingController: AppController = async (c) => {
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
   const store = await Storages.db();
-  const pubsub = await Storages.pubsub();
-
   const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
 
   function send(e: StreamingEvent) {
@@ -105,9 +103,12 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  async function sub(filters: NostrFilter[], render: (event: NostrEvent) => Promise<StreamingEvent | undefined>) {
+  async function sub(
+    filter: NostrFilter & { limit: 0 },
+    render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
+  ) {
     try {
-      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
+      for await (const msg of store.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -140,7 +141,7 @@ const streamingController: AppController = async (c) => {
     const topicFilter = await topicToFilter(stream, c.req.query(), pubkey, conf.url.host);
 
     if (topicFilter) {
-      sub([topicFilter], async (event) => {
+      sub(topicFilter, async (event) => {
         let payload: object | undefined;
 
         if (event.kind === 1) {
@@ -161,7 +162,7 @@ const streamingController: AppController = async (c) => {
     }
 
     if (['user', 'user:notification'].includes(stream) && pubkey) {
-      sub([{ '#p': [pubkey] }], async (event) => {
+      sub({ '#p': [pubkey], limit: 0 }, async (event) => {
         if (event.pubkey === pubkey) return; // skip own events
         const payload = await renderNotification(event, { viewerPubkey: pubkey });
         if (payload) {
@@ -209,23 +210,23 @@ async function topicToFilter(
   query: Record<string, string>,
   pubkey: string | undefined,
   host: string,
-): Promise<NostrFilter | undefined> {
+): Promise<(NostrFilter & { limit: 0 }) | undefined> {
   switch (topic) {
     case 'public':
-      return { kinds: [1, 6, 20] };
+      return { kinds: [1, 6, 20], limit: 0 };
     case 'public:local':
-      return { kinds: [1, 6, 20], search: `domain:${host}` };
+      return { kinds: [1, 6, 20], search: `domain:${host}`, limit: 0 };
     case 'hashtag':
-      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], limit: 0 };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}` };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}`, limit: 0 };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
+      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)], limit: 0 } : undefined;
   }
 }
 

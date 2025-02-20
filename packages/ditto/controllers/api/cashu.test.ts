@@ -140,7 +140,10 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
   assertObjectMatch(body, { error: 'Bad schema' });
 });
 
-Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
+Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;
@@ -178,7 +181,10 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () 
   assertEquals(body2, { error: 'You already have a wallet 😏' });
 });
 
-Deno.test('GET /wallet must be successful', async () => {
+Deno.test('GET /wallet must be successful', {
+  sanitizeOps: false,
+  sanitizeResources: false,
+}, async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
   const store = db.store;

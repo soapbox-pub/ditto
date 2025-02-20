@@ -2,7 +2,7 @@ import type { Kysely } from 'kysely';
 
 import type { DittoTables } from './DittoTables.ts';
 
-export interface DittoDatabase {
+export interface DittoDatabase extends AsyncDisposable {
   readonly kysely: Kysely<DittoTables>;
   readonly poolSize: number;
   readonly availableConnections: number;

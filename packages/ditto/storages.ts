@@ -1,23 +1,20 @@
 // deno-lint-ignore-file require-await
 import { type DittoDatabase, DittoDB } from '@ditto/db';
-import { internalSubscriptionsSizeGauge } from '@ditto/metrics';
+import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
 import { wsUrlSchema } from '@/schema.ts';
 import { AdminStore } from '@/storages/AdminStore.ts';
-import { EventsDB } from '@/storages/EventsDB.ts';
-import { InternalRelay } from '@/storages/InternalRelay.ts';
-import { NPool, NRelay1 } from '@nostrify/nostrify';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { getRelays } from '@/utils/outbox.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
 
 export class Storages {
-  private static _db: Promise<EventsDB> | undefined;
+  private static _db: Promise<DittoPgStore> | undefined;
   private static _database: Promise<DittoDatabase> | undefined;
   private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool<NRelay1>> | undefined;
-  private static _pubsub: Promise<InternalRelay> | undefined;
 
   public static async database(): Promise<DittoDatabase> {
     if (!this._database) {
@@ -39,11 +36,16 @@ export class Storages {
   }
 
   /** SQL database to store events this Ditto server cares about. */
-  public static async db(): Promise<EventsDB> {
+  public static async db(): Promise<DittoPgStore> {
     if (!this._db) {
       this._db = (async () => {
-        const kysely = await this.kysely();
-        const store = new EventsDB({ kysely, pubkey: Conf.pubkey, timeout: Conf.db.timeouts.default });
+        const db = await this.database();
+        const store = new DittoPgStore({
+          db,
+          pubkey: Conf.pubkey,
+          timeout: Conf.db.timeouts.default,
+          notify: Conf.notifyEnabled,
+        });
         await seedZapSplits(store);
         return store;
       })();
@@ -57,14 +59,6 @@ export class Storages {
       this._admin = Promise.resolve(new AdminStore(await this.db()));
     }
     return this._admin;
-  }
-
-  /** Internal pubsub relay between controllers and the pipeline. */
-  public static async pubsub(): Promise<InternalRelay> {
-    if (!this._pubsub) {
-      this._pubsub = Promise.resolve(new InternalRelay({ gauge: internalSubscriptionsSizeGauge }));
-    }
-    return this._pubsub;
   }
 
   /** Relay pool storage. */
