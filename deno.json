@@ -9,6 +9,7 @@
     "./packages/metrics",
     "./packages/policies",
     "./packages/ratelimiter",
+    "./packages/router",
     "./packages/translators",
     "./packages/uploaders"
   ],
