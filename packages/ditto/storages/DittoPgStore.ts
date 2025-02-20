@@ -267,6 +267,8 @@ export class DittoPgStore extends NPostgres {
     const { db, chunkSize = 20 } = this.opts;
     const { timeout = this.opts.timeout, signal } = opts;
 
+    filters = await this.expandFilters(filters);
+
     const subId = crypto.randomUUID();
     const normalFilters = this.normalizeFilters(filters);
     const machina = new Machina<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED>(signal);
@@ -336,20 +338,6 @@ export class DittoPgStore extends NPostgres {
     opts: { signal?: AbortSignal; pure?: boolean; timeout?: number; limit?: number } = {},
   ): Promise<DittoEvent[]> {
     filters = await this.expandFilters(filters);
-
-    for (const filter of filters) {
-      if (filter.since && filter.since >= 2_147_483_647) {
-        throw new RelayError('invalid', 'since filter too far into the future');
-      }
-      if (filter.until && filter.until >= 2_147_483_647) {
-        throw new RelayError('invalid', 'until filter too far into the future');
-      }
-      for (const kind of filter.kinds ?? []) {
-        if (kind >= 2_147_483_647) {
-          throw new RelayError('invalid', 'kind filter too far into the future');
-        }
-      }
-    }
 
     if (opts.signal?.aborted) return Promise.resolve([]);
 
@@ -531,6 +519,18 @@ export class DittoPgStore extends NPostgres {
     filters = structuredClone(filters);
 
     for (const filter of filters) {
+      if (filter.since && filter.since >= 2_147_483_647) {
+        throw new RelayError('invalid', 'since filter too far into the future');
+      }
+      if (filter.until && filter.until >= 2_147_483_647) {
+        throw new RelayError('invalid', 'until filter too far into the future');
+      }
+      for (const kind of filter.kinds ?? []) {
+        if (kind >= 2_147_483_647) {
+          throw new RelayError('invalid', 'kind filter too far into the future');
+        }
+      }
+
       if (filter.search) {
         const tokens = NIP50.parseInput(filter.search);
 
@@ -580,12 +580,6 @@ export class DittoPgStore extends NPostgres {
           .filter((t) => typeof t === 'string' || typeof t === 'object' && t.key !== 'domain')
           .map((t) => typeof t === 'object' ? `${t.key}:${t.value}` : t)
           .join(' ');
-      }
-
-      if (filter.kinds) {
-        // Ephemeral events are not stored, so don't bother querying for them.
-        // If this results in an empty kinds array, NDatabase will remove the filter before querying and return no results.
-        filter.kinds = filter.kinds.filter((kind) => !NKinds.ephemeral(kind));
       }
     }
 
