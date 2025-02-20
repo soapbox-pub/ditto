@@ -2,7 +2,6 @@ import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
-import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { bytesToString } from '@scure/base';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
