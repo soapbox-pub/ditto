@@ -45,6 +45,17 @@ const connections = new Set<WebSocket>();
 function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoConf) {
   const controllers = new Map<string, AbortController>();
 
+  if (ip) {
+    const remaining = Object
+      .values(limiters)
+      .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
+
+    if (remaining < 0) {
+      socket.close(1008, 'Rate limit exceeded');
+      return;
+    }
+  }
+
   socket.onopen = () => {
     connections.add(socket);
     relayConnectionsGauge.set(connections.size);
@@ -204,16 +215,6 @@ const relayController: AppController = (c, next) => {
 
   if (ip && conf.ipWhitelist.includes(ip)) {
     ip = undefined;
-  }
-
-  if (ip) {
-    const remaining = Object
-      .values(limiters)
-      .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
-
-    if (remaining < 0) {
-      return c.json({ error: 'Rate limit exceeded' }, 429);
-    }
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
