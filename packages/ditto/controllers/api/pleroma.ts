@@ -2,7 +2,6 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
@@ -34,7 +33,6 @@ const configController: AppController = async (c) => {
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
   const { conf } = c.var;
-  const { pubkey } = conf;
 
   const store = await Storages.db();
   const configs = await getPleromaConfigs(store, c.req.raw.signal);
@@ -44,7 +42,7 @@ const updateConfigController: AppController = async (c) => {
 
   await createAdminEvent({
     kind: 30078,
-    content: await new AdminSigner().nip44.encrypt(pubkey, JSON.stringify(configs)),
+    content: await conf.signer.nip44.encrypt(await conf.signer.getPublicKey(), JSON.stringify(configs)),
     tags: [
       ['d', 'pub.ditto.pleroma.config'],
       ['encrypted', 'nip44'],
@@ -77,7 +75,7 @@ const pleromaAdminTagController: AppController = async (c) => {
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
       (prev) => {
         const tags = prev?.tags ?? [['d', pubkey]];
 
@@ -110,7 +108,7 @@ const pleromaAdminUntagController: AppController = async (c) => {
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
       (prev) => ({
         kind: 30382,
         content: prev?.content ?? '',

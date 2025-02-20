@@ -10,7 +10,7 @@ interface RenderNotificationOpts {
   viewerPubkey: string;
 }
 
-function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
   const mentioned = !!event.tags.find(([name, value]) => name === 'p' && value === opts.viewerPubkey);
 
   if (event.kind === 1 && mentioned) {
@@ -29,7 +29,7 @@ function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
     return renderReaction(event, opts);
   }
 
-  if (event.kind === 30360 && event.pubkey === Conf.pubkey) {
+  if (event.kind === 30360 && event.pubkey === await Conf.signer.getPublicKey()) {
     return renderNameGrant(event);
   }
 

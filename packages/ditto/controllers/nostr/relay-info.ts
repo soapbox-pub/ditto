@@ -14,7 +14,7 @@ const relayInfoController: AppController = async (c) => {
   return c.json({
     name: meta.name,
     description: meta.about,
-    pubkey: conf.pubkey,
+    pubkey: await conf.signer.getPublicKey(),
     contact: meta.email,
     supported_nips: [1, 5, 9, 11, 16, 45, 50, 46, 98],
     software: 'Ditto',

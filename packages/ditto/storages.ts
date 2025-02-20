@@ -42,7 +42,7 @@ export class Storages {
         const db = await this.database();
         const store = new DittoPgStore({
           db,
-          pubkey: Conf.pubkey,
+          pubkey: await Conf.signer.getPublicKey(),
           timeout: Conf.db.timeouts.default,
           notify: Conf.notifyEnabled,
         });
@@ -68,7 +68,7 @@ export class Storages {
         const db = await this.db();
 
         const [relayList] = await db.query([
-          { kinds: [10002], authors: [Conf.pubkey], limit: 1 },
+          { kinds: [10002], authors: [await Conf.signer.getPublicKey()], limit: 1 },
         ]);
 
         const tags = relayList?.tags ?? [];

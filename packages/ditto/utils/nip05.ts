@@ -57,7 +57,7 @@ export async function localNip05Lookup(store: NStore, localpart: string): Promis
   const [grant] = await store.query([{
     kinds: [30360],
     '#d': [`${localpart}@${Conf.url.host}`],
-    authors: [Conf.pubkey],
+    authors: [await Conf.signer.getPublicKey()],
     limit: 1,
   }]);
 

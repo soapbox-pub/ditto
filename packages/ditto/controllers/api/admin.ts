@@ -43,13 +43,15 @@ const adminAccountsController: AppController = async (c) => {
     staff,
   } = adminAccountQuerySchema.parse(c.req.query());
 
+  const adminPubkey = await conf.signer.getPublicKey();
+
   if (pending) {
     if (disabled || silenced || suspended || sensitized) {
       return c.json([]);
     }
 
     const orig = await store.query(
-      [{ kinds: [30383], authors: [conf.pubkey], '#k': ['3036'], '#n': ['pending'], ...params }],
+      [{ kinds: [30383], authors: [adminPubkey], '#k': ['3036'], '#n': ['pending'], ...params }],
       { signal },
     );
 
@@ -86,7 +88,10 @@ const adminAccountsController: AppController = async (c) => {
       n.push('moderator');
     }
 
-    const events = await store.query([{ kinds: [30382], authors: [conf.pubkey], '#n': n, ...params }], { signal });
+    const events = await store.query(
+      [{ kinds: [30382], authors: [adminPubkey], '#n': n, ...params }],
+      { signal },
+    );
 
     const pubkeys = new Set<string>(
       events
@@ -157,9 +162,11 @@ const adminActionController: AppController = async (c) => {
   }
   if (data.type === 'revoke_name') {
     n.revoke_name = true;
-    store.remove([{ kinds: [30360], authors: [conf.pubkey], '#p': [authorId] }]).catch((e: unknown) => {
-      logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
-    });
+    store.remove([{ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [authorId] }]).catch(
+      (e: unknown) => {
+        logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
+      },
+    );
   }
 
   await updateUser(authorId, n, c);
@@ -185,7 +192,10 @@ const adminApproveController: AppController = async (c) => {
     return c.json({ error: 'Invalid NIP-05' }, 400);
   }
 
-  const [existing] = await store.query([{ kinds: [30360], authors: [conf.pubkey], '#d': [r], limit: 1 }]);
+  const [existing] = await store.query([
+    { kinds: [30360], authors: [await conf.signer.getPublicKey()], '#d': [r], limit: 1 },
+  ]);
+
   if (existing) {
     return c.json({ error: 'NIP-05 already granted to another user' }, 400);
   }

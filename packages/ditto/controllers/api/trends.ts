@@ -53,7 +53,7 @@ const trendingTagsController: AppController = async (c) => {
 
 async function getTrendingHashtags(conf: DittoConf) {
   const store = await Storages.db();
-  const trends = await getTrendingTags(store, 't', conf.pubkey);
+  const trends = await getTrendingTags(store, 't', await conf.signer.getPublicKey());
 
   return trends.map((trend) => {
     const hashtag = trend.value;
@@ -106,7 +106,7 @@ const trendingLinksController: AppController = async (c) => {
 
 async function getTrendingLinks(conf: DittoConf) {
   const store = await Storages.db();
-  const trends = await getTrendingTags(store, 'r', conf.pubkey);
+  const trends = await getTrendingTags(store, 'r', await conf.signer.getPublicKey());
 
   return Promise.all(trends.map(async (trend) => {
     const link = trend.value;
@@ -148,7 +148,7 @@ const trendingStatusesController: AppController = async (c) => {
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': ['#e'],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     until,
     limit: 1,
   }]);

@@ -9,7 +9,6 @@ import { type AppContext } from '@/app.ts';
 import { Conf } from '@/config.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseFormData } from '@/utils/formdata.ts';
@@ -81,7 +80,7 @@ function updateListEvent(
 
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const signer = new AdminSigner();
+  const signer = Conf.signer;
 
   const event = await signer.signEvent({
     content: '',
@@ -126,7 +125,7 @@ function updateEventInfo(id: string, n: Record<string, boolean>, c: AppContext):
 }
 
 async function updateNames(k: number, d: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
-  const signer = new AdminSigner();
+  const signer = Conf.signer;
   const admin = await signer.getPublicKey();
 
   return updateAdminEvent(

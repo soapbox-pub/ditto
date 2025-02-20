@@ -1,7 +1,7 @@
 import { NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { AdminSigner } from '../packages/ditto/signers/AdminSigner.ts';
+import { Conf } from '../packages/ditto/config.ts';
 import { Storages } from '../packages/ditto/storages.ts';
 import { nostrNow } from '../packages/ditto/utils.ts';
 
@@ -20,7 +20,7 @@ if (!['admin', 'user'].includes(role)) {
   Deno.exit(1);
 }
 
-const signer = new AdminSigner();
+const signer = Conf.signer;
 const admin = await signer.getPublicKey();
 
 const [existing] = await store.query([{

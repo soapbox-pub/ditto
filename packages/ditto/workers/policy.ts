@@ -48,7 +48,7 @@ class PolicyWorker implements NPolicy {
       await this.worker.init({
         path: Conf.policy,
         databaseUrl: Conf.databaseUrl,
-        pubkey: Conf.pubkey,
+        pubkey: await Conf.signer.getPublicKey(),
       });
 
       logi({
