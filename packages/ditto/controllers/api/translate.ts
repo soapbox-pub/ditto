@@ -1,4 +1,5 @@
 import { cachedTranslationsSizeGauge } from '@ditto/metrics';
+import { logi } from '@soapbox/logi';
 import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
@@ -9,6 +10,7 @@ import { getEvent } from '@/queries.ts';
 import { localeSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { errorJson } from '@/utils/log.ts';
 
 const translateSchema = z.object({
   lang: localeSchema,
@@ -140,6 +142,7 @@ const translateController: AppController = async (c) => {
     if (e instanceof Error && e.message.includes('not supported')) {
       return c.json({ error: `Translation of source language '${event.language}' not supported` }, 422);
     }
+    logi({ level: 'error', ns: 'ditto.translate', error: errorJson(e) });
     return c.json({ error: 'Service Unavailable' }, 503);
   }
 };
