@@ -72,7 +72,13 @@ export class DeepLTranslator implements DittoTranslator {
     const json = await response.json();
 
     if (!response.ok) {
-      throw new Error(json['message']);
+      const result = DeepLTranslator.errorSchema().safeParse(json);
+
+      if (result.success) {
+        throw new Error(result.data.message);
+      } else {
+        throw new Error(`Unexpected DeepL error: ${response.statusText} (${response.status})`);
+      }
     }
 
     return DeepLTranslator.schema().parse(json);
@@ -84,10 +90,17 @@ export class DeepLTranslator implements DittoTranslator {
     return z.object({
       translations: z.array(
         z.object({
-          detected_source_language: languageSchema,
+          detected_source_language: z.string().transform((val) => val.toLowerCase()).pipe(languageSchema),
           text: z.string(),
         }),
       ),
+    });
+  }
+
+  /** DeepL error response schema. */
+  private static errorSchema() {
+    return z.object({
+      message: z.string(),
     });
   }
 }
