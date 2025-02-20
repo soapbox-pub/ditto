@@ -1,5 +1,5 @@
 // deno-lint-ignore-file require-await
-import { DittoDatabase, type DittoDB } from '@ditto/db';
+import { type DittoDB, DittoPolyPg } from '@ditto/db';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 
@@ -19,11 +19,11 @@ export class Storages {
   public static async database(): Promise<DittoDB> {
     if (!this._database) {
       this._database = (async () => {
-        const db = DittoDatabase.create(Conf.databaseUrl, {
+        const db = DittoPolyPg.create(Conf.databaseUrl, {
           poolSize: Conf.pg.poolSize,
           debug: Conf.pgliteDebug,
         });
-        await DittoDatabase.migrate(db.kysely);
+        await DittoPolyPg.migrate(db.kysely);
         return db;
       })();
     }

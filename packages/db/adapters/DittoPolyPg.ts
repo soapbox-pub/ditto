@@ -4,14 +4,15 @@ import path from 'node:path';
 import { logi } from '@soapbox/logi';
 import { FileMigrationProvider, type Kysely, Migrator } from 'kysely';
 
-import { DittoPglite } from './adapters/DittoPglite.ts';
-import { DittoPostgres } from './adapters/DittoPostgres.ts';
+import { DittoPglite } from './DittoPglite.ts';
+import { DittoPostgres } from './DittoPostgres.ts';
 
 import type { JsonValue } from '@std/json';
-import type { DittoDB, DittoDBOpts } from './DittoDB.ts';
-import type { DittoTables } from './DittoTables.ts';
+import type { DittoDB, DittoDBOpts } from '../DittoDB.ts';
+import type { DittoTables } from '../DittoTables.ts';
 
-export class DittoDatabase {
+/** Creates either a PGlite or Postgres connection depending on the databaseUrl. */
+export class DittoPolyPg {
   /** Open a new database connection. */
   static create(databaseUrl: string, opts?: DittoDBOpts): DittoDB {
     const { protocol } = new URL(databaseUrl);
@@ -51,7 +52,7 @@ export class DittoDatabase {
         results: results as unknown as JsonValue,
         error: error instanceof Error ? error : null,
       });
-      Deno.exit(1);
+      throw new Error('Migration failed.');
     } else {
       if (!results?.length) {
         logi({ level: 'info', ns: 'ditto.db.migration', msg: 'Everything up-to-date.', state: 'skipped' });

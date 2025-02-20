@@ -1,4 +1,4 @@
-import { DittoDatabase } from '@ditto/db';
+import { DittoPolyPg } from '@ditto/db';
 import { NostrEvent } from '@nostrify/nostrify';
 
 import { Conf } from '@/config.ts';
@@ -13,9 +13,9 @@ export async function eventFixture(name: string): Promise<NostrEvent> {
 
 /** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const db = DittoDatabase.create(Conf.databaseUrl, { poolSize: 1 });
+  const db = DittoPolyPg.create(Conf.databaseUrl, { poolSize: 1 });
 
-  await DittoDatabase.migrate(db.kysely);
+  await DittoPolyPg.migrate(db.kysely);
 
   const store = new DittoPgStore({
     db,

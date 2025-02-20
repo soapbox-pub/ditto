@@ -1,4 +1,4 @@
-export { DittoDatabase } from './DittoDatabase.ts';
+export { DittoPolyPg } from './adapters/DittoPolyPg.ts';
 
 export type { DittoDB } from './DittoDB.ts';
 export type { DittoTables } from './DittoTables.ts';
