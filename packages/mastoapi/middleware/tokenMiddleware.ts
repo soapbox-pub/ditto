@@ -28,7 +28,6 @@ export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
       const user: User = {
         signer,
         relay: new UserStore({ relay, userPubkey, adminPubkey }),
-        verified: auth.realm === 'Nostr',
       };
 
       c.set('user', user);

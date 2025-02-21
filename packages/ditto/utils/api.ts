@@ -1,4 +1,3 @@
-import { type Context } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
@@ -257,13 +256,6 @@ function paginatedList(
   return c.json(results, 200, headers);
 }
 
-/** Rewrite the URL of the request object to use the local domain. */
-function localRequest(c: Context): Request {
-  return Object.create(c.req.raw, {
-    url: { value: Conf.local(c.req.url) },
-  });
-}
-
 /** Actors with Bluesky's `!no-unauthenticated` self-label should require authorization to view. */
 function assertAuthenticated(c: AppContext, author: NostrEvent): void {
   if (
@@ -282,7 +274,6 @@ export {
   createAdminEvent,
   createEvent,
   type EventStub,
-  localRequest,
   paginated,
   paginatedList,
   parseBody,

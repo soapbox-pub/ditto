@@ -42,7 +42,7 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-route.put('/wallet', userMiddleware('nip44'), async (c) => {
+route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
   const { conf, user, relay, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
@@ -104,7 +104,7 @@ route.put('/wallet', userMiddleware('nip44'), async (c) => {
 });
 
 /** Gets a wallet, if it exists. */
-route.get('/wallet', userMiddleware('nip44'), swapNutzapsMiddleware, async (c) => {
+route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
   const { conf, relay, user, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
