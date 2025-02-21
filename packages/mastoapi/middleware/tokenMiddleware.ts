@@ -13,9 +13,11 @@ import type { DittoEnv, DittoMiddleware } from '@ditto/router';
 import type { Context } from '@hono/hono';
 import type { User } from './User.ts';
 
-export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
+type CredentialsFn = (c: Context) => string | undefined;
+
+export function tokenMiddleware(fn?: CredentialsFn): DittoMiddleware<{ user?: User }> {
   return async (c, next) => {
-    const header = c.req.header('authorization');
+    const header = fn ? fn(c) : c.req.header('authorization');
 
     if (header) {
       const { relay, conf } = c.var;

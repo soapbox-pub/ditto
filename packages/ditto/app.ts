@@ -196,12 +196,19 @@ const ratelimit = every(
   rateLimitMiddleware(300, Time.minutes(5), false),
 );
 
+const socketTokenMiddleware = tokenMiddleware((c) => {
+  const token = c.req.header('sec-websocket-protocol');
+  if (token) {
+    return `Bearer ${token}`;
+  }
+});
+
 app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware(), logiMiddleware);
 app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
 app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
 app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
 
-app.get('/api/v1/streaming', metricsMiddleware, ratelimit, streamingController);
+app.get('/api/v1/streaming', socketTokenMiddleware, metricsMiddleware, ratelimit, streamingController);
 app.get('/relay', metricsMiddleware, ratelimit, relayController);
 
 app.use(

@@ -15,7 +15,7 @@ export class MuteListPolicy implements NPolicy {
     }
 
     if (pubkeys.has(event.pubkey)) {
-      return ['OK', event.id, false, 'blocked: Your account has been deactivated.'];
+      return ['OK', event.id, false, 'blocked: account blocked'];
     }
 
     return ['OK', event.id, true, ''];
