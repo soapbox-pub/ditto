@@ -8,3 +8,10 @@ export const proofSchema = z.object({
   dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
   dleqValid: z.boolean().optional(),
 });
+
+/** Decrypted content of a kind 7375 */
+export const tokenEventSchema = z.object({
+  mint: z.string().url(),
+  proofs: proofSchema.array(),
+  del: z.string().array().optional(),
+});
