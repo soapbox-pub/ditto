@@ -20,12 +20,12 @@ interface User {
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
-export function userMiddleware(opts: { privileged: true; required: false }): never;
+export function tokenMiddleware(opts: { privileged: true; required: false }): never;
 // @ts-ignore The types are right.
-export function userMiddleware(opts: { privileged: false; required: true }): DittoMiddleware<{ user: User }>;
-export function userMiddleware(opts: { privileged: true; required?: boolean }): DittoMiddleware<{ user: User }>;
-export function userMiddleware(opts: { privileged: false; required?: boolean }): DittoMiddleware<{ user?: User }>;
-export function userMiddleware(opts: { privileged: boolean; required?: boolean }): DittoMiddleware<{ user?: User }> {
+export function tokenMiddleware(opts: { privileged: false; required: true }): DittoMiddleware<{ user: User }>;
+export function tokenMiddleware(opts: { privileged: true; required?: boolean }): DittoMiddleware<{ user: User }>;
+export function tokenMiddleware(opts: { privileged: false; required?: boolean }): DittoMiddleware<{ user?: User }>;
+export function tokenMiddleware(opts: { privileged: boolean; required?: boolean }): DittoMiddleware<{ user?: User }> {
   const { privileged, required = privileged } = opts;
 
   if (privileged && !required) {
