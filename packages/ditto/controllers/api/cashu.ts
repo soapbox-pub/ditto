@@ -14,7 +14,7 @@ import { errorJson } from '@/utils/log.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
-const app = new DittoRoute();
+const route = new DittoRoute();
 
 // app.delete('/wallet') -> 204
 
@@ -42,7 +42,7 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-app.put('/wallet', userMiddleware('nip44'), async (c) => {
+route.put('/wallet', userMiddleware('nip44'), async (c) => {
   const { conf, user, relay, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
@@ -104,7 +104,7 @@ app.put('/wallet', userMiddleware('nip44'), async (c) => {
 });
 
 /** Gets a wallet, if it exists. */
-app.get('/wallet', userMiddleware('nip44'), swapNutzapsMiddleware, async (c) => {
+route.get('/wallet', userMiddleware('nip44'), swapNutzapsMiddleware, async (c) => {
   const { conf, relay, user, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
@@ -157,7 +157,7 @@ app.get('/wallet', userMiddleware('nip44'), swapNutzapsMiddleware, async (c) => 
 });
 
 /** Get mints set by the CASHU_MINTS environment variable. */
-app.get('/mints', (c) => {
+route.get('/mints', (c) => {
   const { conf } = c.var;
 
   // TODO: Return full Mint information: https://github.com/cashubtc/nuts/blob/main/06.md
@@ -166,4 +166,4 @@ app.get('/mints', (c) => {
   return c.json({ mints }, 200);
 });
 
-export default app;
+export default route;

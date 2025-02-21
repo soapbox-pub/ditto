@@ -10,19 +10,19 @@ import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 import { createTestDB } from '@/test.ts';
 
-import cashuApp from '@/controllers/api/cashu.ts';
+import cashuRoute from './cashu.ts';
 import { walletSchema } from '@/schema.ts';
 
 Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  await using test = await createTestApp();
+  await using test = await createTestRoute();
 
-  const { app, signer, sk, relay } = test;
+  const { route, signer, sk, relay } = test;
   const nostrPrivateKey = bytesToString('hex', sk);
 
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
     headers: {
       'content-type': 'application/json',
@@ -82,10 +82,10 @@ Deno.test('PUT /wallet must be successful', {
 });
 
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
-  await using test = await createTestApp();
-  const { app } = test;
+  await using test = await createTestRoute();
+  const { route } = test;
 
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
     headers: {
       'content-type': 'application/json',
@@ -105,12 +105,12 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  await using test = await createTestApp();
-  const { app, sk, relay } = test;
+  await using test = await createTestRoute();
+  const { route, sk, relay } = test;
 
   await relay.event(genEvent({ kind: 17375 }, sk));
 
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
     headers: {
       'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
@@ -131,8 +131,8 @@ Deno.test('GET /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  await using test = await createTestApp();
-  const { app, sk, relay, signer } = test;
+  await using test = await createTestRoute();
+  const { route, sk, relay, signer } = test;
 
   const pubkey = await signer.getPublicKey();
   const privkey = bytesToString('hex', sk);
@@ -214,7 +214,7 @@ Deno.test('GET /wallet must be successful', {
     ],
   }, senderSk));
 
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'GET',
   });
 
@@ -230,10 +230,10 @@ Deno.test('GET /wallet must be successful', {
 });
 
 Deno.test('GET /mints must be successful', async () => {
-  await using test = await createTestApp();
-  const { app } = test;
+  await using test = await createTestRoute();
+  const { route } = test;
 
-  const response = await app.request('/mints', {
+  const response = await route.request('/mints', {
     method: 'GET',
   });
 
@@ -243,7 +243,7 @@ Deno.test('GET /mints must be successful', async () => {
   assertEquals(body, { mints: [] });
 });
 
-async function createTestApp() {
+async function createTestRoute() {
   const conf = new DittoConf(new Map());
 
   const db = await createTestDB();
@@ -252,17 +252,17 @@ async function createTestApp() {
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
 
-  const app = new DittoApp({ db, relay, conf });
+  const route = new DittoApp({ db, relay, conf });
 
-  app.use(testUserMiddleware({ signer, relay }));
-  app.route('/', cashuApp);
+  route.use(testUserMiddleware({ signer, relay }));
+  route.route('/', cashuRoute);
 
   const mock = stub(globalThis, 'fetch', () => {
     return Promise.resolve(new Response());
   });
 
   return {
-    app,
+    route,
     db,
     conf,
     sk,
