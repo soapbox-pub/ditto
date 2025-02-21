@@ -1,5 +1,6 @@
+import { parseAuthRequest } from '@ditto/nip98';
 import { HTTPException } from '@hono/hono/http-exception';
-import { type NostrSigner, type NRelay, NSecSigner } from '@nostrify/nostrify';
+import { type NostrSigner, NSecSigner } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { aesDecrypt } from '../auth/aes.ts';
@@ -8,13 +9,9 @@ import { ConnectSigner } from '../signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '../signers/ReadOnlySigner.ts';
 import { UserStore } from '../storages/UserStore.ts';
 
-import type { DittoConf } from '@ditto/conf';
-import type { DittoDB } from '@ditto/db';
-import type { DittoMiddleware } from '@ditto/router';
+import type { DittoEnv, DittoMiddleware } from '@ditto/router';
+import type { Context } from '@hono/hono';
 import type { User } from './User.ts';
-
-/** We only accept "Bearer" type. */
-const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
 export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
   return async (c, next) => {
@@ -23,13 +20,15 @@ export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
     if (header) {
       const { relay, conf } = c.var;
 
-      const signer = await getSigner(header, c.var);
+      const auth = parseAuthorization(header);
+      const signer = await getSigner(c, auth);
       const userPubkey = await signer.getPublicKey();
       const adminPubkey = await conf.signer.getPublicKey();
 
       const user: User = {
         signer,
         relay: new UserStore({ relay, userPubkey, adminPubkey }),
+        verified: auth.realm === 'Nostr',
       };
 
       c.set('user', user);
@@ -39,34 +38,26 @@ export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
   };
 }
 
-interface GetSignerOpts {
-  db: DittoDB;
-  conf: DittoConf;
-  relay: NRelay;
-}
-
-function getSigner(header: string, opts: GetSignerOpts): NostrSigner | Promise<NostrSigner> {
-  const match = header.match(BEARER_REGEX);
-
-  if (!match) {
-    throw new HTTPException(400, { message: 'Invalid Authorization header.' });
-  }
-
-  const [_, bech32] = match;
-
-  if (isToken(bech32)) {
-    return getSignerFromToken(bech32, opts);
-  } else {
-    return getSignerFromNip19(bech32);
+function getSigner(c: Context<DittoEnv>, auth: Authorization): NostrSigner | Promise<NostrSigner> {
+  switch (auth.realm) {
+    case 'Bearer': {
+      if (isToken(auth.token)) {
+        return getSignerFromToken(c, auth.token);
+      } else {
+        return getSignerFromNip19(auth.token);
+      }
+    }
+    case 'Nostr': {
+      return getSignerFromNip98(c);
+    }
+    default: {
+      throw new HTTPException(400, { message: 'Unsupported Authorization realm.' });
+    }
   }
 }
 
-function isToken(value: string): value is `token1${string}` {
-  return value.startsWith('token1');
-}
-
-async function getSignerFromToken(token: `token1${string}`, opts: GetSignerOpts): Promise<NostrSigner> {
-  const { conf, db, relay } = opts;
+async function getSignerFromToken(c: Context<DittoEnv>, token: `token1${string}`): Promise<NostrSigner> {
+  const { conf, db, relay } = c.var;
 
   try {
     const tokenHash = await getTokenHash(token);
@@ -108,4 +99,37 @@ function getSignerFromNip19(bech32: string): NostrSigner {
   }
 
   throw new HTTPException(401, { message: 'Invalid NIP-19 identifier in Authorization header.' });
+}
+
+async function getSignerFromNip98(c: Context<DittoEnv>): Promise<NostrSigner> {
+  const { conf } = c.var;
+
+  const req = Object.create(c.req.raw, {
+    url: { value: conf.local(c.req.url) },
+  });
+
+  const result = await parseAuthRequest(req);
+
+  if (result.success) {
+    return new ReadOnlySigner(result.data.pubkey);
+  } else {
+    throw new HTTPException(401, { message: 'Invalid NIP-98 event in Authorization header.' });
+  }
+}
+
+interface Authorization {
+  realm: string;
+  token: string;
+}
+
+function parseAuthorization(header: string): Authorization {
+  const [realm, ...parts] = header.split(' ');
+  return {
+    realm,
+    token: parts.join(' '),
+  };
+}
+
+function isToken(value: string): value is `token1${string}` {
+  return value.startsWith('token1');
 }

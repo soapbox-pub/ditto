@@ -138,7 +138,7 @@ import { metricsController } from '@/controllers/metrics.ts';
 import { manifestController } from '@/controllers/manifest.ts';
 import { nodeInfoController, nodeInfoSchemaController } from '@/controllers/well-known/nodeinfo.ts';
 import { nostrController } from '@/controllers/well-known/nostr.ts';
-import { auth98Middleware, requireProof as _requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
+import { requireProof as _requireProof, requireRole } from '@/middleware/auth98Middleware.ts';
 import { cacheControlMiddleware } from '@/middleware/cacheControlMiddleware.ts';
 import { cspMiddleware } from '@/middleware/cspMiddleware.ts';
 import { metricsMiddleware } from '@/middleware/metricsMiddleware.ts';
@@ -216,7 +216,6 @@ app.use(
   cors({ origin: '*', exposeHeaders: ['link'] }),
   tokenMiddleware(),
   uploaderMiddleware,
-  auth98Middleware(),
 );
 
 app.get('/metrics', metricsController);
