@@ -1,5 +1,6 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoApp } from '@ditto/router';
+import { type User } from '@ditto/mastoapi/middleware';
+import { DittoApp, DittoMiddleware } from '@ditto/router';
 import { NSecSigner } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
 import { bytesToString, stringToBytes } from '@scure/base';
@@ -11,6 +12,13 @@ import { createTestDB } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';
+
+function testUserMiddleware(user: User<NSecSigner>): DittoMiddleware<{ user: User<NSecSigner> }> {
+  return async (c, next) => {
+    c.set('user', user);
+    await next();
+  };
+}
 
 Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
@@ -26,12 +34,12 @@ Deno.test('PUT /wallet must be successful', {
 
   const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
+  app.use(testUserMiddleware({ signer, relay }));
   app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
     headers: {
-      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -93,15 +101,16 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
   await using db = await createTestDB();
   const relay = db.store;
   const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
 
   const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
+  app.use(testUserMiddleware({ signer, relay }));
   app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
     headers: {
-      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
@@ -123,9 +132,11 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   await using db = await createTestDB();
   const relay = db.store;
   const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
 
   const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
+  app.use(testUserMiddleware({ signer, relay }));
   app.route('/', cashuApp);
 
   await db.store.event(genEvent({ kind: 17375 }, sk));
@@ -163,6 +174,7 @@ Deno.test('GET /wallet must be successful', {
 
   const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
+  app.use(testUserMiddleware({ signer, relay }));
   app.route('/', cashuApp);
 
   // Wallet
@@ -243,9 +255,6 @@ Deno.test('GET /wallet must be successful', {
 
   const response = await app.request('/wallet', {
     method: 'GET',
-    headers: {
-      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
-    },
   });
 
   const body = await response.json();

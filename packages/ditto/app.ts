@@ -1,6 +1,6 @@
 import { DittoConf } from '@ditto/conf';
 import { DittoDB } from '@ditto/db';
-import { paginationMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
+import { paginationMiddleware, tokenMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoApp, type DittoEnv } from '@ditto/router';
 import { type DittoTranslator } from '@ditto/translators';
 import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
@@ -199,7 +199,7 @@ const ratelimit = every(
 );
 
 const factory = createFactory();
-const requireSigner = userMiddleware({ privileged: false, required: true });
+const requireSigner = userMiddleware();
 const requireAdmin = factory.createHandlers(requireSigner, requireRole('admin'));
 const requireProof = factory.createHandlers(requireSigner, _requireProof());
 
@@ -214,6 +214,7 @@ app.get('/relay', metricsMiddleware, ratelimit, relayController);
 app.use(
   cspMiddleware(),
   cors({ origin: '*', exposeHeaders: ['link'] }),
+  tokenMiddleware(),
   uploaderMiddleware,
   auth98Middleware(),
 );

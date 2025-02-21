@@ -1,6 +1,6 @@
 import { Proof } from '@cashu/cashu-ts';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
-import { DittoMiddleware, DittoRoute } from '@ditto/router';
+import { DittoRoute } from '@ditto/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
@@ -11,8 +11,6 @@ import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { isNostrId } from '@/utils.ts';
 import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
-import { SetRequired } from 'type-fest';
-import { NostrSigner } from '@nostrify/nostrify';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -33,19 +31,6 @@ interface Nutzap {
   recipient_pubkey: string;
 }
 
-const requireNip44Signer: DittoMiddleware<{ user: { signer: SetRequired<NostrSigner, 'nip44'> } }> = async (
-  c,
-  next,
-) => {
-  const { user } = c.var;
-
-  if (!user?.signer.nip44) {
-    return c.json({ error: 'User does not have a NIP-44 signer' }, 400);
-  }
-
-  await next();
-};
-
 const createCashuWalletAndNutzapInfoSchema = z.object({
   mints: z.array(z.string().url()).nonempty().transform((val) => {
     return [...new Set(val)];
@@ -57,7 +42,7 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-app.put('/wallet', userMiddleware({ privileged: false, required: true }), requireNip44Signer, async (c) => {
+app.put('/wallet', userMiddleware('nip44'), async (c) => {
   const { conf, user, relay, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
@@ -119,63 +104,57 @@ app.put('/wallet', userMiddleware({ privileged: false, required: true }), requir
 });
 
 /** Gets a wallet, if it exists. */
-app.get(
-  '/wallet',
-  userMiddleware({ privileged: false, required: true }),
-  requireNip44Signer,
-  swapNutzapsMiddleware,
-  async (c) => {
-    const { conf, relay, user, signal } = c.var;
+app.get('/wallet', userMiddleware('nip44'), swapNutzapsMiddleware, async (c) => {
+  const { conf, relay, user, signal } = c.var;
 
-    const pubkey = await user.signer.getPublicKey();
+  const pubkey = await user.signer.getPublicKey();
 
-    const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
-    if (!event) {
-      return c.json({ error: 'Wallet not found' }, 404);
-    }
+  const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  if (!event) {
+    return c.json({ error: 'Wallet not found' }, 404);
+  }
 
-    const decryptedContent: string[][] = JSON.parse(await user.signer.nip44.decrypt(pubkey, event.content));
+  const decryptedContent: string[][] = JSON.parse(await user.signer.nip44.decrypt(pubkey, event.content));
 
-    const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
-    if (!privkey || !isNostrId(privkey)) {
-      return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 422);
-    }
+  const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
+  if (!privkey || !isNostrId(privkey)) {
+    return c.json({ error: 'Wallet does not contain privkey or privkey is not a valid nostr id.' }, 422);
+  }
 
-    const p2pk = getPublicKey(stringToBytes('hex', privkey));
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-    let balance = 0;
-    const mints: string[] = [];
+  let balance = 0;
+  const mints: string[] = [];
 
-    const tokens = await relay.query([{ authors: [pubkey], kinds: [7375] }], { signal });
-    for (const token of tokens) {
-      try {
-        const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
-          await user.signer.nip44.decrypt(pubkey, token.content),
-        );
+  const tokens = await relay.query([{ authors: [pubkey], kinds: [7375] }], { signal });
+  for (const token of tokens) {
+    try {
+      const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
+        await user.signer.nip44.decrypt(pubkey, token.content),
+      );
 
-        if (!mints.includes(decryptedContent.mint)) {
-          mints.push(decryptedContent.mint);
-        }
-
-        balance += decryptedContent.proofs.reduce((accumulator, current) => {
-          return accumulator + current.amount;
-        }, 0);
-      } catch (e) {
-        logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
+      if (!mints.includes(decryptedContent.mint)) {
+        mints.push(decryptedContent.mint);
       }
+
+      balance += decryptedContent.proofs.reduce((accumulator, current) => {
+        return accumulator + current.amount;
+      }, 0);
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
     }
+  }
 
-    // TODO: maybe change the 'Wallet' type data structure so each mint is a key and the value are the tokens associated with a given mint
-    const walletEntity: Wallet = {
-      pubkey_p2pk: p2pk,
-      mints,
-      relays: [conf.relay],
-      balance,
-    };
+  // TODO: maybe change the 'Wallet' type data structure so each mint is a key and the value are the tokens associated with a given mint
+  const walletEntity: Wallet = {
+    pubkey_p2pk: p2pk,
+    mints,
+    relays: [conf.relay],
+    balance,
+  };
 
-    return c.json(walletEntity, 200);
-  },
-);
+  return c.json(walletEntity, 200);
+});
 
 /** Get mints set by the CASHU_MINTS environment variable. */
 app.get('/mints', (c) => {

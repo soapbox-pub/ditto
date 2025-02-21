@@ -11,27 +11,12 @@ import { UserStore } from '../storages/UserStore.ts';
 import type { DittoConf } from '@ditto/conf';
 import type { DittoDB } from '@ditto/db';
 import type { DittoMiddleware } from '@ditto/router';
-
-interface User {
-  signer: NostrSigner;
-  relay: NRelay;
-}
+import type { User } from './User.ts';
 
 /** We only accept "Bearer" type. */
 const BEARER_REGEX = new RegExp(`^Bearer (${nip19.BECH32_REGEX.source})$`);
 
-export function tokenMiddleware(opts: { privileged: true; required: false }): never;
-// @ts-ignore The types are right.
-export function tokenMiddleware(opts: { privileged: false; required: true }): DittoMiddleware<{ user: User }>;
-export function tokenMiddleware(opts: { privileged: true; required?: boolean }): DittoMiddleware<{ user: User }>;
-export function tokenMiddleware(opts: { privileged: false; required?: boolean }): DittoMiddleware<{ user?: User }>;
-export function tokenMiddleware(opts: { privileged: boolean; required?: boolean }): DittoMiddleware<{ user?: User }> {
-  const { privileged, required = privileged } = opts;
-
-  if (privileged && !required) {
-    throw new Error('Privileged middleware requires authorization.');
-  }
-
+export function tokenMiddleware(): DittoMiddleware<{ user?: User }> {
   return async (c, next) => {
     const header = c.req.header('authorization');
 
@@ -48,13 +33,6 @@ export function tokenMiddleware(opts: { privileged: boolean; required?: boolean 
       };
 
       c.set('user', user);
-    } else if (required) {
-      throw new HTTPException(403, { message: 'Authorization required.' });
-    }
-
-    if (privileged) {
-      // TODO: add back nip98 auth
-      throw new HTTPException(500);
     }
 
     await next();
