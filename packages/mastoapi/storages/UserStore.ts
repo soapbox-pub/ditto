@@ -1,4 +1,11 @@
-import { NostrEvent, NostrFilter, NostrRelayCLOSED, NostrRelayEOSE, NostrRelayEVENT, NRelay } from '@nostrify/nostrify';
+import type {
+  NostrEvent,
+  NostrFilter,
+  NostrRelayCLOSED,
+  NostrRelayEOSE,
+  NostrRelayEVENT,
+  NRelay,
+} from '@nostrify/nostrify';
 
 interface UserStoreOpts {
   relay: NRelay;

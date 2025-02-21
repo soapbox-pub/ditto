@@ -6,6 +6,7 @@ import { aesDecrypt } from '../auth/aes.ts';
 import { getTokenHash } from '../auth/token.ts';
 import { ConnectSigner } from '../signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '../signers/ReadOnlySigner.ts';
+import { UserStore } from '../storages/UserStore.ts';
 
 import type { DittoConf } from '@ditto/conf';
 import type { DittoDB } from '@ditto/db';

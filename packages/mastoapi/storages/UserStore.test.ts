@@ -1,7 +1,7 @@
 import { MockRelay } from '@nostrify/nostrify/test';
-
 import { assertEquals } from '@std/assert';
-import { UserStore } from '@/storages/UserStore.ts';
+
+import { UserStore } from './UserStore.ts';
 
 import userBlack from '~/fixtures/events/kind-0-black.json' with { type: 'json' };
 import userMe from '~/fixtures/events/event-0-makes-repost-with-quote-repost.json' with { type: 'json' };
