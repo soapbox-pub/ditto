@@ -1,24 +1,16 @@
-import { Env as HonoEnv, Hono } from '@hono/hono';
-import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
+import { DittoConf } from '@ditto/conf';
+import { DittoApp } from '@ditto/router';
+import { NSecSigner } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { stub } from '@std/testing/mock';
 import { assertEquals, assertExists, assertObjectMatch } from '@std/assert';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 import { createTestDB } from '@/test.ts';
 
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';
-
-interface AppEnv extends HonoEnv {
-  Variables: {
-    /** Signer to get the logged-in user's pubkey, relays, and to sign events. */
-    signer: NostrSigner;
-    /** Storage for the user, might filter out unwanted content. */
-    store: NStore;
-  };
-}
 
 Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
@@ -26,28 +18,22 @@ Deno.test('PUT /wallet must be successful', {
 }, async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
-  const store = db.store;
+  const relay = db.store;
 
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
   const nostrPrivateKey = bytesToString('hex', sk);
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
+  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
   app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: [
         'https://houston.mint.com',
@@ -61,7 +47,7 @@ Deno.test('PUT /wallet must be successful', {
 
   const pubkey = await signer.getPublicKey();
 
-  const [wallet] = await store.query([{ authors: [pubkey], kinds: [17375] }]);
+  const [wallet] = await relay.query([{ authors: [pubkey], kinds: [17375] }]);
 
   assertExists(wallet);
   assertEquals(wallet.kind, 17375);
@@ -88,7 +74,7 @@ Deno.test('PUT /wallet must be successful', {
   ]);
   assertEquals(data.balance, 0);
 
-  const [nutzap_info] = await store.query([{ authors: [pubkey], kinds: [10019] }]);
+  const [nutzap_info] = await relay.query([{ authors: [pubkey], kinds: [10019] }]);
 
   assertExists(nutzap_info);
   assertEquals(nutzap_info.kind, 10019);
@@ -105,27 +91,19 @@ Deno.test('PUT /wallet must be successful', {
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
-  const store = db.store;
-
+  const relay = db.store;
   const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
+  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
   app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: [], // no mints should throw an error
     }),
@@ -143,21 +121,10 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
 }, async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
-  const store = db.store;
-
+  const relay = db.store;
   const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
+  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
   app.route('/', cashuApp);
 
@@ -165,7 +132,10 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
 
   const response = await app.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: ['https://mint.heart.com'],
     }),
@@ -183,7 +153,7 @@ Deno.test('GET /wallet must be successful', {
 }, async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
-  const store = db.store;
+  const relay = db.store;
 
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
@@ -191,16 +161,7 @@ Deno.test('GET /wallet must be successful', {
   const privkey = bytesToString('hex', sk);
   const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
+  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
   app.route('/', cashuApp);
 
@@ -282,6 +243,9 @@ Deno.test('GET /wallet must be successful', {
 
   const response = await app.request('/wallet', {
     method: 'GET',
+    headers: {
+      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
+    },
   });
 
   const body = await response.json();
@@ -298,14 +262,9 @@ Deno.test('GET /wallet must be successful', {
 Deno.test('GET /mints must be successful', async () => {
   using _mock = mockFetch();
   await using db = await createTestDB();
-  const store = db.store;
+  const relay = db.store;
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
+  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
 
   app.route('/', cashuApp);
 

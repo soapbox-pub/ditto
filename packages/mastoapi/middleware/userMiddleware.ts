@@ -34,10 +34,6 @@ export function userMiddleware(opts: { privileged: boolean; required?: boolean }
   return async (c, next) => {
     const header = c.req.header('authorization');
 
-    if (!header && required) {
-      throw new HTTPException(403, { message: 'Authorization required.' });
-    }
-
     if (header) {
       const user: User = {
         signer: await getSigner(header, c.var),
@@ -45,6 +41,8 @@ export function userMiddleware(opts: { privileged: boolean; required?: boolean }
       };
 
       c.set('user', user);
+    } else if (required) {
+      throw new HTTPException(403, { message: 'Authorization required.' });
     }
 
     if (privileged) {
