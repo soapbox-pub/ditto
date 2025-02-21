@@ -103,8 +103,9 @@ const suggestedTimelineController: AppController = async (c) => {
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, user, signal } = c.var;
 
+  const relay = user?.relay ?? c.var.relay;
   const opts = { signal, timeout: conf.db.timeouts.timelines };
 
   const events = await relay

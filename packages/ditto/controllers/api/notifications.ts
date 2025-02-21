@@ -107,8 +107,9 @@ async function renderNotifications(
   params: DittoPagination,
   c: AppContext,
 ) {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, user, signal } = c.var;
 
+  const relay = user!.relay;
   const pubkey = await user!.signer.getPublicKey();
   const opts = { signal, limit: params.limit, timeout: conf.db.timeouts.timelines };
 
