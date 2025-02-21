@@ -5,11 +5,11 @@ import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
 import { SetRequired } from 'type-fest';
 import { logi } from '@soapbox/logi';
-import { z } from 'zod';
 
 import { errorJson } from '@/utils/log.ts';
 import { createEvent } from '@/utils/api.ts';
 import { validateAndParseWallet } from '@/utils/cashu.ts';
+import { proofSchema } from '@/schemas/cashu.ts';
 
 /**
  * Swap nutzaps into wallet (create new events) if the user has a wallet, otheriwse, just fallthrough.
@@ -172,14 +172,7 @@ async function getMintsToProofs(
       }
 
       const parsed = n.json().pipe(
-        z.object({
-          id: z.string(),
-          amount: z.number(),
-          secret: z.string(),
-          C: z.string(),
-          dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
-          dleqValid: z.boolean().optional(),
-        }),
+        proofSchema,
       ).array().safeParse(proofs);
 
       if (!parsed.success) {
