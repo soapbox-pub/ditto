@@ -1,0 +1,7 @@
+{
+  "name": "@ditto/nip98",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./nip98.ts"
+  }
+}

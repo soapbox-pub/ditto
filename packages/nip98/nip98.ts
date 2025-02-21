@@ -1,11 +1,8 @@
-import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
+import { type NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { encodeHex } from '@std/encoding/hex';
-import { EventTemplate, nip13 } from 'nostr-tools';
+import { type EventTemplate, nip13 } from 'nostr-tools';
 
-import { decode64Schema } from '@/schema.ts';
-import { signedEventSchema } from '@/schemas/nostr.ts';
-import { eventAge, findTag, nostrNow } from '@/utils.ts';
-import { Time } from '@/utils/time.ts';
+import { decode64Schema, signedEventSchema } from './schema.ts';
 
 /** Decode a Nostr event from a base64 encoded string. */
 const decode64EventSchema = decode64Schema.pipe(n.json()).pipe(signedEventSchema);
@@ -32,7 +29,7 @@ async function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
 
 /** Compare the auth event with the request, returning a zod SafeParse type. */
 function validateAuthEvent(req: Request, event: NostrEvent, opts: ParseAuthRequestOpts = {}) {
-  const { maxAge = Time.minutes(1), validatePayload = true, pow = 0 } = opts;
+  const { maxAge = 60_000, validatePayload = true, pow = 0 } = opts;
 
   const schema = signedEventSchema
     .refine((event) => event.kind === 27235, 'Event must be kind 27235')
@@ -85,6 +82,21 @@ async function getPayload(req: Request): Promise<string> {
 /** Get the value for the first matching tag name in the event. */
 function tagValue(event: NostrEvent, tagName: string): string | undefined {
   return findTag(event.tags, tagName)?.[1];
+}
+
+/** Get the current time in Nostr format. */
+const nostrNow = (): number => Math.floor(Date.now() / 1000);
+
+/** Convenience function to convert Nostr dates into native Date objects. */
+const nostrDate = (seconds: number): Date => new Date(seconds * 1000);
+
+/** Return the event's age in milliseconds. */
+function eventAge(event: NostrEvent): number {
+  return Date.now() - nostrDate(event.created_at).getTime();
+}
+
+function findTag(tags: string[][], name: string): string[] | undefined {
+  return tags.find((tag) => tag[0] === name);
 }
 
 export { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts, validateAuthEvent };

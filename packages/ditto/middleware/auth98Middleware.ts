@@ -1,15 +1,10 @@
+import { buildAuthEventTemplate, parseAuthRequest, type ParseAuthRequestOpts, validateAuthEvent } from '@ditto/nip98';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent } from '@nostrify/nostrify';
 
 import { type AppContext, type AppMiddleware } from '@/app.ts';
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { localRequest } from '@/utils/api.ts';
-import {
-  buildAuthEventTemplate,
-  parseAuthRequest,
-  type ParseAuthRequestOpts,
-  validateAuthEvent,
-} from '@/utils/nip98.ts';
 
 /**
  * NIP-98 auth.

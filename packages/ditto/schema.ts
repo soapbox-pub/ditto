@@ -13,18 +13,6 @@ function filteredArray<T extends z.ZodTypeAny>(schema: T) {
     ));
 }
 
-/** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
-const decode64Schema = z.string().transform((value, ctx) => {
-  try {
-    const binString = atob(value);
-    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
-    return new TextDecoder().decode(bytes);
-  } catch (_e) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid base64', fatal: true });
-    return z.NEVER;
-  }
-});
-
 /** Parses a hashtag, eg `#yolo`. */
 const hashtagSchema = z.string().regex(/^\w{1,30}$/);
 
@@ -96,7 +84,6 @@ const walletSchema = z.object({
 
 export {
   booleanParamSchema,
-  decode64Schema,
   fileSchema,
   filteredArray,
   hashtagSchema,
