@@ -13,29 +13,14 @@ import { createTestDB } from '@/test.ts';
 import cashuApp from '@/controllers/api/cashu.ts';
 import { walletSchema } from '@/schema.ts';
 
-function testUserMiddleware(user: User<NSecSigner>): DittoMiddleware<{ user: User<NSecSigner> }> {
-  return async (c, next) => {
-    c.set('user', user);
-    await next();
-  };
-}
-
 Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const relay = db.store;
+  await using test = await createTestApp();
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
+  const { app, signer, sk, relay } = test;
   const nostrPrivateKey = bytesToString('hex', sk);
-
-  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
-
-  app.use(testUserMiddleware({ signer, relay }));
-  app.route('/', cashuApp);
 
   const response = await app.request('/wallet', {
     method: 'PUT',
@@ -97,16 +82,8 @@ Deno.test('PUT /wallet must be successful', {
 });
 
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const relay = db.store;
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
-
-  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
-
-  app.use(testUserMiddleware({ signer, relay }));
-  app.route('/', cashuApp);
+  await using test = await createTestApp();
+  const { app } = test;
 
   const response = await app.request('/wallet', {
     method: 'PUT',
@@ -128,18 +105,10 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const relay = db.store;
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
+  await using test = await createTestApp();
+  const { app, sk, relay } = test;
 
-  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
-
-  app.use(testUserMiddleware({ signer, relay }));
-  app.route('/', cashuApp);
-
-  await db.store.event(genEvent({ kind: 17375 }, sk));
+  await relay.event(genEvent({ kind: 17375 }, sk));
 
   const response = await app.request('/wallet', {
     method: 'PUT',
@@ -162,23 +131,15 @@ Deno.test('GET /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const relay = db.store;
+  await using test = await createTestApp();
+  const { app, sk, relay, signer } = test;
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
   const pubkey = await signer.getPublicKey();
   const privkey = bytesToString('hex', sk);
   const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
-
-  app.use(testUserMiddleware({ signer, relay }));
-  app.route('/', cashuApp);
-
   // Wallet
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 17375,
     content: await signer.nip44.encrypt(
       pubkey,
@@ -190,7 +151,7 @@ Deno.test('GET /wallet must be successful', {
   }, sk));
 
   // Nutzap information
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 10019,
     tags: [
       ['pubkey', p2pk],
@@ -199,7 +160,7 @@ Deno.test('GET /wallet must be successful', {
   }, sk));
 
   // Unspent proofs
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 7375,
     content: await signer.nip44.encrypt(
       pubkey,
@@ -240,7 +201,7 @@ Deno.test('GET /wallet must be successful', {
   // Nutzap
   const senderSk = generateSecretKey();
 
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 9321,
     content: 'Nice post!',
     tags: [
@@ -269,13 +230,8 @@ Deno.test('GET /wallet must be successful', {
 });
 
 Deno.test('GET /mints must be successful', async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const relay = db.store;
-
-  const app = new DittoApp({ db, relay, conf: new DittoConf(new Map()) });
-
-  app.route('/', cashuApp);
+  await using test = await createTestApp();
+  const { app } = test;
 
   const response = await app.request('/mints', {
     method: 'GET',
@@ -287,13 +243,42 @@ Deno.test('GET /mints must be successful', async () => {
   assertEquals(body, { mints: [] });
 });
 
-function mockFetch() {
+async function createTestApp() {
+  const conf = new DittoConf(new Map());
+
+  const db = await createTestDB();
+  const relay = db.store;
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+
+  const app = new DittoApp({ db, relay, conf });
+
+  app.use(testUserMiddleware({ signer, relay }));
+  app.route('/', cashuApp);
+
   const mock = stub(globalThis, 'fetch', () => {
     return Promise.resolve(new Response());
   });
+
   return {
-    [Symbol.dispose]: () => {
+    app,
+    db,
+    conf,
+    sk,
+    signer,
+    relay,
+    [Symbol.asyncDispose]: async () => {
       mock.restore();
+      await db[Symbol.asyncDispose]();
+      await relay[Symbol.asyncDispose]();
     },
+  };
+}
+
+function testUserMiddleware(user: User<NSecSigner>): DittoMiddleware<{ user: User<NSecSigner> }> {
+  return async (c, next) => {
+    c.set('user', user);
+    await next();
   };
 }
