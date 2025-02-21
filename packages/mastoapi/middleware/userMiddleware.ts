@@ -35,9 +35,15 @@ export function userMiddleware(opts: { privileged: boolean; required?: boolean }
     const header = c.req.header('authorization');
 
     if (header) {
+      const { relay, conf } = c.var;
+
+      const signer = await getSigner(header, c.var);
+      const userPubkey = await signer.getPublicKey();
+      const adminPubkey = await conf.signer.getPublicKey();
+
       const user: User = {
-        signer: await getSigner(header, c.var),
-        relay: c.var.relay, // TODO: set user's relay
+        signer,
+        relay: new UserStore({ relay, userPubkey, adminPubkey }),
       };
 
       c.set('user', user);

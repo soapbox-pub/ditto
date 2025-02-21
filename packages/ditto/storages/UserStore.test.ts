@@ -14,9 +14,8 @@ Deno.test('query events of users that are not muted', async () => {
   const blockEventCopy = structuredClone(blockEvent);
   const event1authorUserMeCopy = structuredClone(event1authorUserMe);
 
-  const db = new MockRelay();
-
-  const store = new UserStore(userBlackCopy.pubkey, db);
+  const relay = new MockRelay();
+  const store = new UserStore({ relay, userPubkey: userBlackCopy.pubkey });
 
   await store.event(blockEventCopy);
   await store.event(userBlackCopy);
@@ -30,9 +29,8 @@ Deno.test('user never muted anyone', async () => {
   const userBlackCopy = structuredClone(userBlack);
   const userMeCopy = structuredClone(userMe);
 
-  const db = new MockRelay();
-
-  const store = new UserStore(userBlackCopy.pubkey, db);
+  const relay = new MockRelay();
+  const store = new UserStore({ relay, userPubkey: userBlackCopy.pubkey });
 
   await store.event(userBlackCopy);
   await store.event(userMeCopy);
