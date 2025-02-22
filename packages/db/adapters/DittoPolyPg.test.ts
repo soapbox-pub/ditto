@@ -1,6 +1,6 @@
 import { DittoPolyPg } from './DittoPolyPg.ts';
 
 Deno.test('DittoPolyPg', async () => {
-  const db = DittoPolyPg.create('memory://');
-  await DittoPolyPg.migrate(db.kysely);
+  const db = new DittoPolyPg('memory://');
+  await db.migrate();
 });

@@ -6,6 +6,7 @@ export interface DittoDB extends AsyncDisposable {
   readonly kysely: Kysely<DittoTables>;
   readonly poolSize: number;
   readonly availableConnections: number;
+  migrate(): Promise<void>;
   listen(channel: string, callback: (payload: string) => void): void;
 }
 
