@@ -22,16 +22,6 @@ const hashtagSchema = z.string().regex(/^\w{1,30}$/);
  */
 const safeUrlSchema = z.string().max(2048).url();
 
-/** WebSocket URL. */
-const wsUrlSchema = z.string().refine((val) => {
-  try {
-    const { protocol } = new URL(val);
-    return protocol === 'wss:' || protocol === 'ws:';
-  } catch {
-    return false;
-  }
-}, 'Invalid WebSocket URL');
-
 /** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
 const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
 
@@ -93,5 +83,4 @@ export {
   safeUrlSchema,
   sizesSchema,
   walletSchema,
-  wsUrlSchema,
 };

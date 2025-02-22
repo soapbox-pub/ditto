@@ -10,7 +10,7 @@ import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
-import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
@@ -19,6 +19,16 @@ import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
 
 const markerSchema = z.enum(['read', 'write']);
+
+/** WebSocket URL. */
+const wsUrlSchema = z.string().refine((val): val is `wss://${string}` | `ws://${string}` => {
+  try {
+    const { protocol } = new URL(val);
+    return protocol === 'wss:' || protocol === 'ws:';
+  } catch {
+    return false;
+  }
+}, 'Invalid WebSocket URL');
 
 const relaySchema = z.object({
   url: wsUrlSchema,
@@ -62,7 +72,7 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
   return event.tags.reduce((acc, [name, url, marker]) => {
     if (name === 'r') {
       const relay: RelayEntity = {
-        url,
+        url: url as `wss://${string}`,
         marker: markerSchema.safeParse(marker).success ? marker as 'read' | 'write' : undefined,
       };
       acc.push(relay);

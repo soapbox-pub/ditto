@@ -1,13 +1,11 @@
 // deno-lint-ignore-file require-await
 import { type DittoDB, DittoPolyPg } from '@ditto/db';
 import { NPool, NRelay1 } from '@nostrify/nostrify';
-import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
-import { wsUrlSchema } from '@/schema.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
-import { getRelays } from '@/utils/outbox.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
+import { DittoPool } from '@/storages/DittoPool.ts';
 
 export class Storages {
   private static _db: Promise<DittoPgStore> | undefined;
@@ -55,53 +53,8 @@ export class Storages {
   public static async client(): Promise<NPool<NRelay1>> {
     if (!this._client) {
       this._client = (async () => {
-        const db = await this.db();
-
-        const [relayList] = await db.query([
-          { kinds: [10002], authors: [await Conf.signer.getPublicKey()], limit: 1 },
-        ]);
-
-        const tags = relayList?.tags ?? [];
-
-        const activeRelays = tags.reduce((acc, [name, url, marker]) => {
-          const valid = wsUrlSchema.safeParse(url).success;
-
-          if (valid && name === 'r' && (!marker || marker === 'write')) {
-            acc.push(url);
-          }
-          return acc;
-        }, []);
-
-        logi({
-          level: 'info',
-          ns: 'ditto.pool',
-          msg: `connecting to ${activeRelays.length} relays`,
-          relays: activeRelays,
-        });
-
-        return new NPool({
-          open(url) {
-            return new NRelay1(url, {
-              // Skip event verification (it's done in the pipeline).
-              verifyEvent: () => true,
-              log(log) {
-                logi(log);
-              },
-            });
-          },
-          reqRouter: async (filters) => {
-            return new Map(activeRelays.map((relay) => {
-              return [relay, filters];
-            }));
-          },
-          eventRouter: async (event) => {
-            const relaySet = await getRelays(await Storages.db(), event.pubkey);
-            relaySet.delete(Conf.relay);
-
-            const relays = [...relaySet].slice(0, 4);
-            return relays;
-          },
-        });
+        const relay = await this.db();
+        return new DittoPool({ conf: Conf, relay });
       })();
     }
     return this._client;
