@@ -54,9 +54,11 @@ async function getNip05(
 }
 
 export async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
+  const name = `${localpart}@${Conf.url.host}`;
+
   const [grant] = await store.query([{
     kinds: [30360],
-    '#d': [`${localpart}@${Conf.url.host}`],
+    '#d': [name, name.toLowerCase()],
     authors: [await Conf.signer.getPublicKey()],
     limit: 1,
   }]);
