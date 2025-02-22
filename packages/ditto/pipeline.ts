@@ -190,7 +190,7 @@ async function updateAuthorData(event: NostrEvent, signal: AbortSignal): Promise
       if (nip05) {
         const tld = tldts.parse(nip05);
         if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
-          const pointer = await nip05Cache.fetch(nip05.toLowerCase(), { signal });
+          const pointer = await nip05Cache.fetch(nip05, { signal });
           if (pointer.pubkey === event.pubkey) {
             updates.nip05 = nip05;
             updates.nip05_domain = tld.domain;
