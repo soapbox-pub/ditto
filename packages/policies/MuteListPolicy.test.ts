@@ -25,7 +25,7 @@ Deno.test('block event: muted user cannot post', async () => {
 
   const ok = await policy.call(event1authorUserMeCopy);
 
-  assertEquals(ok, ['OK', event1authorUserMeCopy.id, false, 'blocked: Your account has been deactivated.']);
+  assertEquals(ok, ['OK', event1authorUserMeCopy.id, false, 'blocked: account blocked']);
 });
 
 Deno.test('allow event: user is NOT muted because there is no muted event', async () => {
