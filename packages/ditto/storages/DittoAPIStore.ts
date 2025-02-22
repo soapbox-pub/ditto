@@ -46,9 +46,11 @@ export class DittoAPIStore implements NRelay {
   private encounters = new LRUCache<string, true>({ max: 5000 });
   private controller = new AbortController();
 
+  private ns = 'ditto.apistore';
+
   constructor(private opts: DittoAPIStoreOpts) {
     this.listen().catch((e: unknown) => {
-      logi({ level: 'error', ns: 'ditto.apistore', source: 'listen', error: errorJson(e) });
+      logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
     });
   }
 
@@ -62,6 +64,7 @@ export class DittoAPIStore implements NRelay {
 
   async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
     const { relay, pool } = this.opts;
+    const { id, kind } = event;
 
     await relay.event(event, opts);
 
@@ -69,7 +72,7 @@ export class DittoAPIStore implements NRelay {
       try {
         await pool.event(event, opts);
       } catch (e) {
-        console.error(e);
+        logi({ level: 'error', ns: this.ns, source: 'publish', id, kind, error: errorJson(e) });
       }
     })();
   }
