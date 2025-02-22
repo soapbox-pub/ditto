@@ -1,13 +1,22 @@
 import { DittoConf } from '@ditto/conf';
-import { DummyDB } from '@ditto/db';
+import { type DittoDB, DummyDB } from '@ditto/db';
 import { DittoApp, type DittoMiddleware } from '@ditto/router';
-import { type NostrSigner, NSecSigner } from '@nostrify/nostrify';
+import { type NostrSigner, type NRelay, NSecSigner } from '@nostrify/nostrify';
 import { MockRelay } from '@nostrify/nostrify/test';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import type { User } from '@ditto/mastoapi/middleware';
 
-export function testApp() {
+export function testApp(): {
+  app: DittoApp;
+  relay: NRelay;
+  conf: DittoConf;
+  db: DittoDB;
+  user: {
+    signer: NostrSigner;
+    relay: NRelay;
+  };
+} {
   const db = new DummyDB();
 
   const nsec = nip19.nsecEncode(generateSecretKey());
