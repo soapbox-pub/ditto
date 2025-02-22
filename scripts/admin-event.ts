@@ -1,13 +1,17 @@
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { JsonParseStream } from '@std/json/json-parse-stream';
 import { TextLineStream } from '@std/streams/text-line-stream';
 
-import { Conf } from '../packages/ditto/config.ts';
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 import { type EventStub } from '../packages/ditto/utils/api.ts';
 import { nostrNow } from '../packages/ditto/utils.ts';
 
-const signer = Conf.signer;
-const store = await Storages.db();
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+
+const { signer } = conf;
 
 const readable = Deno.stdin.readable
   .pipeThrough(new TextDecoderStream())
@@ -22,7 +26,7 @@ for await (const t of readable) {
     ...t as EventStub,
   });
 
-  await store.event(event);
+  await relay.event(event);
 }
 
 Deno.exit(0);

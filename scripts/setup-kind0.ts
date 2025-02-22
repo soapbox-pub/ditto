@@ -1,9 +1,13 @@
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { Command } from 'commander';
 import { NostrEvent } from 'nostr-tools';
 
-import { nostrNow } from '../packages/ditto/utils.ts';
-import { Conf } from '../packages/ditto/config.ts';
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
+
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
 
 function die(code: number, ...args: unknown[]) {
   console.error(...args);
@@ -33,19 +37,19 @@ if (import.meta.main) {
       content.lud16 = lightning;
       content.name = name;
       content.picture = image;
-      content.website = Conf.localDomain;
+      content.website = conf.localDomain;
 
-      const signer = Conf.signer;
+      const signer = conf.signer;
       const bare: Omit<NostrEvent, 'id' | 'sig' | 'pubkey'> = {
-        created_at: nostrNow(),
         kind: 0,
         tags: [],
         content: JSON.stringify(content),
+        created_at: Math.floor(Date.now() / 1000),
       };
       const signed = await signer.signEvent(bare);
 
       console.log({ content, signed });
-      await Storages.db().then((store) => store.event(signed));
+      await relay.event(signed);
     });
 
   await kind0.parseAsync();

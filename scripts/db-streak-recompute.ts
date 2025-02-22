@@ -1,12 +1,14 @@
-import { Conf } from '../packages/ditto/config.ts';
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 
-const kysely = await Storages.kysely();
-const statsQuery = kysely.selectFrom('author_stats').select('pubkey');
-const { streakWindow } = Conf;
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+
+const statsQuery = db.kysely.selectFrom('author_stats').select('pubkey');
+const { streakWindow } = conf;
 
 for await (const { pubkey } of statsQuery.stream(10)) {
-  const eventsQuery = kysely
+  const eventsQuery = db.kysely
     .selectFrom('nostr_events')
     .select('created_at')
     .where('pubkey', '=', pubkey)
@@ -38,7 +40,7 @@ for await (const { pubkey } of statsQuery.stream(10)) {
   }
 
   if (start && end) {
-    await kysely
+    await db.kysely
       .updateTable('author_stats')
       .set({
         streak_end: end,

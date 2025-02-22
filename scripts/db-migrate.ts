@@ -1,9 +1,9 @@
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 
-// This migrates kysely internally.
-const kysely = await Storages.kysely();
+const conf = new DittoConf(Deno.env);
+await using db = new DittoPolyPg(conf.databaseUrl);
 
-// Close the connection before exiting.
-await kysely.destroy();
+await db.migrate();
 
 Deno.exit();
