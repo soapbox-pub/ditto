@@ -4,6 +4,8 @@ import { type EventTemplate, nip13 } from 'nostr-tools';
 
 import { decode64Schema, signedEventSchema } from './schema.ts';
 
+import type { z } from 'zod';
+
 /** Decode a Nostr event from a base64 encoded string. */
 const decode64EventSchema = decode64Schema.pipe(n.json()).pipe(signedEventSchema);
 
@@ -18,7 +20,10 @@ interface ParseAuthRequestOpts {
 
 /** Parse the auth event from a Request, returning a zod SafeParse type. */
 // deno-lint-ignore require-await
-async function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
+async function parseAuthRequest(
+  req: Request,
+  opts: ParseAuthRequestOpts = {},
+): Promise<z.SafeParseReturnType<NostrEvent, NostrEvent> | z.SafeParseError<string>> {
   const header = req.headers.get('authorization');
   const base64 = header?.match(/^Nostr (.+)$/)?.[1];
   const result = decode64EventSchema.safeParse(base64);
@@ -28,7 +33,11 @@ async function parseAuthRequest(req: Request, opts: ParseAuthRequestOpts = {}) {
 }
 
 /** Compare the auth event with the request, returning a zod SafeParse type. */
-function validateAuthEvent(req: Request, event: NostrEvent, opts: ParseAuthRequestOpts = {}) {
+function validateAuthEvent(
+  req: Request,
+  event: NostrEvent,
+  opts: ParseAuthRequestOpts = {},
+): Promise<z.SafeParseReturnType<NostrEvent, NostrEvent>> {
   const { maxAge = 60_000, validatePayload = true, pow = 0 } = opts;
 
   const schema = signedEventSchema
