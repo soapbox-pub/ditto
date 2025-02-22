@@ -190,7 +190,7 @@ const adminApproveController: AppController = async (c) => {
   }
 
   const [existing] = await relay.query([
-    { kinds: [30360], authors: [await conf.signer.getPublicKey()], '#d': [r], limit: 1 },
+    { kinds: [30360], authors: [await conf.signer.getPublicKey()], '#d': [r.toLowerCase()], limit: 1 },
   ]);
 
   if (existing) {
@@ -200,7 +200,8 @@ const adminApproveController: AppController = async (c) => {
   await createAdminEvent({
     kind: 30360,
     tags: [
-      ['d', r],
+      ['d', r.toLowerCase()],
+      ['r', r],
       ['L', 'nip05.domain'],
       ['l', r.split('@')[1], 'nip05.domain'],
       ['p', event.pubkey],
