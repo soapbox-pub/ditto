@@ -52,8 +52,8 @@ const trendingTagsController: AppController = async (c) => {
 };
 
 async function getTrendingHashtags(conf: DittoConf) {
-  const store = await Storages.db();
-  const trends = await getTrendingTags(store, 't', await conf.signer.getPublicKey());
+  const relay = await Storages.db();
+  const trends = await getTrendingTags(relay, 't', await conf.signer.getPublicKey());
 
   return trends.map((trend) => {
     const hashtag = trend.value;
@@ -105,8 +105,8 @@ const trendingLinksController: AppController = async (c) => {
 };
 
 async function getTrendingLinks(conf: DittoConf) {
-  const store = await Storages.db();
-  const trends = await getTrendingTags(store, 'r', await conf.signer.getPublicKey());
+  const relay = await Storages.db();
+  const trends = await getTrendingTags(relay, 'r', await conf.signer.getPublicKey());
 
   return Promise.all(trends.map(async (trend) => {
     const link = trend.value;
@@ -140,11 +140,10 @@ async function getTrendingLinks(conf: DittoConf) {
 }
 
 const trendingStatusesController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
   const { limit, offset, until } = paginationSchema.parse(c.req.query());
 
-  const [label] = await store.query([{
+  const [label] = await relay.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': ['#e'],
@@ -162,8 +161,8 @@ const trendingStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const results = await store.query([{ kinds: [1, 20], ids }])
-    .then((events) => hydrateEvents({ events, store }));
+  const results = await relay.query([{ kinds: [1, 20], ids }])
+    .then((events) => hydrateEvents({ events, relay }));
 
   // Sort events in the order they appear in the label.
   const events = ids

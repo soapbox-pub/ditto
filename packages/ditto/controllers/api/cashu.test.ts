@@ -1,55 +1,32 @@
-import { confMw } from '@ditto/api/middleware';
-import { Env as HonoEnv, Hono } from '@hono/hono';
-import { NostrSigner, NSecSigner, NStore } from '@nostrify/nostrify';
+import { DittoConf } from '@ditto/conf';
+import { type User } from '@ditto/mastoapi/middleware';
+import { DittoApp, DittoMiddleware } from '@ditto/mastoapi/router';
+import { NSecSigner } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
-import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { stub } from '@std/testing/mock';
 import { assertEquals, assertExists, assertObjectMatch } from '@std/assert';
+import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 import { createTestDB } from '@/test.ts';
 
-import cashuApp from '@/controllers/api/cashu.ts';
+import cashuRoute from './cashu.ts';
 import { walletSchema } from '@/schema.ts';
-
-interface AppEnv extends HonoEnv {
-  Variables: {
-    /** Signer to get the logged-in user's pubkey, relays, and to sign events. */
-    signer: NostrSigner;
-    /** Storage for the user, might filter out unwanted content. */
-    store: NStore;
-  };
-}
 
 Deno.test('PUT /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const store = db.store;
+  await using test = await createTestRoute();
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
+  const { route, signer, sk, relay } = test;
   const nostrPrivateKey = bytesToString('hex', sk);
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
-
-  app.use(confMw(new Map()));
-  app.route('/', cashuApp);
-
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: [
         'https://houston.mint.com',
@@ -63,7 +40,7 @@ Deno.test('PUT /wallet must be successful', {
 
   const pubkey = await signer.getPublicKey();
 
-  const [wallet] = await store.query([{ authors: [pubkey], kinds: [17375] }]);
+  const [wallet] = await relay.query([{ authors: [pubkey], kinds: [17375] }]);
 
   assertExists(wallet);
   assertEquals(wallet.kind, 17375);
@@ -90,7 +67,7 @@ Deno.test('PUT /wallet must be successful', {
   ]);
   assertEquals(data.balance, 0);
 
-  const [nutzap_info] = await store.query([{ authors: [pubkey], kinds: [10019] }]);
+  const [nutzap_info] = await relay.query([{ authors: [pubkey], kinds: [10019] }]);
 
   assertExists(nutzap_info);
   assertEquals(nutzap_info.kind, 10019);
@@ -105,30 +82,14 @@ Deno.test('PUT /wallet must be successful', {
 });
 
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const store = db.store;
+  await using test = await createTestRoute();
+  const { route } = test;
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
-
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
-
-  app.use(confMw(new Map()));
-  app.route('/', cashuApp);
-
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: [], // no mints should throw an error
     }),
@@ -144,32 +105,17 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const store = db.store;
+  await using test = await createTestRoute();
+  const { route, sk, relay } = test;
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
+  await relay.event(genEvent({ kind: 17375 }, sk));
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
-
-  app.use(confMw(new Map()));
-  app.route('/', cashuApp);
-
-  await db.store.event(genEvent({ kind: 17375 }, sk));
-
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'PUT',
-    headers: [['content-type', 'application/json']],
+    headers: {
+      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
+      'content-type': 'application/json',
+    },
     body: JSON.stringify({
       mints: ['https://mint.heart.com'],
     }),
@@ -185,32 +131,15 @@ Deno.test('GET /wallet must be successful', {
   sanitizeOps: false,
   sanitizeResources: false,
 }, async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const store = db.store;
+  await using test = await createTestRoute();
+  const { route, sk, relay, signer } = test;
 
-  const sk = generateSecretKey();
-  const signer = new NSecSigner(sk);
   const pubkey = await signer.getPublicKey();
   const privkey = bytesToString('hex', sk);
   const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('signer', signer);
-      await next();
-    },
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
-
-  app.use(confMw(new Map()));
-  app.route('/', cashuApp);
-
   // Wallet
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 17375,
     content: await signer.nip44.encrypt(
       pubkey,
@@ -222,7 +151,7 @@ Deno.test('GET /wallet must be successful', {
   }, sk));
 
   // Nutzap information
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 10019,
     tags: [
       ['pubkey', p2pk],
@@ -231,7 +160,7 @@ Deno.test('GET /wallet must be successful', {
   }, sk));
 
   // Unspent proofs
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 7375,
     content: await signer.nip44.encrypt(
       pubkey,
@@ -272,7 +201,7 @@ Deno.test('GET /wallet must be successful', {
   // Nutzap
   const senderSk = generateSecretKey();
 
-  await db.store.event(genEvent({
+  await relay.event(genEvent({
     kind: 9321,
     content: 'Nice post!',
     tags: [
@@ -285,7 +214,7 @@ Deno.test('GET /wallet must be successful', {
     ],
   }, senderSk));
 
-  const response = await app.request('/wallet', {
+  const response = await route.request('/wallet', {
     method: 'GET',
   });
 
@@ -301,21 +230,10 @@ Deno.test('GET /wallet must be successful', {
 });
 
 Deno.test('GET /mints must be successful', async () => {
-  using _mock = mockFetch();
-  await using db = await createTestDB();
-  const store = db.store;
+  await using test = await createTestRoute();
+  const { route } = test;
 
-  const app = new Hono<AppEnv>().use(
-    async (c, next) => {
-      c.set('store', store);
-      await next();
-    },
-  );
-
-  app.use(confMw(new Map()));
-  app.route('/', cashuApp);
-
-  const response = await app.request('/mints', {
+  const response = await route.request('/mints', {
     method: 'GET',
   });
 
@@ -325,13 +243,42 @@ Deno.test('GET /mints must be successful', async () => {
   assertEquals(body, { mints: [] });
 });
 
-function mockFetch() {
+async function createTestRoute() {
+  const conf = new DittoConf(new Map());
+
+  const db = await createTestDB();
+  const relay = db.store;
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+
+  const route = new DittoApp({ db, relay, conf });
+
+  route.use(testUserMiddleware({ signer, relay }));
+  route.route('/', cashuRoute);
+
   const mock = stub(globalThis, 'fetch', () => {
     return Promise.resolve(new Response());
   });
+
   return {
-    [Symbol.dispose]: () => {
+    route,
+    db,
+    conf,
+    sk,
+    signer,
+    relay,
+    [Symbol.asyncDispose]: async () => {
       mock.restore();
+      await db[Symbol.asyncDispose]();
+      await relay[Symbol.asyncDispose]();
     },
+  };
+}
+
+function testUserMiddleware(user: User<NSecSigner>): DittoMiddleware<{ user: User<NSecSigner> }> {
+  return async (c, next) => {
+    c.set('user', user);
+    await next();
   };
 }

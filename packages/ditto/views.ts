@@ -1,7 +1,7 @@
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { AppContext } from '@/app.ts';
-import { Storages } from '@/storages.ts';
+import { paginationSchema } from '@/schemas/pagination.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { paginated, paginatedList } from '@/utils/api.ts';
@@ -20,13 +20,12 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
   }
 
   const { signal = AbortSignal.timeout(1000), filterFn } = opts ?? {};
+  const { relay } = c.var;
 
-  const store = await Storages.db();
-
-  const events = await store.query(filters, { signal })
+  const events = await relay.query(filters, { signal })
     // Deduplicate by author.
     .then((events) => Array.from(new Map(events.map((event) => [event.pubkey, event])).values()))
-    .then((events) => hydrateEvents({ events, store, signal }))
+    .then((events) => hydrateEvents({ events, relay, signal }))
     .then((events) => filterFn ? events.filter(filterFn) : events);
 
   const accounts = await Promise.all(
@@ -43,14 +42,13 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
 }
 
 async function renderAccounts(c: AppContext, pubkeys: string[]) {
-  const { offset, limit } = c.get('listPagination');
+  const { offset, limit } = paginationSchema.parse(c.req.query());
   const authors = pubkeys.reverse().slice(offset, offset + limit);
 
-  const store = await Storages.db();
-  const signal = c.req.raw.signal;
+  const { relay, signal } = c.var;
 
-  const events = await store.query([{ kinds: [0], authors }], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+  const events = await relay.query([{ kinds: [0], authors }], { signal })
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   const accounts = await Promise.all(
     authors.map((pubkey) => {
@@ -72,11 +70,11 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
     return c.json([]);
   }
 
-  const store = await Storages.db();
-  const { limit } = c.get('pagination');
+  const { user, relay, pagination } = c.var;
+  const { limit } = pagination;
 
-  const events = await store.query([{ kinds: [1, 20], ids, limit }], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+  const events = await relay.query([{ kinds: [1, 20], ids, limit }], { signal })
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   if (!events.length) {
     return c.json([]);
@@ -84,7 +82,7 @@ async function renderStatuses(c: AppContext, ids: string[], signal = AbortSignal
 
   const sortedEvents = [...events].sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = await Promise.all(
     sortedEvents.map((event) => renderStatus(event, { viewerPubkey })),

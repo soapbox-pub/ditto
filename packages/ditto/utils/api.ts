@@ -1,4 +1,3 @@
-import { type Context } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
@@ -19,16 +18,16 @@ import { purifyEvent } from '@/utils/purify.ts';
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent(t: EventStub, c: Context): Promise<NostrEvent> {
-  const signer = c.get('signer');
+async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
+  const { user } = c.var;
 
-  if (!signer) {
+  if (!user) {
     throw new HTTPException(401, {
       res: c.json({ error: 'No way to sign Nostr event' }, 401),
     });
   }
 
-  const event = await signer.signEvent({
+  const event = await user.signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],
@@ -265,17 +264,10 @@ function paginatedList(
   return c.json(results, 200, headers);
 }
 
-/** Rewrite the URL of the request object to use the local domain. */
-function localRequest(c: Context): Request {
-  return Object.create(c.req.raw, {
-    url: { value: Conf.local(c.req.url) },
-  });
-}
-
 /** Actors with Bluesky's `!no-unauthenticated` self-label should require authorization to view. */
 function assertAuthenticated(c: AppContext, author: NostrEvent): void {
   if (
-    !c.get('signer') && author.tags.some(([name, value, ns]) =>
+    !c.var.user && author.tags.some(([name, value, ns]) =>
       name === 'l' &&
       value === '!no-unauthenticated' &&
       ns === 'com.atproto.label.defs#selfLabel'
@@ -290,7 +282,6 @@ export {
   createAdminEvent,
   createEvent,
   type EventStub,
-  localRequest,
   paginated,
   paginatedList,
   parseBody,

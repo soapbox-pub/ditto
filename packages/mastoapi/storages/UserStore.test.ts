@@ -1,7 +1,7 @@
 import { MockRelay } from '@nostrify/nostrify/test';
-
 import { assertEquals } from '@std/assert';
-import { UserStore } from '@/storages/UserStore.ts';
+
+import { UserStore } from './UserStore.ts';
 
 import userBlack from '~/fixtures/events/kind-0-black.json' with { type: 'json' };
 import userMe from '~/fixtures/events/event-0-makes-repost-with-quote-repost.json' with { type: 'json' };
@@ -14,9 +14,8 @@ Deno.test('query events of users that are not muted', async () => {
   const blockEventCopy = structuredClone(blockEvent);
   const event1authorUserMeCopy = structuredClone(event1authorUserMe);
 
-  const db = new MockRelay();
-
-  const store = new UserStore(userBlackCopy.pubkey, db);
+  const relay = new MockRelay();
+  const store = new UserStore({ relay, userPubkey: userBlackCopy.pubkey });
 
   await store.event(blockEventCopy);
   await store.event(userBlackCopy);
@@ -30,9 +29,8 @@ Deno.test('user never muted anyone', async () => {
   const userBlackCopy = structuredClone(userBlack);
   const userMeCopy = structuredClone(userMe);
 
-  const db = new MockRelay();
-
-  const store = new UserStore(userBlackCopy.pubkey, db);
+  const relay = new MockRelay();
+  const store = new UserStore({ relay, userPubkey: userBlackCopy.pubkey });
 
   await store.event(userBlackCopy);
   await store.event(userMeCopy);

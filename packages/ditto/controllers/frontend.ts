@@ -1,7 +1,6 @@
 import { logi } from '@soapbox/logi';
 
 import { AppMiddleware } from '@/app.ts';
-import { Storages } from '@/storages.ts';
 import { getPathParams, MetadataEntities } from '@/utils/og-metadata.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { errorJson } from '@/utils/log.ts';
@@ -10,11 +9,14 @@ import { renderMetadata } from '@/views/meta.ts';
 import { getAuthor, getEvent } from '@/queries.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { NStore } from '@nostrify/nostrify';
 
 /** Placeholder to find & replace with metadata. */
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 
 export const frontendController: AppMiddleware = async (c) => {
+  const { relay } = c.var;
+
   c.header('Cache-Control', 'max-age=86400, s-maxage=30, public, stale-if-error=604800');
 
   try {
@@ -23,7 +25,7 @@ export const frontendController: AppMiddleware = async (c) => {
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
       try {
-        const entities = await getEntities(params ?? {});
+        const entities = await getEntities(relay, params ?? {});
         const meta = renderMetadata(c.req.url, entities);
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
@@ -37,11 +39,9 @@ export const frontendController: AppMiddleware = async (c) => {
   }
 };
 
-async function getEntities(params: { acct?: string; statusId?: string }): Promise<MetadataEntities> {
-  const store = await Storages.db();
-
+async function getEntities(relay: NStore, params: { acct?: string; statusId?: string }): Promise<MetadataEntities> {
   const entities: MetadataEntities = {
-    instance: await getInstanceMetadata(store),
+    instance: await getInstanceMetadata(relay),
   };
 
   if (params.statusId) {

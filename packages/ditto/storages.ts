@@ -5,7 +5,6 @@ import { logi } from '@soapbox/logi';
 
 import { Conf } from '@/config.ts';
 import { wsUrlSchema } from '@/schema.ts';
-import { AdminStore } from '@/storages/AdminStore.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { getRelays } from '@/utils/outbox.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
@@ -13,7 +12,6 @@ import { seedZapSplits } from '@/utils/zap-split.ts';
 export class Storages {
   private static _db: Promise<DittoPgStore> | undefined;
   private static _database: Promise<DittoDB> | undefined;
-  private static _admin: Promise<AdminStore> | undefined;
   private static _client: Promise<NPool<NRelay1>> | undefined;
 
   public static async database(): Promise<DittoDB> {
@@ -51,14 +49,6 @@ export class Storages {
       })();
     }
     return this._db;
-  }
-
-  /** Admin user storage. */
-  public static async admin(): Promise<AdminStore> {
-    if (!this._admin) {
-      this._admin = Promise.resolve(new AdminStore(await this.db()));
-    }
-    return this._admin;
   }
 
   /** Relay pool storage. */

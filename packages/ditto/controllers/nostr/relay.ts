@@ -18,7 +18,7 @@ import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
 import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
-import { Storages } from '@/storages.ts';
+import { type DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { Time } from '@/utils/time.ts';
@@ -42,7 +42,7 @@ const limiters = {
 const connections = new Set<WebSocket>();
 
 /** Set up the Websocket connection. */
-function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoConf) {
+function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, ip: string | undefined) {
   const controllers = new Map<string, AbortController>();
 
   if (ip) {
@@ -133,10 +133,8 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
 
-    const store = await Storages.db();
-
     try {
-      for await (const [verb, , ...rest] of store.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
+      for await (const [verb, , ...rest] of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
         send([verb, subId, ...rest] as NostrRelayMsg);
       }
     } catch (e) {
@@ -185,8 +183,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     if (rateLimited(limiters.req)) return;
-    const store = await Storages.db();
-    const { count } = await store.count(filters, { timeout: conf.db.timeouts.relay });
+    const { count } = await relay.count(filters, { timeout: conf.db.timeouts.relay });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
@@ -199,7 +196,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
 }
 
 const relayController: AppController = (c, next) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const upgrade = c.req.header('upgrade');
 
   // NIP-11: https://github.com/nostr-protocol/nips/blob/master/11.md
@@ -218,7 +215,7 @@ const relayController: AppController = (c, next) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
-  connectStream(socket, ip, conf);
+  connectStream(conf, relay as DittoPgStore, socket, ip);
 
   return response;
 };

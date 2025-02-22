@@ -12,13 +12,10 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { Storages } from '@/storages.ts';
-import { getTokenHash } from '@/utils/auth.ts';
 import { errorJson } from '@/utils/log.ts';
-import { bech32ToPubkey, Time } from '@/utils.ts';
+import { Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
-import { HTTPException } from '@hono/hono/http-exception';
 
 /**
  * Streaming timelines/categories.
@@ -68,7 +65,7 @@ const limiter = new TTLCache<string, number>();
 const connections = new Set<WebSocket>();
 
 const streamingController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -76,11 +73,6 @@ const streamingController: AppController = async (c) => {
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
-  }
-
-  const pubkey = token ? await getTokenPubkey(token) : undefined;
-  if (token && !pubkey) {
-    return c.json({ error: 'Invalid access token' }, 401);
   }
 
   const ip = c.req.header('x-real-ip');
@@ -93,8 +85,8 @@ const streamingController: AppController = async (c) => {
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
 
-  const store = await Storages.db();
-  const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
+  const pubkey = await user?.signer.getPublicKey();
+  const policy = pubkey ? new MuteListPolicy(pubkey, relay) : undefined;
 
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
@@ -108,7 +100,7 @@ const streamingController: AppController = async (c) => {
     render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
   ) {
     try {
-      for await (const msg of store.req([filter], { signal: controller.signal })) {
+      for await (const msg of relay.req([filter], { signal: controller.signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -119,7 +111,7 @@ const streamingController: AppController = async (c) => {
             }
           }
 
-          await hydrateEvents({ events: [event], store, signal: AbortSignal.timeout(1000) });
+          await hydrateEvents({ events: [event], relay, signal: AbortSignal.timeout(1000) });
 
           const result = await render(event);
 
@@ -227,27 +219,6 @@ async function topicToFilter(
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
       return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)], limit: 0 } : undefined;
-  }
-}
-
-async function getTokenPubkey(token: string): Promise<string | undefined> {
-  if (token.startsWith('token1')) {
-    const kysely = await Storages.kysely();
-    const tokenHash = await getTokenHash(token as `token1${string}`);
-
-    const row = await kysely
-      .selectFrom('auth_tokens')
-      .select('pubkey')
-      .where('token_hash', '=', tokenHash)
-      .executeTakeFirst();
-
-    if (!row) {
-      throw new HTTPException(401, { message: 'Invalid access token' });
-    }
-
-    return row.pubkey;
-  } else {
-    return bech32ToPubkey(token);
   }
 }
 

@@ -2,14 +2,14 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
-import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const store = await Storages.db();
-  const configDB = await getPleromaConfigs(store, c.req.raw.signal);
+  const { relay, signal } = c.var;
+
+  const configDB = await getPleromaConfigs(relay, signal);
   const frontendConfig = configDB.get(':pleroma', ':frontend_configurations');
 
   if (frontendConfig) {
@@ -25,17 +25,17 @@ const frontendConfigController: AppController = async (c) => {
 };
 
 const configController: AppController = async (c) => {
-  const store = await Storages.db();
-  const configs = await getPleromaConfigs(store, c.req.raw.signal);
+  const { relay, signal } = c.var;
+
+  const configs = await getPleromaConfigs(relay, signal);
   return c.json({ configs, need_reboot: false });
 };
 
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
 
-  const store = await Storages.db();
-  const configs = await getPleromaConfigs(store, c.req.raw.signal);
+  const configs = await getPleromaConfigs(relay, signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   configs.merge(newConfigs);

@@ -42,7 +42,7 @@ const pushSubscribeSchema = z.object({
 });
 
 export const pushSubscribeController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, user } = c.var;
   const vapidPublicKey = await conf.vapidPublicKey;
 
   if (!vapidPublicKey) {
@@ -52,7 +52,7 @@ export const pushSubscribeController: AppController = async (c) => {
   const accessToken = getAccessToken(c.req.raw);
 
   const kysely = await Storages.kysely();
-  const signer = c.get('signer')!;
+  const signer = user!.signer;
 
   const result = pushSubscribeSchema.safeParse(await parseBody(c.req.raw));
 

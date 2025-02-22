@@ -30,8 +30,9 @@ const notificationsSchema = z.object({
 });
 
 const notificationsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { conf, user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const params = c.get('pagination');
 
   const types = notificationTypes
@@ -75,20 +76,21 @@ const notificationsController: AppController = async (c) => {
 };
 
 const notificationController: AppController = async (c) => {
+  const { relay, user } = c.var;
+
   const id = c.req.param('id');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const store = c.get('store');
+  const pubkey = await user!.signer.getPublicKey();
 
   // Remove the timestamp from the ID.
   const eventId = id.replace(/^\d+-/, '');
 
-  const [event] = await store.query([{ ids: [eventId] }]);
+  const [event] = await relay.query([{ ids: [eventId] }]);
 
   if (!event) {
     return c.json({ error: 'Event not found' }, { status: 404 });
   }
 
-  await hydrateEvents({ events: [event], store });
+  await hydrateEvents({ events: [event], relay });
 
   const notification = await renderNotification(event, { viewerPubkey: pubkey });
 
@@ -105,16 +107,16 @@ async function renderNotifications(
   params: DittoPagination,
   c: AppContext,
 ) {
-  const { conf } = c.var;
-  const store = c.get('store');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const { signal } = c.req.raw;
+  const { conf, user, signal } = c.var;
+
+  const relay = user!.relay;
+  const pubkey = await user!.signer.getPublicKey();
   const opts = { signal, limit: params.limit, timeout: conf.db.timeouts.timelines };
 
-  const events = await store
+  const events = await relay
     .query(filters, opts)
     .then((events) => events.filter((event) => event.pubkey !== pubkey))
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   if (!events.length) {
     return c.json([]);

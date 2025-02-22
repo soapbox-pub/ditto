@@ -18,7 +18,7 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event1],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 
@@ -43,7 +43,7 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event6],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 
@@ -72,7 +72,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 
   await hydrateEvents({
     events: [event1quoteRepost],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 
@@ -102,7 +102,7 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
 
   await hydrateEvents({
     events: [event6],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 
@@ -131,7 +131,7 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
 
   await hydrateEvents({
     events: [reportEvent],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 
@@ -161,7 +161,7 @@ Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 ---
 
   await hydrateEvents({
     events: [zapReceipt],
-    store: relay,
+    relay,
     kysely: db.kysely,
   });
 

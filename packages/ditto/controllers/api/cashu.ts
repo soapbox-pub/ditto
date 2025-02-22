@@ -1,13 +1,11 @@
 import { Proof } from '@cashu/cashu-ts';
-import { confRequiredMw } from '@ditto/api/middleware';
-import { Hono } from '@hono/hono';
+import { userMiddleware } from '@ditto/mastoapi/middleware';
+import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
 
 import { createEvent, parseBody } from '@/utils/api.ts';
-import { requireNip44Signer } from '@/middleware/requireSigner.ts';
-import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { isNostrId } from '@/utils.ts';
@@ -16,7 +14,7 @@ import { errorJson } from '@/utils/log.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
-const app = new Hono().use('*', confRequiredMw, requireStore);
+const route = new DittoRoute();
 
 // app.delete('/wallet') -> 204
 
@@ -44,12 +42,11 @@ const createCashuWalletAndNutzapInfoSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-app.put('/wallet', requireNip44Signer, async (c) => {
-  const { conf, signer } = c.var;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
+route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
+  const { conf, user, relay, signal } = c.var;
+
+  const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
-  const { signal } = c.req.raw;
   const result = createCashuWalletAndNutzapInfoSchema.safeParse(body);
 
   if (!result.success) {
@@ -58,7 +55,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 
   const { mints } = result.data;
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (event) {
     return c.json({ error: 'You already have a wallet 😏' }, 400);
   }
@@ -75,12 +72,13 @@ app.put('/wallet', requireNip44Signer, async (c) => {
     walletContentTags.push(['mint', mint]);
   }
 
-  const encryptedWalletContentTags = await signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
+  const encryptedWalletContentTags = await user.signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
 
   // Wallet
   await createEvent({
     kind: 17375,
     content: encryptedWalletContentTags,
+    // @ts-ignore kill me
   }, c);
 
   // Nutzap information
@@ -91,6 +89,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
       ['relay', conf.relay], // TODO: add more relays once things get more stable
       ['pubkey', p2pk],
     ],
+    // @ts-ignore kill me
   }, c);
 
   // TODO: hydrate wallet and add a 'balance' field when a 'renderWallet' view function is created
@@ -105,18 +104,17 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 });
 
 /** Gets a wallet, if it exists. */
-app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
-  const { conf, signer } = c.var;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const { signal } = c.req.raw;
+route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
+  const { conf, relay, user, signal } = c.var;
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  const pubkey = await user.signer.getPublicKey();
+
+  const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (!event) {
     return c.json({ error: 'Wallet not found' }, 404);
   }
 
-  const decryptedContent: string[][] = JSON.parse(await signer.nip44.decrypt(pubkey, event.content));
+  const decryptedContent: string[][] = JSON.parse(await user.signer.nip44.decrypt(pubkey, event.content));
 
   const privkey = decryptedContent.find(([value]) => value === 'privkey')?.[1];
   if (!privkey || !isNostrId(privkey)) {
@@ -128,11 +126,11 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
   let balance = 0;
   const mints: string[] = [];
 
-  const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal });
+  const tokens = await relay.query([{ authors: [pubkey], kinds: [7375] }], { signal });
   for (const token of tokens) {
     try {
       const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
-        await signer.nip44.decrypt(pubkey, token.content),
+        await user.signer.nip44.decrypt(pubkey, token.content),
       );
 
       if (!mints.includes(decryptedContent.mint)) {
@@ -159,7 +157,7 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 });
 
 /** Get mints set by the CASHU_MINTS environment variable. */
-app.get('/mints', (c) => {
+route.get('/mints', (c) => {
   const { conf } = c.var;
 
   // TODO: Return full Mint information: https://github.com/cashubtc/nuts/blob/main/06.md
@@ -168,4 +166,4 @@ app.get('/mints', (c) => {
   return c.json({ mints }, 200);
 });
 
-export default app;
+export default route;

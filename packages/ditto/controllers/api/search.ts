@@ -26,16 +26,16 @@ const searchQuerySchema = z.object({
 type SearchQuery = z.infer<typeof searchQuerySchema> & { since?: number; until?: number; limit: number };
 
 const searchController: AppController = async (c) => {
+  const { user, pagination, signal } = c.var;
+
   const result = searchQuerySchema.safeParse(c.req.query());
-  const params = c.get('pagination');
-  const { signal } = c.req.raw;
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const event = await lookupEvent({ ...result.data, ...params }, signal);
+  const event = await lookupEvent({ ...result.data, ...pagination }, signal);
   const lookup = extractIdentifier(result.data.q);
 
   // Render account from pubkey.
@@ -54,7 +54,7 @@ const searchController: AppController = async (c) => {
     events = [event];
   }
 
-  events.push(...(await searchEvents({ ...result.data, ...params, viewerPubkey }, signal)));
+  events.push(...(await searchEvents({ ...result.data, ...pagination, viewerPubkey }, signal)));
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -78,7 +78,7 @@ const searchController: AppController = async (c) => {
   };
 
   if (result.data.type === 'accounts') {
-    return paginatedList(c, { ...result.data, ...params }, body);
+    return paginatedList(c, { ...result.data, ...pagination }, body);
   } else {
     return paginated(c, events, body);
   }
@@ -94,7 +94,7 @@ async function searchEvents(
     return Promise.resolve([]);
   }
 
-  const store = await Storages.db();
+  const relay = await Storages.db();
 
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
@@ -121,9 +121,9 @@ async function searchEvents(
   }
 
   // Query the events.
-  let events = await store
+  let events = await relay
     .query([filter], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ events, relay, signal }));
 
   // When using an authors filter, return the events in the same order as the filter.
   if (filter.authors) {
@@ -150,10 +150,10 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 /** Resolve a searched value into an event, if applicable. */
 async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
   const filters = await getLookupFilters(query, signal);
-  const store = await Storages.db();
+  const relay = await Storages.db();
 
-  return store.query(filters, { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, store, signal }))
+  return relay.query(filters, { limit: 1, signal })
+    .then((events) => hydrateEvents({ events, relay, signal }))
     .then(([event]) => event);
 }
 

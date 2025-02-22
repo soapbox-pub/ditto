@@ -6,7 +6,8 @@ import { AppMiddleware } from '@/app.ts';
 
 /** Set an uploader for the user. */
 export const uploaderMiddleware: AppMiddleware = async (c, next) => {
-  const { signer, conf } = c.var;
+  const { user, conf } = c.var;
+  const signer = user?.signer;
 
   switch (conf.uploader) {
     case 's3':

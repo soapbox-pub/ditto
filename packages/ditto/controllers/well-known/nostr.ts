@@ -12,17 +12,17 @@ const emptyResult: NostrJson = { names: {}, relays: {} };
  * https://github.com/nostr-protocol/nips/blob/master/05.md
  */
 const nostrController: AppController = async (c) => {
+  const { relay } = c.var;
+
   // If there are no query parameters, this will always return an empty result.
   if (!Object.entries(c.req.queries()).length) {
     c.header('Cache-Control', 'max-age=31536000, public, immutable, stale-while-revalidate=86400');
     return c.json(emptyResult);
   }
 
-  const store = c.get('store');
-
   const result = nameSchema.safeParse(c.req.query('name'));
   const name = result.success ? result.data : undefined;
-  const pointer = name ? await localNip05Lookup(store, name) : undefined;
+  const pointer = name ? await localNip05Lookup(relay, name) : undefined;
 
   if (!name || !pointer) {
     // Not found, cache for 5 minutes.
