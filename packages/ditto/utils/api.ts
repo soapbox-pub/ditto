@@ -11,6 +11,7 @@ import { RelayError } from '@/RelayError.ts';
 import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseFormData } from '@/utils/formdata.ts';
+import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 
 /** EventTemplate with defaults. */
@@ -157,9 +158,16 @@ async function updateNames(k: number, d: string, n: Record<string, boolean>, c: 
 async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
   logi({ level: 'info', ns: 'ditto.event', source: 'api', id: event.id, kind: event.kind });
   try {
-    await pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
-    const client = await Storages.client();
-    await client.event(purifyEvent(event));
+    const promise = pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
+
+    promise.then(async () => {
+      const client = await Storages.client();
+      await client.event(purifyEvent(event));
+    }).catch((e: unknown) => {
+      logi({ level: 'error', ns: 'ditto.pool', id: event.id, kind: event.kind, error: errorJson(e) });
+    });
+
+    await promise;
   } catch (e) {
     if (e instanceof RelayError) {
       throw new HTTPException(422, {

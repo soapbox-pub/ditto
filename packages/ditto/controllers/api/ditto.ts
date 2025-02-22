@@ -80,7 +80,13 @@ export const nameRequestController: AppController = async (c) => {
   const { conf, relay, user } = c.var;
 
   const pubkey = await user!.signer.getPublicKey();
-  const { name, reason } = nameRequestSchema.parse(await c.req.json());
+  const result = nameRequestSchema.safeParse(await c.req.json());
+
+  if (!result.success) {
+    return c.json({ error: 'Invalid username', schema: result.error }, 400);
+  }
+
+  const { name, reason } = result.data;
 
   const [existing] = await relay.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
   if (existing) {
