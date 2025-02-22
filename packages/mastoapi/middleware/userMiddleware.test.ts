@@ -1,15 +1,8 @@
-import { DittoConf } from '@ditto/conf';
-import { DummyDB } from '@ditto/db';
-import { DittoApp, type DittoMiddleware } from '@ditto/router';
-import { type NostrSigner, NSecSigner } from '@nostrify/nostrify';
-import { MockRelay } from '@nostrify/nostrify/test';
+import { setUser, testApp } from '@ditto/mastoapi/test';
 import { assertEquals } from '@std/assert';
-import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import { userMiddleware } from './userMiddleware.ts';
 import { ReadOnlySigner } from '../signers/ReadOnlySigner.ts';
-
-import type { User } from './User.ts';
 
 Deno.test('no user 401', async () => {
   const { app } = testApp();
@@ -79,21 +72,3 @@ Deno.test('admin role 200', async () => {
 
   assertEquals(response.status, 200);
 });
-
-function testApp() {
-  const relay = new MockRelay();
-  const signer = new NSecSigner(generateSecretKey());
-  const conf = new DittoConf(new Map([['DITTO_NSEC', nip19.nsecEncode(generateSecretKey())]]));
-  const db = new DummyDB();
-  const app = new DittoApp({ conf, relay, db });
-  const user = { signer, relay };
-
-  return { app, relay, conf, db, user };
-}
-
-function setUser<S extends NostrSigner>(user: User<S>): DittoMiddleware<{ user: User<S> }> {
-  return async (c, next) => {
-    c.set('user', user);
-    await next();
-  };
-}
