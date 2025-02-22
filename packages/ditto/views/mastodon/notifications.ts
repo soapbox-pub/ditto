@@ -99,15 +99,18 @@ async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
 }
 
 async function renderNameGrant(event: DittoEvent) {
+  const r = event.tags.find(([name]) => name === 'r')?.[1];
   const d = event.tags.find(([name]) => name === 'd')?.[1];
-  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+  const name = r ?? d;
 
-  if (!d) return;
+  if (name) return;
+
+  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
   return {
     id: notificationId(event),
     type: 'ditto:name_grant' as const,
-    name: d,
+    name,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
   };

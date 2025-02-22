@@ -92,16 +92,22 @@ export const nameRequestController: AppController = async (c) => {
 
   const { name, reason } = result.data;
 
-  const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
+  const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name.toLowerCase()], limit: 1 }]);
   if (existing) {
     return c.json({ error: 'Name request already exists' }, 400);
+  }
+
+  const r: string[][] = [['r', name]];
+
+  if (name !== name.toLowerCase()) {
+    r.push(['r', name.toLowerCase()]);
   }
 
   const event = await createEvent({
     kind: 3036,
     content: reason,
     tags: [
-      ['r', name],
+      ...r,
       ['L', 'nip05.domain'],
       ['l', name.split('@')[1], 'nip05.domain'],
       ['p', await conf.signer.getPublicKey()],
