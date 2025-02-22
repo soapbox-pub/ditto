@@ -84,7 +84,13 @@ export const nameRequestController: AppController = async (c) => {
   const pubkey = await signer.getPublicKey();
   const { conf } = c.var;
 
-  const { name, reason } = nameRequestSchema.parse(await c.req.json());
+  const result = nameRequestSchema.safeParse(await c.req.json());
+
+  if (!result.success) {
+    return c.json({ error: 'Invalid username', schema: result.error }, 400);
+  }
+
+  const { name, reason } = result.data;
 
   const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
   if (existing) {
