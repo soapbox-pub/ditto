@@ -3,7 +3,6 @@ import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { Conf } from '@/config.ts';
 import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { fallbackAuthor } from '@/utils.ts';
 import { findReplyTag, getTagSet } from '@/utils/tags.ts';
@@ -13,8 +12,6 @@ interface GetEventOpts {
   signal?: AbortSignal;
   /** Event kind. */
   kind?: number;
-  /** @deprecated Relations to include on the event. */
-  relations?: DittoRelation[];
 }
 
 /**
