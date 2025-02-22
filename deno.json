@@ -10,7 +10,6 @@
     "./packages/nip98",
     "./packages/policies",
     "./packages/ratelimiter",
-    "./packages/router",
     "./packages/translators",
     "./packages/uploaders"
   ],

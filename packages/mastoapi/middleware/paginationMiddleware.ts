@@ -1,7 +1,7 @@
 import { paginated, paginatedList } from '../pagination/paginate.ts';
 import { paginationSchema } from '../pagination/schema.ts';
 
-import type { DittoMiddleware } from '@ditto/router';
+import type { DittoMiddleware } from '@ditto/mastoapi/router';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 interface Pagination {

@@ -1,6 +1,6 @@
 import { DittoConf } from '@ditto/conf';
 import { type DittoDB, DummyDB } from '@ditto/db';
-import { DittoApp, type DittoMiddleware } from '@ditto/router';
+import { DittoApp, type DittoMiddleware } from '@ditto/mastoapi/router';
 import { type NostrSigner, type NRelay, NSecSigner } from '@nostrify/nostrify';
 import { MockRelay } from '@nostrify/nostrify/test';
 import { generateSecretKey, nip19 } from 'nostr-tools';

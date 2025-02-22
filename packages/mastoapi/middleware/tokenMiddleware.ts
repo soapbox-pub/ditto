@@ -9,7 +9,7 @@ import { ConnectSigner } from '../signers/ConnectSigner.ts';
 import { ReadOnlySigner } from '../signers/ReadOnlySigner.ts';
 import { UserStore } from '../storages/UserStore.ts';
 
-import type { DittoEnv, DittoMiddleware } from '@ditto/router';
+import type { DittoEnv, DittoMiddleware } from '@ditto/mastoapi/router';
 import type { Context } from '@hono/hono';
 import type { User } from './User.ts';
 

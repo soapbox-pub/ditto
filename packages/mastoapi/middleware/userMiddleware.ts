@@ -1,7 +1,7 @@
 import { buildAuthEventTemplate, validateAuthEvent } from '@ditto/nip98';
 import { HTTPException } from '@hono/hono/http-exception';
 
-import type { DittoMiddleware } from '@ditto/router';
+import type { DittoMiddleware } from '@ditto/mastoapi/router';
 import type { NostrEvent, NostrSigner } from '@nostrify/nostrify';
 import type { SetRequired } from 'type-fest';
 import type { User } from './User.ts';

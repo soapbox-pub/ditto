@@ -1,6 +1,6 @@
 import { DittoConf } from '@ditto/conf';
 import { type User } from '@ditto/mastoapi/middleware';
-import { DittoApp, DittoMiddleware } from '@ditto/router';
+import { DittoApp, DittoMiddleware } from '@ditto/mastoapi/router';
 import { NSecSigner } from '@nostrify/nostrify';
 import { genEvent } from '@nostrify/nostrify/test';
 import { bytesToString, stringToBytes } from '@scure/base';

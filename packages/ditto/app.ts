@@ -1,7 +1,7 @@
 import { DittoConf } from '@ditto/conf';
 import { DittoDB } from '@ditto/db';
 import { paginationMiddleware, tokenMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
-import { DittoApp, type DittoEnv } from '@ditto/router';
+import { DittoApp, type DittoEnv } from '@ditto/mastoapi/router';
 import { type DittoTranslator } from '@ditto/translators';
 import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';

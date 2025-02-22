@@ -1,7 +1,0 @@
-{
-  "name": "@ditto/router",
-  "version": "1.1.0",
-  "exports": {
-    ".": "./mod.ts"
-  }
-}

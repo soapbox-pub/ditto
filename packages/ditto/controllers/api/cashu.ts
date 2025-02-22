@@ -1,6 +1,6 @@
 import { Proof } from '@cashu/cashu-ts';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
-import { DittoRoute } from '@ditto/router';
+import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { z } from 'zod';
