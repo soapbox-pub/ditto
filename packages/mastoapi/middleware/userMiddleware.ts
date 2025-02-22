@@ -26,11 +26,11 @@ export function userMiddleware(opts: UserMiddlewareOpts = {}): DittoMiddleware<{
     const { enc, role, verify } = opts;
 
     if (!user) {
-      throw new HTTPException(403, { message: 'Authorization required.' });
+      throw new HTTPException(401, { message: 'Authorization required' });
     }
 
     if (enc && !user.signer[enc]) {
-      throw new HTTPException(403, { message: `User does not have a ${enc} signer` });
+      throw new HTTPException(400, { message: `User does not have a ${enc} signer` });
     }
 
     if (role || verify) {
@@ -40,7 +40,7 @@ export function userMiddleware(opts: UserMiddlewareOpts = {}): DittoMiddleware<{
       const result = await validateAuthEvent(req, resEvent);
 
       if (!result.success) {
-        throw new HTTPException(403, { message: 'Verification failed.' });
+        throw new HTTPException(401, { message: 'Verification failed' });
       }
 
       // Prevent people from accidentally using the wrong account. This has no other security implications.
@@ -57,7 +57,7 @@ export function userMiddleware(opts: UserMiddlewareOpts = {}): DittoMiddleware<{
         }]);
 
         if (!user || !matchesRole(user, role)) {
-          throw new HTTPException(403, { message: `Must have ${role} role.` });
+          throw new HTTPException(403, { message: `Must have ${role} role` });
         }
       }
     }
