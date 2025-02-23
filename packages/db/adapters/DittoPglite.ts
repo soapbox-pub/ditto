@@ -47,7 +47,6 @@ export class DittoPglite implements DittoDB {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
-    await this.pglite.close();
     await this.kysely.destroy();
   }
 }
