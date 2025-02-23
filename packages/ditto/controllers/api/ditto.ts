@@ -1,4 +1,4 @@
-import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
