@@ -99,8 +99,9 @@ const streamingController: AppController = async (c) => {
     filter: NostrFilter & { limit: 0 },
     render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
   ) {
+    const { signal } = controller;
     try {
-      for await (const msg of relay.req([filter], { signal: controller.signal })) {
+      for await (const msg of relay.req([filter], { signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -111,7 +112,7 @@ const streamingController: AppController = async (c) => {
             }
           }
 
-          await hydrateEvents({ ...c.var, events: [event] });
+          await hydrateEvents({ ...c.var, events: [event], signal });
 
           const result = await render(event);
 
