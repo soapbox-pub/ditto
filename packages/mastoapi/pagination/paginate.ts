@@ -7,8 +7,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 type HeaderRecord = Record<string, string | string[]>;
 
 /** Return results with pagination headers. Assumes chronological sorting of events. */
-export function paginated(
-  c: Context<DittoEnv>,
+export function paginated<E extends DittoEnv>(
+  c: Context<E>,
   events: NostrEvent[],
   body: object | unknown[],
   headers: HeaderRecord = {},
@@ -28,8 +28,8 @@ export function paginated(
 }
 
 /** paginate a list of tags. */
-export function paginatedList(
-  c: Context<DittoEnv>,
+export function paginatedList<E extends DittoEnv>(
+  c: Context<E>,
   params: { offset: number; limit: number },
   body: object | unknown[],
   headers: HeaderRecord = {},

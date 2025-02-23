@@ -1,3 +1,5 @@
+import { User } from '@ditto/mastoapi/middleware';
+import { DittoEnv } from '@ditto/mastoapi/router';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { EventTemplate } from 'nostr-tools';
@@ -6,12 +8,16 @@ import * as TypeFest from 'type-fest';
 import { type AppContext } from '@/app.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseFormData } from '@/utils/formdata.ts';
+import { Context } from '@hono/hono';
 
 /** EventTemplate with defaults. */
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
+async function createEvent<E extends (DittoEnv & { Variables: { user?: User } })>(
+  t: EventStub,
+  c: Context<E>,
+): Promise<NostrEvent> {
   const { user, relay, signal } = c.var;
 
   if (!user) {
