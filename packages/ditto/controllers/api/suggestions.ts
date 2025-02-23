@@ -1,10 +1,10 @@
+import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
 import { NostrFilter } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
 import { AppContext, AppController } from '@/app.ts';
 import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated, paginatedList } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
@@ -82,7 +82,7 @@ async function renderV2Suggestions(c: AppContext, params: { offset: number; limi
     [{ kinds: [0], authors, limit: authors.length }],
     { signal },
   )
-    .then((events) => hydrateEvents({ events, relay, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   return Promise.all(authors.map(async (pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);
@@ -115,7 +115,7 @@ export const localSuggestionsController: AppController = async (c) => {
     [{ kinds: [0], authors: [...pubkeys], search: `domain:${conf.url.host}`, ...pagination }],
     { signal },
   )
-    .then((events) => hydrateEvents({ relay, events, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const suggestions = [...pubkeys].map((pubkey) => {
     const profile = profiles.find((event) => event.pubkey === pubkey);

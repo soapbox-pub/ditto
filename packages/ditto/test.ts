@@ -13,9 +13,8 @@ export async function eventFixture(name: string): Promise<NostrEvent> {
 
 /** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const db = DittoPolyPg.create(Conf.databaseUrl, { poolSize: 1 });
-
-  await DittoPolyPg.migrate(db.kysely);
+  const db = new DittoPolyPg(Conf.databaseUrl, { poolSize: 1 });
+  await db.migrate();
 
   const store = new DittoPgStore({
     db,
@@ -26,8 +25,10 @@ export async function createTestDB(opts?: { pure?: boolean }) {
   });
 
   return {
+    db,
     ...db,
     store,
+    kysely: db.kysely,
     [Symbol.asyncDispose]: async () => {
       const { rows } = await sql<
         { tablename: string }

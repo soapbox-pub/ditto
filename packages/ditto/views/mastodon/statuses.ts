@@ -1,4 +1,4 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
@@ -6,7 +6,6 @@ import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
 import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { Storages } from '@/storages.ts';
 import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
@@ -20,7 +19,11 @@ interface RenderStatusOpts {
   depth?: number;
 }
 
-async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<MastodonStatus | undefined> {
+async function renderStatus(
+  store: NStore,
+  event: DittoEvent,
+  opts: RenderStatusOpts,
+): Promise<MastodonStatus | undefined> {
   const { viewerPubkey, depth = 1 } = opts;
 
   if (depth > 2 || depth < 0) return;
@@ -37,8 +40,6 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     : accountFromPubkey(event.pubkey);
 
   const replyId = findReplyTag(event.tags)?.[1];
-
-  const store = await Storages.db();
 
   const mentions = event.mentions?.map((event) => renderMention(event)) ?? [];
 
@@ -123,7 +124,7 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
     tags: [],
     emojis: renderEmojis(event),
     poll: null,
-    quote: !event.quote ? null : await renderStatus(event.quote, { depth: depth + 1 }),
+    quote: !event.quote ? null : await renderStatus(store, event.quote, { depth: depth + 1 }),
     quote_id: event.quote?.id ?? null,
     uri: Conf.local(`/users/${account.acct}/statuses/${event.id}`),
     url: Conf.local(`/@${account.acct}/${event.id}`),
@@ -139,14 +140,18 @@ async function renderStatus(event: DittoEvent, opts: RenderStatusOpts): Promise<
   };
 }
 
-async function renderReblog(event: DittoEvent, opts: RenderStatusOpts): Promise<MastodonStatus | undefined> {
+async function renderReblog(
+  store: NStore,
+  event: DittoEvent,
+  opts: RenderStatusOpts,
+): Promise<MastodonStatus | undefined> {
   const { viewerPubkey } = opts;
   if (!event.repost) return;
 
-  const status = await renderStatus(event, {}); // omit viewerPubkey intentionally
+  const status = await renderStatus(store, event, {}); // omit viewerPubkey intentionally
   if (!status) return;
 
-  const reblog = await renderStatus(event.repost, { viewerPubkey }) ?? null;
+  const reblog = await renderStatus(store, event.repost, { viewerPubkey }) ?? null;
 
   return {
     ...status,

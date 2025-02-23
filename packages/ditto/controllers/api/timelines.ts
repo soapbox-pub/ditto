@@ -1,3 +1,4 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter } from '@nostrify/nostrify';
 import { z } from 'zod';
 
@@ -5,7 +6,6 @@ import { type AppContext, type AppController } from '@/app.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -15,7 +15,7 @@ const homeQuerySchema = z.object({
 });
 
 const homeTimelineController: AppController = async (c) => {
-  const { user, pagination } = c.var;
+  const { relay, user, pagination } = c.var;
   const pubkey = await user?.signer.getPublicKey()!;
   const result = homeQuerySchema.safeParse(c.req.query());
 
@@ -25,7 +25,7 @@ const homeTimelineController: AppController = async (c) => {
 
   const { exclude_replies, only_media } = result.data;
 
-  const authors = [...await getFeedPubkeys(pubkey)];
+  const authors = [...await getFeedPubkeys(relay, pubkey)];
   const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...pagination };
 
   const search: string[] = [];
@@ -110,7 +110,7 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
 
   const events = await relay
     .query(filters, opts)
-    .then((events) => hydrateEvents({ events, relay, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   if (!events.length) {
     return c.json([]);
@@ -120,9 +120,9 @@ async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
 
   const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {
-      return renderReblog(event, { viewerPubkey });
+      return renderReblog(relay, event, { viewerPubkey });
     }
-    return renderStatus(event, { viewerPubkey });
+    return renderStatus(relay, event, { viewerPubkey });
   }))).filter(Boolean);
 
   if (!statuses.length) {

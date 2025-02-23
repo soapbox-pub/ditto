@@ -1,6 +1,12 @@
 import { DittoConf } from '@ditto/conf';
 import { DittoDB, DittoTables } from '@ditto/db';
-import { pipelineEventsCounter, policyEventsCounter, webPushNotificationsCounter } from '@ditto/metrics';
+import {
+  cachedFaviconsSizeGauge,
+  cachedNip05sSizeGauge,
+  pipelineEventsCounter,
+  policyEventsCounter,
+  webPushNotificationsCounter,
+} from '@ditto/metrics';
 import {
   NKinds,
   NostrEvent,
@@ -22,18 +28,20 @@ import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventAge, Time } from '@/utils.ts';
+import { eventAge, nostrNow, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { policyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
-import { faviconCache } from '@/utils/favicon.ts';
+import { fetchFavicon, insertFavicon, queryFavicon } from '@/utils/favicon.ts';
+import { lookupNip05 } from '@/utils/nip05.ts';
 import { parseNoteContent, stripimeta } from '@/utils/note.ts';
+import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
-import { nip05Cache } from '@/utils/nip05.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
+import { nip19 } from 'nostr-tools';
 
 interface DittoAPIStoreOpts {
   db: DittoDB;
@@ -43,15 +51,45 @@ interface DittoAPIStoreOpts {
 }
 
 export class DittoAPIStore implements NRelay {
+  private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
   private controller = new AbortController();
+
+  private faviconCache: SimpleLRU<string, URL>;
+  private nip05Cache: SimpleLRU<string, nip19.ProfilePointer>;
 
   private ns = 'ditto.apistore';
 
   constructor(private opts: DittoAPIStoreOpts) {
+    const { conf, db } = this.opts;
+
+    this.push = new DittoPush(opts);
+
     this.listen().catch((e: unknown) => {
       logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
     });
+
+    this.faviconCache = new SimpleLRU<string, URL>(
+      async (domain, { signal }) => {
+        const row = await queryFavicon(db.kysely, domain);
+
+        if (row && (nostrNow() - row.last_updated_at) < (conf.caches.favicon.ttl / 1000)) {
+          return new URL(row.favicon);
+        }
+
+        const url = await fetchFavicon(domain, signal);
+        await insertFavicon(db.kysely, domain, url.href);
+        return url;
+      },
+      { ...conf.caches.favicon, gauge: cachedFaviconsSizeGauge },
+    );
+
+    this.nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
+      (nip05, { signal }) => {
+        return lookupNip05(nip05, { ...this.opts, signal });
+      },
+      { ...conf.caches.nip05, gauge: cachedNip05sSizeGauge },
+    );
   }
 
   req(
@@ -220,7 +258,7 @@ export class DittoAPIStore implements NRelay {
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
-  private async updateAuthorData(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+  async updateAuthorData(event: NostrEvent, signal?: AbortSignal): Promise<void> {
     if (event.kind !== 0) return;
 
     const { db } = this.opts;
@@ -247,7 +285,7 @@ export class DittoAPIStore implements NRelay {
         if (nip05) {
           const tld = tldts.parse(nip05);
           if (tld.isIcann && !tld.isIp && !tld.isPrivate) {
-            const pointer = await nip05Cache.fetch(nip05, { signal });
+            const pointer = await this.nip05Cache.fetch(nip05, { signal });
             if (pointer.pubkey === event.pubkey) {
               updates.nip05 = nip05;
               updates.nip05_domain = tld.domain;
@@ -270,7 +308,7 @@ export class DittoAPIStore implements NRelay {
     const domain = nip05?.split('@')[1].toLowerCase();
     if (domain) {
       try {
-        await faviconCache.fetch(domain, { signal });
+        await this.faviconCache.fetch(domain, { signal });
       } catch {
         // Fallthrough.
       }
@@ -352,7 +390,7 @@ export class DittoAPIStore implements NRelay {
       throw new RelayError('invalid', 'event too old');
     }
 
-    const { db } = this.opts;
+    const { db, relay } = this.opts;
     const pubkeys = getTagSet(event.tags, 'p');
 
     if (!pubkeys.size) {
@@ -372,7 +410,7 @@ export class DittoAPIStore implements NRelay {
         continue; // Don't notify authors about their own events.
       }
 
-      const message = await renderWebPushNotification(event, viewerPubkey);
+      const message = await renderWebPushNotification(relay, event, viewerPubkey);
       if (!message) {
         continue;
       }
@@ -385,15 +423,14 @@ export class DittoAPIStore implements NRelay {
         },
       };
 
-      await DittoPush.push(subscription, message);
+      await this.push.push(subscription, message);
       webPushNotificationsCounter.inc({ type: message.notification_type });
     }
   }
 
   /** Hydrate the event with the user, if applicable. */
   private async hydrateEvent(event: NostrEvent, signal?: AbortSignal): Promise<DittoEvent> {
-    const { relay } = this.opts;
-    const [hydrated] = await hydrateEvents({ events: [event], relay, signal });
+    const [hydrated] = await hydrateEvents({ ...this.opts, events: [event], signal });
     return hydrated;
   }
 
@@ -402,9 +439,17 @@ export class DittoAPIStore implements NRelay {
     return eventAge(event) < Time.minutes(1);
   }
 
-  query(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrEvent[]> {
+  async query(filters: NostrFilter[], opts: { pure?: boolean; signal?: AbortSignal } = {}): Promise<DittoEvent[]> {
     const { relay } = this.opts;
-    return relay.query(filters, opts);
+    const { pure = true, signal } = opts; // TODO: make pure `false` by default
+
+    const events = await relay.query(filters, opts);
+
+    if (!pure) {
+      return hydrateEvents({ ...this.opts, events, signal });
+    }
+
+    return events;
   }
 
   count(filters: NostrFilter[], opts?: { signal?: AbortSignal }): Promise<NostrRelayCOUNT[2]> {

@@ -1,7 +1,6 @@
 import denoJson from 'deno.json' with { type: 'json' };
 
 import { AppController } from '@/app.ts';
-import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const version = `3.0.0 (compatible; Ditto ${denoJson.version})`;
@@ -16,9 +15,9 @@ const features = [
 ];
 
 const instanceV1Controller: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
   const { host, protocol } = conf.url;
-  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const meta = await getInstanceMetadata(relay, signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -76,9 +75,9 @@ const instanceV1Controller: AppController = async (c) => {
 };
 
 const instanceV2Controller: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
   const { host, protocol } = conf.url;
-  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const meta = await getInstanceMetadata(relay, signal);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -165,7 +164,9 @@ const instanceV2Controller: AppController = async (c) => {
 };
 
 const instanceDescriptionController: AppController = async (c) => {
-  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const { relay, signal } = c.var;
+
+  const meta = await getInstanceMetadata(relay, signal);
 
   return c.json({
     content: meta.about,

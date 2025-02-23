@@ -1,7 +1,8 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoDB } from '@ditto/db';
+import { DittoDB, DittoPolyPg } from '@ditto/db';
 import { paginationMiddleware, tokenMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoApp, type DittoEnv } from '@ditto/mastoapi/router';
+import { relayPoolRelaysSizeGauge, relayPoolSubscriptionsSizeGauge } from '@ditto/metrics';
 import { type DittoTranslator } from '@ditto/translators';
 import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@hono/hono';
 import { every } from '@hono/hono/combine';
@@ -9,11 +10,13 @@ import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
 import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
 
-import '@/startup.ts';
-
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
+import { cron } from '@/cron.ts';
+import { startFirehose } from '@/firehose.ts';
+import { DittoAPIStore } from '@/storages/DittoAPIStore.ts';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
+import { DittoPool } from '@/storages/DittoPool.ts';
 import { Time } from '@/utils/time.ts';
+import { seedZapSplits } from '@/utils/zap-split.ts';
 
 import {
   accountController,
@@ -176,13 +179,41 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 // deno-lint-ignore no-explicit-any
 type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
-const app = new DittoApp({
-  conf: Conf,
-  db: await Storages.database(),
-  relay: await Storages.db(),
-}, {
-  strict: false,
+const conf = new DittoConf(Deno.env);
+
+const db = new DittoPolyPg(conf.databaseUrl, {
+  poolSize: conf.pg.poolSize,
+  debug: conf.pgliteDebug,
 });
+
+await db.migrate();
+
+const store = new DittoPgStore({
+  db,
+  pubkey: await conf.signer.getPublicKey(),
+  timeout: conf.db.timeouts.default,
+  notify: conf.notifyEnabled,
+});
+
+const pool = new DittoPool({ conf, relay: store });
+const relay = new DittoAPIStore({ db, conf, relay: store, pool });
+
+await seedZapSplits(relay);
+
+if (conf.firehoseEnabled) {
+  startFirehose({
+    pool,
+    store: relay,
+    concurrency: conf.firehoseConcurrency,
+    kinds: conf.firehoseKinds,
+  });
+}
+
+if (conf.cronEnabled) {
+  cron({ conf, db, relay });
+}
+
+const app = new DittoApp({ conf, db, relay }, { strict: false });
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
@@ -218,7 +249,17 @@ app.use(
   uploaderMiddleware,
 );
 
-app.get('/metrics', metricsController);
+app.get('/metrics', async (_c, next) => {
+  relayPoolRelaysSizeGauge.reset();
+  relayPoolSubscriptionsSizeGauge.reset();
+
+  for (const relay of pool.relays.values()) {
+    relayPoolRelaysSizeGauge.inc({ ready_state: relay.socket.readyState });
+    relayPoolSubscriptionsSizeGauge.inc(relay.subscriptions.length);
+  }
+
+  await next();
+}, metricsController);
 
 app.get(
   '/.well-known/nodeinfo',

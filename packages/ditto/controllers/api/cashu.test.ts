@@ -252,7 +252,7 @@ async function createTestRoute() {
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
 
-  const route = new DittoApp({ db, relay, conf });
+  const route = new DittoApp({ db: db.db, relay, conf });
 
   route.use(testUserMiddleware({ signer, relay }));
   route.route('/', cashuRoute);

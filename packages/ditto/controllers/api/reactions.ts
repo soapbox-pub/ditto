@@ -31,9 +31,9 @@ const reactionController: AppController = async (c) => {
     tags: [['e', id], ['p', event.pubkey]],
   }, c);
 
-  await hydrateEvents({ events: [event], relay });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const status = await renderStatus(event, { viewerPubkey: await user!.signer.getPublicKey() });
+  const status = await renderStatus(relay, event, { viewerPubkey: await user!.signer.getPublicKey() });
 
   return c.json(status);
 };
@@ -76,7 +76,7 @@ const deleteReactionController: AppController = async (c) => {
     tags,
   }, c);
 
-  const status = renderStatus(event, { viewerPubkey: pubkey });
+  const status = renderStatus(relay, event, { viewerPubkey: pubkey });
 
   return c.json(status);
 };
@@ -99,7 +99,7 @@ const reactionsController: AppController = async (c) => {
   const events = await relay.query([{ kinds: [7], '#e': [id], limit: 100 }])
     .then((events) => events.filter(({ content }) => /^\p{RGI_Emoji}$/v.test(content)))
     .then((events) => events.filter((event) => !emoji || event.content === emoji))
-    .then((events) => hydrateEvents({ events, relay }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   /** Events grouped by emoji. */
   const byEmoji = events.reduce((acc, event) => {

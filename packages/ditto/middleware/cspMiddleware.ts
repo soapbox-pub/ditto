@@ -1,17 +1,15 @@
 import { AppMiddleware } from '@/app.ts';
 import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
-import { Storages } from '@/storages.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 
-let configDBCache: Promise<PleromaConfigDB> | undefined;
-
 export const cspMiddleware = (): AppMiddleware => {
+  let configDBCache: Promise<PleromaConfigDB> | undefined;
+
   return async (c, next) => {
-    const { conf } = c.var;
-    const store = await Storages.db();
+    const { conf, relay } = c.var;
 
     if (!configDBCache) {
-      configDBCache = getPleromaConfigs(store);
+      configDBCache = getPleromaConfigs(relay);
     }
 
     const { host, protocol, origin } = conf.url;

@@ -1,4 +1,5 @@
 import { HTTPException } from '@hono/hono/http-exception';
+import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import 'linkify-plugin-hashtag';
 import linkify from 'linkifyjs';
@@ -15,7 +16,7 @@ import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { assertAuthenticated, createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
+import { assertAuthenticated, createEvent, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
@@ -46,10 +47,10 @@ const createStatusSchema = z.object({
 );
 
 const statusController: AppController = async (c) => {
-  const { user, signal } = c.var;
+  const { relay, user } = c.var;
 
   const id = c.req.param('id');
-  const event = await getEvent(id, { signal });
+  const event = await getEvent(id, c.var);
 
   if (event?.author) {
     assertAuthenticated(c, event.author);
@@ -57,7 +58,7 @@ const statusController: AppController = async (c) => {
 
   if (event) {
     const viewerPubkey = await user?.signer.getPublicKey();
-    const status = await renderStatus(event, { viewerPubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey });
     return c.json(status);
   }
 
@@ -65,7 +66,7 @@ const statusController: AppController = async (c) => {
 };
 
 const createStatusController: AppController = async (c) => {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, relay, user } = c.var;
 
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
@@ -153,7 +154,7 @@ const createStatusController: AppController = async (c) => {
     data.status ?? '',
     /(?<![\w/])@([\w@+._-]+)(?![\w/\.])/g,
     async (match, username) => {
-      const pubkey = await lookupPubkey(username);
+      const pubkey = await lookupPubkey(username, c.var);
       if (!pubkey) return match;
 
       // Content addressing (default)
@@ -171,7 +172,7 @@ const createStatusController: AppController = async (c) => {
 
   // Explicit addressing
   for (const to of data.to ?? []) {
-    const pubkey = await lookupPubkey(to);
+    const pubkey = await lookupPubkey(to, c.var);
     if (pubkey) {
       pubkeys.add(pubkey);
     }
@@ -191,7 +192,7 @@ const createStatusController: AppController = async (c) => {
   }
 
   const pubkey = await user!.signer.getPublicKey();
-  const author = pubkey ? await getAuthor(pubkey) : undefined;
+  const author = pubkey ? await getAuthor(pubkey, c.var) : undefined;
 
   if (conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
@@ -254,22 +255,18 @@ const createStatusController: AppController = async (c) => {
   }, c);
 
   if (data.quote_id) {
-    await hydrateEvents({
-      events: [event],
-      relay,
-      signal,
-    });
+    await hydrateEvents({ ...c.var, events: [event] });
   }
 
-  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: author?.pubkey }));
+  return c.json(await renderStatus(relay, { ...event, author }, { viewerPubkey: author?.pubkey }));
 };
 
 const deleteStatusController: AppController = async (c) => {
-  const { conf, user, signal } = c.var;
+  const { conf, relay, user } = c.var;
 
   const id = c.req.param('id');
   const pubkey = await user?.signer.getPublicKey();
-  const event = await getEvent(id, { signal });
+  const event = await getEvent(id, c.var);
 
   if (event) {
     if (event.pubkey === pubkey) {
@@ -278,8 +275,8 @@ const deleteStatusController: AppController = async (c) => {
         tags: [['e', id, conf.relay, '', pubkey]],
       }, c);
 
-      const author = await getAuthor(event.pubkey);
-      return c.json(await renderStatus({ ...event, author }, { viewerPubkey: pubkey }));
+      const author = await getAuthor(event.pubkey, c.var);
+      return c.json(await renderStatus(relay, { ...event, author }, { viewerPubkey: pubkey }));
     } else {
       return c.json({ error: 'Unauthorized' }, 403);
     }
@@ -297,7 +294,7 @@ const contextController: AppController = async (c) => {
 
   async function renderStatuses(events: NostrEvent[]) {
     const statuses = await Promise.all(
-      events.map((event) => renderStatus(event, { viewerPubkey })),
+      events.map((event) => renderStatus(relay, event, { viewerPubkey })),
     );
     return statuses.filter(Boolean);
   }
@@ -308,11 +305,7 @@ const contextController: AppController = async (c) => {
       getDescendants(relay, event),
     ]);
 
-    await hydrateEvents({
-      events: [...ancestorEvents, ...descendantEvents],
-      signal: c.req.raw.signal,
-      relay,
-    });
+    await hydrateEvents({ ...c.var, events: [...ancestorEvents, ...descendantEvents] });
 
     const [ancestors, descendants] = await Promise.all([
       renderStatuses(ancestorEvents),
@@ -341,9 +334,9 @@ const favouriteController: AppController = async (c) => {
       ],
     }, c);
 
-    await hydrateEvents({ events: [target], relay });
+    await hydrateEvents({ ...c.var, events: [target] });
 
-    const status = await renderStatus(target, { viewerPubkey: await user?.signer.getPublicKey() });
+    const status = await renderStatus(relay, target, { viewerPubkey: await user?.signer.getPublicKey() });
 
     if (status) {
       status.favourited = true;
@@ -367,10 +360,10 @@ const favouritedByController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#boost */
 const reblogStatusController: AppController = async (c) => {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, relay, user } = c.var;
 
   const eventId = c.req.param('id');
-  const event = await getEvent(eventId);
+  const event = await getEvent(eventId, c.var);
 
   if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
@@ -384,13 +377,9 @@ const reblogStatusController: AppController = async (c) => {
     ],
   }, c);
 
-  await hydrateEvents({
-    events: [reblogEvent],
-    relay,
-    signal: signal,
-  });
+  await hydrateEvents({ ...c.var, events: [reblogEvent] });
 
-  const status = await renderReblog(reblogEvent, { viewerPubkey: await user?.signer.getPublicKey() });
+  const status = await renderReblog(relay, reblogEvent, { viewerPubkey: await user?.signer.getPublicKey() });
 
   return c.json(status);
 };
@@ -420,7 +409,7 @@ const unreblogStatusController: AppController = async (c) => {
     tags: [['e', repostEvent.id, conf.relay, '', repostEvent.pubkey]],
   }, c);
 
-  return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
+  return c.json(await renderStatus(relay, event, { viewerPubkey: pubkey }));
 };
 
 const rebloggedByController: AppController = (c) => {
@@ -441,12 +430,12 @@ const quotesController: AppController = async (c) => {
 
   const quotes = await relay
     .query([{ kinds: [1, 20], '#q': [event.id], ...pagination }])
-    .then((events) => hydrateEvents({ events, relay }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = await Promise.all(
-    quotes.map((event) => renderStatus(event, { viewerPubkey })),
+    quotes.map((event) => renderStatus(relay, event, { viewerPubkey })),
   );
 
   if (!statuses.length) {
@@ -458,11 +447,11 @@ const quotesController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#bookmark */
 const bookmarkController: AppController = async (c) => {
-  const { conf, user } = c.var;
+  const { conf, relay, user } = c.var;
   const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId);
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -471,7 +460,7 @@ const bookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = true;
     }
@@ -483,12 +472,12 @@ const bookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unbookmark */
 const unbookmarkController: AppController = async (c) => {
-  const { conf, user } = c.var;
+  const { conf, relay, user } = c.var;
 
   const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId);
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -497,7 +486,7 @@ const unbookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = false;
     }
@@ -509,12 +498,12 @@ const unbookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#pin */
 const pinController: AppController = async (c) => {
-  const { conf, user } = c.var;
+  const { conf, relay, user } = c.var;
 
   const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId);
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -523,7 +512,7 @@ const pinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = true;
     }
@@ -535,15 +524,12 @@ const pinController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unpin */
 const unpinController: AppController = async (c) => {
-  const { conf, user, signal } = c.var;
+  const { conf, relay, user } = c.var;
 
   const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-    signal,
-  });
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -552,7 +538,7 @@ const unpinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = false;
     }
@@ -586,7 +572,7 @@ const zapController: AppController = async (c) => {
   let lnurl: undefined | string;
 
   if (status_id) {
-    target = await getEvent(status_id, { kind: 1, signal });
+    target = await getEvent(status_id, c.var);
     const author = target?.author;
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
     lnurl = getLnurl(meta);

@@ -55,7 +55,7 @@ interface DittoPgStoreOpts {
   /** Pubkey of the admin account. */
   pubkey: string;
   /** Timeout in milliseconds for database queries. */
-  timeout: number;
+  timeout?: number;
   /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
   pure?: boolean;
   /** Chunk size for streaming events. Defaults to 20. */

@@ -3,7 +3,6 @@ import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Storages } from '@/storages.ts';
 import { parseBody } from '@/utils/api.ts';
 import { getTokenHash } from '@/utils/auth.ts';
 
@@ -42,7 +41,7 @@ const pushSubscribeSchema = z.object({
 });
 
 export const pushSubscribeController: AppController = async (c) => {
-  const { conf, user } = c.var;
+  const { conf, db, user } = c.var;
   const vapidPublicKey = await conf.vapidPublicKey;
 
   if (!vapidPublicKey) {
@@ -50,8 +49,6 @@ export const pushSubscribeController: AppController = async (c) => {
   }
 
   const accessToken = getAccessToken(c.req.raw);
-
-  const kysely = await Storages.kysely();
   const signer = user!.signer;
 
   const result = pushSubscribeSchema.safeParse(await parseBody(c.req.raw));
@@ -65,7 +62,7 @@ export const pushSubscribeController: AppController = async (c) => {
   const pubkey = await signer.getPublicKey();
   const tokenHash = await getTokenHash(accessToken);
 
-  const { id } = await kysely.transaction().execute(async (trx) => {
+  const { id } = await db.kysely.transaction().execute(async (trx) => {
     await trx
       .deleteFrom('push_subscriptions')
       .where('token_hash', '=', tokenHash)
@@ -97,7 +94,7 @@ export const pushSubscribeController: AppController = async (c) => {
 };
 
 export const getSubscriptionController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, db } = c.var;
   const vapidPublicKey = await conf.vapidPublicKey;
 
   if (!vapidPublicKey) {
@@ -106,10 +103,9 @@ export const getSubscriptionController: AppController = async (c) => {
 
   const accessToken = getAccessToken(c.req.raw);
 
-  const kysely = await Storages.kysely();
   const tokenHash = await getTokenHash(accessToken);
 
-  const row = await kysely
+  const row = await db.kysely
     .selectFrom('push_subscriptions')
     .selectAll()
     .where('token_hash', '=', tokenHash)

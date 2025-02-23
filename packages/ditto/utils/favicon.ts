@@ -1,36 +1,13 @@
 import { DOMParser } from '@b-fuze/deno-dom';
 import { DittoTables } from '@ditto/db';
-import { cachedFaviconsSizeGauge } from '@ditto/metrics';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
 import { Kysely } from 'kysely';
 import tldts from 'tldts';
 
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
-import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 
-export const faviconCache = new SimpleLRU<string, URL>(
-  async (domain, { signal }) => {
-    const kysely = await Storages.kysely();
-
-    const row = await queryFavicon(kysely, domain);
-
-    if (row && (nostrNow() - row.last_updated_at) < (Conf.caches.favicon.ttl / 1000)) {
-      return new URL(row.favicon);
-    }
-
-    const url = await fetchFavicon(domain, signal);
-
-    await insertFavicon(kysely, domain, url.href);
-
-    return url;
-  },
-  { ...Conf.caches.favicon, gauge: cachedFaviconsSizeGauge },
-);
-
-async function queryFavicon(
+export async function queryFavicon(
   kysely: Kysely<DittoTables>,
   domain: string,
 ): Promise<DittoTables['domain_favicons'] | undefined> {
@@ -41,7 +18,7 @@ async function queryFavicon(
     .executeTakeFirst();
 }
 
-async function insertFavicon(kysely: Kysely<DittoTables>, domain: string, favicon: string): Promise<void> {
+export async function insertFavicon(kysely: Kysely<DittoTables>, domain: string, favicon: string): Promise<void> {
   await kysely
     .insertInto('domain_favicons')
     .values({ domain, favicon, last_updated_at: nostrNow() })
@@ -49,7 +26,7 @@ async function insertFavicon(kysely: Kysely<DittoTables>, domain: string, favico
     .execute();
 }
 
-async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> {
+export async function fetchFavicon(domain: string, signal?: AbortSignal): Promise<URL> {
   logi({ level: 'info', ns: 'ditto.favicon', domain, state: 'started' });
   const tld = tldts.parse(domain);
 

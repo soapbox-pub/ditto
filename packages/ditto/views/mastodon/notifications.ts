@@ -1,4 +1,4 @@
-import { NostrEvent } from '@nostrify/nostrify';
+import { NostrEvent, NStore } from '@nostrify/nostrify';
 
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { Conf } from '@/config.ts';
@@ -10,23 +10,23 @@ interface RenderNotificationOpts {
   viewerPubkey: string;
 }
 
-async function renderNotification(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderNotification(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
   const mentioned = !!event.tags.find(([name, value]) => name === 'p' && value === opts.viewerPubkey);
 
   if (event.kind === 1 && mentioned) {
-    return renderMention(event, opts);
+    return renderMention(store, event, opts);
   }
 
   if (event.kind === 6) {
-    return renderReblog(event, opts);
+    return renderReblog(store, event, opts);
   }
 
   if (event.kind === 7 && event.content === '+') {
-    return renderFavourite(event, opts);
+    return renderFavourite(store, event, opts);
   }
 
   if (event.kind === 7) {
-    return renderReaction(event, opts);
+    return renderReaction(store, event, opts);
   }
 
   if (event.kind === 30360 && event.pubkey === await Conf.signer.getPublicKey()) {
@@ -34,12 +34,12 @@ async function renderNotification(event: DittoEvent, opts: RenderNotificationOpt
   }
 
   if (event.kind === 9735) {
-    return renderZap(event, opts);
+    return renderZap(store, event, opts);
   }
 }
 
-async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
-  const status = await renderStatus(event, opts);
+async function renderMention(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
+  const status = await renderStatus(store, event, opts);
   if (!status) return;
 
   return {
@@ -51,9 +51,9 @@ async function renderMention(event: DittoEvent, opts: RenderNotificationOpts) {
   };
 }
 
-async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderReblog(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.repost?.kind !== 1) return;
-  const status = await renderStatus(event.repost, opts);
+  const status = await renderStatus(store, event.repost, opts);
   if (!status) return;
   const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
@@ -66,9 +66,9 @@ async function renderReblog(event: DittoEvent, opts: RenderNotificationOpts) {
   };
 }
 
-async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderFavourite(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.reacted?.kind !== 1) return;
-  const status = await renderStatus(event.reacted, opts);
+  const status = await renderStatus(store, event.reacted, opts);
   if (!status) return;
   const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
@@ -81,9 +81,9 @@ async function renderFavourite(event: DittoEvent, opts: RenderNotificationOpts) 
   };
 }
 
-async function renderReaction(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderReaction(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
   if (event.reacted?.kind !== 1) return;
-  const status = await renderStatus(event.reacted, opts);
+  const status = await renderStatus(store, event.reacted, opts);
   if (!status) return;
   const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
 
@@ -116,7 +116,7 @@ async function renderNameGrant(event: DittoEvent) {
   };
 }
 
-async function renderZap(event: DittoEvent, opts: RenderNotificationOpts) {
+async function renderZap(store: NStore, event: DittoEvent, opts: RenderNotificationOpts) {
   if (!event.zap_sender) return;
 
   const { zap_amount = 0, zap_message = '' } = event;
@@ -133,7 +133,7 @@ async function renderZap(event: DittoEvent, opts: RenderNotificationOpts) {
     message: zap_message,
     created_at: nostrDate(event.created_at).toISOString(),
     account,
-    ...(event.zapped ? { status: await renderStatus(event.zapped, opts) } : {}),
+    ...(event.zapped ? { status: await renderStatus(store, event.zapped, opts) } : {}),
   };
 }
 

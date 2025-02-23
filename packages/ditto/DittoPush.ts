@@ -1,39 +1,41 @@
+import { DittoConf } from '@ditto/conf';
 import { ApplicationServer, PushMessageOptions, PushSubscriber, PushSubscription } from '@negrel/webpush';
+import { NStore } from '@nostrify/types';
 import { logi } from '@soapbox/logi';
 
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
+interface DittoPushOpts {
+  conf: DittoConf;
+  relay: NStore;
+}
+
 export class DittoPush {
-  static _server: Promise<ApplicationServer | undefined> | undefined;
+  private server: Promise<ApplicationServer | undefined>;
 
-  static get server(): Promise<ApplicationServer | undefined> {
-    if (!this._server) {
-      this._server = (async () => {
-        const store = await Storages.db();
-        const meta = await getInstanceMetadata(store);
-        const keys = await Conf.vapidKeys;
+  constructor(opts: DittoPushOpts) {
+    const { conf, relay } = opts;
 
-        if (keys) {
-          return await ApplicationServer.new({
-            contactInformation: `mailto:${meta.email}`,
-            vapidKeys: keys,
-          });
-        } else {
-          logi({
-            level: 'warn',
-            ns: 'ditto.push',
-            msg: 'VAPID keys are not set. Push notifications will be disabled.',
-          });
-        }
-      })();
-    }
+    this.server = (async () => {
+      const meta = await getInstanceMetadata(relay);
+      const keys = await conf.vapidKeys;
 
-    return this._server;
+      if (keys) {
+        return await ApplicationServer.new({
+          contactInformation: `mailto:${meta.email}`,
+          vapidKeys: keys,
+        });
+      } else {
+        logi({
+          level: 'warn',
+          ns: 'ditto.push',
+          msg: 'VAPID keys are not set. Push notifications will be disabled.',
+        });
+      }
+    })();
   }
 
-  static async push(
+  async push(
     subscription: PushSubscription,
     json: object,
     opts: PushMessageOptions = {},
