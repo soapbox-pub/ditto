@@ -19,8 +19,8 @@ interface GetEventOpts {
  */
 async function getEvent(id: string, opts: GetEventOpts): Promise<DittoEvent | undefined> {
   const filter: NostrFilter = { ids: [id], limit: 1 };
-  const [event] = await opts.relay.query([filter], opts);
-  hydrateEvents({ ...opts, events: [event] });
+  const events = await opts.relay.query([filter], opts);
+  const [event] = await hydrateEvents({ ...opts, events });
   return event;
 }
 
@@ -29,8 +29,8 @@ async function getEvent(id: string, opts: GetEventOpts): Promise<DittoEvent | un
  * @deprecated Use `relay.query` directly.
  */
 async function getAuthor(pubkey: string, opts: GetEventOpts): Promise<NostrEvent | undefined> {
-  const [event] = await opts.relay.query([{ authors: [pubkey], kinds: [0], limit: 1 }], opts);
-  hydrateEvents({ ...opts, events: [event] });
+  const events = await opts.relay.query([{ authors: [pubkey], kinds: [0], limit: 1 }], opts);
+  const [event] = await hydrateEvents({ ...opts, events });
   return event;
 }
 
