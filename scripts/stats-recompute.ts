@@ -9,6 +9,8 @@ const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
 const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
 
+const { kysely } = db;
+
 let pubkey: string;
 try {
   const result = nip19.decode(Deno.args[0]);
@@ -22,4 +24,4 @@ try {
   Deno.exit(1);
 }
 
-await refreshAuthorStats({ pubkey, kysely: db.kysely, store: relay });
+await refreshAuthorStats({ pubkey, kysely, relay });
