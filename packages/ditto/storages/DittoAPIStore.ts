@@ -122,7 +122,7 @@ export class DittoAPIStore implements NRelay {
     const { relay } = this.opts;
     const { signal } = this.controller;
 
-    for await (const msg of relay.req([{}], { signal })) {
+    for await (const msg of relay.req([{ limit: 0 }], { signal })) {
       if (msg[0] === 'EVENT') {
         const [, , event] = msg;
         await this.handleEvent(event, { signal });
