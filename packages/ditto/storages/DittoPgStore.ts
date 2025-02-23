@@ -164,9 +164,9 @@ export class DittoPgStore extends NPostgres {
     opts: { signal?: AbortSignal; timeout?: number } = {},
   ): Promise<undefined> {
     try {
-      await this.transaction(async (store, kysely) => {
-        await updateStats({ event, store, kysely });
-        await super.event(event, opts);
+      await super.transaction(async (store, kysely) => {
+        await updateStats({ event, store, kysely: kysely as unknown as Kysely<DittoTables> });
+        await store.event(event, opts);
       });
     } catch (e) {
       // If the failure is only because of updateStats (which runs first), insert the event anyway.
