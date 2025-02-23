@@ -72,8 +72,8 @@ const verifyCredentialsController: AppController = async (c) => {
   }
 
   const account = author
-    ? await renderAccount(author, { withSource: true, settingsStore })
-    : await accountFromPubkey(pubkey, { withSource: true, settingsStore });
+    ? renderAccount(author, { withSource: true, settingsStore })
+    : accountFromPubkey(pubkey, { withSource: true, settingsStore });
 
   return c.json(account);
 };

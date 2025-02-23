@@ -1,5 +1,5 @@
 import { HTTPException } from '@hono/hono/http-exception';
-import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
+import { paginated, paginatedList, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import 'linkify-plugin-hashtag';
 import linkify from 'linkifyjs';
@@ -10,7 +10,6 @@ import { type AppController } from '@/app.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAncestors, getAuthor, getDescendants, getEvent } from '@/queries.ts';
-import { paginationSchema } from '@/schemas/pagination.ts';
 import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';

@@ -1,9 +1,8 @@
-import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
+import { paginated, paginatedList, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrFilter } from '@nostrify/nostrify';
 import { matchFilter } from 'nostr-tools';
 
 import { AppContext, AppController } from '@/app.ts';
-import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';

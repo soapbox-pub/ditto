@@ -1,8 +1,7 @@
-import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
+import { paginated, paginatedList, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 import { AppContext } from '@/app.ts';
-import { paginationSchema } from '@/schemas/pagination.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';

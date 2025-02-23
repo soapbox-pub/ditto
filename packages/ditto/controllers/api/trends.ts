@@ -1,11 +1,10 @@
 import { type DittoConf } from '@ditto/conf';
-import { paginated } from '@ditto/mastoapi/pagination';
+import { paginated, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
 import { PreviewCard, unfurlCardCached } from '@/utils/unfurl.ts';
