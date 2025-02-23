@@ -148,10 +148,16 @@ export class DittoPgStore extends NPostgres {
       await this.storeEvent(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
       this.fulfill(event); // don't await or catch (should never reject)
     } catch (e) {
-      if (e instanceof Error && e.message === 'Cannot add a deleted event') {
-        throw new RelayError('blocked', 'event deleted by user');
-      } else if (e instanceof Error && e.message === 'Cannot replace an event with an older event') {
-        return;
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'duplicate key value violates unique constraint "nostr_events_pkey"':
+          case 'duplicate key value violates unique constraint "author_stats_pkey"':
+            return;
+          case 'canceling statement due to statement timeout':
+            throw new RelayError('error', 'the event could not be added fast enough');
+          default:
+            throw e;
+        }
       } else {
         throw e;
       }
