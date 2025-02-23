@@ -33,7 +33,7 @@ import { getAmount } from '@/utils/bolt11.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getTagSet } from '@/utils/tags.ts';
-import { policyWorker } from '@/workers/policy.ts';
+import { PolicyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { fetchFavicon, insertFavicon, queryFavicon } from '@/utils/favicon.ts';
 import { lookupNip05 } from '@/utils/nip05.ts';
@@ -54,6 +54,7 @@ export class DittoAPIStore implements NRelay {
   private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
   private controller = new AbortController();
+  private policyWorker: PolicyWorker;
 
   private faviconCache: SimpleLRU<string, URL>;
   private nip05Cache: SimpleLRU<string, nip19.ProfilePointer>;
@@ -64,6 +65,7 @@ export class DittoAPIStore implements NRelay {
     const { conf, db } = this.opts;
 
     this.push = new DittoPush(opts);
+    this.policyWorker = new PolicyWorker(conf);
 
     this.listen().catch((e: unknown) => {
       logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
@@ -211,7 +213,7 @@ export class DittoAPIStore implements NRelay {
 
   private async policyFilter(event: NostrEvent, signal?: AbortSignal): Promise<void> {
     try {
-      const result = await policyWorker.call(event, signal);
+      const result = await this.policyWorker.call(event, signal);
       const [, , ok, reason] = result;
       logi({ level: 'debug', ns: 'ditto.policy', id: event.id, kind: event.kind, ok, reason });
       policyEventsCounter.inc({ ok: String(ok) });

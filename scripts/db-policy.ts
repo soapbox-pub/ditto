@@ -2,11 +2,12 @@ import { DittoConf } from '@ditto/conf';
 import { DittoPolyPg } from '@ditto/db';
 
 import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
-import { policyWorker } from '../packages/ditto/workers/policy.ts';
+import { PolicyWorker } from '../packages/ditto/workers/policy.ts';
 
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
 const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const policyWorker = new PolicyWorker(conf);
 
 let count = 0;
 
