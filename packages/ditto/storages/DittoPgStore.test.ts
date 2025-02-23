@@ -210,6 +210,16 @@ Deno.test('throws a RelayError when inserting an event deleted by a user', async
   );
 });
 
+Deno.test('inserting the same event twice', async () => {
+  await using db = await createTestDB({ pure: true });
+  const { store } = db;
+
+  const event = genEvent({ kind: 1 });
+
+  await store.event(event);
+  await store.event(event);
+});
+
 Deno.test('inserting replaceable events', async () => {
   await using db = await createTestDB({ pure: true });
   const { store } = db;
@@ -225,6 +235,8 @@ Deno.test('inserting replaceable events', async () => {
   const newerEvent = genEvent({ kind: 0, created_at: 999 }, sk);
   await store.event(newerEvent);
   assertEquals(await store.query([{ kinds: [0] }]), [newerEvent]);
+
+  await store.event(olderEvent); // doesn't throw
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'since'", async () => {
