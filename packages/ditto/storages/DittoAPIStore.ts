@@ -103,19 +103,21 @@ export class DittoAPIStore implements NRelay {
     return relay.req(filters, opts);
   }
 
-  async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
+  async event(event: NostrEvent, opts?: { publish?: boolean; signal?: AbortSignal }): Promise<void> {
     const { pool } = this.opts;
     const { id, kind } = event;
 
     await this.handleEvent(event, opts);
 
-    (async () => {
-      try {
-        await pool.event(purifyEvent(event), opts);
-      } catch (e) {
-        logi({ level: 'error', ns: this.ns, source: 'publish', id, kind, error: errorJson(e) });
-      }
-    })();
+    if (opts?.publish) {
+      (async () => {
+        try {
+          await pool.event(purifyEvent(event), opts);
+        } catch (e) {
+          logi({ level: 'error', ns: this.ns, source: 'publish', id, kind, error: errorJson(e) });
+        }
+      })();
+    }
   }
 
   /** Open a firehose to the relay. */

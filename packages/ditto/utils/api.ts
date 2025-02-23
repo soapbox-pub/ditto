@@ -33,7 +33,7 @@ async function createEvent<E extends (DittoEnv & { Variables: { user?: User } })
     ...t,
   });
 
-  await relay.event(event, { signal });
+  await relay.event(event, { signal, publish: true });
   return event;
 }
 
@@ -89,7 +89,8 @@ async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent
     ...t,
   });
 
-  await relay.event(event, { signal });
+  // @ts-ignore `publish` is important for `DittoAPIStore`.
+  await relay.event(event, { signal, publish: true });
   return event;
 }
 
