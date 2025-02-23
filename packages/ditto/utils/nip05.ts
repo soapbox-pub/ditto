@@ -11,6 +11,7 @@ interface GetNip05Opts {
   conf: DittoConf;
   relay: NStore;
   signal?: AbortSignal;
+  fetch?: typeof fetch;
 }
 
 export async function lookupNip05(nip05: string, opts: GetNip05Opts): Promise<nip19.ProfilePointer> {
@@ -35,7 +36,7 @@ export async function lookupNip05(nip05: string, opts: GetNip05Opts): Promise<ni
         throw new Error(`Not found: ${nip05}`);
       }
     } else {
-      const pointer = await NIP05.lookup(nip05, { fetch: safeFetch, signal });
+      const pointer = await NIP05.lookup(nip05, { fetch: opts.fetch ?? safeFetch, signal });
       logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', source: 'fetch', pubkey: pointer.pubkey });
       return pointer;
     }

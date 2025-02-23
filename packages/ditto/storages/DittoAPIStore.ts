@@ -48,6 +48,7 @@ interface DittoAPIStoreOpts {
   conf: DittoConf;
   pool: NRelay;
   relay: NRelay;
+  fetch?: typeof fetch;
 }
 
 export class DittoAPIStore implements NRelay {
