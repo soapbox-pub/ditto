@@ -83,7 +83,7 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
 
   const pubkey = await user?.signer.getPublicKey();
   const policy = pubkey ? new MuteListPolicy(pubkey, relay) : undefined;

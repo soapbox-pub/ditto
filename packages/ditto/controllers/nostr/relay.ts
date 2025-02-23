@@ -213,7 +213,7 @@ const relayController: AppController = (c, next) => {
     ip = undefined;
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
   connectStream(conf, relay as DittoPgStore, socket, ip);
 
   return response;
