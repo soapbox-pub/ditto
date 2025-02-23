@@ -111,7 +111,7 @@ export class DittoAPIStore implements NRelay {
 
     (async () => {
       try {
-        await pool.event(event, opts);
+        await pool.event(purifyEvent(event), opts);
       } catch (e) {
         logi({ level: 'error', ns: this.ns, source: 'publish', id, kind, error: errorJson(e) });
       }
