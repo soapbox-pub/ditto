@@ -2,6 +2,7 @@ import { DittoConf } from '@ditto/conf';
 import { DummyDB } from '@ditto/db';
 import { MockRelay } from '@nostrify/nostrify/test';
 import { assertEquals } from '@std/assert';
+import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -162,7 +163,7 @@ Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 ---
 
 function setupTest() {
   const db = new DummyDB();
-  const conf = new DittoConf(new Map());
+  const conf = new DittoConf(new Map([['DITTO_NSEC', nip19.nsecEncode(generateSecretKey())]]));
   const relay = new MockRelay();
 
   return { conf, db, relay };
