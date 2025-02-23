@@ -104,10 +104,10 @@ export class DittoAPIStore implements NRelay {
   }
 
   async event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
-    const { relay, pool } = this.opts;
+    const { pool } = this.opts;
     const { id, kind } = event;
 
-    await relay.event(event, opts);
+    await this.handleEvent(event, opts);
 
     (async () => {
       try {
@@ -368,7 +368,7 @@ export class DittoAPIStore implements NRelay {
         created_at: Math.floor(Date.now() / 1000),
       });
 
-      await this.handleEvent(rel, { signal: AbortSignal.timeout(1000) });
+      await this.event(rel, { signal: AbortSignal.timeout(1000) });
     }
 
     if (event.kind === 3036 && tagsAdmin) {
@@ -384,7 +384,7 @@ export class DittoAPIStore implements NRelay {
         created_at: Math.floor(Date.now() / 1000),
       });
 
-      await this.handleEvent(rel, { signal: AbortSignal.timeout(1000) });
+      await this.event(rel, { signal: AbortSignal.timeout(1000) });
     }
   }
 

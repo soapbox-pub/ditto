@@ -29,13 +29,13 @@ Deno.test('updateAuthorData sets nip05', async () => {
 
   const row = await db.kysely
     .selectFrom('author_stats')
-    .select(['nip05', 'nip05_domain', 'nip05_hostname'])
+    .selectAll()
     .where('pubkey', '=', getPublicKey(alex))
-    .executeTakeFirstOrThrow();
+    .executeTakeFirst();
 
-  assertEquals(row.nip05, 'alex@gleasonator.dev');
-  assertEquals(row.nip05_domain, 'gleasonator.dev');
-  assertEquals(row.nip05_hostname, 'gleasonator.dev');
+  assertEquals(row?.nip05, 'alex@gleasonator.dev');
+  assertEquals(row?.nip05_domain, 'gleasonator.dev');
+  assertEquals(row?.nip05_hostname, 'gleasonator.dev');
 });
 
 function setupTest(cb: (req: Request) => Response | Promise<Response>) {
