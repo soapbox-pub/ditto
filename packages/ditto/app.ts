@@ -235,23 +235,24 @@ const socketTokenMiddleware = tokenMiddleware((c) => {
   }
 });
 
-app.use('/api/*', metricsMiddleware, ratelimit, paginationMiddleware(), logiMiddleware);
-app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
-app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
-app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
-
-app.get('/api/v1/streaming', socketTokenMiddleware, metricsMiddleware, ratelimit, streamingController);
-
-app.get(
-  '/relay',
+app.use(
+  '/api/*',
   (c, next) => {
     c.set('relay', new DittoAPIStore({ relay, pool }));
     return next();
   },
   metricsMiddleware,
   ratelimit,
-  relayController,
+  paginationMiddleware(),
+  logiMiddleware,
 );
+
+app.use('/.well-known/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
+app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
+
+app.get('/api/v1/streaming', socketTokenMiddleware, metricsMiddleware, ratelimit, streamingController);
+app.get('/relay', metricsMiddleware, ratelimit, relayController);
 
 app.use(
   cspMiddleware(),
