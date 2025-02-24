@@ -46,11 +46,11 @@ import { nip19 } from 'nostr-tools';
 interface DittoRelayStoreOpts {
   db: DittoDB;
   conf: DittoConf;
-  pool: NRelay;
   relay: NRelay;
   fetch?: typeof fetch;
 }
 
+/** Backing storage class for Ditto relay implementation at `/relay`. */
 export class DittoRelayStore implements NRelay {
   private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
@@ -60,7 +60,7 @@ export class DittoRelayStore implements NRelay {
   private faviconCache: SimpleLRU<string, URL>;
   private nip05Cache: SimpleLRU<string, nip19.ProfilePointer>;
 
-  private ns = 'ditto.apistore';
+  private ns = 'ditto.api.store';
 
   constructor(private opts: DittoRelayStoreOpts) {
     const { conf, db } = this.opts;
@@ -95,31 +95,6 @@ export class DittoRelayStore implements NRelay {
     );
   }
 
-  req(
-    filters: NostrFilter[],
-    opts?: { signal?: AbortSignal },
-  ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
-    const { relay } = this.opts;
-    return relay.req(filters, opts);
-  }
-
-  async event(event: NostrEvent, opts?: { publish?: boolean; signal?: AbortSignal }): Promise<void> {
-    const { pool } = this.opts;
-    const { id, kind } = event;
-
-    await this.handleEvent(event, opts);
-
-    if (opts?.publish) {
-      (async () => {
-        try {
-          await pool.event(purifyEvent(event), opts);
-        } catch (e) {
-          logi({ level: 'error', ns: this.ns, source: 'publish', id, kind, error: errorJson(e) });
-        }
-      })();
-    }
-  }
-
   /** Open a firehose to the relay. */
   private async listen(): Promise<void> {
     const { relay } = this.opts;
@@ -128,16 +103,24 @@ export class DittoRelayStore implements NRelay {
     for await (const msg of relay.req([{ limit: 0 }], { signal })) {
       if (msg[0] === 'EVENT') {
         const [, , event] = msg;
-        await this.handleEvent(event, { signal });
+        await this.event(event, { signal });
       }
     }
+  }
+
+  req(
+    filters: NostrFilter[],
+    opts?: { signal?: AbortSignal },
+  ): AsyncIterable<NostrRelayEVENT | NostrRelayEOSE | NostrRelayCLOSED> {
+    const { relay } = this.opts;
+    return relay.req(filters, opts);
   }
 
   /**
    * Common pipeline function to process (and maybe store) events.
    * It is idempotent, so it can be called multiple times for the same event.
    */
-  private async handleEvent(event: DittoEvent, opts: { signal?: AbortSignal } = {}): Promise<void> {
+  async event(event: DittoEvent, opts: { publish?: boolean; signal?: AbortSignal } = {}): Promise<void> {
     const { conf, relay } = this.opts;
     const { signal } = opts;
 
@@ -474,11 +457,10 @@ export class DittoRelayStore implements NRelay {
   }
 
   async close(): Promise<void> {
-    const { relay, pool } = this.opts;
+    const { relay } = this.opts;
 
     this.controller.abort();
 
-    await pool.close();
     await relay.close();
   }
 

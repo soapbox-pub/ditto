@@ -41,8 +41,6 @@ Deno.test('updateAuthorData sets nip05', async () => {
 function setupTest(cb: (req: Request) => Response | Promise<Response>) {
   const conf = new DittoConf(Deno.env);
   const db = new DittoPolyPg(conf.databaseUrl);
-
-  const pool = new MockRelay();
   const relay = new MockRelay();
 
   const mockFetch: typeof fetch = async (input, init) => {
@@ -50,7 +48,7 @@ function setupTest(cb: (req: Request) => Response | Promise<Response>) {
     return await cb(req);
   };
 
-  const store = new DittoRelayStore({ conf, db, relay, pool, fetch: mockFetch });
+  const store = new DittoRelayStore({ conf, db, relay, fetch: mockFetch });
 
   return {
     db,
