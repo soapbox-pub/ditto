@@ -1,3 +1,5 @@
+import { NStore } from '@nostrify/nostrify';
+
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { nostrDate } from '@/utils.ts';
@@ -6,7 +8,7 @@ import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getTagSet } from '@/utils/tags.ts';
 
 /** Expects a `reportEvent` of kind 1984 and a `profile` of kind 0 of the person being reported */
-async function renderReport(event: DittoEvent) {
+function renderReport(event: DittoEvent) {
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
   const category = event.tags.find(([name]) => name === 'p')?.[2];
   const statusIds = event.tags.filter(([name]) => name === 'e').map((tag) => tag[1]) ?? [];
@@ -23,9 +25,7 @@ async function renderReport(event: DittoEvent) {
     created_at: nostrDate(event.created_at).toISOString(),
     status_ids: statusIds,
     rules_ids: null,
-    target_account: event.reported_profile
-      ? await renderAccount(event.reported_profile)
-      : await accountFromPubkey(reportedPubkey),
+    target_account: event.reported_profile ? renderAccount(event.reported_profile) : accountFromPubkey(reportedPubkey),
   };
 }
 
@@ -36,7 +36,7 @@ interface RenderAdminReportOpts {
 /** Admin-level information about a filed report.
  * Expects an event of kind 1984 fully hydrated.
  * https://docs.joinmastodon.org/entities/Admin_Report */
-async function renderAdminReport(event: DittoEvent, opts: RenderAdminReportOpts) {
+async function renderAdminReport(store: NStore, event: DittoEvent, opts: RenderAdminReportOpts) {
   const { viewerPubkey } = opts;
 
   // The category is present in both the 'e' and 'p' tag, however, it is possible to report a user without reporting a note, so it's better to get the category from the 'p' tag
@@ -45,7 +45,7 @@ async function renderAdminReport(event: DittoEvent, opts: RenderAdminReportOpts)
   const statuses = [];
   if (event.reported_notes) {
     for (const status of event.reported_notes) {
-      statuses.push(await renderStatus(status, { viewerPubkey }));
+      statuses.push(await renderStatus(store, status, { viewerPubkey }));
     }
   }
 

@@ -1,7 +1,15 @@
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { nip19 } from 'nostr-tools';
 
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 import { refreshAuthorStats } from '../packages/ditto/utils/stats.ts';
+
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+
+const { kysely } = db;
 
 let pubkey: string;
 try {
@@ -16,7 +24,4 @@ try {
   Deno.exit(1);
 }
 
-const store = await Storages.db();
-const kysely = await Storages.kysely();
-
-await refreshAuthorStats({ pubkey, kysely, store });
+await refreshAuthorStats({ pubkey, kysely, relay });

@@ -7,7 +7,7 @@ import { DittoApp } from './DittoApp.ts';
 import { DittoRoute } from './DittoRoute.ts';
 
 Deno.test('DittoApp', async () => {
-  await using db = DittoPolyPg.create('memory://');
+  await using db = new DittoPolyPg('memory://');
   const conf = new DittoConf(new Map());
   const relay = new MockRelay();
 

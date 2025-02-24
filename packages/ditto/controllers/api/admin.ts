@@ -1,3 +1,4 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
@@ -5,7 +6,7 @@ import { z } from 'zod';
 import { type AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createAdminEvent, paginated, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
+import { createAdminEvent, parseBody, updateEventInfo, updateUser } from '@/utils/api.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { renderAdminAccount, renderAdminAccountFromPubkey } from '@/views/mastodon/admin-accounts.ts';
 import { errorJson } from '@/utils/log.ts';
@@ -59,7 +60,7 @@ const adminAccountsController: AppController = async (c) => {
     );
 
     const events = await relay.query([{ kinds: [3036], ids: [...ids] }])
-      .then((events) => hydrateEvents({ relay, events, signal }));
+      .then((events) => hydrateEvents({ ...c.var, events }));
 
     const nameRequests = await Promise.all(events.map(renderNameRequest));
     return paginated(c, orig, nameRequests);
@@ -97,7 +98,7 @@ const adminAccountsController: AppController = async (c) => {
     );
 
     const authors = await relay.query([{ kinds: [0], authors: [...pubkeys] }])
-      .then((events) => hydrateEvents({ relay, events, signal }));
+      .then((events) => hydrateEvents({ ...c.var, events }));
 
     const accounts = await Promise.all(
       [...pubkeys].map((pubkey) => {
@@ -116,7 +117,7 @@ const adminAccountsController: AppController = async (c) => {
   }
 
   const events = await relay.query([filter], { signal })
-    .then((events) => hydrateEvents({ relay, events, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const accounts = await Promise.all(events.map(renderAdminAccount));
   return paginated(c, events, accounts);
@@ -210,7 +211,7 @@ const adminApproveController: AppController = async (c) => {
   }, c);
 
   await updateEventInfo(eventId, { pending: false, approved: true, rejected: false }, c);
-  await hydrateEvents({ events: [event], relay });
+  await hydrateEvents({ ...c.var, events: [event] });
 
   const nameRequest = await renderNameRequest(event);
   return c.json(nameRequest);
@@ -226,7 +227,7 @@ const adminRejectController: AppController = async (c) => {
   }
 
   await updateEventInfo(eventId, { pending: false, approved: false, rejected: true }, c);
-  await hydrateEvents({ events: [event], relay });
+  await hydrateEvents({ ...c.var, events: [event] });
 
   const nameRequest = await renderNameRequest(event);
   return c.json(nameRequest);

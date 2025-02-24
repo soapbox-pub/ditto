@@ -31,6 +31,7 @@ import { abortError } from '@/utils/abort.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getMediaLinks } from '@/utils/note.ts';
+import { updateStats } from '@/utils/stats.ts';
 
 /** Function to decide whether or not to index a tag. */
 type TagCondition = (opts: TagConditionOpts) => boolean;
@@ -54,7 +55,7 @@ interface DittoPgStoreOpts {
   /** Pubkey of the admin account. */
   pubkey: string;
   /** Timeout in milliseconds for database queries. */
-  timeout: number;
+  timeout?: number;
   /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
   pure?: boolean;
   /** Chunk size for streaming events. Defaults to 20. */
@@ -144,13 +145,40 @@ export class DittoPgStore extends NPostgres {
     await this.deleteEventsAdmin(event);
 
     try {
-      await super.event(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
+      await this.storeEvent(event, { ...opts, timeout: opts.timeout ?? this.opts.timeout });
       this.fulfill(event); // don't await or catch (should never reject)
     } catch (e) {
-      if (e instanceof Error && e.message === 'Cannot add a deleted event') {
-        throw new RelayError('blocked', 'event deleted by user');
-      } else if (e instanceof Error && e.message === 'Cannot replace an event with an older event') {
-        return;
+      if (e instanceof Error) {
+        switch (e.message) {
+          case 'duplicate key value violates unique constraint "nostr_events_pkey"':
+          case 'duplicate key value violates unique constraint "author_stats_pkey"':
+            return;
+          case 'canceling statement due to statement timeout':
+            throw new RelayError('error', 'the event could not be added fast enough');
+          default:
+            throw e;
+        }
+      } else {
+        throw e;
+      }
+    }
+  }
+
+  /** Maybe store the event, if eligible. */
+  private async storeEvent(
+    event: NostrEvent,
+    opts: { signal?: AbortSignal; timeout?: number } = {},
+  ): Promise<undefined> {
+    try {
+      await super.transaction(async (relay, kysely) => {
+        await updateStats({ event, relay, kysely: kysely as unknown as Kysely<DittoTables> });
+        await relay.event(event, opts);
+      });
+    } catch (e) {
+      // If the failure is only because of updateStats (which runs first), insert the event anyway.
+      // We can't catch this in the transaction because the error aborts the transaction on the Postgres side.
+      if (e instanceof Error && e.message.includes('event_stats' satisfies keyof DittoTables)) {
+        await super.event(event, opts);
       } else {
         throw e;
       }

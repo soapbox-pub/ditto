@@ -17,7 +17,7 @@ const translateSchema = z.object({
 });
 
 const translateController: AppController = async (c) => {
-  const { user, signal } = c.var;
+  const { relay, user, signal } = c.var;
 
   const result = translateSchema.safeParse(await parseBody(c.req.raw));
 
@@ -34,7 +34,7 @@ const translateController: AppController = async (c) => {
 
   const id = c.req.param('id');
 
-  const event = await getEvent(id, { signal });
+  const event = await getEvent(id, c.var);
   if (!event) {
     return c.json({ error: 'Record not found' }, 400);
   }
@@ -45,7 +45,7 @@ const translateController: AppController = async (c) => {
     return c.json({ error: 'Source and target languages are the same. No translation needed.' }, 400);
   }
 
-  const status = await renderStatus(event, { viewerPubkey });
+  const status = await renderStatus(relay, event, { viewerPubkey });
   if (!status?.content) {
     return c.json({ error: 'Bad request.', schema: result.error }, 400);
   }

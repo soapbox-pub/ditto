@@ -71,7 +71,7 @@ const pleromaAdminTagController: AppController = async (c) => {
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
 
     await updateAdminEvent(
@@ -104,7 +104,7 @@ const pleromaAdminUntagController: AppController = async (c) => {
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
 
     await updateAdminEvent(
@@ -130,7 +130,7 @@ const pleromaAdminSuggestController: AppController = async (c) => {
   const { nicknames } = pleromaAdminSuggestSchema.parse(await c.req.json());
 
   for (const nickname of nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
     await updateUser(pubkey, { suggested: true }, c);
   }
@@ -142,7 +142,7 @@ const pleromaAdminUnsuggestController: AppController = async (c) => {
   const { nicknames } = pleromaAdminSuggestSchema.parse(await c.req.json());
 
   for (const nickname of nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
     await updateUser(pubkey, { suggested: false }, c);
   }

@@ -4,42 +4,49 @@ import { PgliteDialect } from '@soapbox/kysely-pglite';
 import { Kysely } from 'kysely';
 
 import { KyselyLogger } from '../KyselyLogger.ts';
+import { DittoPgMigrator } from '../DittoPgMigrator.ts';
 import { isWorker } from '../utils/worker.ts';
 
 import type { DittoDB, DittoDBOpts } from '../DittoDB.ts';
 import type { DittoTables } from '../DittoTables.ts';
 
-export class DittoPglite {
-  static create(databaseUrl: string, opts?: DittoDBOpts): DittoDB {
+export class DittoPglite implements DittoDB {
+  readonly poolSize = 1;
+  readonly availableConnections = 1;
+  readonly kysely: Kysely<DittoTables>;
+
+  private pglite: PGlite;
+  private migrator: DittoPgMigrator;
+
+  constructor(databaseUrl: string, opts?: DittoDBOpts) {
     const url = new URL(databaseUrl);
 
     if (url.protocol === 'file:' && isWorker()) {
       throw new Error('PGlite is not supported in worker threads.');
     }
 
-    const pglite = new PGlite(databaseUrl, {
+    this.pglite = new PGlite(databaseUrl, {
       extensions: { pg_trgm },
       debug: opts?.debug,
     });
 
-    const kysely = new Kysely<DittoTables>({
-      dialect: new PgliteDialect({ database: pglite }),
+    this.kysely = new Kysely<DittoTables>({
+      dialect: new PgliteDialect({ database: this.pglite }),
       log: KyselyLogger,
     });
 
-    const listen = (channel: string, callback: (payload: string) => void): void => {
-      pglite.listen(channel, callback);
-    };
+    this.migrator = new DittoPgMigrator(this.kysely);
+  }
 
-    return {
-      kysely,
-      poolSize: 1,
-      availableConnections: 1,
-      listen,
-      [Symbol.asyncDispose]: async () => {
-        await pglite.close();
-        await kysely.destroy();
-      },
-    };
+  listen(channel: string, callback: (payload: string) => void): void {
+    this.pglite.listen(channel, callback);
+  }
+
+  async migrate(): Promise<void> {
+    await this.migrator.migrate();
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.kysely.destroy();
   }
 }

@@ -1,3 +1,4 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
@@ -5,20 +6,29 @@ import { AppController } from '@/app.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
 import { addTag } from '@/utils/tags.ts';
-import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
+import { createEvent, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
-import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
-import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
 
 const markerSchema = z.enum(['read', 'write']);
+
+/** WebSocket URL. */
+const wsUrlSchema = z.string().refine((val): val is `wss://${string}` | `ws://${string}` => {
+  try {
+    const { protocol } = new URL(val);
+    return protocol === 'wss:' || protocol === 'ws:';
+  } catch {
+    return false;
+  }
+}, 'Invalid WebSocket URL');
 
 const relaySchema = z.object({
   url: wsUrlSchema,
@@ -62,7 +72,7 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
   return event.tags.reduce((acc, [name, url, marker]) => {
     if (name === 'r') {
       const relay: RelayEntity = {
-        url,
+        url: url as `wss://${string}`,
         marker: markerSchema.safeParse(marker).success ? marker as 'read' | 'write' : undefined,
       };
       acc.push(relay);
@@ -110,7 +120,7 @@ export const nameRequestController: AppController = async (c) => {
     ],
   }, c);
 
-  await hydrateEvents({ events: [event], relay });
+  await hydrateEvents({ ...c.var, events: [event] });
 
   const nameRequest = await renderNameRequest(event);
   return c.json(nameRequest);
@@ -122,7 +132,7 @@ const nameRequestsSchema = z.object({
 });
 
 export const nameRequestsController: AppController = async (c) => {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, relay, user } = c.var;
   const pubkey = await user!.signer.getPublicKey();
 
   const params = c.get('pagination');
@@ -158,7 +168,7 @@ export const nameRequestsController: AppController = async (c) => {
   }
 
   const events = await relay.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
-    .then((events) => hydrateEvents({ relay, events: events, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const nameRequests = await Promise.all(
     events.map((event) => renderNameRequest(event)),
@@ -253,7 +263,7 @@ export const getZapSplitsController: AppController = async (c) => {
   const pubkeys = Object.keys(dittoZapSplit);
 
   const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
-    const author = await getAuthor(pubkey);
+    const author = await getAuthor(pubkey, c.var);
 
     const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
@@ -282,7 +292,7 @@ export const statusZapSplitsController: AppController = async (c) => {
   const pubkeys = zapsTag.map((name) => name[1]);
 
   const users = await relay.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
-  await hydrateEvents({ events: users, relay, signal });
+  await hydrateEvents({ ...c.var, events: users });
 
   const zapSplits = (await Promise.all(pubkeys.map((pubkey) => {
     const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;
@@ -315,7 +325,8 @@ const updateInstanceSchema = z.object({
 });
 
 export const updateInstanceController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = updateInstanceSchema.safeParse(body);
   const pubkey = await conf.signer.getPublicKey();
@@ -324,7 +335,7 @@ export const updateInstanceController: AppController = async (c) => {
     return c.json(result.error, 422);
   }
 
-  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const meta = await getInstanceMetadata(relay, signal);
 
   await updateAdminEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },

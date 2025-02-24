@@ -1,7 +1,13 @@
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { NostrFilter } from '@nostrify/nostrify';
 import { Command, InvalidOptionArgumentError } from 'commander';
 
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
+
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
 
 interface ExportFilter {
   authors?: string[];
@@ -98,8 +104,6 @@ export function buildFilter(args: ExportFilter) {
 }
 
 async function exportEvents(args: ExportFilter) {
-  const store = await Storages.db();
-
   let filter: NostrFilter = {};
   try {
     filter = buildFilter(args);
@@ -108,7 +112,7 @@ async function exportEvents(args: ExportFilter) {
   }
 
   let count = 0;
-  for await (const msg of store.req([filter])) {
+  for await (const msg of relay.req([filter])) {
     if (msg[0] === 'EOSE') {
       break;
     }

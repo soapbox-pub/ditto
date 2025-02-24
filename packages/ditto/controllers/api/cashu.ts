@@ -78,7 +78,6 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
   await createEvent({
     kind: 17375,
     content: encryptedWalletContentTags,
-    // @ts-ignore kill me
   }, c);
 
   // Nutzap information
@@ -89,7 +88,6 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
       ['relay', conf.relay], // TODO: add more relays once things get more stable
       ['pubkey', p2pk],
     ],
-    // @ts-ignore kill me
   }, c);
 
   // TODO: hydrate wallet and add a 'balance' field when a 'renderWallet' view function is created

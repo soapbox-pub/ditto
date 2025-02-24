@@ -5,7 +5,7 @@ import {
   streamingServerMessagesCounter,
 } from '@ditto/metrics';
 import TTLCache from '@isaacs/ttlcache';
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
@@ -83,7 +83,7 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
 
   const pubkey = await user?.signer.getPublicKey();
   const policy = pubkey ? new MuteListPolicy(pubkey, relay) : undefined;
@@ -99,8 +99,9 @@ const streamingController: AppController = async (c) => {
     filter: NostrFilter & { limit: 0 },
     render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
   ) {
+    const { signal } = controller;
     try {
-      for await (const msg of relay.req([filter], { signal: controller.signal })) {
+      for await (const msg of relay.req([filter], { signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -111,7 +112,7 @@ const streamingController: AppController = async (c) => {
             }
           }
 
-          await hydrateEvents({ events: [event], relay, signal: AbortSignal.timeout(1000) });
+          await hydrateEvents({ ...c.var, events: [event], signal });
 
           const result = await render(event);
 
@@ -130,17 +131,17 @@ const streamingController: AppController = async (c) => {
     streamingConnectionsGauge.set(connections.size);
 
     if (!stream) return;
-    const topicFilter = await topicToFilter(stream, c.req.query(), pubkey, conf.url.host);
+    const topicFilter = await topicToFilter(relay, stream, c.req.query(), pubkey, conf.url.host);
 
     if (topicFilter) {
       sub(topicFilter, async (event) => {
         let payload: object | undefined;
 
         if (event.kind === 1) {
-          payload = await renderStatus(event, { viewerPubkey: pubkey });
+          payload = await renderStatus(relay, event, { viewerPubkey: pubkey });
         }
         if (event.kind === 6) {
-          payload = await renderReblog(event, { viewerPubkey: pubkey });
+          payload = await renderReblog(relay, event, { viewerPubkey: pubkey });
         }
 
         if (payload) {
@@ -156,13 +157,13 @@ const streamingController: AppController = async (c) => {
     if (['user', 'user:notification'].includes(stream) && pubkey) {
       sub({ '#p': [pubkey], limit: 0 }, async (event) => {
         if (event.pubkey === pubkey) return; // skip own events
-        const payload = await renderNotification(event, { viewerPubkey: pubkey });
+        const payload = await renderNotification(relay, event, { viewerPubkey: pubkey });
         if (payload) {
           return {
             event: 'notification',
             payload: JSON.stringify(payload),
             stream: [stream],
-          };
+          } satisfies StreamingEvent;
         }
       });
       return;
@@ -198,6 +199,7 @@ const streamingController: AppController = async (c) => {
 };
 
 async function topicToFilter(
+  relay: NStore,
   topic: Stream,
   query: Record<string, string>,
   pubkey: string | undefined,
@@ -218,7 +220,7 @@ async function topicToFilter(
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)], limit: 0 } : undefined;
+      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(relay, pubkey)], limit: 0 } : undefined;
   }
 }
 

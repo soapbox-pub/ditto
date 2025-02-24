@@ -13,10 +13,7 @@ import { createTestDB } from '@/test.ts';
 import cashuRoute from './cashu.ts';
 import { walletSchema } from '@/schema.ts';
 
-Deno.test('PUT /wallet must be successful', {
-  sanitizeOps: false,
-  sanitizeResources: false,
-}, async () => {
+Deno.test('PUT /wallet must be successful', async () => {
   await using test = await createTestRoute();
 
   const { route, signer, sk, relay } = test;
@@ -101,10 +98,7 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
   assertObjectMatch(body, { error: 'Bad schema' });
 });
 
-Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
-  sanitizeOps: false,
-  sanitizeResources: false,
-}, async () => {
+Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
   await using test = await createTestRoute();
   const { route, sk, relay } = test;
 
@@ -127,10 +121,7 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', {
   assertEquals(body2, { error: 'You already have a wallet 😏' });
 });
 
-Deno.test('GET /wallet must be successful', {
-  sanitizeOps: false,
-  sanitizeResources: false,
-}, async () => {
+Deno.test('GET /wallet must be successful', async () => {
   await using test = await createTestRoute();
   const { route, sk, relay, signer } = test;
 
@@ -252,7 +243,7 @@ async function createTestRoute() {
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
 
-  const route = new DittoApp({ db, relay, conf });
+  const route = new DittoApp({ db: db.db, relay, conf });
 
   route.use(testUserMiddleware({ signer, relay }));
   route.route('/', cashuRoute);

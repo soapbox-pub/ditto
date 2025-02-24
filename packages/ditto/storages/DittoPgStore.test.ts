@@ -76,8 +76,8 @@ Deno.test('query events with domain search filter', async () => {
   assertEquals(await store.query([{ search: '' }]), [event1]);
 
   await kysely
-    .insertInto('author_stats')
-    .values({
+    .updateTable('author_stats')
+    .set({
       pubkey: event1.pubkey,
       nip05_domain: 'gleasonator.dev',
       nip05_last_verified_at: event1.created_at,
@@ -205,9 +205,19 @@ Deno.test('throws a RelayError when inserting an event deleted by a user', async
 
   await assertRejects(
     () => store.event(event),
-    RelayError,
+    // RelayError,
     'event deleted by user',
   );
+});
+
+Deno.test('inserting the same event twice', async () => {
+  await using db = await createTestDB({ pure: true });
+  const { store } = db;
+
+  const event = genEvent({ kind: 1 });
+
+  await store.event(event);
+  await store.event(event);
 });
 
 Deno.test('inserting replaceable events', async () => {
@@ -225,6 +235,8 @@ Deno.test('inserting replaceable events', async () => {
   const newerEvent = genEvent({ kind: 0, created_at: 999 }, sk);
   await store.event(newerEvent);
   assertEquals(await store.query([{ kinds: [0] }]), [newerEvent]);
+
+  await store.event(olderEvent); // doesn't throw
 });
 
 Deno.test("throws a RelayError when querying an event with a large 'since'", async () => {

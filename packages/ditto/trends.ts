@@ -1,11 +1,9 @@
-import { DittoTables } from '@ditto/db';
-import { NostrFilter } from '@nostrify/nostrify';
+import { DittoConf } from '@ditto/conf';
+import { DittoDB, DittoTables } from '@ditto/db';
+import { NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { Kysely, sql } from 'kysely';
 
-import { Conf } from '@/config.ts';
-import { handleEvent } from '@/pipeline.ts';
-import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
 import { Time } from '@/utils/time.ts';
 
@@ -63,8 +61,15 @@ export async function getTrendingTagValues(
   }));
 }
 
+export interface TrendsCtx {
+  conf: DittoConf;
+  db: DittoDB;
+  relay: NStore;
+}
+
 /** Get trending tags and publish an event with them. */
 export async function updateTrendingTags(
+  ctx: TrendsCtx,
   l: string,
   tagName: string,
   kinds: number[],
@@ -73,10 +78,11 @@ export async function updateTrendingTags(
   aliases?: string[],
   values?: string[],
 ) {
+  const { conf, db, relay } = ctx;
   const params = { l, tagName, kinds, limit, extra, aliases, values };
+
   logi({ level: 'info', ns: 'ditto.trends', msg: 'Updating trending', ...params });
 
-  const kysely = await Storages.kysely();
   const signal = AbortSignal.timeout(1000);
 
   const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
@@ -85,7 +91,7 @@ export async function updateTrendingTags(
   const tagNames = aliases ? [tagName, ...aliases] : [tagName];
 
   try {
-    const trends = await getTrendingTagValues(kysely, tagNames, {
+    const trends = await getTrendingTagValues(db.kysely, tagNames, {
       kinds,
       since: yesterday,
       until: now,
@@ -99,7 +105,7 @@ export async function updateTrendingTags(
       return;
     }
 
-    const signer = Conf.signer;
+    const signer = conf.signer;
 
     const label = await signer.signEvent({
       kind: 1985,
@@ -112,7 +118,7 @@ export async function updateTrendingTags(
       created_at: Math.floor(Date.now() / 1000),
     });
 
-    await handleEvent(label, { source: 'internal', signal });
+    await relay.event(label, { signal });
     logi({ level: 'info', ns: 'ditto.trends', msg: 'Trends updated', ...params });
   } catch (e) {
     logi({ level: 'error', ns: 'ditto.trends', msg: 'Error updating trends', ...params, error: errorJson(e) });
@@ -120,28 +126,28 @@ export async function updateTrendingTags(
 }
 
 /** Update trending pubkeys. */
-export function updateTrendingPubkeys(): Promise<void> {
-  return updateTrendingTags('#p', 'p', [1, 3, 6, 7, 9735], 40, Conf.relay);
+export function updateTrendingPubkeys(ctx: TrendsCtx): Promise<void> {
+  return updateTrendingTags(ctx, '#p', 'p', [1, 3, 6, 7, 9735], 40, ctx.conf.relay);
 }
 
 /** Update trending zapped events. */
-export function updateTrendingZappedEvents(): Promise<void> {
-  return updateTrendingTags('zapped', 'e', [9735], 40, Conf.relay, ['q']);
+export function updateTrendingZappedEvents(ctx: TrendsCtx): Promise<void> {
+  return updateTrendingTags(ctx, 'zapped', 'e', [9735], 40, ctx.conf.relay, ['q']);
 }
 
 /** Update trending events. */
-export async function updateTrendingEvents(): Promise<void> {
+export async function updateTrendingEvents(ctx: TrendsCtx): Promise<void> {
+  const { conf, db } = ctx;
+
   const results: Promise<void>[] = [
-    updateTrendingTags('#e', 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q']),
+    updateTrendingTags(ctx, '#e', 'e', [1, 6, 7, 9735], 40, ctx.conf.relay, ['q']),
   ];
 
-  const kysely = await Storages.kysely();
-
-  for (const language of Conf.preferredLanguages ?? []) {
+  for (const language of conf.preferredLanguages ?? []) {
     const yesterday = Math.floor((Date.now() - Time.days(1)) / 1000);
     const now = Math.floor(Date.now() / 1000);
 
-    const rows = await kysely
+    const rows = await db.kysely
       .selectFrom('nostr_events')
       .select('nostr_events.id')
       .where(sql`nostr_events.search_ext->>'language'`, '=', language)
@@ -151,18 +157,20 @@ export async function updateTrendingEvents(): Promise<void> {
 
     const ids = rows.map((row) => row.id);
 
-    results.push(updateTrendingTags(`#e.${language}`, 'e', [1, 6, 7, 9735], 40, Conf.relay, ['q'], ids));
+    results.push(
+      updateTrendingTags(ctx, `#e.${language}`, 'e', [1, 6, 7, 9735], 40, conf.relay, ['q'], ids),
+    );
   }
 
   await Promise.allSettled(results);
 }
 
 /** Update trending hashtags. */
-export function updateTrendingHashtags(): Promise<void> {
-  return updateTrendingTags('#t', 't', [1], 20);
+export function updateTrendingHashtags(ctx: TrendsCtx): Promise<void> {
+  return updateTrendingTags(ctx, '#t', 't', [1], 20);
 }
 
 /** Update trending links. */
-export function updateTrendingLinks(): Promise<void> {
-  return updateTrendingTags('#r', 'r', [1], 20);
+export function updateTrendingLinks(ctx: TrendsCtx): Promise<void> {
+  return updateTrendingTags(ctx, '#r', 'r', [1], 20);
 }

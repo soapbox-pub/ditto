@@ -3,8 +3,7 @@ import { escape } from 'entities';
 import { generateSecretKey } from 'nostr-tools';
 import { z } from 'zod';
 
-import { AppController } from '@/app.ts';
-import { Storages } from '@/storages.ts';
+import { AppContext, AppController } from '@/app.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseBody } from '@/utils/api.ts';
 import { aesEncrypt } from '@/utils/aes.ts';
@@ -40,6 +39,7 @@ const createTokenSchema = z.discriminatedUnion('grant_type', [
 
 const createTokenController: AppController = async (c) => {
   const { conf } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = createTokenSchema.safeParse(body);
 
@@ -50,7 +50,7 @@ const createTokenController: AppController = async (c) => {
   switch (result.data.grant_type) {
     case 'nostr_bunker':
       return c.json({
-        access_token: await getToken(result.data, conf.seckey),
+        access_token: await getToken(c, result.data, conf.seckey),
         token_type: 'Bearer',
         scope: 'read write follow push',
         created_at: nostrNow(),
@@ -90,6 +90,8 @@ const revokeTokenSchema = z.object({
  * https://docs.joinmastodon.org/methods/oauth/#revoke
  */
 const revokeTokenController: AppController = async (c) => {
+  const { db } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = revokeTokenSchema.safeParse(body);
 
@@ -99,10 +101,9 @@ const revokeTokenController: AppController = async (c) => {
 
   const { token } = result.data;
 
-  const kysely = await Storages.kysely();
   const tokenHash = await getTokenHash(token as `token1${string}`);
 
-  await kysely
+  await db.kysely
     .deleteFrom('auth_tokens')
     .where('token_hash', '=', tokenHash)
     .execute();
@@ -111,10 +112,11 @@ const revokeTokenController: AppController = async (c) => {
 };
 
 async function getToken(
+  c: AppContext,
   { pubkey: bunkerPubkey, secret, relays = [] }: { pubkey: string; secret?: string; relays?: string[] },
   dittoSeckey: Uint8Array,
 ): Promise<`token1${string}`> {
-  const kysely = await Storages.kysely();
+  const { db, relay } = c.var;
   const { token, hash } = await generateToken();
 
   const nip46Seckey = generateSecretKey();
@@ -123,14 +125,14 @@ async function getToken(
     encryption: 'nip44',
     pubkey: bunkerPubkey,
     signer: new NSecSigner(nip46Seckey),
-    relay: await Storages.db(), // TODO: Use the relays from the request.
+    relay,
     timeout: 60_000,
   });
 
   await signer.connect(secret);
   const userPubkey = await signer.getPublicKey();
 
-  await kysely.insertInto('auth_tokens').values({
+  await db.kysely.insertInto('auth_tokens').values({
     token_hash: hash,
     pubkey: userPubkey,
     bunker_pubkey: bunkerPubkey,
@@ -236,7 +238,7 @@ const oauthAuthorizeController: AppController = async (c) => {
 
   const bunker = new URL(bunker_uri);
 
-  const token = await getToken({
+  const token = await getToken(c, {
     pubkey: bunker.hostname,
     secret: bunker.searchParams.get('secret') || undefined,
     relays: bunker.searchParams.getAll('relay'),

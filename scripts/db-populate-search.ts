@@ -1,11 +1,14 @@
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { NSchema as n } from '@nostrify/nostrify';
 
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 
-const store = await Storages.db();
-const kysely = await Storages.kysely();
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
 
-for await (const msg of store.req([{ kinds: [0] }])) {
+for await (const msg of relay.req([{ kinds: [0] }])) {
   if (msg[0] === 'EVENT') {
     const { pubkey, content } = msg[2];
 
@@ -13,7 +16,7 @@ for await (const msg of store.req([{ kinds: [0] }])) {
     const search = [name, nip05].filter(Boolean).join(' ').trim();
 
     try {
-      await kysely.insertInto('author_stats').values({
+      await db.kysely.insertInto('author_stats').values({
         pubkey,
         search,
         followers_count: 0,

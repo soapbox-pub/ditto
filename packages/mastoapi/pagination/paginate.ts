@@ -1,18 +1,22 @@
 import { buildLinkHeader, buildListLinkHeader } from './link-header.ts';
 
+import type { DittoEnv } from '@ditto/mastoapi/router';
 import type { Context } from '@hono/hono';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 type HeaderRecord = Record<string, string | string[]>;
 
 /** Return results with pagination headers. Assumes chronological sorting of events. */
-export function paginated(
-  c: Context,
+export function paginated<E extends DittoEnv>(
+  c: Context<E>,
   events: NostrEvent[],
   body: object | unknown[],
   headers: HeaderRecord = {},
 ): Response {
-  const link = buildLinkHeader(c.req.url, events);
+  const { conf } = c.var;
+
+  const url = conf.local(c.req.url);
+  const link = buildLinkHeader(url, events);
 
   if (link) {
     headers.link = link;
@@ -24,13 +28,16 @@ export function paginated(
 }
 
 /** paginate a list of tags. */
-export function paginatedList(
-  c: Context,
+export function paginatedList<E extends DittoEnv>(
+  c: Context<E>,
   params: { offset: number; limit: number },
   body: object | unknown[],
   headers: HeaderRecord = {},
 ): Response {
-  const link = buildListLinkHeader(c.req.url, params);
+  const { conf } = c.var;
+
+  const url = conf.local(c.req.url);
+  const link = buildListLinkHeader(url, params);
   const hasMore = Array.isArray(body) ? body.length > 0 : true;
 
   if (link) {

@@ -23,6 +23,10 @@ export class DummyDB implements DittoDB {
     // noop
   }
 
+  migrate(): Promise<void> {
+    return Promise.resolve();
+  }
+
   [Symbol.asyncDispose](): Promise<void> {
     return Promise.resolve();
   }

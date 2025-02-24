@@ -1,10 +1,10 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
 import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 /** Set of known notification types across backends. */
@@ -90,9 +90,9 @@ const notificationController: AppController = async (c) => {
     return c.json({ error: 'Event not found' }, { status: 404 });
   }
 
-  await hydrateEvents({ events: [event], relay });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const notification = await renderNotification(event, { viewerPubkey: pubkey });
+  const notification = await renderNotification(relay, event, { viewerPubkey: pubkey });
 
   if (!notification) {
     return c.json({ error: 'Notification not found' }, { status: 404 });
@@ -116,14 +116,14 @@ async function renderNotifications(
   const events = await relay
     .query(filters, opts)
     .then((events) => events.filter((event) => event.pubkey !== pubkey))
-    .then((events) => hydrateEvents({ events, relay, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   if (!events.length) {
     return c.json([]);
   }
 
   const notifications = (await Promise.all(events.map((event) => {
-    return renderNotification(event, { viewerPubkey: pubkey });
+    return renderNotification(relay, event, { viewerPubkey: pubkey });
   })))
     .filter((notification) => notification && types.has(notification.type));
 

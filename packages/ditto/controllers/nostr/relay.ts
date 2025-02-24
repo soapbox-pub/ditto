@@ -16,7 +16,6 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
 import { type DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { errorJson } from '@/utils/log.ts';
@@ -159,7 +158,7 @@ function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, 
 
     try {
       // This will store it (if eligible) and run other side-effects.
-      await pipeline.handleEvent(purifyEvent(event), { source: 'relay', signal: AbortSignal.timeout(1000) });
+      await relay.event(purifyEvent(event), { signal: AbortSignal.timeout(1000) });
       send(['OK', event.id, true, '']);
     } catch (e) {
       if (e instanceof RelayError) {
@@ -214,7 +213,7 @@ const relayController: AppController = (c, next) => {
     ip = undefined;
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
   connectStream(conf, relay as DittoPgStore, socket, ip);
 
   return response;

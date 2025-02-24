@@ -1,13 +1,12 @@
 // deno-lint-ignore-file require-await
 import { HTTPException } from '@hono/hono/http-exception';
-import { NConnectSigner, NostrEvent, NostrSigner } from '@nostrify/nostrify';
-
-import { Storages } from '@/storages.ts';
+import { NConnectSigner, NostrEvent, NostrSigner, NRelay } from '@nostrify/nostrify';
 
 interface ConnectSignerOpts {
   bunkerPubkey: string;
   userPubkey: string;
   signer: NostrSigner;
+  relay: NRelay;
   relays?: string[];
 }
 
@@ -17,27 +16,23 @@ interface ConnectSignerOpts {
  * Simple extension of nostrify's `NConnectSigner`, with our options to keep it DRY.
  */
 export class ConnectSigner implements NostrSigner {
-  private signer: Promise<NConnectSigner>;
+  private signer: NConnectSigner;
 
   constructor(private opts: ConnectSignerOpts) {
-    this.signer = this.init(opts.signer);
-  }
+    const { relay, signer } = this.opts;
 
-  async init(signer: NostrSigner): Promise<NConnectSigner> {
-    return new NConnectSigner({
+    this.signer = new NConnectSigner({
       encryption: 'nip44',
       pubkey: this.opts.bunkerPubkey,
-      // TODO: use a remote relay for `nprofile` signing (if present and `Conf.relay` isn't already in the list)
-      relay: await Storages.db(),
+      relay,
       signer,
       timeout: 60_000,
     });
   }
 
   async signEvent(event: Omit<NostrEvent, 'id' | 'pubkey' | 'sig'>): Promise<NostrEvent> {
-    const signer = await this.signer;
     try {
-      return await signer.signEvent(event);
+      return await this.signer.signEvent(event);
     } catch (e) {
       if (e instanceof Error && e.name === 'AbortError') {
         throw new HTTPException(408, { message: 'The event was not signed quickly enough' });
@@ -49,9 +44,8 @@ export class ConnectSigner implements NostrSigner {
 
   readonly nip04 = {
     encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
-      const signer = await this.signer;
       try {
-        return await signer.nip04.encrypt(pubkey, plaintext);
+        return await this.signer.nip04.encrypt(pubkey, plaintext);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
@@ -64,9 +58,8 @@ export class ConnectSigner implements NostrSigner {
     },
 
     decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
-      const signer = await this.signer;
       try {
-        return await signer.nip04.decrypt(pubkey, ciphertext);
+        return await this.signer.nip04.decrypt(pubkey, ciphertext);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
@@ -81,9 +74,8 @@ export class ConnectSigner implements NostrSigner {
 
   readonly nip44 = {
     encrypt: async (pubkey: string, plaintext: string): Promise<string> => {
-      const signer = await this.signer;
       try {
-        return await signer.nip44.encrypt(pubkey, plaintext);
+        return await this.signer.nip44.encrypt(pubkey, plaintext);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {
@@ -96,9 +88,8 @@ export class ConnectSigner implements NostrSigner {
     },
 
     decrypt: async (pubkey: string, ciphertext: string): Promise<string> => {
-      const signer = await this.signer;
       try {
-        return await signer.nip44.decrypt(pubkey, ciphertext);
+        return await this.signer.nip44.decrypt(pubkey, ciphertext);
       } catch (e) {
         if (e instanceof Error && e.name === 'AbortError') {
           throw new HTTPException(408, {

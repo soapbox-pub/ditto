@@ -9,14 +9,14 @@ import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 interface UpdateStatsOpts {
   kysely: Kysely<DittoTables>;
-  store: NStore;
+  relay: NStore;
   event: NostrEvent;
   x?: 1 | -1;
 }
 
 /** Handle one event at a time and update relevant stats for it. */
 // deno-lint-ignore require-await
-export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOpts): Promise<void> {
+export async function updateStats({ event, kysely, relay, x = 1 }: UpdateStatsOpts): Promise<void> {
   switch (event.kind) {
     case 1:
     case 20:
@@ -24,9 +24,9 @@ export async function updateStats({ event, kysely, store, x = 1 }: UpdateStatsOp
     case 30023:
       return handleEvent1(kysely, event, x);
     case 3:
-      return handleEvent3(kysely, event, x, store);
+      return handleEvent3(kysely, event, x, relay);
     case 5:
-      return handleEvent5(kysely, event, -1, store);
+      return handleEvent5(kysely, event, -1, relay);
     case 6:
       return handleEvent6(kysely, event, x);
     case 7:
@@ -88,12 +88,12 @@ async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 }
 
 /** Update stats for kind 3 event. */
-async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: number, store: NStore): Promise<void> {
+async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: number, relay: NStore): Promise<void> {
   const following = getTagSet(event.tags, 'p');
 
   await updateAuthorStats(kysely, event.pubkey, () => ({ following_count: following.size }));
 
-  const [prev] = await store.query([
+  const [prev] = await relay.query([
     { kinds: [3], authors: [event.pubkey], limit: 1 },
   ]);
 
@@ -117,12 +117,12 @@ async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 }
 
 /** Update stats for kind 5 event. */
-async function handleEvent5(kysely: Kysely<DittoTables>, event: NostrEvent, x: -1, store: NStore): Promise<void> {
+async function handleEvent5(kysely: Kysely<DittoTables>, event: NostrEvent, x: -1, relay: NStore): Promise<void> {
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (id) {
-    const [target] = await store.query([{ ids: [id], authors: [event.pubkey], limit: 1 }]);
+    const [target] = await relay.query([{ ids: [id], authors: [event.pubkey], limit: 1 }]);
     if (target) {
-      await updateStats({ event: target, kysely, store, x });
+      await updateStats({ event: target, kysely, relay, x });
     }
   }
 }
@@ -300,13 +300,13 @@ export async function updateEventStats(
 
 /** Calculate author stats from the database. */
 export async function countAuthorStats(
-  { pubkey, store }: RefreshAuthorStatsOpts,
+  { pubkey, relay }: RefreshAuthorStatsOpts,
 ): Promise<DittoTables['author_stats']> {
   const [{ count: followers_count }, { count: notes_count }, [followList], [kind0]] = await Promise.all([
-    store.count([{ kinds: [3], '#p': [pubkey] }]),
-    store.count([{ kinds: [1, 20], authors: [pubkey] }]),
-    store.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
-    store.query([{ kinds: [0], authors: [pubkey], limit: 1 }]),
+    relay.count([{ kinds: [3], '#p': [pubkey] }]),
+    relay.count([{ kinds: [1, 20], authors: [pubkey] }]),
+    relay.query([{ kinds: [3], authors: [pubkey], limit: 1 }]),
+    relay.query([{ kinds: [0], authors: [pubkey], limit: 1 }]),
   ]);
   let search: string = '';
   const metadata = n.json().pipe(n.metadata()).catch({}).safeParse(kind0?.content);
@@ -333,14 +333,14 @@ export async function countAuthorStats(
 export interface RefreshAuthorStatsOpts {
   pubkey: string;
   kysely: Kysely<DittoTables>;
-  store: SetRequired<NStore, 'count'>;
+  relay: SetRequired<NStore, 'count'>;
 }
 
 /** Refresh the author's stats in the database. */
 export async function refreshAuthorStats(
-  { pubkey, kysely, store }: RefreshAuthorStatsOpts,
+  { pubkey, kysely, relay }: RefreshAuthorStatsOpts,
 ): Promise<DittoTables['author_stats']> {
-  const stats = await countAuthorStats({ store, pubkey, kysely });
+  const stats = await countAuthorStats({ relay, pubkey, kysely });
 
   await kysely.insertInto('author_stats')
     .values(stats)

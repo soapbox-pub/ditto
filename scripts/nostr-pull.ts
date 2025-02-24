@@ -3,12 +3,16 @@
  * by looking them up on a list of relays.
  */
 
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { NostrEvent, NRelay1, NSchema } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 
-const store = await Storages.db();
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
 
 interface ImportEventsOpts {
   profilesOnly: boolean;
@@ -19,7 +23,7 @@ const importUsers = async (
   authors: string[],
   relays: string[],
   opts?: Partial<ImportEventsOpts>,
-  doEvent: DoEvent = async (event: NostrEvent) => await store.event(event),
+  doEvent: DoEvent = async (event: NostrEvent) => await relay.event(event),
 ) => {
   // Kind 0s + follow lists.
   const profiles: Record<string, Record<number, NostrEvent>> = {};
