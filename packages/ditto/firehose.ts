@@ -7,7 +7,7 @@ import { nostrNow } from '@/utils.ts';
 
 interface FirehoseOpts {
   pool: NRelay;
-  store: NStore;
+  relay: NStore;
   concurrency: number;
   kinds: number[];
   timeout?: number;
@@ -19,7 +19,7 @@ interface FirehoseOpts {
  * and storing events for notifications and the home feed.
  */
 export async function startFirehose(opts: FirehoseOpts): Promise<void> {
-  const { pool, store, kinds, concurrency, timeout = 5000 } = opts;
+  const { pool, relay, kinds, concurrency, timeout = 5000 } = opts;
 
   const sem = new Semaphore(concurrency);
 
@@ -32,7 +32,7 @@ export async function startFirehose(opts: FirehoseOpts): Promise<void> {
 
       sem.lock(async () => {
         try {
-          await store.event(event, { signal: AbortSignal.timeout(timeout) });
+          await relay.event(event, { signal: AbortSignal.timeout(timeout) });
         } catch {
           // Ignore
         }

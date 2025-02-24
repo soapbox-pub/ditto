@@ -197,25 +197,24 @@ const pgstore = new DittoPgStore({
 });
 
 const pool = new DittoPool({ conf, relay: pgstore });
-const relaystore = new DittoRelayStore({ db, conf, relay: pgstore });
-const apistore = new DittoAPIStore({ relay: relaystore, pool });
+const relay = new DittoRelayStore({ db, conf, relay: pgstore });
 
-await seedZapSplits(apistore);
+await seedZapSplits(relay);
 
 if (conf.firehoseEnabled) {
   startFirehose({
     pool,
-    store: relaystore,
+    relay,
     concurrency: conf.firehoseConcurrency,
     kinds: conf.firehoseKinds,
   });
 }
 
 if (conf.cronEnabled) {
-  cron({ conf, db, relay: relaystore });
+  cron({ conf, db, relay });
 }
 
-const app = new DittoApp({ conf, db, relay: relaystore }, { strict: false });
+const app = new DittoApp({ conf, db, relay }, { strict: false });
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
@@ -246,7 +245,7 @@ app.get('/api/v1/streaming', socketTokenMiddleware, metricsMiddleware, ratelimit
 app.get(
   '/relay',
   (c, next) => {
-    c.set('relay', relaystore);
+    c.set('relay', new DittoAPIStore({ relay, pool }));
     return next();
   },
   metricsMiddleware,
