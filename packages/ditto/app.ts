@@ -148,6 +148,7 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
   Variables: {
@@ -188,32 +189,33 @@ const db = new DittoPolyPg(conf.databaseUrl, {
 
 await db.migrate();
 
-const store = new DittoPgStore({
+const pgstore = new DittoPgStore({
   db,
   pubkey: await conf.signer.getPublicKey(),
   timeout: conf.db.timeouts.default,
   notify: conf.notifyEnabled,
 });
 
-const pool = new DittoPool({ conf, relay: store });
-const relay = new DittoAPIStore({ db, conf, relay: store, pool });
+const pool = new DittoPool({ conf, relay: pgstore });
+const relaystore = new DittoRelayStore({ db, conf, relay: pgstore });
+const apistore = new DittoAPIStore({ relay: relaystore, pool });
 
-await seedZapSplits(relay);
+await seedZapSplits(apistore);
 
 if (conf.firehoseEnabled) {
   startFirehose({
     pool,
-    store: relay,
+    store: relaystore,
     concurrency: conf.firehoseConcurrency,
     kinds: conf.firehoseKinds,
   });
 }
 
 if (conf.cronEnabled) {
-  cron({ conf, db, relay });
+  cron({ conf, db, relay: relaystore });
 }
 
-const app = new DittoApp({ conf, db, relay }, { strict: false });
+const app = new DittoApp({ conf, db, relay: relaystore }, { strict: false });
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
@@ -240,7 +242,17 @@ app.use('/nodeinfo/*', metricsMiddleware, ratelimit, logiMiddleware);
 app.use('/oauth/*', metricsMiddleware, ratelimit, logiMiddleware);
 
 app.get('/api/v1/streaming', socketTokenMiddleware, metricsMiddleware, ratelimit, streamingController);
-app.get('/relay', metricsMiddleware, ratelimit, relayController);
+
+app.get(
+  '/relay',
+  (c, next) => {
+    c.set('relay', relaystore);
+    return next();
+  },
+  metricsMiddleware,
+  ratelimit,
+  relayController,
+);
 
 app.use(
   cspMiddleware(),

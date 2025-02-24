@@ -60,7 +60,7 @@ export class DittoRelayStore implements NRelay {
   private faviconCache: SimpleLRU<string, URL>;
   private nip05Cache: SimpleLRU<string, nip19.ProfilePointer>;
 
-  private ns = 'ditto.api.store';
+  private ns = 'ditto.relay.store';
 
   constructor(private opts: DittoRelayStoreOpts) {
     const { conf, db } = this.opts;
