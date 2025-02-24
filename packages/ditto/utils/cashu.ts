@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { errorJson } from '@/utils/log.ts';
 import { isNostrId } from '@/utils.ts';
+import { tokenEventSchema } from '@/schemas/cashu.ts';
 
 type Data = {
   wallet: NostrEvent;
@@ -99,4 +100,43 @@ async function validateAndParseWallet(
   return { data: { wallet, nutzapInfo, privkey, p2pk, mints }, error: null };
 }
 
-export { validateAndParseWallet };
+type OrganizedProofs = {
+  [mintUrl: string]: {
+    /** Total balance in this mint */
+    totalBalance: number;
+    /** Event id */
+    [eventId: string]: {
+      event: NostrEvent;
+      /** Total balance in this event */
+      balance: number;
+    } | number;
+  };
+};
+async function organizeProofs(
+  events: NostrEvent[],
+  signer: SetRequired<NostrSigner, 'nip44'>,
+): Promise<OrganizedProofs> {
+  const organizedProofs: OrganizedProofs = {};
+  const pubkey = await signer.getPublicKey();
+
+  for (const event of events) {
+    const decryptedContent = await signer.nip44.decrypt(pubkey, event.content);
+    const { data: token, success } = n.json().pipe(tokenEventSchema).safeParse(decryptedContent);
+    if (!success) {
+      continue;
+    }
+    const { mint, proofs } = token;
+
+    const balance = proofs.reduce((prev, current) => prev + current.amount, 0);
+
+    if (!organizedProofs[mint]) {
+      organizedProofs[mint] = { totalBalance: 0 };
+    }
+
+    organizedProofs[mint] = { ...organizedProofs[mint], [event.id]: { event, balance } };
+    organizedProofs[mint].totalBalance += balance;
+  }
+  return organizedProofs;
+}
+
+export { organizeProofs, validateAndParseWallet };
