@@ -4,7 +4,7 @@ import { genEvent, MockRelay } from '@nostrify/nostrify/test';
 import { assertEquals } from '@std/assert';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
-import { DittoAPIStore } from './DittoAPIStore.ts';
+import { DittoRelayStore } from './DittoRelayStore.ts';
 
 import type { NostrMetadata } from '@nostrify/types';
 
@@ -50,7 +50,7 @@ function setupTest(cb: (req: Request) => Response | Promise<Response>) {
     return await cb(req);
   };
 
-  const store = new DittoAPIStore({ conf, db, relay, pool, fetch: mockFetch });
+  const store = new DittoRelayStore({ conf, db, relay, pool, fetch: mockFetch });
 
   return {
     db,

@@ -43,7 +43,7 @@ import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 import { nip19 } from 'nostr-tools';
 
-interface DittoAPIStoreOpts {
+interface DittoRelayStoreOpts {
   db: DittoDB;
   conf: DittoConf;
   pool: NRelay;
@@ -51,7 +51,7 @@ interface DittoAPIStoreOpts {
   fetch?: typeof fetch;
 }
 
-export class DittoAPIStore implements NRelay {
+export class DittoRelayStore implements NRelay {
   private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
   private controller = new AbortController();
@@ -62,7 +62,7 @@ export class DittoAPIStore implements NRelay {
 
   private ns = 'ditto.apistore';
 
-  constructor(private opts: DittoAPIStoreOpts) {
+  constructor(private opts: DittoRelayStoreOpts) {
     const { conf, db } = this.opts;
 
     this.push = new DittoPush(opts);
