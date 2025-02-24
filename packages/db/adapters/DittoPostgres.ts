@@ -12,49 +12,54 @@ import {
 import { type PostgresJSDialectConfig, PostgresJSDriver } from 'kysely-postgres-js';
 import postgres from 'postgres';
 
+import { DittoPgMigrator } from '../DittoPgMigrator.ts';
 import { KyselyLogger } from '../KyselyLogger.ts';
 
-import type { DittoDatabase, DittoDatabaseOpts } from '../DittoDatabase.ts';
+import type { DittoDB, DittoDBOpts } from '../DittoDB.ts';
 import type { DittoTables } from '../DittoTables.ts';
 
-export class DittoPostgres {
-  static create(databaseUrl: string, opts?: DittoDatabaseOpts): DittoDatabase {
-    const pg = postgres(databaseUrl, { max: opts?.poolSize });
+export class DittoPostgres implements DittoDB {
+  private pg: ReturnType<typeof postgres>;
+  private migrator: DittoPgMigrator;
 
-    const kysely = new Kysely<DittoTables>({
+  readonly kysely: Kysely<DittoTables>;
+
+  constructor(databaseUrl: string, opts?: DittoDBOpts) {
+    this.pg = postgres(databaseUrl, { max: opts?.poolSize });
+
+    this.kysely = new Kysely<DittoTables>({
       dialect: {
-        createAdapter() {
-          return new PostgresAdapter();
-        },
-        createDriver() {
-          return new PostgresJSDriver({
-            postgres: pg as unknown as PostgresJSDialectConfig['postgres'],
-          });
-        },
-        createIntrospector(db) {
-          return new PostgresIntrospector(db);
-        },
-        createQueryCompiler() {
-          return new DittoPostgresQueryCompiler();
-        },
+        createAdapter: () => new PostgresAdapter(),
+        createDriver: () =>
+          new PostgresJSDriver({ postgres: this.pg as unknown as PostgresJSDialectConfig['postgres'] }),
+        createIntrospector: (db) => new PostgresIntrospector(db),
+        createQueryCompiler: () => new DittoPostgresQueryCompiler(),
       },
       log: KyselyLogger,
     });
 
-    const listen = (channel: string, callback: (payload: string) => void): void => {
-      pg.listen(channel, callback);
-    };
+    this.migrator = new DittoPgMigrator(this.kysely);
+  }
 
-    return {
-      kysely,
-      get poolSize() {
-        return pg.connections.open;
-      },
-      get availableConnections() {
-        return pg.connections.idle;
-      },
-      listen,
-    };
+  listen(channel: string, callback: (payload: string) => void): void {
+    this.pg.listen(channel, callback);
+  }
+
+  async migrate(): Promise<void> {
+    await this.migrator.migrate();
+  }
+
+  get poolSize(): number {
+    return this.pg.connections.open;
+  }
+
+  get availableConnections(): number {
+    return this.pg.connections.idle;
+  }
+
+  async [Symbol.asyncDispose](): Promise<void> {
+    await this.pg.end();
+    await this.kysely.destroy();
   }
 }
 

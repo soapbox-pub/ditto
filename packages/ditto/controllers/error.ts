@@ -5,6 +5,9 @@ import { logi } from '@soapbox/logi';
 import { errorJson } from '@/utils/log.ts';
 
 export const errorHandler: ErrorHandler = (err, c) => {
+  const { method } = c.req;
+  const { pathname } = new URL(c.req.url);
+
   c.header('Cache-Control', 'no-store');
 
   if (err instanceof HTTPException) {
@@ -19,7 +22,7 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
   }
 
-  logi({ level: 'error', ns: 'ditto.http', msg: 'Unhandled error', error: errorJson(err) });
+  logi({ level: 'error', ns: 'ditto.http', msg: 'Unhandled error', method, pathname, error: errorJson(err) });
 
   return c.json({ error: 'Something went wrong' }, 500);
 };

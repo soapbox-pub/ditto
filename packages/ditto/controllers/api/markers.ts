@@ -14,7 +14,9 @@ interface Marker {
 }
 
 export const markersController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const timelines = c.req.queries('timeline[]') ?? [];
 
   const results = await kv.getMany<Marker[]>(
@@ -37,7 +39,9 @@ const markerDataSchema = z.object({
 });
 
 export const updateMarkersController: AppController = async (c) => {
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const record = z.record(z.enum(['home', 'notifications']), markerDataSchema).parse(await parseBody(c.req.raw));
   const timelines = Object.keys(record) as Timeline[];
 

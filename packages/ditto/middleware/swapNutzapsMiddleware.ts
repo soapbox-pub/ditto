@@ -1,43 +1,36 @@
 import { CashuMint, CashuWallet, getEncodedToken, type Proof } from '@cashu/cashu-ts';
-import { type DittoConf } from '@ditto/conf';
-import { MiddlewareHandler } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
-import { NostrEvent, NostrFilter, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
-import { SetRequired } from 'type-fest';
+import { NostrEvent, NostrFilter, NSchema as n, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 
 import { errorJson } from '@/utils/log.ts';
 import { createEvent } from '@/utils/api.ts';
 import { validateAndParseWallet } from '@/utils/cashu.ts';
 import { proofSchema } from '@/schemas/cashu.ts';
+import { MiddlewareHandler } from '@hono/hono/types';
 
 /**
  * Swap nutzaps into wallet (create new events) if the user has a wallet, otheriwse, just fallthrough.
  * Errors are only thrown if 'signer' and 'store' middlewares are not set.
  */
-export const swapNutzapsMiddleware: MiddlewareHandler<
-  { Variables: { signer: SetRequired<NostrSigner, 'nip44'>; store: NStore; conf: DittoConf } }
-> = async (c, next) => {
-  const { conf } = c.var;
-  const signer = c.get('signer');
-  const store = c.get('store');
+export const swapNutzapsMiddleware: MiddlewareHandler = async (c, next) => {
+  const { conf, relay, user, signal } = c.var;
 
-  if (!signer) {
+  if (!user) {
     throw new HTTPException(401, { message: 'No pubkey provided' });
   }
 
-  if (!signer.nip44) {
+  if (!user.signer.nip44) {
     throw new HTTPException(401, { message: 'No NIP-44 signer provided' });
   }
 
-  if (!store) {
+  if (!relay) {
     throw new HTTPException(401, { message: 'No store provided' });
   }
 
-  const { signal } = c.req.raw;
-  const pubkey = await signer.getPublicKey();
+  const pubkey = await user.signer.getPublicKey();
 
-  const { data, error } = await validateAndParseWallet(store, signer, pubkey, { signal });
+  const { data, error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
 
   if (error && error.code === 'wallet-not-found') {
     await next();
@@ -52,12 +45,12 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
   const nutzapsFilter: NostrFilter = { kinds: [9321], '#p': [pubkey], '#u': mints };
 
-  const lastRedeemedNutzap = await getLastRedeemedNutzap(store, pubkey, { signal });
+  const lastRedeemedNutzap = await getLastRedeemedNutzap(relay, pubkey, { signal });
   if (lastRedeemedNutzap) {
     nutzapsFilter.since = lastRedeemedNutzap.created_at;
   }
 
-  const mintsToProofs = await getMintsToProofs(store, nutzapsFilter, conf.relay, { signal });
+  const mintsToProofs = await getMintsToProofs(relay, nutzapsFilter, conf.relay, { signal });
 
   for (const mint of Object.keys(mintsToProofs)) {
     try {
@@ -68,7 +61,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
       const unspentProofs = await createEvent({
         kind: 7375,
-        content: await signer.nip44.encrypt(
+        content: await user.signer.nip44.encrypt(
           pubkey,
           JSON.stringify({
             mint,
@@ -83,7 +76,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler<
 
       await createEvent({
         kind: 7376,
-        content: await signer.nip44.encrypt(
+        content: await user.signer.nip44.encrypt(
           pubkey,
           JSON.stringify([
             ['direction', 'in'],

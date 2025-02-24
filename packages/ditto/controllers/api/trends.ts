@@ -1,34 +1,44 @@
 import { type DittoConf } from '@ditto/conf';
+import { paginated, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
-import { Conf } from '@/config.ts';
-import { paginationSchema } from '@/schemas/pagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { Storages } from '@/storages.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
-import { unfurlCardCached } from '@/utils/unfurl.ts';
-import { paginated } from '@/utils/api.ts';
+import { PreviewCard, unfurlCardCached } from '@/utils/unfurl.ts';
 import { errorJson } from '@/utils/log.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
-let trendingHashtagsCache = getTrendingHashtags(Conf).catch((e: unknown) => {
-  logi({
-    level: 'error',
-    ns: 'ditto.trends.api',
-    type: 'tags',
-    msg: 'Failed to get trending hashtags',
-    error: errorJson(e),
-  });
-  return Promise.resolve([]);
+interface TrendHistory {
+  day: string;
+  accounts: string;
+  uses: string;
+}
+
+interface TrendingHashtag {
+  name: string;
+  url: string;
+  history: TrendHistory[];
+}
+
+interface TrendingLink extends PreviewCard {
+  history: TrendHistory[];
+}
+
+const trendingTagsQuerySchema = z.object({
+  limit: z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20)),
+  offset: z.number().nonnegative().catch(0),
 });
 
-Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
+const trendingTagsController: AppController = async (c) => {
+  const { conf, relay } = c.var;
+  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
+
   try {
-    const trends = await getTrendingHashtags(Conf);
-    trendingHashtagsCache = Promise.resolve(trends);
+    const trends = await getTrendingHashtags(conf, relay);
+    return c.json(trends.slice(offset, offset + limit));
   } catch (e) {
     logi({
       level: 'error',
@@ -37,23 +47,12 @@ Deno.cron('update trending hashtags cache', '35 * * * *', async () => {
       msg: 'Failed to get trending hashtags',
       error: errorJson(e),
     });
+    return c.json([]);
   }
-});
-
-const trendingTagsQuerySchema = z.object({
-  limit: z.coerce.number().catch(10).transform((value) => Math.min(Math.max(value, 0), 20)),
-  offset: z.number().nonnegative().catch(0),
-});
-
-const trendingTagsController: AppController = async (c) => {
-  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
-  const trends = await trendingHashtagsCache;
-  return c.json(trends.slice(offset, offset + limit));
 };
 
-async function getTrendingHashtags(conf: DittoConf) {
-  const store = await Storages.db();
-  const trends = await getTrendingTags(store, 't', conf.pubkey);
+async function getTrendingHashtags(conf: DittoConf, relay: NStore): Promise<TrendingHashtag[]> {
+  const trends = await getTrendingTags(relay, 't', await conf.signer.getPublicKey());
 
   return trends.map((trend) => {
     const hashtag = trend.value;
@@ -72,21 +71,12 @@ async function getTrendingHashtags(conf: DittoConf) {
   });
 }
 
-let trendingLinksCache = getTrendingLinks(Conf).catch((e: unknown) => {
-  logi({
-    level: 'error',
-    ns: 'ditto.trends.api',
-    type: 'links',
-    msg: 'Failed to get trending links',
-    error: errorJson(e),
-  });
-  return Promise.resolve([]);
-});
-
-Deno.cron('update trending links cache', '50 * * * *', async () => {
+const trendingLinksController: AppController = async (c) => {
+  const { conf, relay } = c.var;
+  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
   try {
-    const trends = await getTrendingLinks(Conf);
-    trendingLinksCache = Promise.resolve(trends);
+    const trends = await getTrendingLinks(conf, relay);
+    return c.json(trends.slice(offset, offset + limit));
   } catch (e) {
     logi({
       level: 'error',
@@ -95,18 +85,12 @@ Deno.cron('update trending links cache', '50 * * * *', async () => {
       msg: 'Failed to get trending links',
       error: errorJson(e),
     });
+    return c.json([]);
   }
-});
-
-const trendingLinksController: AppController = async (c) => {
-  const { limit, offset } = trendingTagsQuerySchema.parse(c.req.query());
-  const trends = await trendingLinksCache;
-  return c.json(trends.slice(offset, offset + limit));
 };
 
-async function getTrendingLinks(conf: DittoConf) {
-  const store = await Storages.db();
-  const trends = await getTrendingTags(store, 'r', conf.pubkey);
+async function getTrendingLinks(conf: DittoConf, relay: NStore): Promise<TrendingLink[]> {
+  const trends = await getTrendingTags(relay, 'r', await conf.signer.getPublicKey());
 
   return Promise.all(trends.map(async (trend) => {
     const link = trend.value;
@@ -140,15 +124,14 @@ async function getTrendingLinks(conf: DittoConf) {
 }
 
 const trendingStatusesController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
   const { limit, offset, until } = paginationSchema.parse(c.req.query());
 
-  const [label] = await store.query([{
+  const [label] = await relay.query([{
     kinds: [1985],
     '#L': ['pub.ditto.trends'],
     '#l': ['#e'],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     until,
     limit: 1,
   }]);
@@ -162,8 +145,8 @@ const trendingStatusesController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const results = await store.query([{ kinds: [1, 20], ids }])
-    .then((events) => hydrateEvents({ events, store }));
+  const results = await relay.query([{ kinds: [1, 20], ids }])
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   // Sort events in the order they appear in the label.
   const events = ids
@@ -171,7 +154,7 @@ const trendingStatusesController: AppController = async (c) => {
     .filter((event): event is NostrEvent => !!event);
 
   const statuses = await Promise.all(
-    events.map((event) => renderStatus(event, {})),
+    events.map((event) => renderStatus(relay, event, {})),
   );
 
   return paginated(c, results, statuses);

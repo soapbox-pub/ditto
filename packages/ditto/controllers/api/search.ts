@@ -1,18 +1,17 @@
+import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
-import { AppController } from '@/app.ts';
+import { AppContext, AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
-import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
-import { nip05Cache } from '@/utils/nip05.ts';
+import { lookupNip05 } from '@/utils/nip05.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getFollowedPubkeys } from '@/queries.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
-import { paginated, paginatedList } from '@/utils/api.ts';
 
 const searchQuerySchema = z.object({
   q: z.string().transform(decodeURIComponent),
@@ -26,21 +25,21 @@ const searchQuerySchema = z.object({
 type SearchQuery = z.infer<typeof searchQuerySchema> & { since?: number; until?: number; limit: number };
 
 const searchController: AppController = async (c) => {
+  const { relay, user, pagination, signal } = c.var;
+
   const result = searchQuerySchema.safeParse(c.req.query());
-  const params = c.get('pagination');
-  const { signal } = c.req.raw;
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const event = await lookupEvent({ ...result.data, ...params }, signal);
+  const event = await lookupEvent(c, { ...result.data, ...pagination });
   const lookup = extractIdentifier(result.data.q);
 
   // Render account from pubkey.
   if (!event && lookup) {
-    const pubkey = await lookupPubkey(lookup);
+    const pubkey = await lookupPubkey(lookup, c.var);
     return c.json({
       accounts: pubkey ? [accountFromPubkey(pubkey)] : [],
       statuses: [],
@@ -54,7 +53,7 @@ const searchController: AppController = async (c) => {
     events = [event];
   }
 
-  events.push(...(await searchEvents({ ...result.data, ...params, viewerPubkey }, signal)));
+  events.push(...(await searchEvents(c, { ...result.data, ...pagination, viewerPubkey }, signal)));
 
   const [accounts, statuses] = await Promise.all([
     Promise.all(
@@ -66,7 +65,7 @@ const searchController: AppController = async (c) => {
     Promise.all(
       events
         .filter((event) => event.kind === 1)
-        .map((event) => renderStatus(event, { viewerPubkey }))
+        .map((event) => renderStatus(relay, event, { viewerPubkey }))
         .filter(Boolean),
     ),
   ]);
@@ -78,7 +77,7 @@ const searchController: AppController = async (c) => {
   };
 
   if (result.data.type === 'accounts') {
-    return paginatedList(c, { ...result.data, ...params }, body);
+    return paginatedList(c, { ...result.data, ...pagination }, body);
   } else {
     return paginated(c, events, body);
   }
@@ -86,15 +85,16 @@ const searchController: AppController = async (c) => {
 
 /** Get events for the search params. */
 async function searchEvents(
+  c: AppContext,
   { q, type, since, until, limit, offset, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
   signal: AbortSignal,
 ): Promise<NostrEvent[]> {
+  const { relay, db } = c.var;
+
   // Hashtag search is not supported.
   if (type === 'hashtags') {
     return Promise.resolve([]);
   }
-
-  const store = await Storages.search();
 
   const filter: NostrFilter = {
     kinds: typeToKinds(type),
@@ -104,12 +104,10 @@ async function searchEvents(
     limit,
   };
 
-  const kysely = await Storages.kysely();
-
   // For account search, use a special index, and prioritize followed accounts.
   if (type === 'accounts') {
-    const following = viewerPubkey ? await getFollowedPubkeys(viewerPubkey) : new Set<string>();
-    const searchPubkeys = await getPubkeysBySearch(kysely, { q, limit, offset, following });
+    const following = viewerPubkey ? await getFollowedPubkeys(relay, viewerPubkey) : new Set<string>();
+    const searchPubkeys = await getPubkeysBySearch(db.kysely, { q, limit, offset, following });
 
     filter.authors = [...searchPubkeys];
     filter.search = undefined;
@@ -121,9 +119,9 @@ async function searchEvents(
   }
 
   // Query the events.
-  let events = await store
+  let events = await relay
     .query([filter], { signal })
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   // When using an authors filter, return the events in the same order as the filter.
   if (filter.authors) {
@@ -148,17 +146,17 @@ function typeToKinds(type: SearchQuery['type']): number[] {
 }
 
 /** Resolve a searched value into an event, if applicable. */
-async function lookupEvent(query: SearchQuery, signal: AbortSignal): Promise<NostrEvent | undefined> {
-  const filters = await getLookupFilters(query, signal);
-  const store = await Storages.search();
+async function lookupEvent(c: AppContext, query: SearchQuery): Promise<NostrEvent | undefined> {
+  const { relay, signal } = c.var;
+  const filters = await getLookupFilters(c, query);
 
-  return store.query(filters, { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, store, signal }))
+  return relay.query(filters, { signal })
+    .then((events) => hydrateEvents({ ...c.var, events }))
     .then(([event]) => event);
 }
 
 /** Get filters to lookup the input value. */
-async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: AbortSignal): Promise<NostrFilter[]> {
+async function getLookupFilters(c: AppContext, { q, type, resolve }: SearchQuery): Promise<NostrFilter[]> {
   const accounts = !type || type === 'accounts';
   const statuses = !type || type === 'statuses';
 
@@ -199,7 +197,7 @@ async function getLookupFilters({ q, type, resolve }: SearchQuery, signal: Abort
   }
 
   try {
-    const { pubkey } = await nip05Cache.fetch(lookup, { signal });
+    const { pubkey } = await lookupNip05(lookup, c.var);
     if (pubkey) {
       return [{ kinds: [0], authors: [pubkey] }];
     }

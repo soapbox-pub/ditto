@@ -1,13 +1,16 @@
+import { DittoConf } from '@ditto/conf';
+import { DummyDB } from '@ditto/db';
 import { MockRelay } from '@nostrify/nostrify/test';
 import { assertEquals } from '@std/assert';
+import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { createTestDB, eventFixture } from '@/test.ts';
+import { eventFixture } from '@/test.ts';
 
 Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const event0 = await eventFixture('event-0');
   const event1 = await eventFixture('event-1');
@@ -16,19 +19,15 @@ Deno.test('hydrateEvents(): author --- WITHOUT stats', async () => {
   await relay.event(event0);
   await relay.event(event1);
 
-  await hydrateEvents({
-    events: [event1],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [event1] });
 
   const expectedEvent = { ...event1, author: event0 };
   assertEquals(event1, expectedEvent);
 });
 
 Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const event0madePost = await eventFixture('event-0-the-one-who-post-and-users-repost');
   const event0madeRepost = await eventFixture('event-0-the-one-who-repost');
@@ -41,23 +40,20 @@ Deno.test('hydrateEvents(): repost --- WITHOUT stats', async () => {
   await relay.event(event1reposted);
   await relay.event(event6);
 
-  await hydrateEvents({
-    events: [event6],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [event6] });
 
   const expectedEvent6 = {
     ...event6,
     author: event0madeRepost,
     repost: { ...event1reposted, author: event0madePost },
   };
+
   assertEquals(event6, expectedEvent6);
 });
 
 Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const event0madeQuoteRepost = await eventFixture('event-0-the-one-who-quote-repost');
   const event0 = await eventFixture('event-0');
@@ -70,11 +66,7 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
   await relay.event(event1quoteRepost);
   await relay.event(event1willBeQuoteReposted);
 
-  await hydrateEvents({
-    events: [event1quoteRepost],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [event1quoteRepost] });
 
   const expectedEvent1quoteRepost = {
     ...event1quoteRepost,
@@ -86,8 +78,8 @@ Deno.test('hydrateEvents(): quote repost --- WITHOUT stats', async () => {
 });
 
 Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const author = await eventFixture('event-0-makes-repost-with-quote-repost');
   const event1 = await eventFixture('event-1-will-be-reposted-with-quote-repost');
@@ -100,23 +92,20 @@ Deno.test('hydrateEvents(): repost of quote repost --- WITHOUT stats', async () 
   await relay.event(event1quote);
   await relay.event(event6);
 
-  await hydrateEvents({
-    events: [event6],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [event6] });
 
   const expectedEvent6 = {
     ...event6,
     author,
     repost: { ...event1quote, author, quote: { author, ...event1 } },
   };
+
   assertEquals(event6, expectedEvent6);
 });
 
 Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const authorDictator = await eventFixture('kind-0-dictator');
   const authorVictim = await eventFixture('kind-0-george-orwell');
@@ -129,11 +118,7 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
   await relay.event(reportEvent);
   await relay.event(event1);
 
-  await hydrateEvents({
-    events: [reportEvent],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [reportEvent] });
 
   const expectedEvent: DittoEvent = {
     ...reportEvent,
@@ -141,12 +126,13 @@ Deno.test('hydrateEvents(): report pubkey and post // kind 1984 --- WITHOUT stat
     reported_notes: [event1],
     reported_profile: authorVictim,
   };
+
   assertEquals(reportEvent, expectedEvent);
 });
 
 Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 --- WITHOUT stats', async () => {
-  const relay = new MockRelay();
-  await using db = await createTestDB();
+  const opts = setupTest();
+  const { relay } = opts;
 
   const zapSender = await eventFixture('kind-0-jack');
   const zapReceipt = await eventFixture('kind-9735-jack-zap-patrick');
@@ -159,11 +145,7 @@ Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 ---
   await relay.event(zappedPost);
   await relay.event(zapReceiver);
 
-  await hydrateEvents({
-    events: [zapReceipt],
-    store: relay,
-    kysely: db.kysely,
-  });
+  await hydrateEvents({ ...opts, events: [zapReceipt] });
 
   const expectedEvent: DittoEvent = {
     ...zapReceipt,
@@ -175,5 +157,14 @@ Deno.test('hydrateEvents(): zap sender, zap amount, zapped post // kind 9735 ---
     zap_amount: 5225000, // millisats
     zap_message: '🫂',
   };
+
   assertEquals(zapReceipt, expectedEvent);
 });
+
+function setupTest() {
+  const db = new DummyDB();
+  const conf = new DittoConf(new Map([['DITTO_NSEC', nip19.nsecEncode(generateSecretKey())]]));
+  const relay = new MockRelay();
+
+  return { conf, db, relay };
+}

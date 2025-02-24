@@ -1,4 +1,4 @@
-FROM denoland/deno:2.1.10
+FROM denoland/deno:2.2.0
 ENV PORT 5000
 
 WORKDIR /app

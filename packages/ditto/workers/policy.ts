@@ -1,16 +1,16 @@
+import { DittoConf } from '@ditto/conf';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import * as Comlink from 'comlink';
 
-import { Conf } from '@/config.ts';
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
 
-class PolicyWorker implements NPolicy {
+export class PolicyWorker implements NPolicy {
   private worker: Comlink.Remote<CustomPolicy>;
   private ready: Promise<void>;
   private enabled = true;
 
-  constructor() {
+  constructor(private conf: DittoConf) {
     this.worker = Comlink.wrap<CustomPolicy>(
       new Worker(
         new URL('./policy.worker.ts', import.meta.url),
@@ -19,8 +19,8 @@ class PolicyWorker implements NPolicy {
           name: 'PolicyWorker',
           deno: {
             permissions: {
-              read: [Conf.denoDir, Conf.policy, Conf.dataDir],
-              write: [Conf.dataDir],
+              read: [conf.denoDir, conf.policy, conf.dataDir],
+              write: [conf.dataDir],
               net: 'inherit',
               env: false,
               import: true,
@@ -44,18 +44,20 @@ class PolicyWorker implements NPolicy {
   }
 
   private async init(): Promise<void> {
+    const conf = this.conf;
+
     try {
       await this.worker.init({
-        path: Conf.policy,
-        databaseUrl: Conf.databaseUrl,
-        pubkey: Conf.pubkey,
+        path: conf.policy,
+        databaseUrl: conf.databaseUrl,
+        pubkey: await conf.signer.getPublicKey(),
       });
 
       logi({
         level: 'info',
         ns: 'ditto.system.policy',
         msg: 'Using custom policy',
-        path: Conf.policy,
+        path: conf.policy,
         enabled: true,
       });
     } catch (e) {
@@ -76,16 +78,14 @@ class PolicyWorker implements NPolicy {
           level: 'warn',
           ns: 'ditto.system.policy',
           msg: 'Custom policies are not supported with PGlite. The policy is disabled.',
-          path: Conf.policy,
+          path: conf.policy,
           enabled: false,
         });
         this.enabled = false;
         return;
       }
 
-      throw new Error(`DITTO_POLICY (error importing policy): ${Conf.policy}`);
+      throw new Error(`DITTO_POLICY (error importing policy): ${conf.policy}`);
     }
   }
 }
-
-export const policyWorker = new PolicyWorker();

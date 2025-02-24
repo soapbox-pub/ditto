@@ -13,18 +13,6 @@ function filteredArray<T extends z.ZodTypeAny>(schema: T) {
     ));
 }
 
-/** https://developer.mozilla.org/en-US/docs/Glossary/Base64#the_unicode_problem */
-const decode64Schema = z.string().transform((value, ctx) => {
-  try {
-    const binString = atob(value);
-    const bytes = Uint8Array.from(binString, (m) => m.codePointAt(0)!);
-    return new TextDecoder().decode(bytes);
-  } catch (_e) {
-    ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Invalid base64', fatal: true });
-    return z.NEVER;
-  }
-});
-
 /** Parses a hashtag, eg `#yolo`. */
 const hashtagSchema = z.string().regex(/^\w{1,30}$/);
 
@@ -33,16 +21,6 @@ const hashtagSchema = z.string().regex(/^\w{1,30}$/);
  * https://stackoverflow.com/a/417184/8811886
  */
 const safeUrlSchema = z.string().max(2048).url();
-
-/** WebSocket URL. */
-const wsUrlSchema = z.string().refine((val) => {
-  try {
-    const { protocol } = new URL(val);
-    return protocol === 'wss:' || protocol === 'ws:';
-  } catch {
-    return false;
-  }
-}, 'Invalid WebSocket URL');
 
 /** https://github.com/colinhacks/zod/issues/1630#issuecomment-1365983831 */
 const booleanParamSchema = z.enum(['true', 'false']).transform((value) => value === 'true');
@@ -96,7 +74,6 @@ const walletSchema = z.object({
 
 export {
   booleanParamSchema,
-  decode64Schema,
   fileSchema,
   filteredArray,
   hashtagSchema,
@@ -106,5 +83,4 @@ export {
   safeUrlSchema,
   sizesSchema,
   walletSchema,
-  wsUrlSchema,
 };

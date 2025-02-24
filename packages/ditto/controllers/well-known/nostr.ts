@@ -18,11 +18,9 @@ const nostrController: AppController = async (c) => {
     return c.json(emptyResult);
   }
 
-  const store = c.get('store');
-
   const result = nameSchema.safeParse(c.req.query('name'));
   const name = result.success ? result.data : undefined;
-  const pointer = name ? await localNip05Lookup(store, name) : undefined;
+  const pointer = name ? await localNip05Lookup(name, c.var) : undefined;
 
   if (!name || !pointer) {
     // Not found, cache for 5 minutes.

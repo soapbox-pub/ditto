@@ -1,4 +1,4 @@
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NStore } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { MastodonPush } from '@/types/MastodonPush.ts';
@@ -9,10 +9,11 @@ import { renderNotification } from '@/views/mastodon/notifications.ts';
  * Unlike other views, only one will be rendered at a time, so making use of async calls is okay.
  */
 export async function renderWebPushNotification(
+  store: NStore,
   event: NostrEvent,
   viewerPubkey: string,
 ): Promise<MastodonPush | undefined> {
-  const notification = await renderNotification(event, { viewerPubkey });
+  const notification = await renderNotification(store, event, { viewerPubkey });
   if (!notification) {
     return;
   }

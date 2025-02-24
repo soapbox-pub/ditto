@@ -1,7 +1,6 @@
 import { logi } from '@soapbox/logi';
 
-import { AppMiddleware } from '@/app.ts';
-import { Storages } from '@/storages.ts';
+import { AppContext, AppMiddleware } from '@/app.ts';
 import { getPathParams, MetadataEntities } from '@/utils/og-metadata.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { errorJson } from '@/utils/log.ts';
@@ -23,7 +22,7 @@ export const frontendController: AppMiddleware = async (c) => {
     if (content.includes(META_PLACEHOLDER)) {
       const params = getPathParams(c.req.path);
       try {
-        const entities = await getEntities(params ?? {});
+        const entities = await getEntities(c, params ?? {});
         const meta = renderMetadata(c.req.url, entities);
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
@@ -37,27 +36,27 @@ export const frontendController: AppMiddleware = async (c) => {
   }
 };
 
-async function getEntities(params: { acct?: string; statusId?: string }): Promise<MetadataEntities> {
-  const store = await Storages.db();
+async function getEntities(c: AppContext, params: { acct?: string; statusId?: string }): Promise<MetadataEntities> {
+  const { relay } = c.var;
 
   const entities: MetadataEntities = {
-    instance: await getInstanceMetadata(store),
+    instance: await getInstanceMetadata(relay),
   };
 
   if (params.statusId) {
-    const event = await getEvent(params.statusId, { kind: 1 });
+    const event = await getEvent(params.statusId, c.var);
     if (event) {
-      entities.status = await renderStatus(event, {});
+      entities.status = await renderStatus(relay, event, {});
       entities.account = entities.status?.account;
     }
     return entities;
   }
 
   if (params.acct) {
-    const pubkey = await lookupPubkey(params.acct.replace(/^@/, ''));
-    const event = pubkey ? await getAuthor(pubkey) : undefined;
+    const pubkey = await lookupPubkey(params.acct.replace(/^@/, ''), c.var);
+    const event = pubkey ? await getAuthor(pubkey, c.var) : undefined;
     if (event) {
-      entities.account = await renderAccount(event);
+      entities.account = renderAccount(event);
     }
   }
 

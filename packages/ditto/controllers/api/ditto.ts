@@ -1,3 +1,4 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
@@ -5,21 +6,29 @@ import { AppController } from '@/app.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
 import { addTag } from '@/utils/tags.ts';
-import { createEvent, paginated, parseBody, updateAdminEvent } from '@/utils/api.ts';
+import { createEvent, parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
-import { booleanParamSchema, percentageSchema, wsUrlSchema } from '@/schema.ts';
+import { booleanParamSchema, percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
-import { Storages } from '@/storages.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
 
 const markerSchema = z.enum(['read', 'write']);
+
+/** WebSocket URL. */
+const wsUrlSchema = z.string().refine((val): val is `wss://${string}` | `ws://${string}` => {
+  try {
+    const { protocol } = new URL(val);
+    return protocol === 'wss:' || protocol === 'ws:';
+  } catch {
+    return false;
+  }
+}, 'Invalid WebSocket URL');
 
 const relaySchema = z.object({
   url: wsUrlSchema,
@@ -29,11 +38,10 @@ const relaySchema = z.object({
 type RelayEntity = z.infer<typeof relaySchema>;
 
 export const adminRelaysController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
 
-  const [event] = await store.query([
-    { kinds: [10002], authors: [conf.pubkey], limit: 1 },
+  const [event] = await relay.query([
+    { kinds: [10002], authors: [await conf.signer.getPublicKey()], limit: 1 },
   ]);
 
   if (!event) {
@@ -44,17 +52,17 @@ export const adminRelaysController: AppController = async (c) => {
 };
 
 export const adminSetRelaysController: AppController = async (c) => {
-  const store = await Storages.db();
+  const { conf, relay } = c.var;
   const relays = relaySchema.array().parse(await c.req.json());
 
-  const event = await new AdminSigner().signEvent({
+  const event = await conf.signer.signEvent({
     kind: 10002,
     tags: relays.map(({ url, marker }) => marker ? ['r', url, marker] : ['r', url]),
     content: '',
     created_at: Math.floor(Date.now() / 1000),
   });
 
-  await store.event(event);
+  await relay.event(event);
 
   return c.json(renderRelays(event));
 };
@@ -64,7 +72,7 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
   return event.tags.reduce((acc, [name, url, marker]) => {
     if (name === 'r') {
       const relay: RelayEntity = {
-        url,
+        url: url as `wss://${string}`,
         marker: markerSchema.safeParse(marker).success ? marker as 'read' | 'write' : undefined,
       };
       acc.push(relay);
@@ -79,30 +87,40 @@ const nameRequestSchema = z.object({
 });
 
 export const nameRequestController: AppController = async (c) => {
-  const store = await Storages.db();
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
 
-  const { name, reason } = nameRequestSchema.parse(await c.req.json());
+  const pubkey = await user!.signer.getPublicKey();
+  const result = nameRequestSchema.safeParse(await c.req.json());
 
-  const [existing] = await store.query([{ kinds: [3036], authors: [pubkey], '#r': [name], limit: 1 }]);
+  if (!result.success) {
+    return c.json({ error: 'Invalid username', schema: result.error }, 400);
+  }
+
+  const { name, reason } = result.data;
+
+  const [existing] = await relay.query([{ kinds: [3036], authors: [pubkey], '#r': [name.toLowerCase()], limit: 1 }]);
   if (existing) {
     return c.json({ error: 'Name request already exists' }, 400);
+  }
+
+  const r: string[][] = [['r', name]];
+
+  if (name !== name.toLowerCase()) {
+    r.push(['r', name.toLowerCase()]);
   }
 
   const event = await createEvent({
     kind: 3036,
     content: reason,
     tags: [
-      ['r', name],
+      ...r,
       ['L', 'nip05.domain'],
       ['l', name.split('@')[1], 'nip05.domain'],
-      ['p', conf.pubkey],
+      ['p', await conf.signer.getPublicKey()],
     ],
   }, c);
 
-  await hydrateEvents({ events: [event], store: await Storages.db() });
+  await hydrateEvents({ ...c.var, events: [event] });
 
   const nameRequest = await renderNameRequest(event);
   return c.json(nameRequest);
@@ -114,17 +132,15 @@ const nameRequestsSchema = z.object({
 });
 
 export const nameRequestsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
-  const signer = c.get('signer')!;
-  const pubkey = await signer.getPublicKey();
+  const { conf, relay, user } = c.var;
+  const pubkey = await user!.signer.getPublicKey();
 
   const params = c.get('pagination');
   const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
 
   const filter: NostrFilter = {
     kinds: [30383],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     '#k': ['3036'],
     '#p': [pubkey],
     ...params,
@@ -137,7 +153,7 @@ export const nameRequestsController: AppController = async (c) => {
     filter['#n'] = ['rejected'];
   }
 
-  const orig = await store.query([filter]);
+  const orig = await relay.query([filter]);
   const ids = new Set<string>();
 
   for (const event of orig) {
@@ -151,8 +167,8 @@ export const nameRequestsController: AppController = async (c) => {
     return c.json([]);
   }
 
-  const events = await store.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
-    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
+  const events = await relay.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const nameRequests = await Promise.all(
     events.map((event) => renderNameRequest(event)),
@@ -170,16 +186,17 @@ const zapSplitSchema = z.record(
 );
 
 export const updateZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const body = await parseBody(c.req.raw);
   const result = zapSplitSchema.safeParse(body);
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: result.error }, 400);
   }
 
-  const dittoZapSplit = await getZapSplits(store, conf.pubkey);
+  const adminPubkey = await conf.signer.getPublicKey();
+
+  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -188,11 +205,11 @@ export const updateZapSplitsController: AppController = async (c) => {
   const pubkeys = Object.keys(data);
 
   if (pubkeys.length < 1) {
-    return c.json(200);
+    return c.newResponse(null, { status: 204 });
   }
 
   await updateListAdminEvent(
-    { kinds: [30078], authors: [conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    { kinds: [30078], authors: [adminPubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       pubkeys.reduce((accumulator, pubkey) => {
         return addTag(accumulator, ['p', pubkey, data[pubkey].weight.toString(), data[pubkey].message]);
@@ -200,22 +217,23 @@ export const updateZapSplitsController: AppController = async (c) => {
     c,
   );
 
-  return c.json(200);
+  return c.newResponse(null, { status: 204 });
 };
 
 const deleteZapSplitSchema = z.array(n.id()).min(1);
 
 export const deleteZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const body = await parseBody(c.req.raw);
   const result = deleteZapSplitSchema.safeParse(body);
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: result.error }, 400);
   }
 
-  const dittoZapSplit = await getZapSplits(store, conf.pubkey);
+  const adminPubkey = await conf.signer.getPublicKey();
+
+  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -223,7 +241,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
   const { data } = result;
 
   await updateListAdminEvent(
-    { kinds: [30078], authors: [conf.pubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
+    { kinds: [30078], authors: [adminPubkey], '#d': ['pub.ditto.zapSplits'], limit: 1 },
     (tags) =>
       data.reduce((accumulator, currentValue) => {
         return deleteTag(accumulator, ['p', currentValue]);
@@ -231,14 +249,13 @@ export const deleteZapSplitsController: AppController = async (c) => {
     c,
   );
 
-  return c.json(200);
+  return c.newResponse(null, { status: 204 });
 };
 
 export const getZapSplitsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = c.get('store');
+  const { conf, relay } = c.var;
 
-  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(store, conf.pubkey) ?? {};
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(relay, await conf.signer.getPublicKey()) ?? {};
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -246,7 +263,7 @@ export const getZapSplitsController: AppController = async (c) => {
   const pubkeys = Object.keys(dittoZapSplit);
 
   const zapSplits = await Promise.all(pubkeys.map(async (pubkey) => {
-    const author = await getAuthor(pubkey);
+    const author = await getAuthor(pubkey, c.var);
 
     const account = author ? renderAccount(author) : accountFromPubkey(pubkey);
 
@@ -261,11 +278,11 @@ export const getZapSplitsController: AppController = async (c) => {
 };
 
 export const statusZapSplitsController: AppController = async (c) => {
-  const store = c.get('store');
-  const id = c.req.param('id');
-  const { signal } = c.req.raw;
+  const { relay, signal } = c.var;
 
-  const [event] = await store.query([{ kinds: [1, 20], ids: [id], limit: 1 }], { signal });
+  const id = c.req.param('id');
+
+  const [event] = await relay.query([{ kinds: [1, 20], ids: [id], limit: 1 }], { signal });
   if (!event) {
     return c.json({ error: 'Event not found' }, 404);
   }
@@ -274,8 +291,8 @@ export const statusZapSplitsController: AppController = async (c) => {
 
   const pubkeys = zapsTag.map((name) => name[1]);
 
-  const users = await store.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
-  await hydrateEvents({ events: users, store, signal });
+  const users = await relay.query([{ authors: pubkeys, kinds: [0], limit: pubkeys.length }], { signal });
+  await hydrateEvents({ ...c.var, events: users });
 
   const zapSplits = (await Promise.all(pubkeys.map((pubkey) => {
     const author = (users.find((event) => event.pubkey === pubkey) as DittoEvent | undefined)?.author;
@@ -308,16 +325,17 @@ const updateInstanceSchema = z.object({
 });
 
 export const updateInstanceController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = updateInstanceSchema.safeParse(body);
-  const pubkey = conf.pubkey;
+  const pubkey = await conf.signer.getPublicKey();
 
   if (!result.success) {
     return c.json(result.error, 422);
   }
 
-  const meta = await getInstanceMetadata(await Storages.db(), c.req.raw.signal);
+  const meta = await getInstanceMetadata(relay, signal);
 
   await updateAdminEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },
@@ -346,5 +364,5 @@ export const updateInstanceController: AppController = async (c) => {
     c,
   );
 
-  return c.json(204);
+  return c.newResponse(null, { status: 204 });
 };

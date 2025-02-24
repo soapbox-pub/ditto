@@ -1,28 +1,21 @@
-import { cachedNip05sSizeGauge } from '@ditto/metrics';
+import { DittoConf } from '@ditto/conf';
 import { NIP05, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
 import { nip19 } from 'nostr-tools';
 import tldts from 'tldts';
 
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
 import { errorJson } from '@/utils/log.ts';
-import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 
-export const nip05Cache = new SimpleLRU<string, nip19.ProfilePointer>(
-  async (nip05, { signal }) => {
-    const store = await Storages.db();
-    return getNip05(store, nip05, signal);
-  },
-  { ...Conf.caches.nip05, gauge: cachedNip05sSizeGauge },
-);
+interface GetNip05Opts {
+  conf: DittoConf;
+  relay: NStore;
+  signal?: AbortSignal;
+  fetch?: typeof fetch;
+}
 
-async function getNip05(
-  store: NStore,
-  nip05: string,
-  signal?: AbortSignal,
-): Promise<nip19.ProfilePointer> {
+export async function lookupNip05(nip05: string, opts: GetNip05Opts): Promise<nip19.ProfilePointer> {
+  const { conf, signal } = opts;
   const tld = tldts.parse(nip05);
 
   if (!tld.isIcann || tld.isIp || tld.isPrivate) {
@@ -34,8 +27,8 @@ async function getNip05(
   const [name, domain] = nip05.split('@');
 
   try {
-    if (domain === Conf.url.host) {
-      const pointer = await localNip05Lookup(store, name);
+    if (domain === conf.url.host) {
+      const pointer = await localNip05Lookup(name, opts);
       if (pointer) {
         logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', source: 'local', pubkey: pointer.pubkey });
         return pointer;
@@ -43,7 +36,7 @@ async function getNip05(
         throw new Error(`Not found: ${nip05}`);
       }
     } else {
-      const pointer = await NIP05.lookup(nip05, { fetch: safeFetch, signal });
+      const pointer = await NIP05.lookup(nip05, { fetch: opts.fetch ?? safeFetch, signal });
       logi({ level: 'info', ns: 'ditto.nip05', nip05, state: 'found', source: 'fetch', pubkey: pointer.pubkey });
       return pointer;
     }
@@ -53,17 +46,24 @@ async function getNip05(
   }
 }
 
-export async function localNip05Lookup(store: NStore, localpart: string): Promise<nip19.ProfilePointer | undefined> {
-  const [grant] = await store.query([{
+export async function localNip05Lookup(
+  localpart: string,
+  opts: GetNip05Opts,
+): Promise<nip19.ProfilePointer | undefined> {
+  const { conf, relay, signal } = opts;
+
+  const name = `${localpart}@${conf.url.host}`;
+
+  const [grant] = await relay.query([{
     kinds: [30360],
-    '#d': [`${localpart}@${Conf.url.host}`],
-    authors: [Conf.pubkey],
+    '#d': [name, name.toLowerCase()],
+    authors: [await conf.signer.getPublicKey()],
     limit: 1,
-  }]);
+  }], { signal });
 
   const pubkey = grant?.tags.find(([name]) => name === 'p')?.[1];
 
   if (pubkey) {
-    return { pubkey, relays: [Conf.relay] };
+    return { pubkey, relays: [conf.relay] };
   }
 }

@@ -2,15 +2,14 @@ import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { Storages } from '@/storages.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const store = await Storages.db();
-  const configDB = await getPleromaConfigs(store, c.req.raw.signal);
+  const { relay, signal } = c.var;
+
+  const configDB = await getPleromaConfigs(relay, signal);
   const frontendConfig = configDB.get(':pleroma', ':frontend_configurations');
 
   if (frontendConfig) {
@@ -26,25 +25,24 @@ const frontendConfigController: AppController = async (c) => {
 };
 
 const configController: AppController = async (c) => {
-  const store = await Storages.db();
-  const configs = await getPleromaConfigs(store, c.req.raw.signal);
+  const { relay, signal } = c.var;
+
+  const configs = await getPleromaConfigs(relay, signal);
   return c.json({ configs, need_reboot: false });
 };
 
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
-  const { conf } = c.var;
-  const { pubkey } = conf;
+  const { conf, relay, signal } = c.var;
 
-  const store = await Storages.db();
-  const configs = await getPleromaConfigs(store, c.req.raw.signal);
+  const configs = await getPleromaConfigs(relay, signal);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   configs.merge(newConfigs);
 
   await createAdminEvent({
     kind: 30078,
-    content: await new AdminSigner().nip44.encrypt(pubkey, JSON.stringify(configs)),
+    content: await conf.signer.nip44.encrypt(await conf.signer.getPublicKey(), JSON.stringify(configs)),
     tags: [
       ['d', 'pub.ditto.pleroma.config'],
       ['encrypted', 'nip44'],
@@ -73,11 +71,11 @@ const pleromaAdminTagController: AppController = async (c) => {
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
       (prev) => {
         const tags = prev?.tags ?? [['d', pubkey]];
 
@@ -98,7 +96,7 @@ const pleromaAdminTagController: AppController = async (c) => {
     );
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminUntagController: AppController = async (c) => {
@@ -106,11 +104,11 @@ const pleromaAdminUntagController: AppController = async (c) => {
   const params = pleromaAdminTagSchema.parse(await c.req.json());
 
   for (const nickname of params.nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
 
     await updateAdminEvent(
-      { kinds: [30382], authors: [conf.pubkey], '#d': [pubkey], limit: 1 },
+      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
       (prev) => ({
         kind: 30382,
         content: prev?.content ?? '',
@@ -121,7 +119,7 @@ const pleromaAdminUntagController: AppController = async (c) => {
     );
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminSuggestSchema = z.object({
@@ -132,24 +130,24 @@ const pleromaAdminSuggestController: AppController = async (c) => {
   const { nicknames } = pleromaAdminSuggestSchema.parse(await c.req.json());
 
   for (const nickname of nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
     await updateUser(pubkey, { suggested: true }, c);
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 const pleromaAdminUnsuggestController: AppController = async (c) => {
   const { nicknames } = pleromaAdminSuggestSchema.parse(await c.req.json());
 
   for (const nickname of nicknames) {
-    const pubkey = await lookupPubkey(nickname);
+    const pubkey = await lookupPubkey(nickname, c.var);
     if (!pubkey) continue;
     await updateUser(pubkey, { suggested: false }, c);
   }
 
-  return new Response(null, { status: 204 });
+  return c.newResponse(null, { status: 204 });
 };
 
 export {

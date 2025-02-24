@@ -1,9 +1,11 @@
 import { NSecSigner } from '@nostrify/nostrify';
+import { genEvent } from '@nostrify/nostrify/test';
+
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { assertEquals } from '@std/assert';
 
-import { createTestDB, genEvent } from '@/test.ts';
+import { createTestDB } from '@/test.ts';
 
 import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
 

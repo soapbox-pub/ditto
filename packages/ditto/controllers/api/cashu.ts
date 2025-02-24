@@ -1,6 +1,6 @@
 import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
-import { confRequiredMw } from '@ditto/api/middleware';
-import { Hono } from '@hono/hono';
+import { userMiddleware } from '@ditto/mastoapi/middleware';
+import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { bytesToString } from '@scure/base';
@@ -8,8 +8,6 @@ import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { createEvent, parseBody } from '@/utils/api.ts';
-import { requireNip44Signer } from '@/middleware/requireSigner.ts';
-import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
@@ -22,7 +20,7 @@ import { tokenEventSchema } from '@/schemas/cashu.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
-const app = new Hono().use('*', confRequiredMw, requireStore);
+const route = new DittoRoute();
 
 // app.delete('/wallet') -> 204
 
@@ -48,9 +46,9 @@ const createMintQuoteSchema = z.object({
  * Creates a new mint quote in a specific mint.
  * https://github.com/cashubtc/nuts/blob/main/04.md#mint-quote
  */
-app.post('/quote', requireNip44Signer, async (c) => {
-  const signer = c.var.signer;
-  const pubkey = await signer.getPublicKey();
+route.post('/quote', userMiddleware({ enc: 'nip44' }), async (c) => {
+  const { user } = c.var;
+  const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = createMintQuoteSchema.safeParse(body);
 
@@ -69,7 +67,7 @@ app.post('/quote', requireNip44Signer, async (c) => {
 
     await createEvent({
       kind: 7374,
-      content: await signer.nip44.encrypt(pubkey, mintQuote.quote),
+      content: await user.signer.nip44.encrypt(pubkey, mintQuote.quote),
       tags: [
         ['expiration', String(mintQuote.expiry)],
         ['mint', mintUrl],
@@ -87,12 +85,9 @@ app.post('/quote', requireNip44Signer, async (c) => {
  * Checks if the quote has been paid, if it has then mint new tokens.
  * https://github.com/cashubtc/nuts/blob/main/04.md#minting-tokens
  */
-app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
-  const { conf } = c.var;
-  const signer = c.var.signer;
-  const { signal } = c.req.raw;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
+route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
+  const { conf, user, relay, signal } = c.var;
+  const pubkey = await user.signer.getPublicKey();
   const quote_id = c.req.param('quote_id');
 
   const expiredQuoteIds: string[] = [];
@@ -103,9 +98,9 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
     }, c);
   };
 
-  const events = await store.query([{ kinds: [7374], authors: [pubkey] }], { signal });
+  const events = await relay.query([{ kinds: [7374], authors: [pubkey] }], { signal });
   for (const event of events) {
-    const decryptedQuoteId = await signer.nip44.decrypt(pubkey, event.content);
+    const decryptedQuoteId = await user.signer.nip44.decrypt(pubkey, event.content);
     const mintUrl = event.tags.find(([name]) => name === 'mint')?.[1];
     const expiration = Number(event.tags.find(([name]) => name === 'expiration')?.[1]);
     const now = nostrNow();
@@ -124,7 +119,7 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
 
           const unspentProofs = await createEvent({
             kind: 7375,
-            content: await signer.nip44.encrypt(
+            content: await user.signer.nip44.encrypt(
               pubkey,
               JSON.stringify({
                 mint: mintUrl,
@@ -135,7 +130,7 @@ app.post('/mint/:quote_id', requireNip44Signer, async (c) => {
 
           await createEvent({
             kind: 7376,
-            content: await signer.nip44.encrypt(
+            content: await user.signer.nip44.encrypt(
               pubkey,
               JSON.stringify([
                 ['direction', 'in'],
@@ -179,12 +174,11 @@ const createWalletSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/60.md
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
-app.put('/wallet', requireNip44Signer, async (c) => {
-  const { conf, signer } = c.var;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
+route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
+  const { conf, user, relay, signal } = c.var;
+
+  const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
-  const { signal } = c.req.raw;
   const result = createWalletSchema.safeParse(body);
 
   if (!result.success) {
@@ -193,7 +187,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 
   const { mints } = result.data;
 
-  const [event] = await store.query([{ authors: [pubkey], kinds: [17375] }], { signal });
+  const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (event) {
     return c.json({ error: 'You already have a wallet 😏' }, 400);
   }
@@ -210,7 +204,7 @@ app.put('/wallet', requireNip44Signer, async (c) => {
     walletContentTags.push(['mint', mint]);
   }
 
-  const encryptedWalletContentTags = await signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
+  const encryptedWalletContentTags = await user.signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
 
   // Wallet
   await createEvent({
@@ -240,13 +234,11 @@ app.put('/wallet', requireNip44Signer, async (c) => {
 });
 
 /** Gets a wallet, if it exists. */
-app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
-  const { conf, signer } = c.var;
-  const store = c.get('store');
-  const pubkey = await signer.getPublicKey();
-  const { signal } = c.req.raw;
+route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
+  const { conf, relay, user, signal } = c.var;
+  const pubkey = await user.signer.getPublicKey();
 
-  const { data, error } = await validateAndParseWallet(store, signer, pubkey, { signal });
+  const { data, error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
   if (error) {
     return c.json({ error: error.message }, 404);
   }
@@ -255,11 +247,11 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 
   let balance = 0;
 
-  const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal });
+  const tokens = await relay.query([{ authors: [pubkey], kinds: [7375] }], { signal });
   for (const token of tokens) {
     try {
       const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
-        await signer.nip44.decrypt(pubkey, token.content),
+        await user.signer.nip44.decrypt(pubkey, token.content),
       );
 
       if (!mints.includes(decryptedContent.mint)) {
@@ -286,7 +278,7 @@ app.get('/wallet', requireNip44Signer, swapNutzapsMiddleware, async (c) => {
 });
 
 /** Get mints set by the CASHU_MINTS environment variable. */
-app.get('/mints', (c) => {
+route.get('/mints', (c) => {
   const { conf } = c.var;
 
   // TODO: Return full Mint information: https://github.com/cashubtc/nuts/blob/main/06.md
@@ -303,11 +295,9 @@ const nutzapSchema = z.object({
 });
 
 /** Nutzaps a post or a user. */
-app.post('/nutzap', requireNip44Signer, async (c) => {
-  const store = c.get('store');
-  const { signal } = c.req.raw;
-  const { conf, signer } = c.var;
-  const pubkey = await signer.getPublicKey();
+route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
+  const { conf, relay, user, signal } = c.var;
+  const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
   const result = nutzapSchema.safeParse(body);
 
@@ -319,13 +309,13 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
   let event: DittoEvent;
 
   if (status_id) {
-    [event] = await store.query([{ kinds: [1], ids: [status_id] }], { signal });
+    [event] = await relay.query([{ kinds: [1], ids: [status_id] }], { signal });
     if (!event) {
       return c.json({ error: 'Status not found' }, 404);
     }
-    await hydrateEvents({ events: [event], store, signal });
+    await hydrateEvents({ ...c.var, events: [event] });
   } else {
-    [event] = await store.query([{ kinds: [0], authors: [account_id] }], { signal });
+    [event] = await relay.query([{ kinds: [0], authors: [account_id] }], { signal });
     if (!event) {
       return c.json({ error: 'Account not found' }, 404);
     }
@@ -335,7 +325,7 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
     return c.json({ error: 'Post author does not match author' }, 422);
   }
 
-  const [nutzapInfo] = await store.query([{ kinds: [10019], authors: [account_id] }], { signal });
+  const [nutzapInfo] = await relay.query([{ kinds: [10019], authors: [account_id] }], { signal });
   if (!nutzapInfo) {
     return c.json({ error: 'Target user does not have a nutzap information event' }, 404);
   }
@@ -350,8 +340,8 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
     return c.json({ error: 'Target user does not have a cashu pubkey' }, 422);
   }
 
-  const unspentProofs = await store.query([{ kinds: [7375], authors: [pubkey] }], { signal });
-  const organizedProofs = await organizeProofs(unspentProofs, signer);
+  const unspentProofs = await relay.query([{ kinds: [7375], authors: [pubkey] }], { signal });
+  const organizedProofs = await organizeProofs(unspentProofs, user.signer);
 
   const proofsToBeUsed: Proof[] = [];
   const eventsToBeDeleted: NostrEvent[] = [];
@@ -372,7 +362,7 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
         }
 
         const event = organizedProofs[mint][key].event;
-        const decryptedContent = await signer.nip44.decrypt(pubkey, event.content);
+        const decryptedContent = await user.signer.nip44.decrypt(pubkey, event.content);
 
         const { data: token, success } = n.json().pipe(tokenEventSchema).safeParse(decryptedContent);
 
@@ -402,7 +392,7 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
 
   const newUnspentProof = await createEvent({
     kind: 7375,
-    content: await signer.nip44.encrypt(
+    content: await user.signer.nip44.encrypt(
       pubkey,
       JSON.stringify({
         mint: selectedMint,
@@ -414,7 +404,7 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
 
   await createEvent({
     kind: 7376,
-    content: await signer.nip44.encrypt(
+    content: await user.signer.nip44.encrypt(
       pubkey,
       JSON.stringify([
         ['direction', 'out'],
@@ -449,4 +439,4 @@ app.post('/nutzap', requireNip44Signer, async (c) => {
   return c.json({ message: 'Nutzap with success!!!' }, 200); // TODO: return wallet entity
 });
 
-export default app;
+export default route;

@@ -1,14 +1,13 @@
+import { DenoUploader, IPFSUploader, S3Uploader } from '@ditto/uploaders';
 import { BlossomUploader, NostrBuildUploader } from '@nostrify/nostrify/uploaders';
 import { safeFetch } from '@soapbox/safe-fetch';
 
 import { AppMiddleware } from '@/app.ts';
-import { DenoUploader } from '@/uploaders/DenoUploader.ts';
-import { IPFSUploader } from '@/uploaders/IPFSUploader.ts';
-import { S3Uploader } from '@/uploaders/S3Uploader.ts';
 
 /** Set an uploader for the user. */
 export const uploaderMiddleware: AppMiddleware = async (c, next) => {
-  const { signer, conf } = c.var;
+  const { user, conf } = c.var;
+  const signer = user?.signer;
 
   switch (conf.uploader) {
     case 's3':

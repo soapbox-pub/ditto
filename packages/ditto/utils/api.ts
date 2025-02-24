@@ -1,41 +1,40 @@
-import { type Context } from '@hono/hono';
+import { User } from '@ditto/mastoapi/middleware';
+import { DittoEnv } from '@ditto/mastoapi/router';
 import { HTTPException } from '@hono/hono/http-exception';
 import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { logi } from '@soapbox/logi';
 import { EventTemplate } from 'nostr-tools';
 import * as TypeFest from 'type-fest';
 
 import { type AppContext } from '@/app.ts';
-import { Conf } from '@/config.ts';
-import * as pipeline from '@/pipeline.ts';
-import { RelayError } from '@/RelayError.ts';
-import { AdminSigner } from '@/signers/AdminSigner.ts';
-import { Storages } from '@/storages.ts';
 import { nostrNow } from '@/utils.ts';
 import { parseFormData } from '@/utils/formdata.ts';
-import { purifyEvent } from '@/utils/purify.ts';
+import { Context } from '@hono/hono';
 
 /** EventTemplate with defaults. */
 type EventStub = TypeFest.SetOptional<EventTemplate, 'content' | 'created_at' | 'tags'>;
 
 /** Publish an event through the pipeline. */
-async function createEvent(t: EventStub, c: Context): Promise<NostrEvent> {
-  const signer = c.get('signer');
+async function createEvent<E extends (DittoEnv & { Variables: { user?: User } })>(
+  t: EventStub,
+  c: Context<E>,
+): Promise<NostrEvent> {
+  const { user, relay, signal } = c.var;
 
-  if (!signer) {
+  if (!user) {
     throw new HTTPException(401, {
       res: c.json({ error: 'No way to sign Nostr event' }, 401),
     });
   }
 
-  const event = await signer.signEvent({
+  const event = await user.signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],
     ...t,
   });
 
-  return publishEvent(event, c);
+  await relay.event(event, { signal, publish: true });
+  return event;
 }
 
 /** Filter for fetching an existing event to update. */
@@ -50,9 +49,9 @@ async function updateEvent<E extends EventStub>(
   fn: (prev: NostrEvent) => E | Promise<E>,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const store = await Storages.db();
+  const { relay } = c.var;
 
-  const [prev] = await store.query(
+  const [prev] = await relay.query(
     [filter],
     { signal: c.req.raw.signal },
   );
@@ -81,16 +80,18 @@ function updateListEvent(
 
 /** Publish an admin event through the pipeline. */
 async function createAdminEvent(t: EventStub, c: AppContext): Promise<NostrEvent> {
-  const signer = new AdminSigner();
+  const { conf, relay, signal } = c.var;
 
-  const event = await signer.signEvent({
+  const event = await conf.signer.signEvent({
     content: '',
     created_at: nostrNow(),
     tags: [],
     ...t,
   });
 
-  return publishEvent(event, c);
+  // @ts-ignore `publish` is important for `DittoAPIStore`.
+  await relay.event(event, { signal, publish: true });
+  return event;
 }
 
 /** Fetch existing event, update its tags, then publish the new admin event. */
@@ -112,8 +113,8 @@ async function updateAdminEvent<E extends EventStub>(
   fn: (prev: NostrEvent | undefined) => E,
   c: AppContext,
 ): Promise<NostrEvent> {
-  const store = await Storages.db();
-  const [prev] = await store.query([filter], { limit: 1, signal: c.req.raw.signal });
+  const { relay, signal } = c.var;
+  const [prev] = await relay.query([filter], { signal });
   return createAdminEvent(fn(prev), c);
 }
 
@@ -126,8 +127,8 @@ function updateEventInfo(id: string, n: Record<string, boolean>, c: AppContext):
 }
 
 async function updateNames(k: number, d: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
-  const signer = new AdminSigner();
-  const admin = await signer.getPublicKey();
+  const { conf } = c.var;
+  const admin = await conf.signer.getPublicKey();
 
   return updateAdminEvent(
     { kinds: [k], authors: [admin], '#d': [d], limit: 1 },
@@ -155,26 +156,6 @@ async function updateNames(k: number, d: string, n: Record<string, boolean>, c: 
   );
 }
 
-/** Push the event through the pipeline, rethrowing any RelayError. */
-async function publishEvent(event: NostrEvent, c: AppContext): Promise<NostrEvent> {
-  logi({ level: 'info', ns: 'ditto.event', source: 'api', id: event.id, kind: event.kind });
-  try {
-    await pipeline.handleEvent(event, { source: 'api', signal: c.req.raw.signal });
-    const client = await Storages.client();
-    await client.event(purifyEvent(event));
-  } catch (e) {
-    if (e instanceof RelayError) {
-      throw new HTTPException(422, {
-        res: c.json({ error: e.message }, 422),
-      });
-    } else {
-      throw e;
-    }
-  }
-
-  return event;
-}
-
 /** Parse request body to JSON, depending on the content-type of the request. */
 async function parseBody(req: Request): Promise<unknown> {
   switch (req.headers.get('content-type')?.split(';')[0]) {
@@ -190,85 +171,12 @@ async function parseBody(req: Request): Promise<unknown> {
   }
 }
 
-/** Build HTTP Link header for Mastodon API pagination. */
-function buildLinkHeader(url: string, events: NostrEvent[]): string | undefined {
-  if (events.length <= 1) return;
-  const firstEvent = events[0];
-  const lastEvent = events[events.length - 1];
-
-  const { origin } = Conf.url;
-  const { pathname, search } = new URL(url);
-  const next = new URL(pathname + search, origin);
-  const prev = new URL(pathname + search, origin);
-
-  next.searchParams.set('until', String(lastEvent.created_at));
-  prev.searchParams.set('since', String(firstEvent.created_at));
-
-  return `<${next}>; rel="next", <${prev}>; rel="prev"`;
-}
-
 type HeaderRecord = Record<string, string | string[]>;
-
-/** Return results with pagination headers. Assumes chronological sorting of events. */
-function paginated(c: AppContext, events: NostrEvent[], body: object | unknown[], headers: HeaderRecord = {}) {
-  const link = buildLinkHeader(c.req.url, events);
-
-  if (link) {
-    headers.link = link;
-  }
-
-  // Filter out undefined entities.
-  const results = Array.isArray(body) ? body.filter(Boolean) : body;
-  return c.json(results, 200, headers);
-}
-
-/** Build HTTP Link header for paginating Nostr lists. */
-function buildListLinkHeader(url: string, params: { offset: number; limit: number }): string | undefined {
-  const { origin } = Conf.url;
-  const { pathname, search } = new URL(url);
-  const { offset, limit } = params;
-  const next = new URL(pathname + search, origin);
-  const prev = new URL(pathname + search, origin);
-
-  next.searchParams.set('offset', String(offset + limit));
-  prev.searchParams.set('offset', String(Math.max(offset - limit, 0)));
-
-  next.searchParams.set('limit', String(limit));
-  prev.searchParams.set('limit', String(limit));
-
-  return `<${next}>; rel="next", <${prev}>; rel="prev"`;
-}
-
-/** paginate a list of tags. */
-function paginatedList(
-  c: AppContext,
-  params: { offset: number; limit: number },
-  body: object | unknown[],
-  headers: HeaderRecord = {},
-) {
-  const link = buildListLinkHeader(c.req.url, params);
-  const hasMore = Array.isArray(body) ? body.length > 0 : true;
-
-  if (link) {
-    headers.link = hasMore ? link : link.split(', ').find((link) => link.endsWith('; rel="prev"'))!;
-  }
-
-  // Filter out undefined entities.
-  const results = Array.isArray(body) ? body.filter(Boolean) : body;
-  return c.json(results, 200, headers);
-}
-
-/** Rewrite the URL of the request object to use the local domain. */
-function localRequest(c: Context): Request {
-  return Object.create(c.req.raw, {
-    url: { value: Conf.local(c.req.url) },
-  });
-}
 
 /** Actors with Bluesky's `!no-unauthenticated` self-label should require authorization to view. */
 function assertAuthenticated(c: AppContext, author: NostrEvent): void {
   if (
-    !c.get('signer') && author.tags.some(([name, value, ns]) =>
+    !c.var.user && author.tags.some(([name, value, ns]) =>
       name === 'l' &&
       value === '!no-unauthenticated' &&
       ns === 'com.atproto.label.defs#selfLabel'
@@ -283,9 +191,6 @@ export {
   createAdminEvent,
   createEvent,
   type EventStub,
-  localRequest,
-  paginated,
-  paginatedList,
   parseBody,
   updateAdminEvent,
   updateEvent,

@@ -1,4 +1,5 @@
 import { cachedTranslationsSizeGauge } from '@ditto/metrics';
+import { logi } from '@soapbox/logi';
 import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
@@ -9,14 +10,16 @@ import { getEvent } from '@/queries.ts';
 import { localeSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { errorJson } from '@/utils/log.ts';
 
 const translateSchema = z.object({
   lang: localeSchema,
 });
 
 const translateController: AppController = async (c) => {
+  const { relay, user, signal } = c.var;
+
   const result = translateSchema.safeParse(await parseBody(c.req.raw));
-  const { signal } = c.req.raw;
 
   if (!result.success) {
     return c.json({ error: 'Bad request.', schema: result.error }, 422);
@@ -31,18 +34,18 @@ const translateController: AppController = async (c) => {
 
   const id = c.req.param('id');
 
-  const event = await getEvent(id, { signal });
+  const event = await getEvent(id, c.var);
   if (!event) {
     return c.json({ error: 'Record not found' }, 400);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   if (lang.toLowerCase() === event?.language?.toLowerCase()) {
     return c.json({ error: 'Source and target languages are the same. No translation needed.' }, 400);
   }
 
-  const status = await renderStatus(event, { viewerPubkey });
+  const status = await renderStatus(relay, event, { viewerPubkey });
   if (!status?.content) {
     return c.json({ error: 'Bad request.', schema: result.error }, 400);
   }
@@ -130,7 +133,7 @@ const translateController: AppController = async (c) => {
       }
     }
 
-    mastodonTranslation.detected_source_language = data.source_lang;
+    mastodonTranslation.detected_source_language = data.sourceLang;
 
     translationCache.set(cacheKey, mastodonTranslation);
     cachedTranslationsSizeGauge.set(translationCache.size);
@@ -140,6 +143,7 @@ const translateController: AppController = async (c) => {
     if (e instanceof Error && e.message.includes('not supported')) {
       return c.json({ error: `Translation of source language '${event.language}' not supported` }, 422);
     }
+    logi({ level: 'error', ns: 'ditto.translate', error: errorJson(e) });
     return c.json({ error: 'Service Unavailable' }, 503);
   }
 };

@@ -1,4 +1,5 @@
 import { HTTPException } from '@hono/hono/http-exception';
+import { paginated, paginatedList, paginationSchema } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import 'linkify-plugin-hashtag';
 import linkify from 'linkifyjs';
@@ -13,9 +14,8 @@ import { addTag, deleteTag } from '@/utils/tags.ts';
 import { asyncReplaceAll } from '@/utils/text.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { languageSchema } from '@/schema.ts';
-import { Storages } from '@/storages.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { assertAuthenticated, createEvent, paginated, paginatedList, parseBody, updateListEvent } from '@/utils/api.ts';
+import { assertAuthenticated, createEvent, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
@@ -46,18 +46,18 @@ const createStatusSchema = z.object({
 );
 
 const statusController: AppController = async (c) => {
-  const id = c.req.param('id');
-  const signal = AbortSignal.any([c.req.raw.signal, AbortSignal.timeout(1500)]);
+  const { relay, user } = c.var;
 
-  const event = await getEvent(id, { signal });
+  const id = c.req.param('id');
+  const event = await getEvent(id, c.var);
 
   if (event?.author) {
     assertAuthenticated(c, event.author);
   }
 
   if (event) {
-    const viewerPubkey = await c.get('signer')?.getPublicKey();
-    const status = await renderStatus(event, { viewerPubkey });
+    const viewerPubkey = await user?.signer.getPublicKey();
+    const status = await renderStatus(relay, event, { viewerPubkey });
     return c.json(status);
   }
 
@@ -65,10 +65,10 @@ const statusController: AppController = async (c) => {
 };
 
 const createStatusController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = createStatusSchema.safeParse(body);
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -87,14 +87,14 @@ const createStatusController: AppController = async (c) => {
   const tags: string[][] = [];
 
   if (data.in_reply_to_id) {
-    const [ancestor] = await store.query([{ ids: [data.in_reply_to_id] }]);
+    const [ancestor] = await relay.query([{ ids: [data.in_reply_to_id] }]);
 
     if (!ancestor) {
       return c.json({ error: 'Original post not found.' }, 404);
     }
 
     const rootId = ancestor.tags.find((tag) => tag[0] === 'e' && tag[3] === 'root')?.[1] ?? ancestor.id;
-    const root = rootId === ancestor.id ? ancestor : await store.query([{ ids: [rootId] }]).then(([event]) => event);
+    const root = rootId === ancestor.id ? ancestor : await relay.query([{ ids: [rootId] }]).then(([event]) => event);
 
     if (root) {
       tags.push(['e', root.id, conf.relay, 'root', root.pubkey]);
@@ -108,7 +108,7 @@ const createStatusController: AppController = async (c) => {
   let quoted: DittoEvent | undefined;
 
   if (data.quote_id) {
-    [quoted] = await store.query([{ ids: [data.quote_id] }]);
+    [quoted] = await relay.query([{ ids: [data.quote_id] }]);
 
     if (!quoted) {
       return c.json({ error: 'Quoted post not found.' }, 404);
@@ -153,7 +153,7 @@ const createStatusController: AppController = async (c) => {
     data.status ?? '',
     /(?<![\w/])@([\w@+._-]+)(?![\w/\.])/g,
     async (match, username) => {
-      const pubkey = await lookupPubkey(username);
+      const pubkey = await lookupPubkey(username, c.var);
       if (!pubkey) return match;
 
       // Content addressing (default)
@@ -171,7 +171,7 @@ const createStatusController: AppController = async (c) => {
 
   // Explicit addressing
   for (const to of data.to ?? []) {
-    const pubkey = await lookupPubkey(to);
+    const pubkey = await lookupPubkey(to, c.var);
     if (pubkey) {
       pubkeys.add(pubkey);
     }
@@ -190,13 +190,13 @@ const createStatusController: AppController = async (c) => {
     }
   }
 
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const author = pubkey ? await getAuthor(pubkey) : undefined;
+  const pubkey = await user!.signer.getPublicKey();
+  const author = pubkey ? await getAuthor(pubkey, c.var) : undefined;
 
   if (conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
     const lnurl = getLnurl(meta);
-    const dittoZapSplit = await getZapSplits(store, conf.pubkey);
+    const dittoZapSplit = await getZapSplits(relay, await conf.signer.getPublicKey());
     if (lnurl && dittoZapSplit) {
       const totalSplit = Object.values(dittoZapSplit).reduce((total, { weight }) => total + weight, 0);
       for (const zapPubkey in dittoZapSplit) {
@@ -254,22 +254,18 @@ const createStatusController: AppController = async (c) => {
   }, c);
 
   if (data.quote_id) {
-    await hydrateEvents({
-      events: [event],
-      store: await Storages.db(),
-      signal: c.req.raw.signal,
-    });
+    await hydrateEvents({ ...c.var, events: [event] });
   }
 
-  return c.json(await renderStatus({ ...event, author }, { viewerPubkey: author?.pubkey }));
+  return c.json(await renderStatus(relay, { ...event, author }, { viewerPubkey: author?.pubkey }));
 };
 
 const deleteStatusController: AppController = async (c) => {
-  const { conf } = c.var;
-  const id = c.req.param('id');
-  const pubkey = await c.get('signer')?.getPublicKey();
+  const { conf, relay, user } = c.var;
 
-  const event = await getEvent(id, { signal: c.req.raw.signal });
+  const id = c.req.param('id');
+  const pubkey = await user?.signer.getPublicKey();
+  const event = await getEvent(id, c.var);
 
   if (event) {
     if (event.pubkey === pubkey) {
@@ -278,8 +274,8 @@ const deleteStatusController: AppController = async (c) => {
         tags: [['e', id, conf.relay, '', pubkey]],
       }, c);
 
-      const author = await getAuthor(event.pubkey);
-      return c.json(await renderStatus({ ...event, author }, { viewerPubkey: pubkey }));
+      const author = await getAuthor(event.pubkey, c.var);
+      return c.json(await renderStatus(relay, { ...event, author }, { viewerPubkey: pubkey }));
     } else {
       return c.json({ error: 'Unauthorized' }, 403);
     }
@@ -289,29 +285,26 @@ const deleteStatusController: AppController = async (c) => {
 };
 
 const contextController: AppController = async (c) => {
+  const { relay, user } = c.var;
+
   const id = c.req.param('id');
-  const store = c.get('store');
-  const [event] = await store.query([{ kinds: [1, 20], ids: [id] }]);
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const [event] = await relay.query([{ kinds: [1, 20], ids: [id] }]);
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   async function renderStatuses(events: NostrEvent[]) {
     const statuses = await Promise.all(
-      events.map((event) => renderStatus(event, { viewerPubkey })),
+      events.map((event) => renderStatus(relay, event, { viewerPubkey })),
     );
     return statuses.filter(Boolean);
   }
 
   if (event) {
     const [ancestorEvents, descendantEvents] = await Promise.all([
-      getAncestors(store, event),
-      getDescendants(store, event),
+      getAncestors(relay, event),
+      getDescendants(relay, event),
     ]);
 
-    await hydrateEvents({
-      events: [...ancestorEvents, ...descendantEvents],
-      signal: c.req.raw.signal,
-      store,
-    });
+    await hydrateEvents({ ...c.var, events: [...ancestorEvents, ...descendantEvents] });
 
     const [ancestors, descendants] = await Promise.all([
       renderStatuses(ancestorEvents),
@@ -325,10 +318,10 @@ const contextController: AppController = async (c) => {
 };
 
 const favouriteController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
+
   const id = c.req.param('id');
-  const store = await Storages.db();
-  const [target] = await store.query([{ ids: [id], kinds: [1, 20] }]);
+  const [target] = await relay.query([{ ids: [id], kinds: [1, 20] }]);
 
   if (target) {
     await createEvent({
@@ -340,9 +333,9 @@ const favouriteController: AppController = async (c) => {
       ],
     }, c);
 
-    await hydrateEvents({ events: [target], store });
+    await hydrateEvents({ ...c.var, events: [target] });
 
-    const status = await renderStatus(target, { viewerPubkey: await c.get('signer')?.getPublicKey() });
+    const status = await renderStatus(relay, target, { viewerPubkey: await user?.signer.getPublicKey() });
 
     if (status) {
       status.favourited = true;
@@ -366,13 +359,10 @@ const favouritedByController: AppController = (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#boost */
 const reblogStatusController: AppController = async (c) => {
-  const { conf } = c.var;
-  const eventId = c.req.param('id');
-  const { signal } = c.req.raw;
+  const { conf, relay, user } = c.var;
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-  });
+  const eventId = c.req.param('id');
+  const event = await getEvent(eventId, c.var);
 
   if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
@@ -386,30 +376,26 @@ const reblogStatusController: AppController = async (c) => {
     ],
   }, c);
 
-  await hydrateEvents({
-    events: [reblogEvent],
-    store: await Storages.db(),
-    signal: signal,
-  });
+  await hydrateEvents({ ...c.var, events: [reblogEvent] });
 
-  const status = await renderReblog(reblogEvent, { viewerPubkey: await c.get('signer')?.getPublicKey() });
+  const status = await renderReblog(relay, reblogEvent, { viewerPubkey: await user?.signer.getPublicKey() });
 
   return c.json(status);
 };
 
 /** https://docs.joinmastodon.org/methods/statuses/#unreblog */
 const unreblogStatusController: AppController = async (c) => {
-  const { conf } = c.var;
-  const eventId = c.req.param('id');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const store = await Storages.db();
+  const { conf, relay, user } = c.var;
 
-  const [event] = await store.query([{ ids: [eventId], kinds: [1, 20] }]);
+  const eventId = c.req.param('id');
+  const pubkey = await user!.signer.getPublicKey();
+
+  const [event] = await relay.query([{ ids: [eventId], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Record not found' }, 404);
   }
 
-  const [repostEvent] = await store.query(
+  const [repostEvent] = await relay.query(
     [{ kinds: [6], authors: [pubkey], '#e': [event.id], limit: 1 }],
   );
 
@@ -422,7 +408,7 @@ const unreblogStatusController: AppController = async (c) => {
     tags: [['e', repostEvent.id, conf.relay, '', repostEvent.pubkey]],
   }, c);
 
-  return c.json(await renderStatus(event, { viewerPubkey: pubkey }));
+  return c.json(await renderStatus(relay, event, { viewerPubkey: pubkey }));
 };
 
 const rebloggedByController: AppController = (c) => {
@@ -432,23 +418,23 @@ const rebloggedByController: AppController = (c) => {
 };
 
 const quotesController: AppController = async (c) => {
-  const id = c.req.param('id');
-  const params = c.get('pagination');
-  const store = await Storages.db();
+  const { relay, user, pagination } = c.var;
 
-  const [event] = await store.query([{ ids: [id], kinds: [1, 20] }]);
+  const id = c.req.param('id');
+
+  const [event] = await relay.query([{ ids: [id], kinds: [1, 20] }]);
   if (!event) {
     return c.json({ error: 'Event not found.' }, 404);
   }
 
-  const quotes = await store
-    .query([{ kinds: [1, 20], '#q': [event.id], ...params }])
-    .then((events) => hydrateEvents({ events, store }));
+  const quotes = await relay
+    .query([{ kinds: [1, 20], '#q': [event.id], ...pagination }])
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = await Promise.all(
-    quotes.map((event) => renderStatus(event, { viewerPubkey })),
+    quotes.map((event) => renderStatus(relay, event, { viewerPubkey })),
   );
 
   if (!statuses.length) {
@@ -460,14 +446,11 @@ const quotesController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#bookmark */
 const bookmarkController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { conf, relay, user } = c.var;
+  const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-    relations: ['author', 'event_stats', 'author_stats'],
-  });
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -476,7 +459,7 @@ const bookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = true;
     }
@@ -488,14 +471,12 @@ const bookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unbookmark */
 const unbookmarkController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { conf, relay, user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-    relations: ['author', 'event_stats', 'author_stats'],
-  });
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -504,7 +485,7 @@ const unbookmarkController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.bookmarked = false;
     }
@@ -516,14 +497,12 @@ const unbookmarkController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#pin */
 const pinController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { conf, relay, user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const eventId = c.req.param('id');
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-    relations: ['author', 'event_stats', 'author_stats'],
-  });
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -532,7 +511,7 @@ const pinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = true;
     }
@@ -544,16 +523,12 @@ const pinController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/statuses/#unpin */
 const unpinController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const eventId = c.req.param('id');
-  const { signal } = c.req.raw;
+  const { conf, relay, user } = c.var;
 
-  const event = await getEvent(eventId, {
-    kind: 1,
-    relations: ['author', 'event_stats', 'author_stats'],
-    signal,
-  });
+  const pubkey = await user!.signer.getPublicKey();
+  const eventId = c.req.param('id');
+
+  const event = await getEvent(eventId, c.var);
 
   if (event) {
     await updateListEvent(
@@ -562,7 +537,7 @@ const unpinController: AppController = async (c) => {
       c,
     );
 
-    const status = await renderStatus(event, { viewerPubkey: pubkey });
+    const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
     if (status) {
       status.pinned = false;
     }
@@ -580,11 +555,10 @@ const zapSchema = z.object({
 });
 
 const zapController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, signal } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = zapSchema.safeParse(body);
-  const { signal } = c.req.raw;
-  const store = c.get('store');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 400);
@@ -597,7 +571,7 @@ const zapController: AppController = async (c) => {
   let lnurl: undefined | string;
 
   if (status_id) {
-    target = await getEvent(status_id, { kind: 1, relations: ['author'], signal });
+    target = await getEvent(status_id, c.var);
     const author = target?.author;
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
     lnurl = getLnurl(meta);
@@ -611,7 +585,7 @@ const zapController: AppController = async (c) => {
       );
     }
   } else {
-    [target] = await store.query([{ authors: [account_id], kinds: [0], limit: 1 }]);
+    [target] = await relay.query([{ authors: [account_id], kinds: [0], limit: 1 }]);
     const meta = n.json().pipe(n.metadata()).catch({}).parse(target?.content);
     lnurl = getLnurl(meta);
     if (target && lnurl) {
@@ -638,19 +612,19 @@ const zapController: AppController = async (c) => {
 };
 
 const zappedByController: AppController = async (c) => {
-  const id = c.req.param('id');
-  const params = c.get('listPagination');
-  const store = await Storages.db();
-  const kysely = await Storages.kysely();
+  const { db, relay } = c.var;
 
-  const zaps = await kysely.selectFrom('event_zaps')
+  const id = c.req.param('id');
+  const { offset, limit } = paginationSchema.parse(c.req.query());
+
+  const zaps = await db.kysely.selectFrom('event_zaps')
     .selectAll()
     .where('target_event_id', '=', id)
     .orderBy('amount_millisats', 'desc')
-    .limit(params.limit)
-    .offset(params.offset).execute();
+    .limit(limit)
+    .offset(offset).execute();
 
-  const authors = await store.query([{ kinds: [0], authors: zaps.map((zap) => zap.sender_pubkey) }]);
+  const authors = await relay.query([{ kinds: [0], authors: zaps.map((zap) => zap.sender_pubkey) }]);
 
   const results = (await Promise.all(
     zaps.map(async (zap) => {
@@ -668,7 +642,7 @@ const zappedByController: AppController = async (c) => {
     }),
   )).filter(Boolean);
 
-  return paginatedList(c, params, results);
+  return paginatedList(c, { limit, offset }, results);
 };
 
 export {

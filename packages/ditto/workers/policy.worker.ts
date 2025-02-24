@@ -1,10 +1,10 @@
-import { DittoDB } from '@ditto/db';
+import { DittoPolyPg } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
-import { EventsDB } from '@/storages/EventsDB.ts';
+import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 
 // @ts-ignore Don't try to access the env from this worker.
 Deno.env = new Map<string, string>();
@@ -15,7 +15,7 @@ interface PolicyInit {
   path: string;
   /** Database URL to connect to. */
   databaseUrl: string;
-  /** Admin pubkey to use for EventsDB checks. */
+  /** Admin pubkey to use for DittoPgStore checks. */
   pubkey: string;
 }
 
@@ -30,10 +30,10 @@ export class CustomPolicy implements NPolicy {
   async init({ path, databaseUrl, pubkey }: PolicyInit): Promise<void> {
     const Policy = (await import(path)).default;
 
-    const { kysely } = DittoDB.create(databaseUrl, { poolSize: 1 });
+    const db = new DittoPolyPg(databaseUrl, { poolSize: 1 });
 
-    const store = new EventsDB({
-      kysely,
+    const store = new DittoPgStore({
+      db,
       pubkey,
       timeout: 5_000,
     });

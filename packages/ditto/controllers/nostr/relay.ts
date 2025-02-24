@@ -1,5 +1,6 @@
 import { type DittoConf } from '@ditto/conf';
 import { relayConnectionsGauge, relayEventsCounter, relayMessagesCounter } from '@ditto/metrics';
+import { MemoryRateLimiter, MultiRateLimiter, type RateLimiter } from '@ditto/ratelimiter';
 import { logi } from '@soapbox/logi';
 import { JsonValue } from '@std/json';
 import {
@@ -15,18 +16,11 @@ import {
 
 import { AppController } from '@/app.ts';
 import { relayInfoController } from '@/controllers/nostr/relay-info.ts';
-import * as pipeline from '@/pipeline.ts';
 import { RelayError } from '@/RelayError.ts';
-import { Storages } from '@/storages.ts';
+import { type DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
-import { MemoryRateLimiter } from '@/utils/ratelimiter/MemoryRateLimiter.ts';
-import { MultiRateLimiter } from '@/utils/ratelimiter/MultiRateLimiter.ts';
-import { RateLimiter } from '@/utils/ratelimiter/types.ts';
 import { Time } from '@/utils/time.ts';
-
-/** Limit of initial events returned for a subscription. */
-const FILTER_LIMIT = 100;
 
 const limiters = {
   msg: new MemoryRateLimiter({ limit: 300, window: Time.minutes(1) }),
@@ -47,8 +41,19 @@ const limiters = {
 const connections = new Set<WebSocket>();
 
 /** Set up the Websocket connection. */
-function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoConf) {
+function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, ip: string | undefined) {
   const controllers = new Map<string, AbortController>();
+
+  if (ip) {
+    const remaining = Object
+      .values(limiters)
+      .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
+
+    if (remaining < 0) {
+      socket.close(1008, 'Rate limit exceeded');
+      return;
+    }
+  }
 
   socket.onopen = () => {
     connections.add(socket);
@@ -127,12 +132,9 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
 
-    const store = await Storages.db();
-    const pubsub = await Storages.pubsub();
-
     try {
-      for (const event of await store.query(filters, { limit: FILTER_LIMIT, timeout: conf.db.timeouts.relay })) {
-        send(['EVENT', subId, purifyEvent(event)]);
+      for await (const [verb, , ...rest] of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
+        send([verb, subId, ...rest] as NostrRelayMsg);
       }
     } catch (e) {
       if (e instanceof RelayError) {
@@ -145,18 +147,6 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
       controllers.delete(subId);
       return;
     }
-
-    send(['EOSE', subId]);
-
-    try {
-      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
-        if (msg[0] === 'EVENT') {
-          send(['EVENT', subId, msg[2]]);
-        }
-      }
-    } catch {
-      controllers.delete(subId);
-    }
   }
 
   /** Handle EVENT. Store the event. */
@@ -168,7 +158,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
 
     try {
       // This will store it (if eligible) and run other side-effects.
-      await pipeline.handleEvent(purifyEvent(event), { source: 'relay', signal: AbortSignal.timeout(1000) });
+      await relay.event(purifyEvent(event), { signal: AbortSignal.timeout(1000) });
       send(['OK', event.id, true, '']);
     } catch (e) {
       if (e instanceof RelayError) {
@@ -192,8 +182,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
   /** Handle COUNT. Return the number of events matching the filters. */
   async function handleCount([_, subId, ...filters]: NostrClientCOUNT): Promise<void> {
     if (rateLimited(limiters.req)) return;
-    const store = await Storages.db();
-    const { count } = await store.count(filters, { timeout: conf.db.timeouts.relay });
+    const { count } = await relay.count(filters, { timeout: conf.db.timeouts.relay });
     send(['COUNT', subId, { count, approximate: false }]);
   }
 
@@ -206,7 +195,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, conf: DittoCon
 }
 
 const relayController: AppController = (c, next) => {
-  const { conf } = c.var;
+  const { conf, relay } = c.var;
   const upgrade = c.req.header('upgrade');
 
   // NIP-11: https://github.com/nostr-protocol/nips/blob/master/11.md
@@ -224,18 +213,8 @@ const relayController: AppController = (c, next) => {
     ip = undefined;
   }
 
-  if (ip) {
-    const remaining = Object
-      .values(limiters)
-      .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
-
-    if (remaining < 0) {
-      return c.json({ error: 'Rate limit exceeded' }, 429);
-    }
-  }
-
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { idleTimeout: 30 });
-  connectStream(socket, ip, conf);
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
+  connectStream(conf, relay as DittoPgStore, socket, ip);
 
   return response;
 };

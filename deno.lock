@@ -31,15 +31,15 @@
     "jsr:@hono/hono@^4.4.6": "4.6.15",
     "jsr:@negrel/http-ece@0.6.0": "0.6.0",
     "jsr:@negrel/webpush@0.3": "0.3.0",
-    "jsr:@nostrify/db@0.39": "0.39.0",
+    "jsr:@nostrify/db@~0.39.4": "0.39.4",
     "jsr:@nostrify/nostrify@0.31": "0.31.0",
     "jsr:@nostrify/nostrify@0.32": "0.32.0",
     "jsr:@nostrify/nostrify@0.36": "0.36.2",
-    "jsr:@nostrify/nostrify@0.38": "0.38.1",
+    "jsr:@nostrify/nostrify@0.39": "0.39.1",
     "jsr:@nostrify/nostrify@~0.22.1": "0.22.5",
     "jsr:@nostrify/nostrify@~0.22.4": "0.22.4",
     "jsr:@nostrify/nostrify@~0.22.5": "0.22.5",
-    "jsr:@nostrify/nostrify@~0.38.1": "0.38.1",
+    "jsr:@nostrify/nostrify@~0.39.1": "0.39.1",
     "jsr:@nostrify/policies@0.33": "0.33.0",
     "jsr:@nostrify/policies@0.33.1": "0.33.1",
     "jsr:@nostrify/policies@0.34": "0.34.0",
@@ -138,6 +138,7 @@
     "npm:type-fest@^4.3.0": "4.18.2",
     "npm:unfurl.js@^6.4.0": "6.4.0",
     "npm:websocket-ts@^2.1.5": "2.1.5",
+    "npm:websocket-ts@^2.2.1": "2.2.1",
     "npm:zod@^3.23.8": "3.23.8"
   },
   "jsr": {
@@ -363,10 +364,10 @@
         "jsr:@std/path@0.224.0"
       ]
     },
-    "@nostrify/db@0.39.0": {
-      "integrity": "13a88c610eb15a5dd13848d5beec9170406376c9d05299ce5e5298452a5431ac",
+    "@nostrify/db@0.39.4": {
+      "integrity": "53fecea3b67394cf4f52795f89d1d065bdeb0627b8655cc7fc3a89d6b21adf01",
       "dependencies": [
-        "jsr:@nostrify/nostrify@~0.38.1",
+        "jsr:@nostrify/nostrify@0.39",
         "jsr:@nostrify/types@0.36",
         "npm:kysely@~0.27.3",
         "npm:nostr-tools@^2.10.4"
@@ -383,7 +384,7 @@
         "npm:kysely@~0.27.3",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.5.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -397,7 +398,7 @@
         "npm:kysely@~0.27.3",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -412,7 +413,7 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -425,7 +426,7 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -438,7 +439,7 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -453,7 +454,7 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -466,7 +467,7 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.7.0",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
@@ -481,13 +482,14 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.10.4",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.1.5",
         "npm:zod"
       ]
     },
-    "@nostrify/nostrify@0.38.1": {
-      "integrity": "087d1be0d5c46420e6040b07c8cfb1a3ecb9808f23de54d22dd64d3eed001bce",
+    "@nostrify/nostrify@0.39.0": {
+      "integrity": "f7e052c32b8b9bafe0f2517dcf090e7d3df5aed38452a0cf61ade817d34067ee",
       "dependencies": [
+        "jsr:@nostrify/nostrify@0.39",
         "jsr:@nostrify/types@0.36",
         "jsr:@std/crypto",
         "jsr:@std/encoding@~0.224.1",
@@ -496,7 +498,23 @@
         "npm:@scure/bip39",
         "npm:lru-cache@^10.2.0",
         "npm:nostr-tools@^2.10.4",
-        "npm:websocket-ts",
+        "npm:websocket-ts@^2.2.1",
+        "npm:zod"
+      ]
+    },
+    "@nostrify/nostrify@0.39.1": {
+      "integrity": "84f98c815a07f4151bd02188a3525e438c416e9de632c79c9da9edbfca580d7f",
+      "dependencies": [
+        "jsr:@nostrify/nostrify@~0.39.1",
+        "jsr:@nostrify/types@0.36",
+        "jsr:@std/crypto",
+        "jsr:@std/encoding@~0.224.1",
+        "npm:@scure/base",
+        "npm:@scure/bip32",
+        "npm:@scure/bip39",
+        "npm:lru-cache@^10.2.0",
+        "npm:nostr-tools@^2.10.4",
+        "npm:websocket-ts@^2.2.1",
         "npm:zod"
       ]
     },
@@ -1789,6 +1807,9 @@
     "websocket-ts@2.1.5": {
       "integrity": "sha512-rCNl9w6Hsir1azFm/pbjBEFzLD/gi7Th5ZgOxMifB6STUfTSovYAzryWw0TRvSZ1+Qu1Z5Plw4z42UfTNA9idA=="
     },
+    "websocket-ts@2.2.1": {
+      "integrity": "sha512-YKPDfxlK5qOheLZ2bTIiktZO1bpfGdNCPJmTEaPW7G9UXI1GKjDdeacOrsULUS000OPNxDVOyAuKLuIWPqWM0Q=="
+    },
     "whatwg-encoding@3.1.1": {
       "integrity": "sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==",
       "dependencies": [
@@ -2460,8 +2481,8 @@
       "jsr:@gfx/canvas-wasm@~0.4.2",
       "jsr:@hono/hono@^4.4.6",
       "jsr:@negrel/webpush@0.3",
-      "jsr:@nostrify/db@0.39",
-      "jsr:@nostrify/nostrify@~0.38.1",
+      "jsr:@nostrify/db@~0.39.4",
+      "jsr:@nostrify/nostrify@~0.39.1",
       "jsr:@nostrify/policies@~0.36.1",
       "jsr:@nostrify/types@0.36",
       "jsr:@soapbox/kysely-pglite@1",

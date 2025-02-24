@@ -1,20 +1,19 @@
 import denoJson from 'deno.json' with { type: 'json' };
 
 import { AppController } from '@/app.ts';
-import { Storages } from '@/storages.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const relayInfoController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = await Storages.db();
-  const meta = await getInstanceMetadata(store, c.req.raw.signal);
+  const { conf, relay, signal } = c.var;
+
+  const meta = await getInstanceMetadata(relay, signal);
 
   c.res.headers.set('access-control-allow-origin', '*');
 
   return c.json({
     name: meta.name,
     description: meta.about,
-    pubkey: conf.pubkey,
+    pubkey: await conf.signer.getPublicKey(),
     contact: meta.email,
     supported_nips: [1, 5, 9, 11, 16, 45, 50, 46, 98],
     software: 'Ditto',

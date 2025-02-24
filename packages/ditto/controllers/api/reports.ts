@@ -1,8 +1,9 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { createEvent, paginated, parseBody, updateEventInfo } from '@/utils/api.ts';
+import { createEvent, parseBody, updateEventInfo } from '@/utils/api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { renderAdminReport } from '@/views/mastodon/reports.ts';
 import { renderReport } from '@/views/mastodon/reports.ts';
@@ -19,7 +20,7 @@ const reportSchema = z.object({
 /** https://docs.joinmastodon.org/methods/reports/#post */
 const reportController: AppController = async (c) => {
   const { conf } = c.var;
-  const store = c.get('store');
+
   const body = await parseBody(c.req.raw);
   const result = reportSchema.safeParse(body);
 
@@ -36,7 +37,7 @@ const reportController: AppController = async (c) => {
 
   const tags = [
     ['p', account_id, category],
-    ['P', conf.pubkey],
+    ['P', await conf.signer.getPublicKey()],
   ];
 
   for (const status of status_ids) {
@@ -49,7 +50,7 @@ const reportController: AppController = async (c) => {
     tags,
   }, c);
 
-  await hydrateEvents({ events: [event], store });
+  await hydrateEvents({ ...c.var, events: [event] });
   return c.json(await renderReport(event));
 };
 
@@ -61,18 +62,16 @@ const adminReportsSchema = z.object({
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get */
 const adminReportsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = c.get('store');
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const { conf, relay, user, pagination } = c.var;
 
-  const params = c.get('pagination');
+  const viewerPubkey = await user?.signer.getPublicKey();
   const { resolved, account_id, target_account_id } = adminReportsSchema.parse(c.req.query());
 
   const filter: NostrFilter = {
     kinds: [30383],
-    authors: [conf.pubkey],
+    authors: [await conf.signer.getPublicKey()],
     '#k': ['1984'],
-    ...params,
+    ...pagination,
   };
 
   if (typeof resolved === 'boolean') {
@@ -85,7 +84,7 @@ const adminReportsController: AppController = async (c) => {
     filter['#P'] = [target_account_id];
   }
 
-  const orig = await store.query([filter]);
+  const orig = await relay.query([filter]);
   const ids = new Set<string>();
 
   for (const event of orig) {
@@ -95,11 +94,11 @@ const adminReportsController: AppController = async (c) => {
     }
   }
 
-  const events = await store.query([{ kinds: [1984], ids: [...ids] }])
-    .then((events) => hydrateEvents({ store, events: events, signal: c.req.raw.signal }));
+  const events = await relay.query([{ kinds: [1984], ids: [...ids] }])
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   const reports = await Promise.all(
-    events.map((event) => renderAdminReport(event, { viewerPubkey })),
+    events.map((event) => renderAdminReport(relay, event, { viewerPubkey })),
   );
 
   return paginated(c, orig, reports);
@@ -107,12 +106,12 @@ const adminReportsController: AppController = async (c) => {
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#get-one */
 const adminReportController: AppController = async (c) => {
-  const eventId = c.req.param('id');
-  const { signal } = c.req.raw;
-  const store = c.get('store');
-  const pubkey = await c.get('signer')?.getPublicKey();
+  const { relay, user, signal } = c.var;
 
-  const [event] = await store.query([{
+  const eventId = c.req.param('id');
+  const pubkey = await user?.signer.getPublicKey();
+
+  const [event] = await relay.query([{
     kinds: [1984],
     ids: [eventId],
     limit: 1,
@@ -122,20 +121,20 @@ const adminReportController: AppController = async (c) => {
     return c.json({ error: 'Not found' }, 404);
   }
 
-  await hydrateEvents({ events: [event], store, signal });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const report = await renderAdminReport(event, { viewerPubkey: pubkey });
+  const report = await renderAdminReport(relay, event, { viewerPubkey: pubkey });
   return c.json(report);
 };
 
 /** https://docs.joinmastodon.org/methods/admin/reports/#resolve */
 const adminReportResolveController: AppController = async (c) => {
-  const eventId = c.req.param('id');
-  const { signal } = c.req.raw;
-  const store = c.get('store');
-  const pubkey = await c.get('signer')?.getPublicKey();
+  const { relay, user, signal } = c.var;
 
-  const [event] = await store.query([{
+  const eventId = c.req.param('id');
+  const pubkey = await user?.signer.getPublicKey();
+
+  const [event] = await relay.query([{
     kinds: [1984],
     ids: [eventId],
     limit: 1,
@@ -146,19 +145,19 @@ const adminReportResolveController: AppController = async (c) => {
   }
 
   await updateEventInfo(eventId, { open: false, closed: true }, c);
-  await hydrateEvents({ events: [event], store, signal });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const report = await renderAdminReport(event, { viewerPubkey: pubkey });
+  const report = await renderAdminReport(relay, event, { viewerPubkey: pubkey });
   return c.json(report);
 };
 
 const adminReportReopenController: AppController = async (c) => {
-  const eventId = c.req.param('id');
-  const { signal } = c.req.raw;
-  const store = c.get('store');
-  const pubkey = await c.get('signer')?.getPublicKey();
+  const { relay, user, signal } = c.var;
 
-  const [event] = await store.query([{
+  const eventId = c.req.param('id');
+  const pubkey = await user?.signer.getPublicKey();
+
+  const [event] = await relay.query([{
     kinds: [1984],
     ids: [eventId],
     limit: 1,
@@ -169,9 +168,9 @@ const adminReportReopenController: AppController = async (c) => {
   }
 
   await updateEventInfo(eventId, { open: true, closed: false }, c);
-  await hydrateEvents({ events: [event], store, signal });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const report = await renderAdminReport(event, { viewerPubkey: pubkey });
+  const report = await renderAdminReport(relay, event, { viewerPubkey: pubkey });
   return c.json(report);
 };
 

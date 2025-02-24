@@ -1,13 +1,16 @@
 import { Semaphore } from '@core/asyncutil';
+import { DittoConf } from '@ditto/conf';
+import { DittoPolyPg } from '@ditto/db';
 import { NostrEvent } from '@nostrify/nostrify';
 import { JsonParseStream } from '@std/json/json-parse-stream';
 import { TextLineStream } from '@std/streams/text-line-stream';
 
-import { Conf } from '../packages/ditto/config.ts';
-import { Storages } from '../packages/ditto/storages.ts';
+import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 
-const store = await Storages.db();
-const sem = new Semaphore(Conf.pg.poolSize);
+const conf = new DittoConf(Deno.env);
+const db = new DittoPolyPg(conf.databaseUrl);
+const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const sem = new Semaphore(conf.pg.poolSize);
 
 console.warn('Importing events...');
 
@@ -27,7 +30,7 @@ for await (const line of readable) {
 
   sem.lock(async () => {
     try {
-      await store.event(event);
+      await relay.event(event);
       console.warn(`(${count}) Event<${event.kind}> ${event.id}`);
     } catch (error) {
       if (error instanceof Error && error.message.includes('violates unique constraint')) {

@@ -1,24 +1,21 @@
+import { MuteListPolicy } from '@ditto/policies';
 import {
   streamingClientMessagesCounter,
   streamingConnectionsGauge,
   streamingServerMessagesCounter,
 } from '@ditto/metrics';
 import TTLCache from '@isaacs/ttlcache';
-import { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { MuteListPolicy } from '@/policies/MuteListPolicy.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { Storages } from '@/storages.ts';
-import { getTokenHash } from '@/utils/auth.ts';
 import { errorJson } from '@/utils/log.ts';
-import { bech32ToPubkey, Time } from '@/utils.ts';
+import { Time } from '@/utils.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
-import { HTTPException } from '@hono/hono/http-exception';
 
 /**
  * Streaming timelines/categories.
@@ -68,7 +65,7 @@ const limiter = new TTLCache<string, number>();
 const connections = new Set<WebSocket>();
 
 const streamingController: AppController = async (c) => {
-  const { conf } = c.var;
+  const { conf, relay, user } = c.var;
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -76,11 +73,6 @@ const streamingController: AppController = async (c) => {
 
   if (upgrade?.toLowerCase() !== 'websocket') {
     return c.text('Please use websocket protocol', 400);
-  }
-
-  const pubkey = token ? await getTokenPubkey(token) : undefined;
-  if (token && !pubkey) {
-    return c.json({ error: 'Invalid access token' }, 401);
   }
 
   const ip = c.req.header('x-real-ip');
@@ -91,12 +83,10 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token, idleTimeout: 30 });
+  const { socket, response } = Deno.upgradeWebSocket(c.req.raw, { protocol: token });
 
-  const store = await Storages.db();
-  const pubsub = await Storages.pubsub();
-
-  const policy = pubkey ? new MuteListPolicy(pubkey, await Storages.admin()) : undefined;
+  const pubkey = await user?.signer.getPublicKey();
+  const policy = pubkey ? new MuteListPolicy(pubkey, relay) : undefined;
 
   function send(e: StreamingEvent) {
     if (socket.readyState === WebSocket.OPEN) {
@@ -105,9 +95,13 @@ const streamingController: AppController = async (c) => {
     }
   }
 
-  async function sub(filters: NostrFilter[], render: (event: NostrEvent) => Promise<StreamingEvent | undefined>) {
+  async function sub(
+    filter: NostrFilter & { limit: 0 },
+    render: (event: NostrEvent) => Promise<StreamingEvent | undefined>,
+  ) {
+    const { signal } = controller;
     try {
-      for await (const msg of pubsub.req(filters, { signal: controller.signal })) {
+      for await (const msg of relay.req([filter], { signal })) {
         if (msg[0] === 'EVENT') {
           const event = msg[2];
 
@@ -118,7 +112,7 @@ const streamingController: AppController = async (c) => {
             }
           }
 
-          await hydrateEvents({ events: [event], store, signal: AbortSignal.timeout(1000) });
+          await hydrateEvents({ ...c.var, events: [event], signal });
 
           const result = await render(event);
 
@@ -137,17 +131,17 @@ const streamingController: AppController = async (c) => {
     streamingConnectionsGauge.set(connections.size);
 
     if (!stream) return;
-    const topicFilter = await topicToFilter(stream, c.req.query(), pubkey, conf.url.host);
+    const topicFilter = await topicToFilter(relay, stream, c.req.query(), pubkey, conf.url.host);
 
     if (topicFilter) {
-      sub([topicFilter], async (event) => {
+      sub(topicFilter, async (event) => {
         let payload: object | undefined;
 
         if (event.kind === 1) {
-          payload = await renderStatus(event, { viewerPubkey: pubkey });
+          payload = await renderStatus(relay, event, { viewerPubkey: pubkey });
         }
         if (event.kind === 6) {
-          payload = await renderReblog(event, { viewerPubkey: pubkey });
+          payload = await renderReblog(relay, event, { viewerPubkey: pubkey });
         }
 
         if (payload) {
@@ -161,15 +155,15 @@ const streamingController: AppController = async (c) => {
     }
 
     if (['user', 'user:notification'].includes(stream) && pubkey) {
-      sub([{ '#p': [pubkey] }], async (event) => {
+      sub({ '#p': [pubkey], limit: 0 }, async (event) => {
         if (event.pubkey === pubkey) return; // skip own events
-        const payload = await renderNotification(event, { viewerPubkey: pubkey });
+        const payload = await renderNotification(relay, event, { viewerPubkey: pubkey });
         if (payload) {
           return {
             event: 'notification',
             payload: JSON.stringify(payload),
             stream: [stream],
-          };
+          } satisfies StreamingEvent;
         }
       });
       return;
@@ -205,48 +199,28 @@ const streamingController: AppController = async (c) => {
 };
 
 async function topicToFilter(
+  relay: NStore,
   topic: Stream,
   query: Record<string, string>,
   pubkey: string | undefined,
   host: string,
-): Promise<NostrFilter | undefined> {
+): Promise<(NostrFilter & { limit: 0 }) | undefined> {
   switch (topic) {
     case 'public':
-      return { kinds: [1, 6, 20] };
+      return { kinds: [1, 6, 20], limit: 0 };
     case 'public:local':
-      return { kinds: [1, 6, 20], search: `domain:${host}` };
+      return { kinds: [1, 6, 20], search: `domain:${host}`, limit: 0 };
     case 'hashtag':
-      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag] };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], limit: 0 };
       break;
     case 'hashtag:local':
-      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}` };
+      if (query.tag) return { kinds: [1, 6, 20], '#t': [query.tag], search: `domain:${host}`, limit: 0 };
       break;
     case 'user':
       // HACK: this puts the user's entire contacts list into RAM,
       // and then calls `matchFilters` over it. Refreshing the page
       // is required after following a new user.
-      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(pubkey)] } : undefined;
-  }
-}
-
-async function getTokenPubkey(token: string): Promise<string | undefined> {
-  if (token.startsWith('token1')) {
-    const kysely = await Storages.kysely();
-    const tokenHash = await getTokenHash(token as `token1${string}`);
-
-    const row = await kysely
-      .selectFrom('auth_tokens')
-      .select('pubkey')
-      .where('token_hash', '=', tokenHash)
-      .executeTakeFirst();
-
-    if (!row) {
-      throw new HTTPException(401, { message: 'Invalid access token' });
-    }
-
-    return row.pubkey;
-  } else {
-    return bech32ToPubkey(token);
+      return pubkey ? { kinds: [1, 6, 20], authors: [...await getFeedPubkeys(relay, pubkey)], limit: 0 } : undefined;
   }
 }
 

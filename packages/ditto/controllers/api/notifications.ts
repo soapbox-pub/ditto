@@ -1,10 +1,10 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
 import { DittoPagination } from '@/interfaces/DittoPagination.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated } from '@/utils/api.ts';
 import { renderNotification } from '@/views/mastodon/notifications.ts';
 
 /** Set of known notification types across backends. */
@@ -30,8 +30,9 @@ const notificationsSchema = z.object({
 });
 
 const notificationsController: AppController = async (c) => {
-  const { conf } = c.var;
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { conf, user } = c.var;
+
+  const pubkey = await user!.signer.getPublicKey();
   const params = c.get('pagination');
 
   const types = notificationTypes
@@ -68,29 +69,30 @@ const notificationsController: AppController = async (c) => {
   }
 
   if (types.has('ditto:name_grant') && !account_id) {
-    filters.push({ kinds: [30360], authors: [conf.pubkey], '#p': [pubkey], ...params });
+    filters.push({ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [pubkey], ...params });
   }
 
   return renderNotifications(filters, types, params, c);
 };
 
 const notificationController: AppController = async (c) => {
+  const { relay, user } = c.var;
+
   const id = c.req.param('id');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const store = c.get('store');
+  const pubkey = await user!.signer.getPublicKey();
 
   // Remove the timestamp from the ID.
   const eventId = id.replace(/^\d+-/, '');
 
-  const [event] = await store.query([{ ids: [eventId] }]);
+  const [event] = await relay.query([{ ids: [eventId] }]);
 
   if (!event) {
     return c.json({ error: 'Event not found' }, { status: 404 });
   }
 
-  await hydrateEvents({ events: [event], store });
+  await hydrateEvents({ ...c.var, events: [event] });
 
-  const notification = await renderNotification(event, { viewerPubkey: pubkey });
+  const notification = await renderNotification(relay, event, { viewerPubkey: pubkey });
 
   if (!notification) {
     return c.json({ error: 'Notification not found' }, { status: 404 });
@@ -105,23 +107,23 @@ async function renderNotifications(
   params: DittoPagination,
   c: AppContext,
 ) {
-  const { conf } = c.var;
-  const store = c.get('store');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
-  const { signal } = c.req.raw;
+  const { conf, user, signal } = c.var;
+
+  const relay = user!.relay;
+  const pubkey = await user!.signer.getPublicKey();
   const opts = { signal, limit: params.limit, timeout: conf.db.timeouts.timelines };
 
-  const events = await store
+  const events = await relay
     .query(filters, opts)
     .then((events) => events.filter((event) => event.pubkey !== pubkey))
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   if (!events.length) {
     return c.json([]);
   }
 
   const notifications = (await Promise.all(events.map((event) => {
-    return renderNotification(event, { viewerPubkey: pubkey });
+    return renderNotification(relay, event, { viewerPubkey: pubkey });
   })))
     .filter((notification) => notification && types.has(notification.type));
 

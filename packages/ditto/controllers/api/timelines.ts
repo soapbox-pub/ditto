@@ -1,3 +1,4 @@
+import { paginated } from '@ditto/mastoapi/pagination';
 import { NostrFilter } from '@nostrify/nostrify';
 import { z } from 'zod';
 
@@ -5,7 +6,6 @@ import { type AppContext, type AppController } from '@/app.ts';
 import { getFeedPubkeys } from '@/queries.ts';
 import { booleanParamSchema, languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { paginated } from '@/utils/api.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -15,8 +15,8 @@ const homeQuerySchema = z.object({
 });
 
 const homeTimelineController: AppController = async (c) => {
-  const params = c.get('pagination');
-  const pubkey = await c.get('signer')?.getPublicKey()!;
+  const { relay, user, pagination } = c.var;
+  const pubkey = await user?.signer.getPublicKey()!;
   const result = homeQuerySchema.safeParse(c.req.query());
 
   if (!result.success) {
@@ -25,8 +25,8 @@ const homeTimelineController: AppController = async (c) => {
 
   const { exclude_replies, only_media } = result.data;
 
-  const authors = [...await getFeedPubkeys(pubkey)];
-  const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...params };
+  const authors = [...await getFeedPubkeys(relay, pubkey)];
+  const filter: NostrFilter = { authors, kinds: [1, 6, 20], ...pagination };
 
   const search: string[] = [];
 
@@ -90,41 +90,39 @@ const hashtagTimelineController: AppController = (c) => {
 };
 
 const suggestedTimelineController: AppController = async (c) => {
-  const { conf } = c.var;
-  const store = c.get('store');
-  const params = c.get('pagination');
+  const { conf, relay, pagination } = c.var;
 
-  const [follows] = await store.query(
-    [{ kinds: [3], authors: [conf.pubkey], limit: 1 }],
+  const [follows] = await relay.query(
+    [{ kinds: [3], authors: [await conf.signer.getPublicKey()], limit: 1 }],
   );
 
   const authors = [...getTagSet(follows?.tags ?? [], 'p')];
 
-  return renderStatuses(c, [{ authors, kinds: [1, 20], ...params }]);
+  return renderStatuses(c, [{ authors, kinds: [1, 20], ...pagination }]);
 };
 
 /** Render statuses for timelines. */
 async function renderStatuses(c: AppContext, filters: NostrFilter[]) {
-  const { conf } = c.var;
-  const { signal } = c.req.raw;
-  const store = c.get('store');
+  const { conf, user, signal } = c.var;
+
+  const relay = user?.relay ?? c.var.relay;
   const opts = { signal, timeout: conf.db.timeouts.timelines };
 
-  const events = await store
+  const events = await relay
     .query(filters, opts)
-    .then((events) => hydrateEvents({ events, store, signal }));
+    .then((events) => hydrateEvents({ ...c.var, events }));
 
   if (!events.length) {
     return c.json([]);
   }
 
-  const viewerPubkey = await c.get('signer')?.getPublicKey();
+  const viewerPubkey = await user?.signer.getPublicKey();
 
   const statuses = (await Promise.all(events.map((event) => {
     if (event.kind === 6) {
-      return renderReblog(event, { viewerPubkey });
+      return renderReblog(relay, event, { viewerPubkey });
     }
-    return renderStatus(event, { viewerPubkey });
+    return renderStatus(relay, event, { viewerPubkey });
   }))).filter(Boolean);
 
   if (!statuses.length) {

@@ -1,76 +1,55 @@
+import { DittoDB } from '@ditto/db';
+import { DittoConf } from '@ditto/conf';
 import { NostrEvent, NostrFilter, NStore } from '@nostrify/nostrify';
 
-import { Conf } from '@/config.ts';
-import { Storages } from '@/storages.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { type DittoRelation } from '@/interfaces/DittoFilter.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { fallbackAuthor } from '@/utils.ts';
 import { findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 interface GetEventOpts {
-  /** Signal to abort the request. */
+  db: DittoDB;
+  conf: DittoConf;
+  relay: NStore;
   signal?: AbortSignal;
-  /** Event kind. */
-  kind?: number;
-  /** @deprecated Relations to include on the event. */
-  relations?: DittoRelation[];
 }
 
 /**
  * Get a Nostr event by its ID.
- * @deprecated Use `store.query` directly.
+ * @deprecated Use `relay.query` directly.
  */
-const getEvent = async (
-  id: string,
-  opts: GetEventOpts = {},
-): Promise<DittoEvent | undefined> => {
-  const store = await Storages.db();
-  const { kind, signal = AbortSignal.timeout(1000) } = opts;
-
+async function getEvent(id: string, opts: GetEventOpts): Promise<DittoEvent | undefined> {
   const filter: NostrFilter = { ids: [id], limit: 1 };
-  if (kind) {
-    filter.kinds = [kind];
-  }
-
-  return await store.query([filter], { limit: 1, signal })
-    .then((events) => hydrateEvents({ events, store, signal }))
-    .then(([event]) => event);
-};
+  const events = await opts.relay.query([filter], opts);
+  const [event] = await hydrateEvents({ ...opts, events });
+  return event;
+}
 
 /**
  * Get a Nostr `set_medatadata` event for a user's pubkey.
- * @deprecated Use `store.query` directly.
+ * @deprecated Use `relay.query` directly.
  */
-async function getAuthor(pubkey: string, opts: GetEventOpts = {}): Promise<NostrEvent | undefined> {
-  const store = await Storages.db();
-  const { signal = AbortSignal.timeout(1000) } = opts;
-
-  const events = await store.query([{ authors: [pubkey], kinds: [0], limit: 1 }], { limit: 1, signal });
-  const event = events[0] ?? fallbackAuthor(pubkey);
-
-  await hydrateEvents({ events: [event], store, signal });
-
+async function getAuthor(pubkey: string, opts: GetEventOpts): Promise<NostrEvent | undefined> {
+  const events = await opts.relay.query([{ authors: [pubkey], kinds: [0], limit: 1 }], opts);
+  const [event] = await hydrateEvents({ ...opts, events });
   return event;
 }
 
 /** Get users the given pubkey follows. */
-const getFollows = async (pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
-  const store = await Storages.db();
-  const [event] = await store.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { limit: 1, signal });
+const getFollows = async (relay: NStore, pubkey: string, signal?: AbortSignal): Promise<NostrEvent | undefined> => {
+  const [event] = await relay.query([{ authors: [pubkey], kinds: [3], limit: 1 }], { signal });
   return event;
 };
 
 /** Get pubkeys the user follows. */
-async function getFollowedPubkeys(pubkey: string, signal?: AbortSignal): Promise<Set<string>> {
-  const event = await getFollows(pubkey, signal);
+async function getFollowedPubkeys(relay: NStore, pubkey: string, signal?: AbortSignal): Promise<Set<string>> {
+  const event = await getFollows(relay, pubkey, signal);
   if (!event) return new Set();
   return getTagSet(event.tags, 'p');
 }
 
 /** Get pubkeys the user follows, including the user's own pubkey. */
-async function getFeedPubkeys(pubkey: string): Promise<Set<string>> {
-  const authors = await getFollowedPubkeys(pubkey);
+async function getFeedPubkeys(relay: NStore, pubkey: string): Promise<Set<string>> {
+  const authors = await getFollowedPubkeys(relay, pubkey);
   return authors.add(pubkey);
 }
 
@@ -95,34 +74,11 @@ async function getAncestors(store: NStore, event: NostrEvent, result: NostrEvent
 async function getDescendants(
   store: NStore,
   event: NostrEvent,
-  signal = AbortSignal.timeout(2000),
+  signal?: AbortSignal,
 ): Promise<NostrEvent[]> {
   return await store
     .query([{ kinds: [1], '#e': [event.id], since: event.created_at, limit: 200 }], { signal })
     .then((events) => events.filter(({ tags }) => findReplyTag(tags)?.[1] === event.id));
 }
 
-/** Returns whether the pubkey is followed by a local user. */
-async function isLocallyFollowed(pubkey: string): Promise<boolean> {
-  const { host } = Conf.url;
-
-  const store = await Storages.db();
-
-  const [event] = await store.query(
-    [{ kinds: [3], '#p': [pubkey], search: `domain:${host}`, limit: 1 }],
-    { limit: 1 },
-  );
-
-  return Boolean(event);
-}
-
-export {
-  getAncestors,
-  getAuthor,
-  getDescendants,
-  getEvent,
-  getFeedPubkeys,
-  getFollowedPubkeys,
-  getFollows,
-  isLocallyFollowed,
-};
+export { getAncestors, getAuthor, getDescendants, getEvent, getFeedPubkeys, getFollowedPubkeys, getFollows };
