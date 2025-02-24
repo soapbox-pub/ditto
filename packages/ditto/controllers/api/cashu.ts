@@ -2,6 +2,7 @@ import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import { confRequiredMw } from '@ditto/api/middleware';
 import { Hono } from '@hono/hono';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { bytesToString } from '@scure/base';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
@@ -11,10 +12,13 @@ import { requireNip44Signer } from '@/middleware/requireSigner.ts';
 import { requireStore } from '@/middleware/storeMiddleware.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
 import { walletSchema } from '@/schema.ts';
+import { hydrateEvents } from '@/storages/hydrate.ts';
 import { nostrNow } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
-import { validateAndParseWallet } from '@/utils/cashu.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
+import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
+import { tokenEventSchema } from '@/schemas/cashu.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -289,6 +293,160 @@ app.get('/mints', (c) => {
   const mints = conf.cashuMints;
 
   return c.json({ mints }, 200);
+});
+
+const nutzapSchema = z.object({
+  account_id: n.id(),
+  status_id: n.id().optional(),
+  amount: z.number().int().positive(),
+  comment: z.string().optional(),
+});
+
+/** Nutzaps a post or a user. */
+app.post('/nutzap', requireNip44Signer, async (c) => {
+  const store = c.get('store');
+  const { signal } = c.req.raw;
+  const { conf, signer } = c.var;
+  const pubkey = await signer.getPublicKey();
+  const body = await parseBody(c.req.raw);
+  const result = nutzapSchema.safeParse(body);
+
+  if (!result.success) {
+    return c.json({ error: 'Bad schema', schema: result.error }, 400);
+  }
+
+  const { account_id, status_id, amount, comment } = result.data;
+  let event: DittoEvent;
+
+  if (status_id) {
+    [event] = await store.query([{ kinds: [1], ids: [status_id] }], { signal });
+    if (!event) {
+      return c.json({ error: 'Status not found' }, 404);
+    }
+    await hydrateEvents({ events: [event], store, signal });
+  } else {
+    [event] = await store.query([{ kinds: [0], authors: [account_id] }], { signal });
+    if (!event) {
+      return c.json({ error: 'Account not found' }, 404);
+    }
+  }
+
+  if (event.kind === 1 && (event.author?.pubkey !== account_id)) {
+    return c.json({ error: 'Post author does not match author' }, 422);
+  }
+
+  const [nutzapInfo] = await store.query([{ kinds: [10019], authors: [account_id] }], { signal });
+  if (!nutzapInfo) {
+    return c.json({ error: 'Target user does not have a nutzap information event' }, 404);
+  }
+
+  const recipientMints = event.tags.filter(([name]) => name === 'mint').map((tag) => tag[1]).filter(Boolean);
+  if (recipientMints.length < 1) {
+    return c.json({ error: 'Target user does not have any mints setup' }, 422);
+  }
+
+  const p2pk = event.tags.find(([name]) => name === 'pubkey')?.[1];
+  if (!p2pk) {
+    return c.json({ error: 'Target user does not have a cashu pubkey' }, 422);
+  }
+
+  const unspentProofs = await store.query([{ kinds: [7375], authors: [pubkey] }], { signal });
+  const organizedProofs = await organizeProofs(unspentProofs, signer);
+
+  const proofsToBeUsed: Proof[] = [];
+  const eventsToBeDeleted: NostrEvent[] = [];
+  let selectedMint: string | undefined;
+
+  for (const mint of recipientMints) {
+    if (organizedProofs[mint].totalBalance > amount) {
+      selectedMint = mint;
+      let minimumRequiredBalance = 0;
+
+      for (const key of Object.keys(organizedProofs[mint])) {
+        if (key === 'totalBalance' || typeof organizedProofs[mint][key] === 'number') {
+          continue;
+        }
+
+        if (minimumRequiredBalance > amount) {
+          break;
+        }
+
+        const event = organizedProofs[mint][key].event;
+        const decryptedContent = await signer.nip44.decrypt(pubkey, event.content);
+
+        const { data: token, success } = n.json().pipe(tokenEventSchema).safeParse(decryptedContent);
+
+        if (!success) {
+          continue; // TODO: maybe abort everything
+        }
+
+        const { proofs } = token;
+
+        proofsToBeUsed.push(...proofs);
+        eventsToBeDeleted.push(event);
+        minimumRequiredBalance += organizedProofs[mint][key].balance;
+      }
+      break;
+    }
+  }
+
+  if (!selectedMint) {
+    return c.json({ error: 'You do not have mints in common with enough balance' }, 422);
+  }
+
+  const mint = new CashuMint(selectedMint);
+  const wallet = new CashuWallet(mint);
+  await wallet.loadMint();
+
+  const { keep: proofsToKeep, send: proofsToSend } = await wallet.send(amount, proofsToBeUsed, { includeFees: true });
+
+  const newUnspentProof = await createEvent({
+    kind: 7375,
+    content: await signer.nip44.encrypt(
+      pubkey,
+      JSON.stringify({
+        mint: selectedMint,
+        proofs: proofsToKeep,
+        del: eventsToBeDeleted.map((e) => e.id),
+      }),
+    ),
+  }, c);
+
+  await createEvent({
+    kind: 7376,
+    content: await signer.nip44.encrypt(
+      pubkey,
+      JSON.stringify([
+        ['direction', 'out'],
+        ['amount', String(proofsToSend.reduce((accumulator, current) => accumulator + current.amount, 0))],
+        ...eventsToBeDeleted.map((e) => ['e', e.id, conf.relay, 'destroyed']),
+        ['e', newUnspentProof.id, conf.relay, 'created'],
+      ]),
+    ),
+  }, c);
+
+  await createEvent({
+    kind: 5,
+    tags: eventsToBeDeleted.map((e) => ['e', e.id, conf.relay]),
+  }, c);
+
+  const nutzapTags: string[][] = [
+    ...proofsToSend.map((proof) => ['proof', JSON.stringify(proof)]),
+    ['u', selectedMint],
+    ['p', account_id], // recipient of nutzap
+  ];
+  if (status_id) {
+    nutzapTags.push(['e', status_id, conf.relay]);
+  }
+
+  // nutzap
+  await createEvent({
+    kind: 9321,
+    content: comment ?? '',
+    tags: nutzapTags,
+  }, c);
+
+  return c.json({ message: 'Nutzap with success!!!' }, 200); // TODO: return wallet entity
 });
 
 export default app;
