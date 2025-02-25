@@ -388,7 +388,10 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
   const wallet = new CashuWallet(mint);
   await wallet.loadMint();
 
-  const { keep: proofsToKeep, send: proofsToSend } = await wallet.send(amount, proofsToBeUsed, { includeFees: true });
+  const { keep: proofsToKeep, send: proofsToSend } = await wallet.send(amount, proofsToBeUsed, {
+    includeFees: true,
+    pubkey: p2pk.length === 64 ? '02' + p2pk : p2pk,
+  });
 
   const newUnspentProof = await createEvent({
     kind: 7375,
