@@ -335,7 +335,7 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
     return c.json({ error: 'Target user does not have any mints setup' }, 422);
   }
 
-  const p2pk = event.tags.find(([name]) => name === 'pubkey')?.[1];
+  const p2pk = nutzapInfo.tags.find(([name]) => name === 'pubkey')?.[1];
   if (!p2pk) {
     return c.json({ error: 'Target user does not have a cashu pubkey' }, 422);
   }
