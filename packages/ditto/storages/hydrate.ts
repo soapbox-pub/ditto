@@ -132,9 +132,8 @@ export function assembleEvents(
         event.quote = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
 
-      const pubkeys = event.tags.filter(([name]) => name === 'p')
-        .map(([_name, value]) => value)
-        .filter((pubkey) => isNostrId(pubkey));
+      const pubkeys = event.tags.filter(([name, value]) => name === 'p' && isNostrId(value))
+        .map(([_name, value]) => value);
       event.mentions = b.filter((e) => matchFilter({ kinds: [0], authors: pubkeys }, e));
     }
 
