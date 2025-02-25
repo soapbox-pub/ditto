@@ -330,7 +330,7 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
     return c.json({ error: 'Target user does not have a nutzap information event' }, 404);
   }
 
-  const recipientMints = event.tags.filter(([name]) => name === 'mint').map((tag) => tag[1]).filter(Boolean);
+  const recipientMints = nutzapInfo.tags.filter(([name]) => name === 'mint').map((tag) => tag[1]).filter(Boolean);
   if (recipientMints.length < 1) {
     return c.json({ error: 'Target user does not have any mints setup' }, 422);
   }
