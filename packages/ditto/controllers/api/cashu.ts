@@ -348,7 +348,7 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
   let selectedMint: string | undefined;
 
   for (const mint of recipientMints) {
-    if (organizedProofs[mint].totalBalance > amount) {
+    if (organizedProofs[mint]?.totalBalance >= amount) {
       selectedMint = mint;
       let minimumRequiredBalance = 0;
 
@@ -357,7 +357,7 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
           continue;
         }
 
-        if (minimumRequiredBalance > amount) {
+        if (minimumRequiredBalance >= amount) {
           break;
         }
 
