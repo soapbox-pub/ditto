@@ -100,11 +100,11 @@ const accountLookupController: AppController = async (c) => {
   const event = await lookupAccount(decodeURIComponent(acct), c.var);
   if (event) {
     assertAuthenticated(c, event);
-    return c.json(await renderAccount(event));
+    return c.json(renderAccount(event));
   }
   try {
     const pubkey = bech32ToPubkey(decodeURIComponent(acct));
-    return c.json(await accountFromPubkey(pubkey!));
+    return c.json(accountFromPubkey(pubkey!));
   } catch {
     return c.json({ error: 'Could not find user.' }, 404);
   }
