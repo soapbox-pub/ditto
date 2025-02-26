@@ -29,3 +29,26 @@ Deno.test('DittoConfig defaults', async (t) => {
     assertEquals(config.port, 4036);
   });
 });
+
+Deno.test('DittoConfig with insecure media host', () => {
+  const env = new Map<string, string>([
+    ['LOCAL_DOMAIN', 'https://ditto.test'],
+    ['MEDIA_DOMAIN', 'https://ditto.test'],
+  ]);
+
+  assertThrows(
+    () => new DittoConf(env),
+    Error,
+    'For security reasons, MEDIA_DOMAIN cannot be on the same host as LOCAL_DOMAIN',
+  );
+});
+
+Deno.test('DittoConfig with insecure media host and precheck disabled', () => {
+  const env = new Map<string, string>([
+    ['LOCAL_DOMAIN', 'https://ditto.test'],
+    ['MEDIA_DOMAIN', 'https://ditto.test'],
+    ['DITTO_PRECHECK', 'false'],
+  ]);
+
+  new DittoConf(env);
+});
