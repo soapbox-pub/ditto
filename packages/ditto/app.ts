@@ -214,7 +214,7 @@ if (conf.cronEnabled) {
   cron({ conf, db, relay });
 }
 
-const app = new DittoApp({ conf, db, relay }, { strict: false });
+const app = new DittoApp({ conf, db, relay, strict: false });
 
 /** User-provided files in the gitignored `public/` directory. */
 const publicFiles = serveStatic({ root: './public/' });
