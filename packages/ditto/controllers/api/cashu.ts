@@ -14,7 +14,6 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { nostrNow } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
-import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
 import { tokenEventSchema } from '@/schemas/cashu.ts';
 
@@ -306,19 +305,16 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
   }
 
   const { account_id, status_id, amount, comment } = result.data;
-  let event: DittoEvent;
+
+  const filter = status_id ? [{ kinds: [1], ids: [status_id] }] : [{ kinds: [0], authors: [account_id] }];
+  const [event] = await relay.query(filter, { signal });
+
+  if (!event) {
+    return c.json({ error: status_id ? 'Status not found' : 'Account not found' }, 404);
+  }
 
   if (status_id) {
-    [event] = await relay.query([{ kinds: [1], ids: [status_id] }], { signal });
-    if (!event) {
-      return c.json({ error: 'Status not found' }, 404);
-    }
     await hydrateEvents({ ...c.var, events: [event] });
-  } else {
-    [event] = await relay.query([{ kinds: [0], authors: [account_id] }], { signal });
-    if (!event) {
-      return c.json({ error: 'Account not found' }, 404);
-    }
   }
 
   if (event.kind === 1 && (event.author?.pubkey !== account_id)) {
