@@ -160,11 +160,12 @@ const adminActionController: AppController = async (c) => {
   }
   if (data.type === 'revoke_name') {
     n.revoke_name = true;
-    relay.remove!([{ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [authorId] }]).catch(
-      (e: unknown) => {
-        logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
-      },
-    );
+    try {
+      await relay.remove!([{ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [authorId] }]);
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, error: errorJson(e) });
+      return c.json({ error: 'Unexpected runtime error' }, 500);
+    }
   }
 
   await updateUser(authorId, n, c);
