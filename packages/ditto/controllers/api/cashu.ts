@@ -16,6 +16,7 @@ import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
 import { tokenEventSchema } from '@/schemas/cashu.ts';
+import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 type Wallet = z.infer<typeof walletSchema>;
 
@@ -317,7 +318,7 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
     await hydrateEvents({ ...c.var, events: [event] });
   }
 
-  if (event.kind === 1 && (event.author?.pubkey !== account_id)) {
+  if (event.kind === 1 && ((event as DittoEvent)?.author?.pubkey !== account_id)) {
     return c.json({ error: 'Post author does not match author' }, 422);
   }
 
