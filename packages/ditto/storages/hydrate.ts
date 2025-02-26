@@ -7,7 +7,7 @@ import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
-import { fallbackAuthor } from '@/utils.ts';
+import { fallbackAuthor, isNostrId } from '@/utils.ts';
 import { findQuoteTag } from '@/utils/tags.ts';
 import { findQuoteInContent } from '@/utils/note.ts';
 import { getAmount } from '@/utils/bolt11.ts';
@@ -132,7 +132,8 @@ export function assembleEvents(
         event.quote = b.find((e) => matchFilter({ kinds: [1, 20], ids: [id] }, e));
       }
 
-      const pubkeys = event.tags.filter(([name]) => name === 'p').map(([_name, value]) => value);
+      const pubkeys = event.tags.filter(([name, value]) => name === 'p' && isNostrId(value))
+        .map(([_name, value]) => value);
       event.mentions = b.filter((e) => matchFilter({ kinds: [0], authors: pubkeys }, e));
     }
 

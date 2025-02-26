@@ -1,6 +1,5 @@
 import { logi } from '@soapbox/logi';
 
-import '@/precheck.ts';
 import '@/sentry.ts';
 import '@/nostr-wasm.ts';
 import app from '@/app.ts';

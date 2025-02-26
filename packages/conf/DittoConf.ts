@@ -13,7 +13,17 @@ import { mergeURLPath } from './utils/url.ts';
 
 /** Ditto application-wide configuration. */
 export class DittoConf {
-  constructor(private env: { get(key: string): string | undefined }) {}
+  constructor(private env: { get(key: string): string | undefined }) {
+    if (this.precheck) {
+      const mediaUrl = new URL(this.mediaDomain);
+
+      if (this.url.host === mediaUrl.host) {
+        throw new Error(
+          'For security reasons, MEDIA_DOMAIN cannot be on the same host as LOCAL_DOMAIN.\n\nTo disable this check, set DITTO_PRECHECK="false"',
+        );
+      }
+    }
+  }
 
   /** Cached parsed admin signer. */
   private _signer: NSecSigner | undefined;
@@ -464,5 +474,10 @@ export class DittoConf {
   /** Maximum time between events before a streak is broken, *in seconds*. */
   get streakWindow(): number {
     return Number(this.env.get('STREAK_WINDOW') || 129600);
+  }
+
+  /** Whether to perform security/configuration checks on startup. */
+  get precheck(): boolean {
+    return optionalBooleanSchema.parse(this.env.get('DITTO_PRECHECK')) ?? true;
   }
 }
