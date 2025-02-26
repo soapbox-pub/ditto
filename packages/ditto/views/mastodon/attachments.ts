@@ -1,4 +1,5 @@
-import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
+import { MastodonAttachment } from '@ditto/mastoapi/types';
+
 import { getUrlMediaType } from '@/utils/media.ts';
 
 /** Render Mastodon media attachment. */

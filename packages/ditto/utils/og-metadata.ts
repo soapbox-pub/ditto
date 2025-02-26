@@ -1,9 +1,9 @@
 import { nip19 } from 'nostr-tools';
 import { match } from 'path-to-regexp';
 
-import { MastodonAccount } from '@/entities/MastodonAccount.ts';
-import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { InstanceMetadata } from '@/utils/instance.ts';
+
+import type { MastodonAccount, MastodonStatus } from '@ditto/mastoapi/types';
 
 export interface MetadataEntities {
   status?: MastodonStatus;

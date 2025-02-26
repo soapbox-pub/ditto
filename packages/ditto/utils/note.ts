@@ -4,9 +4,10 @@ import linkify from 'linkifyjs';
 import { nip19, nip27 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { html } from '@/utils/html.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
+
+import { MastodonMention } from '@ditto/mastoapi/types';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');

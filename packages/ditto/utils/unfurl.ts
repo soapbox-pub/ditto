@@ -6,10 +6,11 @@ import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
 import { Conf } from '@/config.ts';
-import { PreviewCard } from '@/entities/PreviewCard.ts';
 import { errorJson } from '@/utils/log.ts';
 
-async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard | null> {
+import type { MastodonPreviewCard } from '@ditto/mastoapi/types';
+
+async function unfurlCard(url: string, signal: AbortSignal): Promise<MastodonPreviewCard | null> {
   try {
     const result = await unfurl(url, {
       fetch: (url) =>
@@ -55,10 +56,10 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<PreviewCard
 }
 
 /** TTL cache for preview cards. */
-const previewCardCache = new TTLCache<string, Promise<PreviewCard | null>>(Conf.caches.linkPreview);
+const previewCardCache = new TTLCache<string, Promise<MastodonPreviewCard | null>>(Conf.caches.linkPreview);
 
 /** Unfurl card from cache if available, otherwise fetch it. */
-function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Promise<PreviewCard | null> {
+export function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Promise<MastodonPreviewCard | null> {
   const cached = previewCardCache.get(url);
   if (cached !== undefined) {
     return cached;
@@ -69,5 +70,3 @@ function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Prom
     return card;
   }
 }
-
-export { type PreviewCard, unfurlCardCached };

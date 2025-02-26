@@ -1,4 +1,4 @@
-import { LanguageCode } from 'iso-639-1';
+import type { LanguageCode } from 'iso-639-1';
 
 /** https://docs.joinmastodon.org/entities/Translation/ */
 export interface MastodonTranslation {

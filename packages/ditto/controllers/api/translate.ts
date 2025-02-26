@@ -1,11 +1,11 @@
 import { cachedTranslationsSizeGauge } from '@ditto/metrics';
+import { MastodonTranslation } from '@ditto/mastoapi/types';
 import { logi } from '@soapbox/logi';
 import { LanguageCode } from 'iso-639-1';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { translationCache } from '@/caches/translationCache.ts';
-import { MastodonTranslation } from '@/entities/MastodonTranslation.ts';
 import { getEvent } from '@/queries.ts';
 import { localeSchema } from '@/schema.ts';
 import { parseBody } from '@/utils/api.ts';

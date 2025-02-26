@@ -5,6 +5,7 @@
     "./middleware": "./middleware/mod.ts",
     "./pagination": "./pagination/mod.ts",
     "./router": "./router/mod.ts",
-    "./test": "./test.ts"
+    "./test": "./test.ts",
+    "./types": "./types/mod.ts"
   }
 }
