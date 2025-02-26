@@ -10,6 +10,11 @@ interface Point {
   y: number;
 }
 
+const pointSchema: z.ZodType<Point> = z.object({
+  x: z.number(),
+  y: z.number(),
+});
+
 const captchas = new TTLCache<string, Point>();
 const imagesAsync = getCaptchaImages();
 
@@ -41,11 +46,6 @@ export const captchaController: AppController = async (c) => {
     expires_at: new Date(now.getTime() + ttl).toISOString(),
   });
 };
-
-const pointSchema = z.object({
-  x: z.number(),
-  y: z.number(),
-});
 
 /** Verify the captcha solution and sign an event in the database. */
 export const captchaVerifyController: AppController = async (c) => {
