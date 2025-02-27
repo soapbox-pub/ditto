@@ -6,7 +6,7 @@ import { PolicyWorker } from '../packages/ditto/workers/policy.ts';
 
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
-const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const relay = new DittoPgStore({ db, conf });
 const policyWorker = new PolicyWorker(conf);
 
 let count = 0;

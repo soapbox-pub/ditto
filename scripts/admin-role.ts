@@ -8,7 +8,7 @@ import { nostrNow } from '../packages/ditto/utils.ts';
 
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
-const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const relay = new DittoPgStore({ db, conf });
 
 const [pubkeyOrNpub, role] = Deno.args;
 const pubkey = pubkeyOrNpub.startsWith('npub1') ? nip19.decode(pubkeyOrNpub as `npub1${string}`).data : pubkeyOrNpub;

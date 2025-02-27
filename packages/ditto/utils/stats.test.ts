@@ -23,7 +23,7 @@ Deno.test('updateStats with kind 1 increments notes count', async () => {
 
 Deno.test('updateStats with kind 1 increments replies count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const sk = generateSecretKey();
 
@@ -42,7 +42,7 @@ Deno.test('updateStats with kind 1 increments replies count', async () => {
 
 Deno.test('updateStats with kind 5 decrements notes count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
@@ -74,7 +74,7 @@ Deno.test('updateStats with kind 3 increments followers count', async () => {
 
 Deno.test('updateStats with kind 3 decrements followers count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const sk = generateSecretKey();
   const follow = genEvent({ kind: 3, tags: [['p', 'alex']], created_at: 0 }, sk);
@@ -101,7 +101,7 @@ Deno.test('getFollowDiff returns added and removed followers', () => {
 
 Deno.test('updateStats with kind 6 increments reposts count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...test, event: note });
@@ -118,7 +118,7 @@ Deno.test('updateStats with kind 6 increments reposts count', async () => {
 
 Deno.test('updateStats with kind 5 decrements reposts count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...test, event: note });
@@ -138,7 +138,7 @@ Deno.test('updateStats with kind 5 decrements reposts count', async () => {
 
 Deno.test('updateStats with kind 7 increments reactions count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...test, event: note });
@@ -155,7 +155,7 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
 
 Deno.test('updateStats with kind 5 decrements reactions count', async () => {
   await using test = await setupTest();
-  const { relay, kysely } = test;
+  const { kysely, relay } = test;
 
   const note = genEvent({ kind: 1 });
   await updateStats({ ...test, event: note });
@@ -175,7 +175,7 @@ Deno.test('updateStats with kind 5 decrements reactions count', async () => {
 
 Deno.test('countAuthorStats counts author stats from the database', async () => {
   await using test = await setupTest();
-  const { relay } = test;
+  const { kysely, relay } = test;
 
   const sk = generateSecretKey();
   const pubkey = getPublicKey(sk);
@@ -184,7 +184,7 @@ Deno.test('countAuthorStats counts author stats from the database', async () => 
   await relay.event(genEvent({ kind: 1, content: 'yolo' }, sk));
   await relay.event(genEvent({ kind: 3, tags: [['p', pubkey]] }));
 
-  await test.kysely.insertInto('author_stats').values({
+  await kysely.insertInto('author_stats').values({
     pubkey,
     search: 'Yolo Lolo',
     notes_count: 0,
@@ -193,7 +193,7 @@ Deno.test('countAuthorStats counts author stats from the database', async () => 
   }).onConflict((oc) => oc.column('pubkey').doUpdateSet({ 'search': 'baka' }))
     .execute();
 
-  const stats = await countAuthorStats({ ...test, pubkey });
+  const stats = await countAuthorStats({ ...test, kysely, pubkey });
 
   assertEquals(stats!.notes_count, 2);
   assertEquals(stats!.followers_count, 1);
@@ -206,9 +206,10 @@ async function setupTest() {
   await db.migrate();
 
   const { kysely } = db;
-  const relay = new NPostgres(kysely);
+  const relay = new NPostgres(db.kysely);
 
   return {
+    conf,
     relay,
     kysely,
     [Symbol.asyncDispose]: async () => {
