@@ -48,7 +48,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
   const parsed05 = stats?.nip05 ? parseNip05(stats.nip05) : undefined;
   const acct = parsed05?.handle || npub;
 
-  const { html } = parseNoteContent(about || '', []);
+  const { html } = parseNoteContent(about || '', [], { conf: Conf });
 
   const fields = _fields
     ?.slice(0, Conf.profileFields.maxFields)
@@ -84,7 +84,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, []).html })),
+    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, [], { conf: Conf }).html })),
     follow_requests_count: 0,
     followers_count: stats?.followers_count ?? 0,
     following_count: stats?.following_count ?? 0,
