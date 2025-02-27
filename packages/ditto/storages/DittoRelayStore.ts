@@ -28,7 +28,7 @@ import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventAge, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isNostrId, nostrNow, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -189,6 +189,7 @@ export class DittoRelayStore implements NRelay {
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
+        this.handleRevokeNip05(event, signal),
         this.prewarmLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
@@ -243,6 +244,34 @@ export class DittoRelayStore implements NRelay {
     } catch {
       // receipt_id is unique, do nothing
     }
+  }
+
+  /** Sets the nip05 column to null */
+  private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal) {
+    const { conf, relay } = this.opts;
+
+    if (await conf.signer.getPublicKey() !== event.pubkey) {
+      return;
+    }
+
+    if (event.kind !== 5) return;
+
+    const kind = event.tags.find(([name, value]) => name === 'k' && value === '30360')?.[1];
+    if (kind !== '30360') {
+      return;
+    }
+
+    const authorId = event.tags.find(([name]) => name === 'p')?.[1];
+    if (!authorId || !isNostrId(authorId)) {
+      return;
+    }
+
+    const [author] = await relay.query([{ kinds: [0], authors: [authorId] }], { signal });
+    if (!author) {
+      return;
+    }
+
+    await this.updateAuthorData(author);
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
