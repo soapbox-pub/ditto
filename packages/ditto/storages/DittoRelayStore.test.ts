@@ -63,7 +63,7 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
     created_at: nostrNow(),
     tags: [
       ['k', '30360'],
-      ['p', event.id], // NOTE: this is not in the NIP-09 spec
+      ['p', event.pubkey], // NOTE: this is not in the NIP-09 spec
     ],
     content: '',
   });
