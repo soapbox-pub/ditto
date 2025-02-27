@@ -15,6 +15,7 @@ export class DittoApp extends Hono<DittoEnv> {
       c.set('conf', opts.conf);
       c.set('relay', opts.relay);
       c.set('signal', c.req.raw.signal);
+      c.set('requestId', c.req.header('X-Request-Id') ?? crypto.randomUUID());
       return next();
     });
   }
