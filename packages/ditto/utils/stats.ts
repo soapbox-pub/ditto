@@ -4,40 +4,46 @@ import { Insertable, Kysely, UpdateObject } from 'kysely';
 import { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
-import { Conf } from '@/config.ts';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
+import type { DittoConf } from '@ditto/conf';
+
 interface UpdateStatsOpts {
-  kysely: Kysely<DittoTables>;
+  conf: DittoConf;
   relay: NStore;
+  kysely: Kysely<DittoTables>;
   event: NostrEvent;
   x?: 1 | -1;
 }
 
 /** Handle one event at a time and update relevant stats for it. */
 // deno-lint-ignore require-await
-export async function updateStats({ event, kysely, relay, x = 1 }: UpdateStatsOpts): Promise<void> {
+export async function updateStats(opts: UpdateStatsOpts): Promise<void> {
+  const { event } = opts;
+
   switch (event.kind) {
     case 1:
     case 20:
     case 1111:
     case 30023:
-      return handleEvent1(kysely, event, x);
+      return handleEvent1(opts);
     case 3:
-      return handleEvent3(kysely, event, x, relay);
+      return handleEvent3(opts);
     case 5:
-      return handleEvent5(kysely, event, -1, relay);
+      return handleEvent5(opts);
     case 6:
-      return handleEvent6(kysely, event, x);
+      return handleEvent6(opts);
     case 7:
-      return handleEvent7(kysely, event, x);
+      return handleEvent7(opts);
     case 9735:
-      return handleEvent9735(kysely, event);
+      return handleEvent9735(opts);
   }
 }
 
 /** Update stats for kind 1 event. */
-async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
+async function handleEvent1(opts: UpdateStatsOpts): Promise<void> {
+  const { conf, kysely, event, x = 1 } = opts;
+
   await updateAuthorStats(kysely, event.pubkey, (prev) => {
     const now = event.created_at;
 
@@ -47,7 +53,7 @@ async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
     if (start && end) { // Streak exists.
       if (now <= end) {
         // Streak cannot go backwards in time. Skip it.
-      } else if (now - end > Conf.streakWindow) {
+      } else if (now - end > conf.streakWindow) {
         // Streak is broken. Start a new streak.
         start = now;
         end = now;
@@ -88,7 +94,9 @@ async function handleEvent1(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 }
 
 /** Update stats for kind 3 event. */
-async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: number, relay: NStore): Promise<void> {
+async function handleEvent3(opts: UpdateStatsOpts): Promise<void> {
+  const { relay, kysely, event, x = 1 } = opts;
+
   const following = getTagSet(event.tags, 'p');
 
   await updateAuthorStats(kysely, event.pubkey, () => ({ following_count: following.size }));
@@ -117,26 +125,34 @@ async function handleEvent3(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 }
 
 /** Update stats for kind 5 event. */
-async function handleEvent5(kysely: Kysely<DittoTables>, event: NostrEvent, x: -1, relay: NStore): Promise<void> {
+async function handleEvent5(opts: UpdateStatsOpts): Promise<void> {
+  const { relay, event, x = -1 } = opts;
+
   const id = event.tags.find(([name]) => name === 'e')?.[1];
+
   if (id) {
     const [target] = await relay.query([{ ids: [id], authors: [event.pubkey], limit: 1 }]);
     if (target) {
-      await updateStats({ event: target, kysely, relay, x });
+      await updateStats({ ...opts, event: target, x });
     }
   }
 }
 
 /** Update stats for kind 6 event. */
-async function handleEvent6(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
+async function handleEvent6(opts: UpdateStatsOpts): Promise<void> {
+  const { kysely, event, x = 1 } = opts;
+
   const id = event.tags.find(([name]) => name === 'e')?.[1];
+
   if (id) {
     await updateEventStats(kysely, id, ({ reposts_count }) => ({ reposts_count: Math.max(0, reposts_count + x) }));
   }
 }
 
 /** Update stats for kind 7 event. */
-async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: number): Promise<void> {
+async function handleEvent7(opts: UpdateStatsOpts): Promise<void> {
+  const { kysely, event, x = 1 } = opts;
+
   const id = event.tags.findLast(([name]) => name === 'e')?.[1];
   const emoji = event.content;
 
@@ -166,12 +182,15 @@ async function handleEvent7(kysely: Kysely<DittoTables>, event: NostrEvent, x: n
 }
 
 /** Update stats for kind 9735 event. */
-async function handleEvent9735(kysely: Kysely<DittoTables>, event: NostrEvent): Promise<void> {
+async function handleEvent9735(opts: UpdateStatsOpts): Promise<void> {
+  const { kysely, event } = opts;
+
   // https://github.com/nostr-protocol/nips/blob/master/57.md#appendix-f-validating-zap-receipts
   const id = event.tags.find(([name]) => name === 'e')?.[1];
   if (!id) return;
 
   const amountSchema = z.coerce.number().int().nonnegative().catch(0);
+
   let amount = 0;
   try {
     const zapRequest = n.json().pipe(n.event()).parse(event.tags.find(([name]) => name === 'description')?.[1]);

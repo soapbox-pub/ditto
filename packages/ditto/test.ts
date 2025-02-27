@@ -19,8 +19,8 @@ export async function createTestDB(opts?: { pure?: boolean }) {
 
   const store = new DittoPgStore({
     db,
+    conf,
     timeout: conf.db.timeouts.default,
-    pubkey: await conf.signer.getPublicKey(),
     pure: opts?.pure ?? false,
     notify: true,
   });

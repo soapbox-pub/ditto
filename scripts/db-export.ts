@@ -7,7 +7,7 @@ import { DittoPgStore } from '../packages/ditto/storages/DittoPgStore.ts';
 
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
-const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const relay = new DittoPgStore({ db, conf });
 
 interface ExportFilter {
   authors?: string[];

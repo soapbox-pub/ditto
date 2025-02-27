@@ -13,7 +13,7 @@ import {
 
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
-const relay = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const relay = new DittoPgStore({ db, conf });
 const ctx = { conf, db, relay };
 
 const trendSchema = z.enum(['pubkeys', 'zapped_events', 'events', 'hashtags', 'links']);

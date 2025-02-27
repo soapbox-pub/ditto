@@ -1,5 +1,6 @@
 // deno-lint-ignore-file require-await
 
+import { type DittoConf } from '@ditto/conf';
 import { type DittoDB, type DittoTables } from '@ditto/db';
 import { detectLanguage } from '@ditto/lang';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
@@ -52,8 +53,8 @@ interface TagConditionOpts {
 interface DittoPgStoreOpts {
   /** Kysely instance to use. */
   db: DittoDB;
-  /** Pubkey of the admin account. */
-  pubkey: string;
+  /** Ditto configuration. */
+  conf: DittoConf;
   /** Timeout in milliseconds for database queries. */
   timeout?: number;
   /** Whether the event returned should be a Nostr event or a Ditto event. Defaults to false. */
@@ -171,7 +172,7 @@ export class DittoPgStore extends NPostgres {
   ): Promise<undefined> {
     try {
       await super.transaction(async (relay, kysely) => {
-        await updateStats({ event, relay, kysely: kysely as unknown as Kysely<DittoTables> });
+        await updateStats({ conf: this.opts.conf, relay, kysely: kysely as unknown as Kysely<DittoTables>, event });
         await relay.event(event, opts);
       });
     } catch (e) {
@@ -229,8 +230,11 @@ export class DittoPgStore extends NPostgres {
 
   /** Check if an event has been deleted by the admin. */
   private async isDeletedAdmin(event: NostrEvent): Promise<boolean> {
+    const { conf } = this.opts;
+    const adminPubkey = await conf.signer.getPublicKey();
+
     const filters: NostrFilter[] = [
-      { kinds: [5], authors: [this.opts.pubkey], '#e': [event.id], limit: 1 },
+      { kinds: [5], authors: [adminPubkey], '#e': [event.id], limit: 1 },
     ];
 
     if (NKinds.replaceable(event.kind) || NKinds.parameterizedReplaceable(event.kind)) {
@@ -238,7 +242,7 @@ export class DittoPgStore extends NPostgres {
 
       filters.push({
         kinds: [5],
-        authors: [this.opts.pubkey],
+        authors: [adminPubkey],
         '#a': [`${event.kind}:${event.pubkey}:${d}`],
         since: event.created_at,
         limit: 1,
@@ -251,7 +255,10 @@ export class DittoPgStore extends NPostgres {
 
   /** The DITTO_NSEC can delete any event from the database. NDatabase already handles user deletions. */
   private async deleteEventsAdmin(event: NostrEvent): Promise<void> {
-    if (event.kind === 5 && event.pubkey === this.opts.pubkey) {
+    const { conf } = this.opts;
+    const adminPubkey = await conf.signer.getPublicKey();
+
+    if (event.kind === 5 && event.pubkey === adminPubkey) {
       const ids = new Set(event.tags.filter(([name]) => name === 'e').map(([_name, value]) => value));
       const addrs = new Set(event.tags.filter(([name]) => name === 'a').map(([_name, value]) => value));
 

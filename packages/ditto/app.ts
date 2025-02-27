@@ -194,7 +194,7 @@ await db.migrate();
 
 const pgstore = new DittoPgStore({
   db,
-  pubkey: await conf.signer.getPublicKey(),
+  conf,
   timeout: conf.db.timeouts.default,
   notify: conf.notifyEnabled,
 });
