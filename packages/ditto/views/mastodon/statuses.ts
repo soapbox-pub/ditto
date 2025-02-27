@@ -2,9 +2,6 @@ import { NostrEvent, NStore } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
-import { MastodonMention } from '@/entities/MastodonMention.ts';
-import { MastodonStatus } from '@/entities/MastodonStatus.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
@@ -13,6 +10,8 @@ import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
+
+import { MastodonAttachment, MastodonMention, MastodonStatus } from '@ditto/mastoapi/types';
 
 interface RenderStatusOpts {
   viewerPubkey?: string;

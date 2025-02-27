@@ -1,4 +1,4 @@
-export interface PreviewCard {
+export interface MastodonPreviewCard {
   url: string;
   title: string;
   description: string;

@@ -19,7 +19,8 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { bech32ToPubkey } from '@/utils.ts';
 import { addTag, deleteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 import { getPubkeysBySearch } from '@/utils/search.ts';
-import { MastodonAccount } from '@/entities/MastodonAccount.ts';
+
+import type { MastodonAccount } from '@ditto/mastoapi/types';
 
 const createAccountSchema = z.object({
   username: z.string().min(1).max(30).regex(/^[a-z0-9_]+$/i),

@@ -2,7 +2,6 @@ import { NSchema as n } from '@nostrify/nostrify';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { metadataSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
@@ -10,6 +9,8 @@ import { parseNoteContent } from '@/utils/note.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
+
+import type { MastodonAccount } from '@ditto/mastoapi/types';
 
 type ToAccountOpts = {
   withSource: true;
