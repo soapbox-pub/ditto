@@ -1,14 +1,23 @@
 import { NSchema as n, NStore } from '@nostrify/nostrify';
 
-import { Conf } from '@/config.ts';
 import { configSchema } from '@/schemas/pleroma-api.ts';
 import { PleromaConfigDB } from '@/utils/PleromaConfigDB.ts';
 
-export async function getPleromaConfigs(store: NStore, signal?: AbortSignal): Promise<PleromaConfigDB> {
-  const signer = Conf.signer;
+import type { DittoConf } from '@ditto/conf';
+
+interface GetPleromaConfigsOpts {
+  conf: DittoConf;
+  relay: NStore;
+  signal?: AbortSignal;
+}
+
+export async function getPleromaConfigs(opts: GetPleromaConfigsOpts): Promise<PleromaConfigDB> {
+  const { conf, relay, signal } = opts;
+
+  const signer = conf.signer;
   const pubkey = await signer.getPublicKey();
 
-  const [event] = await store.query([{
+  const [event] = await relay.query([{
     kinds: [30078],
     authors: [pubkey],
     '#d': ['pub.ditto.pleroma.config'],
