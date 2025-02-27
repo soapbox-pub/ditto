@@ -1,12 +1,12 @@
+import { DittoConf } from '@ditto/conf';
 import { logi } from '@soapbox/logi';
 
-import '@/sentry.ts';
-import '@/nostr-wasm.ts';
 import app from '@/app.ts';
-import { Conf } from '@/config.ts';
+
+const conf = new DittoConf(Deno.env);
 
 Deno.serve({
-  port: Conf.port,
+  port: conf.port,
   onListen({ hostname, port }): void {
     logi({ level: 'info', ns: 'ditto.server', msg: `Listening on http://${hostname}:${port}`, hostname, port });
   },

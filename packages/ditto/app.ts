@@ -12,6 +12,7 @@ import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
 
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
+import { startSentry } from '@/sentry.ts';
 import { DittoAPIStore } from '@/storages/DittoAPIStore.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { DittoPool } from '@/storages/DittoPool.ts';
@@ -181,6 +182,8 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
 const conf = new DittoConf(Deno.env);
+
+startSentry(conf);
 
 const db = new DittoPolyPg(conf.databaseUrl, {
   poolSize: conf.pg.poolSize,
