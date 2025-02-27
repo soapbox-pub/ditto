@@ -186,7 +186,8 @@ const zapSplitSchema = z.record(
 );
 
 export const updateZapSplitsController: AppController = async (c) => {
-  const { conf, relay } = c.var;
+  const { conf } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = zapSplitSchema.safeParse(body);
 
@@ -196,7 +197,7 @@ export const updateZapSplitsController: AppController = async (c) => {
 
   const adminPubkey = await conf.signer.getPublicKey();
 
-  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
+  const dittoZapSplit = await getZapSplits(adminPubkey, c.var);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -223,7 +224,8 @@ export const updateZapSplitsController: AppController = async (c) => {
 const deleteZapSplitSchema = z.array(n.id()).min(1);
 
 export const deleteZapSplitsController: AppController = async (c) => {
-  const { conf, relay } = c.var;
+  const { conf } = c.var;
+
   const body = await parseBody(c.req.raw);
   const result = deleteZapSplitSchema.safeParse(body);
 
@@ -233,7 +235,7 @@ export const deleteZapSplitsController: AppController = async (c) => {
 
   const adminPubkey = await conf.signer.getPublicKey();
 
-  const dittoZapSplit = await getZapSplits(relay, adminPubkey);
+  const dittoZapSplit = await getZapSplits(adminPubkey, c.var);
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
@@ -253,9 +255,9 @@ export const deleteZapSplitsController: AppController = async (c) => {
 };
 
 export const getZapSplitsController: AppController = async (c) => {
-  const { conf, relay } = c.var;
+  const { conf } = c.var;
 
-  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(relay, await conf.signer.getPublicKey()) ?? {};
+  const dittoZapSplit: DittoZapSplits | undefined = await getZapSplits(await conf.signer.getPublicKey(), c.var) ?? {};
   if (!dittoZapSplit) {
     return c.json({ error: 'Zap split not activated, restart the server.' }, 404);
   }
