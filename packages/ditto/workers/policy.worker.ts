@@ -1,5 +1,3 @@
-import './deno-env.ts'; // HACK should be removed when `@/config.ts` is removed.
-
 import { DittoConf } from '@ditto/conf';
 import { DittoPolyPg } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
@@ -9,6 +7,9 @@ import * as Comlink from 'comlink';
 
 import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
+
+// @ts-ignore Don't try to access the env from this worker.
+Deno.env = new Map<string, string>();
 
 /** Serializable object the worker can use to set up the state. */
 interface PolicyInit {
