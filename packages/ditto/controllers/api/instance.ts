@@ -15,9 +15,9 @@ const features = [
 ];
 
 const instanceV1Controller: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+  const { conf } = c.var;
   const { host, protocol } = conf.url;
-  const meta = await getInstanceMetadata(relay, signal);
+  const meta = await getInstanceMetadata(c.var);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -75,9 +75,9 @@ const instanceV1Controller: AppController = async (c) => {
 };
 
 const instanceV2Controller: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+  const { conf } = c.var;
   const { host, protocol } = conf.url;
-  const meta = await getInstanceMetadata(relay, signal);
+  const meta = await getInstanceMetadata(c.var);
 
   /** Protocol to use for WebSocket URLs, depending on the protocol of the `LOCAL_DOMAIN`. */
   const wsProtocol = protocol === 'http:' ? 'ws:' : 'wss:';
@@ -164,9 +164,7 @@ const instanceV2Controller: AppController = async (c) => {
 };
 
 const instanceDescriptionController: AppController = async (c) => {
-  const { relay, signal } = c.var;
-
-  const meta = await getInstanceMetadata(relay, signal);
+  const meta = await getInstanceMetadata(c.var);
 
   return c.json({
     content: meta.about,
