@@ -40,7 +40,7 @@ async function getEntities(c: AppContext, params: { acct?: string; statusId?: st
   const { relay } = c.var;
 
   const entities: MetadataEntities = {
-    instance: await getInstanceMetadata(relay),
+    instance: await getInstanceMetadata(c.var),
   };
 
   if (params.statusId) {

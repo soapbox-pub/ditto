@@ -327,7 +327,7 @@ const updateInstanceSchema = z.object({
 });
 
 export const updateInstanceController: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+  const { conf } = c.var;
 
   const body = await parseBody(c.req.raw);
   const result = updateInstanceSchema.safeParse(body);
@@ -337,7 +337,7 @@ export const updateInstanceController: AppController = async (c) => {
     return c.json(result.error, 422);
   }
 
-  const meta = await getInstanceMetadata(relay, signal);
+  const meta = await getInstanceMetadata(c.var);
 
   await updateAdminEvent(
     { kinds: [0], authors: [pubkey], limit: 1 },

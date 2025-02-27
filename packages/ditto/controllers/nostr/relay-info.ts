@@ -4,9 +4,9 @@ import { AppController } from '@/app.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 
 const relayInfoController: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+  const { conf } = c.var;
 
-  const meta = await getInstanceMetadata(relay, signal);
+  const meta = await getInstanceMetadata(c.var);
 
   c.res.headers.set('access-control-allow-origin', '*');
 
