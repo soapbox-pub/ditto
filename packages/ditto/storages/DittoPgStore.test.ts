@@ -5,7 +5,6 @@ import { generateSecretKey } from 'nostr-tools';
 
 import { RelayError } from '@/RelayError.ts';
 import { eventFixture } from '@/test.ts';
-import { Conf } from '@/config.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { createTestDB } from '@/test.ts';
 
@@ -152,7 +151,7 @@ Deno.test("user cannot delete another user's event", async () => {
 
 Deno.test('admin can delete any event', async () => {
   await using db = await createTestDB({ pure: true });
-  const { store } = db;
+  const { conf, store } = db;
 
   const sk = generateSecretKey();
 
@@ -168,7 +167,7 @@ Deno.test('admin can delete any event', async () => {
   assertEquals(await store.query([{ kinds: [1] }]), [two, one]);
 
   await store.event(
-    genEvent({ kind: 5, tags: [['e', one.id]] }, Conf.seckey), // admin sk
+    genEvent({ kind: 5, tags: [['e', one.id]] }, conf.seckey), // admin sk
   );
 
   assertEquals(await store.query([{ kinds: [1] }]), [two]);
@@ -176,12 +175,12 @@ Deno.test('admin can delete any event', async () => {
 
 Deno.test('throws a RelayError when inserting an event deleted by the admin', async () => {
   await using db = await createTestDB({ pure: true });
-  const { store } = db;
+  const { conf, store } = db;
 
   const event = genEvent();
   await store.event(event);
 
-  const deletion = genEvent({ kind: 5, tags: [['e', event.id]] }, Conf.seckey);
+  const deletion = genEvent({ kind: 5, tags: [['e', event.id]] }, conf.seckey);
   await store.event(deletion);
 
   await assertRejects(
