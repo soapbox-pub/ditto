@@ -1,3 +1,6 @@
+// @ts-ignore Don't try to access the env from this worker.
+Deno.env = new Map<string, string>();
+
 import { DittoPolyPg } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
@@ -5,9 +8,6 @@ import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
-
-// @ts-ignore Don't try to access the env from this worker.
-Deno.env = new Map<string, string>();
 
 /** Serializable object the worker can use to set up the state. */
 interface PolicyInit {
