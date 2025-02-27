@@ -202,7 +202,7 @@ const pgstore = new DittoPgStore({
 const pool = new DittoPool({ conf, relay: pgstore });
 const relay = new DittoRelayStore({ db, conf, relay: pgstore });
 
-await seedZapSplits(relay);
+await seedZapSplits({ conf, relay });
 
 if (conf.firehoseEnabled) {
   startFirehose({

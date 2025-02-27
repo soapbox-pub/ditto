@@ -196,7 +196,7 @@ const createStatusController: AppController = async (c) => {
   if (conf.zapSplitsEnabled) {
     const meta = n.json().pipe(n.metadata()).catch({}).parse(author?.content);
     const lnurl = getLnurl(meta);
-    const dittoZapSplit = await getZapSplits(relay, await conf.signer.getPublicKey());
+    const dittoZapSplit = await getZapSplits(await conf.signer.getPublicKey(), c.var);
     if (lnurl && dittoZapSplit) {
       const totalSplit = Object.values(dittoZapSplit).reduce((total, { weight }) => total + weight, 0);
       for (const zapPubkey in dittoZapSplit) {
