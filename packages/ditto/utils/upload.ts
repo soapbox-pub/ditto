@@ -6,7 +6,6 @@ import { encode } from 'blurhash';
 import sharp from 'sharp';
 
 import { AppContext } from '@/app.ts';
-import { Conf } from '@/config.ts';
 import { DittoUpload, dittoUploads } from '@/DittoUploads.ts';
 import { errorJson } from '@/utils/log.ts';
 
@@ -22,7 +21,8 @@ export async function uploadFile(
   meta: FileMeta,
   signal?: AbortSignal,
 ): Promise<DittoUpload> {
-  const uploader = c.get('uploader');
+  const { conf, uploader } = c.var;
+
   if (!uploader) {
     throw new HTTPException(500, {
       res: c.json({ error: 'No uploader configured.' }),
@@ -31,7 +31,7 @@ export async function uploadFile(
 
   const { pubkey, description } = meta;
 
-  if (file.size > Conf.maxUploadSize) {
+  if (file.size > conf.maxUploadSize) {
     throw new Error('File size is too large.');
   }
 
@@ -63,7 +63,7 @@ export async function uploadFile(
 
   // If the uploader didn't already, try to get a blurhash and media dimensions.
   // This requires `MEDIA_ANALYZE=true` to be configured because it comes with security tradeoffs.
-  if (Conf.mediaAnalyze && (!blurhash || !dim)) {
+  if (conf.mediaAnalyze && (!blurhash || !dim)) {
     try {
       const bytes = await new Response(file.stream()).bytes();
       const img = sharp(bytes);
