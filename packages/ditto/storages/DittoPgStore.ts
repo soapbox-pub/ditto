@@ -170,9 +170,10 @@ export class DittoPgStore extends NPostgres {
     event: NostrEvent,
     opts: { signal?: AbortSignal; timeout?: number } = {},
   ): Promise<undefined> {
+    const { conf } = this.opts;
     try {
       await super.transaction(async (relay, kysely) => {
-        await updateStats({ conf: this.opts.conf, relay, kysely: kysely as unknown as Kysely<DittoTables>, event });
+        await updateStats({ conf, relay, kysely: kysely as unknown as Kysely<DittoTables>, event });
         await relay.event(event, opts);
       });
     } catch (e) {
