@@ -7,9 +7,7 @@ import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 
 const frontendConfigController: AppController = async (c) => {
-  const { relay, signal } = c.var;
-
-  const configDB = await getPleromaConfigs(relay, signal);
+  const configDB = await getPleromaConfigs(c.var);
   const frontendConfig = configDB.get(':pleroma', ':frontend_configurations');
 
   if (frontendConfig) {
@@ -25,17 +23,15 @@ const frontendConfigController: AppController = async (c) => {
 };
 
 const configController: AppController = async (c) => {
-  const { relay, signal } = c.var;
-
-  const configs = await getPleromaConfigs(relay, signal);
+  const configs = await getPleromaConfigs(c.var);
   return c.json({ configs, need_reboot: false });
 };
 
 /** Pleroma admin config controller. */
 const updateConfigController: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+  const { conf } = c.var;
 
-  const configs = await getPleromaConfigs(relay, signal);
+  const configs = await getPleromaConfigs(c.var);
   const { configs: newConfigs } = z.object({ configs: z.array(configSchema) }).parse(await c.req.json());
 
   configs.merge(newConfigs);
