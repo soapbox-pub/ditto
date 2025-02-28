@@ -1,4 +1,4 @@
-export type FFmpegFlags = {
+export interface FFmpegFlags {
   'c:v'?: string;
   'preset'?: string;
   'loglevel'?: string;
@@ -8,7 +8,7 @@ export type FFmpegFlags = {
   'movflags'?: string;
   'f'?: string;
   [key: string]: string | undefined;
-};
+}
 
 export function ffmpeg(input: ReadableStream<Uint8Array>, flags: FFmpegFlags): ReadableStream<Uint8Array> {
   const args = ['-i', 'pipe:0']; // Input from stdin

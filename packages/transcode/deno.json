@@ -2,6 +2,6 @@
   "name": "@ditto/transcode",
   "version": "1.0.0",
   "exports": {
-    ".": "./transcode.ts"
+    ".": "./mod.ts"
   }
 }
