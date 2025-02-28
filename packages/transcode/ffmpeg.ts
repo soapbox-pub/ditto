@@ -1,4 +1,6 @@
 export interface FFmpegFlags {
+  'safe'?: string;
+  'nostdin'?: string;
   'c:v'?: string;
   'preset'?: string;
   'loglevel'?: string;
@@ -15,7 +17,11 @@ export function ffmpeg(input: URL | ReadableStream<Uint8Array>, flags: FFmpegFla
 
   for (const [key, value] of Object.entries(flags)) {
     if (typeof value === 'string') {
-      args.push(`-${key}`, value);
+      if (value) {
+        args.push(`-${key}`, value);
+      } else {
+        args.push(`-${key}`);
+      }
     }
   }
 
