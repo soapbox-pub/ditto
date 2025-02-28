@@ -1,17 +1,13 @@
-import { ffmpeg } from './ffmpeg.ts';
+import { ffprobe } from './ffprobe.ts';
 
-export async function ffmpegDim(
-  input: ReadableStream<Uint8Array>,
-): Promise<{ width: number; height: number } | undefined> {
-  const result = ffmpeg(input, {
-    'vf': 'showinfo', // Output as JSON
-    'f': 'null', // Tell FFmpeg not to produce an output file
+export async function getVideoDimensions(path: string): Promise<{ width: number; height: number } | null> {
+  const stream = ffprobe(path, {
+    'v': 'error',
+    'select_streams': 'v:0',
+    'show_entries': 'stream=width,height',
+    'of': 'json',
   });
 
-  const text = await new Response(result).json();
-  console.log(text);
-  const output = JSON.parse(text);
-
-  const [stream] = output.streams ?? [];
-  return stream;
+  const { streams: [result] } = await new Response(stream).json();
+  return result ?? null;
 }

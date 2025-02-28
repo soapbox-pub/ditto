@@ -1,11 +1,11 @@
 import { assertEquals } from '@std/assert';
 
-import { ffmpegDim } from './analyze.ts';
+import { getVideoDimensions } from './analyze.ts';
 
-Deno.test('ffmpegDim', async () => {
-  await using file = await Deno.open(new URL('./buckbunny.mp4', import.meta.url));
+Deno.test('getVideoDimensions', async () => {
+  const uri = new URL('./buckbunny.mp4', import.meta.url);
 
-  const result = await ffmpegDim(file.readable);
+  const dimensions = await getVideoDimensions(uri.href);
 
-  assertEquals(result, { width: 1280, height: 720 });
+  assertEquals(dimensions, { width: 1920, height: 1080 });
 });
