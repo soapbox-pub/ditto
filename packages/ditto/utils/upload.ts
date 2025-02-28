@@ -1,4 +1,4 @@
-import { transcodeVideo } from '@ditto/transcode';
+import { extractVideoFrame, transcodeVideo } from '@ditto/transcode';
 import { HTTPException } from '@hono/hono/http-exception';
 import { logi } from '@soapbox/logi';
 import { crypto } from '@std/crypto';
@@ -62,6 +62,8 @@ export async function uploadFile(
   const m = tags.find(([key]) => key === 'm')?.[1];
   const dim = tags.find(([key]) => key === 'dim')?.[1];
   const size = tags.find(([key]) => key === 'size')?.[1];
+  const image = tags.find(([key]) => key === 'image')?.[1];
+  const thumb = tags.find(([key]) => key === 'thumb')?.[1];
   const blurhash = tags.find(([key]) => key === 'blurhash')?.[1];
 
   if (!x) {
@@ -75,6 +77,22 @@ export async function uploadFile(
 
   if (!size) {
     tags.push(['size', file.size.toString()]);
+  }
+
+  if (baseType === 'video' && (!image || !thumb)) {
+    const tmp = new URL('file://' + await Deno.makeTempFile());
+    await Deno.writeFile(tmp, file.stream());
+    const bytes = await extractVideoFrame(tmp);
+    const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
+    await Deno.remove(tmp);
+
+    if (!image) {
+      tags.push(['image', url]);
+    }
+
+    if (!thumb) {
+      tags.push(['thumb', url]);
+    }
   }
 
   // If the uploader didn't already, try to get a blurhash and media dimensions.
