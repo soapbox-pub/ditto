@@ -1,4 +1,4 @@
-export async function transcodeVideo(input: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>> {
+export function transcodeVideo(input: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   const opts = {
     'i': 'pipe:0', // Read input from stdin
     'c:v': 'libx264', // Convert to H.264
@@ -18,38 +18,13 @@ export async function transcodeVideo(input: ReadableStream<Uint8Array>): Promise
     ],
     stdin: 'piped',
     stdout: 'piped',
-    stderr: 'piped',
   });
 
   // Spawn the FFmpeg process
-  const process = command.spawn();
-
-  // Capture stderr for debugging
-  const stderrPromise = new Response(process.stderr).text().then((text) => {
-    if (text.trim()) console.error('FFmpeg stderr:', text);
-  });
+  const child = command.spawn();
 
   // Pipe the input stream into FFmpeg stdin and ensure completion
-  const writer = process.stdin.getWriter();
-  const reader = input.getReader();
+  input.pipeTo(child.stdin);
 
-  async function pumpInput() {
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        await writer.write(value);
-      }
-    } finally {
-      writer.close(); // Close stdin to signal FFmpeg that input is done
-    }
-  }
-
-  // Start pumping input asynchronously
-  pumpInput();
-
-  // Ensure stderr logs are captured
-  stderrPromise.catch(console.error);
-
-  return process.stdout;
+  return child.stdout;
 }
