@@ -85,6 +85,7 @@ import {
   pleromaAdminTagController,
   pleromaAdminUnsuggestController,
   pleromaAdminUntagController,
+  pleromaPromoteAdminController,
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
@@ -440,6 +441,11 @@ app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMi
 app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), configController);
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);
 app.delete('/api/v1/pleroma/admin/statuses/:id', userMiddleware({ role: 'admin' }), pleromaAdminDeleteStatusController);
+app.post(
+  '/api/v1/pleroma/admin/users/permission_group/admin',
+  userMiddleware({ role: 'admin' }),
+  pleromaPromoteAdminController,
+);
 
 app.get('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminSetRelaysController);
