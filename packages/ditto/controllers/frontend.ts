@@ -14,6 +14,8 @@ import { renderAccount } from '@/views/mastodon/accounts.ts';
 const META_PLACEHOLDER = '<!--server-generated-meta-->' as const;
 
 export const frontendController: AppMiddleware = async (c) => {
+  const { requestId } = c.var;
+
   c.header('Cache-Control', 'max-age=86400, s-maxage=30, public, stale-if-error=604800');
 
   try {
@@ -26,7 +28,7 @@ export const frontendController: AppMiddleware = async (c) => {
         const meta = renderMetadata(c.req.url, entities);
         return c.html(content.replace(META_PLACEHOLDER, meta));
       } catch (e) {
-        logi({ level: 'error', ns: 'ditto.frontend', msg: 'Error building meta tags', error: errorJson(e) });
+        logi({ level: 'error', ns: 'ditto.frontend', msg: 'Error building meta tags', requestId, error: errorJson(e) });
         return c.html(content);
       }
     }

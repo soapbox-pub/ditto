@@ -1,5 +1,5 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoDB, DittoPolyPg } from '@ditto/db';
+import { DittoPolyPg } from '@ditto/db';
 import { paginationMiddleware, tokenMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoApp, type DittoEnv } from '@ditto/mastoapi/router';
 import { relayPoolRelaysSizeGauge, relayPoolSubscriptionsSizeGauge } from '@ditto/metrics';
@@ -152,21 +152,15 @@ import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
-  Variables: {
-    conf: DittoConf;
+  Variables: DittoEnv['Variables'] & {
     /** Uploader for the user to upload files. */
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** Kysely instance for the database. */
-    db: DittoDB;
-    /** Base database store. No content filtering. */
-    relay: NRelay;
     /** Normalized pagination params. */
     pagination: { since?: number; until?: number; limit: number };
     /** Translation service. */
     translator?: DittoTranslator;
-    signal: AbortSignal;
     user?: {
       /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
       signer: NostrSigner;

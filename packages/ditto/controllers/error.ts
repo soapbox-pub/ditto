@@ -4,7 +4,10 @@ import { logi } from '@soapbox/logi';
 
 import { errorJson } from '@/utils/log.ts';
 
-export const errorHandler: ErrorHandler = (err, c) => {
+import type { DittoEnv } from '@ditto/mastoapi/router';
+
+export const errorHandler: ErrorHandler<DittoEnv> = (err, c) => {
+  const { requestId } = c.var;
   const { method } = c.req;
   const { pathname } = new URL(c.req.url);
 
@@ -22,7 +25,15 @@ export const errorHandler: ErrorHandler = (err, c) => {
     return c.json({ error: 'The server was unable to respond in a timely manner' }, 500);
   }
 
-  logi({ level: 'error', ns: 'ditto.http', msg: 'Unhandled error', method, pathname, error: errorJson(err) });
+  logi({
+    level: 'error',
+    ns: 'ditto.http',
+    msg: 'Unhandled error',
+    method,
+    pathname,
+    requestId,
+    error: errorJson(err),
+  });
 
   return c.json({ error: 'Something went wrong' }, 500);
 };

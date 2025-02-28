@@ -25,6 +25,7 @@ export class DittoRoute extends Hono<DittoEnv> {
     if (!vars.conf) this.throwMissingVar('conf');
     if (!vars.relay) this.throwMissingVar('relay');
     if (!vars.signal) this.throwMissingVar('signal');
+    if (!vars.requestId) this.throwMissingVar('requestId');
 
     return {
       ...vars,
@@ -32,6 +33,7 @@ export class DittoRoute extends Hono<DittoEnv> {
       conf: vars.conf,
       relay: vars.relay,
       signal: vars.signal,
+      requestId: vars.requestId,
     };
   }
 
