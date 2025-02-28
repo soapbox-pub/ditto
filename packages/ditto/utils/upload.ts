@@ -1,3 +1,4 @@
+import { transcodeVideo } from '@ditto/transcode';
 import { HTTPException } from '@hono/hono/http-exception';
 import { logi } from '@soapbox/logi';
 import { crypto } from '@std/crypto';
@@ -33,6 +34,21 @@ export async function uploadFile(
 
   if (file.size > conf.maxUploadSize) {
     throw new Error('File size is too large.');
+  }
+
+  const [baseType] = file.type.split('/');
+
+  if (baseType === 'video') {
+    file = new Proxy(file, {
+      get(target, prop) {
+        if (prop === 'stream') {
+          return () => transcodeVideo(target.stream());
+        } else {
+          // @ts-ignore This is fine.
+          return target[prop];
+        }
+      },
+    });
   }
 
   const tags = await uploader.upload(file, { signal });
