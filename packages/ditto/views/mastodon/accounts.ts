@@ -2,7 +2,6 @@ import { NSchema as n } from '@nostrify/nostrify';
 import { nip19, UnsignedEvent } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
-import { MastodonAccount } from '@/entities/MastodonAccount.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { metadataSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
@@ -10,6 +9,8 @@ import { parseNoteContent } from '@/utils/note.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
+
+import type { MastodonAccount } from '@ditto/mastoapi/types';
 
 type ToAccountOpts = {
   withSource: true;
@@ -47,7 +48,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
   const parsed05 = stats?.nip05 ? parseNip05(stats.nip05) : undefined;
   const acct = parsed05?.handle || npub;
 
-  const { html } = parseNoteContent(about || '', []);
+  const { html } = parseNoteContent(about || '', [], { conf: Conf });
 
   const fields = _fields
     ?.slice(0, Conf.profileFields.maxFields)
@@ -83,7 +84,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, []).html })),
+    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, [], { conf: Conf }).html })),
     follow_requests_count: 0,
     followers_count: stats?.followers_count ?? 0,
     following_count: stats?.following_count ?? 0,

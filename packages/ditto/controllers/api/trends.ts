@@ -7,9 +7,11 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
-import { PreviewCard, unfurlCardCached } from '@/utils/unfurl.ts';
+import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { errorJson } from '@/utils/log.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+
+import type { MastodonPreviewCard } from '@ditto/mastoapi/types';
 
 interface TrendHistory {
   day: string;
@@ -23,7 +25,7 @@ interface TrendingHashtag {
   history: TrendHistory[];
 }
 
-interface TrendingLink extends PreviewCard {
+interface TrendingLink extends MastodonPreviewCard {
   history: TrendHistory[];
 }
 

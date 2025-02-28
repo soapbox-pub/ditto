@@ -1,11 +1,11 @@
-import { MastodonAccount } from '@/entities/MastodonAccount.ts';
-import { MastodonAttachment } from '@/entities/MastodonAttachment.ts';
-import { PreviewCard } from '@/entities/PreviewCard.ts';
+import type { MastodonAccount } from './MastodonAccount.ts';
+import type { MastodonAttachment } from './MastodonAttachment.ts';
+import type { MastodonPreviewCard } from './MastodonPreviewCard.ts';
 
 export interface MastodonStatus {
   id: string;
   account: MastodonAccount;
-  card: PreviewCard | null;
+  card: MastodonPreviewCard | null;
   content: string;
   created_at: string;
   in_reply_to_id: string | null;

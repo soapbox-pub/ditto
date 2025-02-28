@@ -16,5 +16,7 @@ export interface DittoEnv extends Env {
     db: DittoDB;
     /** Abort signal for the request. */
     signal: AbortSignal;
+    /** Unique ID for the request. */
+    requestId: string;
   };
 }

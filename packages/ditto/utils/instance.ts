@@ -1,8 +1,9 @@
 import { NostrEvent, NostrMetadata, NSchema as n, NStore } from '@nostrify/nostrify';
 import { z } from 'zod';
 
-import { Conf } from '@/config.ts';
 import { screenshotsSchema, serverMetaSchema } from '@/schemas/nostr.ts';
+
+import type { DittoConf } from '@ditto/conf';
 
 /** Like NostrMetadata, but some fields are required and also contains some extra fields. */
 export interface InstanceMetadata extends NostrMetadata {
@@ -15,10 +16,18 @@ export interface InstanceMetadata extends NostrMetadata {
   screenshots: z.infer<typeof screenshotsSchema>;
 }
 
+interface GetInstanceMetadataOpts {
+  conf: DittoConf;
+  relay: NStore;
+  signal?: AbortSignal;
+}
+
 /** Get and parse instance metadata from the kind 0 of the admin user. */
-export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): Promise<InstanceMetadata> {
-  const [event] = await store.query(
-    [{ kinds: [0], authors: [await Conf.signer.getPublicKey()], limit: 1 }],
+export async function getInstanceMetadata(opts: GetInstanceMetadataOpts): Promise<InstanceMetadata> {
+  const { conf, relay, signal } = opts;
+
+  const [event] = await relay.query(
+    [{ kinds: [0], authors: [await conf.signer.getPublicKey()], limit: 1 }],
     { signal },
   );
 
@@ -33,8 +42,8 @@ export async function getInstanceMetadata(store: NStore, signal?: AbortSignal): 
     name: meta.name ?? 'Ditto',
     about: meta.about ?? 'Nostr community server',
     tagline: meta.tagline ?? meta.about ?? 'Nostr community server',
-    email: meta.email ?? `postmaster@${Conf.url.host}`,
-    picture: meta.picture ?? Conf.local('/images/thumbnail.png'),
+    email: meta.email ?? `postmaster@${conf.url.host}`,
+    picture: meta.picture ?? conf.local('/images/thumbnail.png'),
     event,
     screenshots: meta.screenshots ?? [],
   };

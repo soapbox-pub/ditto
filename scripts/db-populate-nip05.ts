@@ -10,7 +10,7 @@ import { DittoRelayStore } from '../packages/ditto/storages/DittoRelayStore.ts';
 const conf = new DittoConf(Deno.env);
 const db = new DittoPolyPg(conf.databaseUrl);
 
-const pgstore = new DittoPgStore({ db, pubkey: await conf.signer.getPublicKey() });
+const pgstore = new DittoPgStore({ db, conf });
 const relaystore = new DittoRelayStore({ conf, db, relay: pgstore });
 
 const sem = new Semaphore(5);

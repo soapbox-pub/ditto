@@ -235,7 +235,8 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
 
 /** Gets a wallet, if it exists. */
 route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
-  const { conf, relay, user, signal } = c.var;
+  const { conf, relay, user, signal, requestId } = c.var;
+
   const pubkey = await user.signer.getPublicKey();
 
   const { data, error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
@@ -262,7 +263,7 @@ route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, as
         return accumulator + current.amount;
       }, 0);
     } catch (e) {
-      logi({ level: 'error', ns: 'ditto.api.cashu.wallet', error: errorJson(e) });
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet', requestId, error: errorJson(e) });
     }
   }
 

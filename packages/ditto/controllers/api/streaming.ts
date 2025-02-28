@@ -65,7 +65,8 @@ const limiter = new TTLCache<string, number>();
 const connections = new Set<WebSocket>();
 
 const streamingController: AppController = async (c) => {
-  const { conf, relay, user } = c.var;
+  const { conf, relay, user, requestId } = c.var;
+
   const upgrade = c.req.header('upgrade');
   const token = c.req.header('sec-websocket-protocol');
   const stream = streamSchema.optional().catch(undefined).parse(c.req.query('stream'));
@@ -122,7 +123,7 @@ const streamingController: AppController = async (c) => {
         }
       }
     } catch (e) {
-      logi({ level: 'error', ns: 'ditto.streaming', msg: 'Error in streaming', error: errorJson(e) });
+      logi({ level: 'error', ns: 'ditto.streaming', msg: 'Error in streaming', requestId, error: errorJson(e) });
     }
   }
 

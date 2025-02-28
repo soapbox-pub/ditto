@@ -9,7 +9,7 @@ export const cspMiddleware = (): AppMiddleware => {
     const { conf, relay } = c.var;
 
     if (!configDBCache) {
-      configDBCache = getPleromaConfigs(relay);
+      configDBCache = getPleromaConfigs({ conf, relay });
     }
 
     const { host, protocol, origin } = conf.url;

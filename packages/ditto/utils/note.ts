@@ -3,10 +3,11 @@ import linkifyStr from 'linkify-string';
 import linkify from 'linkifyjs';
 import { nip19, nip27 } from 'nostr-tools';
 
-import { Conf } from '@/config.ts';
-import { MastodonMention } from '@/entities/MastodonMention.ts';
 import { html } from '@/utils/html.ts';
 import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
+
+import type { DittoConf } from '@ditto/conf';
+import type { MastodonMention } from '@ditto/mastoapi/types';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
@@ -20,8 +21,14 @@ interface ParsedNoteContent {
   firstUrl: string | undefined;
 }
 
+interface ParseNoteContentOpts {
+  conf: DittoConf;
+}
+
 /** Convert Nostr content to Mastodon API HTML. Also return parsed data. */
-function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedNoteContent {
+function parseNoteContent(content: string, mentions: MastodonMention[], opts: ParseNoteContentOpts): ParsedNoteContent {
+  const { conf } = opts;
+
   const links = linkify.find(content).filter(({ type }) => type === 'url');
   const firstUrl = links.find(isNonMediaLink)?.href;
 
@@ -29,7 +36,7 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
     render: {
       hashtag: ({ content }) => {
         const tag = content.replace(/^#/, '');
-        const href = Conf.local(`/tags/${tag}`);
+        const href = conf.local(`/tags/${tag}`);
         return html`<a class="mention hashtag" href="${href}" rel="tag"><span>#</span>${tag}</a>`;
       },
       url: ({ attributes, content }) => {
@@ -48,7 +55,7 @@ function parseNoteContent(content: string, mentions: MastodonMention[]): ParsedN
                 const npub = nip19.npubEncode(pubkey);
                 const acct = mention?.acct ?? npub;
                 const name = mention?.acct ?? npub.substring(0, 8);
-                const href = mention?.url ?? Conf.local(`/@${acct}`);
+                const href = mention?.url ?? conf.local(`/@${acct}`);
                 return html`<span class="h-card"><a class="u-url mention" href="${href}" rel="ugc">@<span>${name}</span></a></span>${extra}`;
               } else {
                 return '';

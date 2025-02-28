@@ -1,9 +1,11 @@
+import { DittoConf } from '@ditto/conf';
 import { DittoPolyPg } from '@ditto/db';
 import '@soapbox/safe-fetch/load';
 import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { ReadOnlyPolicy } from '@nostrify/policies';
 import * as Comlink from 'comlink';
 
+import { ReadOnlySigner } from '@/signers/ReadOnlySigner.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 
 // @ts-ignore Don't try to access the env from this worker.
@@ -32,9 +34,18 @@ export class CustomPolicy implements NPolicy {
 
     const db = new DittoPolyPg(databaseUrl, { poolSize: 1 });
 
+    const conf = new Proxy(new DittoConf(new Map()), {
+      get(target, prop) {
+        if (prop === 'signer') {
+          return new ReadOnlySigner(pubkey);
+        }
+        return Reflect.get(target, prop);
+      },
+    });
+
     const store = new DittoPgStore({
       db,
-      pubkey,
+      conf,
       timeout: 5_000,
     });
 
