@@ -183,13 +183,13 @@ export class DittoRelayStore implements NRelay {
     }
 
     try {
+      await this.handleRevokeNip05(event, signal);
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
-        this.handleRevokeNip05(event, signal),
         this.prewarmLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
@@ -250,14 +250,11 @@ export class DittoRelayStore implements NRelay {
   private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal) {
     const { conf, relay } = this.opts;
 
-    if (await conf.signer.getPublicKey() !== event.pubkey) {
+    if (event.kind !== 5 || await conf.signer.getPublicKey() !== event.pubkey) {
       return;
     }
 
-    if (event.kind !== 5) return;
-
-    const kind = event.tags.find(([name, value]) => name === 'k' && value === '30360')?.[1];
-    if (kind !== '30360') {
+    if (!event.tags.some(([name, value]) => name === 'k' && value === '30360')) {
       return;
     }
 
