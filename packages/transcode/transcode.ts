@@ -1,6 +1,7 @@
+import { ffmpeg } from './ffmpeg.ts';
+
 export function transcodeVideo(input: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
-  const opts = {
-    'i': 'pipe:0', // Read input from stdin
+  return ffmpeg(input, {
     'c:v': 'libx264', // Convert to H.264
     'preset': 'veryfast', // Encoding speed
     'loglevel': 'fatal', // Suppress logs
@@ -9,22 +10,5 @@ export function transcodeVideo(input: ReadableStream<Uint8Array>): ReadableStrea
     'b:a': '128k', // Audio bitrate
     'movflags': 'frag_keyframe+empty_moov', // Ensures MP4 streaming compatibility
     'f': 'mp4', // Force MP4 format
-  };
-
-  const command = new Deno.Command('ffmpeg', {
-    args: [
-      ...Object.entries(opts).flatMap(([k, v]) => [`-${k}`, v]),
-      'pipe:1', // Output to stdout
-    ],
-    stdin: 'piped',
-    stdout: 'piped',
   });
-
-  // Spawn the FFmpeg process
-  const child = command.spawn();
-
-  // Pipe the input stream into FFmpeg stdin and ensure completion
-  input.pipeTo(child.stdin);
-
-  return child.stdout;
 }
