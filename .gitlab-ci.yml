@@ -9,8 +9,7 @@ stages:
 test:
   stage: test
   before_script:
-    - apt-get update
-    - apt-get install -y ffmpeg
+    - curl -Ls "https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz" | tar -xJf - --strip-components=1 -C /usr/local/bin
   script:
     - deno fmt --check
     - deno task lint
