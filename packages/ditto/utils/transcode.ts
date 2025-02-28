@@ -1,4 +1,4 @@
-export async function transcodeVideoStream(input: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>> {
+export async function transcodeVideo(input: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>> {
   const opts = {
     'i': 'pipe:0', // Read input from stdin
     'c:v': 'libx264', // Convert to H.264
