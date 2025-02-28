@@ -14,3 +14,16 @@ Deno.test('ffmpeg', async () => {
   await Deno.mkdir(new URL('./tmp', import.meta.url), { recursive: true });
   await Deno.writeFile(new URL('./tmp/buckbunny-transcoded.mp4', import.meta.url), output);
 });
+
+Deno.test('ffmpeg from file', async () => {
+  const output = ffmpeg(new URL('./buckbunny.mp4', import.meta.url), {
+    'c:v': 'libx264',
+    'preset': 'veryfast',
+    'loglevel': 'fatal',
+    'movflags': 'frag_keyframe+empty_moov',
+    'f': 'mp4',
+  });
+
+  await Deno.mkdir(new URL('./tmp', import.meta.url), { recursive: true });
+  await Deno.writeFile(new URL('./tmp/buckbunny-transcoded-fromfile.mp4', import.meta.url), output);
+});
