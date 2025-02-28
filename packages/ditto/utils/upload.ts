@@ -84,7 +84,6 @@ export async function uploadFile(
     await Deno.writeFile(tmp, file.stream());
     const bytes = await extractVideoFrame(tmp);
     const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
-    await Deno.remove(tmp);
 
     if (!image) {
       tags.push(['image', url]);
@@ -93,11 +92,37 @@ export async function uploadFile(
     if (!thumb) {
       tags.push(['thumb', url]);
     }
+
+    if (!blurhash || !dim) {
+      try {
+        const img = sharp(bytes);
+        const { width, height } = await img.metadata();
+
+        if (!dim && (width && height)) {
+          tags.push(['dim', `${width}x${height}`]);
+        }
+
+        if (!blurhash && (width && height)) {
+          const pixels = await img
+            .raw()
+            .ensureAlpha()
+            .toBuffer({ resolveWithObject: false })
+            .then((buffer) => new Uint8ClampedArray(buffer));
+
+          const blurhash = encode(pixels, width, height, 4, 4);
+          tags.push(['blurhash', blurhash]);
+        }
+      } catch (e) {
+        logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
+      }
+    }
+
+    await Deno.remove(tmp);
   }
 
   // If the uploader didn't already, try to get a blurhash and media dimensions.
   // This requires `MEDIA_ANALYZE=true` to be configured because it comes with security tradeoffs.
-  if (conf.mediaAnalyze && (!blurhash || !dim)) {
+  if (baseType === 'image' && conf.mediaAnalyze && (!blurhash || !dim)) {
     try {
       const bytes = await new Response(file.stream()).bytes();
       const img = sharp(bytes);
