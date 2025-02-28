@@ -30,7 +30,7 @@ export function ffmpeg(input: URL | ReadableStream<Uint8Array>, flags: FFmpegFla
   // Spawn the FFmpeg process
   const command = new Deno.Command('ffmpeg', {
     args,
-    stdin: input instanceof ReadableStream ? 'piped' : undefined,
+    stdin: input instanceof ReadableStream ? 'piped' : 'null',
     stdout: 'piped',
   });
 
