@@ -14,6 +14,8 @@ function renderAttachment(
   const alt = tags.find(([name]) => name === 'alt')?.[1];
   const cid = tags.find(([name]) => name === 'cid')?.[1];
   const dim = tags.find(([name]) => name === 'dim')?.[1];
+  const image = tags.find(([key]) => key === 'image')?.[1];
+  const thumb = tags.find(([key]) => key === 'thumb')?.[1];
   const blurhash = tags.find(([name]) => name === 'blurhash')?.[1];
 
   if (!url) return;
@@ -34,7 +36,7 @@ function renderAttachment(
     id: id ?? url,
     type: getAttachmentType(m ?? ''),
     url,
-    preview_url: url,
+    preview_url: image ?? thumb ?? url,
     remote_url: null,
     description: alt ?? '',
     blurhash: blurhash || null,

@@ -89,10 +89,6 @@ export async function uploadFile(
       tags.push(['image', url]);
     }
 
-    if (!thumb) {
-      tags.push(['thumb', url]);
-    }
-
     if (!blurhash || !dim) {
       try {
         const img = sharp(bytes);
