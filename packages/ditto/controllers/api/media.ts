@@ -21,7 +21,7 @@ const mediaUpdateSchema = z.object({
 });
 
 const mediaController: AppController = async (c) => {
-  const { user, signal } = c.var;
+  const { user, signal, requestId } = c.var;
 
   const pubkey = await user!.signer.getPublicKey();
   const result = mediaBodySchema.safeParse(await parseBody(c.req.raw));
@@ -35,7 +35,7 @@ const mediaController: AppController = async (c) => {
     const media = await uploadFile(c, file, { pubkey, description }, signal);
     return c.json(renderAttachment(media));
   } catch (e) {
-    logi({ level: 'error', ns: 'ditto.api.media', error: errorJson(e) });
+    logi({ level: 'error', ns: 'ditto.api.media', requestId, error: errorJson(e) });
     return c.json({ error: 'Failed to upload file.' }, 500);
   }
 };

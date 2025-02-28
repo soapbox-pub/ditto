@@ -17,7 +17,7 @@ const translateSchema = z.object({
 });
 
 const translateController: AppController = async (c) => {
-  const { relay, user, signal } = c.var;
+  const { relay, user, signal, requestId } = c.var;
 
   const result = translateSchema.safeParse(await parseBody(c.req.raw));
 
@@ -143,7 +143,7 @@ const translateController: AppController = async (c) => {
     if (e instanceof Error && e.message.includes('not supported')) {
       return c.json({ error: `Translation of source language '${event.language}' not supported` }, 422);
     }
-    logi({ level: 'error', ns: 'ditto.translate', error: errorJson(e) });
+    logi({ level: 'error', ns: 'ditto.translate', requestId, error: errorJson(e) });
     return c.json({ error: 'Service Unavailable' }, 503);
   }
 };
