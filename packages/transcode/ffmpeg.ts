@@ -38,7 +38,13 @@ export function ffmpeg(input: URL | ReadableStream<Uint8Array>, flags: FFmpegFla
 
   // Pipe the input stream into FFmpeg stdin and ensure completion
   if (input instanceof ReadableStream) {
-    input.pipeTo(child.stdin);
+    input.pipeTo(child.stdin).catch((e: unknown) => {
+      if (e instanceof Error && e.name === 'BrokenPipe') {
+        // Ignore. ffprobe closes the pipe once it has read the metadata.
+      } else {
+        throw e;
+      }
+    });
   }
 
   // Return the FFmpeg stdout stream
