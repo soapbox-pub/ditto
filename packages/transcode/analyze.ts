@@ -6,10 +6,18 @@ export async function getVideoDimensions(
   const stream = ffprobe(input, {
     'v': 'error',
     'select_streams': 'v:0',
-    'show_entries': 'stream=width,height',
+    'show_streams': '',
     'of': 'json',
   });
 
-  const { streams: [result] } = await new Response(stream).json();
-  return result ?? null;
+  const { streams } = await new Response(stream).json();
+
+  for (const stream of streams) {
+    if (stream.codec_type === 'video') {
+      const { width, height } = stream;
+      return { width, height };
+    }
+  }
+
+  return null;
 }
