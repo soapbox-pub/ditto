@@ -279,6 +279,11 @@ export class DittoConf {
     return optionalBooleanSchema.parse(this.env.get('MEDIA_ANALYZE')) ?? false;
   }
 
+  /** Whether to transcode uploaded video files with ffmpeg. */
+  get mediaTranscode(): boolean {
+    return optionalBooleanSchema.parse(this.env.get('MEDIA_TRANSCODE')) ?? false;
+  }
+
   /** Max upload size for files in number of bytes. Default 100MiB. */
   get maxUploadSize(): number {
     return Number(this.env.get('MAX_UPLOAD_SIZE') || 100 * 1024 * 1024);

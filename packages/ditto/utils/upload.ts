@@ -27,7 +27,7 @@ export async function uploadFile(
   perf.mark('start');
 
   const { conf, uploader } = c.var;
-  const { ffmpegPath, ffprobePath } = conf;
+  const { ffmpegPath, ffprobePath, mediaAnalyze, mediaTranscode } = conf;
 
   if (!uploader) {
     throw new HTTPException(500, {
@@ -45,10 +45,11 @@ export async function uploadFile(
 
   perf.mark('probe-start');
   const probe = await analyzeFile(file.stream(), { ffprobePath }).catch(() => null);
+  const video = probe?.streams.find((stream) => stream.codec_type === 'video');
   perf.mark('probe-end');
 
   perf.mark('transcode-start');
-  if (baseType === 'video') {
+  if (baseType === 'video' && mediaTranscode) {
     let needsTranscode = false;
 
     for (const stream of probe?.streams ?? []) {
@@ -76,8 +77,6 @@ export async function uploadFile(
 
   const url = tags[0][1];
 
-  perf.mark('analyze-start');
-
   if (description) {
     tags.push(['alt', description]);
   }
@@ -103,71 +102,41 @@ export async function uploadFile(
     tags.push(['size', file.size.toString()]);
   }
 
-  if (baseType === 'video' && (!image || !thumb)) {
-    const bytes = await extractVideoFrame(file.stream(), '00:00:01', { ffmpegPath });
-    const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
+  perf.mark('analyze-start');
 
-    if (!image) {
-      tags.push(['image', url]);
-    }
+  if (baseType === 'video' && mediaAnalyze && mediaTranscode && video && (!image || !thumb)) {
+    const { width, height } = video;
 
-    const video = probe?.streams.find((stream) => stream.codec_type === 'video');
+    try {
+      const bytes = await extractVideoFrame(file.stream(), '00:00:01', { ffmpegPath });
+      const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
 
-    if (video && video.width && video.height) {
-      const { width, height } = video;
+      if (!image) {
+        tags.push(['image', url]);
+      }
 
-      if (!dim) {
+      if (!dim && width && height) {
         tags.push(['dim', `${width}x${height}`]);
       }
 
       if (!blurhash) {
-        try {
-          const { data, info } = await sharp(bytes)
-            .raw()
-            .ensureAlpha()
-            .resize({
-              width: width > height ? undefined : 64,
-              height: height > width ? undefined : 64,
-              fit: 'inside',
-            })
-            .toBuffer({ resolveWithObject: true });
-
-          const blurhash = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
-          tags.push(['blurhash', blurhash]);
-        } catch (e) {
-          logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
-        }
+        tags.push(['blurhash', await getBlurhash(bytes)]);
       }
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
     }
   }
 
-  // If the uploader didn't already, try to get a blurhash and media dimensions.
-  // This requires `MEDIA_ANALYZE=true` to be configured because it comes with security tradeoffs.
-  if (baseType === 'image' && conf.mediaAnalyze && (!blurhash || !dim)) {
+  if (baseType === 'image' && mediaAnalyze && (!blurhash || !dim)) {
     try {
       const bytes = await new Response(file.stream()).bytes();
-      const img = sharp(bytes);
 
-      const { width, height } = await img.metadata();
-
-      if (!dim && (width && height)) {
-        tags.push(['dim', `${width}x${height}`]);
+      if (!dim) {
+        tags.push(['dim', await getImageDim(bytes)]);
       }
 
-      if (!blurhash && (width && height)) {
-        const pixels = await img
-          .raw()
-          .ensureAlpha()
-          .resize({
-            width: width > height ? undefined : 64,
-            height: height > width ? undefined : 64,
-            fit: 'inside',
-          })
-          .toBuffer({ resolveWithObject: false })
-          .then((buffer) => new Uint8ClampedArray(buffer));
-
-        const blurhash = encode(pixels, width, height, 4, 4);
-        tags.push(['blurhash', blurhash]);
+      if (!blurhash) {
+        tags.push(['blurhash', await getBlurhash(bytes)]);
       }
     } catch (e) {
       logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
@@ -208,4 +177,40 @@ export async function uploadFile(
   });
 
   return upload;
+}
+
+async function getImageDim(bytes: Uint8Array): Promise<`${number}x${number}`> {
+  const img = sharp(bytes);
+  const { width, height } = await img.metadata();
+
+  if (!width || !height) {
+    throw new Error('Image metadata is missing.');
+  }
+
+  return `${width}x${height}`;
+}
+
+/** Get a blurhash from an image file. */
+async function getBlurhash(bytes: Uint8Array, maxDim = 64): Promise<string> {
+  const img = sharp(bytes);
+
+  const { width, height } = await img.metadata();
+
+  if (!width || !height) {
+    throw new Error('Image metadata is missing.');
+  }
+
+  const { data, info } = await img
+    .raw()
+    .ensureAlpha()
+    .resize({
+      width: width > height ? undefined : maxDim,
+      height: height > width ? undefined : maxDim,
+      fit: 'inside',
+    })
+    .toBuffer({ resolveWithObject: true });
+
+  const pixels = new Uint8ClampedArray(data);
+
+  return encode(pixels, info.width, info.height, 4, 4);
 }
