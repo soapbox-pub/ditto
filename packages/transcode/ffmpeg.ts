@@ -12,7 +12,13 @@ export interface FFmpegFlags {
   [key: string]: string | undefined;
 }
 
-export function ffmpeg(input: URL | ReadableStream<Uint8Array>, flags: FFmpegFlags): ReadableStream<Uint8Array> {
+export function ffmpeg(
+  input: URL | ReadableStream<Uint8Array>,
+  flags: FFmpegFlags,
+  opts?: { ffmpegPath?: string | URL },
+): ReadableStream<Uint8Array> {
+  const { ffmpegPath = 'ffmpeg' } = opts ?? {};
+
   const args = ['-i', input instanceof URL ? input.href : 'pipe:0'];
 
   for (const [key, value] of Object.entries(flags)) {
@@ -28,7 +34,7 @@ export function ffmpeg(input: URL | ReadableStream<Uint8Array>, flags: FFmpegFla
   args.push('pipe:1'); // Output to stdout
 
   // Spawn the FFmpeg process
-  const command = new Deno.Command('ffmpeg', {
+  const command = new Deno.Command(ffmpegPath, {
     args,
     stdin: input instanceof ReadableStream ? 'piped' : 'null',
     stdout: 'piped',

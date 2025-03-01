@@ -480,4 +480,14 @@ export class DittoConf {
   get precheck(): boolean {
     return optionalBooleanSchema.parse(this.env.get('DITTO_PRECHECK')) ?? true;
   }
+
+  /** Path to `ffmpeg` executable. */
+  get ffmpegPath(): string {
+    return this.env.get('FFMPEG_PATH') || 'ffmpeg';
+  }
+
+  /** Path to `ffprobe` executable. */
+  get ffprobePath(): string {
+    return this.env.get('FFPROBE_PATH') || 'ffprobe';
+  }
 }

@@ -27,6 +27,7 @@ export async function uploadFile(
   perf.mark('start');
 
   const { conf, uploader } = c.var;
+  const { ffmpegPath, ffprobePath } = conf;
 
   if (!uploader) {
     throw new HTTPException(500, {
@@ -43,7 +44,7 @@ export async function uploadFile(
   const [baseType] = file.type.split('/');
 
   perf.mark('probe-start');
-  const probe = await analyzeFile(file.stream()).catch(() => null);
+  const probe = await analyzeFile(file.stream(), { ffprobePath }).catch(() => null);
   perf.mark('probe-end');
 
   perf.mark('transcode-start');
@@ -62,7 +63,7 @@ export async function uploadFile(
     }
 
     if (needsTranscode) {
-      const stream = transcodeVideo(file.stream());
+      const stream = transcodeVideo(file.stream(), { ffmpegPath });
       const transcoded = await new Response(stream).bytes();
       file = new File([transcoded], file.name, { type: 'video/mp4' });
     }
@@ -103,7 +104,7 @@ export async function uploadFile(
   }
 
   if (baseType === 'video' && (!image || !thumb)) {
-    const bytes = await extractVideoFrame(file.stream());
+    const bytes = await extractVideoFrame(file.stream(), '00:00:01', { ffmpegPath });
     const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
 
     if (!image) {

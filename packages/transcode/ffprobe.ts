@@ -6,7 +6,13 @@ export interface FFprobeFlags {
   [key: string]: string | undefined;
 }
 
-export function ffprobe(input: URL | ReadableStream<Uint8Array>, flags: FFprobeFlags): ReadableStream<Uint8Array> {
+export function ffprobe(
+  input: URL | ReadableStream<Uint8Array>,
+  flags: FFprobeFlags,
+  opts?: { ffprobePath?: string | URL },
+): ReadableStream<Uint8Array> {
+  const { ffprobePath = 'ffprobe' } = opts ?? {};
+
   const args = [];
 
   for (const [key, value] of Object.entries(flags)) {
@@ -26,7 +32,7 @@ export function ffprobe(input: URL | ReadableStream<Uint8Array>, flags: FFprobeF
   }
 
   // Spawn the FFprobe process
-  const command = new Deno.Command('ffprobe', {
+  const command = new Deno.Command(ffprobePath, {
     args,
     stdin: input instanceof ReadableStream ? 'piped' : 'null',
     stdout: 'piped',

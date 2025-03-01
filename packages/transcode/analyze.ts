@@ -87,13 +87,16 @@ interface Disposition {
   still_image: number;
 }
 
-export function analyzeFile(input: URL | ReadableStream<Uint8Array>): Promise<AnalyzeResult> {
+export function analyzeFile(
+  input: URL | ReadableStream<Uint8Array>,
+  opts?: { ffprobePath?: string | URL },
+): Promise<AnalyzeResult> {
   const stream = ffprobe(input, {
     'v': 'error',
     'show_streams': '',
     'show_format': '',
     'of': 'json',
-  });
+  }, opts);
 
   return new Response(stream).json();
 }

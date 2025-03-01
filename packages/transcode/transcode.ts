@@ -1,6 +1,9 @@
 import { ffmpeg } from './ffmpeg.ts';
 
-export function transcodeVideo(input: URL | ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+export function transcodeVideo(
+  input: URL | ReadableStream<Uint8Array>,
+  opts?: { ffmpegPath?: string | URL },
+): ReadableStream<Uint8Array> {
   return ffmpeg(input, {
     'safe': '1', // Safe mode
     'nostdin': '', // Disable stdin
@@ -12,5 +15,5 @@ export function transcodeVideo(input: URL | ReadableStream<Uint8Array>): Readabl
     'b:a': '128k', // Audio bitrate
     'movflags': 'frag_keyframe+empty_moov', // Ensures MP4 streaming compatibility
     'f': 'mp4', // Force MP4 format
-  });
+  }, opts);
 }
