@@ -113,25 +113,26 @@ export async function uploadFile(
     const video = probe?.streams.find((stream) => stream.codec_type === 'video');
 
     if (video && video.width && video.height) {
+      const { width, height } = video;
+
       if (!dim) {
-        tags.push(['dim', `${video.width}x${video.height}`]);
+        tags.push(['dim', `${width}x${height}`]);
       }
 
       if (!blurhash) {
         try {
-          const img = sharp(bytes);
-          const { width, height } = await img.metadata();
+          const { data, info } = await sharp(bytes)
+            .raw()
+            .ensureAlpha()
+            .resize({
+              width: width > height ? undefined : 64,
+              height: height > width ? undefined : 64,
+              fit: 'inside',
+            })
+            .toBuffer({ resolveWithObject: true });
 
-          if (!blurhash && (width && height)) {
-            const pixels = await img
-              .raw()
-              .ensureAlpha()
-              .toBuffer({ resolveWithObject: false })
-              .then((buffer) => new Uint8ClampedArray(buffer));
-
-            const blurhash = encode(pixels, width, height, 4, 4);
-            tags.push(['blurhash', blurhash]);
-          }
+          const blurhash = encode(new Uint8ClampedArray(data), info.width, info.height, 4, 4);
+          tags.push(['blurhash', blurhash]);
         } catch (e) {
           logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
         }
@@ -156,6 +157,11 @@ export async function uploadFile(
         const pixels = await img
           .raw()
           .ensureAlpha()
+          .resize({
+            width: width > height ? undefined : 64,
+            height: height > width ? undefined : 64,
+            fit: 'inside',
+          })
           .toBuffer({ resolveWithObject: false })
           .then((buffer) => new Uint8ClampedArray(buffer));
 
@@ -179,8 +185,6 @@ export async function uploadFile(
 
   dittoUploads.set(upload.id, upload);
 
-  perf.mark('end');
-
   const timing = [
     perf.measure('probe', 'probe-start', 'probe-end'),
     perf.measure('transcode', 'transcode-start', 'transcode-end'),
@@ -191,6 +195,8 @@ export async function uploadFile(
     acc[name] = m.duration / 1000; // Convert to seconds for logging.
     return acc;
   }, {});
+
+  perf.mark('end');
 
   logi({
     level: 'info',
