@@ -1,4 +1,5 @@
 import { analyzeFile, extractVideoFrame, transcodeVideo } from '@ditto/transcode';
+import { ScopedPerformance } from '@esroyo/scoped-performance';
 import { HTTPException } from '@hono/hono/http-exception';
 import { logi } from '@soapbox/logi';
 import { crypto } from '@std/crypto';
@@ -22,6 +23,9 @@ export async function uploadFile(
   meta: FileMeta,
   signal?: AbortSignal,
 ): Promise<DittoUpload> {
+  using perf = new ScopedPerformance();
+  perf.mark('start');
+
   const { conf, uploader } = c.var;
 
   if (!uploader) {
@@ -38,8 +42,11 @@ export async function uploadFile(
 
   const [baseType] = file.type.split('/');
 
+  perf.mark('probe-start');
   const probe = await analyzeFile(file.stream()).catch(() => null);
+  perf.mark('probe-end');
 
+  perf.mark('transcode-start');
   if (baseType === 'video') {
     let needsTranscode = false;
 
@@ -60,9 +67,15 @@ export async function uploadFile(
       file = new File([transcoded], file.name, file);
     }
   }
+  perf.mark('transcode-end');
 
+  perf.mark('upload-start');
   const tags = await uploader.upload(file, { signal });
+  perf.mark('upload-end');
+
   const url = tags[0][1];
+
+  perf.mark('analyze-start');
 
   if (description) {
     tags.push(['alt', description]);
@@ -154,6 +167,8 @@ export async function uploadFile(
     }
   }
 
+  perf.mark('analyze-end');
+
   const upload = {
     id: crypto.randomUUID(),
     url,
@@ -163,6 +178,27 @@ export async function uploadFile(
   };
 
   dittoUploads.set(upload.id, upload);
+
+  perf.mark('end');
+
+  const timing = [
+    perf.measure('probe', 'probe-start', 'probe-end'),
+    perf.measure('transcode', 'transcode-start', 'transcode-end'),
+    perf.measure('upload', 'upload-start', 'upload-end'),
+    perf.measure('analyze', 'analyze-start', 'analyze-end'),
+  ].reduce<Record<string, number>>((acc, m) => {
+    const name = m.name.split('::')[1]; // ScopedPerformance uses `::` to separate the name.
+    acc[name] = m.duration / 1000; // Convert to seconds for logging.
+    return acc;
+  }, {});
+
+  logi({
+    level: 'info',
+    ns: 'ditto.upload',
+    upload: { ...upload, uploadedAt: upload.uploadedAt.toISOString() },
+    timing,
+    duration: perf.measure('total', 'start', 'end').duration / 1000,
+  });
 
   return upload;
 }
