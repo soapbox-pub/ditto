@@ -1,10 +1,13 @@
-import { assertEquals } from '@std/assert';
+import { assertObjectMatch } from '@std/assert';
 
-import { getVideoDimensions } from './analyze.ts';
+import { analyzeFile } from './analyze.ts';
 
-Deno.test('getVideoDimensions', async () => {
+Deno.test('analyzeFile', async () => {
   const uri = new URL('./buckbunny.mp4', import.meta.url);
-  const dimensions = await getVideoDimensions(uri);
 
-  assertEquals(dimensions, { width: 1920, height: 1080 });
+  const { streams } = await analyzeFile(uri);
+
+  const videoStream = streams.find((stream) => stream.codec_type === 'video')!;
+
+  assertObjectMatch(videoStream, { width: 1920, height: 1080 });
 });
