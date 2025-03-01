@@ -64,7 +64,7 @@ export async function uploadFile(
     if (needsTranscode) {
       const stream = transcodeVideo(file.stream());
       const transcoded = await new Response(stream).bytes();
-      file = new File([transcoded], file.name, file);
+      file = new File([transcoded], file.name, { type: 'video/mp4' });
     }
   }
   perf.mark('transcode-end');
