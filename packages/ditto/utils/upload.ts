@@ -1,4 +1,4 @@
-import { extractVideoFrame, transcodeVideo } from '@ditto/transcode';
+import { analyzeFile, extractVideoFrame, transcodeVideo } from '@ditto/transcode';
 import { HTTPException } from '@hono/hono/http-exception';
 import { logi } from '@soapbox/logi';
 import { crypto } from '@std/crypto';
@@ -38,17 +38,27 @@ export async function uploadFile(
 
   const [baseType] = file.type.split('/');
 
+  const probe = await analyzeFile(file.stream()).catch(() => null);
+
   if (baseType === 'video') {
-    file = new Proxy(file, {
-      get(target, prop) {
-        if (prop === 'stream') {
-          return () => transcodeVideo(target.stream());
-        } else {
-          // @ts-ignore This is fine.
-          return target[prop];
-        }
-      },
-    });
+    let needsTranscode = false;
+
+    for (const stream of probe?.streams ?? []) {
+      if (stream.codec_type === 'video' && stream.codec_name !== 'h264') {
+        needsTranscode = true;
+        break;
+      }
+      if (stream.codec_type === 'audio' && stream.codec_name !== 'aac') {
+        needsTranscode = true;
+        break;
+      }
+    }
+
+    if (needsTranscode) {
+      const stream = transcodeVideo(file.stream());
+      const transcoded = await new Response(stream).bytes();
+      file = new File([transcoded], file.name, file);
+    }
   }
 
   const tags = await uploader.upload(file, { signal });
@@ -80,40 +90,40 @@ export async function uploadFile(
   }
 
   if (baseType === 'video' && (!image || !thumb)) {
-    const tmp = new URL('file://' + await Deno.makeTempFile());
-    await Deno.writeFile(tmp, file.stream());
-    const bytes = await extractVideoFrame(tmp);
+    const bytes = await extractVideoFrame(file.stream());
     const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
 
     if (!image) {
       tags.push(['image', url]);
     }
 
-    if (!blurhash || !dim) {
-      try {
-        const img = sharp(bytes);
-        const { width, height } = await img.metadata();
+    const video = probe?.streams.find((stream) => stream.codec_type === 'video');
 
-        if (!dim && (width && height)) {
-          tags.push(['dim', `${width}x${height}`]);
+    if (video && video.width && video.height) {
+      if (!dim) {
+        tags.push(['dim', `${video.width}x${video.height}`]);
+      }
+
+      if (!blurhash) {
+        try {
+          const img = sharp(bytes);
+          const { width, height } = await img.metadata();
+
+          if (!blurhash && (width && height)) {
+            const pixels = await img
+              .raw()
+              .ensureAlpha()
+              .toBuffer({ resolveWithObject: false })
+              .then((buffer) => new Uint8ClampedArray(buffer));
+
+            const blurhash = encode(pixels, width, height, 4, 4);
+            tags.push(['blurhash', blurhash]);
+          }
+        } catch (e) {
+          logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
         }
-
-        if (!blurhash && (width && height)) {
-          const pixels = await img
-            .raw()
-            .ensureAlpha()
-            .toBuffer({ resolveWithObject: false })
-            .then((buffer) => new Uint8ClampedArray(buffer));
-
-          const blurhash = encode(pixels, width, height, 4, 4);
-          tags.push(['blurhash', blurhash]);
-        }
-      } catch (e) {
-        logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
       }
     }
-
-    await Deno.remove(tmp);
   }
 
   // If the uploader didn't already, try to get a blurhash and media dimensions.

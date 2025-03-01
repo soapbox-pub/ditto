@@ -1,6 +1,6 @@
 import { ffmpeg } from './ffmpeg.ts';
 
-export function transcodeVideo(input: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+export function transcodeVideo(input: URL | ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
   return ffmpeg(input, {
     'safe': '1', // Safe mode
     'nostdin': '', // Disable stdin
