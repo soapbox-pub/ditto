@@ -6,19 +6,45 @@ export interface FFprobeFlags {
   [key: string]: string | undefined;
 }
 
-export function ffprobe(path: URL | string, flags: FFprobeFlags): ReadableStream<Uint8Array> {
+export function ffprobe(input: URL | ReadableStream<Uint8Array>, flags: FFprobeFlags): ReadableStream<Uint8Array> {
   const args = [];
 
   for (const [key, value] of Object.entries(flags)) {
     if (typeof value === 'string') {
-      args.push(`-${key}`, value);
+      if (value) {
+        args.push(`-${key}`, value);
+      } else {
+        args.push(`-${key}`);
+      }
     }
   }
 
-  args.push(path instanceof URL ? path.href : path);
+  if (input instanceof URL) {
+    args.push('-i', input.href);
+  } else {
+    args.push('-i', 'pipe:0');
+  }
 
-  const command = new Deno.Command('ffprobe', { args, stdout: 'piped' });
+  // Spawn the FFprobe process
+  const command = new Deno.Command('ffprobe', {
+    args,
+    stdin: input instanceof ReadableStream ? 'piped' : 'null',
+    stdout: 'piped',
+  });
+
   const child = command.spawn();
 
+  // Pipe the input stream into FFmpeg stdin and ensure completion
+  if (input instanceof ReadableStream) {
+    input.pipeTo(child.stdin).catch((e: unknown) => {
+      if (e instanceof Error && e.name === 'BrokenPipe') {
+        // Ignore. ffprobe closes the pipe once it has read the metadata.
+      } else {
+        throw e;
+      }
+    });
+  }
+
+  // Return the FFmpeg stdout stream
   return child.stdout;
 }

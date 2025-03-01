@@ -1,7 +1,9 @@
 import { ffprobe } from './ffprobe.ts';
 
-export async function getVideoDimensions(path: string): Promise<{ width: number; height: number } | null> {
-  const stream = ffprobe(path, {
+export async function getVideoDimensions(
+  input: URL | ReadableStream<Uint8Array>,
+): Promise<{ width: number; height: number } | null> {
+  const stream = ffprobe(input, {
     'v': 'error',
     'select_streams': 'v:0',
     'show_entries': 'stream=width,height',
