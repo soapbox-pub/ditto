@@ -44,7 +44,7 @@ export async function uploadFile(
   const [baseType] = file.type.split('/');
 
   perf.mark('probe-start');
-  const probe = await analyzeFile(file.stream(), { ffprobePath }).catch(() => null);
+  const probe = mediaTranscode ? await analyzeFile(file.stream(), { ffprobePath }).catch(() => null) : null;
   const video = probe?.streams.find((stream) => stream.codec_type === 'video');
   perf.mark('probe-end');
 
