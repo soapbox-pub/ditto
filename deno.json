@@ -11,6 +11,7 @@
     "./packages/nip98",
     "./packages/policies",
     "./packages/ratelimiter",
+    "./packages/transcode",
     "./packages/translators",
     "./packages/uploaders"
   ],
