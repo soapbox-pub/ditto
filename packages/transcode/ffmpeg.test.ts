@@ -1,7 +1,9 @@
 import { ffmpeg } from './ffmpeg.ts';
 
+const uri = new URL('./buckbunny.mp4', import.meta.url);
+
 Deno.test('ffmpeg', async () => {
-  await using file = await Deno.open(new URL('./buckbunny.mp4', import.meta.url));
+  await using file = await Deno.open(uri);
 
   const output = ffmpeg(file.readable, {
     'c:v': 'libx264',
@@ -12,11 +14,11 @@ Deno.test('ffmpeg', async () => {
   });
 
   await Deno.mkdir(new URL('./tmp', import.meta.url), { recursive: true });
-  await Deno.writeFile(new URL('./tmp/buckbunny-transcoded.mp4', import.meta.url), output);
+  await Deno.writeFile(new URL('./tmp/transcoded-1.mp4', import.meta.url), output);
 });
 
-Deno.test('ffmpeg from file', async () => {
-  const output = ffmpeg(new URL('./buckbunny.mp4', import.meta.url), {
+Deno.test('ffmpeg from file URI', async () => {
+  const output = ffmpeg(uri, {
     'c:v': 'libx264',
     'preset': 'veryfast',
     'loglevel': 'fatal',
@@ -25,5 +27,5 @@ Deno.test('ffmpeg from file', async () => {
   });
 
   await Deno.mkdir(new URL('./tmp', import.meta.url), { recursive: true });
-  await Deno.writeFile(new URL('./tmp/buckbunny-transcoded-fromfile.mp4', import.meta.url), output);
+  await Deno.writeFile(new URL('./tmp/transcoded-2.mp4', import.meta.url), output);
 });

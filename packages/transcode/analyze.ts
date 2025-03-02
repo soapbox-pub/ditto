@@ -92,7 +92,7 @@ export function analyzeFile(
   opts?: { ffprobePath?: string | URL },
 ): Promise<AnalyzeResult> {
   const stream = ffprobe(input, {
-    'v': 'error',
+    'loglevel': 'fatal',
     'show_streams': '',
     'show_format': '',
     'of': 'json',

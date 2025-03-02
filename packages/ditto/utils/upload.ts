@@ -64,9 +64,12 @@ export async function uploadFile(
     }
 
     if (needsTranscode) {
-      const stream = transcodeVideo(file.stream(), { ffmpegPath });
+      const tmp = new URL('file://' + await Deno.makeTempFile());
+      await Deno.writeFile(tmp, file.stream());
+      const stream = transcodeVideo(tmp, { ffmpegPath });
       const transcoded = await new Response(stream).bytes();
       file = new File([transcoded], file.name, { type: 'video/mp4' });
+      await Deno.remove(tmp);
     }
   }
   perf.mark('transcode-end');
@@ -108,7 +111,10 @@ export async function uploadFile(
     const { width, height } = video;
 
     try {
-      const bytes = await extractVideoFrame(file.stream(), '00:00:01', { ffmpegPath });
+      const tmp = new URL('file://' + await Deno.makeTempFile());
+      await Deno.writeFile(tmp, file.stream());
+      const bytes = await extractVideoFrame(tmp, '00:00:01', { ffmpegPath });
+      await Deno.remove(tmp);
       const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
 
       if (!image) {
