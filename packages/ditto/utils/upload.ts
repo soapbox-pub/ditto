@@ -108,25 +108,23 @@ export async function uploadFile(
   perf.mark('analyze-start');
 
   if (baseType === 'video' && mediaAnalyze && mediaTranscode && video && (!image || !thumb)) {
-    const { width, height } = video;
-
     try {
       const tmp = new URL('file://' + await Deno.makeTempFile());
       await Deno.writeFile(tmp, file.stream());
-      const bytes = await extractVideoFrame(tmp, '00:00:01', { ffmpegPath });
+      const frame = await extractVideoFrame(tmp, '00:00:01', { ffmpegPath });
       await Deno.remove(tmp);
-      const [[, url]] = await uploader.upload(new File([bytes], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
+      const [[, url]] = await uploader.upload(new File([frame], 'thumb.jpg', { type: 'image/jpeg' }), { signal });
 
       if (!image) {
         tags.push(['image', url]);
       }
 
-      if (!dim && width && height) {
-        tags.push(['dim', `${width}x${height}`]);
+      if (!dim) {
+        tags.push(['dim', await getImageDim(frame)]);
       }
 
       if (!blurhash) {
-        tags.push(['blurhash', await getBlurhash(bytes)]);
+        tags.push(['blurhash', await getBlurhash(frame)]);
       }
     } catch (e) {
       logi({ level: 'error', ns: 'ditto.upload.analyze', error: errorJson(e) });
