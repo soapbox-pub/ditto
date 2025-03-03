@@ -6,9 +6,10 @@ import { createAdminEvent, parseBody, updateAdminEvent, updateUser } from '@/uti
 import { nostrNow } from '@/utils.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
-import { renderAccount } from '@/views/mastodon/accounts.ts';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
+import { logi } from '@soapbox/logi';
 
 const frontendConfigController: AppController = async (c) => {
   const configDB = await getPleromaConfigs(c.var);
@@ -67,28 +68,7 @@ const pleromaAdminTagSchema = z.object({
 });
 
 const pleromaPromoteAdminSchema = z.object({
-  nicknames: z.string().transform((value, ctx) => {
-    try {
-      const { type, data } = nip19.decode(value);
-      if (type === 'npub') {
-        return data;
-      }
-
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Not a valid nip 19 npub',
-      });
-
-      return z.NEVER;
-    } catch {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Not a valid nip 19 npub',
-      });
-
-      return z.NEVER;
-    }
-  }).array().min(1),
+  nicknames: z.string().array(),
 });
 
 const pleromaPromoteAdminController: AppController = async (c) => {
@@ -101,53 +81,46 @@ const pleromaPromoteAdminController: AppController = async (c) => {
   }
 
   const { data } = result;
-  const { nicknames: authors } = data;
+  const { nicknames } = data;
 
-  const events = await relay.query([{ kinds: [0], authors }], { signal });
+  const pubkeys: string[] = [];
 
-  if (events.length !== authors.length) {
-    return c.json({ error: 'User profile is missing in the database' }, 422);
+  for (const nickname of nicknames) {
+    const pubkey = await lookupPubkey(nickname, c.var);
+    if (!pubkey) continue;
+
+    pubkeys.push(pubkey);
+
+    await updateAdminEvent(
+      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
+      (prev) => {
+        const tags = prev?.tags ?? [['d', pubkey]];
+
+        const existing = prev?.tags.some(([name, value]) => name === 'n' && value === 'admin');
+        if (!existing) {
+          tags.push(['n', 'admin']);
+        }
+
+        return {
+          kind: 30382,
+          content: prev?.content ?? '',
+          tags,
+        };
+      },
+      c,
+    );
   }
 
-  events.forEach(async (event) => {
-    const [existing] = await relay.query([{
-      kinds: [30382],
-      authors: [await conf.signer.getPublicKey()],
-      '#d': [event.pubkey],
-      limit: 1,
-    }]);
-
-    const prevTags = (existing?.tags ?? []).filter(([name, value]) => {
-      if (name === 'd') {
-        return false;
-      }
-      if (name === 'n' && value === 'admin') {
-        return false;
-      }
-      return true;
-    });
-
-    const tags: string[][] = [
-      ['d', event.pubkey],
-      ['n', 'admin'],
-    ];
-
-    tags.push(...prevTags);
-
-    const promotion = await conf.signer.signEvent({
-      kind: 30382,
-      tags,
-      content: '',
-      created_at: nostrNow(),
-    });
-
-    await relay.event(promotion);
-  });
+  const events = await relay.query([{ kinds: [0], authors: pubkeys }], { signal });
 
   await hydrateEvents({ ...c.var, events });
 
-  const accounts = events.map((event) => {
-    return renderAccount(event);
+  const accounts = pubkeys.map((pubkey) => {
+    const event = events.find((e) => e.pubkey === pubkey);
+    if (event) {
+      return renderAccount(event);
+    }
+    return accountFromPubkey(pubkey);
   });
 
   return c.json(accounts, 200);
