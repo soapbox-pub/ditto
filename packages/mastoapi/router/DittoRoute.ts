@@ -1,4 +1,4 @@
-import { Hono } from '@hono/hono';
+import { type ErrorHandler, Hono } from '@hono/hono';
 import { HTTPException } from '@hono/hono/http-exception';
 
 import type { HonoOptions } from '@hono/hono/hono-base';
@@ -16,6 +16,8 @@ export class DittoRoute extends Hono<DittoEnv> {
       this.assertVars(c.var);
       return next();
     });
+
+    this.onError(this._errorHandler);
   }
 
   private assertVars(vars: Partial<DittoEnv['Variables']>): DittoEnv['Variables'] {
@@ -38,4 +40,16 @@ export class DittoRoute extends Hono<DittoEnv> {
   private throwMissingVar(name: string): never {
     throw new HTTPException(500, { message: `Missing required variable: ${name}` });
   }
+
+  private _errorHandler: ErrorHandler = (error, c) => {
+    if (error instanceof HTTPException) {
+      if (error.res) {
+        return error.res;
+      } else {
+        return c.json({ error: error.message }, error.status);
+      }
+    }
+
+    throw error;
+  };
 }
