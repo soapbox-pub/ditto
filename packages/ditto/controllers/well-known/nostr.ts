@@ -5,27 +5,23 @@ import { AppController } from '@/app.ts';
 import { localNip05Lookup } from '@/utils/nip05.ts';
 
 const nameSchema = z.string().min(1).regex(/^[\w.-]+$/);
-const emptyResult: NostrJson = { names: {}, relays: {} };
 
 /**
  * Serves NIP-05's nostr.json.
  * https://github.com/nostr-protocol/nips/blob/master/05.md
  */
 const nostrController: AppController = async (c) => {
-  // If there are no query parameters, this will always return an empty result.
-  if (!Object.entries(c.req.queries()).length) {
-    c.header('Cache-Control', 'max-age=31536000, public, immutable, stale-while-revalidate=86400');
-    return c.json(emptyResult);
+  const result = nameSchema.safeParse(c.req.query('name'));
+
+  if (!result.success) {
+    return c.json({ error: 'Invalid name parameter' }, { status: 422 });
   }
 
-  const result = nameSchema.safeParse(c.req.query('name'));
-  const name = result.success ? result.data : undefined;
+  const name = result.data;
   const pointer = name ? await localNip05Lookup(name, c.var) : undefined;
 
-  if (!name || !pointer) {
-    // Not found, cache for 5 minutes.
-    c.header('Cache-Control', 'max-age=300, public, stale-while-revalidate=30');
-    return c.json(emptyResult);
+  if (!pointer) {
+    return c.json({ names: {}, relays: {} } satisfies NostrJson, { status: 404 });
   }
 
   const { pubkey, relays = [] } = pointer;
