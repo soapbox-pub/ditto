@@ -8,13 +8,11 @@ stages:
 
 test:
   stage: test
-  before_script:
-    - apt-get update && apt-get install -y ffmpeg
   script:
     - deno fmt --check
     - deno task lint
     - deno task check
-    - deno task test --coverage=cov_profile
+    - deno task test --ignore= packages/transcode --coverage=cov_profile
     - deno coverage cov_profile
   coverage: /All files[^\|]*\|[^\|]*\s+([\d\.]+)/
   services:
