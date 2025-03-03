@@ -55,8 +55,6 @@ import {
   adminSetRelaysController,
   deleteZapSplitsController,
   getZapSplitsController,
-  nameRequestController,
-  nameRequestsController,
   statusZapSplitsController,
   updateInstanceController,
   updateZapSplitsController,
@@ -150,6 +148,7 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
@@ -452,8 +451,7 @@ app.put('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminSe
 
 app.put('/api/v1/admin/ditto/instance', userMiddleware({ role: 'admin' }), updateInstanceController);
 
-app.post('/api/v1/ditto/names', userMiddleware(), nameRequestController);
-app.get('/api/v1/ditto/names', userMiddleware(), nameRequestsController);
+app.route('/api/v1/ditto/names', dittoNamesRoute);
 
 app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captchaController);
 app.post(

@@ -358,19 +358,24 @@ export class DittoRelayStore implements NRelay {
     }
 
     if (event.kind === 3036 && tagsAdmin) {
-      const rel = await signer.signEvent({
-        kind: 30383,
-        content: '',
-        tags: [
-          ['d', event.id],
-          ['p', event.pubkey],
-          ['k', '3036'],
-          ['n', 'pending'],
-        ],
-        created_at: Math.floor(Date.now() / 1000),
-      });
+      const r = event.tags.find(([name]) => name === 'r')?.[1];
 
-      await this.event(rel, { signal: AbortSignal.timeout(1000) });
+      if (r) {
+        const rel = await signer.signEvent({
+          kind: 30383,
+          content: '',
+          tags: [
+            ['d', event.id],
+            ['p', event.pubkey],
+            ['k', '3036'],
+            ['r', r.toLowerCase()],
+            ['n', 'pending'],
+          ],
+          created_at: Math.floor(Date.now() / 1000),
+        });
+
+        await this.event(rel, { signal: AbortSignal.timeout(1000) });
+      }
     }
   }
 
