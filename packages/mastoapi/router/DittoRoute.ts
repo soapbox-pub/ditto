@@ -38,7 +38,7 @@ export class DittoRoute extends Hono<DittoEnv> {
   }
 
   private throwMissingVar(name: string): never {
-    throw new HTTPException(500, { message: `Missing required variable: ${name}` });
+    throw new Error(`Missing required variable: ${name}`);
   }
 
   private _errorHandler: ErrorHandler = (error, c) => {

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { createAdminEvent, parseBody, updateAdminEvent, updateUser } from '@/utils/api.ts';
+import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
@@ -61,36 +61,6 @@ const pleromaAdminTagSchema = z.object({
   nicknames: z.string().array(),
   tags: z.string().array(),
 });
-
-const pleromaPromoteAdminSchema = z.object({
-  nicknames: z.string().array(),
-});
-
-const pleromaAdminPromoteController: AppController = async (c) => {
-  const body = await parseBody(c.req.raw);
-  const result = pleromaPromoteAdminSchema.safeParse(body);
-  const group = c.req.param('group');
-
-  if (!result.success) {
-    return c.json({ error: 'Bad request', schema: result.error }, 422);
-  }
-
-  if (!['admin', 'moderator'].includes(group)) {
-    return c.json({ error: 'Bad request', schema: 'Invalid group' }, 422);
-  }
-
-  const { data } = result;
-  const { nicknames } = data;
-
-  for (const nickname of nicknames) {
-    const pubkey = await lookupPubkey(nickname, c.var);
-    if (pubkey) {
-      await updateUser(pubkey, { [group]: true }, c);
-    }
-  }
-
-  return c.json({ is_admin: true }, 200);
-};
 
 const pleromaAdminTagController: AppController = async (c) => {
   const { conf } = c.var;
@@ -180,7 +150,6 @@ export {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
-  pleromaAdminPromoteController,
   pleromaAdminSuggestController,
   pleromaAdminTagController,
   pleromaAdminUnsuggestController,
