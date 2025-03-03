@@ -1,15 +1,12 @@
-import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
 import { createAdminEvent, parseBody, updateAdminEvent, updateUser } from '@/utils/api.ts';
-import { nostrNow } from '@/utils.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { logi } from '@soapbox/logi';
 
 const frontendConfigController: AppController = async (c) => {
   const configDB = await getPleromaConfigs(c.var);
