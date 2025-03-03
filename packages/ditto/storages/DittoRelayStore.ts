@@ -18,6 +18,7 @@ import {
   NRelay,
   NSchema as n,
 } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { logi } from '@soapbox/logi';
 import { UpdateObject } from 'kysely';
 import { LRUCache } from 'lru-cache';
@@ -41,7 +42,7 @@ import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
-import { nip19 } from 'nostr-tools';
+import { refreshAuthorStats } from '@/utils/stats.ts';
 
 interface DittoRelayStoreOpts {
   db: DittoDB;
@@ -121,7 +122,7 @@ export class DittoRelayStore implements NRelay {
    * It is idempotent, so it can be called multiple times for the same event.
    */
   async event(event: DittoEvent, opts: { publish?: boolean; signal?: AbortSignal } = {}): Promise<void> {
-    const { conf, relay } = this.opts;
+    const { conf, relay, db } = this.opts;
     const { signal } = opts;
 
     // Skip events that have already been encountered.
@@ -183,11 +184,11 @@ export class DittoRelayStore implements NRelay {
     }
 
     try {
-      await this.handleRevokeNip05(event, signal);
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
       Promise.allSettled([
+        await this.handleRevokeNip05(event, signal),
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
         this.prewarmLinkPreview(event, signal),
@@ -246,9 +247,9 @@ export class DittoRelayStore implements NRelay {
     }
   }
 
-  /** Sets the nip05 column to null */
+  /** Sets the nip05 column to null if the event is a revocation of a nip05 */
   private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal) {
-    const { conf, relay } = this.opts;
+    const { conf, relay, db } = this.opts;
 
     if (event.kind !== 5 || await conf.signer.getPublicKey() !== event.pubkey) {
       return;
@@ -268,7 +269,25 @@ export class DittoRelayStore implements NRelay {
       return;
     }
 
-    await this.updateAuthorData(author);
+    await db.kysely.insertInto('author_stats')
+      .values({
+        pubkey: event.pubkey,
+        followers_count: 0,
+        following_count: 0,
+        notes_count: 0,
+        search: '',
+      })
+      .onConflict((oc) =>
+        oc.column('pubkey').doUpdateSet({
+          nip05: null,
+          nip05_domain: null,
+          nip05_hostname: null,
+          nip05_last_verified_at: event.created_at,
+        })
+      )
+      .execute();
+
+    return author;
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
