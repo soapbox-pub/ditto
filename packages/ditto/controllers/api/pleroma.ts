@@ -1,10 +1,10 @@
 import { z } from 'zod';
 
 import { type AppController } from '@/app.ts';
-import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 import { createAdminEvent, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
+import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const configDB = await getPleromaConfigs(c.var);

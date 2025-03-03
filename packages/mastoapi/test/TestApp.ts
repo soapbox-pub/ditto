@@ -2,13 +2,14 @@ import { DittoConf } from '@ditto/conf';
 import { type DittoDB, DummyDB } from '@ditto/db';
 import { HTTPException } from '@hono/hono/http-exception';
 import { type NRelay, NSecSigner } from '@nostrify/nostrify';
+import { MockRelay } from '@nostrify/nostrify/test';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import { DittoApp, type DittoAppOpts } from '../router/DittoApp.ts';
 
 import type { Context } from '@hono/hono';
 import type { User } from '../middleware/User.ts';
-import { MockRelay } from '@nostrify/nostrify/test';
+import type { DittoRoute } from '../router/DittoRoute.ts';
 
 interface DittoVars {
   db: DittoDB;
@@ -19,7 +20,7 @@ interface DittoVars {
 export class TestApp extends DittoApp implements AsyncDisposable {
   private _user?: User;
 
-  constructor(opts?: Partial<DittoAppOpts>) {
+  constructor(route?: DittoRoute, opts?: Partial<DittoAppOpts>) {
     const nsec = nip19.nsecEncode(generateSecretKey());
 
     const conf = opts?.conf ?? new DittoConf(
@@ -44,6 +45,10 @@ export class TestApp extends DittoApp implements AsyncDisposable {
       await next();
     });
 
+    if (route) {
+      this.route('/', route);
+    }
+
     this.onError((err, c) => {
       if (err instanceof HTTPException) {
         if (err.res) {
@@ -63,6 +68,25 @@ export class TestApp extends DittoApp implements AsyncDisposable {
       conf: this.opts.conf,
       relay: this.opts.relay,
     };
+  }
+
+  async admin(user?: User): Promise<User> {
+    const { conf, relay } = this.opts;
+    user ??= this.createUser();
+
+    const event = await conf.signer.signEvent({
+      kind: 30382,
+      content: '',
+      tags: [
+        ['d', await user.signer.getPublicKey()],
+        ['n', 'admin'],
+      ],
+      created_at: Math.floor(Date.now() / 1000),
+    });
+
+    await relay.event(event);
+
+    return this.user(user);
   }
 
   user(user?: User): User {

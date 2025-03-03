@@ -118,7 +118,7 @@ async function updateAdminEvent<E extends EventStub>(
   return createAdminEvent(fn(prev), c);
 }
 
-function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+function updateUser(pubkey: string, n: Record<string, boolean>, c: Context): Promise<NostrEvent> {
   return updateNames(30382, pubkey, n, c);
 }
 
