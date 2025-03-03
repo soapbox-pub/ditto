@@ -81,11 +81,11 @@ import {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
+  pleromaAdminPromoteController,
   pleromaAdminSuggestController,
   pleromaAdminTagController,
   pleromaAdminUnsuggestController,
   pleromaAdminUntagController,
-  pleromaPromoteAdminController,
   updateConfigController,
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
@@ -442,9 +442,9 @@ app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), confi
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);
 app.delete('/api/v1/pleroma/admin/statuses/:id', userMiddleware({ role: 'admin' }), pleromaAdminDeleteStatusController);
 app.post(
-  '/api/v1/pleroma/admin/users/permission_group/admin',
+  '/api/v1/pleroma/admin/users/permission_group/:group',
   userMiddleware({ role: 'admin' }),
-  pleromaPromoteAdminController,
+  pleromaAdminPromoteController,
 );
 
 app.get('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminRelaysController);

@@ -4,9 +4,7 @@ import { type AppController } from '@/app.ts';
 import { createAdminEvent, parseBody, updateAdminEvent, updateUser } from '@/utils/api.ts';
 import { lookupPubkey } from '@/utils/lookup.ts';
 import { getPleromaConfigs } from '@/utils/pleroma.ts';
-import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { configSchema, elixirTupleSchema } from '@/schemas/pleroma-api.ts';
-import { hydrateEvents } from '@/storages/hydrate.ts';
 
 const frontendConfigController: AppController = async (c) => {
   const configDB = await getPleromaConfigs(c.var);
@@ -68,59 +66,30 @@ const pleromaPromoteAdminSchema = z.object({
   nicknames: z.string().array(),
 });
 
-const pleromaPromoteAdminController: AppController = async (c) => {
-  const { conf, relay, signal } = c.var;
+const pleromaAdminPromoteController: AppController = async (c) => {
   const body = await parseBody(c.req.raw);
   const result = pleromaPromoteAdminSchema.safeParse(body);
+  const group = c.req.param('group');
 
   if (!result.success) {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
+  if (!['admin', 'moderator'].includes(group)) {
+    return c.json({ error: 'Bad request', schema: 'Invalid group' }, 422);
+  }
+
   const { data } = result;
   const { nicknames } = data;
 
-  const pubkeys: string[] = [];
-
   for (const nickname of nicknames) {
     const pubkey = await lookupPubkey(nickname, c.var);
-    if (!pubkey) continue;
-
-    pubkeys.push(pubkey);
-
-    await updateAdminEvent(
-      { kinds: [30382], authors: [await conf.signer.getPublicKey()], '#d': [pubkey], limit: 1 },
-      (prev) => {
-        const tags = prev?.tags ?? [['d', pubkey]];
-
-        const existing = prev?.tags.some(([name, value]) => name === 'n' && value === 'admin');
-        if (!existing) {
-          tags.push(['n', 'admin']);
-        }
-
-        return {
-          kind: 30382,
-          content: prev?.content ?? '',
-          tags,
-        };
-      },
-      c,
-    );
+    if (pubkey) {
+      await updateUser(pubkey, { [group]: true }, c);
+    }
   }
 
-  const events = await relay.query([{ kinds: [0], authors: pubkeys }], { signal });
-
-  await hydrateEvents({ ...c.var, events });
-
-  const accounts = pubkeys.map((pubkey) => {
-    const event = events.find((e) => e.pubkey === pubkey);
-    if (event) {
-      return renderAccount(event);
-    }
-    return accountFromPubkey(pubkey);
-  });
-
-  return c.json(accounts, 200);
+  return c.json({ is_admin: true }, 200);
 };
 
 const pleromaAdminTagController: AppController = async (c) => {
@@ -211,10 +180,10 @@ export {
   configController,
   frontendConfigController,
   pleromaAdminDeleteStatusController,
+  pleromaAdminPromoteController,
   pleromaAdminSuggestController,
   pleromaAdminTagController,
   pleromaAdminUnsuggestController,
   pleromaAdminUntagController,
-  pleromaPromoteAdminController,
   updateConfigController,
 };
