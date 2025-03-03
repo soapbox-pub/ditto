@@ -7,6 +7,8 @@ import { generateSecretKey, nip19 } from 'nostr-tools';
 
 import type { User } from '@ditto/mastoapi/middleware';
 
+export { TestApp } from './test/TestApp.ts';
+
 export function testApp(): {
   app: DittoApp;
   relay: NRelay;

@@ -18,33 +18,55 @@ const route = new DittoRoute();
 route.post('/', userMiddleware(), async (c) => {
   const { conf, relay, user } = c.var;
 
-  const pubkey = await user!.signer.getPublicKey();
   const result = nameRequestSchema.safeParse(await c.req.json());
 
   if (!result.success) {
-    return c.json({ error: 'Invalid username', schema: result.error }, 400);
+    return c.json({ error: 'Invalid username', schema: result.error }, 422);
   }
+
+  const pubkey = await user.signer.getPublicKey();
+  const adminPubkey = await conf.signer.getPublicKey();
 
   const { name, reason } = result.data;
+  const [_localpart, domain] = name.split('@');
 
-  const [existing] = await relay.query([{ kinds: [3036], authors: [pubkey], '#r': [name.toLowerCase()], limit: 1 }]);
-  if (existing) {
-    return c.json({ error: 'Name request already exists' }, 400);
+  if (domain.toLowerCase() !== conf.url.host.toLowerCase()) {
+    return c.json({ error: 'Unsupported domain' }, 422);
   }
 
-  const r: string[][] = [['r', name]];
+  const d = name.toLowerCase();
+
+  const [grant] = await relay.query([{ kinds: [30360], authors: [adminPubkey], '#d': [d] }]);
+  if (grant) {
+    return c.json({ error: 'Name has already been granted' }, 400);
+  }
+
+  const [pending] = await relay.query([{
+    kinds: [30383],
+    authors: [adminPubkey],
+    '#p': [pubkey],
+    '#k': ['3036'],
+    '#r': [d],
+    '#n': ['pending'],
+    limit: 1,
+  }]);
+  if (pending) {
+    return c.json({ error: 'You have already requested that name, and it is pending approval by staff' }, 400);
+  }
+
+  const tags: string[][] = [['r', name]];
 
   if (name !== name.toLowerCase()) {
-    r.push(['r', name.toLowerCase()]);
+    tags.push(['r', name.toLowerCase()]);
   }
 
   const event = await createEvent({
     kind: 3036,
     content: reason,
     tags: [
-      ...r,
+      ...tags,
       ['L', 'nip05.domain'],
-      ['l', name.split('@')[1], 'nip05.domain'],
+      ['l', domain.toLowerCase(), 'nip05.domain'],
       ['p', await conf.signer.getPublicKey()],
     ],
   }, c);

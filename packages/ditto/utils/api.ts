@@ -27,10 +27,10 @@ async function createEvent<E extends (DittoEnv & { Variables: { user?: User } })
   }
 
   const event = await user.signer.signEvent({
-    content: '',
-    created_at: nostrNow(),
-    tags: [],
     ...t,
+    content: t.content ?? '',
+    created_at: t.created_at ?? nostrNow(),
+    tags: t.tags ?? [],
   });
 
   await relay.event(event, { signal, publish: true });
