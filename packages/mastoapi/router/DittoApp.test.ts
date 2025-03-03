@@ -1,13 +1,14 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoPolyPg } from '@ditto/db';
+import { DummyDB } from '@ditto/db';
 import { Hono } from '@hono/hono';
 import { MockRelay } from '@nostrify/nostrify/test';
+import { assertEquals } from '@std/assert';
 
 import { DittoApp } from './DittoApp.ts';
 import { DittoRoute } from './DittoRoute.ts';
 
 Deno.test('DittoApp', async () => {
-  await using db = new DittoPolyPg('memory://');
+  await using db = new DummyDB();
   const conf = new DittoConf(new Map());
   const relay = new MockRelay();
 
@@ -20,4 +21,11 @@ Deno.test('DittoApp', async () => {
 
   // @ts-expect-error Passing a non-DittoRoute to route.
   app.route('/', hono);
+
+  app.get('/error', () => {
+    throw new Error('test error');
+  });
+
+  const response = await app.request('/error');
+  assertEquals(response.status, 500);
 });

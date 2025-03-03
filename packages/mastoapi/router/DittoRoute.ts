@@ -50,6 +50,6 @@ export class DittoRoute extends Hono<DittoEnv> {
       }
     }
 
-    return c.json({ error: 'Something went wrong' }, 500);
+    throw error;
   };
 }
