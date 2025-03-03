@@ -1,5 +1,6 @@
 import { DittoConf } from '@ditto/conf';
 import { type DittoDB, DummyDB } from '@ditto/db';
+import { HTTPException } from '@hono/hono/http-exception';
 import { type NRelay, NSecSigner } from '@nostrify/nostrify';
 import { generateSecretKey, nip19 } from 'nostr-tools';
 
@@ -43,7 +44,15 @@ export class TestApp extends DittoApp implements AsyncDisposable {
       await next();
     });
 
-    this.onError((err) => {
+    this.onError((err, c) => {
+      if (err instanceof HTTPException) {
+        if (err.res) {
+          return err.res;
+        } else {
+          return c.json({ error: err.message }, err.status);
+        }
+      }
+
       throw err;
     });
   }
