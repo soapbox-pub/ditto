@@ -34,7 +34,7 @@ route.post('/:group', userMiddleware({ role: 'admin' }), async (c) => {
     }
   }
 
-  return c.json({ is_admin: true }, 200);
+  return c.json({ [`is_${group}`]: true }, 200);
 });
 
 export default route;
