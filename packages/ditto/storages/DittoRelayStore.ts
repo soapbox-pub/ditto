@@ -42,7 +42,6 @@ import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
-import { refreshAuthorStats } from '@/utils/stats.ts';
 
 interface DittoRelayStoreOpts {
   db: DittoDB;
@@ -122,7 +121,7 @@ export class DittoRelayStore implements NRelay {
    * It is idempotent, so it can be called multiple times for the same event.
    */
   async event(event: DittoEvent, opts: { publish?: boolean; signal?: AbortSignal } = {}): Promise<void> {
-    const { conf, relay, db } = this.opts;
+    const { conf, relay } = this.opts;
     const { signal } = opts;
 
     // Skip events that have already been encountered.
@@ -188,7 +187,7 @@ export class DittoRelayStore implements NRelay {
     } finally {
       // This needs to run in steps, and should not block the API from responding.
       Promise.allSettled([
-        await this.handleRevokeNip05(event, signal),
+        this.handleRevokeNip05(event, signal),
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
         this.prewarmLinkPreview(event, signal),
@@ -271,7 +270,7 @@ export class DittoRelayStore implements NRelay {
 
     await db.kysely.insertInto('author_stats')
       .values({
-        pubkey: event.pubkey,
+        pubkey: author.pubkey,
         followers_count: 0,
         following_count: 0,
         notes_count: 0,
