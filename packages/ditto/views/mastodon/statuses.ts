@@ -42,7 +42,7 @@ async function renderStatus(
 
   const mentions = event.mentions?.map((event) => renderMention(event)) ?? [];
 
-  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions);
+  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions, { conf: Conf });
 
   const [card, relatedEvents] = await Promise
     .all([

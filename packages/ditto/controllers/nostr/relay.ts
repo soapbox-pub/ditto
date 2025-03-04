@@ -11,6 +11,7 @@ import {
   NostrClientMsg,
   NostrClientREQ,
   NostrRelayMsg,
+  NRelay,
   NSchema as n,
 } from '@nostrify/nostrify';
 
@@ -40,8 +41,17 @@ const limiters = {
 /** Connections for metrics purposes. */
 const connections = new Set<WebSocket>();
 
+interface ConnectStreamOpts {
+  conf: DittoConf;
+  relay: NRelay;
+  requestId: string;
+}
+
 /** Set up the Websocket connection. */
-function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, ip: string | undefined) {
+function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectStreamOpts): void {
+  const { conf, requestId } = opts;
+  const relay = opts.relay as DittoPgStore;
+
   const controllers = new Map<string, AbortController>();
 
   if (ip) {
@@ -74,7 +84,7 @@ function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, 
       const msg = result.data;
       const verb = msg[0];
 
-      logi({ level: 'trace', ns: 'ditto.relay.msg', verb, msg: msg as JsonValue, ip });
+      logi({ level: 'trace', ns: 'ditto.relay.msg', verb, msg: msg as JsonValue, ip, requestId });
       relayMessagesCounter.inc({ verb });
 
       handleMsg(result.data);
@@ -165,7 +175,7 @@ function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, 
         send(['OK', event.id, false, e.message]);
       } else {
         send(['OK', event.id, false, 'error: something went wrong']);
-        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e), ip });
+        logi({ level: 'error', ns: 'ditto.relay', msg: 'Error in relay', error: errorJson(e), ip, requestId });
       }
     }
   }
@@ -195,7 +205,8 @@ function connectStream(conf: DittoConf, relay: DittoPgStore, socket: WebSocket, 
 }
 
 const relayController: AppController = (c, next) => {
-  const { conf, relay } = c.var;
+  const { conf } = c.var;
+
   const upgrade = c.req.header('upgrade');
 
   // NIP-11: https://github.com/nostr-protocol/nips/blob/master/11.md
@@ -214,7 +225,7 @@ const relayController: AppController = (c, next) => {
   }
 
   const { socket, response } = Deno.upgradeWebSocket(c.req.raw);
-  connectStream(conf, relay as DittoPgStore, socket, ip);
+  connectStream(socket, ip, c.var);
 
   return response;
 };

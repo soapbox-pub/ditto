@@ -25,6 +25,7 @@ export class DittoRoute extends Hono<DittoEnv> {
     if (!vars.conf) this.throwMissingVar('conf');
     if (!vars.relay) this.throwMissingVar('relay');
     if (!vars.signal) this.throwMissingVar('signal');
+    if (!vars.requestId) this.throwMissingVar('requestId');
 
     return {
       ...vars,
@@ -32,11 +33,12 @@ export class DittoRoute extends Hono<DittoEnv> {
       conf: vars.conf,
       relay: vars.relay,
       signal: vars.signal,
+      requestId: vars.requestId,
     };
   }
 
   private throwMissingVar(name: string): never {
-    throw new HTTPException(500, { message: `Missing required variable: ${name}` });
+    throw new Error(`Missing required variable: ${name}`);
   }
 
   private _errorHandler: ErrorHandler = (error, c) => {
@@ -48,6 +50,6 @@ export class DittoRoute extends Hono<DittoEnv> {
       }
     }
 
-    return c.json({ error: 'Something went wrong' }, 500);
+    throw error;
   };
 }

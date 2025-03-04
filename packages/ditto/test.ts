@@ -1,7 +1,7 @@
+import { DittoConf } from '@ditto/conf';
 import { DittoPolyPg } from '@ditto/db';
 import { NostrEvent } from '@nostrify/nostrify';
 
-import { Conf } from '@/config.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { sql } from 'kysely';
 
@@ -13,13 +13,14 @@ export async function eventFixture(name: string): Promise<NostrEvent> {
 
 /** Create a database for testing. It uses `DATABASE_URL`, or creates an in-memory database by default. */
 export async function createTestDB(opts?: { pure?: boolean }) {
-  const db = new DittoPolyPg(Conf.databaseUrl, { poolSize: 1 });
+  const conf = new DittoConf(Deno.env);
+  const db = new DittoPolyPg(conf.databaseUrl, { poolSize: 1 });
   await db.migrate();
 
   const store = new DittoPgStore({
     db,
-    timeout: Conf.db.timeouts.default,
-    pubkey: await Conf.signer.getPublicKey(),
+    conf,
+    timeout: conf.db.timeouts.default,
     pure: opts?.pure ?? false,
     notify: true,
   });
@@ -28,6 +29,7 @@ export async function createTestDB(opts?: { pure?: boolean }) {
     db,
     ...db,
     store,
+    conf,
     kysely: db.kysely,
     [Symbol.asyncDispose]: async () => {
       const { rows } = await sql<

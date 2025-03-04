@@ -14,10 +14,10 @@ export class DittoPush {
   private server: Promise<ApplicationServer | undefined>;
 
   constructor(opts: DittoPushOpts) {
-    const { conf, relay } = opts;
+    const { conf } = opts;
 
     this.server = (async () => {
-      const meta = await getInstanceMetadata(relay);
+      const meta = await getInstanceMetadata(opts);
       const keys = await conf.vapidKeys;
 
       if (keys) {

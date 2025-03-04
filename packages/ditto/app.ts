@@ -1,5 +1,5 @@
 import { DittoConf } from '@ditto/conf';
-import { DittoDB, DittoPolyPg } from '@ditto/db';
+import { DittoPolyPg } from '@ditto/db';
 import { paginationMiddleware, tokenMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoApp, type DittoEnv } from '@ditto/mastoapi/router';
 import { relayPoolRelaysSizeGauge, relayPoolSubscriptionsSizeGauge } from '@ditto/metrics';
@@ -12,6 +12,7 @@ import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
 
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
+import { startSentry } from '@/sentry.ts';
 import { DittoAPIStore } from '@/storages/DittoAPIStore.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { DittoPool } from '@/storages/DittoPool.ts';
@@ -54,8 +55,6 @@ import {
   adminSetRelaysController,
   deleteZapSplitsController,
   getZapSplitsController,
-  nameRequestController,
-  nameRequestsController,
   statusZapSplitsController,
   updateInstanceController,
   updateZapSplitsController,
@@ -148,24 +147,20 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
+import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
-  Variables: {
-    conf: DittoConf;
+  Variables: DittoEnv['Variables'] & {
     /** Uploader for the user to upload files. */
     uploader?: NUploader;
     /** NIP-98 signed event proving the pubkey is owned by the user. */
     proof?: NostrEvent;
-    /** Kysely instance for the database. */
-    db: DittoDB;
-    /** Base database store. No content filtering. */
-    relay: NRelay;
     /** Normalized pagination params. */
     pagination: { since?: number; until?: number; limit: number };
     /** Translation service. */
     translator?: DittoTranslator;
-    signal: AbortSignal;
     user?: {
       /** Signer to get the logged-in user's pubkey, relays, and to sign events, or `undefined` if the user isn't logged in. */
       signer: NostrSigner;
@@ -182,6 +177,8 @@ type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Respo
 
 const conf = new DittoConf(Deno.env);
 
+startSentry(conf);
+
 const db = new DittoPolyPg(conf.databaseUrl, {
   poolSize: conf.pg.poolSize,
   debug: conf.pgliteDebug,
@@ -191,7 +188,7 @@ await db.migrate();
 
 const pgstore = new DittoPgStore({
   db,
-  pubkey: await conf.signer.getPublicKey(),
+  conf,
   timeout: conf.db.timeouts.default,
   notify: conf.notifyEnabled,
 });
@@ -199,7 +196,7 @@ const pgstore = new DittoPgStore({
 const pool = new DittoPool({ conf, relay: pgstore });
 const relay = new DittoRelayStore({ db, conf, relay: pgstore });
 
-await seedZapSplits(relay);
+await seedZapSplits({ conf, relay });
 
 if (conf.firehoseEnabled) {
   startFirehose({
@@ -443,14 +440,14 @@ app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMi
 app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), configController);
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);
 app.delete('/api/v1/pleroma/admin/statuses/:id', userMiddleware({ role: 'admin' }), pleromaAdminDeleteStatusController);
+app.route('/api/v1/pleroma/admin/users/permission_group', pleromaAdminPermissionGroupsRoute);
 
 app.get('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminSetRelaysController);
 
 app.put('/api/v1/admin/ditto/instance', userMiddleware({ role: 'admin' }), updateInstanceController);
 
-app.post('/api/v1/ditto/names', userMiddleware(), nameRequestController);
-app.get('/api/v1/ditto/names', userMiddleware(), nameRequestsController);
+app.route('/api/v1/ditto/names', dittoNamesRoute);
 
 app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captchaController);
 app.post(

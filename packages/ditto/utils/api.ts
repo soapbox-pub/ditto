@@ -27,10 +27,10 @@ async function createEvent<E extends (DittoEnv & { Variables: { user?: User } })
   }
 
   const event = await user.signer.signEvent({
-    content: '',
-    created_at: nostrNow(),
-    tags: [],
     ...t,
+    content: t.content ?? '',
+    created_at: t.created_at ?? nostrNow(),
+    tags: t.tags ?? [],
   });
 
   await relay.event(event, { signal, publish: true });
@@ -118,7 +118,7 @@ async function updateAdminEvent<E extends EventStub>(
   return createAdminEvent(fn(prev), c);
 }
 
-function updateUser(pubkey: string, n: Record<string, boolean>, c: AppContext): Promise<NostrEvent> {
+function updateUser(pubkey: string, n: Record<string, boolean>, c: Context): Promise<NostrEvent> {
   return updateNames(30382, pubkey, n, c);
 }
 

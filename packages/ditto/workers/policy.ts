@@ -3,6 +3,8 @@ import { NostrEvent, NostrRelayOK, NPolicy } from '@nostrify/nostrify';
 import { logi } from '@soapbox/logi';
 import * as Comlink from 'comlink';
 
+import { errorJson } from '@/utils/log.ts';
+
 import type { CustomPolicy } from '@/workers/policy.worker.ts';
 
 export class PolicyWorker implements NPolicy {
@@ -84,6 +86,15 @@ export class PolicyWorker implements NPolicy {
         this.enabled = false;
         return;
       }
+
+      logi({
+        level: 'error',
+        ns: 'ditto.system.policy',
+        msg: 'Failed to load custom policy',
+        path: conf.policy,
+        error: errorJson(e),
+        enabled: false,
+      });
 
       throw new Error(`DITTO_POLICY (error importing policy): ${conf.policy}`);
     }
