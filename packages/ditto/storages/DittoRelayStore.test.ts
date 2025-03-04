@@ -56,7 +56,7 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
   const metadata: NostrMetadata = { nip05: 'alex@gleasonator.dev' };
   const event = genEvent({ kind: 0, content: JSON.stringify(metadata) }, alex);
 
-  await store.updateAuthorData(event);
+  await store.event(event);
 
   const adminDeletion = await conf.signer.signEvent({
     kind: 5,
