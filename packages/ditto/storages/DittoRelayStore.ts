@@ -285,8 +285,6 @@ export class DittoRelayStore implements NRelay {
         })
       )
       .execute();
-
-    return author;
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
