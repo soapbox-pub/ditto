@@ -85,15 +85,19 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
 
   await store.event(event);
 
-  const row = await db.kysely
-    .selectFrom('author_stats')
-    .selectAll()
-    .where('pubkey', '=', getPublicKey(alex))
-    .executeTakeFirst();
+  await waitFor(async () => {
+    const row = await db.kysely
+      .selectFrom('author_stats')
+      .selectAll()
+      .where('pubkey', '=', getPublicKey(alex))
+      .executeTakeFirst();
 
-  assertEquals(row?.nip05, 'alex@gleasonator.dev');
-  assertEquals(row?.nip05_domain, 'gleasonator.dev');
-  assertEquals(row?.nip05_hostname, 'gleasonator.dev');
+    assertEquals(row?.nip05, 'alex@gleasonator.dev');
+    assertEquals(row?.nip05_domain, 'gleasonator.dev');
+    assertEquals(row?.nip05_hostname, 'gleasonator.dev');
+
+    return true;
+  }, 3000);
 
   const grant = await conf.signer.signEvent({
     kind: 30360,
