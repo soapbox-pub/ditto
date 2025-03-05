@@ -161,7 +161,7 @@ export class DittoRelayStore implements NRelay {
     }
     // Recheck encountered after async ops.
     if (this.encounters.has(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return;
     }
     // Set the event as encountered after verifying the signature.
     this.encounters.set(event.id, true);
@@ -293,23 +293,17 @@ export class DittoRelayStore implements NRelay {
       return;
     }
 
-    await db.kysely.insertInto('author_stats')
-      .values({
-        pubkey: author.pubkey,
-        followers_count: 0,
-        following_count: 0,
-        notes_count: 0,
-        search: '',
-      })
-      .onConflict((oc) =>
-        oc.column('pubkey').doUpdateSet({
-          nip05: null,
-          nip05_domain: null,
-          nip05_hostname: null,
-          nip05_last_verified_at: author.created_at,
-        })
-      )
-      .execute();
+    try {
+      await db.kysely.updateTable('author_stats').set({
+        nip05: null,
+        nip05_domain: null,
+        nip05_hostname: null,
+        nip05_last_verified_at: author.created_at,
+      }).where('pubkey', '=', author.pubkey)
+        .execute();
+    } catch {
+      // nothing hahah
+    }
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
