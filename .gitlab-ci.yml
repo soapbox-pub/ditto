@@ -2,13 +2,13 @@ image: denoland/deno:2.2.2
 
 default:
   interruptible: true
-  timeout: 2 minutes
 
 stages:
   - test
 
 test:
   stage: test
+  timeout: 2 minutes
   script:
     - deno fmt --check
     - deno task lint
