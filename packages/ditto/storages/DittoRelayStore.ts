@@ -69,10 +69,6 @@ export class DittoRelayStore implements NRelay {
     this.push = new DittoPush(opts);
     this.policyWorker = new PolicyWorker(conf);
 
-    this.listen().catch((e: unknown) => {
-      logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
-    });
-
     this.faviconCache = new SimpleLRU<string, URL>(
       async (domain, { signal }) => {
         const row = await queryFavicon(db.kysely, domain);
@@ -94,17 +90,30 @@ export class DittoRelayStore implements NRelay {
       },
       { ...conf.caches.nip05, gauge: cachedNip05sSizeGauge },
     );
+
+    this.listen().catch((e: unknown) => {
+      if (e instanceof Error && e.name === 'AbortError') {
+        return; // `this.close()` was called. This is expected.
+      }
+
+      throw e;
+    });
   }
 
   /** Open a firehose to the relay. */
   private async listen(): Promise<void> {
     const { relay } = this.opts;
-    const { signal } = this.controller;
+    const { signal } = this.controller; // this controller only aborts when `this.close()` is called
 
     for await (const msg of relay.req([{ limit: 0 }], { signal })) {
       if (msg[0] === 'EVENT') {
         const [, , event] = msg;
-        await this.event(event, { signal });
+        const { id, kind } = event;
+        try {
+          await this.event(event, { signal });
+        } catch (e) {
+          logi({ level: 'error', ns: this.ns, id, kind, source: 'listen', error: errorJson(e) });
+        }
       }
     }
   }
@@ -127,7 +136,7 @@ export class DittoRelayStore implements NRelay {
 
     // Skip events that have already been encountered.
     if (this.encounters.get(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return; // NIP-01: duplicate events should have ok `true`
     }
     // Reject events that are too far in the future.
     if (eventAge(event) < -Time.minutes(1)) {
@@ -188,7 +197,7 @@ export class DittoRelayStore implements NRelay {
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
-      await Promise.allSettled([
+      Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
         this.prewarmLinkPreview(event, signal),
@@ -253,7 +262,7 @@ export class DittoRelayStore implements NRelay {
   }
 
   /** Sets the nip05 column to null if the event is a revocation of a nip05 */
-  private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal) {
+  private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal): Promise<void> {
     const { conf, relay, db } = this.opts;
 
     if (event.kind !== 5 || await conf.signer.getPublicKey() !== event.pubkey) {
