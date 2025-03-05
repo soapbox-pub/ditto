@@ -128,7 +128,7 @@ const adminAccountActionSchema = z.object({
 });
 
 const adminActionController: AppController = async (c) => {
-  const { conf, relay, requestId } = c.var;
+  const { conf, relay, requestId, signal } = c.var;
 
   const body = await parseBody(c.req.raw);
   const result = adminAccountActionSchema.safeParse(body);
@@ -161,7 +161,23 @@ const adminActionController: AppController = async (c) => {
   if (data.type === 'revoke_name') {
     n.revoke_name = true;
     try {
-      await relay.remove!([{ kinds: [30360], authors: [await conf.signer.getPublicKey()], '#p': [authorId] }]);
+      const [event] = await relay.query([{
+        kinds: [30360],
+        authors: [await conf.signer.getPublicKey()],
+        '#p': [authorId],
+      }], { signal });
+
+      if (event) {
+        await createAdminEvent({
+          kind: 5,
+          tags: [
+            ['e', event.id],
+            ['k', '30360'],
+          ],
+        }, c);
+      } else {
+        return c.json({ error: 'Name grant not found' }, 404);
+      }
     } catch (e) {
       logi({ level: 'error', ns: 'ditto.api.admin.account.action', type: data.type, requestId, error: errorJson(e) });
       return c.json({ error: 'Unexpected runtime error' }, 500);

@@ -18,6 +18,7 @@ import {
   NRelay,
   NSchema as n,
 } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { logi } from '@soapbox/logi';
 import { UpdateObject } from 'kysely';
 import { LRUCache } from 'lru-cache';
@@ -41,7 +42,6 @@ import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
-import { nip19 } from 'nostr-tools';
 
 interface DittoRelayStoreOpts {
   db: DittoDB;
@@ -69,10 +69,6 @@ export class DittoRelayStore implements NRelay {
     this.push = new DittoPush(opts);
     this.policyWorker = new PolicyWorker(conf);
 
-    this.listen().catch((e: unknown) => {
-      logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
-    });
-
     this.faviconCache = new SimpleLRU<string, URL>(
       async (domain, { signal }) => {
         const row = await queryFavicon(db.kysely, domain);
@@ -94,17 +90,30 @@ export class DittoRelayStore implements NRelay {
       },
       { ...conf.caches.nip05, gauge: cachedNip05sSizeGauge },
     );
+
+    this.listen().catch((e: unknown) => {
+      if (e instanceof Error && e.name === 'AbortError') {
+        return; // `this.close()` was called. This is expected.
+      }
+
+      throw e;
+    });
   }
 
   /** Open a firehose to the relay. */
   private async listen(): Promise<void> {
     const { relay } = this.opts;
-    const { signal } = this.controller;
+    const { signal } = this.controller; // this controller only aborts when `this.close()` is called
 
     for await (const msg of relay.req([{ limit: 0 }], { signal })) {
       if (msg[0] === 'EVENT') {
         const [, , event] = msg;
-        await this.event(event, { signal });
+        const { id, kind } = event;
+        try {
+          await this.event(event, { signal });
+        } catch (e) {
+          logi({ level: 'error', ns: this.ns, id, kind, source: 'listen', error: errorJson(e) });
+        }
       }
     }
   }
@@ -127,7 +136,7 @@ export class DittoRelayStore implements NRelay {
 
     // Skip events that have already been encountered.
     if (this.encounters.get(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return; // NIP-01: duplicate events should have ok `true`
     }
     // Reject events that are too far in the future.
     if (eventAge(event) < -Time.minutes(1)) {
@@ -152,7 +161,7 @@ export class DittoRelayStore implements NRelay {
     }
     // Recheck encountered after async ops.
     if (this.encounters.has(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return;
     }
     // Set the event as encountered after verifying the signature.
     this.encounters.set(event.id, true);
@@ -184,6 +193,7 @@ export class DittoRelayStore implements NRelay {
     }
 
     try {
+      await this.handleRevokeNip05(event, signal);
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
@@ -249,6 +259,42 @@ export class DittoRelayStore implements NRelay {
     } catch {
       // receipt_id is unique, do nothing
     }
+  }
+
+  /** Sets the nip05 column to null if the event is a revocation of a nip05 */
+  private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+    const { conf, relay, db } = this.opts;
+
+    if (event.kind !== 5 || await conf.signer.getPublicKey() !== event.pubkey) {
+      return;
+    }
+
+    if (!event.tags.some(([name, value]) => name === 'k' && value === '30360')) {
+      return;
+    }
+
+    const eventId = event.tags.find(([name]) => name === 'e')?.[1];
+    if (!eventId || !isNostrId(eventId)) {
+      return;
+    }
+
+    const [grant] = await relay.query([{ kinds: [30360], ids: [eventId] }], { signal });
+    if (!grant) {
+      return;
+    }
+
+    const authorId = grant.tags.find(([name]) => name === 'p')?.[1];
+    if (!authorId || !isNostrId(authorId)) {
+      return;
+    }
+
+    await db.kysely.updateTable('author_stats').set({
+      nip05: null,
+      nip05_domain: null,
+      nip05_hostname: null,
+      nip05_last_verified_at: null,
+    }).where('pubkey', '=', authorId)
+      .execute();
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */

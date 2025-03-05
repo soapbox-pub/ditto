@@ -8,6 +8,7 @@ stages:
 
 test:
   stage: test
+  timeout: 2 minutes
   script:
     - deno fmt --check
     - deno task lint

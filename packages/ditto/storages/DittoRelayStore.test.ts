@@ -5,9 +5,10 @@ import { assertEquals } from '@std/assert';
 import { waitFor } from '@std/async/unstable-wait-for';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
-import { DittoRelayStore } from './DittoRelayStore.ts';
+import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 import type { NostrMetadata } from '@nostrify/types';
+import { nostrNow } from '@/utils.ts';
 
 Deno.test('generates set event for nip05 request', async () => {
   await using test = setupTest();
@@ -63,6 +64,78 @@ Deno.test('updateAuthorData sets nip05', async () => {
   assertEquals(row?.nip05, 'alex@gleasonator.dev');
   assertEquals(row?.nip05_domain, 'gleasonator.dev');
   assertEquals(row?.nip05_hostname, 'gleasonator.dev');
+});
+
+Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
+  const alex = generateSecretKey();
+
+  await using test = setupTest((req) => {
+    switch (req.url) {
+      case 'https://gleasonator.dev/.well-known/nostr.json?name=alex':
+        return jsonResponse({ names: { alex: getPublicKey(alex) } });
+      default:
+        return new Response('Not found', { status: 404 });
+    }
+  });
+
+  const { db, store, conf } = test;
+
+  const metadata: NostrMetadata = { nip05: 'alex@gleasonator.dev' };
+  const event = genEvent({ kind: 0, content: JSON.stringify(metadata) }, alex);
+
+  await store.event(event);
+
+  await waitFor(async () => {
+    const row = await db.kysely
+      .selectFrom('author_stats')
+      .selectAll()
+      .where('pubkey', '=', getPublicKey(alex))
+      .executeTakeFirst();
+
+    assertEquals(row?.nip05, 'alex@gleasonator.dev');
+    assertEquals(row?.nip05_domain, 'gleasonator.dev');
+    assertEquals(row?.nip05_hostname, 'gleasonator.dev');
+
+    return true;
+  }, 3000);
+
+  const grant = await conf.signer.signEvent({
+    kind: 30360,
+    tags: [
+      ['d', 'alex@gleasonator.dev'],
+      ['r', 'alex@gleasonator.dev'],
+      ['L', 'nip05.domain'],
+      ['l', 'gleasonator.dev', 'nip05.domain'],
+      ['p', event.pubkey],
+      ['e', 'whatever'],
+    ],
+    created_at: nostrNow(),
+    content: '',
+  });
+
+  await store.event(grant);
+
+  const adminDeletion = await conf.signer.signEvent({
+    kind: 5,
+    tags: [
+      ['k', '30360'],
+      ['e', grant.id],
+    ],
+    created_at: nostrNow(),
+    content: '',
+  });
+
+  await store.event(adminDeletion);
+
+  const nullRow = await db.kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', getPublicKey(alex))
+    .executeTakeFirst();
+
+  assertEquals(nullRow?.nip05, null);
+  assertEquals(nullRow?.nip05_domain, null);
+  assertEquals(nullRow?.nip05_hostname, null);
 });
 
 Deno.test('fetchRelated', async () => {
