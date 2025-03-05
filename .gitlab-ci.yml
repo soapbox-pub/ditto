@@ -2,6 +2,7 @@ image: denoland/deno:2.2.2
 
 default:
   interruptible: true
+  timeout: 2 minutes
 
 stages:
   - test
