@@ -85,6 +85,16 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
 
   await store.event(event);
 
+  const row = await db.kysely
+    .selectFrom('author_stats')
+    .selectAll()
+    .where('pubkey', '=', getPublicKey(alex))
+    .executeTakeFirst();
+
+  assertEquals(row?.nip05, 'alex@gleasonator.dev');
+  assertEquals(row?.nip05_domain, 'gleasonator.dev');
+  assertEquals(row?.nip05_hostname, 'gleasonator.dev');
+
   const adminDeletion = await conf.signer.signEvent({
     kind: 5,
     created_at: nostrNow(),
@@ -97,15 +107,15 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
 
   await store.event(adminDeletion);
 
-  const row = await db.kysely
+  const nullRow = await db.kysely
     .selectFrom('author_stats')
     .selectAll()
     .where('pubkey', '=', getPublicKey(alex))
     .executeTakeFirst();
 
-  assertEquals(row?.nip05, null);
-  assertEquals(row?.nip05_domain, null);
-  assertEquals(row?.nip05_hostname, null);
+  assertEquals(nullRow?.nip05, null);
+  assertEquals(nullRow?.nip05_domain, null);
+  assertEquals(nullRow?.nip05_hostname, null);
 });
 
 function setupTest(cb?: (req: Request) => Response | Promise<Response>) {
