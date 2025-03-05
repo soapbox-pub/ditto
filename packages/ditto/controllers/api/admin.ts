@@ -173,7 +173,6 @@ const adminActionController: AppController = async (c) => {
           tags: [
             ['e', event.id],
             ['k', '30360'],
-            ['p', authorId], // NOTE: this is not in the NIP-09 spec
           ],
         }, c);
       } else {
