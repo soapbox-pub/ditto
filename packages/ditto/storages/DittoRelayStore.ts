@@ -288,17 +288,12 @@ export class DittoRelayStore implements NRelay {
       return;
     }
 
-    const [author] = await relay.query([{ kinds: [0], authors: [authorId] }], { signal });
-    if (!author) {
-      return;
-    }
-
     await db.kysely.updateTable('author_stats').set({
       nip05: null,
       nip05_domain: null,
       nip05_hostname: null,
-      nip05_last_verified_at: author.created_at,
-    }).where('pubkey', '=', author.pubkey)
+      nip05_last_verified_at: null,
+    }).where('pubkey', '=', authorId)
       .execute();
   }
 
