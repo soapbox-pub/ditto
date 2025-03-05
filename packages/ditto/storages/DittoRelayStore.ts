@@ -186,7 +186,7 @@ export class DittoRelayStore implements NRelay {
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
-      Promise.allSettled([
+      await Promise.allSettled([
         this.handleRevokeNip05(event, signal),
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
@@ -281,7 +281,7 @@ export class DittoRelayStore implements NRelay {
           nip05: null,
           nip05_domain: null,
           nip05_hostname: null,
-          nip05_last_verified_at: event.created_at,
+          nip05_last_verified_at: author.created_at,
         })
       )
       .execute();
