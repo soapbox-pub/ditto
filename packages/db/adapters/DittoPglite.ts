@@ -47,6 +47,16 @@ export class DittoPglite implements DittoDB {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
-    await this.kysely.destroy();
+    try {
+      // FIXME: `kysely.destroy()` calls `pglite.close()` internally, but it doesn't work.
+      await this.pglite.close();
+      await this.kysely.destroy();
+    } catch (e) {
+      if (e instanceof Error && e.message === 'PGlite is closed') {
+        // Make dispose idempotent.
+      } else {
+        throw e;
+      }
+    }
   }
 }
