@@ -65,9 +65,29 @@ Deno.test('updateAuthorData sets nip05', async () => {
   assertEquals(row?.nip05_hostname, 'gleasonator.dev');
 });
 
+Deno.test('fetchRelated', async () => {
+  await using test = setupTest();
+  const { pool, store } = test;
+
+  const post = genEvent({ kind: 1, content: 'hi' });
+  const reply = genEvent({ kind: 1, content: 'wussup?', tags: [['e', post.id], ['p', post.pubkey]] });
+
+  await pool.event(post);
+  await pool.event(reply);
+
+  await store.event(reply);
+
+  await waitFor(async () => {
+    const { count } = await test.store.count([{ ids: [post.id] }]);
+    return count > 0;
+  }, 3000);
+});
+
 function setupTest(cb?: (req: Request) => Response | Promise<Response>) {
   const conf = new DittoConf(Deno.env);
   const db = new DittoPolyPg(conf.databaseUrl);
+
+  const pool = new MockRelay();
   const relay = new MockRelay();
 
   const mockFetch: typeof fetch = async (input, init) => {
@@ -79,11 +99,12 @@ function setupTest(cb?: (req: Request) => Response | Promise<Response>) {
     }
   };
 
-  const store = new DittoRelayStore({ conf, db, relay, fetch: mockFetch });
+  const store = new DittoRelayStore({ conf, db, pool, relay, fetch: mockFetch });
 
   return {
     db,
     conf,
+    pool,
     store,
     [Symbol.asyncDispose]: async () => {
       await store[Symbol.asyncDispose]();
