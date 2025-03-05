@@ -293,17 +293,13 @@ export class DittoRelayStore implements NRelay {
       return;
     }
 
-    try {
-      await db.kysely.updateTable('author_stats').set({
-        nip05: null,
-        nip05_domain: null,
-        nip05_hostname: null,
-        nip05_last_verified_at: author.created_at,
-      }).where('pubkey', '=', author.pubkey)
-        .execute();
-    } catch {
-      // nothing hahah
-    }
+    await db.kysely.updateTable('author_stats').set({
+      nip05: null,
+      nip05_domain: null,
+      nip05_hostname: null,
+      nip05_last_verified_at: author.created_at,
+    }).where('pubkey', '=', author.pubkey)
+      .execute();
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
