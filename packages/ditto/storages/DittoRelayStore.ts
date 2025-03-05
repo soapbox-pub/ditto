@@ -354,7 +354,7 @@ export class DittoRelayStore implements NRelay {
     }
 
     if (ids.size) {
-      for (const event of await pool.query([{ ids: [...ids] }])) {
+      for (const event of await pool.query([{ ids: [...ids] }], { signal: AbortSignal.timeout(1000) })) {
         await this.event(event).catch(() => {});
       }
     }
