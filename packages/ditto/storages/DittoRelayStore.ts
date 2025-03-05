@@ -28,7 +28,7 @@ import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventAge, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isNostrId, nostrNow, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -46,6 +46,7 @@ import { nip19 } from 'nostr-tools';
 interface DittoRelayStoreOpts {
   db: DittoDB;
   conf: DittoConf;
+  pool: NRelay;
   relay: NRelay;
   fetch?: typeof fetch;
 }
@@ -192,7 +193,12 @@ export class DittoRelayStore implements NRelay {
         this.prewarmLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
-        .then(() => this.webPush(event))
+        .then(() =>
+          Promise.allSettled([
+            this.webPush(event),
+            this.fetchRelated(event),
+          ])
+        )
         .catch(() => {});
     }
   }
@@ -320,6 +326,37 @@ export class DittoRelayStore implements NRelay {
         })
         .onConflict((oc) => oc.column('pubkey').doUpdateSet(updates))
         .execute();
+    }
+  }
+
+  private async fetchRelated(event: NostrEvent): Promise<void> {
+    const ids = new Set<string>();
+
+    for (const tag of event.tags) {
+      const [name, value] = tag;
+
+      if ((name === 'e' || name === 'q') && isNostrId(value) && !this.encounters.has(value)) {
+        ids.add(value);
+      }
+    }
+
+    const { db, pool } = this.opts;
+
+    if (ids.size) {
+      const query = db.kysely
+        .selectFrom('nostr_events')
+        .select('id')
+        .where('id', 'in', [...ids]);
+
+      for (const row of await query.execute().catch(() => [])) {
+        ids.delete(row.id);
+      }
+    }
+
+    if (ids.size) {
+      for (const event of await pool.query([{ ids: [...ids] }])) {
+        await this.event(event).catch(() => {});
+      }
     }
   }
 
