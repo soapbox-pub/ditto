@@ -95,13 +95,29 @@ Deno.test('Admin revokes nip05 grant and nip05 column gets null', async () => {
   assertEquals(row?.nip05_domain, 'gleasonator.dev');
   assertEquals(row?.nip05_hostname, 'gleasonator.dev');
 
+  const grant = await conf.signer.signEvent({
+    kind: 30360,
+    tags: [
+      ['d', 'alex@gleasonator.dev'],
+      ['r', 'alex@gleasonator.dev'],
+      ['L', 'nip05.domain'],
+      ['l', 'gleasonator.dev', 'nip05.domain'],
+      ['p', event.pubkey],
+      ['e', 'whatever'],
+    ],
+    created_at: nostrNow(),
+    content: '',
+  });
+
+  await store.event(grant);
+
   const adminDeletion = await conf.signer.signEvent({
     kind: 5,
-    created_at: nostrNow(),
     tags: [
       ['k', '30360'],
-      ['p', event.pubkey], // NOTE: this is not in the NIP-09 spec
+      ['e', grant.id],
     ],
+    created_at: nostrNow(),
     content: '',
   });
 

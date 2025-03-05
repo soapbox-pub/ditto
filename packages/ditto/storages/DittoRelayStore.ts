@@ -183,11 +183,11 @@ export class DittoRelayStore implements NRelay {
     }
 
     try {
+      await this.handleRevokeNip05(event, signal);
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
       await Promise.allSettled([
-        this.handleRevokeNip05(event, signal),
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
         this.prewarmLinkPreview(event, signal),
@@ -258,7 +258,17 @@ export class DittoRelayStore implements NRelay {
       return;
     }
 
-    const authorId = event.tags.find(([name]) => name === 'p')?.[1];
+    const eventId = event.tags.find(([name]) => name === 'e')?.[1];
+    if (!eventId || !isNostrId(eventId)) {
+      return;
+    }
+
+    const [grant] = await relay.query([{ kinds: [30360], ids: [eventId] }], { signal });
+    if (!grant) {
+      return;
+    }
+
+    const authorId = grant.tags.find(([name]) => name === 'p')?.[1];
     if (!authorId || !isNostrId(authorId)) {
       return;
     }
