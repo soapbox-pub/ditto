@@ -58,7 +58,7 @@ export class DittoPostgres implements DittoDB {
   }
 
   async [Symbol.asyncDispose](): Promise<void> {
-    await this.pg.end();
+    await this.pg.end({ timeout: 0 }); // force-close the connections
     await this.kysely.destroy();
   }
 }

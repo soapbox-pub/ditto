@@ -156,6 +156,24 @@ Deno.test('fetchRelated', async () => {
   }, 3000);
 });
 
+Deno.test('event author is fetched', async () => {
+  await using test = setupTest();
+  const { pool, store } = test;
+
+  const sk = generateSecretKey();
+  const pubkey = getPublicKey(sk);
+
+  const post = genEvent({ kind: 1 }, sk);
+  const author = genEvent({ kind: 0 }, sk);
+
+  await pool.event(author);
+  await store.event(post);
+
+  const [result] = await store.query([{ kinds: [0], authors: [pubkey] }]);
+
+  assertEquals(result?.id, author.id);
+});
+
 function setupTest(cb?: (req: Request) => Response | Promise<Response>) {
   const conf = new DittoConf(Deno.env);
   const db = new DittoPolyPg(conf.databaseUrl);
