@@ -143,8 +143,14 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
     controllers.set(subId, controller);
 
     try {
-      for await (const [verb, , ...rest] of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
-        send([verb, subId, ...rest] as NostrRelayMsg);
+      for await (const msg of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
+        if (msg[0] === 'EVENT') {
+          const [, , event] = msg;
+          send(['EVENT', subId, purifyEvent(event)]);
+        } else {
+          const [verb, , ...rest] = msg;
+          send([verb, subId, ...rest] as NostrRelayMsg);
+        }
       }
     } catch (e) {
       if (e instanceof RelayError) {
