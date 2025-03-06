@@ -118,7 +118,7 @@ export class DittoPgStore extends NPostgres {
         const [event] = await this.query([{ ids: [id] }]);
 
         if (event) {
-          await this.fulfill(event);
+          await this.fulfill(purifyEvent(event));
         }
       });
     }
@@ -375,7 +375,7 @@ export class DittoPgStore extends NPostgres {
   /** Get events for filters from the database. */
   override async query(
     filters: NostrFilter[],
-    opts: { signal?: AbortSignal; pure?: boolean; timeout?: number; limit?: number } = {},
+    opts: { signal?: AbortSignal; timeout?: number; limit?: number } = {},
   ): Promise<DittoEvent[]> {
     filters = await this.expandFilters(filters);
 
