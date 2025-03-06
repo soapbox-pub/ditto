@@ -55,6 +55,7 @@ interface DittoRelayStoreOpts {
 export class DittoRelayStore implements NRelay {
   private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
+  private authorEncounters = new LRUCache<string, true>({ max: 5000, ttl: Time.hours(4) });
   private controller = new AbortController();
   private policyWorker: PolicyWorker;
 
@@ -130,8 +131,8 @@ export class DittoRelayStore implements NRelay {
    * Common pipeline function to process (and maybe store) events.
    * It is idempotent, so it can be called multiple times for the same event.
    */
-  async event(event: DittoEvent, opts: { publish?: boolean; signal?: AbortSignal } = {}): Promise<void> {
-    const { conf, relay } = this.opts;
+  async event(event: DittoEvent, opts: { signal?: AbortSignal } = {}): Promise<void> {
+    const { conf, relay, pool } = this.opts;
     const { signal } = opts;
 
     // Skip events that have already been encountered.
@@ -177,14 +178,30 @@ export class DittoRelayStore implements NRelay {
       await relay.event(event, { signal });
     }
 
-    // Ensure the event doesn't violate the policy.
-    if (event.pubkey !== await conf.signer.getPublicKey()) {
-      await this.policyFilter(event, signal);
-    }
-
     // Prepare the event for additional checks.
     // FIXME: This is kind of hacky. Should be reorganized to fetch only what's needed for each stage.
     await this.hydrateEvent(event, signal);
+
+    // Try to fetch a kind 0 for the user if we don't have one yet.
+    // TODO: Create a more elaborate system to refresh all replaceable events by addr.
+    if (event.kind !== 0 && !event.author?.sig && !this.authorEncounters.get(event.pubkey)) {
+      this.authorEncounters.set(event.pubkey, true);
+
+      const [author] = await pool.query(
+        [{ kinds: [0], authors: [event.pubkey], limit: 1 }],
+        { signal: AbortSignal.timeout(1000) },
+      );
+
+      if (author) {
+        // await because it's important to have the kind 0 before the policy filter.
+        await this.event(author, { signal });
+      }
+    }
+
+    // Ensure the event doesn't violate the policy.
+    if (event.pubkey !== await conf.signer.getPublicKey()) {
+      await this.policyFilter(purifyEvent(event), signal);
+    }
 
     // Ensure that the author is not banned.
     const n = getTagSet(event.user?.tags ?? [], 'n');
