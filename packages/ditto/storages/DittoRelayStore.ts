@@ -429,10 +429,12 @@ export class DittoRelayStore implements NRelay {
   }
 
   private async prewarmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
-    const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
+    if (event.kind === 1) {
+      const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
 
-    if (firstUrl) {
-      await unfurlCardCached(firstUrl, signal);
+      if (firstUrl) {
+        await unfurlCardCached(firstUrl, signal);
+      }
     }
   }
 
