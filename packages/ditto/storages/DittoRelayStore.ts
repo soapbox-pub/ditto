@@ -1,6 +1,7 @@
 import { DittoConf } from '@ditto/conf';
 import { DittoDB, DittoTables } from '@ditto/db';
 import {
+  activeAuthorSubscriptionsGauge,
   cachedFaviconsSizeGauge,
   cachedNip05sSizeGauge,
   pipelineEventsCounter,
@@ -185,6 +186,7 @@ export class DittoRelayStore implements NRelay {
     // Try to fetch a kind 0 for the user if we don't have one yet.
     // TODO: Create a more elaborate system to refresh all replaceable events by addr.
     if (event.kind !== 0 && !event.author?.sig && !this.authorEncounters.get(event.pubkey)) {
+      activeAuthorSubscriptionsGauge.inc();
       this.authorEncounters.set(event.pubkey, true);
 
       const [author] = await pool.query(
@@ -196,6 +198,7 @@ export class DittoRelayStore implements NRelay {
         // await because it's important to have the kind 0 before the policy filter.
         await this.event(author, { signal });
       }
+      activeAuthorSubscriptionsGauge.dec();
     }
 
     // Ensure the event doesn't violate the policy.
