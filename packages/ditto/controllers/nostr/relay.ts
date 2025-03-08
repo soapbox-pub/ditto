@@ -101,6 +101,10 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
   // HACK: Due to a bug in Deno, we need to call the close handler manually.
   // https://github.com/denoland/deno/issues/27924
   function closeSocket(code?: number, reason?: string): void {
+    for (const controller of controllers.values()) {
+      controller.abort();
+    }
+    send(['NOTICE', `closed: ${reason} (${code})`]);
     socket.close(code, reason);
     handleSocketClose();
   }
@@ -152,9 +156,10 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
+    const signal = controller.signal;
 
     try {
-      for await (const msg of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
+      for await (const msg of relay.req(filters, { limit: 100, signal, timeout: conf.db.timeouts.relay })) {
         if (msg[0] === 'EVENT') {
           const [, , event] = msg;
           send(['EVENT', subId, purifyEvent(event)]);
@@ -171,8 +176,8 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
       } else {
         send(['CLOSED', subId, 'error: something went wrong']);
       }
+    } finally {
       controllers.delete(subId);
-      return;
     }
   }
 
