@@ -33,7 +33,7 @@ export class DittoPool extends NPool<NRelay1> {
     this._opts = opts;
   }
 
-  private async reqRouter(filters: NostrFilter[]): Promise<Map<string, NostrFilter[]>> {
+  async reqRouter(filters: NostrFilter[]): Promise<Map<string, NostrFilter[]>> {
     const { conf, relay, maxReqRelays = 5 } = this._opts;
 
     const routes = new Map<string, NostrFilter[]>();
@@ -91,7 +91,7 @@ export class DittoPool extends NPool<NRelay1> {
     return routes;
   }
 
-  private async eventRouter(event: NostrEvent): Promise<string[]> {
+  async eventRouter(event: NostrEvent): Promise<string[]> {
     const { conf, maxEventRelays = 10 } = this._opts;
     const { pubkey } = event;
 
