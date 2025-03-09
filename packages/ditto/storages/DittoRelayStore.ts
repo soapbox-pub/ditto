@@ -41,7 +41,7 @@ import { fetchFavicon, insertFavicon, queryFavicon } from '@/utils/favicon.ts';
 import { lookupNip05 } from '@/utils/nip05.ts';
 import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { unfurlCardCached } from '@/utils/unfurl.ts';
+import { unfurlCard } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
 
 interface DittoRelayStoreOpts {
@@ -217,10 +217,11 @@ export class DittoRelayStore implements NRelay {
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
+      const signal = AbortSignal.timeout(3000);
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
-        this.prewarmLinkPreview(event, signal),
+        this.warmLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
         .then(() =>
@@ -428,12 +429,34 @@ export class DittoRelayStore implements NRelay {
     }
   }
 
-  private async prewarmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+  private async warmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+    const { db, conf } = this.opts;
+
     if (event.kind === 1) {
       const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
 
+      console.log({ firstUrl });
+
       if (firstUrl) {
-        await unfurlCardCached(firstUrl, signal);
+        const linkPreview = await unfurlCard(firstUrl, { conf, signal });
+
+        console.log(linkPreview);
+
+        if (linkPreview) {
+          await db.kysely.insertInto('event_stats')
+            .values({
+              event_id: event.id,
+              replies_count: 0,
+              reposts_count: 0,
+              reactions_count: 0,
+              quotes_count: 0,
+              reactions: '{}',
+              zaps_amount: 0,
+              link_preview: linkPreview,
+            })
+            .onConflict((oc) => oc.column('event_id').doUpdateSet({ link_preview: linkPreview }))
+            .execute();
+        }
       }
     }
   }

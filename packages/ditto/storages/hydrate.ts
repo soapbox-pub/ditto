@@ -411,6 +411,7 @@ async function gatherEventStats(
     quotes_count: Math.max(0, row.quotes_count),
     reactions: row.reactions,
     zaps_amount: Math.max(0, row.zaps_amount),
+    link_preview: row.link_preview,
   }));
 }
 
