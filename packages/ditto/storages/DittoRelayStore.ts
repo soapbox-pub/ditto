@@ -217,7 +217,7 @@ export class DittoRelayStore implements NRelay {
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
-      const signal = AbortSignal.timeout(3000);
+      const signal = AbortSignal.timeout(5000);
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
