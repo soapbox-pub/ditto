@@ -8,7 +8,7 @@ import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@h
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
-import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
+import { NostrEvent, NostrSigner, NPool, NRelay, NUploader } from '@nostrify/nostrify';
 
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
@@ -167,6 +167,7 @@ export interface AppEnv extends DittoEnv {
       /** User's relay. Might filter out unwanted content. */
       relay: NRelay;
     };
+    pool?: NPool<NRelay>;
   };
 }
 
@@ -234,8 +235,9 @@ const socketTokenMiddleware = tokenMiddleware((c) => {
 
 app.use(
   '/api/*',
-  (c, next) => {
+  (c: Context<DittoEnv & { Variables: { pool: NPool<NRelay> } }>, next) => {
     c.set('relay', new DittoAPIStore({ relay, pool }));
+    c.set('pool', pool);
     return next();
   },
   metricsMiddleware,

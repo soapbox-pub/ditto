@@ -1,13 +1,11 @@
 import { paginated, paginatedList } from '@ditto/mastoapi/pagination';
 import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
-import { nip19 } from 'nostr-tools';
 import { z } from 'zod';
 
 import { AppContext, AppController } from '@/app.ts';
 import { booleanParamSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { extractIdentifier, lookupPubkey } from '@/utils/lookup.ts';
-import { lookupNip05 } from '@/utils/nip05.ts';
+import { extractIdentifier, lookupEvent, lookupPubkey } from '@/utils/lookup.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { getFollowedPubkeys } from '@/queries.ts';
@@ -34,7 +32,11 @@ const searchController: AppController = async (c) => {
     return c.json({ error: 'Bad request', schema: result.error }, 422);
   }
 
-  const event = await lookupEvent(c, { ...result.data, ...pagination });
+  if (!c.var.pool) {
+    throw new Error('Ditto pool not available');
+  }
+
+  const event = await lookupEvent(result.data.q, { ...c.var, pool: c.var.pool });
   const lookup = extractIdentifier(result.data.q);
 
   // Render account from pubkey.
@@ -50,7 +52,7 @@ const searchController: AppController = async (c) => {
   let events: NostrEvent[] = [];
 
   if (event) {
-    events = [event];
+    events = await hydrateEvents({ ...c.var, events: [event] });
   }
 
   events.push(...(await searchEvents(c, { ...result.data, ...pagination, viewerPubkey }, signal)));
@@ -143,69 +145,6 @@ function typeToKinds(type: SearchQuery['type']): number[] {
     default:
       return [0, 1];
   }
-}
-
-/** Resolve a searched value into an event, if applicable. */
-async function lookupEvent(c: AppContext, query: SearchQuery): Promise<NostrEvent | undefined> {
-  const { relay, signal } = c.var;
-  const filters = await getLookupFilters(c, query);
-
-  return relay.query(filters, { signal })
-    .then((events) => hydrateEvents({ ...c.var, events }))
-    .then(([event]) => event);
-}
-
-/** Get filters to lookup the input value. */
-async function getLookupFilters(c: AppContext, { q, type, resolve }: SearchQuery): Promise<NostrFilter[]> {
-  const accounts = !type || type === 'accounts';
-  const statuses = !type || type === 'statuses';
-
-  if (!resolve || type === 'hashtags') {
-    return [];
-  }
-
-  if (n.id().safeParse(q).success) {
-    const filters: NostrFilter[] = [];
-    if (accounts) filters.push({ kinds: [0], authors: [q] });
-    if (statuses) filters.push({ kinds: [1, 20], ids: [q] });
-    return filters;
-  }
-
-  const lookup = extractIdentifier(q);
-  if (!lookup) return [];
-
-  try {
-    const result = nip19.decode(lookup);
-    const filters: NostrFilter[] = [];
-    switch (result.type) {
-      case 'npub':
-        if (accounts) filters.push({ kinds: [0], authors: [result.data] });
-        break;
-      case 'nprofile':
-        if (accounts) filters.push({ kinds: [0], authors: [result.data.pubkey] });
-        break;
-      case 'note':
-        if (statuses) filters.push({ kinds: [1, 20], ids: [result.data] });
-        break;
-      case 'nevent':
-        if (statuses) filters.push({ kinds: [1, 20], ids: [result.data.id] });
-        break;
-    }
-    return filters;
-  } catch {
-    // fall through
-  }
-
-  try {
-    const { pubkey } = await lookupNip05(lookup, c.var);
-    if (pubkey) {
-      return [{ kinds: [0], authors: [pubkey] }];
-    }
-  } catch {
-    // fall through
-  }
-
-  return [];
 }
 
 export { searchController };
