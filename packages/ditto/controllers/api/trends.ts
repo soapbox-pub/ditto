@@ -7,7 +7,6 @@ import { z } from 'zod';
 import { AppController } from '@/app.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { generateDateRange, Time } from '@/utils/time.ts';
-import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { errorJson } from '@/utils/log.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 
@@ -94,9 +93,8 @@ const trendingLinksController: AppController = async (c) => {
 async function getTrendingLinks(conf: DittoConf, relay: NStore): Promise<TrendingLink[]> {
   const trends = await getTrendingTags(relay, 'r', await conf.signer.getPublicKey());
 
-  return Promise.all(trends.map(async (trend) => {
+  return Promise.all(trends.map((trend) => {
     const link = trend.value;
-    const card = await unfurlCardCached(link);
 
     const history = trend.history.map(({ day, authors, uses }) => ({
       day: String(day),
@@ -119,7 +117,6 @@ async function getTrendingLinks(conf: DittoConf, relay: NStore): Promise<Trendin
       image: null,
       embed_url: '',
       blurhash: null,
-      ...card,
       history,
     };
   }));

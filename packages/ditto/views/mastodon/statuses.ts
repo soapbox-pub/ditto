@@ -6,7 +6,6 @@ import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
 import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
-import { unfurlCardCached } from '@/utils/unfurl.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
@@ -42,21 +41,17 @@ async function renderStatus(
 
   const mentions = event.mentions?.map((event) => renderMention(event)) ?? [];
 
-  const { html, links, firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), mentions, { conf: Conf });
+  const { html, links } = parseNoteContent(stripimeta(event.content, event.tags), mentions, { conf: Conf });
 
-  const [card, relatedEvents] = await Promise
-    .all([
-      firstUrl ? unfurlCardCached(firstUrl, AbortSignal.timeout(500)) : null,
-      viewerPubkey
-        ? await store.query([
-          { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
-          { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
-          { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
-          { kinds: [10001], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
-          { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
-        ])
-        : [],
-    ]);
+  const relatedEvents = viewerPubkey
+    ? await store.query([
+      { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+      { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+      { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+      { kinds: [10001], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+      { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+    ])
+    : [];
 
   const reactionEvent = relatedEvents.find((event) => event.kind === 7);
   const repostEvent = relatedEvents.find((event) => event.kind === 6);
@@ -93,10 +88,12 @@ async function renderStatus(
 
   const expiresAt = new Date(Number(event.tags.find(([name]) => name === 'expiration')?.[1]) * 1000);
 
+  console.log(event);
+
   return {
     id: event.id,
     account,
-    card,
+    card: event.event_stats?.link_preview ?? null,
     content: compatMentions + html,
     created_at: nostrDate(event.created_at).toISOString(),
     in_reply_to_id: replyId ?? null,

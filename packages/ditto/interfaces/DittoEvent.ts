@@ -1,6 +1,8 @@
 import { NostrEvent } from '@nostrify/nostrify';
 import { LanguageCode } from 'iso-639-1';
 
+import type { MastodonPreviewCard } from '@ditto/mastoapi/types';
+
 /** Ditto internal stats for the event's author. */
 export interface AuthorStats {
   followers_count: number;
@@ -22,6 +24,7 @@ export interface EventStats {
   quotes_count: number;
   reactions: Record<string, number>;
   zaps_amount: number;
+  link_preview?: MastodonPreviewCard;
 }
 
 /** Internal Event representation used by Ditto, including extra keys. */

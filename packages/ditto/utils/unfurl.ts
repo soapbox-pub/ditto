@@ -1,23 +1,27 @@
-import { cachedLinkPreviewSizeGauge } from '@ditto/metrics';
-import TTLCache from '@isaacs/ttlcache';
 import { logi } from '@soapbox/logi';
 import { safeFetch } from '@soapbox/safe-fetch';
 import DOMPurify from 'isomorphic-dompurify';
 import { unfurl } from 'unfurl.js';
 
-import { Conf } from '@/config.ts';
 import { errorJson } from '@/utils/log.ts';
 
+import type { DittoConf } from '@ditto/conf';
 import type { MastodonPreviewCard } from '@ditto/mastoapi/types';
 
-async function unfurlCard(url: string, signal: AbortSignal): Promise<MastodonPreviewCard | null> {
+interface UnfurlCardOpts {
+  conf: DittoConf;
+  signal?: AbortSignal;
+}
+
+export async function unfurlCard(url: string, opts: UnfurlCardOpts): Promise<MastodonPreviewCard | null> {
+  const { conf, signal } = opts;
   try {
     const result = await unfurl(url, {
       fetch: (url) =>
         safeFetch(url, {
           headers: {
             'Accept': 'text/html, application/xhtml+xml',
-            'User-Agent': Conf.fetchUserAgent,
+            'User-Agent': conf.fetchUserAgent,
           },
           signal,
         }),
@@ -52,21 +56,5 @@ async function unfurlCard(url: string, signal: AbortSignal): Promise<MastodonPre
   } catch (e) {
     logi({ level: 'info', ns: 'ditto.unfurl', url, success: false, error: errorJson(e) });
     return null;
-  }
-}
-
-/** TTL cache for preview cards. */
-const previewCardCache = new TTLCache<string, Promise<MastodonPreviewCard | null>>(Conf.caches.linkPreview);
-
-/** Unfurl card from cache if available, otherwise fetch it. */
-export function unfurlCardCached(url: string, signal = AbortSignal.timeout(1000)): Promise<MastodonPreviewCard | null> {
-  const cached = previewCardCache.get(url);
-  if (cached !== undefined) {
-    return cached;
-  } else {
-    const card = unfurlCard(url, signal);
-    previewCardCache.set(url, card);
-    cachedLinkPreviewSizeGauge.set(previewCardCache.size);
-    return card;
   }
 }
