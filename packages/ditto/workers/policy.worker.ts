@@ -49,7 +49,7 @@ export class CustomPolicy implements NPolicy {
       timeout: 5_000,
     });
 
-    this.policy = new Policy({ store, pubkey });
+    this.policy = new Policy({ db, store, pubkey });
   }
 }
 
