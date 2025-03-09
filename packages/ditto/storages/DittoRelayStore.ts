@@ -435,12 +435,8 @@ export class DittoRelayStore implements NRelay {
     if (event.kind === 1) {
       const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
 
-      console.log({ firstUrl });
-
       if (firstUrl) {
         const linkPreview = await unfurlCard(firstUrl, { conf, signal });
-
-        console.log(linkPreview);
 
         if (linkPreview) {
           await db.kysely.insertInto('event_stats')
