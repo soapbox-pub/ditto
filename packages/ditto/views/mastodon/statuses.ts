@@ -88,8 +88,6 @@ async function renderStatus(
 
   const expiresAt = new Date(Number(event.tags.find(([name]) => name === 'expiration')?.[1]) * 1000);
 
-  console.log(event);
-
   return {
     id: event.id,
     account,

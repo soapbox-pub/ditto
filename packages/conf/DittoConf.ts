@@ -422,7 +422,6 @@ export class DittoConf {
   get caches(): {
     nip05: { max: number; ttl: number };
     favicon: { max: number; ttl: number };
-    linkPreview: { max: number; ttl: number };
     translation: { max: number; ttl: number };
   } {
     const env = this.env;
@@ -440,13 +439,6 @@ export class DittoConf {
         return {
           max: Number(env.get('DITTO_CACHE_FAVICON_MAX') || 500),
           ttl: Number(env.get('DITTO_CACHE_FAVICON_TTL') || 1 * 60 * 60 * 1000),
-        };
-      },
-      /** Link preview cache settings. */
-      get linkPreview(): { max: number; ttl: number } {
-        return {
-          max: Number(env.get('DITTO_CACHE_LINK_PREVIEW_MAX') || 3000),
-          ttl: Number(env.get('DITTO_CACHE_LINK_PREVIEW_TTL') || 12 * 60 * 60 * 1000),
         };
       },
       /** Translation cache settings. */
