@@ -6,7 +6,8 @@ import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 import { DittoPool } from './DittoPool.ts';
 
 Deno.test('DittoPool.reqRouter', async (t) => {
-  const conf = new DittoConf(new Map([['DITTO_NSEC', nip19.nsecEncode(generateSecretKey())]]));
+  const nsec = generateSecretKey();
+  const conf = new DittoConf(new Map([['DITTO_NSEC', nip19.nsecEncode(nsec)]]));
   const relay = new MockRelay();
 
   const pool = new DittoPool({ conf, relay });
@@ -55,6 +56,16 @@ Deno.test('DittoPool.reqRouter', async (t) => {
       [henhouse, [{ kinds: [10002], authors: [mk.pk] }]],
       [gleasonator, [{ kinds: [10002], authors: [alex.pk] }]],
     ]);
+
+    assertEquals(reqRoutes, expected);
+  });
+
+  await t.step('no authors with fallback', async () => {
+    const fallback = genEvent({ kind: 10002, tags: [['r', ditto]] }, nsec);
+    await relay.event(fallback);
+
+    const reqRoutes = await pool.reqRouter([{ kinds: [1] }]);
+    const expected = new Map([[ditto, [{ kinds: [1] }]]]);
 
     assertEquals(reqRoutes, expected);
   });

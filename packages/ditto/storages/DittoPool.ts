@@ -47,10 +47,6 @@ export class DittoPool extends NPool<NRelay1> {
       }
     }
 
-    if (!authors.size) {
-      return routes;
-    }
-
     const pubkey = await conf.signer.getPublicKey();
     const map = new Map<string, NostrEvent>();
 
