@@ -1,6 +1,8 @@
 import type { NPostgresSchema } from '@nostrify/db';
 import type { Generated } from 'kysely';
 
+import type { MastodonPreviewCard } from '@ditto/mastoapi/types';
+
 export interface DittoTables extends NPostgresSchema {
   auth_tokens: AuthTokenRow;
   author_stats: AuthorStatsRow;
@@ -34,6 +36,7 @@ interface EventStatsRow {
   quotes_count: number;
   reactions: string;
   zaps_amount: number;
+  link_preview?: MastodonPreviewCard;
 }
 
 interface AuthTokenRow {

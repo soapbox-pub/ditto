@@ -149,3 +149,8 @@ export const webPushNotificationsCounter: Counter<'type'> = new Counter({
   help: 'Total number of Web Push notifications sent',
   labelNames: ['type'],
 });
+
+export const activeAuthorSubscriptionsGauge: Gauge = new Gauge({
+  name: `${prefix}_active_author_subscriptions`,
+  help: "Number of active REQ's to find kind 0 events from the pool",
+});

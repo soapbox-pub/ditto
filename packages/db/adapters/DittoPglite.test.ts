@@ -1,14 +1,22 @@
-import { assertEquals } from '@std/assert';
+import { assertEquals, assertRejects } from '@std/assert';
 
 import { DittoPglite } from './DittoPglite.ts';
 
 Deno.test('DittoPglite', async () => {
-  const db = new DittoPglite('memory://');
+  await using db = new DittoPglite('memory://');
   await db.migrate();
 
   assertEquals(db.poolSize, 1);
   assertEquals(db.availableConnections, 1);
+});
 
-  await db.kysely.destroy();
-  await new Promise((resolve) => setTimeout(resolve, 100));
+Deno.test('DittoPglite query after closing', async () => {
+  const db = new DittoPglite('memory://');
+  await db[Symbol.asyncDispose]();
+
+  await assertRejects(
+    () => db.kysely.selectFrom('nostr_events').selectAll().execute(),
+    Error,
+    'PGlite is closed',
+  );
 });

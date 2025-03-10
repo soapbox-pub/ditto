@@ -8,7 +8,7 @@ import { type Context, Handler, Input as HonoInput, MiddlewareHandler } from '@h
 import { every } from '@hono/hono/combine';
 import { cors } from '@hono/hono/cors';
 import { serveStatic } from '@hono/hono/deno';
-import { NostrEvent, NostrSigner, NRelay, NUploader } from '@nostrify/nostrify';
+import { NostrEvent, NostrSigner, NPool, NRelay, NUploader } from '@nostrify/nostrify';
 
 import { cron } from '@/cron.ts';
 import { startFirehose } from '@/firehose.ts';
@@ -55,8 +55,6 @@ import {
   adminSetRelaysController,
   deleteZapSplitsController,
   getZapSplitsController,
-  nameRequestController,
-  nameRequestsController,
   statusZapSplitsController,
   updateInstanceController,
   updateZapSplitsController,
@@ -149,6 +147,8 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
+import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
@@ -167,6 +167,7 @@ export interface AppEnv extends DittoEnv {
       /** User's relay. Might filter out unwanted content. */
       relay: NRelay;
     };
+    pool?: NPool<NRelay>;
   };
 }
 
@@ -194,7 +195,7 @@ const pgstore = new DittoPgStore({
 });
 
 const pool = new DittoPool({ conf, relay: pgstore });
-const relay = new DittoRelayStore({ db, conf, relay: pgstore });
+const relay = new DittoRelayStore({ db, conf, pool, relay: pgstore });
 
 await seedZapSplits({ conf, relay });
 
@@ -234,8 +235,9 @@ const socketTokenMiddleware = tokenMiddleware((c) => {
 
 app.use(
   '/api/*',
-  (c, next) => {
+  (c: Context<DittoEnv & { Variables: { pool: NPool<NRelay> } }>, next) => {
     c.set('relay', new DittoAPIStore({ relay, pool }));
+    c.set('pool', pool);
     return next();
   },
   metricsMiddleware,
@@ -440,14 +442,14 @@ app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMi
 app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), configController);
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);
 app.delete('/api/v1/pleroma/admin/statuses/:id', userMiddleware({ role: 'admin' }), pleromaAdminDeleteStatusController);
+app.route('/api/v1/pleroma/admin/users/permission_group', pleromaAdminPermissionGroupsRoute);
 
 app.get('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminRelaysController);
 app.put('/api/v1/admin/ditto/relays', userMiddleware({ role: 'admin' }), adminSetRelaysController);
 
 app.put('/api/v1/admin/ditto/instance', userMiddleware({ role: 'admin' }), updateInstanceController);
 
-app.post('/api/v1/ditto/names', userMiddleware(), nameRequestController);
-app.get('/api/v1/ditto/names', userMiddleware(), nameRequestsController);
+app.route('/api/v1/ditto/names', dittoNamesRoute);
 
 app.get('/api/v1/ditto/captcha', rateLimitMiddleware(3, Time.minutes(1)), captchaController);
 app.post(

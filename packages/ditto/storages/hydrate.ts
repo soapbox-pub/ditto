@@ -58,17 +58,19 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     return result;
   }, new Set<string>());
 
-  const favicons = (
-    await db.kysely
-      .selectFrom('domain_favicons')
-      .select(['domain', 'favicon'])
-      .where('domain', 'in', [...domains])
-      .execute()
-  )
-    .reduce((result, { domain, favicon }) => {
-      result[domain] = favicon;
-      return result;
-    }, {} as Record<string, string>);
+  const favicons: Record<string, string> = domains.size
+    ? (
+      await db.kysely
+        .selectFrom('domain_favicons')
+        .select(['domain', 'favicon'])
+        .where('domain', 'in', [...domains])
+        .execute()
+    )
+      .reduce((result, { domain, favicon }) => {
+        result[domain] = favicon;
+        return result;
+      }, {} as Record<string, string>)
+    : {};
 
   const stats = {
     authors: authorStats,
@@ -409,6 +411,7 @@ async function gatherEventStats(
     quotes_count: Math.max(0, row.quotes_count),
     reactions: row.reactions,
     zaps_amount: Math.max(0, row.zaps_amount),
+    link_preview: row.link_preview,
   }));
 }
 

@@ -1,19 +1,17 @@
-import { paginated } from '@ditto/mastoapi/pagination';
-import { NostrEvent, NostrFilter, NSchema as n } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 import { AppController } from '@/app.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { getAuthor } from '@/queries.ts';
 import { addTag } from '@/utils/tags.ts';
-import { createEvent, parseBody, updateAdminEvent } from '@/utils/api.ts';
+import { parseBody, updateAdminEvent } from '@/utils/api.ts';
 import { getInstanceMetadata } from '@/utils/instance.ts';
 import { deleteTag } from '@/utils/tags.ts';
 import { DittoZapSplits, getZapSplits } from '@/utils/zap-split.ts';
 import { screenshotsSchema } from '@/schemas/nostr.ts';
-import { booleanParamSchema, percentageSchema } from '@/schema.ts';
+import { percentageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { renderNameRequest } from '@/views/ditto.ts';
 import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { renderAccount } from '@/views/mastodon/accounts.ts';
 import { updateListAdminEvent } from '@/utils/api.ts';
@@ -80,102 +78,6 @@ function renderRelays(event: NostrEvent): RelayEntity[] {
     return acc;
   }, [] as RelayEntity[]);
 }
-
-const nameRequestSchema = z.object({
-  name: z.string().email(),
-  reason: z.string().max(500).optional(),
-});
-
-export const nameRequestController: AppController = async (c) => {
-  const { conf, relay, user } = c.var;
-
-  const pubkey = await user!.signer.getPublicKey();
-  const result = nameRequestSchema.safeParse(await c.req.json());
-
-  if (!result.success) {
-    return c.json({ error: 'Invalid username', schema: result.error }, 400);
-  }
-
-  const { name, reason } = result.data;
-
-  const [existing] = await relay.query([{ kinds: [3036], authors: [pubkey], '#r': [name.toLowerCase()], limit: 1 }]);
-  if (existing) {
-    return c.json({ error: 'Name request already exists' }, 400);
-  }
-
-  const r: string[][] = [['r', name]];
-
-  if (name !== name.toLowerCase()) {
-    r.push(['r', name.toLowerCase()]);
-  }
-
-  const event = await createEvent({
-    kind: 3036,
-    content: reason,
-    tags: [
-      ...r,
-      ['L', 'nip05.domain'],
-      ['l', name.split('@')[1], 'nip05.domain'],
-      ['p', await conf.signer.getPublicKey()],
-    ],
-  }, c);
-
-  await hydrateEvents({ ...c.var, events: [event] });
-
-  const nameRequest = await renderNameRequest(event);
-  return c.json(nameRequest);
-};
-
-const nameRequestsSchema = z.object({
-  approved: booleanParamSchema.optional(),
-  rejected: booleanParamSchema.optional(),
-});
-
-export const nameRequestsController: AppController = async (c) => {
-  const { conf, relay, user } = c.var;
-  const pubkey = await user!.signer.getPublicKey();
-
-  const params = c.get('pagination');
-  const { approved, rejected } = nameRequestsSchema.parse(c.req.query());
-
-  const filter: NostrFilter = {
-    kinds: [30383],
-    authors: [await conf.signer.getPublicKey()],
-    '#k': ['3036'],
-    '#p': [pubkey],
-    ...params,
-  };
-
-  if (approved) {
-    filter['#n'] = ['approved'];
-  }
-  if (rejected) {
-    filter['#n'] = ['rejected'];
-  }
-
-  const orig = await relay.query([filter]);
-  const ids = new Set<string>();
-
-  for (const event of orig) {
-    const d = event.tags.find(([name]) => name === 'd')?.[1];
-    if (d) {
-      ids.add(d);
-    }
-  }
-
-  if (!ids.size) {
-    return c.json([]);
-  }
-
-  const events = await relay.query([{ kinds: [3036], ids: [...ids], authors: [pubkey] }])
-    .then((events) => hydrateEvents({ ...c.var, events }));
-
-  const nameRequests = await Promise.all(
-    events.map((event) => renderNameRequest(event)),
-  );
-
-  return paginated(c, orig, nameRequests);
-};
 
 const zapSplitSchema = z.record(
   n.id(),

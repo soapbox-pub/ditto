@@ -60,7 +60,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
       .reduce((acc, limiter) => Math.min(acc, limiter.client(ip).remaining), Infinity);
 
     if (remaining < 0) {
-      socket.close(1008, 'Rate limit exceeded');
+      closeSocket(1008, 'Rate limit exceeded');
       return;
     }
   }
@@ -74,7 +74,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
     if (rateLimited(limiters.msg)) return;
 
     if (typeof e.data !== 'string') {
-      socket.close(1003, 'Invalid message');
+      closeSocket(1003, 'Invalid message');
       return;
     }
 
@@ -95,13 +95,28 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
   };
 
   socket.onclose = () => {
+    handleSocketClose();
+  };
+
+  // HACK: Due to a bug in Deno, we need to call the close handler manually.
+  // https://github.com/denoland/deno/issues/27924
+  function closeSocket(code?: number, reason?: string): void {
+    for (const controller of controllers.values()) {
+      controller.abort();
+    }
+    send(['NOTICE', `closed: ${reason} (${code})`]);
+    socket.close(code, reason);
+    handleSocketClose();
+  }
+
+  function handleSocketClose() {
     connections.delete(socket);
     relayConnectionsGauge.set(connections.size);
 
     for (const controller of controllers.values()) {
       controller.abort();
     }
-  };
+  }
 
   function rateLimited(limiter: Pick<RateLimiter, 'client'>): boolean {
     if (ip) {
@@ -109,7 +124,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
       try {
         client.hit();
       } catch {
-        socket.close(1008, 'Rate limit exceeded');
+        closeSocket(1008, 'Rate limit exceeded');
         return true;
       }
     }
@@ -141,10 +156,17 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
+    const signal = controller.signal;
 
     try {
-      for await (const [verb, , ...rest] of relay.req(filters, { limit: 100, timeout: conf.db.timeouts.relay })) {
-        send([verb, subId, ...rest] as NostrRelayMsg);
+      for await (const msg of relay.req(filters, { limit: 100, signal, timeout: conf.db.timeouts.relay })) {
+        if (msg[0] === 'EVENT') {
+          const [, , event] = msg;
+          send(['EVENT', subId, purifyEvent(event)]);
+        } else {
+          const [verb, , ...rest] = msg;
+          send([verb, subId, ...rest] as NostrRelayMsg);
+        }
       }
     } catch (e) {
       if (e instanceof RelayError) {
@@ -154,8 +176,8 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
       } else {
         send(['CLOSED', subId, 'error: something went wrong']);
       }
+    } finally {
       controllers.delete(subId);
-      return;
     }
   }
 

@@ -1,6 +1,7 @@
 import { DittoConf } from '@ditto/conf';
 import { DittoDB, DittoTables } from '@ditto/db';
 import {
+  activeAuthorSubscriptionsGauge,
   cachedFaviconsSizeGauge,
   cachedNip05sSizeGauge,
   pipelineEventsCounter,
@@ -18,6 +19,7 @@ import {
   NRelay,
   NSchema as n,
 } from '@nostrify/nostrify';
+import { nip19 } from 'nostr-tools';
 import { logi } from '@soapbox/logi';
 import { UpdateObject } from 'kysely';
 import { LRUCache } from 'lru-cache';
@@ -28,7 +30,7 @@ import { DittoPush } from '@/DittoPush.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { RelayError } from '@/RelayError.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
-import { eventAge, nostrNow, Time } from '@/utils.ts';
+import { eventAge, isNostrId, nostrNow, Time } from '@/utils.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { errorJson } from '@/utils/log.ts';
 import { purifyEvent } from '@/utils/purify.ts';
@@ -39,13 +41,13 @@ import { fetchFavicon, insertFavicon, queryFavicon } from '@/utils/favicon.ts';
 import { lookupNip05 } from '@/utils/nip05.ts';
 import { parseNoteContent, stripimeta } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
-import { unfurlCardCached } from '@/utils/unfurl.ts';
+import { unfurlCard } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
-import { nip19 } from 'nostr-tools';
 
 interface DittoRelayStoreOpts {
   db: DittoDB;
   conf: DittoConf;
+  pool: NRelay;
   relay: NRelay;
   fetch?: typeof fetch;
 }
@@ -54,6 +56,7 @@ interface DittoRelayStoreOpts {
 export class DittoRelayStore implements NRelay {
   private push: DittoPush;
   private encounters = new LRUCache<string, true>({ max: 5000 });
+  private authorEncounters = new LRUCache<string, true>({ max: 5000, ttl: Time.hours(4) });
   private controller = new AbortController();
   private policyWorker: PolicyWorker;
 
@@ -67,10 +70,6 @@ export class DittoRelayStore implements NRelay {
 
     this.push = new DittoPush(opts);
     this.policyWorker = new PolicyWorker(conf);
-
-    this.listen().catch((e: unknown) => {
-      logi({ level: 'error', ns: this.ns, source: 'listen', error: errorJson(e) });
-    });
 
     this.faviconCache = new SimpleLRU<string, URL>(
       async (domain, { signal }) => {
@@ -93,17 +92,30 @@ export class DittoRelayStore implements NRelay {
       },
       { ...conf.caches.nip05, gauge: cachedNip05sSizeGauge },
     );
+
+    this.listen().catch((e: unknown) => {
+      if (e instanceof Error && e.name === 'AbortError') {
+        return; // `this.close()` was called. This is expected.
+      }
+
+      throw e;
+    });
   }
 
   /** Open a firehose to the relay. */
   private async listen(): Promise<void> {
     const { relay } = this.opts;
-    const { signal } = this.controller;
+    const { signal } = this.controller; // this controller only aborts when `this.close()` is called
 
     for await (const msg of relay.req([{ limit: 0 }], { signal })) {
       if (msg[0] === 'EVENT') {
         const [, , event] = msg;
-        await this.event(event, { signal });
+        const { id, kind } = event;
+        try {
+          await this.event(event, { signal });
+        } catch (e) {
+          logi({ level: 'error', ns: this.ns, id, kind, source: 'listen', error: errorJson(e) });
+        }
       }
     }
   }
@@ -120,13 +132,13 @@ export class DittoRelayStore implements NRelay {
    * Common pipeline function to process (and maybe store) events.
    * It is idempotent, so it can be called multiple times for the same event.
    */
-  async event(event: DittoEvent, opts: { publish?: boolean; signal?: AbortSignal } = {}): Promise<void> {
-    const { conf, relay } = this.opts;
+  async event(event: DittoEvent, opts: { signal?: AbortSignal } = {}): Promise<void> {
+    const { conf, relay, pool } = this.opts;
     const { signal } = opts;
 
     // Skip events that have already been encountered.
     if (this.encounters.get(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return; // NIP-01: duplicate events should have ok `true`
     }
     // Reject events that are too far in the future.
     if (eventAge(event) < -Time.minutes(1)) {
@@ -151,7 +163,7 @@ export class DittoRelayStore implements NRelay {
     }
     // Recheck encountered after async ops.
     if (this.encounters.has(event.id)) {
-      throw new RelayError('duplicate', 'already have this event');
+      return;
     }
     // Set the event as encountered after verifying the signature.
     this.encounters.set(event.id, true);
@@ -167,14 +179,32 @@ export class DittoRelayStore implements NRelay {
       await relay.event(event, { signal });
     }
 
-    // Ensure the event doesn't violate the policy.
-    if (event.pubkey !== await conf.signer.getPublicKey()) {
-      await this.policyFilter(event, signal);
-    }
-
     // Prepare the event for additional checks.
     // FIXME: This is kind of hacky. Should be reorganized to fetch only what's needed for each stage.
     await this.hydrateEvent(event, signal);
+
+    // Try to fetch a kind 0 for the user if we don't have one yet.
+    // TODO: Create a more elaborate system to refresh all replaceable events by addr.
+    if (event.kind !== 0 && !event.author?.sig && !this.authorEncounters.get(event.pubkey)) {
+      activeAuthorSubscriptionsGauge.inc();
+      this.authorEncounters.set(event.pubkey, true);
+
+      const [author] = await pool.query(
+        [{ kinds: [0], authors: [event.pubkey], limit: 1 }],
+        { signal: AbortSignal.timeout(1000) },
+      );
+
+      if (author) {
+        // await because it's important to have the kind 0 before the policy filter.
+        await this.event(author, { signal });
+      }
+      activeAuthorSubscriptionsGauge.dec();
+    }
+
+    // Ensure the event doesn't violate the policy.
+    if (event.pubkey !== await conf.signer.getPublicKey()) {
+      await this.policyFilter(purifyEvent(event), signal);
+    }
 
     // Ensure that the author is not banned.
     const n = getTagSet(event.user?.tags ?? [], 'n');
@@ -183,16 +213,23 @@ export class DittoRelayStore implements NRelay {
     }
 
     try {
+      await this.handleRevokeNip05(event, signal);
       await relay.event(purifyEvent(event), { signal });
     } finally {
       // This needs to run in steps, and should not block the API from responding.
+      const signal = AbortSignal.timeout(5000);
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
-        this.prewarmLinkPreview(event, signal),
+        this.warmLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
-        .then(() => this.webPush(event))
+        .then(() =>
+          Promise.allSettled([
+            this.webPush(event),
+            this.fetchRelated(event),
+          ])
+        )
         .catch(() => {});
     }
   }
@@ -243,6 +280,42 @@ export class DittoRelayStore implements NRelay {
     } catch {
       // receipt_id is unique, do nothing
     }
+  }
+
+  /** Sets the nip05 column to null if the event is a revocation of a nip05 */
+  private async handleRevokeNip05(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+    const { conf, relay, db } = this.opts;
+
+    if (event.kind !== 5 || await conf.signer.getPublicKey() !== event.pubkey) {
+      return;
+    }
+
+    if (!event.tags.some(([name, value]) => name === 'k' && value === '30360')) {
+      return;
+    }
+
+    const eventId = event.tags.find(([name]) => name === 'e')?.[1];
+    if (!eventId || !isNostrId(eventId)) {
+      return;
+    }
+
+    const [grant] = await relay.query([{ kinds: [30360], ids: [eventId] }], { signal });
+    if (!grant) {
+      return;
+    }
+
+    const authorId = grant.tags.find(([name]) => name === 'p')?.[1];
+    if (!authorId || !isNostrId(authorId)) {
+      return;
+    }
+
+    await db.kysely.updateTable('author_stats').set({
+      nip05: null,
+      nip05_domain: null,
+      nip05_hostname: null,
+      nip05_last_verified_at: null,
+    }).where('pubkey', '=', authorId)
+      .execute();
   }
 
   /** Parse kind 0 metadata and track indexes in the database. */
@@ -323,11 +396,68 @@ export class DittoRelayStore implements NRelay {
     }
   }
 
-  private async prewarmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
-    const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
+  private async fetchRelated(event: NostrEvent): Promise<void> {
+    const ids = new Set<string>();
 
-    if (firstUrl) {
-      await unfurlCardCached(firstUrl, signal);
+    for (const tag of event.tags) {
+      const [name, value] = tag;
+
+      if ((name === 'e' || name === 'q') && isNostrId(value) && !this.encounters.has(value)) {
+        ids.add(value);
+      }
+    }
+
+    const { db, pool } = this.opts;
+
+    if (ids.size) {
+      const query = db.kysely
+        .selectFrom('nostr_events')
+        .select('id')
+        .where('id', 'in', [...ids]);
+
+      for (const row of await query.execute().catch(() => [])) {
+        ids.delete(row.id);
+      }
+    }
+
+    if (ids.size) {
+      const signal = AbortSignal.timeout(1000);
+
+      for (const event of await pool.query([{ ids: [...ids] }], { signal }).catch(() => [])) {
+        await this.event(event).catch(() => {});
+      }
+    }
+  }
+
+  private async warmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+    const { db, conf } = this.opts;
+
+    if (event.kind === 1) {
+      const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
+
+      console.log({ firstUrl });
+
+      if (firstUrl) {
+        const linkPreview = await unfurlCard(firstUrl, { conf, signal });
+
+        console.log(linkPreview);
+
+        if (linkPreview) {
+          await db.kysely.insertInto('event_stats')
+            .values({
+              event_id: event.id,
+              replies_count: 0,
+              reposts_count: 0,
+              reactions_count: 0,
+              quotes_count: 0,
+              reactions: '{}',
+              zaps_amount: 0,
+              link_preview: linkPreview,
+            })
+            .onConflict((oc) => oc.column('event_id').doUpdateSet({ link_preview: linkPreview }))
+            .execute();
+        }
+      }
     }
   }
 
@@ -358,19 +488,24 @@ export class DittoRelayStore implements NRelay {
     }
 
     if (event.kind === 3036 && tagsAdmin) {
-      const rel = await signer.signEvent({
-        kind: 30383,
-        content: '',
-        tags: [
-          ['d', event.id],
-          ['p', event.pubkey],
-          ['k', '3036'],
-          ['n', 'pending'],
-        ],
-        created_at: Math.floor(Date.now() / 1000),
-      });
+      const r = event.tags.find(([name]) => name === 'r')?.[1];
 
-      await this.event(rel, { signal: AbortSignal.timeout(1000) });
+      if (r) {
+        const rel = await signer.signEvent({
+          kind: 30383,
+          content: '',
+          tags: [
+            ['d', event.id],
+            ['p', event.pubkey],
+            ['k', '3036'],
+            ['r', r.toLowerCase()],
+            ['n', 'pending'],
+          ],
+          created_at: Math.floor(Date.now() / 1000),
+        });
+
+        await this.event(rel, { signal: AbortSignal.timeout(1000) });
+      }
     }
   }
 
