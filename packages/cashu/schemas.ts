@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-export const proofSchema = z.object({
+export const proofSchema: z.ZodType<{
+  id: string;
+  amount: number;
+  secret: string;
+  C: string;
+  dleq?: { s: string; e: string; r?: string };
+  dleqValid?: boolean;
+}> = z.object({
   id: z.string(),
   amount: z.number(),
   secret: z.string(),
