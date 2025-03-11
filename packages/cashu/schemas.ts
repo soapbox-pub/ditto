@@ -17,7 +17,11 @@ export const proofSchema: z.ZodType<{
 });
 
 /** Decrypted content of a kind 7375 */
-export const tokenEventSchema = z.object({
+export const tokenEventSchema: z.ZodType<{
+  mint: string;
+  proofs: Array<z.infer<typeof proofSchema>>;
+  del?: string[];
+}> = z.object({
   mint: z.string().url(),
   proofs: proofSchema.array(),
   del: z.string().array().optional(),
