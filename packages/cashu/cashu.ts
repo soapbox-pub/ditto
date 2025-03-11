@@ -1,13 +1,12 @@
-import { SetRequired } from 'type-fest';
+import type { Proof } from '@cashu/cashu-ts';
+import { type NostrEvent, type NostrFilter, type NostrSigner, NSchema as n, type NStore } from '@nostrify/nostrify';
 import { getPublicKey } from 'nostr-tools';
-import { NostrEvent, NostrSigner, NSchema as n, NStore } from '@nostrify/nostrify';
-import { logi } from '@soapbox/logi';
 import { stringToBytes } from '@scure/base';
+import { logi } from '@soapbox/logi';
+import type { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
-import { errorJson } from '@/utils/log.ts';
-import { isNostrId } from '@/utils.ts';
-import { tokenEventSchema } from '@/schemas/cashu.ts';
+import { proofSchema, tokenEventSchema } from './schemas.ts';
 
 type Data = {
   wallet: NostrEvent;
@@ -139,4 +138,114 @@ async function organizeProofs(
   return organizedProofs;
 }
 
-export { organizeProofs, validateAndParseWallet };
+/** Returns a spending history event that contains the last redeemed nutzap. */
+async function getLastRedeemedNutzap(
+  store: NStore,
+  pubkey: string,
+  opts?: { signal?: AbortSignal },
+): Promise<NostrEvent | undefined> {
+  const events = await store.query([{ kinds: [7376], authors: [pubkey] }], { signal: opts?.signal });
+
+  for (const event of events) {
+    const nutzap = event.tags.find(([name]) => name === 'e');
+    const redeemed = nutzap?.[3];
+    if (redeemed === 'redeemed') {
+      return event;
+    }
+  }
+}
+
+/**
+ * toBeRedeemed are the nutzaps that will be redeemed into a kind 7375 and saved in the kind 7376 tags
+ * The tags format is: [
+ *   [ "e", "<9321-event-id>", "<relay-hint>", "redeemed" ], // nutzap event that has been redeemed
+ *   [ "p", "<sender-pubkey>" ] // pubkey of the author of the 9321 event (nutzap sender)
+ * ]
+ * https://github.com/nostr-protocol/nips/blob/master/61.md#updating-nutzap-redemption-history
+ */
+type MintsToProofs = { [key: string]: { proofs: Proof[]; toBeRedeemed: string[][] } };
+
+/**
+ * Gets proofs from nutzaps that have not been redeemed yet.
+ * Each proof is associated with a specific mint.
+ * @param store Store used to query for the nutzaps
+ * @param nutzapsFilter Filter used to query for the nutzaps, most useful when
+ * it contains a 'since' field so it saves time and resources
+ * @param relay Relay hint where the new kind 7376 will be saved
+ * @returns MintsToProofs An object where each key is a mint url and the values are an array of proofs
+ * and an array of redeemed tags in this format:
+ * ```
+ * [
+ *    ...,
+ *    [ "e", "<9321-event-id>", "<relay-hint>", "redeemed" ], // nutzap event that has been redeemed
+ *    [ "p", "<sender-pubkey>" ] // pubkey of the author of the 9321 event (nutzap sender)
+ * ]
+ * ```
+ */
+async function getMintsToProofs(
+  store: NStore,
+  nutzapsFilter: NostrFilter,
+  relay: string,
+  opts?: { signal?: AbortSignal },
+): Promise<MintsToProofs> {
+  const mintsToProofs: MintsToProofs = {};
+
+  const nutzaps = await store.query([nutzapsFilter], { signal: opts?.signal });
+
+  for (const event of nutzaps) {
+    try {
+      const mint = event.tags.find(([name]) => name === 'u')?.[1];
+      if (!mint) {
+        continue;
+      }
+
+      const proofs = event.tags.filter(([name]) => name === 'proof').map((tag) => tag[1]).filter(Boolean);
+      if (proofs.length < 1) {
+        continue;
+      }
+
+      if (!mintsToProofs[mint]) {
+        mintsToProofs[mint] = { proofs: [], toBeRedeemed: [] };
+      }
+
+      const parsed = n.json().pipe(
+        proofSchema,
+      ).array().safeParse(proofs);
+
+      if (!parsed.success) {
+        continue;
+      }
+
+      mintsToProofs[mint].proofs = [...mintsToProofs[mint].proofs, ...parsed.data];
+      mintsToProofs[mint].toBeRedeemed = [
+        ...mintsToProofs[mint].toBeRedeemed,
+        [
+          'e', // nutzap event that has been redeemed
+          event.id,
+          relay,
+          'redeemed',
+        ],
+        ['p', event.pubkey], // pubkey of the author of the 9321 event (nutzap sender)
+      ];
+    } catch (e) {
+      logi({ level: 'error', ns: 'ditto.api.cashu.wallet.swap', error: errorJson(e) });
+    }
+  }
+
+  return mintsToProofs;
+}
+
+/** Serialize an error into JSON for JSON logging. */
+export function errorJson(error: unknown): Error | null {
+  if (error instanceof Error) {
+    return error;
+  } else {
+    return null;
+  }
+}
+
+function isNostrId(value: unknown): boolean {
+  return n.id().safeParse(value).success;
+}
+
+export { getLastRedeemedNutzap, getMintsToProofs, organizeProofs, validateAndParseWallet };

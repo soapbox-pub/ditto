@@ -1,7 +1,8 @@
 import { NSchema as n } from '@nostrify/nostrify';
 import { assertEquals } from '@std/assert';
-import { proofSchema } from '@/schemas/cashu.ts';
-import { tokenEventSchema } from '@/schemas/cashu.ts';
+
+import { proofSchema } from './schemas.ts';
+import { tokenEventSchema } from './schemas.ts';
 
 Deno.test('Parse proof', () => {
   const proof =

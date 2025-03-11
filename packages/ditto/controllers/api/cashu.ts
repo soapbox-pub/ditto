@@ -1,4 +1,5 @@
 import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
+import { organizeProofs, tokenEventSchema, validateAndParseWallet } from '@ditto/cashu';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
@@ -14,8 +15,6 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { nostrNow } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
-import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
-import { tokenEventSchema } from '@/schemas/cashu.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 type Wallet = z.infer<typeof walletSchema>;

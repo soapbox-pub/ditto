@@ -1,17 +1,25 @@
 import { NSecSigner } from '@nostrify/nostrify';
+import { NPostgres } from '@nostrify/db';
 import { genEvent } from '@nostrify/nostrify/test';
 
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { assertEquals } from '@std/assert';
 
-import { createTestDB } from '@/test.ts';
+import { DittoPolyPg, TestDB } from '@ditto/db';
+import { DittoConf } from '@ditto/conf';
 
-import { organizeProofs, validateAndParseWallet } from '@/utils/cashu.ts';
+import { getLastRedeemedNutzap, organizeProofs, validateAndParseWallet } from './cashu.ts';
 
 Deno.test('validateAndParseWallet function returns valid data', async () => {
-  await using db = await createTestDB({ pure: true });
-  const store = db.store;
+  const conf = new DittoConf(Deno.env);
+  const orig = new DittoPolyPg(conf.databaseUrl);
+
+  await using db = new TestDB(orig);
+  await db.migrate();
+  await db.clear();
+
+  const store = new NPostgres(orig.kysely);
 
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
@@ -30,7 +38,7 @@ Deno.test('validateAndParseWallet function returns valid data', async () => {
       ]),
     ),
   }, sk);
-  await db.store.event(wallet);
+  await store.event(wallet);
 
   // Nutzap information
   const nutzapInfo = genEvent({
@@ -40,7 +48,7 @@ Deno.test('validateAndParseWallet function returns valid data', async () => {
       ['mint', 'https://mint.soul.com'],
     ],
   }, sk);
-  await db.store.event(nutzapInfo);
+  await store.event(nutzapInfo);
 
   const { data, error } = await validateAndParseWallet(store, signer, pubkey);
 
@@ -55,8 +63,14 @@ Deno.test('validateAndParseWallet function returns valid data', async () => {
 });
 
 Deno.test('organizeProofs function is working', async () => {
-  await using db = await createTestDB({ pure: true });
-  const store = db.store;
+  const conf = new DittoConf(Deno.env);
+  const orig = new DittoPolyPg(conf.databaseUrl);
+
+  await using db = new TestDB(orig);
+  await db.migrate();
+  await db.clear();
+
+  const store = new NPostgres(orig.kysely);
 
   const sk = generateSecretKey();
   const signer = new NSecSigner(sk);
@@ -98,7 +112,7 @@ Deno.test('organizeProofs function is working', async () => {
       }),
     ),
   }, sk);
-  await db.store.event(event1);
+  await store.event(event1);
 
   const proof1 = {
     'id': '004f7adf2a04356c',
@@ -124,7 +138,7 @@ Deno.test('organizeProofs function is working', async () => {
       token1,
     ),
   }, sk);
-  await db.store.event(event2);
+  await store.event(event2);
 
   const proof2 = {
     'id': '004f7adf2a04356c',
@@ -151,7 +165,7 @@ Deno.test('organizeProofs function is working', async () => {
       token2,
     ),
   }, sk);
-  await db.store.event(event3);
+  await store.event(event3);
 
   const unspentProofs = await store.query([{ kinds: [7375], authors: [pubkey] }]);
 
@@ -168,4 +182,63 @@ Deno.test('organizeProofs function is working', async () => {
       [event3.id]: { event: event3, balance: 123 },
     },
   });
+});
+
+Deno.test('getLastRedeemedNutzap function is working', async () => {
+  const conf = new DittoConf(Deno.env);
+  const orig = new DittoPolyPg(conf.databaseUrl);
+
+  await using db = new TestDB(orig);
+  await db.migrate();
+  await db.clear();
+
+  const store = new NPostgres(orig.kysely);
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+  const pubkey = await signer.getPublicKey();
+
+  const event1 = genEvent({
+    kind: 7376,
+    content: '<nip-44-encrypted>',
+    created_at: Math.floor(Date.now() / 1000), // now
+    tags: [
+      ['e', '<event-id-of-created-token>', '', 'redeemed'],
+    ],
+  }, sk);
+  await store.event(event1);
+
+  const event2 = genEvent({
+    kind: 7376,
+    content: '<nip-44-encrypted>',
+    created_at: Math.floor((Date.now() - 86400000) / 1000), // yesterday
+    tags: [
+      ['e', '<event-id-of-created-token>', '', 'redeemed'],
+    ],
+  }, sk);
+  await store.event(event2);
+
+  const event3 = genEvent({
+    kind: 7376,
+    content: '<nip-44-encrypted>',
+    created_at: Math.floor((Date.now() - 86400000) / 1000), // yesterday
+    tags: [
+      ['e', '<event-id-of-created-token>', '', 'redeemed'],
+    ],
+  }, sk);
+  await store.event(event3);
+
+  const event4 = genEvent({
+    kind: 7376,
+    content: '<nip-44-encrypted>',
+    created_at: Math.floor((Date.now() + 86400000) / 1000), // tomorrow
+    tags: [
+      ['e', '<event-id-of-created-token>', '', 'redeemed'],
+    ],
+  }, sk);
+  await store.event(event4);
+
+  const event = await getLastRedeemedNutzap(store, pubkey);
+
+  assertEquals(event, event4);
 });
