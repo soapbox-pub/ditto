@@ -39,7 +39,7 @@ import { PolicyWorker } from '@/workers/policy.ts';
 import { verifyEventWorker } from '@/workers/verify.ts';
 import { fetchFavicon, insertFavicon, queryFavicon } from '@/utils/favicon.ts';
 import { lookupNip05 } from '@/utils/nip05.ts';
-import { parseNoteContent, stripimeta } from '@/utils/note.ts';
+import { getCardUrl } from '@/utils/note.ts';
 import { SimpleLRU } from '@/utils/SimpleLRU.ts';
 import { unfurlCard } from '@/utils/unfurl.ts';
 import { renderWebPushNotification } from '@/views/mastodon/push.ts';
@@ -221,7 +221,7 @@ export class DittoRelayStore implements NRelay {
       Promise.allSettled([
         this.handleZaps(event),
         this.updateAuthorData(event, signal),
-        this.warmLinkPreview(event, signal),
+        this.generateLinkPreview(event, signal),
         this.generateSetEvents(event),
       ])
         .then(() =>
@@ -429,18 +429,14 @@ export class DittoRelayStore implements NRelay {
     }
   }
 
-  private async warmLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
+  private async generateLinkPreview(event: NostrEvent, signal?: AbortSignal): Promise<void> {
     const { db, conf } = this.opts;
 
     if (event.kind === 1) {
-      const { firstUrl } = parseNoteContent(stripimeta(event.content, event.tags), [], this.opts);
+      const cardUrl = getCardUrl(event);
 
-      console.log({ firstUrl });
-
-      if (firstUrl) {
-        const linkPreview = await unfurlCard(firstUrl, { conf, signal });
-
-        console.log(linkPreview);
+      if (cardUrl) {
+        const linkPreview = await unfurlCard(cardUrl, { conf, signal });
 
         if (linkPreview) {
           await db.kysely.insertInto('event_stats')

@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
-import { getMediaLinks, parseNoteContent, stripimeta } from '@/utils/note.ts';
+import { contentToHtml, getLinks, getMediaLinks, stripMediaUrls } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
@@ -39,9 +39,21 @@ async function renderStatus(
 
   const replyId = findReplyTag(event.tags)?.[1];
 
+  const links = getLinks(event.content);
   const mentions = event.mentions?.map((event) => renderMention(event)) ?? [];
 
-  const { html, links } = parseNoteContent(stripimeta(event.content, event.tags), mentions, { conf: Conf });
+  const imeta: string[][][] = event.tags
+    .filter(([name]) => name === 'imeta')
+    .map(([_, ...entries]) =>
+      entries.map((entry) => {
+        const split = entry.split(' ');
+        return [split[0], split.splice(1).join(' ')];
+      })
+    );
+
+  const media = imeta.length ? imeta : getMediaLinks(links);
+
+  const html = contentToHtml(stripMediaUrls(event.content, media), mentions, { conf: Conf });
 
   const relatedEvents = viewerPubkey
     ? await store.query([
@@ -67,17 +79,6 @@ async function renderStatus(
 
   const cw = event.tags.find(([name]) => name === 'content-warning');
   const subject = event.tags.find(([name]) => name === 'subject');
-
-  const imeta: string[][][] = event.tags
-    .filter(([name]) => name === 'imeta')
-    .map(([_, ...entries]) =>
-      entries.map((entry) => {
-        const split = entry.split(' ');
-        return [split[0], split.splice(1).join(' ')];
-      })
-    );
-
-  const media = imeta.length ? imeta : getMediaLinks(links);
 
   /** Pleroma emoji reactions object. */
   const reactions = Object.entries(event.event_stats?.reactions ?? {}).reduce((acc, [emoji, count]) => {
