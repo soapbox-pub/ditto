@@ -69,34 +69,20 @@ export function contentToHtml(content: string, mentions: MastodonMention[], opts
   }).replace(/\n+$/, '');
 }
 
-/** Remove media URLs from content. */
-export function stripMediaUrls(content: string, media: string[][][]): string {
-  if (!media.length) {
-    return content;
-  }
+/** Remove the tokens from the _end_ of the content. */
+export function removeTrailingTokens(text: string, tokens: Set<string>): string {
+  let trimmedText = text;
 
-  const urls = new Set<string>();
-
-  for (const tags of media) {
-    for (const [name, value] of tags) {
-      if (name === 'url') {
-        urls.add(value);
-        break;
-      }
-    }
-  }
-
-  const lines = content.split('\n').reverse();
-
-  for (const line of [...lines]) {
-    if (line === '' || urls.has(line)) {
-      lines.splice(0, 1);
+  while (true) {
+    const match = trimmedText.match(/([^\s]+)(?:\s+)?$/);
+    if (match && tokens.has(match[1])) {
+      trimmedText = trimmedText.slice(0, match.index).replace(/\s+$/, '');
     } else {
       break;
     }
   }
 
-  return lines.reverse().join('\n');
+  return trimmedText;
 }
 
 export function getLinks(content: string) {

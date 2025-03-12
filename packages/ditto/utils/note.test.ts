@@ -1,8 +1,7 @@
 import { DittoConf } from '@ditto/conf';
 import { assertEquals } from '@std/assert';
 
-import { eventFixture } from '@/test.ts';
-import { contentToHtml, getCardUrl, getMediaLinks, stripMediaUrls } from '@/utils/note.ts';
+import { contentToHtml, getCardUrl, getMediaLinks, removeTrailingTokens } from '@/utils/note.ts';
 import { genEvent } from '@nostrify/nostrify/test';
 
 Deno.test('contentToHtml', () => {
@@ -125,24 +124,53 @@ Deno.test('getMediaLinks', () => {
   ]]);
 });
 
-Deno.test('stripMediaUrls', async () => {
-  const { content, tags } = await eventFixture('event-imeta');
+Deno.test('removeTrailingTokens with spaces', () => {
+  const urls = new Set<string>([
+    'https://ditto.pub/a.png',
+    'https://ditto.pub/b.jpg',
+  ]);
 
-  const media: string[][][] = tags
-    .filter(([name]) => name === 'imeta')
-    .map(([_, ...entries]) =>
-      entries.map((entry) => {
-        const split = entry.split(' ');
-        return [split[0], split.splice(1).join(' ')];
-      })
-    );
+  const result = removeTrailingTokens(
+    'hey!\n\nthis  is cool https://ditto.pub/a.png https://ditto.pub/b.jpg',
+    urls,
+  );
 
-  const stripped = stripMediaUrls(content, media);
+  assertEquals(result, 'hey!\n\nthis  is cool');
+});
 
-  const expected =
-    `Today we were made aware of multiple Fediverse blog posts incorrectly attributing “vote Trump” spam on Bluesky to the Mostr.pub Bridge. \n\nThis spam is NOT coming from Mostr. From the screenshots used in these blogs, it's clear the spam is coming from an entirely different bridge called momostr.pink. This bridge is not affiliated with Mostr, and is not even a fork of Mostr. We appreciate that the authors of these posts responded quickly to us and have since corrected the blogs. \n\nMostr.pub uses stirfry policies for anti-spam filtering. This includes an anti-duplication policy that prevents spam like the recent “vote Trump” posts we’ve seen repeated over and over. \n\nIt is important to note WHY there are multiple bridges, though. \n\nWhen Mostr.pub launched, multiple major servers immediately blocked Mostr, including Mastodon.social. The moderators of Mastodon.social claimed that this was because Nostr was unregulated, and suggested to one user that if they want to bridge their account they should host their own bridge.\n\nThat is exactly what momostr.pink, the source of this spam, has done. \n\nThe obvious response to the censorship of the Mostr Bridge is to build more bridges. \n\nWhile we have opted for pro-social policies that aim to reduce spam and build better connections between decentralized platforms, other bridges built to get around censorship of the Mostr Bridge may not — as we’re already seeing.\n\nThere will inevitably be multiple bridges, and we’re working on creating solutions to the problems that arise from that. In the meantime, if the Fediverse could do itself a favor and chill with the censorship for two seconds, we might not have so many problems. `;
+Deno.test('removeTrailingTokens with newlines', () => {
+  const urls = new Set<string>([
+    'https://ditto.pub/a.png',
+    'https://ditto.pub/b.jpg',
+  ]);
 
-  assertEquals(stripped, expected);
+  const result = removeTrailingTokens(
+    'Hey!\n\nthis is cool \n\nhttps://ditto.pub/a.png\nhttps://ditto.pub/b.jpg\n ',
+    urls,
+  );
+
+  assertEquals(result, 'Hey!\n\nthis is cool');
+});
+
+Deno.test('removeTrailingTokens with only URLs', () => {
+  const urls = new Set<string>([
+    'https://ditto.pub/a.png',
+    'https://ditto.pub/b.jpg',
+  ]);
+
+  const result = removeTrailingTokens(
+    'https://ditto.pub/a.png https://ditto.pub/b.jpg',
+    urls,
+  );
+
+  assertEquals(result, '');
+});
+
+Deno.test('removeTrailingTokens with just one URL', () => {
+  const urls = new Set<string>(['https://ditto.pub/a.png']);
+  const result = removeTrailingTokens('https://ditto.pub/a.png', urls);
+
+  assertEquals(result, '');
 });
 
 Deno.test('getCardUrl', async (t) => {
