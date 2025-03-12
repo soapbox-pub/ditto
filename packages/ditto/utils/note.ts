@@ -74,7 +74,7 @@ export function removeTrailingTokens(text: string, tokens: Set<string>): string 
   let trimmedText = text;
 
   while (true) {
-    const match = trimmedText.match(/\s?([^\s]+)\s?$/);
+    const match = trimmedText.match(/([^\s]+)(?:\s+)?$/);
     if (match && tokens.has(match[1])) {
       trimmedText = trimmedText.slice(0, match.index).replace(/\s+$/, '');
     } else {

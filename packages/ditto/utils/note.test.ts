@@ -145,7 +145,7 @@ Deno.test('removeTrailingTokens with newlines', () => {
   ]);
 
   const result = removeTrailingTokens(
-    'Hey!\n\nthis is cool \n\nhttps://ditto.pub/a.png\nhttps://ditto.pub/b.jpg',
+    'Hey!\n\nthis is cool \n\nhttps://ditto.pub/a.png\nhttps://ditto.pub/b.jpg\n ',
     urls,
   );
 
