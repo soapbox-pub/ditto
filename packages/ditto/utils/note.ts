@@ -8,31 +8,22 @@ import { getUrlMediaType, isPermittedMediaType } from '@/utils/media.ts';
 
 import type { DittoConf } from '@ditto/conf';
 import type { MastodonMention } from '@ditto/mastoapi/types';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 linkify.registerCustomProtocol('nostr', true);
 linkify.registerCustomProtocol('wss');
 
 type Link = ReturnType<typeof linkify.find>[0];
 
-interface ParsedNoteContent {
-  html: string;
-  links: Link[];
-  /** First non-media URL - eligible for a preview card. */
-  firstUrl: string | undefined;
-}
-
 interface ParseNoteContentOpts {
   conf: DittoConf;
 }
 
-/** Convert Nostr content to Mastodon API HTML. Also return parsed data. */
-function parseNoteContent(content: string, mentions: MastodonMention[], opts: ParseNoteContentOpts): ParsedNoteContent {
+/** Convert Nostr content to Mastodon API HTML. */
+export function contentToHtml(content: string, mentions: MastodonMention[], opts: ParseNoteContentOpts): string {
   const { conf } = opts;
 
-  const links = linkify.find(content).filter(({ type }) => type === 'url');
-  const firstUrl = links.find(isNonMediaLink)?.href;
-
-  const result = linkifyStr(content, {
+  return linkifyStr(content, {
     render: {
       hashtag: ({ content }) => {
         const tag = content.replace(/^#/, '');
@@ -76,25 +67,24 @@ function parseNoteContent(content: string, mentions: MastodonMention[], opts: Pa
       },
     },
   }).replace(/\n+$/, '');
-
-  return {
-    html: result,
-    links,
-    firstUrl,
-  };
 }
 
-/** Remove imeta links. */
-function stripimeta(content: string, tags: string[][]): string {
-  const imeta = tags.filter(([name]) => name === 'imeta');
-
-  if (!imeta.length) {
+/** Remove media URLs from content. */
+export function stripMediaUrls(content: string, media: string[][][]): string {
+  if (!media.length) {
     return content;
   }
 
-  const urls = new Set(
-    imeta.map(([, ...values]) => values.map((v) => v.split(' ')).find(([name]) => name === 'url')?.[1]),
-  );
+  const urls = new Set<string>();
+
+  for (const tags of media) {
+    for (const [name, value] of tags) {
+      if (name === 'url') {
+        urls.add(value);
+        break;
+      }
+    }
+  }
 
   const lines = content.split('\n').reverse();
 
@@ -109,8 +99,12 @@ function stripimeta(content: string, tags: string[][]): string {
   return lines.reverse().join('\n');
 }
 
-/** Returns a matrix of tags. Each item is a list of NIP-94 tags representing a file. */
-function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
+export function getLinks(content: string) {
+  return linkify.find(content).filter(({ type }) => type === 'url');
+}
+
+/** Legacy media URL finder. Should be used only as a fallback when no imeta tags are in the event. */
+export function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
   return links.reduce<string[][][]>((acc, link) => {
     const mediaType = getUrlMediaType(link.href);
     if (!mediaType) return acc;
@@ -126,8 +120,36 @@ function getMediaLinks(links: Pick<Link, 'href'>[]): string[][][] {
   }, []);
 }
 
-function isNonMediaLink({ href }: Link): boolean {
-  return /^https?:\/\//.test(href) && !getUrlMediaType(href);
+/** Get the first non-media URL from an event. */
+export function getCardUrl(event: NostrEvent): string | undefined {
+  const links = getLinks(event.content);
+
+  const imeta: string[][][] = event.tags
+    .filter(([name]) => name === 'imeta')
+    .map(([_, ...entries]) =>
+      entries.map((entry) => {
+        const split = entry.split(' ');
+        return [split[0], split.splice(1).join(' ')];
+      })
+    );
+
+  const media = imeta.length ? imeta : getMediaLinks(links);
+  const mediaUrls = new Set<string>();
+
+  for (const tags of media) {
+    for (const [name, value] of tags) {
+      if (name === 'url') {
+        mediaUrls.add(value);
+        break;
+      }
+    }
+  }
+
+  for (const link of links) {
+    if (link.type === 'url' && !mediaUrls.has(link.href)) {
+      return link.href;
+    }
+  }
 }
 
 /** Get pubkey from decoded bech32 entity, or undefined if not applicable. */
@@ -141,7 +163,7 @@ function getDecodedPubkey(decoded: nip19.DecodeResult): string | undefined {
 }
 
 /** Find a quote in the content. */
-function findQuoteInContent(content: string): string | undefined {
+export function findQuoteInContent(content: string): string | undefined {
   try {
     for (const { decoded } of nip27.matchAll(content)) {
       switch (decoded.type) {
@@ -155,5 +177,3 @@ function findQuoteInContent(content: string): string | undefined {
     // do nothing
   }
 }
-
-export { findQuoteInContent, getMediaLinks, parseNoteContent, stripimeta };
