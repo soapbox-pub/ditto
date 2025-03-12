@@ -69,13 +69,13 @@ export function contentToHtml(content: string, mentions: MastodonMention[], opts
   }).replace(/\n+$/, '');
 }
 
-/** Remove the URLs from the _end_ of the content. */
-export function removeTrailingUrls(text: string, urls: Set<string>): string {
+/** Remove the tokens from the _end_ of the content. */
+export function removeTrailingTokens(text: string, tokens: Set<string>): string {
   let trimmedText = text;
 
   while (true) {
     const match = trimmedText.match(/\s?([^\s]+)\s?$/);
-    if (match && urls.has(match[1])) {
+    if (match && tokens.has(match[1])) {
       trimmedText = trimmedText.slice(0, match.index).replace(/\s+$/, '');
     } else {
       break;

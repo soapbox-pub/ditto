@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
-import { contentToHtml, getLinks, getMediaLinks, removeTrailingUrls } from '@/utils/note.ts';
+import { contentToHtml, getLinks, getMediaLinks, removeTrailingTokens } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
@@ -63,7 +63,7 @@ async function renderStatus(
     }
   }
 
-  const html = contentToHtml(removeTrailingUrls(event.content, mediaUrls), mentions, { conf: Conf });
+  const html = contentToHtml(removeTrailingTokens(event.content, mediaUrls), mentions, { conf: Conf });
 
   const relatedEvents = viewerPubkey
     ? await store.query([

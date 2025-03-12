@@ -1,7 +1,7 @@
 import { DittoConf } from '@ditto/conf';
 import { assertEquals } from '@std/assert';
 
-import { contentToHtml, getCardUrl, getMediaLinks, removeTrailingUrls } from '@/utils/note.ts';
+import { contentToHtml, getCardUrl, getMediaLinks, removeTrailingTokens } from '@/utils/note.ts';
 import { genEvent } from '@nostrify/nostrify/test';
 
 Deno.test('contentToHtml', () => {
@@ -124,13 +124,13 @@ Deno.test('getMediaLinks', () => {
   ]]);
 });
 
-Deno.test('removeTrailingUrls with spaces', () => {
+Deno.test('removeTrailingTokens with spaces', () => {
   const urls = new Set<string>([
     'https://ditto.pub/a.png',
     'https://ditto.pub/b.jpg',
   ]);
 
-  const result = removeTrailingUrls(
+  const result = removeTrailingTokens(
     'hey!\n\nthis  is cool https://ditto.pub/a.png https://ditto.pub/b.jpg',
     urls,
   );
@@ -138,13 +138,13 @@ Deno.test('removeTrailingUrls with spaces', () => {
   assertEquals(result, 'hey!\n\nthis  is cool');
 });
 
-Deno.test('removeTrailingUrls with newlines', () => {
+Deno.test('removeTrailingTokens with newlines', () => {
   const urls = new Set<string>([
     'https://ditto.pub/a.png',
     'https://ditto.pub/b.jpg',
   ]);
 
-  const result = removeTrailingUrls(
+  const result = removeTrailingTokens(
     'Hey!\n\nthis is cool \n\nhttps://ditto.pub/a.png\nhttps://ditto.pub/b.jpg',
     urls,
   );
@@ -152,13 +152,13 @@ Deno.test('removeTrailingUrls with newlines', () => {
   assertEquals(result, 'Hey!\n\nthis is cool');
 });
 
-Deno.test('removeTrailingUrls with only URLs', () => {
+Deno.test('removeTrailingTokens with only URLs', () => {
   const urls = new Set<string>([
     'https://ditto.pub/a.png',
     'https://ditto.pub/b.jpg',
   ]);
 
-  const result = removeTrailingUrls(
+  const result = removeTrailingTokens(
     'https://ditto.pub/a.png https://ditto.pub/b.jpg',
     urls,
   );
@@ -166,9 +166,9 @@ Deno.test('removeTrailingUrls with only URLs', () => {
   assertEquals(result, '');
 });
 
-Deno.test('removeTrailingUrls with just one URL', () => {
+Deno.test('removeTrailingTokens with just one URL', () => {
   const urls = new Set<string>(['https://ditto.pub/a.png']);
-  const result = removeTrailingUrls('https://ditto.pub/a.png', urls);
+  const result = removeTrailingTokens('https://ditto.pub/a.png', urls);
 
   assertEquals(result, '');
 });
