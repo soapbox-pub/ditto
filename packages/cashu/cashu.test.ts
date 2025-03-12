@@ -1,4 +1,4 @@
-import { NSecSigner } from '@nostrify/nostrify';
+import { type NostrFilter, NSecSigner } from '@nostrify/nostrify';
 import { NPostgres } from '@nostrify/db';
 import { genEvent } from '@nostrify/nostrify/test';
 
@@ -9,7 +9,7 @@ import { assertEquals } from '@std/assert';
 import { DittoPolyPg, TestDB } from '@ditto/db';
 import { DittoConf } from '@ditto/conf';
 
-import { getLastRedeemedNutzap, organizeProofs, validateAndParseWallet } from './cashu.ts';
+import { getLastRedeemedNutzap, getMintsToProofs, organizeProofs, validateAndParseWallet } from './cashu.ts';
 
 Deno.test('validateAndParseWallet function returns valid data', async () => {
   const conf = new DittoConf(Deno.env);
@@ -241,4 +241,105 @@ Deno.test('getLastRedeemedNutzap function is working', async () => {
   const event = await getLastRedeemedNutzap(store, pubkey);
 
   assertEquals(event, event4);
+});
+
+Deno.test('getMintsToProofs function is working', async () => {
+  const conf = new DittoConf(Deno.env);
+  const orig = new DittoPolyPg(conf.databaseUrl);
+
+  await using db = new TestDB(orig);
+  await db.migrate();
+  await db.clear();
+
+  const store = new NPostgres(orig.kysely);
+
+  const sk = generateSecretKey();
+  const signer = new NSecSigner(sk);
+  const pubkey = await signer.getPublicKey();
+
+  const redeemedNutzap = genEvent({
+    created_at: Math.floor(Date.now() / 1000), // now
+    kind: 9321,
+    content: 'Thanks buddy! Nice idea.',
+    tags: [
+      [
+        'proof',
+        JSON.stringify({
+          id: '005c2502034d4f12',
+          amount: 25,
+          secret: 'z+zyxAVLRqN9lEjxuNPSyRJzEstbl69Jc1vtimvtkPg=',
+          C: '0241d98a8197ef238a192d47edf191a9de78b657308937b4f7dd0aa53beae72c46',
+        }),
+      ],
+      ['u', 'https://mint.soul.com'],
+      ['e', 'nutzapped-post'],
+      ['p', '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4'],
+    ],
+  }, sk);
+
+  await store.event(redeemedNutzap);
+
+  await new Promise((r) => setTimeout(r, 1000));
+
+  const history = genEvent({
+    created_at: Math.floor(Date.now() / 1000), // now
+    kind: 7376,
+    content: 'nip-44-encrypted',
+    tags: [
+      ['e', redeemedNutzap.id, conf.relay, 'redeemed'],
+      ['p', redeemedNutzap.pubkey],
+    ],
+  }, sk);
+
+  await store.event(history);
+
+  const nutzap = genEvent({
+    created_at: Math.floor(Date.now() / 1000), // now
+    kind: 9321,
+    content: 'Thanks buddy! Nice idea.',
+    tags: [
+      [
+        'proof',
+        JSON.stringify({
+          id: '005c2502034d4f12',
+          amount: 50,
+          secret: 'z+zyxAVLRqN9lEjxuNPSyRJzEstbl69Jc1vtimvtkPg=',
+          C: '0241d98a8197ef238a192d47edf191a9de78b657308937b4f7dd0aa53beae72c46',
+        }),
+      ],
+      ['u', 'https://mint.soul.com'],
+      ['e', 'nutzapped-post'],
+      ['p', '47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4'],
+    ],
+  }, sk);
+
+  await store.event(nutzap);
+
+  const nutzapsFilter: NostrFilter = {
+    kinds: [9321],
+    '#p': ['47259076c85f9240e852420d7213c95e95102f1de929fb60f33a2c32570c98c4'],
+    '#u': ['https://mint.soul.com'],
+  };
+
+  const lastRedeemedNutzap = await getLastRedeemedNutzap(store, pubkey);
+  if (lastRedeemedNutzap) {
+    nutzapsFilter.since = lastRedeemedNutzap.created_at;
+  }
+
+  const mintsToProofs = await getMintsToProofs(store, nutzapsFilter, conf.relay);
+
+  assertEquals(mintsToProofs, {
+    'https://mint.soul.com': {
+      proofs: [{
+        id: '005c2502034d4f12',
+        amount: 50,
+        secret: 'z+zyxAVLRqN9lEjxuNPSyRJzEstbl69Jc1vtimvtkPg=',
+        C: '0241d98a8197ef238a192d47edf191a9de78b657308937b4f7dd0aa53beae72c46',
+      }],
+      toBeRedeemed: [
+        ['e', nutzap.id, conf.relay, 'redeemed'],
+        ['p', nutzap.pubkey],
+      ],
+    },
+  });
 });
