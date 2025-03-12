@@ -5,7 +5,7 @@ import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { metadataSchema } from '@/schemas/nostr.ts';
 import { getLnurl } from '@/utils/lnurl.ts';
-import { parseNoteContent } from '@/utils/note.ts';
+import { contentToHtml } from '@/utils/note.ts';
 import { getTagSet } from '@/utils/tags.ts';
 import { nostrDate, nostrNow, parseNip05 } from '@/utils.ts';
 import { renderEmojis } from '@/views/mastodon/emojis.ts';
@@ -48,7 +48,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
   const parsed05 = stats?.nip05 ? parseNip05(stats.nip05) : undefined;
   const acct = parsed05?.handle || npub;
 
-  const { html } = parseNoteContent(about || '', [], { conf: Conf });
+  const html = contentToHtml(about || '', [], { conf: Conf });
 
   const fields = _fields
     ?.slice(0, Conf.profileFields.maxFields)
@@ -84,7 +84,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
     discoverable: true,
     display_name: name ?? '',
     emojis: renderEmojis(event),
-    fields: fields.map((field) => ({ ...field, value: parseNoteContent(field.value, [], { conf: Conf }).html })),
+    fields: fields.map((field) => ({ ...field, value: contentToHtml(field.value, [], { conf: Conf }) })),
     follow_requests_count: 0,
     followers_count: stats?.followers_count ?? 0,
     following_count: stats?.following_count ?? 0,
