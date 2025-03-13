@@ -13,6 +13,10 @@ import { createTestDB } from '@/test.ts';
 import { walletSchema } from '@/schema.ts';
 
 Deno.test('PUT /wallet must be successful', async () => {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+
   await using test = await createTestRoute();
 
   const { route, signer, sk, relay } = test;
@@ -75,9 +79,15 @@ Deno.test('PUT /wallet must be successful', async () => {
   assertEquals([nutzap_info.tags.find(([name]) => name === 'relay')?.[1]!], [
     'ws://localhost:4036/relay',
   ]);
+
+  mock.restore();
 });
 
 Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async () => {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+
   await using test = await createTestRoute();
   const { route } = test;
 
@@ -95,9 +105,15 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
 
   assertEquals(response.status, 400);
   assertObjectMatch(body, { error: 'Bad schema' });
+
+  mock.restore();
 });
 
 Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+
   await using test = await createTestRoute();
   const { route, sk, relay } = test;
 
@@ -118,9 +134,15 @@ Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () 
 
   assertEquals(response.status, 400);
   assertEquals(body2, { error: 'You already have a wallet 😏' });
+
+  mock.restore();
 });
 
 Deno.test('GET /wallet must be successful', async () => {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+
   await using test = await createTestRoute();
   const { route, sk, relay, signer } = test;
 
@@ -217,6 +239,8 @@ Deno.test('GET /wallet must be successful', async () => {
     relays: ['ws://localhost:4036/relay'],
     balance: 100,
   });
+
+  mock.restore();
 });
 
 Deno.test('GET /mints must be successful', async () => {
@@ -247,10 +271,6 @@ async function createTestRoute() {
   route.use(testUserMiddleware({ signer, relay }));
   route.route('/', cashuRoute);
 
-  const mock = stub(globalThis, 'fetch', () => {
-    return Promise.resolve(new Response());
-  });
-
   return {
     route,
     db,
@@ -259,7 +279,6 @@ async function createTestRoute() {
     signer,
     relay,
     [Symbol.asyncDispose]: async () => {
-      mock.restore();
       await db[Symbol.asyncDispose]();
     },
   };
