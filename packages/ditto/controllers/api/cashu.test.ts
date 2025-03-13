@@ -261,7 +261,6 @@ async function createTestRoute() {
     [Symbol.asyncDispose]: async () => {
       mock.restore();
       await db[Symbol.asyncDispose]();
-      await relay[Symbol.asyncDispose]();
     },
   };
 }
