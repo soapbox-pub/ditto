@@ -4,7 +4,7 @@ import { nip19 } from 'nostr-tools';
 import { Conf } from '@/config.ts';
 import { type DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { nostrDate } from '@/utils.ts';
-import { contentToHtml, getLinks, getMediaLinks, stripMediaUrls } from '@/utils/note.ts';
+import { contentToHtml, getLinks, getMediaLinks, removeTrailingTokens } from '@/utils/note.ts';
 import { findReplyTag } from '@/utils/tags.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderAttachment } from '@/views/mastodon/attachments.ts';
@@ -52,8 +52,18 @@ async function renderStatus(
     );
 
   const media = imeta.length ? imeta : getMediaLinks(links);
+  const mediaUrls = new Set<string>();
 
-  const html = contentToHtml(stripMediaUrls(event.content, media), mentions, { conf: Conf });
+  for (const tags of media) {
+    for (const [name, value] of tags) {
+      if (name === 'url') {
+        mediaUrls.add(value);
+        break;
+      }
+    }
+  }
+
+  const html = contentToHtml(removeTrailingTokens(event.content, mediaUrls), mentions, { conf: Conf });
 
   const relatedEvents = viewerPubkey
     ? await store.query([
