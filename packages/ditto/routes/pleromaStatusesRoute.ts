@@ -60,7 +60,7 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
  */
 route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
   const { id, emoji } = c.req.param();
-  const { relay, user } = c.var;
+  const { relay, user, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
 
@@ -68,9 +68,7 @@ route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) 
     return c.json({ error: 'Invalid emoji' }, 400);
   }
 
-  const [event] = await relay.query([
-    { kinds: [1, 20], ids: [id], limit: 1 },
-  ]);
+  const [event] = await relay.query([{ ids: [id] }], { signal });
 
   if (!event) {
     return c.json({ error: 'Status not found' }, 404);
@@ -91,8 +89,7 @@ route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) 
     tags,
   }, c);
 
-  const status = renderStatus(relay, event, { viewerPubkey: pubkey });
-
+  const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
   return c.json(status);
 });
 
