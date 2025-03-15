@@ -98,7 +98,7 @@ function createTestApp(): TestApp {
   const conf = new DittoConf(Deno.env);
   const db = new DittoPolyPg(conf.databaseUrl);
   const pool = new MockRelay();
-  const store = new DittoPgStore({ conf, db });
+  const store = new DittoPgStore({ conf, db, notify: false });
   const relay = new DittoRelayStore({ conf, db, pool, relay: store });
 
   return new TestApp(route, { conf, db, relay });
