@@ -147,6 +147,7 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import customEmojisRoute from '@/routes/customEmojisRoute.ts';
 import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
 import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
@@ -520,8 +521,9 @@ app.delete('/api/v1/pleroma/admin/users/tag', userMiddleware({ role: 'admin' }),
 app.patch('/api/v1/pleroma/admin/users/suggest', userMiddleware({ role: 'admin' }), pleromaAdminSuggestController);
 app.patch('/api/v1/pleroma/admin/users/unsuggest', userMiddleware({ role: 'admin' }), pleromaAdminUnsuggestController);
 
+app.route('/api/v1/custom_emojis', customEmojisRoute);
+
 // Not (yet) implemented.
-app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/conversations', emptyArrayController);
