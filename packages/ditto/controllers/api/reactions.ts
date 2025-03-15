@@ -4,37 +4,47 @@ import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent } from '@/utils/api.ts';
 import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
+import { HTTPException } from '@hono/hono/http-exception';
+
+import { getCustomEmojis } from '@/utils/custom-emoji.ts';
 
 /**
  * React to a status.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#put-apiv1pleromastatusesidreactionsemoji
  */
 const reactionController: AppController = async (c) => {
-  const { relay, user } = c.var;
-  const id = c.req.param('id');
-  const emoji = c.req.param('emoji');
+  const { relay, user, conf, signal } = c.var;
+  const { type, value } = parseEmojiParam(c.req.param('emoji'));
 
-  if (!/^\p{RGI_Emoji}$/v.test(emoji)) {
-    return c.json({ error: 'Invalid emoji' }, 400);
-  }
+  const pubkey = await user!.signer.getPublicKey();
 
-  const [event] = await relay.query([{ kinds: [1, 20], ids: [id], limit: 1 }]);
-
+  const [event] = await relay.query([{ ids: [c.req.param('id')] }], { signal });
   if (!event) {
-    return c.json({ error: 'Status not found' }, 404);
+    return c.json({ error: 'Event not found' }, 404);
   }
 
-  await createEvent({
-    kind: 7,
-    content: emoji,
-    created_at: Math.floor(Date.now() / 1000),
-    tags: [['e', id], ['p', event.pubkey]],
-  }, c);
+  const tags: string[][] = [
+    ['e', event.id, conf.relay, event.pubkey],
+    ['p', event.pubkey, conf.relay],
+  ];
 
+  if (type === 'custom') {
+    const emojis = await getCustomEmojis(pubkey, c.var);
+    const emoji = emojis.get(value);
+
+    if (!emoji) {
+      return c.json({ error: 'Custom emoji not found' }, 404);
+    }
+
+    tags.push(['emoji', value, emoji.url.href]);
+  }
+
+  const content = type === 'custom' ? `:${value}:` : value;
+
+  await createEvent({ kind: 7, content, tags }, c);
   await hydrateEvents({ ...c.var, events: [event] });
 
-  const status = await renderStatus(relay, event, { viewerPubkey: await user!.signer.getPublicKey() });
-
+  const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
   return c.json(status);
 };
 
@@ -124,5 +134,17 @@ const reactionsController: AppController = async (c) => {
 
   return c.json(results);
 };
+
+function parseEmojiParam(input: string): { type: 'native' | 'custom'; value: string } {
+  if (/^\p{RGI_Emoji}$/v.test(input)) {
+    return { type: 'native', value: input };
+  }
+
+  if (/^\w+$/.test(input)) {
+    return { type: 'custom', value: input };
+  }
+
+  throw new HTTPException(400, { message: 'Invalid emoji' });
+}
 
 export { deleteReactionController, reactionController, reactionsController };
