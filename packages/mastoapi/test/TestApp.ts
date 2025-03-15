@@ -95,10 +95,11 @@ export class TestApp extends DittoApp implements AsyncDisposable {
     return user;
   }
 
-  createUser(sk?: Uint8Array): User {
+  createUser(sk: Uint8Array = generateSecretKey()): User & { sk: Uint8Array } {
     return {
       relay: this.opts.relay,
-      signer: new NSecSigner(sk ?? generateSecretKey()),
+      signer: new NSecSigner(sk),
+      sk,
     };
   }
 

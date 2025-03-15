@@ -8,7 +8,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderStatus } from '@/views/mastodon/statuses.ts';
 import { HTTPException } from '@hono/hono/http-exception';
 
-import { getCustomEmojis } from '@/utils/custom-emoji.ts';
+import { getCustomEmojis, parseEmojiInput } from '@/utils/custom-emoji.ts';
 
 const route = new DittoRoute();
 
@@ -44,7 +44,19 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
     tags.push(['emoji', result.shortcode, emoji.url.href]);
   }
 
-  const content = result.type === 'custom' ? `:${result.shortcode}:` : result.emoji;
+  let content: string;
+
+  switch (result.type) {
+    case 'basic':
+      content = result.value;
+      break;
+    case 'native':
+      content = result.native;
+      break;
+    case 'custom':
+      content = `:${result.shortcode}:`;
+      break;
+  }
 
   await createEvent({ kind: 7, content, tags }, c);
   await hydrateEvents({ ...c.var, events: [event] });
@@ -58,35 +70,39 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#delete-apiv1pleromastatusesidreactionsemoji
  */
 route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
-  const { id, emoji } = c.req.param();
   const { relay, user, signal } = c.var;
 
+  const params = c.req.param();
   const pubkey = await user.signer.getPublicKey();
 
-  if (!/^\p{RGI_Emoji}$/v.test(emoji)) {
-    return c.json({ error: 'Invalid emoji' }, 400);
-  }
-
-  const [event] = await relay.query([{ ids: [id] }], { signal });
+  const [event] = await relay.query([{ ids: [params.id] }], { signal });
 
   if (!event) {
     return c.json({ error: 'Status not found' }, 404);
   }
 
   const events = await relay.query([
-    { kinds: [7], authors: [pubkey], '#e': [id] },
-  ]);
+    { kinds: [7], authors: [pubkey], '#e': [params.id] },
+  ], { signal });
 
-  const tags = events
-    .filter((event) => event.content === emoji)
-    .map((event) => ['e', event.id]);
+  const e = new Set<string>();
+
+  for (const { id, content } of events) {
+    if (content === params.emoji || content === `:${params.emoji}:`) {
+      e.add(id);
+    }
+  }
+
+  if (!e.size) {
+    return c.json({ error: 'Reaction not found' }, 404);
+  }
 
   await createEvent({
     kind: 5,
-    content: '',
-    created_at: Math.floor(Date.now() / 1000),
-    tags,
+    tags: [...e].map((id) => ['e', id]),
   }, c);
+
+  await hydrateEvents({ ...c.var, events: [event] });
 
   const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
   return c.json(status);
@@ -97,30 +113,79 @@ route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) 
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#get-apiv1pleromastatusesidreactions
  */
 route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: false }), async (c) => {
-  const { id, emoji } = c.req.param();
   const { relay, user } = c.var;
 
+  const params = c.req.param();
+  const result = params.emoji ? parseEmojiParam(params.emoji) : undefined;
   const pubkey = await user?.signer.getPublicKey();
 
-  if (typeof emoji === 'string' && !/^\p{RGI_Emoji}$/v.test(emoji)) {
-    return c.json({ error: 'Invalid emoji' }, 400);
-  }
+  const events = await relay.query([{ kinds: [7], '#e': [params.id], limit: 100 }])
+    .then((events) =>
+      events.filter((event) => {
+        if (!result) return true;
 
-  const events = await relay.query([{ kinds: [7], '#e': [id], limit: 100 }])
-    .then((events) => events.filter(({ content }) => /^\p{RGI_Emoji}$/v.test(content)))
-    .then((events) => events.filter((event) => !emoji || event.content === emoji))
+        switch (result.type) {
+          case 'basic':
+            return event.content === result.value;
+          case 'native':
+            return event.content === result.native;
+          case 'custom':
+            return event.content === `:${result.shortcode}:`;
+        }
+      })
+    )
     .then((events) => hydrateEvents({ ...c.var, events }));
 
-  /** Events grouped by emoji. */
-  const byEmoji = events.reduce((acc, event) => {
-    const emoji = event.content;
-    acc[emoji] = acc[emoji] || [];
-    acc[emoji].push(event);
+  /** Events grouped by emoji key. */
+  const byEmojiKey = events.reduce((acc, event) => {
+    const result = parseEmojiInput(event.content);
+    if (!result) return acc;
+
+    let url: URL | undefined;
+
+    if (result.type === 'custom') {
+      const tag = event.tags.find(([name, value]) => name === 'emoji' && value === result.shortcode);
+      try {
+        url = new URL(tag![2]);
+      } catch {
+        return acc;
+      }
+    }
+
+    let key: string;
+    switch (result.type) {
+      case 'basic':
+        key = result.value;
+        break;
+      case 'native':
+        key = result.native;
+        break;
+      case 'custom':
+        key = `${result.shortcode}:${url}`;
+        break;
+    }
+
+    acc[key] = acc[key] || [];
+    acc[key].push(event);
+
     return acc;
   }, {} as Record<string, DittoEvent[]>);
 
   const results = await Promise.all(
-    Object.entries(byEmoji).map(async ([name, events]) => {
+    Object.entries(byEmojiKey).map(async ([key, events]) => {
+      let name: string = key;
+      let url: string | undefined;
+
+      // Custom emojis: `<shortcode>:<url>`
+      try {
+        const [shortcode, ...rest] = key.split(':');
+
+        url = new URL(rest.join(':')).toString();
+        name = shortcode;
+      } catch {
+        // fallthrough
+      }
+
       return {
         name,
         count: events.length,
@@ -128,6 +193,7 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
         accounts: await Promise.all(
           events.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),
         ),
+        url,
       };
     }),
   );
@@ -136,19 +202,21 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
 });
 
 /** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
-function parseEmojiParam(input: string): { type: 'native'; emoji: string } | { type: 'custom'; shortcode: string } {
-  if (/^\p{RGI_Emoji}$/v.test(input)) {
-    return { type: 'native', emoji: input };
+function parseEmojiParam(input: string):
+  | { type: 'basic'; value: '+' | '-' }
+  | { type: 'native'; native: string }
+  | { type: 'custom'; shortcode: string } {
+  if (/^\w+$/.test(input)) {
+    input = `:${input}:`; // Pleroma API supports the `emoji` param with or without colons.
   }
 
-  const match = input.match(/^:?(\w+):?$/); // Pleroma API supports with or without colons.
+  const result = parseEmojiInput(input);
 
-  if (match) {
-    const [, shortcode] = match;
-    return { type: 'custom', shortcode };
+  if (!result) {
+    throw new HTTPException(400, { message: 'Invalid emoji' });
   }
 
-  throw new HTTPException(400, { message: 'Invalid emoji' });
+  return result;
 }
 
 export default route;
