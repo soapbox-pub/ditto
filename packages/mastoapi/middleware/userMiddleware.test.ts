@@ -10,6 +10,18 @@ Deno.test('no user 401', async () => {
   assertEquals(response.status, 401);
 });
 
+Deno.test('no user required false', async () => {
+  await using app = new TestApp();
+
+  app
+    .use(userMiddleware({ required: false }))
+    .get('/', (c) => c.text('ok'));
+
+  const response = await app.request('/');
+
+  assertEquals(response.status, 200);
+});
+
 Deno.test('unsupported signer 400', async () => {
   await using app = new TestApp();
 

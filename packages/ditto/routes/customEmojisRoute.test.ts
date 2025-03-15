@@ -10,6 +10,14 @@ Deno.test('customEmojisRoute', async (t) => {
   await using test = new TestApp(route);
   const { relay } = test.var;
 
+  await t.step('unauth', async () => {
+    const response = await test.api.get('/');
+    const body = await response.json();
+
+    assertEquals(response.status, 200);
+    assertEquals(body, []);
+  });
+
   const sk = generateSecretKey();
   const user = test.user({ relay, signer: new NSecSigner(sk) });
   const pubkey = await user.signer.getPublicKey();
