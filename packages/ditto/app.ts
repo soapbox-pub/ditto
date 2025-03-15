@@ -87,7 +87,6 @@ import {
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
 import { getSubscriptionController, pushSubscribeController } from '@/controllers/api/push.ts';
-import { deleteReactionController, reactionController, reactionsController } from '@/controllers/api/reactions.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
 import {
   adminReportController,
@@ -150,6 +149,7 @@ import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
 import customEmojisRoute from '@/routes/customEmojisRoute.ts';
 import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
 import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
+import pleromaStatusesRoute from '@/routes/pleromaStatusesRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
@@ -435,10 +435,7 @@ app.post('/api/v1/markers', userMiddleware({ verify: true }), updateMarkersContr
 app.get('/api/v1/push/subscription', userMiddleware(), getSubscriptionController);
 app.post('/api/v1/push/subscription', userMiddleware({ verify: true }), pushSubscribeController);
 
-app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
-app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);
-app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), reactionController);
-app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), deleteReactionController);
+app.route('/api/v1/pleroma/statuses', pleromaStatusesRoute);
 
 app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), configController);
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);

@@ -141,16 +141,24 @@ Deno.test('updateStats with kind 7 increments reactions count', async () => {
   const { kysely, relay } = test;
 
   const note = genEvent({ kind: 1 });
-  await updateStats({ ...test, event: note });
   await relay.event(note);
 
   await updateStats({ ...test, event: genEvent({ kind: 7, content: '+', tags: [['e', note.id]] }) });
   await updateStats({ ...test, event: genEvent({ kind: 7, content: '😂', tags: [['e', note.id]] }) });
 
+  await updateStats({
+    ...test,
+    event: genEvent({
+      kind: 7,
+      content: ':ditto:',
+      tags: [['e', note.id], ['emoji', 'ditto', 'https://ditto.pub/favicon.ico']],
+    }),
+  });
+
   const stats = await getEventStats(kysely, note.id);
 
-  assertEquals(stats!.reactions, JSON.stringify({ '+': 1, '😂': 1 }));
-  assertEquals(stats!.reactions_count, 2);
+  assertEquals(stats!.reactions, JSON.stringify({ '+': 1, '😂': 1, 'ditto:https://ditto.pub/favicon.ico': 1 }));
+  assertEquals(stats!.reactions_count, 3);
 });
 
 Deno.test('updateStats with kind 5 decrements reactions count', async () => {

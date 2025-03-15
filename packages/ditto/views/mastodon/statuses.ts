@@ -91,11 +91,32 @@ async function renderStatus(
   const subject = event.tags.find(([name]) => name === 'subject');
 
   /** Pleroma emoji reactions object. */
-  const reactions = Object.entries(event.event_stats?.reactions ?? {}).reduce((acc, [emoji, count]) => {
-    if (['+', '-'].includes(emoji)) return acc;
-    acc.push({ name: emoji, count, me: reactionEvent?.content === emoji });
+  const reactions = Object.entries(event.event_stats?.reactions ?? {}).reduce((acc, [key, count]) => {
+    if (['+', '-'].includes(key)) return acc; // skip basic reactions (treat as likes/dislikes in Mastodon API)
+
+    // Custom emoji reactions: `<shortcode>:<url>`
+    try {
+      const [shortcode, ...rest] = key.split(':');
+      const url = new URL(rest.join(':'));
+      const tag = reactionEvent?.tags.find((t) => t[0] === 'emoji' && t[1] === shortcode && t[2] === url.href);
+
+      acc.push({
+        name: shortcode,
+        me: reactionEvent?.content === `:${shortcode}:` && !!tag,
+        url: url.href,
+        count,
+      });
+
+      return acc;
+    } catch {
+      // fallthrough
+    }
+
+    // Native emojis: `🚀`
+    acc.push({ name: key, count, me: reactionEvent?.content === key });
+
     return acc;
-  }, [] as { name: string; count: number; me: boolean }[]);
+  }, [] as { name: string; count: number; me: boolean; url?: string }[]);
 
   const expiresAt = new Date(Number(event.tags.find(([name]) => name === 'expiration')?.[1]) * 1000);
 

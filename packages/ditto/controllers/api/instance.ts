@@ -9,6 +9,7 @@ const features = [
   'exposable_reactions',
   'mastodon_api',
   'mastodon_api_streaming',
+  'pleroma_custom_emoji_reactions',
   'pleroma_emoji_reactions',
   'quote_posting',
   'v2_suggestions',

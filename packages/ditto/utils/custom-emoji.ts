@@ -70,3 +70,24 @@ export async function getCustomEmojis(
 
   return emojis;
 }
+
+/** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
+export function parseEmojiInput(input: string):
+  | { type: 'basic'; value: '+' | '-' }
+  | { type: 'native'; native: string }
+  | { type: 'custom'; shortcode: string }
+  | undefined {
+  if (input === '+' || input === '-') {
+    return { type: 'basic', value: input };
+  }
+
+  if (/^\p{RGI_Emoji}$/v.test(input)) {
+    return { type: 'native', native: input };
+  }
+
+  const match = input.match(/^:(\w+):$/);
+  if (match) {
+    const [, shortcode] = match;
+    return { type: 'custom', shortcode };
+  }
+}

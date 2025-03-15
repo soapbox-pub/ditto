@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { findQuoteTag, findReplyTag, getTagSet } from '@/utils/tags.ts';
 
 import type { DittoConf } from '@ditto/conf';
+import { parseEmojiInput } from '@/utils/custom-emoji.ts';
 
 interface UpdateStatsOpts {
   conf: DittoConf;
@@ -154,31 +155,55 @@ async function handleEvent7(opts: UpdateStatsOpts): Promise<void> {
   const { kysely, event, x = 1 } = opts;
 
   const id = event.tags.findLast(([name]) => name === 'e')?.[1];
-  const emoji = event.content;
+  const result = parseEmojiInput(event.content);
 
-  if (id && emoji && (['+', '-'].includes(emoji) || /^\p{RGI_Emoji}$/v.test(emoji))) {
-    await updateEventStats(kysely, id, ({ reactions }) => {
-      const data: Record<string, number> = JSON.parse(reactions);
+  if (!id || !result) return;
 
-      // Increment or decrement the emoji count.
-      data[emoji] = (data[emoji] ?? 0) + x;
+  let url: URL | undefined;
 
-      // Remove reactions with a count of 0 or less.
-      for (const key of Object.keys(data)) {
-        if (data[key] < 1) {
-          delete data[key];
-        }
-      }
-
-      // Total reactions count.
-      const count = Object.values(data).reduce((result, value) => result + value, 0);
-
-      return {
-        reactions: JSON.stringify(data),
-        reactions_count: count,
-      };
-    });
+  if (result.type === 'custom') {
+    const tag = event.tags.find(([name, value]) => name === 'emoji' && value === result.shortcode);
+    try {
+      url = new URL(tag![2]);
+    } catch {
+      return;
+    }
   }
+
+  let key: string;
+  switch (result.type) {
+    case 'basic':
+      key = result.value;
+      break;
+    case 'native':
+      key = result.native;
+      break;
+    case 'custom':
+      key = `${result.shortcode}:${url}`;
+      break;
+  }
+
+  await updateEventStats(kysely, id, ({ reactions }) => {
+    const data: Record<string, number> = JSON.parse(reactions);
+
+    // Increment or decrement the emoji count.
+    data[key] = (data[key] ?? 0) + x;
+
+    // Remove reactions with a count of 0 or less.
+    for (const key of Object.keys(data)) {
+      if (data[key] < 1) {
+        delete data[key];
+      }
+    }
+
+    // Total reactions count.
+    const count = Object.values(data).reduce((result, value) => result + value, 0);
+
+    return {
+      reactions: JSON.stringify(data),
+      reactions_count: count,
+    };
+  });
 }
 
 /** Update stats for kind 9735 event. */

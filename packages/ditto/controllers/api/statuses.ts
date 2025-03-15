@@ -633,7 +633,7 @@ const zappedByController: AppController = async (c) => {
   const { db, relay } = c.var;
 
   const id = c.req.param('id');
-  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const { offset, limit } = paginationSchema().parse(c.req.query());
 
   const zaps = await db.kysely.selectFrom('event_zaps')
     .selectAll()
