@@ -13,6 +13,7 @@ import cashuRoute from '@/controllers/api/cashu.ts';
 import { createTestDB } from '@/test.ts';
 import { walletSchema } from '@/schema.ts';
 import { nostrNow } from '@/utils.ts';
+import { Proof } from '@cashu/cashu-ts';
 
 Deno.test('PUT /wallet must be successful', async () => {
   const mock = stub(globalThis, 'fetch', () => {
@@ -446,7 +447,7 @@ Deno.test('POST /nutzap must be successful', async () => {
   });
 
   // cashu proofs of sender
-  await relay.event(genEvent({
+  const proofsOfSender = genEvent({
     kind: 7375,
     content: await signer.nip44.encrypt(
       pubkey,
@@ -656,7 +657,9 @@ Deno.test('POST /nutzap must be successful', async () => {
       }),
     ),
     created_at: nostrNow(),
-  }, sk));
+  }, sk);
+
+  await relay.event(proofsOfSender);
 
   const recipientSk = generateSecretKey();
   const recipientPubkey = getPublicKey(recipientSk);
@@ -746,6 +749,30 @@ Deno.test('POST /nutzap must be successful', async () => {
   const totalAmount = proofs.reduce((prev, current) => prev + current.amount, 0);
 
   assertEquals(totalAmount, 29);
+
+  const [history] = await relay.query([{ kinds: [7376], authors: [pubkey] }]);
+
+  assertExists(history);
+
+  const historyTags = JSON.parse(await signer.nip44.decrypt(pubkey, history.content)) as string[][];
+
+  const [newUnspentProof] = await relay.query([{ kinds: [7375], authors: [pubkey] }]);
+
+  const newUnspentProofContent = JSON.parse(await signer.nip44.decrypt(pubkey, newUnspentProof.content)) as {
+    mint: string;
+    proofs: Proof[];
+    del: string[];
+  };
+
+  assertEquals(newUnspentProofContent.mint, 'https://cuiaba.mint.com');
+  assertEquals(newUnspentProofContent.del, [proofsOfSender.id]);
+
+  assertEquals(historyTags, [
+    ['direction', 'out'],
+    ['amount', '29'],
+    ['e', proofsOfSender.id, 'ws://localhost:4036/relay', 'destroyed'],
+    ['e', newUnspentProof.id, 'ws://localhost:4036/relay', 'created'],
+  ]);
 
   mock.restore();
 });
