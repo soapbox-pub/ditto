@@ -13,8 +13,12 @@ interface MastodonCustomEmoji {
   category?: string;
 }
 
-route.get('/', userMiddleware(), async (c) => {
+route.get('/', userMiddleware({ required: false }), async (c) => {
   const { user } = c.var;
+
+  if (!user) {
+    return c.json([]);
+  }
 
   const pubkey = await user.signer.getPublicKey();
   const emojis = await getCustomEmojis(pubkey, c.var);

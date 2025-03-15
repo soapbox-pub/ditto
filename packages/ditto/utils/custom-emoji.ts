@@ -58,13 +58,11 @@ export async function getCustomEmojis(
     const d = event.tags.find(([name]) => name === 'd')?.[1];
 
     for (const [t, shortcode, url] of event.tags) {
-      if (t === 'emoji') {
-        if (!emojis.has(shortcode)) {
-          try {
-            emojis.set(shortcode, { url: new URL(url), category: d });
-          } catch {
-            // continue
-          }
+      if (t === 'emoji' && /^\w+$/.test(shortcode) && !emojis.has(shortcode)) {
+        try {
+          emojis.set(shortcode, { url: new URL(url), category: d });
+        } catch {
+          // continue
         }
       }
     }
