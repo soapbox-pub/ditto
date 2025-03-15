@@ -260,7 +260,7 @@ Deno.test('GET /mints must be successful', async () => {
   assertEquals(body, { mints: [] });
 });
 
-Deno.test('POST /nutzap must be successful', async () => {
+Deno.test('POST /nutzap must be successful WITH proofs to keep', async () => {
   const mock = stub(globalThis, 'fetch', (input, init) => {
     const req = new Request(input, init);
 
@@ -772,6 +772,328 @@ Deno.test('POST /nutzap must be successful', async () => {
     ['amount', '29'],
     ['e', proofsOfSender.id, 'ws://localhost:4036/relay', 'destroyed'],
     ['e', newUnspentProof.id, 'ws://localhost:4036/relay', 'created'],
+  ]);
+
+  mock.restore();
+});
+
+Deno.test('POST /nutzap must be successful WITHOUT proofs to keep', async () => {
+  const mock = stub(globalThis, 'fetch', (input, init) => {
+    const req = new Request(input, init);
+
+    if (req.url === 'https://cuiaba.mint.com/v1/info') {
+      return Promise.resolve(
+        new Response(JSON.stringify({
+          'name': 'Coinos',
+          'pubkey': '029c5ca5c7fb73cbae4849b3120c01c7559796e2ca9a8938ff8a3ce57790abc7e8',
+          'version': 'Nutshell/0.16.3',
+          'description': 'Coinos cashu mint',
+          'contact': [{ 'method': 'email', 'info': 'support@coinos.io' }, {
+            'method': 'twitter',
+            'info': '@coinoswallet',
+          }, { 'method': 'nostr', 'info': 'npub1h2qfjpnxau9k7ja9qkf50043xfpfy8j5v60xsqryef64y44puwnq28w8ch' }],
+          'motd': '"Cypherpunks write code"',
+          'icon_url': 'https://coinos.io/images/icon.png',
+          'time': 1741964883,
+          'nuts': {
+            '4': { 'methods': [{ 'method': 'bolt11', 'unit': 'sat', 'description': true }], 'disabled': false },
+            '5': { 'methods': [{ 'method': 'bolt11', 'unit': 'sat' }], 'disabled': false },
+            '7': { 'supported': true },
+            '8': { 'supported': true },
+            '9': { 'supported': true },
+            '10': { 'supported': true },
+            '11': { 'supported': true },
+            '12': { 'supported': true },
+            '14': { 'supported': true },
+            '15': [{ 'method': 'bolt11', 'unit': 'sat', 'mpp': true }],
+            '17': {
+              'supported': [{
+                'method': 'bolt11',
+                'unit': 'sat',
+                'commands': ['bolt11_melt_quote', 'proof_state', 'bolt11_mint_quote'],
+              }],
+            },
+          },
+        })),
+      );
+    }
+
+    if (req.url === 'https://cuiaba.mint.com/v1/keysets') {
+      return Promise.resolve(
+        new Response('{"keysets":[{"id":"004f7adf2a04356c","unit":"sat","active":true,"input_fee_ppk":0}]}'),
+      );
+    }
+
+    if (req.url === 'https://cuiaba.mint.com/v1/keys/004f7adf2a04356c') {
+      return Promise.resolve(
+        new Response(JSON.stringify({
+          'keysets': [{
+            'id': '004f7adf2a04356c',
+            'unit': 'sat',
+            'keys': {
+              '1': '02a1992d077c38c01a31b28f357b49009800940229ec2ce413ca5d89ff33df1a26',
+              '2': '0348cd466e687881c79c7a6ac605f84e5baad544baa8350bbb5a39635ba59a568e',
+              '4': '03d3c6e4726684b50ac19dec62f31468612134a646d586413bd659349b8fd0e661',
+              '8': '02e95e207ad0b943238cf519fc901b6a7d509dd6d44e450105844462f50e3bbb18',
+              '16': '03a8c412c63bc981bb5b230de73e843e8a807589ee8c394ef621dde3aac16193f2',
+              '32': '036ae412daa53e9f9506ab560642121a87e9ecd90025a44f75152b3f22991b8e2e',
+              '64': '029219d4e9cab24a43cf897f18cae060f02fd1c75b9147c24c0c31b8bf37a54a40',
+              '128': '026e19d170fa9c2230c78b667421093740535fa7150537edab3476f127ce52e7eb',
+              '256': '02f95d389782eb80055bb90e7af38dad3f15551cda6922c9a8ee92e56824ba5f44',
+              '512': '03d25e2e68dc5dadd165e0f696ff5ce29f86c7657e03c50edacf33c9546a11237e',
+              '1024': '02feefa2982377627edfe4706088a208c7f3a8beb87ea2975fc12413cfbea68e09',
+              '2048': '03fbff7c259b9c5c9bf4d515a7a3b745548f5c4f206c6cfa462f893ec8daa354f9',
+              '4096': '03e7655be00a7a085cb3540b5b6187a0b307b45f4ae0cceec2014bab535cf21cef',
+              '8192': '033e6369f3f4f6d73cb43ac2105d164a1070f1e741628644e7632c0d15c2436081',
+              '16384': '0300d453a54b705bba1ad3d254ca1c0ebebe5048d1a123b8001c8b85ca7907ec98',
+              '32768': '037bc5683d04c024ed35d11073d7b4fd8689bef93ad47ad5ed72f2bba9f83f1b27',
+              '65536': '02e96e6faae868f9b7dfbf2c0b7c92c7d0c3d70ca856884dbefd4ee353a7479649',
+              '131072': '0348f6f4d1f63b3c015c128ab925101320fe9844287b24d01e061699b0e8250033',
+              '262144': '021c89901fc1af82ea4dca85681de110cf8ed06027436bd54bea21abe9192d314e',
+              '524288': '03a9e813b4e6a59da692088f87ce6a1a42e1fd02d0ac0c3e7a0e4e09f3948a6402',
+              '1048576': '02f881f8c3b89857e221ec4f2d8c226f2e93ca86c151c74ed1e476384ccc2c5566',
+              '2097152': '03863100ca06632744fd9d8b23495112c938ed7c9e12a8abb21b15e74f2adb7ff9',
+              '4194304': '03295cea85458bb4c28df3f8aeaa0a786561b2cc872ccafa21f6d8820a49777895',
+              '8388608': '03d0ec289a0daf37b9c0913c2d5aba3dc9b49f6d07aaa6f9ef9ffbde7a47156a6b',
+              '16777216': '02a0ae8ea53dcf08184aea25c4c6dd493ef51acc439cf12a87c5cabc6668912968',
+              '33554432': '020cfb68db3d8401ba26534b0aefcf75782447eae5746b08f464496b0f70500d58',
+              '67108864': '03a27f513fed8ac28f388527f201e97f8c582b5770c1eaf9054bd7c6b09a3adc43',
+              '134217728': '03e36aaa4fdc1b0f9ec58c10f85c099ae15809252ae35df8f3597963151d854b34',
+              '268435456': '03e0f695df32b6b837f638fc1562066c33cfedd3e61dd828b9c27bd670b005e688',
+              '536870912': '022a9e88be755743da48c423030962c5f9023a2252f6e982e6a6cd70c229c9a4db',
+              '1073741824': '0391dffd17f79c713ecbc98ecc6673aa30ac5406dd6590650bae79df7c0735cc12',
+              '2147483648': '03c2293396a135061e3a049d2a0853b275e931342d3deb024f1472b4d0436f5637',
+              '4294967296': '02b8ceb6416ee9fc8b3010bb8e533939fe817235e38470b082c828fafaba1c0556',
+              '8589934592': '0349912225c038acdc1d12f286db0fd2d0e64973fa34b5dd04007e82ea74273e7e',
+              '17179869184': '03967e238044dd87f91949d95c851707925ca344e1947abd2a95d7861ba064c271',
+              '34359738368': '03748b6da67df0726c31b8241dcadb75ce866913f4ce19da9d268fb4aeed4ced62',
+              '68719476736': '023fe2cfc5c5c917b7c24b49657e11a91420a16347ab1f2fb23ba3fda2522a9a61',
+              '137438953472': '03b1f3924ee292dec1ff5106983d600997b8c7c6e595868adcf1675cca17bc7126',
+              '274877906944': '027a5c5fee35b5ef3d72785dd4688bb202205a209a967a8211f3a6214568e0b82c',
+              '549755813888': '02cf380a20bed1720ef3d0d9fc5ae18cf3ddf644b9376a1590b3387648b74c1d52',
+              '1099511627776': '02a0d1b95957c1fc8bb8772ce76ad614b586eb72f8c1838811c2efbfbc04ba557e',
+              '2199023255552': '0380aeabf8f223cc46d6e3f9f80703e1afd3038bea417dcec0bf4c7676fdbc0150',
+              '4398046511104': '02783814a014646f74c11510c49c3882278fa90716a68b1173a19e78e03d3db49b',
+              '8796093022208': '03ad177a508b0c2c7be6c7f818c2727f6807a5a2fc5c625fad00950fb8409e2c60',
+              '17592186044416': '038b40061c7b9446846a20ec2b8f7a004b907fb2200fe4c539bcb54d9bc0a8f5a4',
+              '35184372088832': '02c4196bd0e749f8e3f736458f423fa2a46f1bae6c292afe9aa1a808c8cdf5e51e',
+              '70368744177664': '02cb1f73960053aa1b9c41b433bf512bba0bfefbd493de0692984752cd2734c214',
+              '140737488355328': '03db3ee7515421f39e434ed3f089340e0651c20458fb1c6b43569f91657490eb55',
+              '281474976710656': '029ab08764876e019629a20385ef325139e8cf744cca54978efbf5fedb7930a99a',
+              '562949953421312': '0294f281ed25b3b1a0f7ea13584fb5fd563cab0b499b987ca74f9a80dbd0adfa83',
+              '1125899906842624': '0277810a391a74adbec086731d708d0f83900bec770120718063a60f208c9a43b5',
+              '2251799813685248': '03a5e565c5d1565f8bd7a8777095ef7121c048abc549beeb9bbb93302e6f526ac2',
+              '4503599627370496': '02b8af626bbdb342791f12828e68d662411f838be0cbb4f884f7bd64fce10dee2a',
+              '9007199254740992': '0347f20146430bcade5996727c2e3e909124a865fe96804e700764103ea1b16f95',
+              '18014398509481984': '024a816ecc2f4ec86eee15cb5011d74aa133d170a29f4230683b20fdb425ec4423',
+              '36028797018963968': '03858a056912d4bbd968d13fecc33dfcdd0b8177d9d7dbd9c3cb4c30f5e9f1f11c',
+              '72057594037927936': '034adf2dca33250962f1f68edbe02f4cef9cc09cdea6c969a9e83b3d2bd925e2ad',
+              '144115188075855872': '02d8add57508ef351e2e5e11e50fb36ac527a71e9bc43d8c179687e26d49e17e5b',
+              '288230376151711744': '024854f8bc8084e85e48c7b20de0e0028876900c7facfc3ae96b6b38f062e75671',
+              '576460752303423488': '021402153d9fc728c73f9bbe1a50b305da25e7aea8792ec70b19d8103dd5040395',
+              '1152921504606846976': '033bd2b0caa35a98fcdb41218b1cbdf9b392f52ee4f222d6e49b88c06485102fce',
+              '2305843009213693952': '0333868e7d7f15dde6dd147854227d2ec747b5b8be210f7f4c4d6ea0c05a2d30ab',
+              '4611686018427387904': '0226d990dfa39ff0ea31945d04dbe6a30f53bb76d880b810b98364c5a3fbdc90ff',
+              '9223372036854775808': '02ca0c02d00b2efcfb5cd0cc404795a95620f9bc819f967c0ddbb3d457f18b6970',
+            },
+          }],
+        })),
+      );
+    }
+
+    if (req.url === 'https://cuiaba.mint.com/v1/swap') {
+      return Promise.resolve(
+        new Response(JSON.stringify(
+          {
+            'signatures': [{
+              'id': '004f7adf2a04356c',
+              'amount': 1,
+              'C_': '0241624fa004a26c9d568284bbcbf6cc5e2f92cfd565327d58c8b2ec168db80be4',
+              'dleq': {
+                'e': 'c6ae7dfef601365999d99c1a5e3d85553b51b8bffade6902984b2e3953da223c',
+                's': 'd2ce4c283cf3ed7ded4b61592ad71763e42e17ae7a33cb44ca05ff2b9df20f7e',
+              },
+            }, {
+              'id': '004f7adf2a04356c',
+              'amount': 4,
+              'C_': '03c3afe38e8f28fd17a391768e46db47eb0e4796e6802b8f7901f2dfc4c3f55a0b',
+              'dleq': {
+                'e': '07a0dcbdf5a5ba9db04bc52a8e39bc4bea94b32b0d866151f11b83801959c07b',
+                's': '7c809a1a71e6ae38fefd42feba2c2867ca76b282302ef7b65234c0e8ea68686b',
+              },
+            }, {
+              'id': '004f7adf2a04356c',
+              'amount': 8,
+              'C_': '03e29372d0c0ba595c95fae0ad94c71ec039ce24b489e1d70e78fa4a148bf9ebac',
+              'dleq': {
+                'e': '152c20574fa57346204e9c9db71bb0ec0dfebd590e86f072bcb3044202fdbea4',
+                's': '66803be90b934d10a7fc31e258c27511a24daf70fc6a32ecaa00769bea1ba7df',
+              },
+            }, {
+              'id': '004f7adf2a04356c',
+              'amount': 16,
+              'C_': '03dfd29cca5f977b71c8fb6824ecd77f12be3ab130ac5751c56f1b3ac82fc8d079',
+              'dleq': {
+                'e': 'cb5e70c580c16471bc2305dc3060be0dd76ac398efe068afb17424ee794b5ce6',
+                's': '1c36cf770059d76011baebdb9b85895954e3137ceddc3d14cc8a3201d1ce42e6',
+              },
+            }],
+          },
+        )),
+      );
+    }
+
+    return Promise.resolve(new Response());
+  });
+
+  await using test = await createTestRoute();
+  const { route, sk, relay, signer } = test;
+  const pubkey = await signer.getPublicKey();
+
+  // create sender wallet
+  await route.request('/wallet', {
+    method: 'PUT',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      mints: [
+        'https://cuiaba.mint.com',
+      ],
+    }),
+  });
+
+  // cashu proofs of sender
+  const proofsOfSender = genEvent({
+    kind: 7375,
+    content: await signer.nip44.encrypt(
+      pubkey,
+      JSON.stringify({
+        mint: 'https://cuiaba.mint.com',
+        proofs: [
+          {
+            'id': '004f7adf2a04356c',
+            'amount': 1,
+            'secret': 'f7655502b6f60855c71f3a004c3c7e9872d2d9d2fa11457ddb99de9ce12d0d29',
+            'C': '0279e4b8d89af0796120402cc466e7e5487b4e444810dfdf15e1b1f4302b209fb2',
+            'dleq': {
+              'e': '6e5bb14aa7dbfa88273520b4dadaa9c95b58e79b9b3148ec44df2b0bc7882272',
+              's': '19f011b88b577b521c33e33bb5f6c287294474761939f7a61d188a5f16c7d2e7',
+              'r': '29757f7b49859b1603a3b0d80246d71976b73c5f0db48f51c4e3c0846ce95ec7',
+            },
+          },
+        ],
+        del: [],
+      }),
+    ),
+    created_at: nostrNow(),
+  }, sk);
+
+  await relay.event(proofsOfSender);
+
+  const recipientSk = generateSecretKey();
+  const recipientPubkey = getPublicKey(recipientSk);
+  const privkey = bytesToString('hex', sk);
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+
+  // profile of recipient
+  await relay.event(genEvent({
+    kind: 0,
+    content: '{}',
+    created_at: nostrNow(),
+  }, recipientSk));
+
+  // post of recipient that will be nutzapped
+  const nutzappedPost = genEvent({
+    kind: 1,
+    content: 'My post',
+    created_at: nostrNow(),
+  }, recipientSk);
+
+  await relay.event(nutzappedPost);
+
+  // Recipient wallet
+  await relay.event(genEvent({
+    kind: 17375,
+    content: await signer.nip44.encrypt(
+      recipientPubkey,
+      JSON.stringify([
+        ['privkey', privkey],
+        ['mint', 'https://mint.soul.com'],
+        ['mint', 'https://cuiaba.mint.com'],
+      ]),
+    ),
+  }, recipientSk));
+
+  // Recipient nutzap information
+  await relay.event(genEvent({
+    kind: 10019,
+    tags: [
+      ['pubkey', p2pk],
+      ['mint', 'https://mint.soul.com'],
+      ['mint', 'https://cuiaba.mint.com'],
+    ],
+  }, recipientSk));
+
+  const response = await route.request('/nutzap', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      account_id: recipientPubkey,
+      status_id: nutzappedPost.id,
+      amount: 1,
+      comment: "You gon' die",
+    }),
+  });
+
+  const body = await response.json();
+
+  assertEquals(response.status, 200);
+
+  assertEquals(body, {
+    message: 'Nutzap with success!!!',
+  });
+
+  const nutzaps = await relay.query([{ kinds: [9321], authors: [pubkey] }]);
+
+  assertEquals(nutzaps.length, 1);
+
+  const nutzap = nutzaps[0];
+
+  assertEquals(nutzap.pubkey, pubkey);
+  assertEquals(nutzap.content, "You gon' die");
+  assertArrayIncludes(nutzap.tags, [
+    ['u', 'https://cuiaba.mint.com'],
+    ['p', recipientPubkey],
+    ['e', nutzappedPost.id, 'ws://localhost:4036/relay'],
+  ]);
+
+  const proofs = n.json().pipe(
+    proofSchema,
+  ).array().parse(nutzap.tags.filter(([name]) => name === 'proof').map((tag) => tag[1]).filter(Boolean));
+
+  assertEquals(proofs.length, 1);
+
+  const totalAmount = proofs.reduce((prev, current) => prev + current.amount, 0);
+
+  assertEquals(totalAmount, 1);
+
+  const [history] = await relay.query([{ kinds: [7376], authors: [pubkey] }]);
+
+  assertExists(history);
+
+  const historyTags = JSON.parse(await signer.nip44.decrypt(pubkey, history.content)) as string[][];
+
+  const [newUnspentProof] = await relay.query([{ kinds: [7375], authors: [pubkey] }]);
+
+  assertEquals(newUnspentProof, undefined);
+
+  assertEquals(historyTags, [
+    ['direction', 'out'],
+    ['amount', '1'],
+    ['e', proofsOfSender.id, 'ws://localhost:4036/relay', 'destroyed'],
   ]);
 
   mock.restore();

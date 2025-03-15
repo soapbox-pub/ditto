@@ -382,28 +382,33 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, a
     pubkey: p2pk.length === 64 ? '02' + p2pk : p2pk,
   });
 
-  const newUnspentProof = await createEvent({
-    kind: 7375,
-    content: await user.signer.nip44.encrypt(
-      pubkey,
-      JSON.stringify({
-        mint: selectedMint,
-        proofs: proofsToKeep,
-        del: eventsToBeDeleted.map((e) => e.id),
-      }),
-    ),
-  }, c);
+  const historyTags: string[][] = [
+    ['direction', 'out'],
+    ['amount', String(proofsToSend.reduce((accumulator, current) => accumulator + current.amount, 0))],
+    ...eventsToBeDeleted.map((e) => ['e', e.id, conf.relay, 'destroyed']),
+  ];
+
+  if (proofsToKeep.length) {
+    const newUnspentProof = await createEvent({
+      kind: 7375,
+      content: await user.signer.nip44.encrypt(
+        pubkey,
+        JSON.stringify({
+          mint: selectedMint,
+          proofs: proofsToKeep,
+          del: eventsToBeDeleted.map((e) => e.id),
+        }),
+      ),
+    }, c);
+
+    historyTags.push(['e', newUnspentProof.id, conf.relay, 'created']);
+  }
 
   await createEvent({
     kind: 7376,
     content: await user.signer.nip44.encrypt(
       pubkey,
-      JSON.stringify([
-        ['direction', 'out'],
-        ['amount', String(proofsToSend.reduce((accumulator, current) => accumulator + current.amount, 0))],
-        ...eventsToBeDeleted.map((e) => ['e', e.id, conf.relay, 'destroyed']),
-        ['e', newUnspentProof.id, conf.relay, 'created'],
-      ]),
+      JSON.stringify(historyTags),
     ),
   }, c);
 
