@@ -47,9 +47,6 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
   let content: string;
 
   switch (result.type) {
-    case 'basic':
-      content = result.value;
-      break;
     case 'native':
       content = result.native;
       break;
@@ -125,8 +122,6 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
         if (!result) return true;
 
         switch (result.type) {
-          case 'basic':
-            return event.content === result.value;
           case 'native':
             return event.content === result.native;
           case 'custom':
@@ -139,7 +134,10 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
   /** Events grouped by emoji key. */
   const byEmojiKey = events.reduce((acc, event) => {
     const result = parseEmojiInput(event.content);
-    if (!result) return acc;
+
+    if (!result || result.type === 'basic') {
+      return acc;
+    }
 
     let url: URL | undefined;
 
@@ -154,9 +152,6 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
 
     let key: string;
     switch (result.type) {
-      case 'basic':
-        key = result.value;
-        break;
       case 'native':
         key = result.native;
         break;
@@ -203,7 +198,6 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
 
 /** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
 function parseEmojiParam(input: string):
-  | { type: 'basic'; value: '+' | '-' }
   | { type: 'native'; native: string }
   | { type: 'custom'; shortcode: string } {
   if (/^\w+$/.test(input)) {
@@ -212,7 +206,7 @@ function parseEmojiParam(input: string):
 
   const result = parseEmojiInput(input);
 
-  if (!result) {
+  if (!result || result.type === 'basic') {
     throw new HTTPException(400, { message: 'Invalid emoji' });
   }
 
