@@ -17,11 +17,10 @@ const route = new DittoRoute();
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#put-apiv1pleromastatusesidreactionsemoji
  */
 route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
-  const params = c.req.param();
-
   const { relay, user, conf, signal } = c.var;
-  const { type, value } = parseEmojiParam(params.emoji);
 
+  const params = c.req.param();
+  const result = parseEmojiParam(params.emoji);
   const pubkey = await user.signer.getPublicKey();
 
   const [event] = await relay.query([{ ids: [params.id] }], { signal });
@@ -34,18 +33,18 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
     ['p', event.pubkey, conf.relay],
   ];
 
-  if (type === 'custom') {
+  if (result.type === 'custom') {
     const emojis = await getCustomEmojis(pubkey, c.var);
-    const emoji = emojis.get(value);
+    const emoji = emojis.get(result.shortcode);
 
     if (!emoji) {
       return c.json({ error: 'Custom emoji not found' }, 404);
     }
 
-    tags.push(['emoji', value, emoji.url.href]);
+    tags.push(['emoji', result.shortcode, emoji.url.href]);
   }
 
-  const content = type === 'custom' ? `:${value}:` : value;
+  const content = result.type === 'custom' ? `:${result.shortcode}:` : result.emoji;
 
   await createEvent({ kind: 7, content, tags }, c);
   await hydrateEvents({ ...c.var, events: [event] });
@@ -137,13 +136,16 @@ route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: fal
 });
 
 /** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
-function parseEmojiParam(input: string): { type: 'native' | 'custom'; value: string } {
+function parseEmojiParam(input: string): { type: 'native'; emoji: string } | { type: 'custom'; shortcode: string } {
   if (/^\p{RGI_Emoji}$/v.test(input)) {
-    return { type: 'native', value: input };
+    return { type: 'native', emoji: input };
   }
 
-  if (/^\w+$/.test(input)) {
-    return { type: 'custom', value: input };
+  const match = input.match(/^:?(\w+):?$/); // Pleroma API supports with or without colons.
+
+  if (match) {
+    const [, shortcode] = match;
+    return { type: 'custom', shortcode };
   }
 
   throw new HTTPException(400, { message: 'Invalid emoji' });
