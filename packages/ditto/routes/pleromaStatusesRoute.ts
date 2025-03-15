@@ -17,12 +17,14 @@ const route = new DittoRoute();
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#put-apiv1pleromastatusesidreactionsemoji
  */
 route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
+  const params = c.req.param();
+
   const { relay, user, conf, signal } = c.var;
-  const { type, value } = parseEmojiParam(c.req.param('emoji'));
+  const { type, value } = parseEmojiParam(params.emoji);
 
-  const pubkey = await user!.signer.getPublicKey();
+  const pubkey = await user.signer.getPublicKey();
 
-  const [event] = await relay.query([{ ids: [c.req.param('id')] }], { signal });
+  const [event] = await relay.query([{ ids: [params.id] }], { signal });
   if (!event) {
     return c.json({ error: 'Event not found' }, 404);
   }
@@ -57,11 +59,10 @@ route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => 
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#delete-apiv1pleromastatusesidreactionsemoji
  */
 route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
+  const { id, emoji } = c.req.param();
   const { relay, user } = c.var;
 
-  const id = c.req.param('id');
-  const emoji = c.req.param('emoji');
-  const pubkey = await user!.signer.getPublicKey();
+  const pubkey = await user.signer.getPublicKey();
 
   if (!/^\p{RGI_Emoji}$/v.test(emoji)) {
     return c.json({ error: 'Invalid emoji' }, 400);
@@ -99,12 +100,11 @@ route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) 
  * Get an object of emoji to account mappings with accounts that reacted to the post.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#get-apiv1pleromastatusesidreactions
  */
-route.get('/:id{[0-9a-f]{64}}/reactions', userMiddleware({ required: false }), async (c) => {
+route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: false }), async (c) => {
+  const { id, emoji } = c.req.param();
   const { relay, user } = c.var;
 
-  const id = c.req.param('id');
   const pubkey = await user?.signer.getPublicKey();
-  const emoji = c.req.param('emoji') as string | undefined;
 
   if (typeof emoji === 'string' && !/^\p{RGI_Emoji}$/v.test(emoji)) {
     return c.json({ error: 'Invalid emoji' }, 400);
@@ -139,6 +139,7 @@ route.get('/:id{[0-9a-f]{64}}/reactions', userMiddleware({ required: false }), a
   return c.json(results);
 });
 
+/** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
 function parseEmojiParam(input: string): { type: 'native' | 'custom'; value: string } {
   if (/^\p{RGI_Emoji}$/v.test(input)) {
     return { type: 'native', value: input };
