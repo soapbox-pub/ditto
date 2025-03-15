@@ -476,45 +476,23 @@ app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController
 app.route('/api/v1/ditto/cashu', cashuApp);
 
 app.post('/api/v1/reports', userMiddleware(), reportController);
-app.get('/api/v1/admin/reports', userMiddleware(), userMiddleware({ role: 'admin' }), adminReportsController);
-app.get(
-  '/api/v1/admin/reports/:id{[0-9a-f]{64}}',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminReportController,
-);
+app.get('/api/v1/admin/reports', userMiddleware({ role: 'admin' }), adminReportsController);
+app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', userMiddleware({ role: 'admin' }), adminReportController);
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/resolve',
-  userMiddleware(),
   userMiddleware({ role: 'admin' }),
   adminReportResolveController,
 );
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/reopen',
-  userMiddleware(),
   userMiddleware({ role: 'admin' }),
   adminReportReopenController,
 );
 
 app.get('/api/v1/admin/accounts', userMiddleware({ role: 'admin' }), adminAccountsController);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminActionController,
-);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/approve',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminApproveController,
-);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminRejectController,
-);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', userMiddleware({ role: 'admin' }), adminActionController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/approve', userMiddleware({ role: 'admin' }), adminApproveController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject', userMiddleware({ role: 'admin' }), adminRejectController);
 
 app.put('/api/v1/pleroma/admin/users/tag', userMiddleware({ role: 'admin' }), pleromaAdminTagController);
 app.delete('/api/v1/pleroma/admin/users/tag', userMiddleware({ role: 'admin' }), pleromaAdminUntagController);
