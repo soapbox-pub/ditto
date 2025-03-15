@@ -21,14 +21,6 @@ type Wallet = z.infer<typeof walletSchema>;
 
 const route = new DittoRoute();
 
-// app.delete('/wallet') -> 204
-
-// app.post(swapMiddleware, '/nutzap');
-
-/* GET /api/v1/ditto/cashu/wallet -> Wallet, 404 */
-/* PUT /api/v1/ditto/cashu/wallet -> Wallet */
-/* DELETE /api/v1/ditto/cashu/wallet -> 204 */
-
 interface Nutzap {
   amount: number;
   event_id?: string;
@@ -295,7 +287,7 @@ const nutzapSchema = z.object({
 });
 
 /** Nutzaps a post or a user. */
-route.post('/nutzap', userMiddleware({ enc: 'nip44' }), async (c) => {
+route.post('/nutzap', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
   const { conf, relay, user, signal } = c.var;
   const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
