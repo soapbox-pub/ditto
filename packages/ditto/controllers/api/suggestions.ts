@@ -9,7 +9,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 
 export const suggestionsV1Controller: AppController = async (c) => {
   const { signal } = c.var;
-  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const { offset, limit } = paginationSchema().parse(c.req.query());
   const suggestions = await renderV2Suggestions(c, { offset, limit }, signal);
   const accounts = suggestions.map(({ account }) => account);
   return paginatedList(c, { offset, limit }, accounts);
@@ -17,7 +17,7 @@ export const suggestionsV1Controller: AppController = async (c) => {
 
 export const suggestionsV2Controller: AppController = async (c) => {
   const { signal } = c.var;
-  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const { offset, limit } = paginationSchema().parse(c.req.query());
   const suggestions = await renderV2Suggestions(c, { offset, limit }, signal);
   return paginatedList(c, { offset, limit }, suggestions);
 };

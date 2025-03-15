@@ -3,7 +3,7 @@ import { assertEquals } from '@std/assert';
 import { paginationSchema } from './schema.ts';
 
 Deno.test('paginationSchema', () => {
-  const pagination = paginationSchema.parse({
+  const pagination = paginationSchema().parse({
     limit: '10',
     offset: '20',
     max_id: '1',

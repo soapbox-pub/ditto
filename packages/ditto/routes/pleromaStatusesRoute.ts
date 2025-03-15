@@ -1,4 +1,4 @@
-import { userMiddleware } from '@ditto/mastoapi/middleware';
+import { paginationMiddleware, userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoRoute } from '@ditto/mastoapi/router';
 
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
@@ -109,92 +109,97 @@ route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) 
  * Get an object of emoji to account mappings with accounts that reacted to the post.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#get-apiv1pleromastatusesidreactions
  */
-route.get('/:id{[0-9a-f]{64}}/reactions/:emoji?', userMiddleware({ required: false }), async (c) => {
-  const { relay, user } = c.var;
+route.get(
+  '/:id{[0-9a-f]{64}}/reactions/:emoji?',
+  paginationMiddleware({ limit: 100 }),
+  userMiddleware({ required: false }),
+  async (c) => {
+    const { relay, user, pagination, paginate } = c.var;
 
-  const params = c.req.param();
-  const result = params.emoji ? parseEmojiParam(params.emoji) : undefined;
-  const pubkey = await user?.signer.getPublicKey();
+    const params = c.req.param();
+    const result = params.emoji ? parseEmojiParam(params.emoji) : undefined;
+    const pubkey = await user?.signer.getPublicKey();
 
-  const events = await relay.query([{ kinds: [7], '#e': [params.id], limit: 100 }])
-    .then((events) =>
-      events.filter((event) => {
-        if (!result) return true;
+    const events = await relay.query([{ kinds: [7], '#e': [params.id], ...pagination }])
+      .then((events) =>
+        events.filter((event) => {
+          if (!result) return true;
 
-        switch (result.type) {
-          case 'native':
-            return event.content === result.native;
-          case 'custom':
-            return event.content === `:${result.shortcode}:`;
-        }
-      })
-    )
-    .then((events) => hydrateEvents({ ...c.var, events }));
+          switch (result.type) {
+            case 'native':
+              return event.content === result.native;
+            case 'custom':
+              return event.content === `:${result.shortcode}:`;
+          }
+        })
+      )
+      .then((events) => hydrateEvents({ ...c.var, events }));
 
-  /** Events grouped by emoji key. */
-  const byEmojiKey = events.reduce((acc, event) => {
-    const result = parseEmojiInput(event.content);
+    /** Events grouped by emoji key. */
+    const byEmojiKey = events.reduce((acc, event) => {
+      const result = parseEmojiInput(event.content);
 
-    if (!result || result.type === 'basic') {
-      return acc;
-    }
-
-    let url: URL | undefined;
-
-    if (result.type === 'custom') {
-      const tag = event.tags.find(([name, value]) => name === 'emoji' && value === result.shortcode);
-      try {
-        url = new URL(tag![2]);
-      } catch {
+      if (!result || result.type === 'basic') {
         return acc;
       }
-    }
 
-    let key: string;
-    switch (result.type) {
-      case 'native':
-        key = result.native;
-        break;
-      case 'custom':
-        key = `${result.shortcode}:${url}`;
-        break;
-    }
+      let url: URL | undefined;
 
-    acc[key] = acc[key] || [];
-    acc[key].push(event);
-
-    return acc;
-  }, {} as Record<string, DittoEvent[]>);
-
-  const results = await Promise.all(
-    Object.entries(byEmojiKey).map(async ([key, events]) => {
-      let name: string = key;
-      let url: string | undefined;
-
-      // Custom emojis: `<shortcode>:<url>`
-      try {
-        const [shortcode, ...rest] = key.split(':');
-
-        url = new URL(rest.join(':')).toString();
-        name = shortcode;
-      } catch {
-        // fallthrough
+      if (result.type === 'custom') {
+        const tag = event.tags.find(([name, value]) => name === 'emoji' && value === result.shortcode);
+        try {
+          url = new URL(tag![2]);
+        } catch {
+          return acc;
+        }
       }
 
-      return {
-        name,
-        count: events.length,
-        me: pubkey && events.some((event) => event.pubkey === pubkey),
-        accounts: await Promise.all(
-          events.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),
-        ),
-        url,
-      };
-    }),
-  );
+      let key: string;
+      switch (result.type) {
+        case 'native':
+          key = result.native;
+          break;
+        case 'custom':
+          key = `${result.shortcode}:${url}`;
+          break;
+      }
 
-  return c.json(results);
-});
+      acc[key] = acc[key] || [];
+      acc[key].push(event);
+
+      return acc;
+    }, {} as Record<string, DittoEvent[]>);
+
+    const results = await Promise.all(
+      Object.entries(byEmojiKey).map(async ([key, events]) => {
+        let name: string = key;
+        let url: string | undefined;
+
+        // Custom emojis: `<shortcode>:<url>`
+        try {
+          const [shortcode, ...rest] = key.split(':');
+
+          url = new URL(rest.join(':')).toString();
+          name = shortcode;
+        } catch {
+          // fallthrough
+        }
+
+        return {
+          name,
+          count: events.length,
+          me: pubkey && events.some((event) => event.pubkey === pubkey),
+          accounts: await Promise.all(
+            events.map((event) => event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey)),
+          ),
+          url,
+        };
+      }),
+    );
+
+    return paginate(events, results);
+  },
+);
 
 /** Determine if the input is a native or custom emoji, returning a structured object or throwing an error. */
 function parseEmojiParam(input: string):
