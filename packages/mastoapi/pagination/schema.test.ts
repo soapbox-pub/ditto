@@ -21,3 +21,8 @@ Deno.test('paginationSchema', () => {
     until: 4,
   });
 });
+
+Deno.test('paginationSchema with custom limit', () => {
+  const pagination = paginationSchema({ limit: 100 }).parse({});
+  assertEquals(pagination.limit, 100);
+});
