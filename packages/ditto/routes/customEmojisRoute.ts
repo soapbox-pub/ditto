@@ -1,6 +1,6 @@
 import { userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoRoute } from '@ditto/mastoapi/router';
-import { NostrFilter } from '@nostrify/nostrify';
+import { NostrFilter, NRelay } from '@nostrify/nostrify';
 
 const route = new DittoRoute();
 
@@ -13,18 +13,42 @@ interface MastodonCustomEmoji {
 }
 
 route.get('/', userMiddleware(), async (c) => {
-  const { relay, user, signal } = c.var;
+  const { user } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
+  const emojis = await getCustomEmojis(pubkey, c.var);
+
+  return c.json([...emojis.entries()].map(([shortcode, data]): MastodonCustomEmoji => {
+    return {
+      shortcode,
+      url: data.url.toString(),
+      static_url: data.url.toString(),
+      visible_in_picker: true,
+      category: data.category,
+    };
+  }));
+});
+
+interface GetCustomEmojisOpts {
+  relay: NRelay;
+  signal?: AbortSignal;
+}
+
+async function getCustomEmojis(
+  pubkey: string,
+  opts: GetCustomEmojisOpts,
+): Promise<Map<string, { url: URL; category?: string }>> {
+  const { relay, signal } = opts;
+
+  const emojis = new Map<string, { url: URL; category?: string }>();
 
   const [emojiList] = await relay.query([{ kinds: [10030], authors: [pubkey] }], { signal });
 
   if (!emojiList) {
-    return c.json([]);
+    return emojis;
   }
 
   const a = new Set<string>();
-  const emojis = new Map<string, URL>();
 
   for (const tag of emojiList.tags) {
     if (tag[0] === 'emoji') {
@@ -32,7 +56,7 @@ route.get('/', userMiddleware(), async (c) => {
 
       if (!emojis.has(shortcode)) {
         try {
-          emojis.set(shortcode, new URL(url));
+          emojis.set(shortcode, { url: new URL(url) });
         } catch {
           // continue
         }
@@ -56,15 +80,17 @@ route.get('/', userMiddleware(), async (c) => {
   }
 
   if (!filters.length) {
-    return c.json([]);
+    return new Map();
   }
 
   for (const event of await relay.query(filters, { signal })) {
+    const d = event.tags.find(([name]) => name === 'd')?.[1];
+
     for (const [t, shortcode, url] of event.tags) {
       if (t === 'emoji') {
         if (!emojis.has(shortcode)) {
           try {
-            emojis.set(shortcode, new URL(url));
+            emojis.set(shortcode, { url: new URL(url), category: d });
           } catch {
             // continue
           }
@@ -73,14 +99,7 @@ route.get('/', userMiddleware(), async (c) => {
     }
   }
 
-  return c.json([...emojis.entries()].map(([shortcode, url]): MastodonCustomEmoji => {
-    return {
-      shortcode,
-      url: url.toString(),
-      static_url: url.toString(),
-      visible_in_picker: true,
-    };
-  }));
-});
+  return emojis;
+}
 
 export default route;

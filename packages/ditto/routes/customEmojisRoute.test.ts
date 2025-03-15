@@ -57,11 +57,13 @@ Deno.test('customEmojisRoute', async (t) => {
       url: 'https://soapbox.pub/favicon.ico',
       static_url: 'https://soapbox.pub/favicon.ico',
       visible_in_picker: true,
+      category: 'soapbox',
     }, {
       shortcode: 'ditto',
       url: 'https://ditto.pub/favicon.ico',
       static_url: 'https://ditto.pub/favicon.ico',
       visible_in_picker: true,
+      category: 'soapbox',
     }]);
   });
 });
