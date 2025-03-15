@@ -51,7 +51,7 @@ export async function getCustomEmojis(
   }
 
   if (!filters.length) {
-    return new Map();
+    return emojis;
   }
 
   for (const event of await relay.query(filters, { signal })) {
