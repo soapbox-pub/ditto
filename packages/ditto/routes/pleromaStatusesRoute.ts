@@ -1,4 +1,6 @@
-import { AppController } from '@/app.ts';
+import { userMiddleware } from '@ditto/mastoapi/middleware';
+import { DittoRoute } from '@ditto/mastoapi/router';
+
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { createEvent } from '@/utils/api.ts';
@@ -8,11 +10,13 @@ import { HTTPException } from '@hono/hono/http-exception';
 
 import { getCustomEmojis } from '@/utils/custom-emoji.ts';
 
-/**
+const route = new DittoRoute();
+
+/*
  * React to a status.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#put-apiv1pleromastatusesidreactionsemoji
  */
-const reactionController: AppController = async (c) => {
+route.put('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
   const { relay, user, conf, signal } = c.var;
   const { type, value } = parseEmojiParam(c.req.param('emoji'));
 
@@ -46,13 +50,13 @@ const reactionController: AppController = async (c) => {
 
   const status = await renderStatus(relay, event, { viewerPubkey: pubkey });
   return c.json(status);
-};
+});
 
-/**
+/*
  * Delete reactions to a status.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#delete-apiv1pleromastatusesidreactionsemoji
  */
-const deleteReactionController: AppController = async (c) => {
+route.delete('/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), async (c) => {
   const { relay, user } = c.var;
 
   const id = c.req.param('id');
@@ -89,13 +93,13 @@ const deleteReactionController: AppController = async (c) => {
   const status = renderStatus(relay, event, { viewerPubkey: pubkey });
 
   return c.json(status);
-};
+});
 
-/**
+/*
  * Get an object of emoji to account mappings with accounts that reacted to the post.
  * https://docs.pleroma.social/backend/development/API/pleroma_api/#get-apiv1pleromastatusesidreactions
  */
-const reactionsController: AppController = async (c) => {
+route.get('/:id{[0-9a-f]{64}}/reactions', userMiddleware({ required: false }), async (c) => {
   const { relay, user } = c.var;
 
   const id = c.req.param('id');
@@ -133,7 +137,7 @@ const reactionsController: AppController = async (c) => {
   );
 
   return c.json(results);
-};
+});
 
 function parseEmojiParam(input: string): { type: 'native' | 'custom'; value: string } {
   if (/^\p{RGI_Emoji}$/v.test(input)) {
@@ -147,4 +151,4 @@ function parseEmojiParam(input: string): { type: 'native' | 'custom'; value: str
   throw new HTTPException(400, { message: 'Invalid emoji' });
 }
 
-export { deleteReactionController, reactionController, reactionsController };
+export default route;
