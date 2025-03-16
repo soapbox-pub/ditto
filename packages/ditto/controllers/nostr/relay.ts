@@ -153,6 +153,11 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
   async function handleReq([_, subId, ...filters]: NostrClientREQ): Promise<void> {
     if (rateLimited(limiters.req)) return;
 
+    if (controllers.size > 20) {
+      send(['CLOSED', subId, 'error: too many subscriptions']);
+      return;
+    }
+
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
