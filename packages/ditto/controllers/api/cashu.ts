@@ -83,6 +83,8 @@ route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
 
   const expiredQuoteIds: string[] = [];
   const deleteExpiredQuotes = async (ids: string[]) => {
+    if (ids.length === 0) return;
+
     await createEvent({
       kind: 5,
       tags: ids.map((id) => ['e', id, conf.relay]),
