@@ -97,7 +97,12 @@ route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
     const now = nostrNow();
 
     try {
-      if (mintUrl && (expiration > now) && (quote_id === decryptedQuoteId)) { // TODO: organize order of operations of deleting expired quote ids
+      if (mintUrl && (quote_id === decryptedQuoteId)) {
+        if (expiration <= now) {
+          expiredQuoteIds.push(event.id);
+          continue;
+        }
+
         const mint = new CashuMint(mintUrl);
         const wallet = new CashuWallet(mint);
         await wallet.loadMint();
@@ -131,7 +136,6 @@ route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
             ),
           }, c);
 
-          expiredQuoteIds.push(event.id);
           await deleteExpiredQuotes(expiredQuoteIds);
 
           return c.json({ success: 'Minting successful!', state: MintQuoteState.ISSUED }, 200);
@@ -145,8 +149,6 @@ route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
       logi({ level: 'error', ns: 'ditto.api.cashu.mint', error: errorJson(e) });
       return c.json({ error: 'Server error' }, 500);
     }
-
-    expiredQuoteIds.push(event.id);
   }
 
   await deleteExpiredQuotes(expiredQuoteIds);
