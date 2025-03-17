@@ -332,7 +332,13 @@ route.post('/nutzap', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, a
   }
 
   const unspentProofs = await relay.query([{ kinds: [7375], authors: [pubkey] }], { signal });
-  const organizedProofs = await organizeProofs(unspentProofs, user.signer);
+  let organizedProofs;
+  try {
+    organizedProofs = await organizeProofs(unspentProofs, user.signer);
+  } catch (e) {
+    logi({ level: 'error', ns: 'ditto.api.cashu.nutzap', error: errorJson(e) });
+    return c.json({ error: 'Failed to organize proofs' }, 500);
+  }
 
   const proofsToBeUsed: Proof[] = [];
   const eventsToBeDeleted: NostrEvent[] = [];
