@@ -1,5 +1,4 @@
 import ISO6391, { LanguageCode } from 'iso-639-1';
-import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
