@@ -13,7 +13,8 @@ export const proofSchema: z.ZodType<{
   amount: z.number(),
   secret: z.string(),
   C: z.string(),
-  dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() }).optional(),
+  dleq: z.object({ s: z.string(), e: z.string(), r: z.string().optional() })
+    .optional(),
   dleqValid: z.boolean().optional(),
 });
 
@@ -29,7 +30,12 @@ export const tokenEventSchema: z.ZodType<{
 });
 
 /** Ditto Cashu wallet */
-export const walletSchema = z.object({
+export const walletSchema: z.ZodType<{
+  pubkey_p2pk: string;
+  mints: string[];
+  relays: string[];
+  balance: number;
+}> = z.object({
   pubkey_p2pk: n.id(),
   mints: z.array(z.string().url()).nonempty().transform((val) => {
     return [...new Set(val)];
