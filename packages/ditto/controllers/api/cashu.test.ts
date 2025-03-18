@@ -1,4 +1,4 @@
-import { proofSchema } from '@ditto/cashu';
+import { proofSchema, walletSchema } from '@ditto/cashu';
 import { DittoConf } from '@ditto/conf';
 import { type User } from '@ditto/mastoapi/middleware';
 import { DittoApp, DittoMiddleware } from '@ditto/mastoapi/router';
@@ -11,7 +11,6 @@ import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
 
 import cashuRoute from '@/controllers/api/cashu.ts';
 import { createTestDB } from '@/test.ts';
-import { walletSchema } from '@/schema.ts';
 import { nostrNow } from '@/utils.ts';
 import { Proof } from '@cashu/cashu-ts';
 
@@ -171,6 +170,7 @@ Deno.test('GET /wallet must be successful', async () => {
     tags: [
       ['pubkey', p2pk],
       ['mint', 'https://mint.soul.com'],
+      ['relay', 'ws://localhost:4036/relay'],
     ],
   }, sk));
 

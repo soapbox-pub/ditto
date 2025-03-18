@@ -1,5 +1,5 @@
 import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
-import { organizeProofs, tokenEventSchema, validateAndParseWallet } from '@ditto/cashu';
+import { getWallet, organizeProofs, tokenEventSchema, validateAndParseWallet, type Wallet } from '@ditto/cashu';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
@@ -10,14 +10,11 @@ import { z } from 'zod';
 
 import { createEvent, parseBody } from '@/utils/api.ts';
 import { swapNutzapsMiddleware } from '@/middleware/swapNutzapsMiddleware.ts';
-import { walletSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { nostrNow } from '@/utils.ts';
 import { errorJson } from '@/utils/log.ts';
 import { getAmount } from '@/utils/bolt11.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
-
-type Wallet = z.infer<typeof walletSchema>;
 
 const route = new DittoRoute();
 
@@ -230,48 +227,26 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
 
 /** Gets a wallet, if it exists. */
 route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, async (c) => {
-  const { conf, relay, user, signal, requestId } = c.var;
+  const { relay, user, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
 
-  const { data, error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
+  const { error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
   if (error) {
     return c.json({ error: error.message }, 404);
   }
 
-  const { p2pk, mints } = data;
+  const walletEntity = await getWallet(relay, pubkey, user.signer);
 
-  let balance = 0;
-
-  const tokens = await relay.query([{ authors: [pubkey], kinds: [7375] }], { signal });
-  for (const token of tokens) {
-    try {
-      const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
-        await user.signer.nip44.decrypt(pubkey, token.content),
-      );
-
-      if (!mints.includes(decryptedContent.mint)) {
-        mints.push(decryptedContent.mint);
-      }
-
-      balance += decryptedContent.proofs.reduce((accumulator, current) => {
-        return accumulator + current.amount;
-      }, 0);
-    } catch (e) {
-      logi({ level: 'error', ns: 'ditto.api.cashu.wallet', requestId, error: errorJson(e) });
-    }
+  if (!walletEntity) {
+    return c.json({ 'error': 'Wallet not found' }, 404);
   }
-
-  // TODO: maybe change the 'Wallet' type data structure so each mint is a key and the value are the tokens associated with a given mint
-  const walletEntity: Wallet = {
-    pubkey_p2pk: p2pk,
-    mints,
-    relays: [conf.relay],
-    balance,
-  };
 
   return c.json(walletEntity, 200);
 });
+
+// PUT wallet
+// what errors to return?
 
 /** Get mints set by the CASHU_MINTS environment variable. */
 route.get('/mints', (c) => {

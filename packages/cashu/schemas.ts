@@ -1,3 +1,4 @@
+import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 export const proofSchema: z.ZodType<{
@@ -26,3 +27,18 @@ export const tokenEventSchema: z.ZodType<{
   proofs: proofSchema.array(),
   del: z.string().array().optional(),
 });
+
+/** Ditto Cashu wallet */
+export const walletSchema = z.object({
+  pubkey_p2pk: n.id(),
+  mints: z.array(z.string().url()).nonempty().transform((val) => {
+    return [...new Set(val)];
+  }),
+  relays: z.array(z.string()).nonempty().transform((val) => {
+    return [...new Set(val)];
+  }),
+  /** Unit in sats */
+  balance: z.number(),
+});
+
+export type Wallet = z.infer<typeof walletSchema>;

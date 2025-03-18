@@ -6,7 +6,7 @@ import { logi } from '@soapbox/logi';
 import type { SetRequired } from 'type-fest';
 import { z } from 'zod';
 
-import { proofSchema, tokenEventSchema } from './schemas.ts';
+import { proofSchema, tokenEventSchema, type Wallet } from './schemas.ts';
 
 type Data = {
   wallet: NostrEvent;
@@ -14,6 +14,7 @@ type Data = {
   privkey: string;
   p2pk: string;
   mints: string[];
+  relays: string[];
 };
 
 type CustomError =
@@ -96,7 +97,9 @@ async function validateAndParseWallet(
     };
   }
 
-  return { data: { wallet, nutzapInfo, privkey, p2pk, mints }, error: null };
+  const relays = [...new Set(nutzapInfo.tags.filter(([name]) => name === 'relay').map(([_, value]) => value))];
+
+  return { data: { wallet, nutzapInfo, privkey, p2pk, mints, relays }, error: null };
 }
 
 type OrganizedProofs = {
@@ -235,6 +238,54 @@ async function getMintsToProofs(
   return mintsToProofs;
 }
 
+/** Returns a wallet entity with the latest balance. */
+async function getWallet(
+  store: NStore,
+  pubkey: string,
+  signer: SetRequired<NostrSigner, 'nip44'>,
+  opts?: { signal?: AbortSignal },
+): Promise<Wallet | undefined> {
+  const { data, error } = await validateAndParseWallet(store, signer, pubkey, { signal: opts?.signal });
+
+  if (error) {
+    logi({ level: 'error', ns: 'ditto.cashu.get_wallet', error: errorJson(error) });
+    return;
+  }
+
+  const { p2pk, mints, relays } = data;
+
+  let balance = 0;
+
+  const tokens = await store.query([{ authors: [pubkey], kinds: [7375] }], { signal: opts?.signal });
+  for (const token of tokens) {
+    try {
+      const decryptedContent: { mint: string; proofs: Proof[] } = JSON.parse(
+        await signer.nip44.decrypt(pubkey, token.content),
+      );
+
+      if (!mints.includes(decryptedContent.mint)) {
+        mints.push(decryptedContent.mint);
+      }
+
+      balance += decryptedContent.proofs.reduce((accumulator, current) => {
+        return accumulator + current.amount;
+      }, 0);
+    } catch (e) {
+      logi({ level: 'error', ns: 'dtto.cashu.get_wallet', error: errorJson(e) });
+    }
+  }
+
+  // TODO: maybe change the 'Wallet' type data structure so each mint is a key and the value are the tokens associated with a given mint
+  const walletEntity: Wallet = {
+    pubkey_p2pk: p2pk,
+    mints,
+    relays,
+    balance,
+  };
+
+  return walletEntity;
+}
+
 /** Serialize an error into JSON for JSON logging. */
 export function errorJson(error: unknown): Error | null {
   if (error instanceof Error) {
@@ -248,4 +299,4 @@ function isNostrId(value: unknown): boolean {
   return n.id().safeParse(value).success;
 }
 
-export { getLastRedeemedNutzap, getMintsToProofs, organizeProofs, validateAndParseWallet };
+export { getLastRedeemedNutzap, getMintsToProofs, getWallet, organizeProofs, validateAndParseWallet };
