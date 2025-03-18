@@ -4,7 +4,7 @@ import { userMiddleware } from '@ditto/mastoapi/middleware';
 import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
-import { bytesToString } from '@scure/base';
+import { bytesToString, stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
 import { z } from 'zod';
 
@@ -159,6 +159,9 @@ const createWalletSchema = z.object({
   mints: z.array(z.string().url()).nonempty().transform((val) => {
     return [...new Set(val)];
   }),
+  relays: z.array(z.string().url()).transform((val) => {
+    return [...new Set(val)];
+  }),
 });
 
 /**
@@ -167,7 +170,7 @@ const createWalletSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
 route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
-  const { conf, user, relay, signal } = c.var;
+  const { user, relay, signal } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
@@ -177,18 +180,28 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
     return c.json({ error: 'Bad schema', schema: result.error }, 400);
   }
 
-  const { mints } = result.data;
+  const { mints, relays } = result.data;
+  let previousPrivkey: string | undefined;
 
   const [event] = await relay.query([{ authors: [pubkey], kinds: [17375] }], { signal });
   if (event) {
-    return c.json({ error: 'You already have a wallet 😏' }, 400);
+    const walletContentSchema = z.string().array().min(2).array();
+
+    const { data: walletContent, success, error } = n.json().pipe(walletContentSchema).safeParse(
+      await user.signer.nip44.decrypt(pubkey, event.content),
+    );
+
+    if (!success) {
+      return c.json({ error: 'Your wallet is in an invalid format', schema: error }, 400);
+    }
+
+    previousPrivkey = walletContent.find(([name]) => name === 'privkey')?.[1];
   }
 
   const walletContentTags: string[][] = [];
 
-  const sk = generateSecretKey();
-  const privkey = bytesToString('hex', sk);
-  const p2pk = getPublicKey(sk);
+  const privkey = previousPrivkey ?? bytesToString('hex', generateSecretKey());
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
 
   walletContentTags.push(['privkey', privkey]);
 
@@ -209,7 +222,7 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
     kind: 10019,
     tags: [
       ...mints.map((mint) => ['mint', mint, 'sat']),
-      ['relay', conf.relay], // TODO: add more relays once things get more stable
+      ...relays.map((relay) => ['relay', relay]),
       ['pubkey', p2pk],
     ],
   }, c);
@@ -218,7 +231,7 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
   const walletEntity: Wallet = {
     pubkey_p2pk: p2pk,
     mints,
-    relays: [conf.relay],
+    relays,
     balance: 0, // Newly created wallet, balance is zero.
   };
 

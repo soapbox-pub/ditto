@@ -35,6 +35,9 @@ Deno.test('PUT /wallet must be successful', async () => {
         'https://houston.mint.com', // duplicate on purpose
         'https://cuiaba.mint.com',
       ],
+      relays: [
+        'wss://manager.com/relay',
+      ],
     }),
   });
 
@@ -65,7 +68,7 @@ Deno.test('PUT /wallet must be successful', async () => {
     'https://cuiaba.mint.com',
   ]);
   assertEquals(data.relays, [
-    'ws://localhost:4036/relay',
+    'wss://manager.com/relay',
   ]);
   assertEquals(data.balance, 0);
 
@@ -79,7 +82,7 @@ Deno.test('PUT /wallet must be successful', async () => {
 
   assertEquals(nutzap_p2pk, p2pk);
   assertEquals([nutzap_info.tags.find(([name]) => name === 'relay')?.[1]!], [
-    'ws://localhost:4036/relay',
+    'wss://manager.com/relay',
   ]);
 
   mock.restore();
@@ -111,31 +114,87 @@ Deno.test('PUT /wallet must NOT be successful: wrong request body/schema', async
   mock.restore();
 });
 
-Deno.test('PUT /wallet must NOT be successful: wallet already exists', async () => {
+Deno.test('PUT /wallet must be successful: edit wallet', async () => {
   const mock = stub(globalThis, 'fetch', () => {
     return Promise.resolve(new Response());
   });
 
   await using test = await createTestRoute();
-  const { route, sk, relay } = test;
+  const { route, sk, relay, signer } = test;
 
-  await relay.event(genEvent({ kind: 17375 }, sk));
+  const pubkey = await signer.getPublicKey();
+  const privkey = bytesToString('hex', generateSecretKey());
+  const p2pk = getPublicKey(stringToBytes('hex', privkey));
+
+  // Wallet
+  await relay.event(genEvent({
+    kind: 17375,
+    content: await signer.nip44.encrypt(
+      pubkey,
+      JSON.stringify([
+        ['privkey', privkey],
+        ['mint', 'https://mint.soul.com'],
+      ]),
+    ),
+  }, sk));
+
+  // Nutzap information
+  await relay.event(genEvent({
+    kind: 10019,
+    tags: [
+      ['pubkey', p2pk],
+      ['mint', 'https://mint.soul.com'],
+      ['relay', 'ws://localhost:4036/relay'],
+    ],
+  }, sk));
 
   const response = await route.request('/wallet', {
     method: 'PUT',
     headers: {
-      'authorization': `Bearer ${nip19.nsecEncode(sk)}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      mints: ['https://mint.heart.com'],
+      mints: [
+        'https://new-vampire-mint.com',
+        'https://new-age-mint.com',
+      ],
+      relays: [
+        'wss://law-of-the-universe/relay',
+        'wss://law-of-the-universe/relay',
+      ],
     }),
   });
 
-  const body2 = await response.json();
+  const body = await response.json();
 
-  assertEquals(response.status, 400);
-  assertEquals(body2, { error: 'You already have a wallet 😏' });
+  const data = walletSchema.parse(body);
+
+  assertEquals(response.status, 200);
+
+  assertEquals(bytesToString('hex', sk) !== privkey, true);
+
+  assertEquals(data.pubkey_p2pk, p2pk);
+  assertEquals(data.mints, [
+    'https://new-vampire-mint.com',
+    'https://new-age-mint.com',
+  ]);
+  assertEquals(data.relays, [
+    'wss://law-of-the-universe/relay',
+  ]);
+  assertEquals(data.balance, 0);
+
+  const [nutzap_info] = await relay.query([{ authors: [pubkey], kinds: [10019] }]);
+
+  assertExists(nutzap_info);
+  assertEquals(nutzap_info.kind, 10019);
+  assertEquals(nutzap_info.tags.length, 4);
+
+  const nutzap_p2pk = nutzap_info.tags.find(([value]) => value === 'pubkey')?.[1]!;
+
+  assertEquals(nutzap_p2pk, p2pk);
+  assertEquals([nutzap_info.tags.find(([name]) => name === 'relay')?.[1]!], [
+    'wss://law-of-the-universe/relay',
+  ]);
 
   mock.restore();
 });
