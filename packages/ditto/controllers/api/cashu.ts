@@ -245,9 +245,6 @@ route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, as
   return c.json(walletEntity, 200);
 });
 
-// PUT wallet
-// what errors to return?
-
 /** Get mints set by the CASHU_MINTS environment variable. */
 route.get('/mints', (c) => {
   const { conf } = c.var;
