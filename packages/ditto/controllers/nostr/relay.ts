@@ -171,6 +171,10 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
         } else {
           const [verb, , ...rest] = msg;
           send([verb, subId, ...rest] as NostrRelayMsg);
+
+          if (verb === 'CLOSED') {
+            break;
+          }
         }
       }
     } catch (e) {
@@ -182,6 +186,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
         send(['CLOSED', subId, 'error: something went wrong']);
       }
     } finally {
+      controllers.get(subId)?.abort();
       controllers.delete(subId);
     }
   }
