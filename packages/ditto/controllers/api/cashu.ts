@@ -170,7 +170,7 @@ const createWalletSchema = z.object({
  * https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-informational-event
  */
 route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
-  const { user, relay, signal } = c.var;
+  const { user, relay, signal, conf } = c.var;
 
   const pubkey = await user.signer.getPublicKey();
   const body = await parseBody(c.req.raw);
@@ -207,6 +207,10 @@ route.put('/wallet', userMiddleware({ enc: 'nip44' }), async (c) => {
 
   for (const mint of mints) {
     walletContentTags.push(['mint', mint]);
+  }
+
+  if (relays.length < 1) {
+    relays.push(conf.relay);
   }
 
   const encryptedWalletContentTags = await user.signer.nip44.encrypt(pubkey, JSON.stringify(walletContentTags));
