@@ -286,6 +286,55 @@ async function getWallet(
   return walletEntity;
 }
 
+type Transactions = {
+  amount: number;
+  created_at: number;
+  direction: 'in' | 'out';
+}[];
+
+/** Returns a history of transactions. */
+async function getTransactions(
+  store: NStore,
+  pubkey: string,
+  signer: SetRequired<NostrSigner, 'nip44'>,
+  pagination: { limit?: number; until?: number; since?: number },
+  opts?: { signal?: AbortSignal },
+): Promise<Transactions> {
+  const { since, until, limit } = pagination;
+  const transactions: Transactions = [];
+
+  const events = await store.query([{ kinds: [7376], authors: [pubkey], since, until, limit }], {
+    signal: opts?.signal,
+  });
+
+  for (const event of events) {
+    const { data: contentTags, success } = n.json().pipe(z.string().array().min(2).array()).safeParse(
+      await signer.nip44.decrypt(pubkey, event.content),
+    );
+
+    if (!success) {
+      continue;
+    }
+
+    const direction = contentTags.find(([name]) => name === 'direction')?.[1];
+    if (direction !== 'out' && direction !== 'in') {
+      continue;
+    }
+    const amount = parseInt(contentTags.find(([name]) => name === 'amount')?.[1] ?? '', 10);
+    if (isNaN(amount)) {
+      continue;
+    }
+
+    transactions.push({
+      created_at: event.created_at,
+      direction,
+      amount,
+    });
+  }
+
+  return transactions;
+}
+
 /** Serialize an error into JSON for JSON logging. */
 export function errorJson(error: unknown): Error | null {
   if (error instanceof Error) {
@@ -299,4 +348,4 @@ function isNostrId(value: unknown): boolean {
   return n.id().safeParse(value).success;
 }
 
-export { getLastRedeemedNutzap, getMintsToProofs, getWallet, organizeProofs, validateAndParseWallet };
+export { getLastRedeemedNutzap, getMintsToProofs, getTransactions, getWallet, organizeProofs, validateAndParseWallet };

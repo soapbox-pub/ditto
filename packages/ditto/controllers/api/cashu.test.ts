@@ -7,7 +7,7 @@ import { genEvent } from '@nostrify/nostrify/test';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { stub } from '@std/testing/mock';
 import { assertArrayIncludes, assertEquals, assertExists, assertObjectMatch } from '@std/assert';
-import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 import cashuRoute from '@/controllers/api/cashu.ts';
 import { createTestDB } from '@/test.ts';
