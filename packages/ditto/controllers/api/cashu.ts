@@ -137,7 +137,7 @@ route.post('/mint/:quote_id', userMiddleware({ enc: 'nip44' }), async (c) => {
               pubkey,
               JSON.stringify([
                 ['direction', 'in'],
-                ['amount', amount],
+                ['amount', String(amount)],
                 ['e', unspentProofs.id, conf.relay, 'created'],
               ]),
             ),

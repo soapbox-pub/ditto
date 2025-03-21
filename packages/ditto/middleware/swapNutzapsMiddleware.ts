@@ -79,7 +79,7 @@ export const swapNutzapsMiddleware: MiddlewareHandler = async (c, next) => {
           pubkey,
           JSON.stringify([
             ['direction', 'in'],
-            ['amount', amount],
+            ['amount', String(amount)],
             ['e', unspentProofs.id, conf.relay, 'created'],
           ]),
         ),
