@@ -308,7 +308,7 @@ async function getTransactions(
   });
 
   for (const event of events) {
-    const { data: contentTags, success } = n.json().pipe(z.string().array().min(2).array()).safeParse(
+    const { data: contentTags, success } = n.json().pipe(z.coerce.string().array().min(2).array()).safeParse(
       await signer.nip44.decrypt(pubkey, event.content),
     );
 
