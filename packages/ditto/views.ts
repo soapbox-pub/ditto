@@ -41,7 +41,7 @@ async function renderEventAccounts(c: AppContext, filters: NostrFilter[], opts?:
 }
 
 async function renderAccounts(c: AppContext, pubkeys: string[]) {
-  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const { offset, limit } = paginationSchema().parse(c.req.query());
   const authors = pubkeys.reverse().slice(offset, offset + limit);
 
   const { relay, signal } = c.var;

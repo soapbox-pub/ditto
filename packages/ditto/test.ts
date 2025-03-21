@@ -22,7 +22,7 @@ export async function createTestDB(opts?: { pure?: boolean }) {
     conf,
     timeout: conf.db.timeouts.default,
     pure: opts?.pure ?? false,
-    notify: true,
+    notify: false,
   });
 
   return {

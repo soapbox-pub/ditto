@@ -12,6 +12,7 @@ interface UserMiddlewareOpts {
   enc?: 'nip04' | 'nip44';
   role?: string;
   verify?: boolean;
+  required?: boolean;
 }
 
 export function userMiddleware(): DittoMiddleware<{ user: User }>;
@@ -19,13 +20,14 @@ export function userMiddleware(): DittoMiddleware<{ user: User }>;
 export function userMiddleware(
   opts: UserMiddlewareOpts & { enc: 'nip44' },
 ): DittoMiddleware<{ user: User<Nip44Signer> }>;
+export function userMiddleware(opts: UserMiddlewareOpts & { required: false }): DittoMiddleware<{ user?: User }>;
 export function userMiddleware(opts: UserMiddlewareOpts): DittoMiddleware<{ user: User }>;
 export function userMiddleware(opts: UserMiddlewareOpts = {}): DittoMiddleware<{ user: User }> {
   return async (c, next) => {
     const { conf, user, relay } = c.var;
-    const { enc, role, verify } = opts;
+    const { enc, role, verify, required = true } = opts;
 
-    if (!user) {
+    if (!user && required) {
       throw new HTTPException(401, { message: 'Authorization required' });
     }
 

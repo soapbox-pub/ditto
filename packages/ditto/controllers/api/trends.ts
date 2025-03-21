@@ -124,7 +124,7 @@ async function getTrendingLinks(conf: DittoConf, relay: NStore): Promise<Trendin
 
 const trendingStatusesController: AppController = async (c) => {
   const { conf, relay } = c.var;
-  const { limit, offset, until } = paginationSchema.parse(c.req.query());
+  const { limit, offset, until } = paginationSchema().parse(c.req.query());
 
   const [label] = await relay.query([{
     kinds: [1985],

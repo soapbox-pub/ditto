@@ -1,5 +1,5 @@
 import { paginated, paginatedList } from '../pagination/paginate.ts';
-import { paginationSchema } from '../pagination/schema.ts';
+import { paginationSchema, type PaginationSchemaOpts } from '../pagination/schema.ts';
 
 import type { DittoMiddleware } from '@ditto/mastoapi/router';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -19,19 +19,26 @@ type HeaderRecord = Record<string, string | string[]>;
 type PaginateFn = (events: NostrEvent[], body: object | unknown[], headers?: HeaderRecord) => Response;
 type ListPaginateFn = (params: ListPagination, body: object | unknown[], headers?: HeaderRecord) => Response;
 
+interface PaginationMiddlewareOpts extends PaginationSchemaOpts {
+  type?: string;
+}
+
 /** Fixes compatibility with Mastodon apps by that don't use `Link` headers. */
 // @ts-ignore Types are right.
 export function paginationMiddleware(): DittoMiddleware<{ pagination: Pagination; paginate: PaginateFn }>;
 export function paginationMiddleware(
-  type: 'list',
+  opts: PaginationMiddlewareOpts & { type: 'list' },
 ): DittoMiddleware<{ pagination: ListPagination; paginate: ListPaginateFn }>;
 export function paginationMiddleware(
-  type?: string,
+  opts?: PaginationMiddlewareOpts,
+): DittoMiddleware<{ pagination: Pagination; paginate: PaginateFn }>;
+export function paginationMiddleware(
+  opts: PaginationMiddlewareOpts = {},
 ): DittoMiddleware<{ pagination?: Pagination | ListPagination; paginate: PaginateFn | ListPaginateFn }> {
   return async (c, next) => {
     const { relay } = c.var;
 
-    const pagination = paginationSchema.parse(c.req.query());
+    const pagination = paginationSchema(opts).parse(c.req.query());
 
     const {
       max_id: maxId,
@@ -59,7 +66,7 @@ export function paginationMiddleware(
       }
     }
 
-    if (type === 'list') {
+    if (opts.type === 'list') {
       c.set('pagination', {
         limit: pagination.limit,
         offset: pagination.offset,

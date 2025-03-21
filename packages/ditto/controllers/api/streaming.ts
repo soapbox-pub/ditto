@@ -179,22 +179,31 @@ const streamingController: AppController = async (c) => {
       limiter.set(ip, count + 1, { ttl: LIMITER_WINDOW });
 
       if (count > LIMITER_LIMIT) {
-        socket.close(1008, 'Rate limit exceeded');
+        closeSocket(1008, 'Rate limit exceeded');
         return;
       }
     }
 
     if (typeof e.data !== 'string') {
-      socket.close(1003, 'Invalid message');
+      closeSocket(1003, 'Invalid message');
       return;
     }
   };
 
   socket.onclose = () => {
+    handleClose();
+  };
+
+  function closeSocket(code?: number, reason?: string) {
+    socket.close(code, reason);
+    handleClose();
+  }
+
+  function handleClose(): void {
     connections.delete(socket);
     streamingConnectionsGauge.set(connections.size);
     controller.abort();
-  };
+  }
 
   return response;
 };

@@ -95,10 +95,11 @@ export class TestApp extends DittoApp implements AsyncDisposable {
     return user;
   }
 
-  createUser(sk?: Uint8Array): User {
+  createUser(sk: Uint8Array = generateSecretKey()): User & { sk: Uint8Array } {
     return {
       relay: this.opts.relay,
-      signer: new NSecSigner(sk ?? generateSecretKey()),
+      signer: new NSecSigner(sk),
+      sk,
     };
   }
 
@@ -110,8 +111,18 @@ export class TestApp extends DittoApp implements AsyncDisposable {
       return await this.request(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        body: body ? JSON.stringify(body) : undefined,
       });
+    },
+    put: async (path: string, body?: unknown): Promise<Response> => {
+      return await this.request(path, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    },
+    delete: async (path: string): Promise<Response> => {
+      return await this.request(path, { method: 'DELETE' });
     },
   };
 

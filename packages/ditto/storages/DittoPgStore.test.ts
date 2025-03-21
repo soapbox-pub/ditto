@@ -16,7 +16,7 @@ Deno.test('req streaming', async () => {
   const controller = new AbortController();
 
   const promise = (async () => {
-    for await (const msg of relay.req([{ since: 0 }], { signal: controller.signal })) {
+    for await (const msg of relay.req([{ limit: 0 }], { signal: controller.signal })) {
       msgs.push(msg);
     }
   })();

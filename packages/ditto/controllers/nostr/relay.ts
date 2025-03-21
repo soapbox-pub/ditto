@@ -153,6 +153,11 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
   async function handleReq([_, subId, ...filters]: NostrClientREQ): Promise<void> {
     if (rateLimited(limiters.req)) return;
 
+    if (controllers.size > 20) {
+      send(['CLOSED', subId, 'error: too many subscriptions']);
+      return;
+    }
+
     const controller = new AbortController();
     controllers.get(subId)?.abort();
     controllers.set(subId, controller);
@@ -166,6 +171,10 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
         } else {
           const [verb, , ...rest] = msg;
           send([verb, subId, ...rest] as NostrRelayMsg);
+
+          if (verb === 'CLOSED') {
+            break;
+          }
         }
       }
     } catch (e) {
@@ -177,6 +186,7 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
         send(['CLOSED', subId, 'error: something went wrong']);
       }
     } finally {
+      controllers.get(subId)?.abort();
       controllers.delete(subId);
     }
   }

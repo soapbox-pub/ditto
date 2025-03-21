@@ -87,7 +87,6 @@ import {
 } from '@/controllers/api/pleroma.ts';
 import { preferencesController } from '@/controllers/api/preferences.ts';
 import { getSubscriptionController, pushSubscribeController } from '@/controllers/api/push.ts';
-import { deleteReactionController, reactionController, reactionsController } from '@/controllers/api/reactions.ts';
 import { relayController } from '@/controllers/nostr/relay.ts';
 import {
   adminReportController,
@@ -147,8 +146,10 @@ import { rateLimitMiddleware } from '@/middleware/rateLimitMiddleware.ts';
 import { uploaderMiddleware } from '@/middleware/uploaderMiddleware.ts';
 import { translatorMiddleware } from '@/middleware/translatorMiddleware.ts';
 import { logiMiddleware } from '@/middleware/logiMiddleware.ts';
+import customEmojisRoute from '@/routes/customEmojisRoute.ts';
 import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
 import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
+import pleromaStatusesRoute from '@/routes/pleromaStatusesRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
 
 export interface AppEnv extends DittoEnv {
@@ -434,10 +435,7 @@ app.post('/api/v1/markers', userMiddleware({ verify: true }), updateMarkersContr
 app.get('/api/v1/push/subscription', userMiddleware(), getSubscriptionController);
 app.post('/api/v1/push/subscription', userMiddleware({ verify: true }), pushSubscribeController);
 
-app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions', reactionsController);
-app.get('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', reactionsController);
-app.put('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), reactionController);
-app.delete('/api/v1/pleroma/statuses/:id{[0-9a-f]{64}}/reactions/:emoji', userMiddleware(), deleteReactionController);
+app.route('/api/v1/pleroma/statuses', pleromaStatusesRoute);
 
 app.get('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), configController);
 app.post('/api/v1/pleroma/admin/config', userMiddleware({ role: 'admin' }), updateConfigController);
@@ -475,53 +473,32 @@ app.get('/api/v1/ditto/statuses/:id{[0-9a-f]{64}}/zapped_by', zappedByController
 app.route('/api/v1/ditto/cashu', cashuApp);
 
 app.post('/api/v1/reports', userMiddleware(), reportController);
-app.get('/api/v1/admin/reports', userMiddleware(), userMiddleware({ role: 'admin' }), adminReportsController);
-app.get(
-  '/api/v1/admin/reports/:id{[0-9a-f]{64}}',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminReportController,
-);
+app.get('/api/v1/admin/reports', userMiddleware({ role: 'admin' }), adminReportsController);
+app.get('/api/v1/admin/reports/:id{[0-9a-f]{64}}', userMiddleware({ role: 'admin' }), adminReportController);
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/resolve',
-  userMiddleware(),
   userMiddleware({ role: 'admin' }),
   adminReportResolveController,
 );
 app.post(
   '/api/v1/admin/reports/:id{[0-9a-f]{64}}/reopen',
-  userMiddleware(),
   userMiddleware({ role: 'admin' }),
   adminReportReopenController,
 );
 
 app.get('/api/v1/admin/accounts', userMiddleware({ role: 'admin' }), adminAccountsController);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminActionController,
-);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/approve',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminApproveController,
-);
-app.post(
-  '/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject',
-  userMiddleware(),
-  userMiddleware({ role: 'admin' }),
-  adminRejectController,
-);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/action', userMiddleware({ role: 'admin' }), adminActionController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/approve', userMiddleware({ role: 'admin' }), adminApproveController);
+app.post('/api/v1/admin/accounts/:id{[0-9a-f]{64}}/reject', userMiddleware({ role: 'admin' }), adminRejectController);
 
 app.put('/api/v1/pleroma/admin/users/tag', userMiddleware({ role: 'admin' }), pleromaAdminTagController);
 app.delete('/api/v1/pleroma/admin/users/tag', userMiddleware({ role: 'admin' }), pleromaAdminUntagController);
 app.patch('/api/v1/pleroma/admin/users/suggest', userMiddleware({ role: 'admin' }), pleromaAdminSuggestController);
 app.patch('/api/v1/pleroma/admin/users/unsuggest', userMiddleware({ role: 'admin' }), pleromaAdminUnsuggestController);
 
+app.route('/api/v1/custom_emojis', customEmojisRoute);
+
 // Not (yet) implemented.
-app.get('/api/v1/custom_emojis', emptyArrayController);
 app.get('/api/v1/filters', emptyArrayController);
 app.get('/api/v1/domain_blocks', emptyArrayController);
 app.get('/api/v1/conversations', emptyArrayController);

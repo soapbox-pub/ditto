@@ -16,6 +16,7 @@ import { lookupPubkey } from '@/utils/lookup.ts';
 import { languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { assertAuthenticated, createEvent, parseBody, updateListEvent } from '@/utils/api.ts';
+import { getCustomEmojis } from '@/utils/custom-emoji.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
@@ -187,6 +188,23 @@ const createStatusController: AppController = async (c) => {
     }
     if (link.type === 'hashtag') {
       tags.push(['t', link.href.replace(/^#/, '').toLowerCase()]);
+    }
+  }
+
+  const shortcodes = new Set<string>();
+
+  for (const [, shortcode] of data.status?.matchAll(/(?<!\w):(\w+):(?!\w)/g) ?? []) {
+    shortcodes.add(shortcode);
+  }
+
+  if (shortcodes.size) {
+    const emojis = await getCustomEmojis(await user!.signer.getPublicKey(), c.var);
+
+    for (const shortcode of shortcodes) {
+      const emoji = emojis.get(shortcode);
+      if (emoji) {
+        tags.push(['emoji', shortcode, emoji.url.toString()]);
+      }
     }
   }
 
@@ -615,7 +633,7 @@ const zappedByController: AppController = async (c) => {
   const { db, relay } = c.var;
 
   const id = c.req.param('id');
-  const { offset, limit } = paginationSchema.parse(c.req.query());
+  const { offset, limit } = paginationSchema().parse(c.req.query());
 
   const zaps = await db.kysely.selectFrom('event_zaps')
     .selectAll()
