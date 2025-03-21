@@ -85,7 +85,7 @@ export class DittoPgStore extends NPostgres {
     'a': ({ count }) => count < 15,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
     'e': DittoPgStore.eTagCondition,
-    'k': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
+    'k': ({ count }) => count < 3,
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'n': ({ count, value }) => count < 50 && value.length < 50,
