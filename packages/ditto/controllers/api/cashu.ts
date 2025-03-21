@@ -273,7 +273,7 @@ route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, as
 /** Gets a history of transactions. */
 route.get('/transactions', userMiddleware({ enc: 'nip44' }), async (c) => {
   const { relay, user, signal } = c.var;
-  const { limit, since, until } = paginationSchema.parse(c.req.query());
+  const { limit, since, until } = paginationSchema().parse(c.req.query());
 
   const pubkey = await user.signer.getPublicKey();
 
