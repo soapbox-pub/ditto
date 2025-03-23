@@ -98,14 +98,14 @@ async function renderReaction(store: NStore, event: DittoEvent, opts: RenderNoti
   };
 }
 
-async function renderNameGrant(event: DittoEvent) {
+function renderNameGrant(event: DittoEvent) {
   const r = event.tags.find(([name]) => name === 'r')?.[1];
   const d = event.tags.find(([name]) => name === 'd')?.[1];
   const name = r ?? d;
 
-  if (name) return;
+  if (!name) return;
 
-  const account = event.author ? await renderAccount(event.author) : await accountFromPubkey(event.pubkey);
+  const account = event.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey);
 
   return {
     id: notificationId(event),
