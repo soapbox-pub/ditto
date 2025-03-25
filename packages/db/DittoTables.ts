@@ -36,6 +36,7 @@ interface EventStatsRow {
   quotes_count: number;
   reactions: string;
   zaps_amount: number;
+  zaps_amount_cashu: number;
   link_preview?: MastodonPreviewCard;
 }
 

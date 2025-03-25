@@ -448,6 +448,7 @@ export class DittoRelayStore implements NRelay {
               quotes_count: 0,
               reactions: '{}',
               zaps_amount: 0,
+              zaps_amount_cashu: 0,
               link_preview: linkPreview,
             })
             .onConflict((oc) => oc.column('event_id').doUpdateSet({ link_preview: linkPreview }))

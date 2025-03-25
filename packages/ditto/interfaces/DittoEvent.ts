@@ -24,6 +24,7 @@ export interface EventStats {
   quotes_count: number;
   reactions: Record<string, number>;
   zaps_amount: number;
+  zaps_amount_cashu: number;
   link_preview?: MastodonPreviewCard;
 }
 
