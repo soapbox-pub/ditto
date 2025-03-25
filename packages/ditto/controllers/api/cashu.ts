@@ -1,14 +1,14 @@
 import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import {
-  getTransactions,
   getWallet,
   organizeProofs,
+  renderTransaction,
   tokenEventSchema,
   validateAndParseWallet,
   type Wallet,
 } from '@ditto/cashu';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
-import { paginationSchema } from '@ditto/mastoapi/pagination';
+import { paginated, paginationSchema } from '@ditto/mastoapi/pagination';
 import { DittoRoute } from '@ditto/mastoapi/router';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
@@ -277,9 +277,21 @@ route.get('/transactions', userMiddleware({ enc: 'nip44' }), async (c) => {
 
   const pubkey = await user.signer.getPublicKey();
 
-  const transactions = await getTransactions(relay, pubkey, user.signer, { since, until, limit }, { signal });
+  const events = await relay.query([{ kinds: [7376], authors: [pubkey], since, until, limit }], {
+    signal,
+  });
 
-  return c.json(transactions, 200);
+  const transactions = await Promise.all(
+    events.map((event) => {
+      return renderTransaction(event, pubkey, user.signer);
+    }),
+  );
+
+  if (!transactions.length) {
+    return c.json([], 200);
+  }
+
+  return paginated(c, events, transactions);
 });
 
 /** Get mints set by the CASHU_MINTS environment variable. */
