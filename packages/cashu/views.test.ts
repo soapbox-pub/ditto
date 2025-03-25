@@ -7,7 +7,7 @@ import { assertEquals } from '@std/assert';
 
 import { DittoPolyPg, TestDB } from '@ditto/db';
 import { DittoConf } from '@ditto/conf';
-import { renderTransaction, type Transaction } from './views.ts';
+import { renderTransaction } from './views.ts';
 
 Deno.test('renderTransaction function is working', async () => {
   const conf = new DittoConf(Deno.env);
