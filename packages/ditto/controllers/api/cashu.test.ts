@@ -1,3 +1,4 @@
+import { Proof } from '@cashu/cashu-ts';
 import { proofSchema, walletSchema } from '@ditto/cashu';
 import { DittoConf } from '@ditto/conf';
 import { type User } from '@ditto/mastoapi/middleware';
@@ -10,9 +11,9 @@ import { assertArrayIncludes, assertEquals, assertExists, assertObjectMatch } fr
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 
 import cashuRoute from '@/controllers/api/cashu.ts';
+import { accountFromPubkey } from '@/views/mastodon/accounts.ts';
 import { createTestDB } from '@/test.ts';
 import { nostrNow } from '@/utils.ts';
-import { Proof } from '@cashu/cashu-ts';
 
 Deno.test('PUT /wallet must be successful', async () => {
   const mock = stub(globalThis, 'fetch', () => {
@@ -1153,6 +1154,136 @@ Deno.test('POST /nutzap must be successful WITHOUT proofs to keep', async () => 
     ['direction', 'out'],
     ['amount', '1'],
     ['e', proofsOfSender.id, 'ws://localhost:4036/relay', 'destroyed'],
+  ]);
+
+  mock.restore();
+});
+
+Deno.test('GET /statuses/:id{[0-9a-f]{64}}/nutzapped_by must be successful', async () => {
+  const mock = stub(globalThis, 'fetch', () => {
+    return Promise.resolve(new Response());
+  });
+
+  await using test = await createTestRoute();
+  const { route, sk, relay, signer } = test;
+
+  const pubkey = await signer.getPublicKey();
+
+  const post = genEvent({
+    kind: 1,
+    content: 'Hello',
+  }, sk);
+  await relay.event(post);
+
+  const senderSk = generateSecretKey();
+  const sender = getPublicKey(senderSk);
+
+  await relay.event(genEvent({
+    created_at: nostrNow() - 1,
+    kind: 9321,
+    content: 'Who do I have?',
+    tags: [
+      ['e', post.id],
+      ['p', pubkey],
+      ['u', 'https://mint.soul.com'],
+      [
+        'proof',
+        '{"amount":1,"C":"02277c66191736eb72fce9d975d08e3191f8f96afb73ab1eec37e4465683066d3f","id":"000a93d6f8a1d2c4","secret":"[\\"P2PK\\",{\\"nonce\\":\\"b00bdd0467b0090a25bdf2d2f0d45ac4e355c482c1418350f273a04fedaaee83\\",\\"data\\":\\"02eaee8939e3565e48cc62967e2fde9d8e2a4b3ec0081f29eceff5c64ef10ac1ed\\"}]"}',
+      ],
+      [
+        'proof',
+        '{"amount":1,"C":"02277c66191736eb72fce9d975d08e3191f8f96afb73ab1eec37e4465683066d3f","id":"000a93d6f8a1d2c4","secret":"[\\"P2PK\\",{\\"nonce\\":\\"b00bdd0467b0090a25bdf2d2f0d45ac4e355c482c1418350f273a04fedaaee83\\",\\"data\\":\\"02eaee8939e3565e48cc62967e2fde9d8e2a4b3ec0081f29eceff5c64ef10ac1ed\\"}]"}',
+      ],
+    ],
+  }, senderSk));
+
+  await relay.event(genEvent({
+    created_at: nostrNow() - 3,
+    kind: 9321,
+    content: 'Want it all to end',
+    tags: [
+      ['e', post.id],
+      ['p', pubkey],
+      ['u', 'https://mint.soul.com'],
+      [
+        'proof',
+        JSON.stringify({
+          id: '005c2502034d4f12',
+          amount: 25,
+          secret: 'z+zyxAVLRqN9lEjxuNPSyRJzEstbl69Jc1vtimvtkPg=',
+          C: '0241d98a8197ef238a192d47edf191a9de78b657308937b4f7dd0aa53beae72c46',
+        }),
+      ],
+    ],
+  }, senderSk));
+
+  await relay.event(genEvent({
+    created_at: nostrNow() - 5,
+    kind: 9321,
+    content: 'Evidence',
+    tags: [
+      ['e', post.id],
+      ['p', pubkey],
+      ['u', 'https://mint.soul.com'],
+      [
+        'proof',
+        '{"amount":1,"C":"02277c66191736eb72fce9d975d08e3191f8f96afb73ab1eec37e4465683066d3f","id":"000a93d6f8a1d2c4","secret":"[\\"P2PK\\",{\\"nonce\\":\\"b00bdd0467b0090a25bdf2d2f0d45ac4e355c482c1418350f273a04fedaaee83\\",\\"data\\":\\"02eaee8939e3565e48cc62967e2fde9d8e2a4b3ec0081f29eceff5c64ef10ac1ed\\"}]"}',
+      ],
+    ],
+  }, senderSk));
+
+  const sender2Sk = generateSecretKey();
+  const sender2 = getPublicKey(sender2Sk);
+
+  await relay.event(genEvent({
+    created_at: nostrNow() + 10,
+    kind: 9321,
+    content: 'Reach out',
+    tags: [
+      ['e', post.id],
+      ['p', pubkey],
+      ['u', 'https://mint.soul.com'],
+      [
+        'proof',
+        JSON.stringify({
+          id: '005c2502034d4f12',
+          amount: 25,
+          secret: 'z+zyxAVLRqN9lEjxuNPSyRJzEstbl69Jc1vtimvtkPg=',
+          C: '0241d98a8197ef238a192d47edf191a9de78b657308937b4f7dd0aa53beae72c46',
+        }),
+      ],
+    ],
+  }, sender2Sk));
+
+  const response = await route.request(`/statuses/${post.id}/nutzapped_by`, {
+    method: 'GET',
+  });
+
+  const body = await response.json();
+
+  assertEquals(response.status, 200);
+
+  assertEquals(body, [
+    {
+      comment: 'Reach out',
+      amount: 25,
+      account: JSON.parse(JSON.stringify(accountFromPubkey(sender2))),
+    },
+    {
+      comment: 'Who do I have?',
+      amount: 2,
+      account: JSON.parse(JSON.stringify(accountFromPubkey(sender))),
+    },
+    {
+      comment: 'Want it all to end',
+      amount: 25,
+      account: JSON.parse(JSON.stringify(accountFromPubkey(sender))),
+    },
+    {
+      comment: 'Evidence',
+      amount: 1,
+      account: JSON.parse(JSON.stringify(accountFromPubkey(sender))),
+    },
   ]);
 
   mock.restore();

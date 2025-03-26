@@ -2,6 +2,7 @@ import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
 import {
   getWallet,
   organizeProofs,
+  proofSchema,
   renderTransaction,
   tokenEventSchema,
   validateAndParseWallet,
@@ -14,6 +15,7 @@ import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { NostrEvent, NSchema as n } from '@nostrify/nostrify';
 import { bytesToString, stringToBytes } from '@scure/base';
 import { logi } from '@soapbox/logi';
+import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { z } from 'zod';
 
 import { createEvent, parseBody } from '@/utils/api.ts';
@@ -292,6 +294,48 @@ route.get('/transactions', userMiddleware({ enc: 'nip44' }), async (c) => {
   }
 
   return paginated(c, events, transactions);
+});
+
+/** Gets the nutzaps that a post received. */
+route.get('statuses/:id{[0-9a-f]{64}}/nutzapped_by', async (c) => {
+  const id = c.req.param('id');
+  const { relay, signal } = c.var;
+  const { limit, since, until } = paginationSchema().parse(c.req.query());
+
+  const events = await relay.query([{ kinds: [9321], '#e': [id], since, until, limit }], {
+    signal,
+  });
+
+  if (!events.length) {
+    return c.json([], 200);
+  }
+
+  await hydrateEvents({ ...c.var, events });
+
+  const results = (await Promise.all(
+    events.map((event: DittoEvent) => {
+      const proofs = (event.tags.filter(([name]) => name === 'proof').map(([_, proof]) => {
+        const { success, data } = n.json().pipe(proofSchema).safeParse(proof);
+        if (!success) return;
+
+        return data;
+      })
+        .filter(Boolean)) as Proof[];
+
+      const amount = proofs.reduce((prev, current) => prev + current.amount, 0);
+      const comment = event.content;
+
+      const account = event?.author ? renderAccount(event.author) : accountFromPubkey(event.pubkey);
+
+      return {
+        comment,
+        amount,
+        account,
+      };
+    }),
+  )).filter(Boolean);
+
+  return paginated(c, events, results);
 });
 
 /** Get mints set by the CASHU_MINTS environment variable. */
