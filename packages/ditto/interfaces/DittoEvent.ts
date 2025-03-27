@@ -57,4 +57,6 @@ export interface DittoEvent extends NostrEvent {
   zap_message?: string;
   /** Language of the event (kind 1s are more accurate). */
   language?: LanguageCode;
+  /** Whether or not pubkey accepts cashu. */
+  accepts_zaps_cashu?: boolean;
 }

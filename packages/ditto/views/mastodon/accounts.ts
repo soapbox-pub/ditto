@@ -117,6 +117,7 @@ function renderAccount(event: Omit<DittoEvent, 'id' | 'sig'>, opts: ToAccountOpt
     username: parsed05?.nickname || npub.substring(0, 8),
     ditto: {
       accepts_zaps: Boolean(getLnurl({ lud06, lud16 })),
+      accepts_zaps_cashu: Boolean(event?.accepts_zaps_cashu),
       external_url: Conf.external(nprofile),
       streak: {
         days: streakDays,
