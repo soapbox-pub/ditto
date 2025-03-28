@@ -9,6 +9,8 @@ const relayInfoController: AppController = async (c) => {
   const meta = await getInstanceMetadata(c.var);
 
   c.res.headers.set('access-control-allow-origin', '*');
+  c.res.headers.set('access-control-allow-headers', '*');
+  c.res.headers.set('access-control-allow-methods', 'GET, POST, OPTIONS');
 
   return c.json({
     name: meta.name,
@@ -16,7 +18,7 @@ const relayInfoController: AppController = async (c) => {
     pubkey: await conf.signer.getPublicKey(),
     contact: meta.email,
     supported_nips: [1, 5, 9, 11, 16, 45, 50, 46, 98],
-    software: 'Ditto',
+    software: 'https://gitlab.com/soapbox-pub/ditto',
     version: denoJson.version,
     limitation: {
       auth_required: false,
