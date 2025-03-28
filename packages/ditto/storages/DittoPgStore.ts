@@ -324,7 +324,7 @@ export class DittoPgStore extends NPostgres {
 
         machina.push(['EOSE', subId]);
       }).catch((error) => {
-        if (error instanceof Error && error.message.includes('timeout')) {
+        if (error instanceof Error && (error.name === 'TimeoutError' || error.message.includes('timeout'))) {
           machina.push(['CLOSED', subId, 'error: the relay could not respond fast enough']);
         } else {
           machina.push(['CLOSED', subId, 'error: something went wrong']);
@@ -361,7 +361,7 @@ export class DittoPgStore extends NPostgres {
         yield msg;
       }
     } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
+      if (e instanceof Error && (e.name === 'TimeoutError' || e.message.includes('timeout'))) {
         yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
       } else {
         yield ['CLOSED', subId, 'error: something went wrong'];
