@@ -32,7 +32,7 @@ It's important that Ditto conforms to Nostr standards. Please read as much of th
 
 Ditto implements a full Nostr relay, available at `/relay` of the Ditto server.
 
-Mastodon API functionality, available at `/api/*, is built around the Nostr relay's storage implementation.
+Mastodon API functionality, available at `/api/*`, is built around the Nostr relay's storage implementation.
 
 Ditto's goal is to enable Mastodon API clients to interact directly with Nostr. It achieves this by implementing most of Mastodon's API, and "pretending" to be a Mastodon server to client applications, while in actuality it uses Nostr as its decentralized protocol layer.
 
