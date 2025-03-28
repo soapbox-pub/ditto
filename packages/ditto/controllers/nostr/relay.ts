@@ -165,6 +165,8 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
 
     try {
       for await (const msg of relay.req(filters, { limit: 100, signal, timeout: conf.db.timeouts.relay })) {
+        if (!controllers.has(subId)) break;
+
         if (msg[0] === 'EVENT') {
           const [, , event] = msg;
           send(['EVENT', subId, purifyEvent(event)]);
@@ -186,8 +188,8 @@ function connectStream(socket: WebSocket, ip: string | undefined, opts: ConnectS
         send(['CLOSED', subId, 'error: something went wrong']);
       }
     } finally {
-      controllers.get(subId)?.abort();
       controllers.delete(subId);
+      controller.abort();
     }
   }
 
