@@ -17,6 +17,7 @@ import { languageSchema } from '@/schema.ts';
 import { hydrateEvents } from '@/storages/hydrate.ts';
 import { assertAuthenticated, createEvent, parseBody, updateListEvent } from '@/utils/api.ts';
 import { getCustomEmojis } from '@/utils/custom-emoji.ts';
+import { getInstanceMetadata } from '@/utils/instance.ts';
 import { getInvoice, getLnurl } from '@/utils/lnurl.ts';
 import { purifyEvent } from '@/utils/purify.ts';
 import { getZapSplits } from '@/utils/zap-split.ts';
@@ -25,6 +26,7 @@ import { accountFromPubkey, renderAccount } from '@/views/mastodon/accounts.ts';
 import { renderReblog, renderStatus } from '@/views/mastodon/statuses.ts';
 
 const createStatusSchema = z.object({
+  disclose_client: z.boolean().nullish(),
   in_reply_to_id: n.id().nullish(),
   language: languageSchema.nullish(),
   media_ids: z.string().array().nullish(),
@@ -263,6 +265,11 @@ const createStatusController: AppController = async (c) => {
       content += '\n\n';
     }
     content += mediaUrls.join('\n');
+  }
+
+  if (data.disclose_client) {
+    const { name } = await getInstanceMetadata(c.var);
+    tags.push(['client', name, `31990:${await conf.signer.getPublicKey()}:ditto`, conf.relay]);
   }
 
   const event = await createEvent({
