@@ -16,6 +16,7 @@ import { startSentry } from '@/sentry.ts';
 import { DittoAPIStore } from '@/storages/DittoAPIStore.ts';
 import { DittoPgStore } from '@/storages/DittoPgStore.ts';
 import { DittoPool } from '@/storages/DittoPool.ts';
+import { createNip89 } from '@/utils/nip89.ts';
 import { Time } from '@/utils/time.ts';
 import { seedZapSplits } from '@/utils/zap-split.ts';
 
@@ -198,6 +199,7 @@ const pgstore = new DittoPgStore({
 const pool = new DittoPool({ conf, relay: pgstore });
 const relay = new DittoRelayStore({ db, conf, pool, relay: pgstore });
 
+await createNip89({ conf, relay });
 await seedZapSplits({ conf, relay });
 
 if (conf.firehoseEnabled) {

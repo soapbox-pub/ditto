@@ -56,4 +56,5 @@ export interface DittoEvent extends NostrEvent {
   zap_message?: string;
   /** Language of the event (kind 1s are more accurate). */
   language?: LanguageCode;
+  client?: DittoEvent;
 }

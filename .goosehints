@@ -24,6 +24,8 @@ To learn about Nostr, use the fetch tool to read [NIP-01](https://raw.githubuser
 
 To read a specific NIP, construct the NIP URL following this template: `https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/{nip}.md` (replace `{nip}` in the URL template with the relevant NIP name, eg `07` for NIP-07, or `C7` for NIP-C7). Then use the fetch tool to read the URL.
 
+To read the definition of a specific kind, construct a URL following this template: `https://nostrbook.dev/kinds/{kind}.md` (replace `{kind}` in the template with the kind number, eg `https://nostrbook.dev/kinds/0.md` for kind 0).
+
 To discover the full list of NIPs, use the fetch tool to read the [NIPs README](https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/README.md).
 
 It's important that Ditto conforms to Nostr standards. Please read as much of the NIPs as you need to have a full understanding before adding or modifying Nostr events and filters. It is possible to add new ideas to Nostr that don't exist yet in the NIPs, but only after other options have been explored. Care must be taken when adding new Nostr ideas, to ensure they fit seamlessly within the existing Nostr ecosystem.
