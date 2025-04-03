@@ -522,6 +522,12 @@ export class DittoPgStore extends NPostgres {
       }
     }
 
+    const client = event.tags.find(([name]) => name === 'client')?.[2];
+
+    if (client && /^31990:([0-9a-f]{64}):(.+)$/.test(client)) {
+      ext.client = client;
+    }
+
     ext.protocol = event.tags.find(([name]) => name === 'proxy')?.[2] ?? 'nostr';
 
     return ext;
