@@ -123,13 +123,21 @@ async function renderStatus(
   if (event.client) {
     const result = n.json().pipe(n.metadata()).safeParse(event.client.content);
     if (result.success) {
-      const name = result.data.name ?? result.data.display_name ?? event.tags.find(([name]) => name === 'client')?.[1];
+      const name = result.data.name ?? event.tags.find(([name]) => name === 'client')?.[1];
       if (name) {
         application = {
           name,
           website: result.data.website ?? null,
         };
       }
+    }
+  } else {
+    const name = event.tags.find(([name]) => name === 'client')?.[1];
+    if (name) {
+      application = {
+        name,
+        website: null,
+      };
     }
   }
 
