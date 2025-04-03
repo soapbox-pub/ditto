@@ -24,6 +24,7 @@ export async function createNip89(opts: CreateNip89Opts): Promise<void> {
     tags: [
       ['d', 'ditto'],
       ['k', '1'],
+      ['t', 'ditto'],
       ['web', conf.local('/<bech32>'), 'web'],
     ],
     content: JSON.stringify(metadata),
