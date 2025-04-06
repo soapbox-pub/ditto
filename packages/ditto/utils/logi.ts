@@ -60,7 +60,7 @@ export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) 
   if (fmt === 'jsonl') return defaultHandler(log);
   if (!isLevel(level)) throw new Error(`Invalid log level ${level} specified`);
   if (!lowerLevels[level].includes(log.level)) return;
-  if (scopes.length && !scopes.some(scope => scope.startsWith(log.ns))) return;
+  if (scopes.length && !scopes.some((scope) => scope.startsWith(log.ns))) return;
   const message = prettyPrint(log.message || log.msg || '');
   const remaining = Object.entries(log)
     .filter(([key]) => !['ns', 'level', 'message', 'msg'].includes(key));
