@@ -14,7 +14,7 @@ export const KyselyLogger: Logger = (event) => {
   dbQueryDurationHistogram.observe(duration);
 
   if (event.level === 'query') {
-    logi({ level: 'debug', ns: 'ditto.sql', sql, parameters: parameters as LogiValue, duration });
+    logi({ level: 'trace', ns: 'ditto.sql', sql, parameters: parameters as LogiValue, duration });
   }
 
   if (event.level === 'error') {
