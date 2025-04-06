@@ -37,10 +37,10 @@ const prettyPrint = (msg: LogiValue): string => {
     case 'undefined':
       return `<${type}>`;
     case 'object':
-      if (message === null) return "<null>";
+      if (message === null) return '<null>';
       return JSON.stringify(message, (_, v) => {
         if (Array.isArray(v)) {
-          return `[${v.map(itm => JSON.stringify(itm)).join(', ')}]`;
+          return `[${v.map((itm) => JSON.stringify(itm)).join(', ')}]`;
         }
         if (typeof v === 'string') return `\`${v}\``;
         return v;
@@ -49,11 +49,11 @@ const prettyPrint = (msg: LogiValue): string => {
         .replace(/^"/, '')
         .replace(/"$/, '');
   }
-}
+};
 
 const pair = (key: string, value: LogiValue | undefined) => {
-  return `${key} => ${prettyPrint(value || '')}`
-}
+  return `${key} => ${prettyPrint(value || '')}`;
+};
 
 export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) => (log: LogiLog) => {
   const { fmt, level, scopes } = conf.logConfig;
@@ -65,7 +65,13 @@ export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) 
   const remaining = Object.entries(log)
     .filter(([key]) => !['ns', 'level', 'message', 'msg'].includes(key));
 
-  console.group(`%c${log.level.toUpperCase()} %c${log.ns} %c${message || ''}`, `color: ${colors[log.level]}; font-weight: bold`, 'font-weight: normal; color: yellow', 'color: unset');
-  console.log(remaining.map(itm => pair(...itm)).join('\n'));
+  console.group(
+    `%c${log.level.toUpperCase()} %c${log.ns} %c${message || ''}`,
+    `color: ${colors[log.level]}; font-weight: bold`,
+    'font-weight: normal; color: yellow',
+    'color: unset',
+  );
+
+  console.log(remaining.map((itm) => pair(...itm)).join('\n'));
   console.groupEnd();
 };
