@@ -72,6 +72,6 @@ export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) 
     'color: unset',
   );
 
-  console.log(remaining.map((itm) => pair(...itm)).join('\n'));
+  if (remaining.length) console.log(remaining.map((itm) => pair(...itm)).join('\n'));
   console.groupEnd();
 };

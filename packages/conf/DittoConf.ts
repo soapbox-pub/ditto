@@ -238,6 +238,13 @@ export class DittoConf {
     };
   }
 
+  /**
+   * The logging configuration for the Ditto server. The config is derived from
+   * the DEBUG environment variable and it is parsed as follows:
+   *
+   * `DEBUG='<jsonl|pretty>:<minimum log level to show>:comma-separated scopes to show'`.
+   * If the scopes are empty (e.g. in 'pretty:warn:', then all scopes are shown.)
+   */
   get logConfig(): {
     fmt: 'jsonl' | 'pretty';
     level: string;
