@@ -238,10 +238,6 @@ export class DittoConf {
     };
   }
 
-  get isCI() {
-    return this.env.get('CI') === 'true';
-  }
-
   get logConfig() {
     const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('DEBUG') || '').split(':');
     return {
