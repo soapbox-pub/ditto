@@ -238,10 +238,14 @@ export class DittoConf {
     };
   }
 
-  get logConfig() {
+  get logConfig(): {
+    fmt: 'jsonl' | 'pretty';
+    level: string;
+    scopes: string[];
+  } {
     const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('DEBUG') || '').split(':');
     return {
-      fmt,
+      fmt: fmt === 'jsonl' ? fmt : 'pretty',
       level,
       scopes: scopes.split(',').filter(Boolean),
     };
