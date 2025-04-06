@@ -238,6 +238,19 @@ export class DittoConf {
     };
   }
 
+  get isCI() {
+    return this.env.get('CI') === 'true';
+  }
+
+  get logConfig() {
+    const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('DEBUG') || '').split(':');
+    return {
+      fmt,
+      level,
+      scopes: scopes.split(',').filter(Boolean),
+    };
+  }
+
   /** nostr.build API endpoint when the `nostrbuild` uploader is used. */
   get nostrbuildEndpoint(): string {
     return this.env.get('NOSTRBUILD_ENDPOINT') || 'https://nostr.build/api/v2/upload/files';
