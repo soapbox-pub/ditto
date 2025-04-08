@@ -52,7 +52,7 @@ const prettyPrint = (msg: LogiValue): string => {
 };
 
 const pair = (key: string, value: LogiValue | undefined) => {
-  return `${key} => ${prettyPrint(value || '')}`;
+  return `${key}: ${prettyPrint(value || '')}`;
 };
 
 export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) => (log: LogiLog) => {
