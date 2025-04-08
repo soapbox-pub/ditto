@@ -1,6 +1,6 @@
 import { DittoDB, DittoTables } from '@ditto/db';
 import { DittoConf } from '@ditto/conf';
-import { NStore } from '@nostrify/nostrify';
+import { type NostrFilter, NStore } from '@nostrify/nostrify';
 import { Kysely } from 'kysely';
 import { matchFilter } from 'nostr-tools';
 import { NSchema as n } from '@nostrify/nostrify';
@@ -51,6 +51,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
   }
 
   for (const event of await gatherAcceptCashu({ ...opts, events: cache })) {
+    cache.push(event);
+  }
+
+  for (const event of await gatherClients({ ...opts, events: cache })) {
     cache.push(event);
   }
 
@@ -131,6 +135,16 @@ export function assembleEvents(
     event.author = b.find((e) => matchFilter({ kinds: [0], authors: [event.pubkey] }, e));
     event.user = b.find((e) => matchFilter({ kinds: [30382], authors: [admin], '#d': [event.pubkey] }, e));
     event.info = b.find((e) => matchFilter({ kinds: [30383], authors: [admin], '#d': [event.id] }, e));
+
+    for (const [name, _value, addr] of event.tags) {
+      if (name === 'client' && addr) {
+        const match = addr.match(/^31990:([0-9a-f]{64}):(.+)$/);
+        if (match) {
+          const [, pubkey, d] = match;
+          event.client = b.find((e) => matchFilter({ kinds: [31990], authors: [pubkey], '#d': [d] }, e));
+        }
+      }
+    }
 
     if (event.kind === 1) {
       const id = findQuoteTag(event.tags)?.[1] || findQuoteInContent(event.content);
@@ -377,6 +391,28 @@ function gatherAcceptCashu({ events, relay, signal }: HydrateOpts): Promise<Ditt
     [{ kinds: [10019], authors: [...pubkeys], limit: pubkeys.size }],
     { signal },
   );
+}
+
+function gatherClients({ events, relay, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const filters: NostrFilter[] = [];
+
+  for (const event of events) {
+    for (const [name, _value, addr] of event.tags) {
+      if (name === 'client' && addr) {
+        const match = addr.match(/^31990:([0-9a-f]{64}):(.+)$/);
+        if (match) {
+          const [, pubkey, d] = match;
+          filters.push({ kinds: [31990], authors: [pubkey], '#d': [d], limit: 1 });
+        }
+      }
+    }
+  }
+
+  if (!filters.length) {
+    return Promise.resolve([]);
+  }
+
+  return relay.query(filters, { signal });
 }
 
 /** Collect author stats from the events. */

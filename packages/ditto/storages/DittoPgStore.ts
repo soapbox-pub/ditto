@@ -83,6 +83,7 @@ export class DittoPgStore extends NPostgres {
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
     'a': ({ count }) => count < 15,
+    'client': ({ count, value }) => count === 0 && value.length < 50,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
     'e': DittoPgStore.eTagCondition,
     'k': ({ count }) => count < 3,
@@ -324,7 +325,7 @@ export class DittoPgStore extends NPostgres {
 
         machina.push(['EOSE', subId]);
       }).catch((error) => {
-        if (error instanceof Error && error.message.includes('timeout')) {
+        if (error instanceof Error && (error.name === 'TimeoutError' || error.message.includes('timeout'))) {
           machina.push(['CLOSED', subId, 'error: the relay could not respond fast enough']);
         } else {
           machina.push(['CLOSED', subId, 'error: something went wrong']);
@@ -361,7 +362,7 @@ export class DittoPgStore extends NPostgres {
         yield msg;
       }
     } catch (e) {
-      if (e instanceof Error && e.name === 'AbortError') {
+      if (e instanceof Error && (e.name === 'TimeoutError' || e.message.includes('timeout'))) {
         yield ['CLOSED', subId, 'error: the relay could not respond fast enough'];
       } else {
         yield ['CLOSED', subId, 'error: something went wrong'];
@@ -519,6 +520,12 @@ export class DittoPgStore extends NPostgres {
       if (imeta.every((tags) => tags.some(([name, value]) => name === 'm' && value.startsWith('video/')))) {
         ext.video = 'true';
       }
+    }
+
+    const client = event.tags.find(([name]) => name === 'client')?.[2];
+
+    if (client && /^31990:([0-9a-f]{64}):(.+)$/.test(client)) {
+      ext.client = client;
     }
 
     ext.protocol = event.tags.find(([name]) => name === 'proxy')?.[2] ?? 'nostr';

@@ -5,6 +5,10 @@ import type { MastodonPreviewCard } from './MastodonPreviewCard.ts';
 export interface MastodonStatus {
   id: string;
   account: MastodonAccount;
+  application?: {
+    name: string;
+    website: string | null;
+  };
   card: MastodonPreviewCard | null;
   content: string;
   created_at: string;
@@ -25,7 +29,6 @@ export interface MastodonStatus {
   bookmarked: boolean;
   pinned: boolean;
   reblog: MastodonStatus | null;
-  application: unknown;
   media_attachments: MastodonAttachment[];
   mentions: unknown[];
   tags: unknown[];

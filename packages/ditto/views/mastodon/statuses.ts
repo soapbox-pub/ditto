@@ -1,4 +1,4 @@
-import { NostrEvent, NStore } from '@nostrify/nostrify';
+import { NostrEvent, NSchema as n, NStore } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { Conf } from '@/config.ts';
@@ -120,11 +120,35 @@ async function renderStatus(
     return acc;
   }, [] as { name: string; count: number; me: boolean; url?: string }[]);
 
+  let application: MastodonStatus['application'] = undefined;
+
+  if (event.client) {
+    const result = n.json().pipe(n.metadata()).safeParse(event.client.content);
+    if (result.success) {
+      const name = result.data.name ?? event.tags.find(([name]) => name === 'client')?.[1];
+      if (name) {
+        application = {
+          name,
+          website: result.data.website ?? null,
+        };
+      }
+    }
+  } else {
+    const name = event.tags.find(([name]) => name === 'client')?.[1];
+    if (name) {
+      application = {
+        name,
+        website: null,
+      };
+    }
+  }
+
   const expiresAt = new Date(Number(event.tags.find(([name]) => name === 'expiration')?.[1]) * 1000);
 
   return {
     id: event.id,
     account,
+    application,
     card: event.event_stats?.link_preview ?? null,
     content: compatMentions + html,
     created_at: nostrDate(event.created_at).toISOString(),
@@ -145,7 +169,6 @@ async function renderStatus(
     bookmarked: Boolean(bookmarkEvent),
     pinned: Boolean(pinEvent),
     reblog: null,
-    application: null,
     media_attachments: media
       .map((m) => renderAttachment({ tags: m }))
       .filter((m): m is MastodonAttachment => Boolean(m)),

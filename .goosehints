@@ -1,0 +1,45 @@
+# Ditto
+
+This project is called Ditto, a self-hosted social media server written in TypeScript with Deno. It implements the [Nostr Protocol](https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/README.md), and parts of the [Mastodon API](https://docs.joinmastodon.org/methods/) and [Pleroma API](https://git.pleroma.social/pleroma/pleroma/-/raw/develop/docs/development/API/pleroma_api.md).
+
+## Project Structure
+
+Ditto is a monorepo with a `packages` directory. The main package is `packages/ditto`, and the main API definition is in `packages/ditto/app.ts`.
+
+## Deno, npm, and jsr
+
+Ditto uses Deno 2.x
+
+Dependencies are managed in `deno.json`, which are added with the `deno add` command. This command also updates the `deno.lock` file. npm packages can be added by using `deno add` and prefixing the package name with an `npm:` protocol. For example, `deno add npm:kysely` would add the `kysely` package from npm.
+
+[jsr](https://jsr.io/) is a modern alternative to npm. It's a completely different registry with different packages available. jsr packages can be added by using `deno add` and prefixing the package name with a `jsr:` protocol. For example, `deno add jsr:@std/assert` would add the `@std/assert` package from jsr.
+
+## Nostr
+
+Nostr is a decentralized social media protocol involving clients, relays, keys, and a unified Nostr event format.
+
+Specifications on Nostr are called "NIPs". NIP stands for "Nostr Implementation Possibilities". NIPs are numbered like `NIP-XX` where `XX` are two capitalized hexadecimal digits, eg `NIP-01` and `NIP-C7`.
+
+To learn about Nostr, use the fetch tool to read [NIP-01](https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/01.md).
+
+To read a specific NIP, construct the NIP URL following this template: `https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/{nip}.md` (replace `{nip}` in the URL template with the relevant NIP name, eg `07` for NIP-07, or `C7` for NIP-C7). Then use the fetch tool to read the URL.
+
+To read the definition of a specific kind, construct a URL following this template: `https://nostrbook.dev/kinds/{kind}.md` (replace `{kind}` in the template with the kind number, eg `https://nostrbook.dev/kinds/0.md` for kind 0).
+
+To discover the full list of NIPs, use the fetch tool to read the [NIPs README](https://raw.githubusercontent.com/nostr-protocol/nips/refs/heads/master/README.md).
+
+It's important that Ditto conforms to Nostr standards. Please read as much of the NIPs as you need to have a full understanding before adding or modifying Nostr events and filters. It is possible to add new ideas to Nostr that don't exist yet in the NIPs, but only after other options have been explored. Care must be taken when adding new Nostr ideas, to ensure they fit seamlessly within the existing Nostr ecosystem.
+
+## How Ditto uses Nostr and Mastodon API
+
+Ditto implements a full Nostr relay, available at `/relay` of the Ditto server.
+
+Mastodon API functionality, available at `/api/*`, is built around the Nostr relay's storage implementation.
+
+Ditto's goal is to enable Mastodon API clients to interact directly with Nostr. It achieves this by implementing most of Mastodon's API, and "pretending" to be a Mastodon server to client applications, while in actuality it uses Nostr as its decentralized protocol layer.
+
+## Testing Changes
+
+After making changes, please run `deno task check` to check for type errors. If there are any type errors, please try to fix them.
+
+Afterwards, run `deno fmt` to format the code, and then you are done. Please do not try to run the server, or run any other tests.

@@ -44,6 +44,7 @@ export async function getInstanceMetadata(opts: GetInstanceMetadataOpts): Promis
     tagline: meta.tagline ?? meta.about ?? 'Nostr community server',
     email: meta.email ?? `postmaster@${conf.url.host}`,
     picture: meta.picture ?? conf.local('/images/thumbnail.png'),
+    website: meta.website ?? conf.localDomain,
     event,
     screenshots: meta.screenshots ?? [],
   };
