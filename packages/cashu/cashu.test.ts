@@ -446,7 +446,7 @@ Deno.test('getWallet function is working', async () => {
 
   await relay.event(wallet);
 
-  const walletEntity = await getWallet(relay, pubkey, signer);
+  const { wallet: walletEntity } = await getWallet(relay, pubkey, signer);
 
   assertEquals(walletEntity, {
     balance: 38,

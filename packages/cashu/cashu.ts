@@ -244,12 +244,12 @@ async function getWallet(
   pubkey: string,
   signer: SetRequired<NostrSigner, 'nip44'>,
   opts?: { signal?: AbortSignal },
-): Promise<Wallet | undefined> {
+): Promise<{ wallet: Wallet; error: null } | { wallet: null; error: CustomError }> {
   const { data, error } = await validateAndParseWallet(store, signer, pubkey, { signal: opts?.signal });
 
   if (error) {
     logi({ level: 'error', ns: 'ditto.cashu.get_wallet', error: errorJson(error) });
-    return;
+    return { wallet: null, error };
   }
 
   const { p2pk, mints, relays } = data;
@@ -283,7 +283,7 @@ async function getWallet(
     balance,
   };
 
-  return walletEntity;
+  return { wallet: walletEntity, error: null };
 }
 
 /** Serialize an error into JSON for JSON logging. */

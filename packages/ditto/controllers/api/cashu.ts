@@ -1,13 +1,5 @@
 import { CashuMint, CashuWallet, MintQuoteState, Proof } from '@cashu/cashu-ts';
-import {
-  getWallet,
-  organizeProofs,
-  proofSchema,
-  renderTransaction,
-  tokenEventSchema,
-  validateAndParseWallet,
-  type Wallet,
-} from '@ditto/cashu';
+import { getWallet, organizeProofs, proofSchema, renderTransaction, tokenEventSchema, type Wallet } from '@ditto/cashu';
 import { userMiddleware } from '@ditto/mastoapi/middleware';
 import { paginated, paginationSchema } from '@ditto/mastoapi/pagination';
 import { DittoRoute } from '@ditto/mastoapi/router';
@@ -27,13 +19,6 @@ import { getAmount } from '@/utils/bolt11.ts';
 import { DittoEvent } from '@/interfaces/DittoEvent.ts';
 
 const route = new DittoRoute();
-
-interface Nutzap {
-  amount: number;
-  event_id?: string;
-  mint: string; // mint the nutzap was created
-  recipient_pubkey: string;
-}
 
 const createMintQuoteSchema = z.object({
   mint: z.string().url(),
@@ -258,18 +243,13 @@ route.get('/wallet', userMiddleware({ enc: 'nip44' }), swapNutzapsMiddleware, as
 
   const pubkey = await user.signer.getPublicKey();
 
-  const { error } = await validateAndParseWallet(relay, user.signer, pubkey, { signal });
+  const { wallet, error } = await getWallet(relay, pubkey, user.signer, { signal });
+
   if (error) {
     return c.json({ error: error.message }, 404);
   }
 
-  const walletEntity = await getWallet(relay, pubkey, user.signer);
-
-  if (!walletEntity) {
-    return c.json({ 'error': 'Wallet not found' }, 404);
-  }
-
-  return c.json(walletEntity, 200);
+  return c.json(wallet, 200);
 });
 
 /** Gets a history of transactions. */
