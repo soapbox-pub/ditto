@@ -24,6 +24,7 @@ export interface EventStats {
   quotes_count: number;
   reactions: Record<string, number>;
   zaps_amount: number;
+  zaps_amount_cashu: number;
   link_preview?: MastodonPreviewCard;
 }
 
@@ -56,5 +57,7 @@ export interface DittoEvent extends NostrEvent {
   zap_message?: string;
   /** Language of the event (kind 1s are more accurate). */
   language?: LanguageCode;
+  /** Whether or not pubkey accepts cashu. */
+  accepts_zaps_cashu?: boolean;
   client?: DittoEvent;
 }

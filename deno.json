@@ -13,7 +13,8 @@
     "./packages/ratelimiter",
     "./packages/transcode",
     "./packages/translators",
-    "./packages/uploaders"
+    "./packages/uploaders",
+    "./packages/cashu"
   ],
   "tasks": {
     "start": "deno run -A --env-file --deny-read=.env packages/ditto/server.ts",

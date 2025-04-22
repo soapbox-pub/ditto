@@ -1,3 +1,5 @@
+import { type Proof } from '@cashu/cashu-ts';
+import { proofSchema } from '@ditto/cashu';
 import { DittoTables } from '@ditto/db';
 import { NostrEvent, NSchema as n, NStore } from '@nostrify/nostrify';
 import { Insertable, Kysely, UpdateObject } from 'kysely';
@@ -38,6 +40,8 @@ export async function updateStats(opts: UpdateStatsOpts): Promise<void> {
       return handleEvent7(opts);
     case 9735:
       return handleEvent9735(opts);
+    case 9321:
+      return handleEvent9321(opts);
   }
 }
 
@@ -232,6 +236,32 @@ async function handleEvent9735(opts: UpdateStatsOpts): Promise<void> {
   );
 }
 
+/** Update stats for kind 9321 event. */
+async function handleEvent9321(opts: UpdateStatsOpts): Promise<void> {
+  const { kysely, event } = opts;
+
+  // https://github.com/nostr-protocol/nips/blob/master/61.md#nutzap-event
+  // It's possible to nutzap a profile without nutzapping a post, but we don't care about this case
+  const id = event.tags.find(([name]) => name === 'e')?.[1];
+  if (!id) return;
+
+  const proofs = (event.tags.filter(([name]) => name === 'proof').map(([_, proof]) => {
+    const { success, data } = n.json().pipe(proofSchema).safeParse(proof);
+    if (!success) return;
+
+    return data;
+  })
+    .filter(Boolean)) as Proof[];
+
+  const amount = proofs.reduce((prev, current) => prev + current.amount, 0);
+
+  await updateEventStats(
+    kysely,
+    id,
+    ({ zaps_amount_cashu }) => ({ zaps_amount_cashu: Math.max(0, zaps_amount_cashu + amount) }),
+  );
+}
+
 /** Get the pubkeys that were added and removed from a follow event. */
 export function getFollowDiff(
   tags: string[][],
@@ -318,6 +348,7 @@ export async function updateEventStats(
     reactions_count: 0,
     quotes_count: 0,
     zaps_amount: 0,
+    zaps_amount_cashu: 0,
     reactions: '{}',
   };
 

@@ -50,6 +50,10 @@ async function hydrateEvents(opts: HydrateOpts): Promise<DittoEvent[]> {
     cache.push(event);
   }
 
+  for (const event of await gatherAcceptCashu({ ...opts, events: cache })) {
+    cache.push(event);
+  }
+
   for (const event of await gatherClients({ ...opts, events: cache })) {
     cache.push(event);
   }
@@ -207,6 +211,10 @@ export function assembleEvents(
 
       event.zap_message = zapRequest?.content ?? '';
     }
+
+    event.accepts_zaps_cashu = b.find((e) => matchFilter({ kinds: [10019], authors: [event.pubkey] }, e))
+      ? true
+      : false;
 
     event.author_stats = authorStats[event.pubkey];
     event.event_stats = eventStats[event.id];
@@ -367,6 +375,24 @@ async function gatherInfo({ conf, events, relay, signal }: HydrateOpts): Promise
   );
 }
 
+/** Collect nutzap informational events. */
+function gatherAcceptCashu({ events, relay, signal }: HydrateOpts): Promise<DittoEvent[]> {
+  const pubkeys = new Set<string>();
+
+  for (const event of events) {
+    pubkeys.add(event.pubkey);
+  }
+
+  if (!pubkeys.size) {
+    return Promise.resolve([]);
+  }
+
+  return relay.query(
+    [{ kinds: [10019], authors: [...pubkeys], limit: pubkeys.size }],
+    { signal },
+  );
+}
+
 function gatherClients({ events, relay, signal }: HydrateOpts): Promise<DittoEvent[]> {
   const filters: NostrFilter[] = [];
 
@@ -447,6 +473,7 @@ async function gatherEventStats(
     quotes_count: Math.max(0, row.quotes_count),
     reactions: row.reactions,
     zaps_amount: Math.max(0, row.zaps_amount),
+    zaps_amount_cashu: Math.max(0, row.zaps_amount_cashu),
     link_preview: row.link_preview,
   }));
 }

@@ -44,6 +44,7 @@ export interface MastodonAccount {
   username: string;
   ditto: {
     accepts_zaps: boolean;
+    accepts_zaps_cashu: boolean;
     external_url: string;
     streak: {
       days: number;

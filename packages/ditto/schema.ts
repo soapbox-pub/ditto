@@ -1,5 +1,4 @@
 import ISO6391, { LanguageCode } from 'iso-639-1';
-import { NSchema as n } from '@nostrify/nostrify';
 import { z } from 'zod';
 
 /** Validates individual items in an array, dropping any that aren't valid. */
@@ -59,19 +58,6 @@ const sizesSchema = z.string().refine((value) =>
   value.split(' ').every((v) => /^[1-9]\d{0,3}[xX][1-9]\d{0,3}$/.test(v))
 );
 
-/** Ditto Cashu wallet */
-const walletSchema = z.object({
-  pubkey_p2pk: n.id(),
-  mints: z.array(z.string().url()).nonempty().transform((val) => {
-    return [...new Set(val)];
-  }),
-  relays: z.array(z.string()).nonempty().transform((val) => {
-    return [...new Set(val)];
-  }),
-  /** Unit in sats */
-  balance: z.number(),
-});
-
 export {
   booleanParamSchema,
   fileSchema,
@@ -82,5 +68,4 @@ export {
   percentageSchema,
   safeUrlSchema,
   sizesSchema,
-  walletSchema,
 };

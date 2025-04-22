@@ -69,6 +69,7 @@ async function renderStatus(
     ? await store.query([
       { kinds: [6], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
       { kinds: [7], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
+      { kinds: [9321], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
       { kinds: [9734], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
       { kinds: [10001], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
       { kinds: [10003], '#e': [event.id], authors: [viewerPubkey], limit: 1 },
@@ -80,6 +81,7 @@ async function renderStatus(
   const pinEvent = relatedEvents.find((event) => event.kind === 10001);
   const bookmarkEvent = relatedEvents.find((event) => event.kind === 10003);
   const zapEvent = relatedEvents.find((event) => event.kind === 9734);
+  const nutzapEvent = relatedEvents.find((event) => event.kind === 9321);
 
   const compatMentions = buildInlineRecipients(mentions.filter((m) => {
     if (m.id === account.id) return false;
@@ -160,6 +162,7 @@ async function renderStatus(
     reblogs_count: event.event_stats?.reposts_count ?? 0,
     favourites_count: event.event_stats?.reactions['+'] ?? 0,
     zaps_amount: event.event_stats?.zaps_amount ?? 0,
+    zaps_amount_cashu: event.event_stats?.zaps_amount_cashu ?? 0,
     favourited: reactionEvent?.content === '+',
     reblogged: Boolean(repostEvent),
     muted: false,
@@ -178,6 +181,7 @@ async function renderStatus(
     uri: Conf.local(`/users/${account.acct}/statuses/${event.id}`),
     url: Conf.local(`/@${account.acct}/${event.id}`),
     zapped: Boolean(zapEvent),
+    zapped_cashu: Boolean(nutzapEvent),
     ditto: {
       external_url: Conf.external(nevent),
     },

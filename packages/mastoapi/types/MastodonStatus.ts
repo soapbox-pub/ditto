@@ -22,6 +22,7 @@ export interface MastodonStatus {
   reblogs_count: number;
   favourites_count: number;
   zaps_amount: number;
+  zaps_amount_cashu: number;
   favourited: boolean;
   reblogged: boolean;
   muted: boolean;
@@ -38,6 +39,7 @@ export interface MastodonStatus {
   uri: string;
   url: string;
   zapped: boolean;
+  zapped_cashu: boolean;
   pleroma: {
     emoji_reactions: { name: string; count: number; me: boolean }[];
     expires_at?: string;
