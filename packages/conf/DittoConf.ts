@@ -250,9 +250,15 @@ export class DittoConf {
     level: string;
     scopes: string[];
   } {
-    const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('LOG_CONFIG') || '').split(':').filter(Boolean);
+    let [fmt, level, scopes] = (this.env.get('LOG_CONFIG') || '').split(':');
+    fmt ||= 'jsonl';
+    level ||= 'debug';
+    scopes ||= '';
+
+    if (fmt !== 'jsonl' && fmt !== 'pretty') fmt = 'jsonl';
+
     return {
-      fmt: fmt === 'jsonl' ? fmt : 'pretty',
+      fmt: fmt as 'jsonl' | 'pretty',
       level,
       scopes: scopes.split(',').filter(Boolean),
     };
