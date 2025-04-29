@@ -238,6 +238,26 @@ export class DittoConf {
     };
   }
 
+  /**
+   * The logging configuration for the Ditto server. The config is derived from
+   * the DEBUG environment variable and it is parsed as follows:
+   *
+   * `DEBUG='<jsonl|pretty>:<minimum log level to show>:comma-separated scopes to show'`.
+   * If the scopes are empty (e.g. in 'pretty:warn:', then all scopes are shown.)
+   */
+  get logConfig(): {
+    fmt: 'jsonl' | 'pretty';
+    level: string;
+    scopes: string[];
+  } {
+    const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('LOG_CONFIG') || '').split(':');
+    return {
+      fmt: fmt === 'jsonl' ? fmt : 'pretty',
+      level,
+      scopes: scopes.split(',').filter(Boolean),
+    };
+  }
+
   /** nostr.build API endpoint when the `nostrbuild` uploader is used. */
   get nostrbuildEndpoint(): string {
     return this.env.get('NOSTRBUILD_ENDPOINT') || 'https://nostr.build/api/v2/upload/files';

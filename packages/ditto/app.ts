@@ -152,6 +152,8 @@ import dittoNamesRoute from '@/routes/dittoNamesRoute.ts';
 import pleromaAdminPermissionGroupsRoute from '@/routes/pleromaAdminPermissionGroupsRoute.ts';
 import pleromaStatusesRoute from '@/routes/pleromaStatusesRoute.ts';
 import { DittoRelayStore } from '@/storages/DittoRelayStore.ts';
+import { logi } from '@soapbox/logi';
+import { createLogiHandler } from '@/utils/logi.ts';
 
 export interface AppEnv extends DittoEnv {
   Variables: DittoEnv['Variables'] & {
@@ -179,6 +181,7 @@ type AppMiddleware = MiddlewareHandler<AppEnv>;
 type AppController<P extends string = any> = Handler<AppEnv, P, HonoInput, Response | Promise<Response>>;
 
 const conf = new DittoConf(Deno.env);
+logi.handler = createLogiHandler(conf, logi.handler);
 
 startSentry(conf);
 
