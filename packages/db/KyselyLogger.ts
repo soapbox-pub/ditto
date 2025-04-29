@@ -18,6 +18,14 @@ export const KyselyLogger: Logger = (event) => {
   }
 
   if (event.level === 'error') {
+    if (event.error instanceof Error) {
+      switch (event.error.message) {
+        case 'duplicate key value violates unique constraint "nostr_events_pkey"':
+        case 'duplicate key value violates unique constraint "author_stats_pkey"':
+          return; // Don't log expected errors
+      }
+    }
+
     logi({
       level: 'error',
       ns: 'ditto.sql',
