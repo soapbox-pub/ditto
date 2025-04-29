@@ -133,6 +133,11 @@ export const internalSubscriptionsSizeGauge: Gauge = new Gauge({
   help: "Number of active subscriptions to Ditto's internal relay",
 });
 
+export const internalSubscriptionsBytesGauge: Gauge = new Gauge({
+  name: `${prefix}_internal_subscriptions_bytes`,
+  help: "Total size in bytes of active subscriptions to Ditto's internal relay",
+});
+
 export const relayPoolRelaysSizeGauge: Gauge<'ready_state'> = new Gauge({
   name: `${prefix}_relay_pool_relays_size`,
   help: 'Number of relays in the relay pool',

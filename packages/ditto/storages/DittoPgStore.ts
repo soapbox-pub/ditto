@@ -4,7 +4,7 @@ import { type DittoConf } from '@ditto/conf';
 import { type DittoDB, type DittoTables } from '@ditto/db';
 import { detectLanguage } from '@ditto/lang';
 import { NPostgres, NPostgresSchema } from '@nostrify/db';
-import { dbEventsCounter, internalSubscriptionsSizeGauge } from '@ditto/metrics';
+import { dbEventsCounter, internalSubscriptionsBytesGauge, internalSubscriptionsSizeGauge } from '@ditto/metrics';
 import {
   NIP50,
   NKinds,
@@ -354,8 +354,11 @@ export class DittoPgStore extends NPostgres {
       yield ['EOSE', subId];
     }
 
+    const sizeBytes = new TextEncoder().encode(JSON.stringify(filters)).length;
+
     this.subs.set(subId, { filters, machina });
     internalSubscriptionsSizeGauge.set(this.subs.size);
+    internalSubscriptionsBytesGauge.inc(sizeBytes);
 
     try {
       for await (const msg of machina) {
@@ -370,6 +373,7 @@ export class DittoPgStore extends NPostgres {
     } finally {
       this.subs.delete(subId);
       internalSubscriptionsSizeGauge.set(this.subs.size);
+      internalSubscriptionsBytesGauge.dec(sizeBytes);
     }
   }
 
