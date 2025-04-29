@@ -250,7 +250,7 @@ export class DittoConf {
     level: string;
     scopes: string[];
   } {
-    const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('LOG_CONFIG') || '').split(':');
+    const [fmt = 'jsonl', level = 'debug', scopes = ''] = (this.env.get('LOG_CONFIG') || '').split(':').filter(Boolean);
     return {
       fmt: fmt === 'jsonl' ? fmt : 'pretty',
       level,
