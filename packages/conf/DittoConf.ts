@@ -11,8 +11,6 @@ import { getEcdsaPublicKey } from './utils/crypto.ts';
 import { optionalBooleanSchema, optionalNumberSchema } from './utils/schema.ts';
 import { mergeURLPath } from './utils/url.ts';
 
-import { VALID_LOG_TYPES } from '../ditto/utils/logi.ts';
-
 /** Ditto application-wide configuration. */
 export class DittoConf {
   constructor(private env: { get(key: string): string | undefined }) {
@@ -257,12 +255,10 @@ export class DittoConf {
     level ||= 'debug';
     scopes ||= '';
 
-    if (fmt && !VALID_LOG_TYPES.includes(fmt)) {
-      throw new Error(`Invalid log type supplied: Valid types are [${VALID_LOG_TYPES.join('|')}].`);
-    }
+    if (fmt !== 'jsonl' && fmt !== 'pretty') fmt = 'jsonl';
 
     return {
-      fmt: (fmt ?? 'jsonl') as 'jsonl' | 'pretty',
+      fmt: fmt as 'jsonl' | 'pretty',
       level,
       scopes: scopes.split(',').filter(Boolean),
     };

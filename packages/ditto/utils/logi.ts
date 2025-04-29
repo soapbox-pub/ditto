@@ -55,8 +55,6 @@ const pair = (key: string, value: LogiValue | undefined) => {
   return `${key}: ${prettyPrint(value || '')}`;
 };
 
-export const VALID_LOG_TYPES = ['jsonl', 'pretty'];
-
 export const createLogiHandler = (conf: DittoConf, defaultHandler: LogiHandler) => (log: LogiLog) => {
   const { fmt, level, scopes } = conf.logConfig;
   if (fmt === 'jsonl') return defaultHandler(log);
