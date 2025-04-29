@@ -22,6 +22,9 @@ export const KyselyLogger: Logger = (event) => {
       switch (event.error.message) {
         case 'duplicate key value violates unique constraint "nostr_events_pkey"':
         case 'duplicate key value violates unique constraint "author_stats_pkey"':
+        case 'duplicate key value violates unique constraint "event_stats_pkey"':
+        case 'duplicate key value violates unique constraint "event_zaps_pkey"':
+        case 'insert or update on table "event_stats" violates foreign key constraint "event_stats_event_id_fkey"':
           return; // Don't log expected errors
       }
     }
