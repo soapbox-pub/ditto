@@ -61,8 +61,6 @@ interface DittoPgStoreOpts {
   pure?: boolean;
   /** Chunk size for streaming events. Defaults to 20. */
   chunkSize?: number;
-  /** Batch size for fulfilling subscriptions. Defaults to 500. */
-  batchSize?: number;
   /** Max age (in **seconds**) an event can be to be fulfilled to realtime subscribers. */
   maxAge?: number;
   /** Whether to listen for events from the database with NOTIFY. */
@@ -190,7 +188,7 @@ export class DittoPgStore extends NPostgres {
 
   /** Fulfill active subscriptions with this event. */
   protected async fulfill(event: NostrEvent): Promise<void> {
-    const { maxAge = 60, batchSize = 500 } = this.opts;
+    const { maxAge = 60 } = this.opts;
 
     const now = Math.floor(Date.now() / 1000);
     const age = now - event.created_at;
@@ -205,20 +203,11 @@ export class DittoPgStore extends NPostgres {
       }
     }
 
-    let count = 0;
-
     for (const [subId, { filters, machina }] of this.subs.entries()) {
       for (const filter of filters) {
-        count++;
-
         if (this.matchesFilter(event, filter)) {
           machina.push(['EVENT', subId, event]);
           break;
-        }
-
-        // Yield to event loop.
-        if (count % batchSize === 0) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
         }
       }
     }
