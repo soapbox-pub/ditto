@@ -131,6 +131,9 @@ export class DittoPgStore extends NPostgres {
     dbEventsCounter.inc({ kind: event.kind });
 
     if (NKinds.ephemeral(event.kind)) {
+      if (this.encounters.has(event.id)) return;
+      this.encounters.set(event.id, true);
+
       return await this.fulfill(event);
     }
 
