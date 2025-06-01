@@ -80,6 +80,10 @@ export class DittoPgStore extends NPostgres {
 
   /** Conditions for when to index certain tags. */
   static tagConditions: Record<string, TagCondition> = {
+    'A': ({ count }) => count === 0,
+    'E': ({ count, value }) => count === 0 && isNostrId(value),
+    'K': ({ count, value }) => count === 0 && Number.isInteger(Number(value)),
+    'P': ({ count, value }) => count === 0 && isNostrId(value),
     'a': ({ count }) => count < 15,
     'client': ({ count, value }) => count === 0 && value.length < 50,
     'd': ({ event, count }) => count === 0 && NKinds.parameterizedReplaceable(event.kind),
@@ -88,7 +92,6 @@ export class DittoPgStore extends NPostgres {
     'L': ({ event, count }) => event.kind === 1985 || count === 0,
     'l': ({ event, count }) => event.kind === 1985 || count === 0,
     'n': ({ count, value }) => count < 50 && value.length < 50,
-    'P': ({ count, value }) => count === 0 && isNostrId(value),
     'p': DittoPgStore.pTagCondition,
     'proxy': ({ count, value }) => count === 0 && value.length < 256,
     'q': ({ event, count, value }) => count === 0 && event.kind === 1 && isNostrId(value),
