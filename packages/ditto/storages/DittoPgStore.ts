@@ -491,7 +491,7 @@ export class DittoPgStore extends NPostgres {
     } else if (event.kind === 6) {
       ext.reply = 'false';
     } else if ([21, 22, 34235, 34236].includes(event.kind)) {
-      ext.reply = 'false' // reply must be handled in another way: https://github.com/nostr-protocol/nips/issues/2146
+      ext.reply = 'false'; // reply must be handled in another way: https://github.com/nostr-protocol/nips/issues/2146
     }
 
     if ([1, 20, 30023].includes(event.kind)) {
