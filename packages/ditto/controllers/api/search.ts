@@ -18,6 +18,7 @@ const searchQuerySchema = z.object({
   following: z.boolean().default(false),
   account_id: n.id().optional(),
   offset: z.coerce.number().nonnegative().catch(0),
+  short_videos_only: z.coerce.boolean().default(false),
 });
 
 type SearchQuery = z.infer<typeof searchQuerySchema> & { since?: number; until?: number; limit: number };
@@ -66,7 +67,14 @@ const searchController: AppController = async (c) => {
     ),
     Promise.all(
       events
-        .filter((event) => event.kind === 1)
+        .filter((event) => {
+          // If short_videos_only is true, only return kinds 22 and 34236
+          if (result.data.short_videos_only) {
+            return [22, 34236].includes(event.kind);
+          }
+          // Otherwise return all status kinds
+          return [1, 21, 22, 34235, 34236].includes(event.kind);
+        })
         .map((event) => renderStatus(relay, event, { viewerPubkey }))
         .filter(Boolean),
     ),
@@ -141,9 +149,9 @@ function typeToKinds(type: SearchQuery['type']): number[] {
     case 'accounts':
       return [0];
     case 'statuses':
-      return [1];
+      return [1, 21, 22, 34235, 34236];
     default:
-      return [0, 1];
+      return [0, 1, 21, 22, 34235, 34236];
   }
 }
 
