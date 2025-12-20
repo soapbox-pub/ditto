@@ -68,9 +68,9 @@ const searchController: AppController = async (c) => {
     Promise.all(
       events
         .filter((event) => {
-          // If short_videos_only is true, only return kinds 22 and 34236
+          // If short_videos_only is true, only return kinds 34236
           if (result.data.short_videos_only) {
-            return [22, 34236].includes(event.kind);
+            return [34236].includes(event.kind);
           }
           // Otherwise return all status kinds
           return [1, 21, 22, 34235, 34236].includes(event.kind);
