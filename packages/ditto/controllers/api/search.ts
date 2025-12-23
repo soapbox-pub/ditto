@@ -67,14 +67,7 @@ const searchController: AppController = async (c) => {
     ),
     Promise.all(
       events
-        .filter((event) => {
-          // If short_videos_only is true, only return kinds 34236
-          if (result.data.short_videos_only) {
-            return [34236].includes(event.kind);
-          }
-          // Otherwise return all status kinds
-          return [1, 21, 22, 34235, 34236].includes(event.kind);
-        })
+        .filter((event) => [1, 21, 22, 34235, 34236].includes(event.kind))
         .map((event) => renderStatus(relay, event, { viewerPubkey }))
         .filter(Boolean),
     ),
@@ -96,7 +89,9 @@ const searchController: AppController = async (c) => {
 /** Get events for the search params. */
 async function searchEvents(
   c: AppContext,
-  { q, type, since, until, limit, offset, account_id, viewerPubkey }: SearchQuery & { viewerPubkey?: string },
+  { q, type, since, until, limit, offset, account_id, viewerPubkey, short_videos_only }: SearchQuery & {
+    viewerPubkey?: string;
+  },
   signal: AbortSignal,
 ): Promise<NostrEvent[]> {
   const { relay, db } = c.var;
@@ -113,6 +108,11 @@ async function searchEvents(
     until,
     limit,
   };
+
+  // If short_videos_only is true, only search for Vines (kind 34236)
+  if (short_videos_only) {
+    filter.kinds = [34236];
+  }
 
   // For account search, use a special index, and prioritize followed accounts.
   if (type === 'accounts') {
