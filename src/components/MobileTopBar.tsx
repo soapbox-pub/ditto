@@ -11,14 +11,14 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   const { user, metadata } = useCurrentUser();
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden">
+    <header className="sticky top-0 z-20 flex items-center justify-between px-3 h-10 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden">
       {/* Left: user avatar or login */}
-      <div className="w-10">
+      <div className="w-8">
         {user ? (
-          <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background">
-            <Avatar className="size-9">
+          <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background">
+            <Avatar className="size-7">
               <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-              <AvatarFallback className="bg-primary/20 text-primary text-xs">
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                 {(metadata?.name?.[0] || '?').toUpperCase()}
               </AvatarFallback>
             </Avatar>
@@ -29,10 +29,10 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
       </div>
 
       {/* Center: Mew logo */}
-      <MewLogo size={28} />
+      <MewLogo size={22} />
 
       {/* Right: spacer for symmetry */}
-      <div className="w-10" />
+      <div className="w-8" />
     </header>
   );
 }
