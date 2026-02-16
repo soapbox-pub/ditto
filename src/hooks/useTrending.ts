@@ -60,6 +60,61 @@ export function useLatestAccounts() {
   });
 }
 
+/** Extracts the zap amount in millisatoshis from a kind 9735 zap receipt. */
+function extractZapAmount(event: NostrEvent): number {
+  // 1. Try the top-level `amount` tag on the receipt
+  const amountTag = event.tags.find(([name]) => name === 'amount');
+  if (amountTag?.[1]) {
+    const msats = parseInt(amountTag[1], 10);
+    if (!isNaN(msats) && msats > 0) return msats;
+  }
+
+  // 2. Try parsing the amount from the embedded zap request in the `description` tag
+  const descTag = event.tags.find(([name]) => name === 'description');
+  if (descTag?.[1]) {
+    try {
+      const zapRequest = JSON.parse(descTag[1]);
+      const reqAmountTag = zapRequest.tags?.find(([name]: [string]) => name === 'amount');
+      if (reqAmountTag?.[1]) {
+        const msats = parseInt(reqAmountTag[1], 10);
+        if (!isNaN(msats) && msats > 0) return msats;
+      }
+    } catch {
+      // Invalid JSON, skip
+    }
+  }
+
+  // 3. Try parsing the bolt11 invoice amount
+  const bolt11Tag = event.tags.find(([name]) => name === 'bolt11');
+  if (bolt11Tag?.[1]) {
+    const msats = parseBolt11Amount(bolt11Tag[1]);
+    if (msats > 0) return msats;
+  }
+
+  return 0;
+}
+
+/** Parses a bolt11 invoice string to extract the amount in millisatoshis. */
+function parseBolt11Amount(bolt11: string): number {
+  // bolt11 format: ln{prefix}{amount}{multiplier}1{data}
+  // amount is after "lnbc" or "lntb" etc, before the "1" separator
+  const match = bolt11.toLowerCase().match(/^ln\w+?(\d+)([munp]?)1/);
+  if (!match) return 0;
+
+  const value = parseInt(match[1], 10);
+  if (isNaN(value)) return 0;
+
+  const multiplier = match[2];
+  // Convert to millisatoshis (1 BTC = 100_000_000_000 msats)
+  switch (multiplier) {
+    case 'm': return value * 100_000_000;    // milli-BTC
+    case 'u': return value * 100_000;        // micro-BTC
+    case 'n': return value * 100;            // nano-BTC
+    case 'p': return value / 10;             // pico-BTC
+    default:  return value * 100_000_000_000; // BTC
+  }
+}
+
 /** Counts engagement (replies, reposts, reactions, zaps) for a given event. */
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
@@ -67,7 +122,7 @@ export function useEventStats(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { replies: 0, reposts: 0, reactions: 0, zaps: 0 };
+      if (!eventId) return { replies: 0, reposts: 0, reactions: 0, zapAmount: 0 };
 
       const events = await nostr.query(
         [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
@@ -85,12 +140,9 @@ export function useEventStats(eventId: string | undefined) {
           case 6: reposts++; break;
           case 7: reactions++; break;
           case 9735: {
-            const amountTag = e.tags.find(([name]) => name === 'amount');
-            if (amountTag?.[1]) {
-              const msats = parseInt(amountTag[1], 10);
-              if (!isNaN(msats)) {
-                zapAmount += Math.floor(msats / 1000);
-              }
+            const msats = extractZapAmount(e);
+            if (msats > 0) {
+              zapAmount += Math.floor(msats / 1000);
             }
             break;
           }
