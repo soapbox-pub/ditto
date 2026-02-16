@@ -1,0 +1,27 @@
+image: node:22
+
+default:
+  interruptible: true
+  timeout: 1 minute
+
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  script:
+    - npm run test
+
+pages:
+  stage: deploy
+  script:
+    - npm run build
+    - rm -rf public
+    - mv dist public
+  artifacts:
+    paths:
+      - public
+  only:
+    variables:
+      - $CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME
