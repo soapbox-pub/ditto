@@ -20,7 +20,7 @@ const NotFound = () => {
 
   return (
     <MainLayout hideMobileTopBar>
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-x border-border min-h-screen flex items-center justify-center">
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen flex items-center justify-center">
         <div className="text-center px-8">
           <h1 className="text-6xl font-bold mb-4 text-primary">404</h1>
           <p className="text-xl text-muted-foreground mb-6">This page doesn't exist.</p>
