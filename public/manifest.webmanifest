@@ -1,0 +1,9 @@
+{
+  "name": "Mew",
+  "short_name": "Mew",
+  "description": "A Nostr client for the social web",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#161b2e",
+  "theme_color": "#7c3aed"
+}
