@@ -11,8 +11,10 @@ export function Feed() {
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
-      {/* Compose area */}
-      <ComposeBox compact />
+      {/* Compose area — desktop only, mobile uses FAB */}
+      <div className="hidden sidebar:block">
+        <ComposeBox compact />
+      </div>
 
       {/* Tabs — stick below the mobile top bar (48px) on small screens, top-0 on desktop */}
       <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-[1]">
