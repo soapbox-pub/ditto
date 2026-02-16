@@ -19,8 +19,8 @@ export function SettingsPage() {
   const activeSection = section || 'profile';
 
   return (
-    <MainLayout>
-      <main className="flex-1 min-w-0 max-w-[600px] border-x border-border min-h-screen">
+    <MainLayout hideMobileTopBar>
+      <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
         <div className="flex items-center gap-4 px-4 py-3 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="size-5" />

@@ -58,8 +58,8 @@ export function ProfilePage() {
 
   if (!pubkey) {
     return (
-      <MainLayout>
-        <main className="flex-1 min-w-0 max-w-[600px] border-x border-border min-h-screen">
+      <MainLayout hideMobileTopBar>
+        <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
           <div className="p-8 text-center text-muted-foreground">
             <p>Please log in to view your profile.</p>
           </div>
@@ -71,8 +71,8 @@ export function ProfilePage() {
   const isOwnProfile = user?.pubkey === pubkey;
 
   return (
-    <MainLayout>
-      <main className="flex-1 min-w-0 max-w-[600px] border-x border-border min-h-screen">
+    <MainLayout hideMobileTopBar>
+      <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
         {/* Header */}
         <div className="flex items-center gap-4 px-4 py-2 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
@@ -85,7 +85,7 @@ export function ProfilePage() {
         </div>
 
         {/* Banner */}
-        <div className="h-48 bg-secondary relative">
+        <div className="h-36 md:h-48 bg-secondary relative">
           {metadata?.banner && (
             <img src={metadata.banner} alt="" className="w-full h-full object-cover" />
           )}
@@ -93,21 +93,21 @@ export function ProfilePage() {
 
         {/* Profile info */}
         <div className="px-4 pb-4">
-          <div className="flex justify-between items-start -mt-16 mb-3">
-            <Avatar className="size-32 border-4 border-background">
+          <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+            <Avatar className="size-24 md:size-32 border-4 border-background">
               <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-3xl">
+              <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
                 {displayName[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
             {isOwnProfile ? (
               <Link to="/settings/profile">
-                <Button variant="outline" className="rounded-full mt-20 font-bold">
+                <Button variant="outline" className="rounded-full mt-14 md:mt-20 font-bold">
                   Edit profile
                 </Button>
               </Link>
             ) : (
-              <Button className="rounded-full mt-20 font-bold">Follow</Button>
+              <Button className="rounded-full mt-14 md:mt-20 font-bold">Follow</Button>
             )}
           </div>
 

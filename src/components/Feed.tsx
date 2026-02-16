@@ -10,12 +10,12 @@ export function Feed() {
   const { data: events, isLoading } = useFeed(activeTab);
 
   return (
-    <main className="flex-1 min-w-0 max-w-[600px] border-x border-border min-h-screen">
+    <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
       {/* Compose area */}
       <ComposeBox compact />
 
       {/* Tabs */}
-      <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
+      <div className="flex border-b border-border sticky top-0 md:top-0 bg-background/80 backdrop-blur-md z-10">
         <TabButton
           label="Follows"
           active={activeTab === 'follows'}
