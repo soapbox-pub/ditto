@@ -77,18 +77,27 @@ export function useEventStats(eventId: string | undefined) {
       let replies = 0;
       let reposts = 0;
       let reactions = 0;
-      let zaps = 0;
+      let zapAmount = 0;
 
       for (const e of events) {
         switch (e.kind) {
           case 1: replies++; break;
           case 6: reposts++; break;
           case 7: reactions++; break;
-          case 9735: zaps++; break;
+          case 9735: {
+            const amountTag = e.tags.find(([name]) => name === 'amount');
+            if (amountTag?.[1]) {
+              const msats = parseInt(amountTag[1], 10);
+              if (!isNaN(msats)) {
+                zapAmount += Math.floor(msats / 1000);
+              }
+            }
+            break;
+          }
         }
       }
 
-      return { replies, reposts, reactions, zaps };
+      return { replies, reposts, reactions, zapAmount };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,

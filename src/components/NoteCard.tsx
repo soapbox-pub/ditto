@@ -17,6 +17,13 @@ interface NoteCardProps {
   className?: string;
 }
 
+/** Formats a sats amount into a compact human-readable string. */
+function formatSats(sats: number): string {
+  if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+  if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
+  return sats.toString();
+}
+
 /** Extracts image URLs from note content. */
 function extractImages(content: string): string[] {
   const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
@@ -164,7 +171,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
               onClick={(e) => e.stopPropagation()}
             >
               <Zap className="size-[18px]" />
-              {stats?.zaps ? <span className="text-xs">{stats.zaps}</span> : null}
+              {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
             </button>
 
             {/* More */}
