@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Zap, Bookmark } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useBookmarks } from '@/hooks/useBookmarks';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -32,6 +33,8 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const images = useMemo(() => extractImages(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const [liked, setLiked] = useState(false);
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const bookmarked = isBookmarked(event.id);
 
   // Check if content is a reply
   const isReply = event.tags.some(([name]) => name === 'e');
@@ -165,13 +168,21 @@ export function NoteCard({ event, className }: NoteCardProps) {
               {stats?.zaps ? <span className="text-xs">{stats.zaps}</span> : null}
             </button>
 
-            {/* More */}
+            {/* Bookmark */}
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={(e) => e.stopPropagation()}
+              className={cn(
+                "p-2 rounded-full transition-colors",
+                bookmarked
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+              )}
+              title={bookmarked ? "Remove bookmark" : "Bookmark"}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleBookmark.mutate(event.id);
+              }}
             >
-              <MoreHorizontal className="size-[18px]" />
+              <Bookmark className={cn("size-[18px]", bookmarked && "fill-primary")} />
             </button>
           </div>
         </div>

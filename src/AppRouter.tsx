@@ -8,6 +8,7 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
+import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import NotFound from "./pages/NotFound";
 
@@ -26,10 +27,9 @@ export function AppRouter() {
         <Route path="/settings/:section" element={<SettingsPage />} />
         <Route path="/vines" element={<PlaceholderPage title="Vines" />} />
         <Route path="/wallet" element={<PlaceholderPage title="Wallet" />} />
-        <Route path="/bookmarks" element={<PlaceholderPage title="Bookmarks" />} />
+        <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />
         <Route path="/domain-blocks" element={<PlaceholderPage title="Domain blocks" />} />
-        <Route path="/more" element={<PlaceholderPage title="More" />} />
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

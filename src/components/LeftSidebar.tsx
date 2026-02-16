@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, MoreHorizontal } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -42,7 +42,7 @@ export function LeftSidebar() {
     { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
     { to: '/wallet', icon: <Wallet className="size-6" />, label: 'Wallet' },
     { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
-    { to: '/more', icon: <MoreHorizontal className="size-6" />, label: 'More' },
+    { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
   ];
 
   return (
