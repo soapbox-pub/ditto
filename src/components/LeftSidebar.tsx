@@ -25,7 +25,7 @@ function NavItem({ to, icon, label, active }: NavItemProps) {
       )}
     >
       {icon}
-      <span className="hidden xl:inline">{label}</span>
+      <span>{label}</span>
     </Link>
   );
 }
@@ -46,14 +46,14 @@ export function LeftSidebar() {
   ];
 
   return (
-    <aside className="flex flex-col h-screen sticky top-0 py-3 px-2 xl:px-4 w-[72px] xl:w-[280px] shrink-0">
+    <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[280px] shrink-0">
       {/* Logo */}
       <Link to="/" className="px-3 py-2 mb-1">
         <MewLogo size={36} />
       </Link>
 
       {/* Search bar - visible on xl */}
-      <div className="hidden xl:block px-2 mb-2">
+      <div className="px-2 mb-2">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
@@ -83,8 +83,7 @@ export function LeftSidebar() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
           }}
         >
-          <span className="hidden xl:inline">Compose</span>
-          <span className="xl:hidden text-xl">+</span>
+          <span>Compose</span>
         </Button>
       </nav>
 
@@ -98,7 +97,7 @@ export function LeftSidebar() {
                 {(metadata?.name?.[0] || '?').toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div className="hidden xl:flex flex-col min-w-0">
+            <div className="flex flex-col min-w-0">
               <span className="font-semibold text-sm truncate">{metadata?.name || 'Anonymous'}</span>
               <span className="text-xs text-muted-foreground truncate">
                 {metadata?.nip05 ? `@${metadata.nip05}` : ''}
