@@ -14,8 +14,8 @@ export function Feed() {
       {/* Compose area */}
       <ComposeBox compact />
 
-      {/* Tabs */}
-      <div className="flex border-b border-border sticky top-0 md:top-0 bg-background/80 backdrop-blur-md z-10">
+      {/* Tabs — stick below the mobile top bar (48px) on small screens, top-0 on desktop */}
+      <div className="flex border-b border-border sticky top-[48px] sidebar:top-0 bg-background/80 backdrop-blur-md z-[5]">
         <TabButton
           label="Follows"
           active={activeTab === 'follows'}
