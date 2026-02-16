@@ -4,6 +4,8 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { EmojiPicker } from '@/components/EmojiPicker';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -67,6 +69,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [expanded, setExpanded] = useState(false);
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -78,6 +81,25 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const expand = useCallback(() => {
     if (!expanded) setExpanded(true);
   }, [expanded]);
+
+  const insertEmoji = useCallback((emoji: string) => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newContent = content.slice(0, start) + emoji + content.slice(end);
+      setContent(newContent);
+      // Restore cursor position after the inserted emoji
+      requestAnimationFrame(() => {
+        textarea.focus();
+        const pos = start + emoji.length;
+        textarea.setSelectionRange(pos, pos);
+      });
+    } else {
+      setContent((prev) => prev + emoji);
+    }
+    expand();
+  }, [content, expand]);
 
   const handleFileUpload = async (file: File) => {
     try {
@@ -207,18 +229,36 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                 }}
               />
 
-              {/* Emoji placeholder */}
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                  >
-                    <Smile className="size-[18px]" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>Emoji</TooltipContent>
-              </Tooltip>
+              {/* Emoji picker */}
+              <Popover open={emojiOpen} onOpenChange={setEmojiOpen}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        className={cn(
+                          'p-2 rounded-full transition-colors',
+                          emojiOpen
+                            ? 'text-primary bg-primary/10'
+                            : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                        )}
+                      >
+                        <Smile className="size-[18px]" />
+                      </button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  {!emojiOpen && <TooltipContent>Emoji</TooltipContent>}
+                </Tooltip>
+                <PopoverContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-auto p-0 border-border"
+                >
+                  <EmojiPicker onSelect={(emoji) => {
+                    insertEmoji(emoji);
+                  }} />
+                </PopoverContent>
+              </Popover>
 
               {/* Content warning (NIP-36) */}
               <Tooltip>
