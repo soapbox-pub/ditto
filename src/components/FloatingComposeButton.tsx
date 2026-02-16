@@ -15,7 +15,7 @@ export function FloatingComposeButton() {
     <>
       <Button
         onClick={() => setOpen(true)}
-        className="fixed bottom-20 right-4 z-30 md:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+        className="fixed bottom-20 right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
         size="icon"
       >
         <Pencil className="size-6" />

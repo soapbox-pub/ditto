@@ -11,7 +11,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   const { user, metadata } = useCurrentUser();
 
   return (
-    <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-background/80 backdrop-blur-md border-b border-border md:hidden">
+    <header className="sticky top-0 z-20 flex items-center justify-between px-4 py-2 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden">
       {/* Left: user avatar or login */}
       <div className="w-10">
         {user ? (

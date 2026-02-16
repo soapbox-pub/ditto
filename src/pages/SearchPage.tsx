@@ -37,7 +37,7 @@ export function SearchPage() {
 
   return (
     <MainLayout hideMobileTopBar>
-      <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-x border-border min-h-screen">
         <div className="flex items-center gap-3 px-4 py-3 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors shrink-0">
             <ArrowLeft className="size-5" />

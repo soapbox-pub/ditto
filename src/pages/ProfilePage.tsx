@@ -59,7 +59,7 @@ export function ProfilePage() {
   if (!pubkey) {
     return (
       <MainLayout hideMobileTopBar>
-        <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
+        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-x border-border min-h-screen">
           <div className="p-8 text-center text-muted-foreground">
             <p>Please log in to view your profile.</p>
           </div>
@@ -72,7 +72,7 @@ export function ProfilePage() {
 
   return (
     <MainLayout hideMobileTopBar>
-      <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-x border-border min-h-screen">
         {/* Header */}
         <div className="flex items-center gap-4 px-4 py-2 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">

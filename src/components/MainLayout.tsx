@@ -27,8 +27,8 @@ export function MainLayout({ children, hideMobileTopBar }: MainLayoutProps) {
 
       {/* Main layout - three column on desktop */}
       <div className="flex justify-center min-h-screen">
-        {/* Desktop left sidebar - hidden on mobile */}
-        <div className="hidden md:block">
+        {/* Desktop left sidebar - hidden below sidebar breakpoint */}
+        <div className="hidden sidebar:block">
           <LeftSidebar />
         </div>
 
@@ -46,7 +46,7 @@ export function MainLayout({ children, hideMobileTopBar }: MainLayoutProps) {
       <FloatingComposeButton />
 
       {/* Bottom padding spacer for mobile bottom nav */}
-      <div className="h-16 md:hidden" />
+      <div className="h-16 sidebar:hidden" />
     </>
   );
 }

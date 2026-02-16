@@ -10,7 +10,7 @@ export function Feed() {
   const { data: events, isLoading } = useFeed(activeTab);
 
   return (
-    <main className="flex-1 min-w-0 md:max-w-[600px] md:border-x border-border min-h-screen">
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-x border-border min-h-screen">
       {/* Compose area */}
       <ComposeBox compact />
 
