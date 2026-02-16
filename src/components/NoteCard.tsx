@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Repeat2, Heart, Zap, Bookmark } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Zap, Bookmark, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -11,6 +11,7 @@ import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useBookmarks } from '@/hooks/useBookmarks';
+import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -35,6 +36,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const [liked, setLiked] = useState(false);
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // Check if content is a reply
   const isReply = event.tags.some(([name]) => name === 'e');
@@ -184,7 +186,22 @@ export function NoteCard({ event, className }: NoteCardProps) {
             >
               <Bookmark className={cn("size-[18px]", bookmarked && "fill-primary")} />
             </button>
+
+            {/* More */}
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMoreMenuOpen(true);
+              }}
+            >
+              <MoreHorizontal className="size-[18px]" />
+            </button>
           </div>
+
+          {/* More menu dialog */}
+          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
         </div>
       </div>
     </article>

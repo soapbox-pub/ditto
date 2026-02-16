@@ -1,0 +1,182 @@
+import { useState } from 'react';
+import { nip19 } from 'nostr-tools';
+import {
+  ArrowUpDown,
+  Bookmark,
+  ClipboardCopy,
+  ExternalLink,
+  AtSign,
+  BellOff,
+  VolumeX,
+  Flag,
+} from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
+import { useBookmarks } from '@/hooks/useBookmarks';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
+import { toast } from '@/hooks/useToast';
+import { cn } from '@/lib/utils';
+import type { NostrEvent } from '@nostrify/nostrify';
+
+interface NoteMoreMenuProps {
+  event: NostrEvent;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+interface MenuItemProps {
+  icon: React.ReactNode;
+  label: string;
+  onClick: () => void;
+  destructive?: boolean;
+}
+
+function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-4 w-full px-5 py-3.5 text-[15px] transition-colors hover:bg-secondary/60',
+        destructive ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      <span className="shrink-0">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
+  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const bookmarked = isBookmarked(event.id);
+  const author = useAuthor(event.pubkey);
+  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
+
+  const noteId = nip19.noteEncode(event.id);
+  const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
+
+  const close = () => onOpenChange(false);
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/${neventId}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Link copied to clipboard' });
+    close();
+  };
+
+  const handleViewOnNjump = () => {
+    window.open(`https://njump.me/${neventId}`, '_blank', 'noopener,noreferrer');
+    close();
+  };
+
+  const handleBookmark = () => {
+    toggleBookmark.mutate(event.id);
+    close();
+  };
+
+  const handleShowDetails = () => {
+    const url = `/${neventId}`;
+    window.location.href = url;
+    close();
+  };
+
+  const handleMuteConversation = () => {
+    toast({ title: 'Mute conversation is not yet implemented' });
+    close();
+  };
+
+  const handleMention = () => {
+    toast({ title: 'Mention is not yet implemented' });
+    close();
+  };
+
+  const handleMuteUser = () => {
+    toast({ title: 'Mute user is not yet implemented' });
+    close();
+  };
+
+  const handleReport = () => {
+    toast({ title: 'Report is not yet implemented' });
+    close();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <DialogTitle className="sr-only">Post options</DialogTitle>
+
+        <div className="py-2">
+          <MenuItem
+            icon={<ArrowUpDown className="size-5" />}
+            label="Show Post Details"
+            onClick={handleShowDetails}
+          />
+          <MenuItem
+            icon={<ClipboardCopy className="size-5" />}
+            label="Copy Link to Post"
+            onClick={handleCopyLink}
+          />
+          <MenuItem
+            icon={<ExternalLink className="size-5" />}
+            label="View post on njump.me"
+            onClick={handleViewOnNjump}
+          />
+          <MenuItem
+            icon={<Bookmark className={cn("size-5", bookmarked && "fill-current")} />}
+            label={bookmarked ? 'Remove Bookmark' : 'Bookmark'}
+            onClick={handleBookmark}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="py-2">
+          <MenuItem
+            icon={<BellOff className="size-5" />}
+            label="Mute Conversation"
+            onClick={handleMuteConversation}
+          />
+          <MenuItem
+            icon={<AtSign className="size-5" />}
+            label={`Mention @${displayName}`}
+            onClick={handleMention}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="py-2">
+          <MenuItem
+            icon={<VolumeX className="size-5" />}
+            label={`Mute @${displayName}`}
+            onClick={handleMuteUser}
+          />
+          <MenuItem
+            icon={<Flag className="size-5" />}
+            label={`Report @${displayName}`}
+            onClick={handleReport}
+            destructive
+          />
+        </div>
+
+        <Separator />
+
+        <div className="py-2">
+          <Button
+            variant="ghost"
+            className="w-full h-auto py-3.5 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
+            onClick={close}
+          >
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
