@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { nip19 } from 'nostr-tools';
 import {
   ArrowUpDown,
@@ -15,11 +14,14 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
+import { NoteContent } from '@/components/NoteContent';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -42,7 +44,7 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
     <button
       onClick={onClick}
       className={cn(
-        'flex items-center gap-4 w-full px-5 py-3.5 text-[15px] transition-colors hover:bg-secondary/60',
+        'flex items-center gap-4 w-full px-5 py-3 text-[15px] transition-colors hover:bg-secondary/60',
         destructive ? 'text-destructive' : 'text-muted-foreground',
       )}
     >
@@ -56,9 +58,9 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
   const author = useAuthor(event.pubkey);
-  const displayName = author.data?.metadata?.name || genUserName(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(event.pubkey);
 
-  const noteId = nip19.noteEncode(event.id);
   const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
 
   const close = () => onOpenChange(false);
@@ -111,7 +113,31 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
         <DialogTitle className="sr-only">Post options</DialogTitle>
 
-        <div className="py-2">
+        {/* Post preview */}
+        <div className="px-4 pt-4 pb-3">
+          <div className="flex gap-3">
+            <Avatar className="size-10 shrink-0">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                {displayName[0].toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1.5 text-sm">
+                <span className="font-bold truncate">{displayName}</span>
+                <span className="text-muted-foreground shrink-0">·</span>
+                <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
+              </div>
+              <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3">
+                <NoteContent event={event} className="text-sm leading-relaxed" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <Separator />
+
+        <div className="py-1">
           <MenuItem
             icon={<ArrowUpDown className="size-5" />}
             label="Show Post Details"
@@ -136,7 +162,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
         <Separator />
 
-        <div className="py-2">
+        <div className="py-1">
           <MenuItem
             icon={<BellOff className="size-5" />}
             label="Mute Conversation"
@@ -151,7 +177,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
         <Separator />
 
-        <div className="py-2">
+        <div className="py-1">
           <MenuItem
             icon={<VolumeX className="size-5" />}
             label={`Mute @${displayName}`}
@@ -167,10 +193,10 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
         <Separator />
 
-        <div className="py-2">
+        <div className="py-1">
           <Button
             variant="ghost"
-            className="w-full h-auto py-3.5 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
+            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
             onClick={close}
           >
             Close

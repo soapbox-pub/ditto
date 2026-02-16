@@ -1,7 +1,12 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { ComposeBox } from '@/components/ComposeBox';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
@@ -22,10 +27,22 @@ export function FloatingComposeButton() {
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[480px] rounded-2xl p-0 gap-0 border-border overflow-hidden">
-          <div className="flex items-center justify-between px-4 h-12 border-b border-border">
+        <DialogContent className="max-w-[480px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 h-12">
+            <button
+              onClick={() => setOpen(false)}
+              className="p-1.5 -ml-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <X className="size-5" />
+            </button>
             <DialogTitle className="text-base font-semibold">New post</DialogTitle>
+            <div className="w-8" />
           </div>
+
+          <Separator />
+
+          {/* Compose area */}
           <ComposeBox onSuccess={() => setOpen(false)} placeholder="What's happening?" />
         </DialogContent>
       </Dialog>
