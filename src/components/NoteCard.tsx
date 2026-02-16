@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Repeat2, Heart, Zap, Bookmark, MoreHorizontal } from 'lucide-react';
+import { MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useBookmarks } from '@/hooks/useBookmarks';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 
 interface NoteCardProps {
@@ -34,8 +33,6 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const images = useMemo(() => extractImages(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const [liked, setLiked] = useState(false);
-  const { isBookmarked, toggleBookmark } = useBookmarks();
-  const bookmarked = isBookmarked(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // Check if content is a reply
@@ -168,23 +165,6 @@ export function NoteCard({ event, className }: NoteCardProps) {
             >
               <Zap className="size-[18px]" />
               {stats?.zaps ? <span className="text-xs">{stats.zaps}</span> : null}
-            </button>
-
-            {/* Bookmark */}
-            <button
-              className={cn(
-                "p-2 rounded-full transition-colors",
-                bookmarked
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-              )}
-              title={bookmarked ? "Remove bookmark" : "Bookmark"}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleBookmark.mutate(event.id);
-              }}
-            >
-              <Bookmark className={cn("size-[18px]", bookmarked && "fill-primary")} />
             </button>
 
             {/* More */}
