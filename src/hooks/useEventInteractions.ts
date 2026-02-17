@@ -20,8 +20,16 @@ export interface ZapEntry {
   createdAt: number;
 }
 
+export interface QuoteEntry {
+  pubkey: string;
+  eventId: string;
+  content: string;
+  createdAt: number;
+}
+
 export interface EventInteractions {
   reposts: RepostEntry[];
+  quotes: QuoteEntry[];
   reactions: ReactionEntry[];
   zaps: ZapEntry[];
 }
@@ -106,25 +114,35 @@ function extractZapMessage(event: NostrEvent): string {
   return '';
 }
 
-/** Fetches interaction events (reposts, reactions, zaps) for a given event ID. */
+/** Fetches interaction events (reposts, quotes, reactions, zaps) for a given event ID. */
 export function useEventInteractions(eventId: string | undefined) {
   const { nostr } = useNostr();
 
   return useQuery<EventInteractions>({
     queryKey: ['event-interactions', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { reposts: [], reactions: [], zaps: [] };
+      if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
 
-      const events = await nostr.query(
-        [{ kinds: [6, 7, 9735], '#e': [eventId], limit: 500 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
+      const timeout = AbortSignal.timeout(5000);
+      const combined = AbortSignal.any([signal, timeout]);
+
+      const [eTagEvents, qTagEvents] = await Promise.all([
+        nostr.query(
+          [{ kinds: [6, 7, 9735], '#e': [eventId], limit: 500 }],
+          { signal: combined },
+        ),
+        nostr.query(
+          [{ kinds: [1], '#q': [eventId], limit: 100 }],
+          { signal: combined },
+        ),
+      ]);
 
       const reposts: RepostEntry[] = [];
+      const quotes: QuoteEntry[] = [];
       const reactions: ReactionEntry[] = [];
       const zaps: ZapEntry[] = [];
 
-      for (const e of events) {
+      for (const e of eTagEvents) {
         switch (e.kind) {
           case 6:
             reposts.push({
@@ -157,12 +175,22 @@ export function useEventInteractions(eventId: string | undefined) {
         }
       }
 
+      for (const e of qTagEvents) {
+        quotes.push({
+          pubkey: e.pubkey,
+          eventId: e.id,
+          content: e.content,
+          createdAt: e.created_at,
+        });
+      }
+
       // Sort by most recent first
       reposts.sort((a, b) => b.createdAt - a.createdAt);
+      quotes.sort((a, b) => b.createdAt - a.createdAt);
       reactions.sort((a, b) => b.createdAt - a.createdAt);
       zaps.sort((a, b) => b.amountSats - a.amountSats); // Sort zaps by amount (largest first)
 
-      return { reposts, reactions, zaps };
+      return { reposts, quotes, reactions, zaps };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,

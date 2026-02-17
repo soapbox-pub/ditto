@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Repeat2, Heart, Zap, X } from 'lucide-react';
+import { Repeat2, Quote, Heart, Zap, X } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 
 import {
@@ -12,13 +12,13 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { useEventInteractions, type RepostEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
+import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
-export type InteractionTab = 'reposts' | 'reactions' | 'zaps';
+export type InteractionTab = 'reposts' | 'quotes' | 'reactions' | 'zaps';
 
 interface InteractionsModalProps {
   eventId: string;
@@ -46,11 +46,13 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
   };
 
   const repostCount = data?.reposts.length ?? 0;
+  const quoteCount = data?.quotes.length ?? 0;
   const reactionCount = data?.reactions.length ?? 0;
   const zapCount = data?.zaps.length ?? 0;
 
   const tabConfig: { key: InteractionTab; label: string; count: number; icon: React.ReactNode }[] = [
     { key: 'reposts', label: 'Reposts', count: repostCount, icon: <Repeat2 className="size-4" /> },
+    { key: 'quotes', label: 'Quotes', count: quoteCount, icon: <Quote className="size-4" /> },
     { key: 'reactions', label: 'Reactions', count: reactionCount, icon: <Heart className="size-4" /> },
     { key: 'zaps', label: 'Zaps', count: zapCount, icon: <Zap className="size-4" /> },
   ];
@@ -109,6 +111,8 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
             </div>
           ) : activeTab === 'reposts' ? (
             <RepostsTab reposts={data?.reposts ?? []} />
+          ) : activeTab === 'quotes' ? (
+            <QuotesTab quotes={data?.quotes ?? []} />
           ) : activeTab === 'reactions' ? (
             <ReactionsTab reactions={data?.reactions ?? []} />
           ) : (
@@ -130,6 +134,21 @@ function RepostsTab({ reposts }: { reposts: RepostEntry[] }) {
     <div className="divide-y divide-border">
       {reposts.map((repost, i) => (
         <UserRow key={`${repost.pubkey}-${i}`} pubkey={repost.pubkey} subtitle={timeAgo(repost.createdAt)} />
+      ))}
+    </div>
+  );
+}
+
+/* ──── Quotes Tab ──── */
+function QuotesTab({ quotes }: { quotes: QuoteEntry[] }) {
+  if (quotes.length === 0) {
+    return <EmptyState message="No quotes yet" />;
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {quotes.map((quote, i) => (
+        <QuoteRow key={`${quote.pubkey}-${i}`} quote={quote} />
       ))}
     </div>
   );
@@ -269,6 +288,40 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
       <div className="flex items-center gap-1 shrink-0 bg-amber-500/10 text-amber-500 rounded-full px-2.5 py-1">
         <Zap className="size-3.5 fill-amber-500" />
         <span className="text-xs font-bold tabular-nums">{formatSats(zap.amountSats)}</span>
+      </div>
+    </Link>
+  );
+}
+
+function QuoteRow({ quote }: { quote: QuoteEntry }) {
+  const author = useAuthor(quote.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(quote.pubkey);
+  const nevent = useMemo(() => nip19.neventEncode({ id: quote.eventId, author: quote.pubkey }), [quote.eventId, quote.pubkey]);
+
+  return (
+    <Link
+      to={`/${nevent}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
+    >
+      <Avatar className="size-10 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0].toUpperCase()}
+        </AvatarFallback>
+      </Avatar>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="font-bold text-sm truncate">{displayName}</span>
+          {metadata?.nip05 && (
+            <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
+          )}
+        </div>
+        {quote.content && (
+          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{quote.content}</p>
+        )}
+        <span className="text-xs text-muted-foreground">{timeAgo(quote.createdAt)}</span>
       </div>
     </Link>
   );

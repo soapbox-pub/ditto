@@ -117,19 +117,29 @@ function parseBolt11Amount(bolt11: string): number {
   }
 }
 
-/** Counts engagement (replies, reposts, reactions, zaps) for a given event. */
+/** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
 
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { replies: 0, reposts: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] as string[] };
+      if (!eventId) return { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] as string[] };
 
-      const events = await nostr.query(
-        [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
+      const timeout = AbortSignal.timeout(5000);
+      const combined = AbortSignal.any([signal, timeout]);
+
+      // Two queries: one for e-tag interactions, one for q-tag quotes
+      const [eTagEvents, qTagEvents] = await Promise.all([
+        nostr.query(
+          [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
+          { signal: combined },
+        ),
+        nostr.query(
+          [{ kinds: [1], '#q': [eventId], limit: 50 }],
+          { signal: combined },
+        ),
+      ]);
 
       let replies = 0;
       let reposts = 0;
@@ -137,7 +147,7 @@ export function useEventStats(eventId: string | undefined) {
       let zapAmount = 0;
       const reactionEmojiSet = new Set<string>();
 
-      for (const e of events) {
+      for (const e of eTagEvents) {
         switch (e.kind) {
           case 1: replies++; break;
           case 6: reposts++; break;
@@ -162,7 +172,9 @@ export function useEventStats(eventId: string | undefined) {
         }
       }
 
-      return { replies, reposts, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
+      const quotes = qTagEvents.length;
+
+      return { replies, reposts, quotes, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,

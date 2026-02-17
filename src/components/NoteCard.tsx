@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle, Repeat2, Zap, MoreHorizontal, Play } from 'lucide-react';
+import { MessageCircle, Repeat2, Quote, Zap, MoreHorizontal, Play } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
@@ -248,6 +248,15 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
         >
           <Repeat2 className="size-[18px]" />
           {stats?.reposts ? <span className="text-sm tabular-nums">{stats.reposts}</span> : null}
+        </button>
+
+        <button
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+          title="Quotes"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Quote className="size-[18px]" />
+          {stats?.quotes ? <span className="text-sm tabular-nums">{stats.quotes}</span> : null}
         </button>
 
         <ReactionButton

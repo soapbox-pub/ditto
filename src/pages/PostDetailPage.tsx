@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Quote, Zap, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
@@ -185,7 +185,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     setInteractionsOpen(true);
   };
 
-  const hasStats = !!(stats?.reposts || stats?.reactions || stats?.zapAmount);
+  const hasStats = !!(stats?.reposts || stats?.quotes || stats?.reactions || stats?.zapAmount);
 
   return (
     <div>
@@ -258,6 +258,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 Repost{stats.reposts !== 1 ? 's' : ''}
               </button>
             ) : null}
+            {stats?.quotes ? (
+              <button
+                onClick={() => openInteractions('quotes')}
+                className="hover:underline transition-colors"
+              >
+                <span className="font-bold text-foreground">{stats.quotes}</span>{' '}
+                Quote{stats.quotes !== 1 ? 's' : ''}
+              </button>
+            ) : null}
             {stats?.reactions ? (
               <button
                 onClick={() => openInteractions('reactions')}
@@ -309,6 +318,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           >
             <Repeat2 className="size-[18px]" />
             {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
+          </button>
+
+          {/* Quotes */}
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
+            title="Quotes"
+            onClick={() => openInteractions('quotes')}
+          >
+            <Quote className="size-[18px]" />
+            {stats?.quotes ? <span className="text-xs">{stats.quotes}</span> : null}
           </button>
 
           {/* React */}
