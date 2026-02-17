@@ -6,7 +6,24 @@ import { useTrendingTags, useLatestAccounts } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import { useIsFetching } from '@tanstack/react-query';
+
+const XL_BREAKPOINT = 1280;
+
+/** Returns true when the viewport is at least the xl breakpoint (1280px). */
+function useIsXl(): boolean {
+  const [isXl, setIsXl] = useState(window.innerWidth >= XL_BREAKPOINT);
+
+  useEffect(() => {
+    const mql = window.matchMedia(`(min-width: ${XL_BREAKPOINT}px)`);
+    const onChange = () => setIsXl(mql.matches);
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  return isXl;
+}
 
 /** Small sparkline SVG for trending tags. */
 function TrendSparkline() {
@@ -36,8 +53,27 @@ function TrendSparkline() {
 }
 
 export function RightSidebar() {
-  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags();
-  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts();
+  const isXl = useIsXl();
+
+  // Only start sidebar queries once the feed has finished its initial fetch.
+  // Track: feed must start fetching first, then finish, before we enable sidebar queries.
+  const feedFetching = useIsFetching({ queryKey: ['feed'] });
+  const [feedStarted, setFeedStarted] = useState(false);
+  const [feedHasLoaded, setFeedHasLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!feedStarted && feedFetching > 0) {
+      setFeedStarted(true);
+    }
+    if (feedStarted && !feedHasLoaded && feedFetching === 0) {
+      setFeedHasLoaded(true);
+    }
+  }, [feedFetching, feedStarted, feedHasLoaded]);
+
+  const sidebarEnabled = isXl && feedHasLoaded;
+
+  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(sidebarEnabled);
+  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(sidebarEnabled);
 
   return (
     <aside className="w-[340px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-6">

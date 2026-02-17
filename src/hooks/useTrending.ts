@@ -8,7 +8,7 @@ export interface TrendingTag {
 }
 
 /** Extracts trending hashtags from recent notes. */
-export function useTrendingTags() {
+export function useTrendingTags(enabled = true) {
   const { nostr } = useNostr();
 
   return useQuery<TrendingTag[]>({
@@ -39,12 +39,13 @@ export function useTrendingTags() {
         .sort((a, b) => b.count - a.count)
         .slice(0, 5);
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }
 
 /** Fetches the latest kind 0 profiles seen on the relay. */
-export function useLatestAccounts() {
+export function useLatestAccounts(enabled = true) {
   const { nostr } = useNostr();
 
   return useQuery<NostrEvent[]>({
@@ -56,6 +57,7 @@ export function useLatestAccounts() {
       );
       return events.sort((a, b) => b.created_at - a.created_at).slice(0, 5);
     },
+    enabled,
     staleTime: 5 * 60 * 1000,
   });
 }
