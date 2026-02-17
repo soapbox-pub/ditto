@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { ImageGallery } from '@/components/ImageGallery';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -21,7 +22,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
 
 interface PostDetailPageProps {
@@ -243,28 +243,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         ))}
 
         {/* Image attachments */}
-        {images.length > 0 && (
-          <div className={cn(
-            'mt-3 rounded-2xl overflow-hidden border border-border',
-            images.length > 1 && 'grid grid-cols-2 gap-0.5',
-          )}>
-            {images.slice(0, 4).map((url, i) => (
-              <a
-                key={i}
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <img
-                  src={url}
-                  alt=""
-                  className="w-full h-auto max-h-[500px] object-cover"
-                  loading="lazy"
-                />
-              </a>
-            ))}
-          </div>
-        )}
+        <ImageGallery images={images} maxGridHeight="500px" />
 
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (

@@ -4,6 +4,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
+import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
@@ -278,29 +279,7 @@ function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: str
       ))}
 
       {/* Images */}
-      {images.length > 0 && (
-        <div className={cn(
-          'mt-3 rounded-2xl overflow-hidden border border-border',
-          images.length > 1 && 'grid grid-cols-2 gap-0.5',
-        )}>
-          {images.slice(0, 4).map((url, i) => (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={url}
-                alt=""
-                className="w-full h-auto max-h-[400px] object-cover"
-                loading="lazy"
-              />
-            </a>
-          ))}
-        </div>
-      )}
+      <ImageGallery images={images} maxGridHeight="400px" />
     </>
   );
 }
