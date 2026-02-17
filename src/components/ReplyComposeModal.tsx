@@ -36,14 +36,13 @@ export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeMod
       <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
+          <DialogTitle className="text-base font-semibold">Reply to post</DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
-            className="p-1.5 -ml-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
           >
             <X className="size-5" />
           </button>
-          <DialogTitle className="text-base font-semibold">Reply to post</DialogTitle>
-          <div className="w-8" />
         </div>
 
         {/* Embedded original post */}
