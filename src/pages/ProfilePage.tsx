@@ -776,7 +776,7 @@ export function ProfilePage() {
 
           {/* Following count + Streak indicator */}
           <div className="flex items-center gap-4 mt-2">
-            {profileFollowing && (
+            {profileFollowing && profileFollowing.count > 0 && (
               <button
                 className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                 onClick={() => setFollowingModalOpen(true)}
@@ -877,7 +877,7 @@ export function ProfilePage() {
         )}
 
         {/* Following List Modal */}
-        {profileFollowing && (
+        {profileFollowing && profileFollowing.count > 0 && (
           <FollowingListModal
             pubkeys={profileFollowing.pubkeys}
             open={followingModalOpen}
