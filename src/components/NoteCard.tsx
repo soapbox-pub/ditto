@@ -261,14 +261,14 @@ function VineBody({ title, imeta, hashtags }: { title?: string; imeta?: { url?: 
 
       {imeta?.url && (
         <div
-          className="relative bg-black mt-3 rounded-2xl overflow-hidden cursor-pointer"
+          className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
           onClick={handlePlayToggle}
         >
           <video
             ref={videoRef}
             src={imeta.url}
             poster={imeta.thumbnail}
-            className="w-full max-h-[70vh] object-contain"
+            className="w-full max-h-[70vh] object-cover"
             loop
             playsInline
             preload="none"
