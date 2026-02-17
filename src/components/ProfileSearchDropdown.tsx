@@ -110,11 +110,11 @@ export function ProfileSearchDropdown({
   return (
     <div ref={containerRef} className={cn('relative', className)}>
       {/* Search input */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+      <div className="relative flex items-center">
+        <Search className="absolute left-3 size-4 text-muted-foreground pointer-events-none" />
         {isFetching && (
           <svg
-            className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+            className="absolute right-3 size-4 text-muted-foreground"
             style={{ animation: 'spin 1s linear infinite' }}
             xmlns="http://www.w3.org/2000/svg"
             fill="none"
@@ -142,7 +142,7 @@ export function ProfileSearchDropdown({
           placeholder={placeholder}
           autoFocus={autoFocus}
           className={cn(
-            'pl-10 pr-10 rounded-full bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-primary',
+            'pl-10 pr-10 rounded-full bg-secondary border-0 focus-visible:ring-0 focus-visible:ring-offset-0',
             inputClassName,
           )}
           autoComplete="off"
