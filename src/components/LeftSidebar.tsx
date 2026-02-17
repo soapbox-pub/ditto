@@ -125,7 +125,7 @@ export function LeftSidebar() {
         ) : (
           <Button
             className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => setSignupDialogOpen(true)}
+            onClick={() => setLoginDialogOpen(true)}
           >
             <span>Join</span>
           </Button>
