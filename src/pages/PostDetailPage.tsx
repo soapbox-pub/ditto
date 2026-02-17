@@ -16,6 +16,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReactionButton } from '@/components/ReactionButton';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
+import { ZapDialog } from '@/components/ZapDialog';
 import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -319,14 +320,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           />
 
           {/* Zap */}
-          <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-            title="Zaps"
-            onClick={() => openInteractions('zaps')}
-          >
-            <Zap className="size-[18px]" />
-            {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
-          </button>
+          <ZapDialog target={event}>
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+              title="Zaps"
+            >
+              <Zap className="size-[18px]" />
+              {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+            </button>
+          </ZapDialog>
 
           {/* More */}
           <button
