@@ -4,7 +4,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, Calendar, LinkIcon } from 'lucide-react';
+import { ArrowLeft, LinkIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -113,25 +113,21 @@ export function ProfilePage() {
 
           <h2 className="text-xl font-bold">{displayName}</h2>
           {metadata?.nip05 && (
-            <p className="text-sm text-muted-foreground">@{metadata.nip05}</p>
+            <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
           )}
 
           {metadata?.about && (
             <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>
           )}
 
-          <div className="flex flex-wrap gap-4 mt-3 text-sm text-muted-foreground">
-            {metadata?.website && (
-              <a href={metadata.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline">
-                <LinkIcon className="size-3.5" />
-                {metadata.website.replace(/^https?:\/\//, '')}
+          {metadata?.website && (
+            <div className="flex mt-3 text-sm text-muted-foreground min-w-0">
+              <a href={metadata.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline min-w-0">
+                <LinkIcon className="size-3.5 shrink-0" />
+                <span className="truncate">{metadata.website.replace(/^https?:\/\//, '')}</span>
               </a>
-            )}
-            <span className="flex items-center gap-1">
-              <Calendar className="size-3.5" />
-              Joined Nostr
-            </span>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Posts */}
