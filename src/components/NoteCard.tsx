@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
+import { MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
+import { ReactionButton } from '@/components/ReactionButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
@@ -42,7 +43,6 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const neventId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event.id, event.pubkey]);
   const images = useMemo(() => extractImages(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
-  const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
@@ -154,23 +154,14 @@ export function NoteCard({ event, className }: NoteCardProps) {
               {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
             </button>
 
-            {/* Like */}
-            <button
-              className={cn(
-                "flex items-center gap-1 p-2 rounded-full transition-colors",
-                liked
-                  ? "text-pink-500"
-                  : "text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10"
-              )}
-              title="Like"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLiked(!liked);
-              }}
-            >
-              <Heart className={cn("size-[18px]", liked && "fill-pink-500")} />
-              {stats?.reactions ? <span className="text-xs">{stats.reactions}</span> : null}
-            </button>
+            {/* React */}
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+              reactionEmojis={stats?.reactionEmojis}
+            />
 
             {/* Zap */}
             <button

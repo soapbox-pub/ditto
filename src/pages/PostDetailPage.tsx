@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
@@ -12,6 +12,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { ReactionButton } from '@/components/ReactionButton';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
@@ -112,7 +113,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const images = useMemo(() => extractImages(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
-  const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);
@@ -250,23 +250,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
           </button>
 
-          {/* Like */}
-          <button
-            className={cn(
-              'flex items-center gap-1.5 p-2 rounded-full transition-colors',
-              liked
-                ? 'text-pink-500'
-                : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
-            )}
-            title="Reactions"
-            onClick={() => {
-              setLiked(!liked);
-              openInteractions('reactions');
-            }}
-          >
-            <Heart className={cn('size-[18px]', liked && 'fill-pink-500')} />
-            {stats?.reactions ? <span className="text-xs">{stats.reactions}</span> : null}
-          </button>
+          {/* React */}
+          <ReactionButton
+            eventId={event.id}
+            eventPubkey={event.pubkey}
+            eventKind={event.kind}
+            reactionCount={stats?.reactions}
+            reactionEmojis={stats?.reactionEmojis}
+          />
 
           {/* Zap */}
           <button
