@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check, Moon, Sun, Zap, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -79,11 +79,11 @@ export function LeftSidebar() {
     }, 100);
   };
 
-  const themes: { value: Theme; label: string }[] = [
-    { value: 'light', label: 'Mew' },
-    { value: 'light', label: 'Light' },
-    { value: 'black', label: 'Black' },
-    { value: 'pink', label: 'Pink' },
+  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: 'dark', label: 'Mew', icon: <Moon className="size-4" /> },
+    { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
+    { value: 'black', label: 'Black', icon: <Zap className="size-4" /> },
+    { value: 'pink', label: 'Pink', icon: <Heart className="size-4" /> },
   ];
 
   return (
@@ -222,7 +222,10 @@ export function LeftSidebar() {
                     onClick={() => setTheme(themeOption.value)}
                     className="flex items-center justify-between w-full px-4 py-2 text-sm hover:bg-secondary/60 transition-colors"
                   >
-                    <span>{themeOption.label}</span>
+                    <div className="flex items-center gap-2">
+                      {themeOption.icon}
+                      <span>{themeOption.label}</span>
+                    </div>
                     {theme === themeOption.value && (
                       <Check className="size-4 text-primary" />
                     )}

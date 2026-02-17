@@ -23,7 +23,7 @@ const RelayMetadataSchema = z.object({
 
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
-  theme: z.enum(['light', 'dark', 'black', 'pink', 'system']),
+  theme: z.enum(['dark', 'light', 'black', 'pink']),
   relayMetadata: RelayMetadataSchema,
 }) satisfies z.ZodType<AppConfig>;
 
@@ -76,36 +76,7 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove('light', 'dark', 'black', 'pink');
-
-    if (theme === 'system') {
-      const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
-        .matches
-        ? 'dark'
-        : 'light';
-
-      root.classList.add(systemTheme);
-      return;
-    }
-
+    root.classList.remove('mew', 'light', 'black', 'pink');
     root.classList.add(theme);
-  }, [theme]);
-
-  // Handle system theme changes when theme is set to "system"
-  useEffect(() => {
-    if (theme !== 'system') return;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-
-    const handleChange = () => {
-      const root = window.document.documentElement;
-      root.classList.remove('light', 'dark', 'black', 'pink');
-
-      const systemTheme = mediaQuery.matches ? 'dark' : 'light';
-      root.classList.add(systemTheme);
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
   }, [theme]);
 }
