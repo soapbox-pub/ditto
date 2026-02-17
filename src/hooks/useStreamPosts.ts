@@ -7,14 +7,18 @@ interface StreamPostsOptions {
   mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
 }
 
-function extractImages(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
+/** Check if an event has imeta tags with image MIME types. */
+function hasImageImeta(event: NostrEvent): boolean {
+  return event.tags.some(
+    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('image/')),
+  );
 }
 
-function extractVideos(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov|avi|mkv)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
+/** Check if an event has imeta tags with video MIME types. */
+function hasVideoImeta(event: NostrEvent): boolean {
+  return event.tags.some(
+    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('video/')),
+  );
 }
 
 function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
@@ -29,8 +33,8 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   }
 
   if (options.mediaType !== 'all') {
-    const hasImages = extractImages(event.content).length > 0;
-    const hasVideos = extractVideos(event.content).length > 0;
+    const hasImages = hasImageImeta(event);
+    const hasVideos = hasVideoImeta(event);
     switch (options.mediaType) {
       case 'images': return hasImages;
       case 'videos': return hasVideos;

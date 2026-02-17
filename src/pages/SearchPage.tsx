@@ -106,8 +106,8 @@ export function SearchPage() {
                       {[
                         { value: 'all', label: 'All media' },
                         { value: 'images', label: 'Images' },
-                        { value: 'videos', label: 'Regular videos' },
-                        { value: 'vines', label: 'Short videos (Vines)' },
+                        { value: 'videos', label: 'Videos' },
+                        { value: 'vines', label: 'Vines' },
                         { value: 'none', label: 'No media' },
                       ].map(({ value, label }) => (
                         <div key={value} className="flex items-center space-x-1.5">
