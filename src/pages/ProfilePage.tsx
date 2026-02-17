@@ -1,30 +1,36 @@
-import { useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useMemo, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { LinkIcon, Zap, Flame } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { LinkIcon, Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
 import { MainLayout } from '@/components/MainLayout';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
+import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
 
+type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
+
 /** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
 function calculateStreak(posts: NostrEvent[]): number {
   if (!posts || posts.length === 0) return 0;
 
-  // Only count kind 1 events
   const kind1Posts = posts.filter((e) => e.kind === 1);
   if (kind1Posts.length === 0) return 0;
 
@@ -59,9 +65,213 @@ function parseProfileFields(content: string): Array<{ label: string; value: stri
   return [];
 }
 
+/** Extract image/video URLs from content. */
+function hasMedia(content: string): boolean {
+  return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(content);
+}
+
+/** Hook to fetch the logged-in user's follow list (kind 3). */
+function useFollowList() {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+
+  return useQuery<{ event: NostrEvent | null; pubkeys: string[] }>({
+    queryKey: ['follow-list', user?.pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!user) return { event: null, pubkeys: [] };
+      const [event] = await nostr.query(
+        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
+      );
+      if (!event) return { event: null, pubkeys: [] };
+      const pubkeys = event.tags
+        .filter(([name]) => name === 'p')
+        .map(([, pubkey]) => pubkey);
+      return { event, pubkeys };
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/** Hook to query a user's liked events (kind 7 reactions they've sent). */
+function useProfileLikes(pubkey: string | undefined) {
+  const { nostr } = useNostr();
+
+  return useQuery<NostrEvent[]>({
+    queryKey: ['profile-likes', pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!pubkey) return [];
+      // Get kind 7 reactions from this user
+      const reactions = await nostr.query(
+        [{ kinds: [7], authors: [pubkey], limit: 50 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+
+      // Extract the event IDs they liked
+      const likedIds = reactions
+        .map((r) => r.tags.find(([n]) => n === 'e')?.[1])
+        .filter((id): id is string => !!id);
+
+      if (likedIds.length === 0) return [];
+
+      // Fetch the original events
+      const events = await nostr.query(
+        [{ ids: likedIds, limit: likedIds.length }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+
+      return events.sort((a, b) => b.created_at - a.created_at);
+    },
+    enabled: !!pubkey,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ----- Profile More Menu -----
+
+interface ProfileMoreMenuProps {
+  pubkey: string;
+  displayName: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMoreMenuProps) {
+  const { toast } = useToast();
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+
+  const close = () => onOpenChange(false);
+
+  const handleCopyPubkey = () => {
+    navigator.clipboard.writeText(npubEncoded);
+    toast({ title: 'Public key copied to clipboard' });
+    close();
+  };
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/${npubEncoded}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: 'Profile link copied to clipboard' });
+    close();
+  };
+
+  const handleViewOnNjump = () => {
+    window.open(`https://njump.me/${npubEncoded}`, '_blank', 'noopener,noreferrer');
+    close();
+  };
+
+  const handleMuteUser = () => {
+    toast({ title: 'Mute user is not yet implemented' });
+    close();
+  };
+
+  const handleReport = () => {
+    toast({ title: 'Report is not yet implemented' });
+    close();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <DialogTitle className="sr-only">Profile options</DialogTitle>
+
+        <div className="py-1">
+          <MenuRow
+            icon={<ClipboardCopy className="size-5" />}
+            label="Copy public key"
+            onClick={handleCopyPubkey}
+          />
+          <MenuRow
+            icon={<ClipboardCopy className="size-5" />}
+            label="Copy profile link"
+            onClick={handleCopyLink}
+          />
+          <MenuRow
+            icon={<ExternalLink className="size-5" />}
+            label="View on njump.me"
+            onClick={handleViewOnNjump}
+          />
+        </div>
+
+        <Separator />
+
+        <div className="py-1">
+          <MenuRow
+            icon={<VolumeX className="size-5" />}
+            label={`Mute @${displayName}`}
+            onClick={handleMuteUser}
+          />
+          <MenuRow
+            icon={<Flag className="size-5" />}
+            label={`Report @${displayName}`}
+            onClick={handleReport}
+            destructive
+          />
+        </div>
+
+        <Separator />
+
+        <div className="py-1">
+          <Button
+            variant="ghost"
+            className="w-full h-auto py-3 text-[15px] font-medium text-muted-foreground hover:bg-secondary/60 rounded-none"
+            onClick={close}
+          >
+            Close
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode; label: string; onClick: () => void; destructive?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex items-center gap-4 w-full px-5 py-3 text-[15px] transition-colors hover:bg-secondary/60',
+        destructive ? 'text-destructive' : 'text-muted-foreground',
+      )}
+    >
+      <span className="shrink-0">{icon}</span>
+      <span>{label}</span>
+    </button>
+  );
+}
+
+// ----- Tab Button -----
+
+function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        active ? 'text-foreground' : 'text-muted-foreground',
+      )}
+    >
+      {label}
+      {active && (
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
+      )}
+    </button>
+  );
+}
+
+// ----- Main Component -----
+
 export function ProfilePage() {
   const { npub } = useParams<{ npub: string }>();
   const { user } = useCurrentUser();
+  const { nostr } = useNostr();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+
+  const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // Determine pubkey: from URL param or logged-in user
   const pubkey = useMemo(() => {
@@ -92,7 +302,7 @@ export function ProfilePage() {
     description: metadata?.about || 'Nostr profile',
   });
 
-  const { nostr } = useNostr();
+  // Fetch posts (kind 1) from this user
   const { data: posts, isLoading: postsLoading } = useQuery<NostrEvent[]>({
     queryKey: ['profile-posts', pubkey ?? ''],
     queryFn: async ({ signal }) => {
@@ -106,7 +316,72 @@ export function ProfilePage() {
     enabled: !!pubkey,
   });
 
+  // Fetch likes
+  const { data: likedEvents, isLoading: likesLoading } = useProfileLikes(
+    activeTab === 'likes' ? pubkey : undefined,
+  );
+
+  // Follow list
+  const { data: followData } = useFollowList();
+  const isFollowing = useMemo(() => {
+    if (!pubkey || !followData) return false;
+    return followData.pubkeys.includes(pubkey);
+  }, [pubkey, followData]);
+
+  const [followPending, setFollowPending] = useState(false);
+
+  const handleToggleFollow = async () => {
+    if (!user || !pubkey || !followData) return;
+    setFollowPending(true);
+    try {
+      const currentTags = followData.event?.tags.filter(([n]) => n === 'p') ?? [];
+
+      let newTags: string[][];
+      if (isFollowing) {
+        // Unfollow: remove the pubkey
+        newTags = currentTags.filter(([, pk]) => pk !== pubkey);
+      } else {
+        // Follow: add the pubkey
+        newTags = [...currentTags, ['p', pubkey]];
+      }
+
+      await publishEvent({
+        kind: 3,
+        content: followData.event?.content ?? '',
+        tags: newTags,
+        created_at: Math.floor(Date.now() / 1000),
+      });
+
+      // Invalidate the follow list cache
+      queryClient.invalidateQueries({ queryKey: ['follow-list'] });
+      toast({ title: isFollowing ? `Unfollowed @${displayName}` : `Followed @${displayName}` });
+    } catch (err) {
+      console.error('Follow toggle failed:', err);
+      toast({ title: 'Failed to update follow list', variant: 'destructive' });
+    } finally {
+      setFollowPending(false);
+    }
+  };
+
   const streak = useMemo(() => calculateStreak(posts ?? []), [posts]);
+
+  // Derived content for each tab
+  const filteredPosts = useMemo(() => {
+    if (!posts) return [];
+    switch (activeTab) {
+      case 'posts':
+        // Only top-level posts (no replies)
+        return posts.filter((e) => !e.tags.some(([n]) => n === 'e'));
+      case 'replies':
+        // All posts including replies
+        return posts;
+      case 'media':
+        // Posts with media
+        return posts.filter((e) => hasMedia(e.content));
+      default:
+        return [];
+    }
+  }, [posts, activeTab]);
 
   if (!pubkey) {
     return (
@@ -121,9 +396,12 @@ export function ProfilePage() {
   }
 
   const isOwnProfile = user?.pubkey === pubkey;
-
-  // Use the kind 0 event as the zap target
   const authorEvent = author.data?.event;
+
+  const showPosts = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media';
+  const currentPosts = showPosts ? filteredPosts : [];
+  const currentLoading = showPosts ? postsLoading : likesLoading;
+  const currentEvents = activeTab === 'likes' ? (likedEvents ?? []) : currentPosts;
 
   return (
     <MainLayout
@@ -148,7 +426,19 @@ export function ProfilePage() {
               </AvatarFallback>
             </Avatar>
             <div className="flex items-center gap-2 mt-14 md:mt-20">
-              {/* Zap button — only show for other users with a lightning address */}
+              {/* More menu */}
+              {!isOwnProfile && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full size-10"
+                  onClick={() => setMoreMenuOpen(true)}
+                  title="More options"
+                >
+                  <MoreHorizontal className="size-5" />
+                </Button>
+              )}
+              {/* Zap button */}
               {!isOwnProfile && authorEvent && (metadata?.lud16 || metadata?.lud06) && (
                 <ZapDialog target={authorEvent}>
                   <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
@@ -163,7 +453,17 @@ export function ProfilePage() {
                   </Button>
                 </Link>
               ) : (
-                <Button className="rounded-full font-bold">Follow</Button>
+                <Button
+                  className={cn(
+                    'rounded-full font-bold',
+                    isFollowing && 'bg-transparent border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50',
+                  )}
+                  variant={isFollowing ? 'outline' : 'default'}
+                  onClick={handleToggleFollow}
+                  disabled={followPending || !user}
+                >
+                  {followPending ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
+                </Button>
               )}
             </div>
           </div>
@@ -200,9 +500,17 @@ export function ProfilePage() {
           )}
         </div>
 
-        {/* Posts */}
-        <div className="border-t border-border">
-          {postsLoading ? (
+        {/* Tabs */}
+        <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
+          <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+          <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
+          <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
+          <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
+        </div>
+
+        {/* Tab content */}
+        <div>
+          {currentLoading ? (
             <div className="space-y-0">
               {Array.from({ length: 3 }).map((_, i) => (
                 <div key={i} className="px-4 py-3 border-b border-border">
@@ -217,14 +525,27 @@ export function ProfilePage() {
                 </div>
               ))}
             </div>
-          ) : posts && posts.length > 0 ? (
-            posts.map((event) => <NoteCard key={event.id} event={event} />)
+          ) : currentEvents.length > 0 ? (
+            currentEvents.map((event) => <NoteCard key={event.id} event={event} />)
           ) : (
             <div className="py-12 text-center text-muted-foreground">
-              No posts yet.
+              {activeTab === 'posts' && 'No posts yet.'}
+              {activeTab === 'replies' && 'No posts or replies yet.'}
+              {activeTab === 'media' && 'No media posts yet.'}
+              {activeTab === 'likes' && 'No likes yet.'}
             </div>
           )}
         </div>
+
+        {/* Profile More Menu */}
+        {pubkey && (
+          <ProfileMoreMenu
+            pubkey={pubkey}
+            displayName={displayName}
+            open={moreMenuOpen}
+            onOpenChange={setMoreMenuOpen}
+          />
+        )}
       </main>
     </MainLayout>
   );
