@@ -143,7 +143,9 @@ export function useEventStats(eventId: string | undefined) {
             reactions++;
             // Extract the emoji from the reaction content (kind 7 events use content for the emoji)
             const emoji = e.content.trim();
-            if (emoji && emoji !== '+' && emoji !== '-') {
+            if (emoji === '+' || emoji === '') {
+              reactionEmojiSet.add('👍');
+            } else if (emoji !== '-') {
               reactionEmojiSet.add(emoji);
             }
             break;

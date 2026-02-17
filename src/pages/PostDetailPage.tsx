@@ -175,9 +175,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
         )}
 
-        {/* Stats row: "2 Reposts 1 Like" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
+        {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
-          <div className="flex items-center gap-x-3 py-2.5 mt-3 border-t border-border text-sm text-muted-foreground">
+          <div className="flex items-center gap-x-3 py-2.5 mt-3 text-sm text-muted-foreground">
             {stats?.reposts ? (
               <span>
                 <span className="font-bold text-foreground">{stats.reposts}</span>{' '}
@@ -204,7 +204,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Date-only row if no stats */}
         {!hasStats && (
-          <div className="py-2.5 mt-3 border-t border-border text-sm text-muted-foreground">
+          <div className="py-2.5 mt-3 text-sm text-muted-foreground">
             {formatFullDate(event.created_at)}
           </div>
         )}
@@ -308,7 +308,7 @@ function PostDetailSkeleton() {
       </div>
 
       {/* Stats */}
-      <div className="flex gap-4 mt-3 pt-2.5 border-t border-border">
+      <div className="flex gap-4 mt-3 pt-2.5">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-32 ml-auto" />
