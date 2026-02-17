@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal, Play } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
@@ -38,6 +38,39 @@ function formatSats(sats: number): string {
 function extractImages(content: string): string[] {
   const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
   return content.match(urlRegex) || [];
+}
+
+/** Extracts video URLs from note content. */
+function extractVideos(content: string): string[] {
+  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+  return content.match(urlRegex) || [];
+}
+
+/** Parsed imeta entry. */
+interface ImetaEntry {
+  url: string;
+  thumbnail?: string;
+}
+
+/** Parse all imeta tags into a map keyed by URL. */
+function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
+  const map = new Map<string, ImetaEntry>();
+  for (const tag of tags) {
+    if (tag[0] !== 'imeta') continue;
+    const entry: Record<string, string> = {};
+    for (let i = 1; i < tag.length; i++) {
+      const part = tag[i];
+      const spaceIdx = part.indexOf(' ');
+      if (spaceIdx === -1) continue;
+      const key = part.slice(0, spaceIdx);
+      const value = part.slice(spaceIdx + 1);
+      entry[key] = value;
+    }
+    if (entry.url) {
+      map.set(entry.url, { url: entry.url, thumbnail: entry.image });
+    }
+  }
+  return map;
 }
 
 /** Formats a timestamp into a full date string like "Feb 16, 2026, 2:53 PM". */
@@ -134,6 +167,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const images = useMemo(() => extractImages(event.content), [event.content]);
+  const videos = useMemo(() => extractVideos(event.content), [event.content]);
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
   const { data: stats } = useEventStats(event.id);
   const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -188,6 +223,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <div className="mt-3">
           <NoteContent event={event} className="text-[15px] leading-relaxed" />
         </div>
+
+        {/* Video attachments */}
+        {videos.map((url, i) => (
+          <DetailVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} />
+        ))}
 
         {/* Image attachments */}
         {images.length > 0 && (
@@ -432,6 +472,50 @@ function ParentNote({ eventId }: { eventId: string }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Inline video player with play/pause overlay for the detail page. */
+function DetailVideoPlayer({ url, poster }: { url: string; poster?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handlePlayToggle = () => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div
+      className="relative mt-3 rounded-2xl overflow-hidden border border-border cursor-pointer"
+      onClick={handlePlayToggle}
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        poster={poster}
+        className="w-full max-h-[70vh] object-cover"
+        loop
+        playsInline
+        preload="none"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="size-14 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+            <Play className="size-7 text-white ml-1" fill="white" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

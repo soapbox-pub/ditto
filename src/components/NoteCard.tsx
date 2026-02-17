@@ -31,8 +31,13 @@ function formatSats(sats: number): string {
 /** Extracts image URLs from note content. */
 function extractImages(content: string): string[] {
   const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  const matches = content.match(urlRegex);
-  return matches || [];
+  return content.match(urlRegex) || [];
+}
+
+/** Extracts video URLs from note content. */
+function extractVideos(content: string): string[] {
+  const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+  return content.match(urlRegex) || [];
 }
 
 /** Gets a tag value by name. */
@@ -40,7 +45,39 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
-/** Parse imeta tag into structured object for kind 34236. */
+/** Parsed imeta entry with url and optional thumbnail. */
+interface ImetaEntry {
+  url: string;
+  thumbnail?: string;
+  mime?: string;
+}
+
+/** Parse all imeta tags into a map keyed by URL. Works for any event kind. */
+function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
+  const map = new Map<string, ImetaEntry>();
+  for (const tag of tags) {
+    if (tag[0] !== 'imeta') continue;
+    const entry: Record<string, string> = {};
+    for (let i = 1; i < tag.length; i++) {
+      const part = tag[i];
+      const spaceIdx = part.indexOf(' ');
+      if (spaceIdx === -1) continue;
+      const key = part.slice(0, spaceIdx);
+      const value = part.slice(spaceIdx + 1);
+      entry[key] = value;
+    }
+    if (entry.url) {
+      map.set(entry.url, {
+        url: entry.url,
+        thumbnail: entry.image,
+        mime: entry.m,
+      });
+    }
+  }
+  return map;
+}
+
+/** Parse single imeta tag into structured object (legacy, for kind 34236 vines). */
 function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
   const imetaTag = tags.find(([name]) => name === 'imeta');
   if (!imetaTag) return {};
@@ -85,6 +122,8 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
 
   // Kind 1 specific
   const images = useMemo(() => isVine ? [] : extractImages(event.content), [event.content, isVine]);
+  const videos = useMemo(() => isVine ? [] : extractVideos(event.content), [event.content, isVine]);
+  const imetaMap = useMemo(() => isVine ? new Map<string, ImetaEntry>() : parseImetaMap(event.tags), [event.tags, isVine]);
   const isReply = !isVine && event.tags.some(([name]) => name === 'e');
   const replyTo = !isVine ? event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention') : undefined;
 
@@ -158,7 +197,7 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
           <div className="mt-2">
             <NoteContent event={event} className="text-[15px] leading-relaxed" />
           </div>
-          <NoteMedia images={images} />
+          <NoteMedia images={images} videos={videos} imetaMap={imetaMap} />
         </>
       )}
 
@@ -213,30 +252,86 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
   );
 }
 
-/** Media content for kind 1 text notes — rendered at full card width. */
-function NoteMedia({ images }: { images: string[] }) {
-  if (images.length === 0) return null;
+/** Media content for kind 1 text notes — renders images and videos. */
+function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: string[]; imetaMap: Map<string, ImetaEntry> }) {
+  if (images.length === 0 && videos.length === 0) return null;
+
   return (
-    <div className={cn(
-      'mt-3 rounded-2xl overflow-hidden border border-border',
-      images.length > 1 && 'grid grid-cols-2 gap-0.5',
-    )}>
-      {images.slice(0, 4).map((url, i) => (
-        <a
-          key={i}
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <img
-            src={url}
-            alt=""
-            className="w-full h-auto max-h-[400px] object-cover"
-            loading="lazy"
-          />
-        </a>
+    <>
+      {/* Videos — each rendered with play/pause overlay */}
+      {videos.map((url, i) => (
+        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} />
       ))}
+
+      {/* Images */}
+      {images.length > 0 && (
+        <div className={cn(
+          'mt-3 rounded-2xl overflow-hidden border border-border',
+          images.length > 1 && 'grid grid-cols-2 gap-0.5',
+        )}>
+          {images.slice(0, 4).map((url, i) => (
+            <a
+              key={i}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <img
+                src={url}
+                alt=""
+                className="w-full h-auto max-h-[400px] object-cover"
+                loading="lazy"
+              />
+            </a>
+          ))}
+        </div>
+      )}
+    </>
+  );
+}
+
+/** Inline video player with play/pause overlay — same UX as vine videos. */
+function NoteVideoPlayer({ url, poster }: { url: string; poster?: string }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  const handlePlayToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const video = videoRef.current;
+    if (!video) return;
+    if (video.paused) {
+      video.play();
+      setIsPlaying(true);
+    } else {
+      video.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div
+      className="relative mt-3 rounded-2xl overflow-hidden border border-border cursor-pointer"
+      onClick={handlePlayToggle}
+    >
+      <video
+        ref={videoRef}
+        src={url}
+        poster={poster}
+        className="w-full max-h-[70vh] object-cover"
+        loop
+        playsInline
+        preload="none"
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+      />
+      {!isPlaying && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+          <div className="size-14 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
+            <Play className="size-7 text-white ml-1" fill="white" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
