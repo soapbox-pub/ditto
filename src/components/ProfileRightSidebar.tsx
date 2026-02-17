@@ -279,6 +279,9 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
                       src={item.url}
                       className="w-full h-full object-cover"
                       muted
+                      autoPlay
+                      loop
+                      playsInline
                       preload="metadata"
                     />
                   ) : (
