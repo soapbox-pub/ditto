@@ -9,6 +9,7 @@ import {
   BellOff,
   VolumeX,
   Flag,
+  Pin,
 } from 'lucide-react';
 import {
   Dialog,
@@ -20,6 +21,8 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { NoteContent } from '@/components/NoteContent';
 import { useBookmarks } from '@/hooks/useBookmarks';
+import { usePinnedNotes } from '@/hooks/usePinnedNotes';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
@@ -57,8 +60,12 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
 
 export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const navigate = useNavigate();
+  const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);
+  const { isPinned, togglePin } = usePinnedNotes(user?.pubkey);
+  const pinned = isPinned(event.id);
+  const isOwnPost = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
@@ -81,6 +88,18 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
   const handleBookmark = () => {
     toggleBookmark.mutate(event.id);
+    close();
+  };
+
+  const handleTogglePin = () => {
+    togglePin.mutate(event.id, {
+      onSuccess: () => {
+        toast({ title: pinned ? 'Unpinned from profile' : 'Pinned to profile' });
+      },
+      onError: () => {
+        toast({ title: 'Failed to update pinned posts', variant: 'destructive' });
+      },
+    });
     close();
   };
 
@@ -169,6 +188,13 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             label="Mute Conversation"
             onClick={handleMuteConversation}
           />
+          {isOwnPost && (
+            <MenuItem
+              icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
+              label={pinned ? 'Unpin from profile' : 'Pin on profile'}
+              onClick={handleTogglePin}
+            />
+          )}
           <MenuItem
             icon={<AtSign className="size-5" />}
             label={`Mention @${displayName}`}

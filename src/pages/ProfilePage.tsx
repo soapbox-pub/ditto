@@ -1,14 +1,15 @@
 import { useMemo, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, LinkIcon, Bitcoin } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, LinkIcon, Bitcoin, Users, Pin, X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { MainLayout } from '@/components/MainLayout';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
@@ -18,6 +19,8 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
+import { useProfileFollowing } from '@/hooks/useProfileFollowing';
+import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -241,6 +244,88 @@ function MenuRow({ icon, label, onClick, destructive }: { icon: React.ReactNode;
   );
 }
 
+// ----- Following User Row -----
+
+function FollowingUserRow({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(pubkey);
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+
+  return (
+    <Link
+      to={`/${npubEncoded}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors"
+    >
+      {author.isLoading ? (
+        <>
+          <Skeleton className="size-10 rounded-full shrink-0" />
+          <div className="space-y-1.5 min-w-0">
+            <Skeleton className="h-4 w-28" />
+            <Skeleton className="h-3 w-36" />
+          </div>
+        </>
+      ) : (
+        <>
+          <Avatar className="size-10 shrink-0">
+            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-sm">
+              {displayName[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="font-bold text-sm truncate">{displayName}</div>
+            {metadata?.nip05 && (
+              <div className="text-xs text-muted-foreground truncate">@{metadata.nip05}</div>
+            )}
+            {metadata?.about && (
+              <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{metadata.about}</div>
+            )}
+          </div>
+        </>
+      )}
+    </Link>
+  );
+}
+
+// ----- Following List Modal -----
+
+interface FollowingListModalProps {
+  pubkeys: string[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  displayName: string;
+}
+
+function FollowingListModal({ pubkeys, open, onOpenChange, displayName }: FollowingListModalProps) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <DialogTitle className="text-base font-bold">{displayName} follows</DialogTitle>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-full size-8"
+            onClick={() => onOpenChange(false)}
+          >
+            <X className="size-4" />
+          </Button>
+        </div>
+        <ScrollArea className="max-h-[60vh]">
+          {pubkeys.length === 0 ? (
+            <div className="py-12 text-center text-muted-foreground text-sm">
+              Not following anyone yet.
+            </div>
+          ) : (
+            pubkeys.map((pk) => <FollowingUserRow key={pk} pubkey={pk} />)
+          )}
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ----- Tab Button -----
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -315,6 +400,7 @@ export function ProfilePage() {
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [followingModalOpen, setFollowingModalOpen] = useState(false);
 
   // Determine pubkey: from URL param or logged-in user
   const pubkey = useMemo(() => {
@@ -368,8 +454,14 @@ export function ProfilePage() {
     activeTab === 'likes' ? pubkey : undefined,
   );
 
-  // Follow list
+  // Follow list (for logged-in user's follow actions)
   const { data: followData } = useFollowList();
+
+  // Profile's following list (for the viewed profile)
+  const { data: profileFollowing } = useProfileFollowing(pubkey);
+
+  // Pinned notes for this profile
+  const { events: pinnedEvents } = usePinnedNotes(pubkey);
   const isFollowing = useMemo(() => {
     if (!pubkey || !followData?.pubkeys) return false;
     return followData.pubkeys.includes(pubkey);
@@ -520,18 +612,31 @@ export function ProfilePage() {
             <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
           )}
 
-          {/* Streak indicator */}
-          {streak > 1 && (
-            <div
-              className="flex items-center gap-1 text-primary mt-2"
-              title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
-            >
-              <Flame className="size-4 fill-primary" />
-              <span className="text-sm font-bold tabular-nums">
-                {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-              </span>
-            </div>
-          )}
+          {/* Following count + Streak indicator */}
+          <div className="flex items-center gap-4 mt-2">
+            {profileFollowing && (
+              <button
+                className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                onClick={() => setFollowingModalOpen(true)}
+                title={`${profileFollowing.count} following`}
+              >
+                <Users className="size-4" />
+                <span className="text-sm font-bold tabular-nums">{profileFollowing.count}</span>
+                <span className="text-sm text-muted-foreground">following</span>
+              </button>
+            )}
+            {streak > 1 && (
+              <div
+                className="flex items-center gap-1 text-primary"
+                title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+              >
+                <Flame className="size-4 fill-primary" />
+                <span className="text-sm font-bold tabular-nums">
+                  {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
+                </span>
+              </div>
+            )}
+          </div>
 
           {metadata?.about && (
             <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>
@@ -554,6 +659,21 @@ export function ProfilePage() {
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
           <TabButton label="Likes" active={activeTab === 'likes'} onClick={() => setActiveTab('likes')} />
         </div>
+
+        {/* Pinned posts (only on Posts tab) */}
+        {activeTab === 'posts' && pinnedEvents.length > 0 && (
+          <div>
+            {pinnedEvents.map((event) => (
+              <div key={`pinned-${event.id}`} className="relative">
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0 ml-14">
+                  <Pin className="size-3 rotate-45" />
+                  <span>Pinned</span>
+                </div>
+                <NoteCard event={event} />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Tab content */}
         <div>
@@ -591,6 +711,16 @@ export function ProfilePage() {
             displayName={displayName}
             open={moreMenuOpen}
             onOpenChange={setMoreMenuOpen}
+          />
+        )}
+
+        {/* Following List Modal */}
+        {profileFollowing && (
+          <FollowingListModal
+            pubkeys={profileFollowing.pubkeys}
+            open={followingModalOpen}
+            onOpenChange={setFollowingModalOpen}
+            displayName={displayName}
           />
         )}
       </main>
