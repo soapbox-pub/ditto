@@ -1,26 +1,40 @@
 import { useState } from 'react';
-import { Pencil } from 'lucide-react';
+import { Pencil, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import SignupDialog from '@/components/auth/SignupDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function FloatingComposeButton() {
   const { user } = useCurrentUser();
-  const [open, setOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
 
-  if (!user) return null;
+  if (user) {
+    return (
+      <>
+        <Button
+          onClick={() => setComposeOpen(true)}
+          className="fixed bottom-20 right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+          size="icon"
+        >
+          <Pencil className="size-6" />
+        </Button>
+        <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+      </>
+    );
+  }
 
   return (
     <>
       <Button
-        onClick={() => setOpen(true)}
+        onClick={() => setSignupOpen(true)}
         className="fixed bottom-20 right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
         size="icon"
       >
-        <Pencil className="size-6" />
+        <UserPlus className="size-6" />
       </Button>
-
-      <ReplyComposeModal open={open} onOpenChange={setOpen} />
+      <SignupDialog isOpen={signupOpen} onClose={() => setSignupOpen(false)} />
     </>
   );
 }

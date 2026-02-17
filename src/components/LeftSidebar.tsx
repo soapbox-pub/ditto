@@ -1,11 +1,17 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark } from 'lucide-react';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, MoreHorizontal, UserPlus, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MewLogo } from '@/components/MewLogo';
-import { LoginArea } from '@/components/auth/LoginArea';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
+import LoginDialog from '@/components/auth/LoginDialog';
+import SignupDialog from '@/components/auth/SignupDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
+import { useLoginActions } from '@/hooks/useLoginActions';
+import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
 interface NavItemProps {
@@ -32,7 +38,13 @@ function NavItem({ to, icon, label, active }: NavItemProps) {
 
 export function LeftSidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, metadata } = useCurrentUser();
+  const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
+  const { logout } = useLoginActions();
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
+  const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
 
   const navItems = [
     { to: '/', icon: <Home className="size-6" />, label: 'Home' },
@@ -44,6 +56,21 @@ export function LeftSidebar() {
     { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
     { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
   ];
+
+  const getDisplayName = (account: Account): string => {
+    return account.metadata.name ?? genUserName(account.pubkey);
+  };
+
+  const handleLogin = () => {
+    setLoginDialogOpen(false);
+    setSignupDialogOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setAccountPopoverOpen(false);
+    await logout();
+    navigate('/');
+  };
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[280px] shrink-0">
@@ -72,39 +99,139 @@ export function LeftSidebar() {
           />
         ))}
 
-        {/* Compose button */}
-        <Button
-          className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-          onClick={() => {
-            // Scroll to the top compose area
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-          }}
-        >
-          <span>Compose</span>
-        </Button>
+        {/* Compose/Join button */}
+        {user ? (
+          <Button
+            className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={() => {
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          >
+            <span>Compose</span>
+          </Button>
+        ) : (
+          <Button
+            className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+            onClick={() => setSignupDialogOpen(true)}
+          >
+            <span>Join</span>
+          </Button>
+        )}
       </nav>
 
-      {/* User profile at bottom */}
-      <div className="mt-auto pt-4">
-        {user ? (
-          <div className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer">
-            <Avatar className="size-10 shrink-0">
-              <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {(metadata?.name?.[0] || '?').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-sm truncate">{metadata?.name || 'Anonymous'}</span>
-              <span className="text-xs text-muted-foreground truncate">
-                {metadata?.nip05 ? `@${metadata.nip05}` : ''}
-              </span>
-            </div>
-          </div>
-        ) : (
-          <LoginArea className="w-full flex flex-col" />
-        )}
-      </div>
+      {/* User profile at bottom — only when logged in */}
+      {user && currentUser && (
+        <div className="mt-auto pt-4">
+          <Popover open={accountPopoverOpen} onOpenChange={setAccountPopoverOpen}>
+            <PopoverTrigger asChild>
+              <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left">
+                <Avatar className="size-10 shrink-0">
+                  <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {(metadata?.name?.[0] || '?').toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-semibold text-sm truncate">{metadata?.name || 'Anonymous'}</span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {metadata?.nip05 ? `@${metadata.nip05}` : ''}
+                  </span>
+                </div>
+                <MoreHorizontal className="size-5 text-muted-foreground shrink-0" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent
+              side="top"
+              align="start"
+              sideOffset={8}
+              className="w-[260px] p-0 rounded-2xl shadow-xl border border-border overflow-hidden"
+            >
+              {/* Current user card */}
+              <div className="p-4 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-11 shrink-0">
+                    <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                      {getDisplayName(currentUser).charAt(0).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col min-w-0">
+                    <span className="font-bold text-sm truncate">{getDisplayName(currentUser)}</span>
+                    {currentUser.metadata.nip05 && (
+                      <span className="text-xs text-muted-foreground truncate">
+                        @{currentUser.metadata.nip05}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Other accounts */}
+              {otherUsers.length > 0 && (
+                <div className="border-b border-border">
+                  {otherUsers.map((account) => (
+                    <button
+                      key={account.id}
+                      onClick={() => {
+                        setLogin(account.id);
+                        setAccountPopoverOpen(false);
+                      }}
+                      className="flex items-center gap-3 w-full px-4 py-3 hover:bg-secondary/60 transition-colors"
+                    >
+                      <Avatar className="size-9 shrink-0">
+                        <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                          {getDisplayName(account).charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium truncate">{getDisplayName(account)}</span>
+                        {account.metadata.nip05 && (
+                          <span className="text-xs text-muted-foreground truncate">
+                            @{account.metadata.nip05}
+                          </span>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="py-1">
+                <button
+                  onClick={() => {
+                    setAccountPopoverOpen(false);
+                    setLoginDialogOpen(true);
+                  }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors"
+                >
+                  <UserPlus className="size-4 text-muted-foreground" />
+                  <span>Add another account</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <LogOut className="size-4" />
+                  <span>Log out @{metadata?.name || genUserName(user.pubkey)}</span>
+                </button>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
+      )}
+
+      {/* Login/Signup dialogs */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={handleLogin}
+      />
+      <SignupDialog
+        isOpen={signupDialogOpen}
+        onClose={() => setSignupDialogOpen(false)}
+      />
     </aside>
   );
 }
