@@ -134,8 +134,8 @@ function BitcoinQRModal({ address }: { address: string }) {
   };
 
   return (
-    <DialogContent className="sm:max-w-[360px] p-0 overflow-hidden rounded-2xl">
-      <div className="bg-card p-6 min-w-0">
+    <DialogContent className="sm:max-w-[360px] p-6 overflow-hidden rounded-2xl">
+      <div className="min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="size-7 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
