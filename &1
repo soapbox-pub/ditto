@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta http-equiv="content-security-policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-src 'self' https:; font-src 'self'; base-uri 'self'; manifest-src 'self'; connect-src 'self' blob: https: wss:; img-src 'self' data: blob: https:; media-src 'self' https:">
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <title>Espy - See beauty, share color</title>
+    <meta name="description" content="A quiet place to share the colors you witness in beautiful moments.">
+    <meta name="theme-color" content="#faf6f0" media="(prefers-color-scheme: light)">
+    <meta name="theme-color" content="#1a1614" media="(prefers-color-scheme: dark)">
+    
+    <!-- Open Graph / Social Sharing -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Espy - See beauty, share color">
+    <meta property="og:description" content="A quiet place to share the colors you witness in beautiful moments.">
+    <meta property="og:image" content="https://espy.shakespeare.wtf/og-image.png">
+    <meta property="og:url" content="https://espy.shakespeare.wtf">
+    
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Espy - See beauty, share color">
+    <meta name="twitter:description" content="A quiet place to share the colors you witness in beautiful moments.">
+    <meta name="twitter:image" content="https://espy.shakespeare.wtf/og-image.png">
+    <script type="module" crossorigin src="/assets/index-CyTksxv_.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-Ci_lDibZ.css">
+  </head>
+  <body>
+    <div id="root"></div>
+    
+  </body>
+</html>

@@ -165,9 +165,9 @@ export function NoteContent({
           case 'text':
             return <span key={i}>{token.value}</span>;
           case 'link-preview':
-            return <LinkPreview key={i} url={token.url} className="mt-1.5 mb-0.5" />;
+            return <LinkPreview key={i} url={token.url} className="my-2.5" />;
           case 'youtube-embed':
-            return <YouTubeEmbed key={i} videoId={token.videoId} className="mt-1.5 mb-0.5" />;
+            return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
