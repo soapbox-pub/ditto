@@ -70,14 +70,12 @@ export function LeftSidebar() {
     setSignupDialogOpen(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     // Close popover first to avoid state update on unmounted component
     setAccountPopoverOpen(false);
-    // Use setTimeout to ensure popover closes before logout
-    setTimeout(() => {
-      logout();
-      navigate('/');
-    }, 100);
+    // Wait for logout to complete before navigation
+    await logout();
+    navigate('/');
   };
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [

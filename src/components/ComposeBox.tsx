@@ -80,8 +80,6 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  if (!user && compact) return null;
-
   const charCount = content.length;
   const remaining = MAX_CHARS - charCount;
 
@@ -183,6 +181,9 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   };
 
   const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
+
+  // Early return after all hooks to avoid violating Rules of Hooks
+  if (!user && compact) return null;
 
   return (
     <div className={cn("flex gap-3 px-4 py-3", !forceExpanded && "border-b border-border")}>
