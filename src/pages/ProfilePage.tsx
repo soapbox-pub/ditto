@@ -388,6 +388,30 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   );
 }
 
+// ----- Pinned Label -----
+
+function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }) {
+  if (isOwn) {
+    return (
+      <button
+        className="group flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0 hover:text-destructive transition-colors"
+        onClick={(e) => { e.stopPropagation(); onUnpin(); }}
+      >
+        <Pin className="size-3 rotate-45" />
+        <span className="group-hover:hidden">Pinned</span>
+        <span className="hidden group-hover:inline">Unpin?</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0">
+      <Pin className="size-3 rotate-45" />
+      <span>Pinned</span>
+    </div>
+  );
+}
+
 // ----- Main Component -----
 
 export function ProfilePage() {
@@ -461,7 +485,7 @@ export function ProfilePage() {
   const { data: profileFollowing } = useProfileFollowing(pubkey);
 
   // Pinned notes for this profile
-  const { events: pinnedEvents } = usePinnedNotes(pubkey);
+  const { events: pinnedEvents, togglePin } = usePinnedNotes(pubkey);
   const isFollowing = useMemo(() => {
     if (!pubkey || !followData?.pubkeys) return false;
     return followData.pubkeys.includes(pubkey);
@@ -665,10 +689,10 @@ export function ProfilePage() {
           <div>
             {pinnedEvents.map((event) => (
               <div key={`pinned-${event.id}`} className="relative">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0 ml-14">
-                  <Pin className="size-3 rotate-45" />
-                  <span>Pinned</span>
-                </div>
+                <PinnedLabel
+                  isOwn={isOwnProfile}
+                  onUnpin={() => togglePin.mutate(event.id)}
+                />
                 <NoteCard event={event} />
               </div>
             ))}
