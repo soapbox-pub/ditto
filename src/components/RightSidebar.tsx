@@ -40,7 +40,7 @@ export function RightSidebar() {
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts();
 
   return (
-    <aside className="w-[340px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-4">
+    <aside className="w-[340px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-6">
       {/* Trending Tags */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
