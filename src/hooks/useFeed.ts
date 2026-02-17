@@ -63,6 +63,7 @@ export function useFeed(tab: 'follows' | 'global') {
     queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
     queryFn: async ({ signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const now = Math.floor(Date.now() / 1000);
 
       if (tab === 'follows' && user && followList && followList.length > 0) {
         // Follows feed — posts and reposts from people you follow
@@ -77,12 +78,15 @@ export function useFeed(tab: 'follows' | 'global') {
         const repostMap = new Map<string, NostrEvent>(); // eventId -> repost event
 
         for (const ev of events) {
+          // Skip future-dated events
+          if (ev.created_at > now) continue;
+
           if (ev.kind === 1) {
             items.push({ event: ev, sortTimestamp: ev.created_at });
           } else if (ev.kind === 6) {
             // Try to get the reposted event from the content first
             const embedded = parseRepostContent(ev);
-            if (embedded && embedded.kind === 1) {
+            if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
             } else {
               // Need to fetch the original event
@@ -104,7 +108,7 @@ export function useFeed(tab: 'follows' | 'global') {
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
-              if (repost && original.kind === 1) {
+              if (repost && original.kind === 1 && original.created_at <= now) {
                 items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
               }
             }
@@ -133,6 +137,7 @@ export function useFeed(tab: 'follows' | 'global') {
           { signal: querySignal },
         );
         return events
+          .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }

@@ -12,7 +12,7 @@ import type { FeedItem } from '@/hooks/useFeed';
 
 export function Feed() {
   const { user } = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<'follows' | 'global'>('global');
+  const [activeTab, setActiveTab] = useState<'follows' | 'global'>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const { data: feedItems, isLoading } = useFeed(activeTab);
