@@ -375,7 +375,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
         fadeFromIndex={0}
       >
         <DrawerTrigger asChild>
-          <div className={`cursor-pointer ${className || ''}`}>
+          <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
             {children}
           </div>
         </DrawerTrigger>
@@ -437,7 +437,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <div className={`cursor-pointer ${className || ''}`}>
+        <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
           {children}
         </div>
       </DialogTrigger>

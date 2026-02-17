@@ -560,7 +560,6 @@ function ActionButtons({
         <button
           className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
           title="Zap"
-          onClick={(e) => e.stopPropagation()}
         >
           <Zap className="size-[18px]" />
           {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
