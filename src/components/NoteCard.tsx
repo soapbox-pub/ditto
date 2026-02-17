@@ -77,21 +77,21 @@ export function NoteCard({ event, className }: NoteCardProps) {
         {/* Content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
-          <div className="flex items-center gap-1.5 text-sm">
+          <div className="flex items-center gap-1.5 text-sm min-w-0">
             <Link
               to={`/${npub}`}
-              className="font-bold hover:underline truncate"
+              className="font-bold hover:underline shrink-0 max-w-[40%] truncate"
               onClick={(e) => e.stopPropagation()}
             >
               {displayName}
             </Link>
             {nip05 && (
-              <span className="text-muted-foreground truncate">
+              <span className="text-muted-foreground truncate min-w-0">
                 @{nip05}
               </span>
             )}
             {metadata?.bot && (
-              <span className="text-xs text-primary" title="Bot account">🤖</span>
+              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
             )}
             <span className="text-muted-foreground shrink-0">·</span>
             <span className="text-muted-foreground shrink-0 hover:underline">
