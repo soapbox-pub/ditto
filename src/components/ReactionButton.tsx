@@ -66,6 +66,8 @@ export function ReactionButton({
       },
       {
         onSuccess: () => {
+          // Reset optimistic delta — the refetched stats will include our reaction
+          setOptimisticDelta(0);
           // Invalidate stats to refetch real counts
           queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
           queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
