@@ -44,7 +44,7 @@ export function Feed() {
         <div className="border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10 py-4 px-6">
           <div className="flex items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              Join Mew to personalize your feed and connect with others
+              Join to personalize your feed
             </p>
             <Button
               onClick={() => setLoginDialogOpen(true)}
