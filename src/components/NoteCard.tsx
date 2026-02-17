@@ -104,7 +104,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
         <ReplyContext pubkey={replyTo[1]} />
       )}
 
-      {/* Header: avatar + name + timestamp */}
+      {/* Header: avatar + name/handle stacked */}
       <div className="flex items-center gap-3">
         <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <Avatar className="size-11">
@@ -115,26 +115,28 @@ export function NoteCard({ event, className }: NoteCardProps) {
           </Avatar>
         </Link>
 
-        <div className="flex items-center gap-1.5 text-sm min-w-0">
-          <Link
-            to={`/${npub}`}
-            className="font-bold hover:underline shrink-0 max-w-[40%] truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {displayName}
-          </Link>
-          {nip05 && (
-            <span className="text-muted-foreground truncate min-w-0">
-              @{nip05}
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <Link
+              to={`/${npub}`}
+              className="font-bold text-[15px] hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+            {metadata?.bot && (
+              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+            )}
+          </div>
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+            {nip05 && (
+              <span className="truncate">@{nip05}</span>
+            )}
+            {nip05 && <span className="shrink-0">·</span>}
+            <span className="shrink-0 hover:underline">
+              {timeAgo(event.created_at)}
             </span>
-          )}
-          {metadata?.bot && (
-            <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-          )}
-          <span className="text-muted-foreground shrink-0">·</span>
-          <span className="text-muted-foreground shrink-0 hover:underline">
-            {timeAgo(event.created_at)}
-          </span>
+          </div>
         </div>
       </div>
 
