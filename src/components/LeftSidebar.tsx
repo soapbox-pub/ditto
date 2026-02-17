@@ -225,7 +225,7 @@ export function LeftSidebar() {
                       </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" side="top" className="w-48">
+                  <DropdownMenuContent align="end" side="top" className="w-48">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {themes.map((themeOption) => (
