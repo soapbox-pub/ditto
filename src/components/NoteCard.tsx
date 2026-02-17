@@ -310,7 +310,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   const name = author.data?.metadata?.name || genUserName(pubkey);
 
   return (
-    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1 ml-14">
       <Repeat2 className="size-3.5" />
       <Link
         to={`/${nip19.npubEncode(pubkey)}`}
