@@ -170,9 +170,12 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
     setIsDragging(false);
   };
 
-  // Click backdrop to close
+  // Click anywhere that isn't a button or the image itself to close
   const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) onClose();
+    const target = e.target as HTMLElement;
+    // Don't close if clicking on the image, a button, or inside the top bar
+    if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
+    onClose();
   };
 
   const handleDownload = (e: React.MouseEvent) => {
@@ -196,7 +199,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
       {/* Top bar */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3">
+      <div data-gallery-topbar className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3">
         {/* Counter */}
         {hasMultiple && (
           <span className="text-white/80 text-sm font-medium tabular-nums">
