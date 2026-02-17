@@ -51,11 +51,10 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   return true;
 }
 
-// Use relay.ditto.pub for all search streaming (supports NIP-50)
-const SEARCH_RELAY = 'wss://relay.ditto.pub';
+const STREAM_RELAYS = ['wss://relay.ditto.pub', 'wss://relay.damus.io', 'wss://relay.primal.net'];
 
 /**
- * Stream posts in real-time from a single relay.
+ * Stream posts in real-time.
  * 1. Fetches initial batch via query().
  * 2. Opens a live req() subscription for new posts in parallel.
  */
@@ -89,14 +88,14 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
-    // Always use a single relay for streaming (pool eoseTimeout kills subscriptions)
-    const relay = nostr.relay(SEARCH_RELAY);
-
     // Build base filter
     const baseFilter: NostrFilter = { kinds: [1] };
     if (query.trim()) {
       baseFilter.search = query.trim();
     }
+
+    // For NIP-50 search, only use relay.ditto.pub
+    const relays = query.trim() ? ['wss://relay.ditto.pub'] : STREAM_RELAYS;
 
     const now = Math.floor(Date.now() / 1000);
 
@@ -104,9 +103,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const fetchInitial = async () => {
       try {
         const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(8000)]);
-        const events = await relay.query(
+        const events = await nostr.query(
           [{ ...baseFilter, limit: 40 }],
-          { signal },
+          { signal, relays },
         );
 
         for (const event of events) {
@@ -125,11 +124,18 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // 2. Stream new posts in real-time
     const streamNew = async () => {
       try {
-        for await (const msg of relay.req([{ ...baseFilter, since: now, limit: 100 }], { signal: ac.signal })) {
+        const subscription = nostr.req(
+          [{ ...baseFilter, since: now, limit: 100 }],
+          { signal: ac.signal, relays },
+        );
+
+        for await (const msg of subscription) {
           if (!isSubscribed) break;
 
           if (msg[0] === 'EVENT') {
             addEvent(msg[2]);
+          } else if (msg[0] === 'EOSE') {
+            // Stream continues after EOSE
           } else if (msg[0] === 'CLOSED') {
             break;
           }
