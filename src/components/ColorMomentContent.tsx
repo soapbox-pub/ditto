@@ -36,7 +36,7 @@ function luminance(hex: string): number {
 
 function HorizontalLayout({ colors }: { colors: string[] }) {
   return (
-    <div className="flex flex-col w-full aspect-square rounded-2xl overflow-hidden">
+    <div className="flex flex-col w-full rounded-2xl overflow-hidden" style={{ height: 180 }}>
       {colors.map((color, i) => (
         <div key={i} className="flex-1" style={{ backgroundColor: color }} />
       ))}
@@ -46,7 +46,7 @@ function HorizontalLayout({ colors }: { colors: string[] }) {
 
 function VerticalLayout({ colors }: { colors: string[] }) {
   return (
-    <div className="flex w-full aspect-square rounded-2xl overflow-hidden">
+    <div className="flex w-full rounded-2xl overflow-hidden" style={{ height: 180 }}>
       {colors.map((color, i) => (
         <div key={i} className="flex-1" style={{ backgroundColor: color }} />
       ))}
@@ -58,8 +58,11 @@ function GridLayout({ colors }: { colors: string[] }) {
   const { cols } = gridDimensions(colors.length);
   return (
     <div
-      className="grid w-full aspect-square rounded-2xl overflow-hidden"
-      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+      className="grid w-full rounded-2xl overflow-hidden"
+      style={{
+        height: 180,
+        gridTemplateColumns: `repeat(${cols}, 1fr)`,
+      }}
     >
       {colors.map((color, i) => (
         <div key={i} style={{ backgroundColor: color }} />
@@ -80,8 +83,11 @@ function StarLayout({ colors }: { colors: string[] }) {
 
   return (
     <div
-      className="w-full aspect-square rounded-full"
-      style={{ background: `conic-gradient(${stops})` }}
+      className="w-full rounded-2xl overflow-hidden"
+      style={{
+        height: 180,
+        background: `conic-gradient(from 0deg at 50% 50%, ${stops})`,
+      }}
     />
   );
 }
@@ -90,8 +96,9 @@ function CheckerboardLayout({ colors }: { colors: string[] }) {
   const { cols } = gridDimensions(colors.length);
   return (
     <div
-      className="grid w-full aspect-square rounded-2xl overflow-hidden"
+      className="grid w-full rounded-2xl overflow-hidden"
       style={{
+        height: 180,
         gridTemplateColumns: `repeat(${cols}, 1fr)`,
         gap: 2,
       }}
@@ -114,8 +121,11 @@ function DiagonalStripesLayout({ colors }: { colors: string[] }) {
 
   return (
     <div
-      className="w-full aspect-square rounded-2xl"
-      style={{ background: `linear-gradient(135deg, ${stops})` }}
+      className="w-full rounded-2xl"
+      style={{
+        height: 180,
+        background: `linear-gradient(135deg, ${stops})`,
+      }}
     />
   );
 }
