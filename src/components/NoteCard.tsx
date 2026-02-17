@@ -11,7 +11,7 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -313,7 +313,27 @@ function NoteVideoPlayer({ url, poster }: { url: string; poster?: string }) {
 /** Media content for kind 34236 vine events — rendered at full card width. */
 function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: string }; hashtags: string[] }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Pause video when scrolled out of view
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && !video.paused) {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
 
   const handlePlayToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -332,6 +352,7 @@ function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: st
     <>
       {imeta?.url && (
         <div
+          ref={containerRef}
           className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
           onClick={handlePlayToggle}
         >

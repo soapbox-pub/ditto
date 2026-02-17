@@ -57,6 +57,25 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
     };
   }, [isPlaying, scheduleHide]);
 
+  // Pause video when scrolled out of view
+  useEffect(() => {
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting && !video.paused) {
+          video.pause();
+        }
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
   const togglePlay = (e: React.MouseEvent) => {
     e.stopPropagation();
     const video = videoRef.current;
