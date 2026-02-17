@@ -11,8 +11,8 @@ interface NoteContentProps {
   className?: string;
 }
 
-/** Regex to detect image URLs that will be displayed as embedded previews. */
-const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/i;
+/** Regex to detect media file URLs (images, video, audio, etc.) that are rendered as embeds. */
+const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?/i;
 
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({
@@ -41,23 +41,14 @@ export function NoteContent({
       }
       
       if (url) {
-        // Skip image URLs — they are rendered as embedded previews by the parent component
-        if (IMAGE_URL_REGEX.test(url)) {
+        // Skip media URLs — they are rendered as embedded previews by the parent
+        if (MEDIA_URL_REGEX.test(url)) {
           lastIndex = index + fullMatch.length;
           continue;
         }
-        // Handle non-image URLs
-        parts.push(
-          <a 
-            key={`url-${keyCounter++}`}
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary hover:underline break-all"
-          >
-            {url}
-          </a>
-        );
+        // Skip non-media URLs — they are rendered as link preview cards by the parent
+        lastIndex = index + fullMatch.length;
+        continue;
       } else if (nostrPrefix && nostrData) {
         // Handle Nostr references
         try {
