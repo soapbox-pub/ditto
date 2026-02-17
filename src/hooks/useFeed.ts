@@ -1,7 +1,9 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+const PAGE_SIZE = 30;
 
 /** A feed item — either a direct post or a repost wrapping the original event. */
 export interface FeedItem {
@@ -53,43 +55,45 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
   return undefined;
 }
 
-/** Hook to fetch the global or followed feed of kind 1 notes and kind 6 reposts. */
+/** Hook to fetch the global or followed feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
 
-  return useQuery<FeedItem[]>({
+  return useInfiniteQuery<FeedItem[], Error>({
     queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
 
       if (tab === 'follows' && user && followList && followList.length > 0) {
         // Follows feed — posts and reposts from people you follow
         const authors = [...followList, user.pubkey];
+        const filter: Record<string, unknown> = { kinds: [1, 6], authors, limit: PAGE_SIZE };
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
         const events = await nostr.query(
-          [{ kinds: [1, 6], authors, limit: 60 }],
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
           { signal: querySignal },
         );
 
         const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
-        const repostMap = new Map<string, NostrEvent>(); // eventId -> repost event
+        const repostMap = new Map<string, NostrEvent>();
 
         for (const ev of events) {
-          // Skip future-dated events
           if (ev.created_at > now) continue;
 
           if (ev.kind === 1) {
             items.push({ event: ev, sortTimestamp: ev.created_at });
           } else if (ev.kind === 6) {
-            // Try to get the reposted event from the content first
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
             } else {
-              // Need to fetch the original event
               const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
               if (repostedId) {
                 repostMissingIds.push(repostedId);
@@ -117,14 +121,13 @@ export function useFeed(tab: 'follows' | 'global') {
           }
         }
 
-        // Deduplicate: if the same event appears as both a direct post and a repost, keep only the direct post
+        // Deduplicate
         const seen = new Map<string, FeedItem>();
         for (const item of items) {
           const existing = seen.get(item.event.id);
           if (!existing) {
             seen.set(item.event.id, item);
           } else if (!item.repostedBy && existing.repostedBy) {
-            // Prefer direct post over repost
             seen.set(item.event.id, item);
           }
         }
@@ -132,16 +135,29 @@ export function useFeed(tab: 'follows' | 'global') {
         return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
         // Global feed — just kind 1 notes
+        const filter: Record<string, unknown> = { kinds: [1], limit: PAGE_SIZE };
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
         const events = await nostr.query(
-          [{ kinds: [1], limit: 40 }],
+          [filter as { kinds: number[]; limit: number; until?: number }],
           { signal: querySignal },
         );
+
         return events
           .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
     },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length === 0) return undefined;
+      // Use the oldest item's sortTimestamp minus 1 (since `until` is inclusive)
+      const oldest = lastPage[lastPage.length - 1];
+      return oldest.sortTimestamp - 1;
+    },
+    initialPageParam: undefined as number | undefined,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });

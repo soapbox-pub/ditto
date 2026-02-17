@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
@@ -15,7 +17,39 @@ export function Feed() {
   const [activeTab, setActiveTab] = useState<'follows' | 'global'>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
-  const { data: feedItems, isLoading } = useFeed(activeTab);
+
+  const {
+    data,
+    isLoading,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useFeed(activeTab);
+
+  const { ref, inView } = useInView();
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Flatten pages and deduplicate by event id
+  const feedItems = useMemo(() => {
+    if (!data?.pages) return [];
+    const seen = new Set<string>();
+    const items: FeedItem[] = [];
+    for (const page of data.pages) {
+      for (const item of page) {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          items.push(item);
+        }
+      }
+    }
+    return items;
+  }, [data?.pages]);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
@@ -65,7 +99,7 @@ export function Feed() {
             <NoteCardSkeleton key={i} />
           ))}
         </div>
-      ) : feedItems && feedItems.length > 0 ? (
+      ) : feedItems.length > 0 ? (
         <div>
           {feedItems.map((item: FeedItem) => (
             <NoteCard
@@ -74,6 +108,15 @@ export function Feed() {
               repostedBy={item.repostedBy}
             />
           ))}
+
+          {/* Infinite scroll sentinel */}
+          {hasNextPage && (
+            <div ref={ref} className="flex justify-center py-6">
+              {isFetchingNextPage && (
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="py-16 px-8 text-center">
