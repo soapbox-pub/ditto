@@ -17,10 +17,6 @@ interface ReactionButtonProps {
   eventKind: number;
   /** Current reaction count from stats. */
   reactionCount?: number;
-  /** Reaction emojis from stats. */
-  reactionEmojis?: string[];
-  /** Whether to show emoji indicators next to the count. */
-  showEmojis?: boolean;
   /** Optional extra class names. */
   className?: string;
 }
@@ -30,8 +26,6 @@ export function ReactionButton({
   eventPubkey,
   eventKind,
   reactionCount = 0,
-  reactionEmojis,
-  showEmojis = false,
   className,
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
@@ -84,25 +78,12 @@ export function ReactionButton({
     );
   }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient]);
 
-  // Build display emojis: user's reaction + existing emojis (unique, up to 3)
-  const displayEmojis = (() => {
-    const emojis: string[] = [];
-    if (userReaction) emojis.push(userReaction);
-    if (reactionEmojis) {
-      for (const e of reactionEmojis) {
-        if (!emojis.includes(e)) emojis.push(e);
-        if (emojis.length >= 3) break;
-      }
-    }
-    return emojis;
-  })();
-
   return (
     <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
       <PopoverTrigger asChild>
         <button
           className={cn(
-            'flex items-center gap-1 p-2 rounded-full transition-colors',
+            'flex items-center gap-1.5 p-2 rounded-full transition-colors',
             hasReacted
               ? 'text-pink-500'
               : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
@@ -121,10 +102,7 @@ export function ReactionButton({
             <Heart className="size-[18px]" />
           )}
           {displayCount > 0 && (
-            <span className="text-xs">{displayCount}</span>
-          )}
-          {showEmojis && !hasReacted && displayEmojis.length > 0 && (
-            <span className="text-xs leading-none">{displayEmojis.join('')}</span>
+            <span className="text-sm tabular-nums">{displayCount}</span>
           )}
         </button>
       </PopoverTrigger>

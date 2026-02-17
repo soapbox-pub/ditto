@@ -156,23 +156,23 @@ export function NoteCard({ event, className }: NoteCardProps) {
       )}
 
       {/* Action buttons */}
-      <div className="flex items-center justify-between mt-2 max-w-md -ml-2">
+      <div className="flex items-center gap-6 mt-3 -ml-2">
         <button
-          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Reply"
           onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
         >
           <MessageCircle className="size-[18px]" />
-          {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
+          {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
         </button>
 
         <button
-          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
           title="Repost"
           onClick={(e) => e.stopPropagation()}
         >
           <Repeat2 className="size-[18px]" />
-          {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
+          {stats?.reposts ? <span className="text-sm tabular-nums">{stats.reposts}</span> : null}
         </button>
 
         <ReactionButton
@@ -180,16 +180,15 @@ export function NoteCard({ event, className }: NoteCardProps) {
           eventPubkey={event.pubkey}
           eventKind={event.kind}
           reactionCount={stats?.reactions}
-          reactionEmojis={stats?.reactionEmojis}
         />
 
         <button
-          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
           title="Zap"
           onClick={(e) => e.stopPropagation()}
         >
           <Zap className="size-[18px]" />
-          {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+          {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
         </button>
 
         <button
