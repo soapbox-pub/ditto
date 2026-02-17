@@ -10,9 +10,11 @@ interface MainLayoutProps {
   children: React.ReactNode;
   /** Hide the mobile top bar (e.g., when a page has its own sticky header) */
   hideMobileTopBar?: boolean;
+  /** Optional custom right sidebar to replace the default one */
+  rightSidebar?: React.ReactNode;
 }
 
-export function MainLayout({ children, hideMobileTopBar }: MainLayoutProps) {
+export function MainLayout({ children, hideMobileTopBar, rightSidebar }: MainLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -36,7 +38,7 @@ export function MainLayout({ children, hideMobileTopBar }: MainLayoutProps) {
         {children}
 
         {/* Desktop right sidebar - handled internally with hidden lg:block */}
-        <RightSidebar />
+        {rightSidebar ?? <RightSidebar />}
       </div>
 
       {/* Mobile bottom nav - only on small screens */}

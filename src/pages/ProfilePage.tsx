@@ -4,16 +4,57 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { LinkIcon } from 'lucide-react';
+import { LinkIcon, Zap, Flame } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MainLayout } from '@/components/MainLayout';
+import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
+import { ZapDialog } from '@/components/ZapDialog';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { genUserName } from '@/lib/genUserName';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+const STREAK_WINDOW_HOURS = 36;
+const STREAK_DISPLAY_LIMIT = 99;
+
+/** Calculate posting streak: consecutive posts within a 36-hour window of each other. */
+function calculateStreak(posts: NostrEvent[]): number {
+  if (!posts || posts.length === 0) return 0;
+
+  // Posts should already be sorted newest-first
+  const sorted = [...posts].sort((a, b) => b.created_at - a.created_at);
+  const windowSeconds = STREAK_WINDOW_HOURS * 3600;
+
+  let streak = 1;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i].created_at - sorted[i + 1].created_at;
+    if (gap <= windowSeconds) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+
+  return streak;
+}
+
+/** Parse the custom "fields" array from kind 0 metadata content. */
+function parseProfileFields(content: string): Array<{ label: string; value: string }> {
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed?.fields)) {
+      return parsed.fields
+        .filter((f: unknown) => Array.isArray(f) && f.length >= 2)
+        .map((f: string[]) => ({ label: f[0], value: f[1] }));
+    }
+  } catch {
+    // Invalid JSON
+  }
+  return [];
+}
 
 export function ProfilePage() {
   const { npub } = useParams<{ npub: string }>();
@@ -37,6 +78,12 @@ export function ProfilePage() {
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
+  // Parse profile fields from the raw kind 0 event content
+  const fields = useMemo(() => {
+    if (!author.data?.event?.content) return [];
+    return parseProfileFields(author.data.event.content);
+  }, [author.data?.event?.content]);
+
   useSeoMeta({
     title: `${displayName} | Mew`,
     description: metadata?.about || 'Nostr profile',
@@ -48,13 +95,15 @@ export function ProfilePage() {
     queryFn: async ({ signal }) => {
       if (!pubkey) return [];
       const events = await nostr.query(
-        [{ kinds: [1], authors: [pubkey], limit: 30 }],
+        [{ kinds: [1], authors: [pubkey], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       return events.sort((a, b) => b.created_at - a.created_at);
     },
     enabled: !!pubkey,
   });
+
+  const streak = useMemo(() => calculateStreak(posts ?? []), [posts]);
 
   if (!pubkey) {
     return (
@@ -70,8 +119,14 @@ export function ProfilePage() {
 
   const isOwnProfile = user?.pubkey === pubkey;
 
+  // Use the kind 0 event as the zap target
+  const authorEvent = author.data?.event;
+
   return (
-    <MainLayout hideMobileTopBar>
+    <MainLayout
+      hideMobileTopBar
+      rightSidebar={<ProfileRightSidebar pubkey={pubkey} fields={fields} />}
+    >
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
@@ -89,21 +144,45 @@ export function ProfilePage() {
                 {displayName[0].toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            {isOwnProfile ? (
-              <Link to="/settings/profile">
-                <Button variant="outline" className="rounded-full mt-14 md:mt-20 font-bold">
-                  Edit profile
-                </Button>
-              </Link>
-            ) : (
-              <Button className="rounded-full mt-14 md:mt-20 font-bold">Follow</Button>
-            )}
+            <div className="flex items-center gap-2 mt-14 md:mt-20">
+              {/* Zap button — only show for other users with a lightning address */}
+              {!isOwnProfile && authorEvent && (metadata?.lud16 || metadata?.lud06) && (
+                <ZapDialog target={authorEvent}>
+                  <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
+                    <Zap className="size-5" />
+                  </Button>
+                </ZapDialog>
+              )}
+              {isOwnProfile ? (
+                <Link to="/settings/profile">
+                  <Button variant="outline" className="rounded-full font-bold">
+                    Edit profile
+                  </Button>
+                </Link>
+              ) : (
+                <Button className="rounded-full font-bold">Follow</Button>
+              )}
+            </div>
           </div>
 
-          <h2 className="text-xl font-bold">{displayName}</h2>
-          {metadata?.nip05 && (
-            <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
-          )}
+          <div className="flex items-center gap-3">
+            <div className="min-w-0">
+              <h2 className="text-xl font-bold">{displayName}</h2>
+              {metadata?.nip05 && (
+                <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
+              )}
+            </div>
+
+            {/* Streak badge */}
+            {streak > 1 && (
+              <div className="flex items-center gap-1 bg-orange-500/15 text-orange-500 px-2.5 py-1 rounded-full shrink-0" title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}>
+                <Flame className="size-4" />
+                <span className="text-sm font-bold tabular-nums">
+                  {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
+                </span>
+              </div>
+            )}
+          </div>
 
           {metadata?.about && (
             <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>
