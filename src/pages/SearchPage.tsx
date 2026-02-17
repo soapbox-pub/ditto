@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Search as SearchIcon } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { ArrowLeft, ChevronDown, ChevronUp, Search as SearchIcon } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
@@ -18,7 +18,6 @@ import { useTrendingTags } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 type TabType = 'posts' | 'trends' | 'accounts';
 
@@ -30,6 +29,7 @@ export function SearchPage() {
 
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [searchQuery, setSearchQuery] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Search filters
   const [includeReplies, setIncludeReplies] = useState(true);
@@ -47,10 +47,11 @@ export function SearchPage() {
   return (
     <MainLayout hideMobileTopBar>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
-        {/* Header with back button and search */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20 border-b border-border">
+        {/* Sticky header */}
+        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20">
+          {/* Search bar */}
           <div className="flex items-center gap-3 px-4 py-3">
-            <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors shrink-0">
+            <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors shrink-0">
               <ArrowLeft className="size-5" />
             </Link>
             <div className="flex-1 relative">
@@ -60,7 +61,7 @@ export function SearchPage() {
                 placeholder="Search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1"
+                className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1 rounded-full"
                 autoFocus
               />
             </div>
@@ -68,160 +69,156 @@ export function SearchPage() {
 
           {/* Tabs */}
           <div className="flex border-b border-border">
-            <TabButton
-              label="Posts"
-              active={activeTab === 'posts'}
-              onClick={() => setActiveTab('posts')}
-            />
-            <TabButton
-              label="Trends"
-              active={activeTab === 'trends'}
-              onClick={() => setActiveTab('trends')}
-            />
-            <TabButton
-              label="Accounts"
-              active={activeTab === 'accounts'}
-              onClick={() => setActiveTab('accounts')}
-            />
+            <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
+            <TabButton label="Trends" active={activeTab === 'trends'} onClick={() => setActiveTab('trends')} />
+            <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
           </div>
         </div>
 
-        <div className="flex">
-          {/* Left Sidebar - Search Filters (Posts tab only) */}
-          {activeTab === 'posts' && (
-            <aside className="hidden md:block w-64 border-r border-border shrink-0">
-              <div className="sticky top-[145px] p-4 space-y-6">
-                <h2 className="font-bold text-lg">Search filters</h2>
+        {/* === Posts Tab === */}
+        {activeTab === 'posts' && (
+          <>
+            {/* Collapsible search filters */}
+            <div className="border-b border-border">
+              <button
+                onClick={() => setFiltersOpen(!filtersOpen)}
+                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-secondary/30 transition-colors"
+              >
+                <span className="font-bold text-lg">Search filters</span>
+                {filtersOpen
+                  ? <ChevronUp className="size-5 text-muted-foreground" />
+                  : <ChevronDown className="size-5 text-muted-foreground" />
+                }
+              </button>
 
-                {/* Include replies toggle */}
-                <div className="space-y-3">
-                  <Label htmlFor="include-replies" className="text-base font-normal">
-                    Including replies
-                  </Label>
-                  <div className="flex justify-end">
+              <div
+                className={cn(
+                  'overflow-hidden transition-all duration-200 ease-in-out',
+                  filtersOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
+                )}
+              >
+                <div className="px-4 pb-4 space-y-5">
+                  {/* Include replies */}
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="include-replies" className="text-[15px] font-normal cursor-pointer">
+                      Including replies
+                    </Label>
                     <Switch
                       id="include-replies"
                       checked={includeReplies}
                       onCheckedChange={setIncludeReplies}
                     />
                   </div>
-                </div>
 
-                {/* Media type filter */}
-                <div className="space-y-3">
-                  <Label className="text-base font-normal">With ONLY the media type:</Label>
-                  <RadioGroup value={mediaType} onValueChange={(v) => setMediaType(v as typeof mediaType)}>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="all" id="media-all" />
-                      <Label htmlFor="media-all" className="font-normal cursor-pointer">All media</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="images" id="media-images" />
-                      <Label htmlFor="media-images" className="font-normal cursor-pointer">Images</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="videos" id="media-videos" />
-                      <Label htmlFor="media-videos" className="font-normal cursor-pointer">Regular videos</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="vines" id="media-vines" />
-                      <Label htmlFor="media-vines" className="font-normal cursor-pointer">Short videos (Vines)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="none" id="media-none" />
-                      <Label htmlFor="media-none" className="font-normal cursor-pointer">No media</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-
-                {/* Language filter */}
-                <div className="space-y-3">
-                  <Label className="text-base font-normal">In the language:</Label>
-                  <Select value={language} onValueChange={setLanguage}>
-                    <SelectTrigger className="w-full bg-secondary/50">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global">Global</SelectItem>
-                      <SelectItem value="en">English</SelectItem>
-                      <SelectItem value="es">Spanish</SelectItem>
-                      <SelectItem value="fr">French</SelectItem>
-                      <SelectItem value="de">German</SelectItem>
-                      <SelectItem value="ja">Japanese</SelectItem>
-                      <SelectItem value="zh">Chinese</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </aside>
-          )}
-
-          {/* Main Content Area */}
-          <div className="flex-1 min-w-0">
-            {/* Posts Tab */}
-            {activeTab === 'posts' && (
-              <>
-                {searchQuery.trim() ? (
-                  postsLoading ? (
-                    <div className="divide-y divide-border">
-                      {Array.from({ length: 5 }).map((_, i) => (
-                        <PostSkeleton key={i} />
+                  {/* Media type */}
+                  <div className="space-y-2.5">
+                    <Label className="text-[15px] font-normal">With ONLY the media type:</Label>
+                    <RadioGroup value={mediaType} onValueChange={(v) => setMediaType(v as typeof mediaType)} className="space-y-1.5">
+                      {[
+                        { value: 'all', label: 'All media' },
+                        { value: 'images', label: 'Images' },
+                        { value: 'videos', label: 'Regular videos' },
+                        { value: 'vines', label: 'Short videos (Vines)' },
+                        { value: 'none', label: 'No media' },
+                      ].map(({ value, label }) => (
+                        <div key={value} className="flex items-center space-x-2">
+                          <RadioGroupItem value={value} id={`media-${value}`} />
+                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                        </div>
                       ))}
-                    </div>
-                  ) : posts && posts.length > 0 ? (
-                    <div>
-                      {posts.map((event) => (
-                        <NoteCard key={event.id} event={event} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyState message="No posts found matching your search." />
-                  )
-                ) : (
-                  <EmptyState message="Enter a search query to find posts." />
-                )}
-              </>
-            )}
+                    </RadioGroup>
+                  </div>
 
-            {/* Trends Tab */}
-            {activeTab === 'trends' && (
-              <div className="divide-y divide-border">
-                {trendsLoading ? (
-                  Array.from({ length: 10 }).map((_, i) => (
-                    <TrendSkeleton key={i} />
-                  ))
-                ) : trends && trends.length > 0 ? (
-                  trends.map((trend, index) => (
-                    <TrendItem key={index} trend={trend} />
-                  ))
-                ) : (
-                  <EmptyState message="No trends available at the moment." />
-                )}
+                  {/* Language */}
+                  <div className="space-y-2.5">
+                    <Label className="text-[15px] font-normal">In the language:</Label>
+                    <Select value={language} onValueChange={setLanguage}>
+                      <SelectTrigger className="w-full bg-secondary/50 rounded-lg">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="global">Global</SelectItem>
+                        <SelectItem value="en">English</SelectItem>
+                        <SelectItem value="es">Spanish</SelectItem>
+                        <SelectItem value="fr">French</SelectItem>
+                        <SelectItem value="de">German</SelectItem>
+                        <SelectItem value="ja">Japanese</SelectItem>
+                        <SelectItem value="zh">Chinese</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Accounts Tab */}
-            {activeTab === 'accounts' && (
+            {/* Post results */}
+            {searchQuery.trim() ? (
+              postsLoading && posts.length === 0 ? (
+                <div className="divide-y divide-border">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <PostSkeleton key={i} />
+                  ))}
+                </div>
+              ) : posts.length > 0 ? (
+                <div>
+                  {posts.map((event) => (
+                    <NoteCard key={event.id} event={event} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="No posts found matching your search." />
+              )
+            ) : (
+              <EmptyState message="Enter a search query to find posts." />
+            )}
+          </>
+        )}
+
+        {/* === Trends Tab === */}
+        {activeTab === 'trends' && (
+          <div>
+            {trendsLoading ? (
               <div className="divide-y divide-border">
-                {searchQuery.trim() ? (
-                  profilesLoading ? (
-                    Array.from({ length: 5 }).map((_, i) => (
-                      <AccountSkeleton key={i} />
-                    ))
-                  ) : profiles && profiles.length > 0 ? (
-                    profiles.map((profile) => (
-                      <AccountItem key={profile.pubkey} profile={profile} />
-                    ))
-                  ) : (
-                    <EmptyState message="No accounts found matching your search." />
-                  )
-                ) : (
-                  <EmptyState message="Search for people by name or NIP-05 address." />
-                )}
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <TrendSkeleton key={i} />
+                ))}
               </div>
+            ) : trends && trends.length > 0 ? (
+              <div className="divide-y divide-border">
+                {trends.map((trend, index) => (
+                  <TrendItem key={index} trend={trend} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message="No trends available at the moment." />
             )}
           </div>
-        </div>
+        )}
+
+        {/* === Accounts Tab === */}
+        {activeTab === 'accounts' && (
+          <div>
+            {searchQuery.trim() ? (
+              profilesLoading ? (
+                <div className="divide-y divide-border">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <AccountSkeleton key={i} />
+                  ))}
+                </div>
+              ) : profiles && profiles.length > 0 ? (
+                <div className="divide-y divide-border">
+                  {profiles.map((profile) => (
+                    <AccountItem key={profile.pubkey} profile={profile} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState message="No accounts found matching your search." />
+              )
+            ) : (
+              <EmptyState message="Search for people by name or NIP-05 address." />
+            )}
+          </div>
+        )}
       </main>
     </MainLayout>
   );
@@ -248,52 +245,42 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="block px-4 py-3 hover:bg-secondary/30 transition-colors"
+      className="block px-4 py-3.5 hover:bg-secondary/30 transition-colors"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-muted-foreground">Trending</p>
-          <p className="font-bold text-[15px] mt-0.5">#{trend.tag}</p>
-          <p className="text-sm text-muted-foreground mt-0.5">{trend.count} posts</p>
-        </div>
-      </div>
+      <p className="text-xs text-muted-foreground">Trending</p>
+      <p className="font-bold text-[15px] mt-0.5">#{trend.tag}</p>
+      <p className="text-sm text-muted-foreground mt-0.5">{trend.count.toLocaleString()} posts</p>
     </Link>
   );
 }
 
-function AccountItem({ profile }: { profile: { pubkey: string; metadata: any } }) {
+function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<string, unknown> } }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
-  const displayName = profile.metadata?.name || genUserName(profile.pubkey);
-  const nip05 = profile.metadata?.nip05;
+  const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
+  const displayName = metadata?.name || genUserName(profile.pubkey);
 
   return (
     <Link
       to={`/${npub}`}
-      className="block px-4 py-3 hover:bg-secondary/30 transition-colors"
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <div className="flex items-center gap-3">
-        <Avatar className="size-12 shrink-0">
-          <AvatarImage src={profile.metadata?.picture} alt={displayName} />
-          <AvatarFallback className="bg-primary/20 text-primary">
-            {displayName[0]?.toUpperCase() || '?'}
-          </AvatarFallback>
-        </Avatar>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <p className="font-bold truncate">{displayName}</p>
-            {profile.metadata?.bot && (
-              <span className="text-xs text-primary" title="Bot account">🤖</span>
-            )}
-          </div>
-          {nip05 && (
-            <p className="text-sm text-muted-foreground truncate">@{nip05}</p>
-          )}
-          {profile.metadata?.about && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {profile.metadata.about}
-            </p>
-          )}
+      <Avatar className="size-11 shrink-0">
+        <AvatarImage src={metadata?.picture} alt={displayName} />
+        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+          {displayName[0]?.toUpperCase() || '?'}
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="font-bold text-[15px] truncate">{displayName}</p>
+          {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
         </div>
+        {metadata?.nip05 && (
+          <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
+        )}
+        {metadata?.about && (
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{metadata.about}</p>
+        )}
       </div>
     </Link>
   );
@@ -301,32 +288,30 @@ function AccountItem({ profile }: { profile: { pubkey: string; metadata: any } }
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="col-span-full">
-      <Card className="border-dashed m-4">
-        <CardContent className="py-12 px-8 text-center">
-          <div className="max-w-sm mx-auto space-y-6">
-            <p className="text-muted-foreground">{message}</p>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="py-16 px-8 text-center">
+      <p className="text-muted-foreground">{message}</p>
     </div>
   );
 }
 
 function PostSkeleton() {
   return (
-    <div className="px-4 py-3 border-b border-border">
+    <div className="px-4 py-3">
       <div className="flex gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
         <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-32" />
-            <Skeleton className="h-3 w-8" />
           </div>
           <div className="space-y-1.5">
             <Skeleton className="h-4 w-full" />
             <Skeleton className="h-4 w-4/5" />
+          </div>
+          <div className="flex gap-12 mt-2">
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-8" />
           </div>
         </div>
       </div>
@@ -336,23 +321,21 @@ function PostSkeleton() {
 
 function TrendSkeleton() {
   return (
-    <div className="px-4 py-3">
-      <Skeleton className="h-3 w-16 mb-2" />
-      <Skeleton className="h-5 w-32 mb-1" />
-      <Skeleton className="h-3 w-20" />
+    <div className="px-4 py-3.5">
+      <Skeleton className="h-3 w-14 mb-1.5" />
+      <Skeleton className="h-5 w-28 mb-1" />
+      <Skeleton className="h-3 w-16" />
     </div>
   );
 }
 
 function AccountSkeleton() {
   return (
-    <div className="px-4 py-3">
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-12 rounded-full shrink-0" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-40" />
-        </div>
+    <div className="flex items-center gap-3 px-4 py-3">
+      <Skeleton className="size-11 rounded-full shrink-0" />
+      <div className="flex-1 space-y-1.5">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-3 w-36" />
       </div>
     </div>
   );
