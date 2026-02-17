@@ -59,11 +59,11 @@ function useProfileMedia(pubkey: string) {
   });
 }
 
-/** Get favicon URL for a given website URL using Google's favicon service. */
+/** Get favicon URL from the site's own /favicon.ico. */
 function getFaviconUrl(url: string): string {
   try {
-    const hostname = new URL(url).hostname;
-    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+    const parsed = new URL(url);
+    return `${parsed.origin}/favicon.ico`;
   } catch {
     return '';
   }
@@ -150,7 +150,7 @@ function Favicon({ url }: { url: string }) {
     <img
       src={faviconSrc}
       alt=""
-      className="size-4 shrink-0 rounded-sm"
+      className="size-4 shrink-0"
       loading="lazy"
       onError={() => setFailed(true)}
     />
@@ -245,13 +245,13 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
       <section className="mb-6">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-0.5">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square rounded-lg" />
             ))}
           </div>
         ) : media && media.length > 0 ? (
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-3 gap-0.5">
             {media.map((url, i) => {
               const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
               return (
@@ -275,7 +275,6 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
-                      sizes="96px"
                     />
                   )}
                 </a>
