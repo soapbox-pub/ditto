@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -45,7 +45,11 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   return true;
 }
 
-/** Stream posts in real-time. When a search query is provided, uses NIP-50 on relay.ditto.pub. */
+/**
+ * Stream posts in real-time.
+ * 1. Fetches an initial batch via query() (limit: 40).
+ * 2. Opens a live req() subscription (limit: 0, since: now) for new posts.
+ */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [posts, setPosts] = useState<NostrEvent[]>([]);
@@ -61,16 +65,16 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const ac = new AbortController();
     abortRef.current = ac;
 
-    // Reset posts when query/filters change
     setPosts([]);
     setIsLoading(true);
 
     const eventMap = new Map<string, NostrEvent>();
 
-    // Build filter
-    const filter: NostrFilter = { kinds: [1], limit: 0 };
-    if (query.trim()) {
-      filter.search = query.trim();
+    function addEvent(event: NostrEvent) {
+      if (eventMap.has(event.id)) return;
+      if (!filterEvent(event, options)) return;
+      eventMap.set(event.id, event);
+      setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
     // Use relay.ditto.pub for NIP-50 search, otherwise default pool
@@ -78,27 +82,34 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       ? nostr.relay('wss://relay.ditto.pub')
       : nostr;
 
-    // Run the streaming loop
+    // Build base filter
+    const baseFilter: NostrFilter = { kinds: [1] };
+    if (query.trim()) {
+      baseFilter.search = query.trim();
+    }
+
+    const now = Math.floor(Date.now() / 1000);
+
     (async () => {
       try {
-        for await (const msg of store.req([filter], { signal: ac.signal })) {
-          if (msg[0] === 'EOSE') {
-            setIsLoading(false);
-            continue;
+        // 1. Fetch initial batch
+        const initial = await store.query(
+          [{ ...baseFilter, limit: 40 }],
+          { signal: ac.signal },
+        );
+
+        for (const event of initial) {
+          addEvent(event);
+        }
+        setIsLoading(false);
+
+        // 2. Stream new posts going forward
+        for await (const msg of store.req([{ ...baseFilter, since: now, limit: 0 }], { signal: ac.signal })) {
+          if (msg[0] === 'EVENT') {
+            addEvent(msg[2]);
           }
           if (msg[0] === 'CLOSED') {
             break;
-          }
-          if (msg[0] === 'EVENT') {
-            const event = msg[2];
-
-            if (!filterEvent(event, options)) continue;
-            if (eventMap.has(event.id)) continue;
-
-            eventMap.set(event.id, event);
-            setPosts(
-              Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at),
-            );
           }
         }
       } catch {
