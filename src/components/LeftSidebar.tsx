@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, MapPin, Palette, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -13,6 +13,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
@@ -46,20 +47,37 @@ export function LeftSidebar() {
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
+  const { feedSettings } = useFeedSettings();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
 
-  const navItems = [
-    { to: '/', icon: <Home className="size-6" />, label: 'Home' },
-    { to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' },
-    { to: '/search', icon: <Search className="size-6" />, label: 'Search' },
-    { to: '/vines', icon: <Clapperboard className="size-6" />, label: 'Vines' },
-    { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
-    { to: '/wallet', icon: <Wallet className="size-6" />, label: 'Wallet' },
-    { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
-    { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
-  ];
+  const navItems = useMemo(() => {
+    const items = [
+      { to: '/', icon: <Home className="size-6" />, label: 'Home' },
+      { to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' },
+      { to: '/search', icon: <Search className="size-6" />, label: 'Search' },
+    ];
+    if (feedSettings.showVines) {
+      items.push({ to: '/vines', icon: <Clapperboard className="size-6" />, label: 'Vines' });
+    }
+    if (feedSettings.showPolls) {
+      items.push({ to: '/polls', icon: <BarChart3 className="size-6" />, label: 'Polls' });
+    }
+    if (feedSettings.showTreasures) {
+      items.push({ to: '/treasures', icon: <MapPin className="size-6" />, label: 'Treasures' });
+    }
+    if (feedSettings.showColors) {
+      items.push({ to: '/colors', icon: <Palette className="size-6" />, label: 'Colors' });
+    }
+    items.push(
+      { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
+      { to: '/wallet', icon: <Wallet className="size-6" />, label: 'Wallet' },
+      { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
+      { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
+    );
+    return items;
+  }, [feedSettings.showVines, feedSettings.showPolls, feedSettings.showTreasures, feedSettings.showColors]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);

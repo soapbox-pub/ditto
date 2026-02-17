@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Bell, Search, Clapperboard } from 'lucide-react';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn } from '@/lib/utils';
 
 interface NavTabProps {
@@ -26,6 +27,7 @@ function NavTab({ to, icon, label, active }: NavTabProps) {
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const { feedSettings } = useFeedSettings();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/95 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
@@ -47,12 +49,14 @@ export function MobileBottomNav() {
         label="Search"
         active={location.pathname === '/search'}
       />
-      <NavTab
-        to="/vines"
-        icon={<Clapperboard className="size-5" />}
-        label="Vines"
-        active={location.pathname === '/vines'}
-      />
+      {feedSettings.showVines && (
+        <NavTab
+          to="/vines"
+          icon={<Clapperboard className="size-5" />}
+          label="Vines"
+          active={location.pathname === '/vines'}
+        />
+      )}
     </nav>
   );
 }

@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { RelayListManager } from '@/components/RelayListManager';
+import { FeedSettingsForm } from '@/components/FeedSettingsForm';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
@@ -31,11 +32,14 @@ export function SettingsPage() {
         {/* Tab navigation */}
         <div className="flex border-b border-border">
           <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
+          <SettingsTab to="/settings/feed" label="Feed" active={activeSection === 'feed'} />
           <SettingsTab to="/settings/relays" label="Relays" active={activeSection === 'relays'} />
         </div>
 
         <div className="p-4">
-          {!user ? (
+          {activeSection === 'feed' ? (
+            <FeedSettingsForm />
+          ) : !user ? (
             <p className="text-center text-muted-foreground py-8">Log in to manage settings.</p>
           ) : activeSection === 'profile' ? (
             <EditProfileForm />

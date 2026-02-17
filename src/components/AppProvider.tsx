@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
+import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata, type FeedSettings } from '@/contexts/AppContext';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -21,10 +21,23 @@ const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 }) satisfies z.ZodType<RelayMetadata>;
 
+// Zod schema for FeedSettings validation
+const FeedSettingsSchema = z.object({
+  showVines: z.boolean(),
+  showPolls: z.boolean(),
+  showTreasures: z.boolean(),
+  showColors: z.boolean(),
+  feedIncludeVines: z.boolean(),
+  feedIncludePolls: z.boolean(),
+  feedIncludeTreasures: z.boolean(),
+  feedIncludeColors: z.boolean(),
+}) satisfies z.ZodType<FeedSettings>;
+
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
   theme: z.enum(['dark', 'light', 'black', 'pink']),
   relayMetadata: RelayMetadataSchema,
+  feedSettings: FeedSettingsSchema,
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

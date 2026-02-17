@@ -27,6 +27,9 @@ export function AppRouter() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/:section" element={<SettingsPage />} />
         <Route path="/vines" element={<VinesPage />} />
+        <Route path="/polls" element={<PlaceholderPage title="Polls" />} />
+        <Route path="/treasures" element={<PlaceholderPage title="Treasures" />} />
+        <Route path="/colors" element={<PlaceholderPage title="Colors" />} />
         <Route path="/wallet" element={<PlaceholderPage title="Wallet" />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />

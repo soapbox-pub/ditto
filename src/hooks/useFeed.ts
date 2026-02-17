@@ -1,9 +1,29 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
+import { useFeedSettings } from './useFeedSettings';
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { FeedSettings } from '@/contexts/AppContext';
 
 const PAGE_SIZE = 30;
+
+/** Extra content kind numbers mapped to their feed setting keys. */
+const EXTRA_KINDS: { kind: number; settingKey: keyof FeedSettings }[] = [
+  { kind: 34236, settingKey: 'feedIncludeVines' },
+  { kind: 1068, settingKey: 'feedIncludePolls' },
+  { kind: 37516, settingKey: 'feedIncludeTreasures' },
+  { kind: 3367, settingKey: 'feedIncludeColors' },
+];
+
+/** Build the list of extra kinds that should appear in the feed based on settings. */
+function getExtraKinds(feedSettings: FeedSettings): number[] {
+  return EXTRA_KINDS
+    .filter(({ settingKey }) => feedSettings[settingKey])
+    .map(({ kind }) => kind);
+}
+
+/** The base kinds always included in every feed query. */
+const BASE_FEED_KINDS = [1, 6];
 
 /** A feed item — either a direct post or a repost wrapping the original event. */
 export interface FeedItem {
@@ -60,21 +80,29 @@ export function useFeed(tab: 'follows' | 'global') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
+  const { feedSettings } = useFeedSettings();
+
+  // Build the full kinds list: base kinds + user-selected extra kinds.
+  const extraKinds = getExtraKinds(feedSettings);
+  const allKinds = [...BASE_FEED_KINDS, ...extraKinds];
+
+  // Stable key for the extra kinds so queries re-run when settings change.
+  const extraKindsKey = extraKinds.sort().join(',');
 
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
   const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
 
   return useInfiniteQuery<FeedItem[], Error>({
-    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
+    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
 
       if (tab === 'follows' && user && followList && followList.length > 0) {
-        // Follows feed — posts and reposts from people you follow
+        // Follows feed — posts, reposts, and extra kinds from people you follow
         const authors = [...followList, user.pubkey];
-        const filter: Record<string, unknown> = { kinds: [1, 6], authors, limit: PAGE_SIZE };
+        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;
         }
@@ -91,9 +119,8 @@ export function useFeed(tab: 'follows' | 'global') {
         for (const ev of events) {
           if (ev.created_at > now) continue;
 
-          if (ev.kind === 1) {
-            items.push({ event: ev, sortTimestamp: ev.created_at });
-          } else if (ev.kind === 6) {
+          if (ev.kind === 6) {
+            // Handle reposts
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
@@ -104,6 +131,9 @@ export function useFeed(tab: 'follows' | 'global') {
                 repostMap.set(repostedId, ev);
               }
             }
+          } else {
+            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
+            items.push({ event: ev, sortTimestamp: ev.created_at });
           }
         }
 
@@ -138,8 +168,9 @@ export function useFeed(tab: 'follows' | 'global') {
 
         return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
-        // Global feed — just kind 1 notes
-        const filter: Record<string, unknown> = { kinds: [1], limit: PAGE_SIZE };
+        // Global feed — kind 1 notes + user-selected extra kinds
+        const globalKinds = [1, ...extraKinds];
+        const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;
         }

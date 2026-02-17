@@ -41,6 +41,16 @@ const defaultConfig: AppConfig = {
     ],
     updatedAt: 0,
   },
+  feedSettings: {
+    showVines: true,
+    showPolls: false,
+    showTreasures: false,
+    showColors: false,
+    feedIncludeVines: false,
+    feedIncludePolls: false,
+    feedIncludeTreasures: false,
+    feedIncludeColors: false,
+  },
 };
 
 export function App() {

@@ -9,11 +9,33 @@ export interface RelayMetadata {
   updatedAt: number;
 }
 
+/** Which "Other Stuff" content types to show in the sidebar nav and include in feeds. */
+export interface FeedSettings {
+  /** Show Vines (kind 34236) link in sidebar */
+  showVines: boolean;
+  /** Show Polls (kind 1068) link in sidebar */
+  showPolls: boolean;
+  /** Show Treasures / Geocaches (kind 37516) link in sidebar */
+  showTreasures: boolean;
+  /** Show Colors (kind 3367) link in sidebar */
+  showColors: boolean;
+  /** Include Vines in the follows/global feed */
+  feedIncludeVines: boolean;
+  /** Include Polls in the follows/global feed */
+  feedIncludePolls: boolean;
+  /** Include Treasures in the follows/global feed */
+  feedIncludeTreasures: boolean;
+  /** Include Colors in the follows/global feed */
+  feedIncludeColors: boolean;
+}
+
 export interface AppConfig {
   /** Current theme */
   theme: Theme;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
+  /** Feed and sidebar content settings */
+  feedSettings: FeedSettings;
 }
 
 export interface AppContextType {
