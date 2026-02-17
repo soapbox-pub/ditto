@@ -12,6 +12,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
+import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -114,6 +115,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
+  const [interactionsOpen, setInteractionsOpen] = useState(false);
+  const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
+
+  const openInteractions = (tab: InteractionTab) => {
+    setInteractionsTab(tab);
+    setInteractionsOpen(true);
+  };
 
   const hasStats = !!(stats?.reposts || stats?.reactions || stats?.zapAmount);
 
@@ -181,24 +189,33 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {hasStats && (
           <div className="flex items-center gap-x-3 py-2.5 mt-3 text-sm text-muted-foreground">
             {stats?.reposts ? (
-              <span>
+              <button
+                onClick={() => openInteractions('reposts')}
+                className="hover:underline transition-colors"
+              >
                 <span className="font-bold text-foreground">{stats.reposts}</span>{' '}
                 Repost{stats.reposts !== 1 ? 's' : ''}
-              </span>
+              </button>
             ) : null}
             {stats?.reactions ? (
-              <span>
+              <button
+                onClick={() => openInteractions('reactions')}
+                className="hover:underline transition-colors"
+              >
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
                 {stats.reactionEmojis && stats.reactionEmojis.length > 0
                   ? stats.reactionEmojis.slice(0, 8).join('')
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
-              </span>
+              </button>
             ) : null}
             {stats?.zapAmount ? (
-              <span>
+              <button
+                onClick={() => openInteractions('zaps')}
+                className="hover:underline transition-colors"
+              >
                 <span className="font-bold text-foreground">{formatSats(stats.zapAmount)}</span>{' '}
                 sats
-              </span>
+              </button>
             ) : null}
             <span className="ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
           </div>
@@ -226,7 +243,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Repost */}
           <button
             className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-            title="Repost"
+            title="Reposts"
+            onClick={() => openInteractions('reposts')}
           >
             <Repeat2 className="size-[18px]" />
             {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
@@ -240,8 +258,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 ? 'text-pink-500'
                 : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             )}
-            title="Like"
-            onClick={() => setLiked(!liked)}
+            title="Reactions"
+            onClick={() => {
+              setLiked(!liked);
+              openInteractions('reactions');
+            }}
           >
             <Heart className={cn('size-[18px]', liked && 'fill-pink-500')} />
             {stats?.reactions ? <span className="text-xs">{stats.reactions}</span> : null}
@@ -250,7 +271,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           {/* Zap */}
           <button
             className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-            title="Zap"
+            title="Zaps"
+            onClick={() => openInteractions('zaps')}
           >
             <Zap className="size-[18px]" />
             {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
@@ -268,6 +290,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
         <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+        <InteractionsModal
+          eventId={event.id}
+          open={interactionsOpen}
+          onOpenChange={setInteractionsOpen}
+          initialTab={interactionsTab}
+        />
       </article>
 
       {/* Replies */}
