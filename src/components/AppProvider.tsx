@@ -76,7 +76,7 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove('mew', 'light', 'black', 'pink');
+    root.classList.remove('dark', 'light', 'black', 'pink');
     root.classList.add(theme);
   }, [theme]);
 }

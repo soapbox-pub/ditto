@@ -10,11 +10,9 @@ interface MewLogoProps {
 export function MewLogo({ className, size = 40 }: MewLogoProps) {
   const { theme } = useTheme();
   
-  // Use opacity for light and pink themes
+  // Use opacity for light theme only
   const getOpacityClass = () => {
     switch (theme) {
-      case 'pink':
-        return 'opacity-60';
       case 'light':
         return 'opacity-70';
       default:
