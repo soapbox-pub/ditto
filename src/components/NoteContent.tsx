@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { LinkPreview } from '@/components/LinkPreview';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { cn } from '@/lib/utils';
 
@@ -48,6 +49,7 @@ type ContentToken =
   | { type: 'link-preview'; url: string }
   | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
+  | { type: 'nevent-embed'; eventId: string }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
 
@@ -97,6 +99,10 @@ export function NoteContent({
             result.push({ type: 'mention', pubkey: decoded.data });
           } else if (decoded.type === 'nprofile') {
             result.push({ type: 'mention', pubkey: decoded.data.pubkey });
+          } else if (decoded.type === 'note') {
+            result.push({ type: 'nevent-embed', eventId: decoded.data as string });
+          } else if (decoded.type === 'nevent') {
+            result.push({ type: 'nevent-embed', eventId: (decoded.data as { id: string }).id });
           } else {
             result.push({ type: 'nostr-link', id: nostrId, raw: fullMatch });
           }
@@ -124,7 +130,7 @@ export function NoteContent({
     // so that newlines surrounding a URL don't stack with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      if (token.type === 'link-preview' || token.type === 'youtube-embed') {
+      if (token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed') {
         // Trim trailing whitespace from the preceding text token
         if (i > 0) {
           const prev = result[i - 1];
@@ -168,6 +174,8 @@ export function NoteContent({
             return <LinkPreview key={i} url={token.url} className="my-2.5" />;
           case 'youtube-embed':
             return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
+          case 'nevent-embed':
+            return <EmbeddedNote key={i} eventId={token.eventId} className="my-2.5" />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
