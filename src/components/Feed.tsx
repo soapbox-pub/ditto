@@ -18,6 +18,13 @@ export function Feed() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
 
+  // Switch to follows tab when user logs in
+  useEffect(() => {
+    if (user) {
+      setActiveTab('follows');
+    }
+  }, [user]);
+
   const {
     data,
     isLoading,
