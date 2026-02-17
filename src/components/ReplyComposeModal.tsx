@@ -17,7 +17,8 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 
 interface ReplyComposeModalProps {
-  event: NostrEvent | null;
+  /** The event being replied to. When `null`, the modal acts as a "New post" composer. */
+  event?: NostrEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -29,14 +30,16 @@ function extractImages(content: string): string[] {
 }
 
 export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeModalProps) {
-  if (!event) return null;
+  const isReply = !!event;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
-          <DialogTitle className="text-base font-semibold">Reply to post</DialogTitle>
+          <DialogTitle className="text-base font-semibold">
+            {isReply ? 'Reply to post' : 'New post'}
+          </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
             className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
@@ -45,14 +48,14 @@ export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeMod
           </button>
         </div>
 
-        {/* Embedded original post */}
-        <EmbeddedPost event={event} onDismiss={() => {}} />
+        {/* Embedded original post (reply only) */}
+        {event && <EmbeddedPost event={event} />}
 
         {/* Compose area */}
         <ComposeBox
-          replyTo={event}
+          replyTo={event ?? undefined}
           onSuccess={() => onOpenChange(false)}
-          placeholder="What's on your mind?"
+          placeholder={isReply ? "What's on your mind?" : "What's happening?"}
           forceExpanded
           hideAvatar
         />
@@ -62,7 +65,7 @@ export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeMod
 }
 
 /** Compact embedded preview of the post being replied to. */
-function EmbeddedPost({ event }: { event: NostrEvent; onDismiss?: () => void }) {
+function EmbeddedPost({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
