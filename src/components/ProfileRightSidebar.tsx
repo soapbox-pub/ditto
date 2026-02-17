@@ -289,7 +289,6 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
                       src={item.url}
                       alt=""
                       className="w-full h-full object-cover"
-                      style={{ imageRendering: 'auto' }}
                       loading="lazy"
                     />
                   )}
