@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -39,16 +39,25 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   return true;
 }
 
-const STREAM_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.ditto.pub'];
-
+/**
+ * Stream posts using a direct relay connection.
+ * Uses nostr.relay() to get an NRelay1 instance and calls .req() directly,
+ * bypassing the NPool which may not keep subscriptions alive.
+ */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [posts, setPosts] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  // Use refs for filter values so the effect doesn't re-run when they change
+  const optionsRef = useRef(options);
+  optionsRef.current = options;
+
+  const queryRef = useRef(query);
+  queryRef.current = query;
 
   useEffect(() => {
-    const abortController = new AbortController();
-    let isSubscribed = true;
+    const ac = new AbortController();
+    let alive = true;
 
     setPosts([]);
     setIsLoading(true);
@@ -56,75 +65,70 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const eventMap = new Map<string, NostrEvent>();
 
     function addEvent(event: NostrEvent) {
+      if (!alive) return;
       if (eventMap.has(event.id)) return;
-      if (!filterEvent(event, options)) return;
+      if (!filterEvent(event, optionsRef.current)) return;
       eventMap.set(event.id, event);
-      if (isSubscribed) {
-        setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
-      }
+      setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
+
+    // Use a single direct relay connection — NOT the pool
+    const relay = nostr.relay('wss://relay.damus.io');
 
     const baseFilter: NostrFilter = { kinds: [1] };
     if (query.trim()) {
+      // For NIP-50 search, switch to ditto relay
       baseFilter.search = query.trim();
     }
 
-    const relays = query.trim() ? ['wss://relay.ditto.pub'] : STREAM_RELAYS;
+    const searchRelay = query.trim()
+      ? nostr.relay('wss://relay.ditto.pub')
+      : relay;
 
-    // Fetch initial messages
-    const fetchInitialMessages = async () => {
+    // 1. Fetch initial batch
+    (async () => {
       try {
-        const signal = AbortSignal.any([abortController.signal, AbortSignal.timeout(30000)]);
-        const events = await nostr.query(
+        const events = await searchRelay.query(
           [{ ...baseFilter, limit: 40 }],
-          { signal, relays },
+          { signal: ac.signal },
         );
         for (const event of events) {
           addEvent(event);
         }
       } catch {
-        // Expected on abort
+        // abort expected
       }
-      if (isSubscribed) {
-        setIsLoading(false);
-      }
-    };
+      if (alive) setIsLoading(false);
+    })();
 
-    // Set up real-time subscription for new posts
-    const subscribeToMessages = async () => {
+    // 2. Open a persistent subscription on the relay directly
+    (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
 
-        const subscription = nostr.req([
-          { ...baseFilter, since: now, limit: 100 }
-        ], { signal: abortController.signal, relays });
-
-        for await (const msg of subscription) {
-          if (!isSubscribed) break;
-
+        for await (const msg of searchRelay.req(
+          [{ ...baseFilter, since: now, limit: 100 }],
+          { signal: ac.signal },
+        )) {
+          if (!alive) break;
           if (msg[0] === 'EVENT') {
             addEvent(msg[2]);
-          } else if (msg[0] === 'EOSE') {
-            // Stream continues after EOSE
           } else if (msg[0] === 'CLOSED') {
             break;
           }
+          // EOSE: keep going
         }
-      } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Stream error:', error);
-        }
+      } catch {
+        // abort expected
       }
-    };
-
-    fetchInitialMessages();
-    subscribeToMessages();
+    })();
 
     return () => {
-      isSubscribed = false;
-      abortController.abort();
+      alive = false;
+      ac.abort();
     };
-  }, [query, options.includeReplies, options.mediaType, nostr]);
+  }, [nostr, query]);
+  // NOTE: only nostr and query in deps — filter changes apply via ref without restarting the stream
 
   return { posts, isLoading };
 }
