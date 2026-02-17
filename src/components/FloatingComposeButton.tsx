@@ -29,10 +29,10 @@ export function FloatingComposeButton() {
     <>
       <Button
         onClick={() => setSignupOpen(true)}
-        className="fixed bottom-20 right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
-        size="icon"
+        className="fixed bottom-20 right-4 z-30 sidebar:hidden h-14 px-5 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
       >
         <UserPlus className="size-6" />
+        <span className="text-base font-bold">Join</span>
       </Button>
       <SignupDialog isOpen={signupOpen} onClose={() => setSignupOpen(false)} />
     </>
