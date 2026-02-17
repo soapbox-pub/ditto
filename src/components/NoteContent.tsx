@@ -11,6 +11,9 @@ interface NoteContentProps {
   className?: string;
 }
 
+/** Regex to detect image URLs that will be displayed as embedded previews. */
+const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/i;
+
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({
   event, 
@@ -38,7 +41,12 @@ export function NoteContent({
       }
       
       if (url) {
-        // Handle URLs
+        // Skip image URLs — they are rendered as embedded previews by the parent component
+        if (IMAGE_URL_REGEX.test(url)) {
+          lastIndex = index + fullMatch.length;
+          continue;
+        }
+        // Handle non-image URLs
         parts.push(
           <a 
             key={`url-${keyCounter++}`}
@@ -107,6 +115,20 @@ export function NoteContent({
     // If no special content was found, just use the plain text
     if (parts.length === 0) {
       parts.push(text);
+    }
+
+    // Trim leading/trailing whitespace from string parts at the edges
+    // (image URLs stripped from the end can leave trailing newlines)
+    if (parts.length > 0) {
+      const first = parts[0];
+      if (typeof first === 'string') {
+        parts[0] = first.replace(/^\s+/, '');
+      }
+      const lastIdx = parts.length - 1;
+      const last = parts[lastIdx];
+      if (typeof last === 'string') {
+        parts[lastIdx] = last.replace(/\s+$/, '');
+      }
     }
     
     return parts;
