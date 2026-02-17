@@ -2,7 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
-import { VineCard } from '@/components/VineCard';
+import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStreamVines } from '@/hooks/useStreamVines';
 
@@ -35,7 +35,7 @@ export function VinesPage() {
         ) : vines.length > 0 ? (
           <div>
             {vines.map((event) => (
-              <VineCard key={event.id} event={event} />
+              <NoteCard key={event.id} event={event} />
             ))}
           </div>
         ) : (
@@ -50,19 +50,23 @@ export function VinesPage() {
 
 function VineSkeleton() {
   return (
-    <div className="border-b border-border">
-      <div className="flex items-center gap-3 px-4 pt-3 pb-2">
-        <Skeleton className="size-10 rounded-full shrink-0" />
-        <div className="flex-1 space-y-1.5">
+    <div className="px-4 py-3 border-b border-border">
+      <div className="flex gap-3">
+        <Skeleton className="size-11 rounded-full shrink-0" />
+        <div className="flex-1 space-y-2">
           <div className="flex items-center gap-2">
             <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-12" />
+            <Skeleton className="h-3 w-32" />
           </div>
           <Skeleton className="h-4 w-48" />
+          <Skeleton className="w-full h-56 rounded-2xl" />
+          <div className="flex gap-12 mt-2">
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-8" />
+            <Skeleton className="h-4 w-8" />
+          </div>
         </div>
       </div>
-      <Skeleton className="w-full h-64" />
-      <div className="h-3" />
     </div>
   );
 }
