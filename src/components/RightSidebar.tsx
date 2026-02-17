@@ -40,7 +40,7 @@ export function RightSidebar() {
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts();
 
   return (
-    <aside className="w-[340px] shrink-0 hidden lg:block sticky top-0 h-screen overflow-y-auto py-3 px-4">
+    <aside className="w-[340px] shrink-0 hidden lg:flex flex-col sticky top-0 h-screen overflow-y-auto py-3 px-4">
       {/* Trending Tags */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
@@ -110,8 +110,8 @@ export function RightSidebar() {
       </section>
 
       {/* Footer */}
-      <footer className="text-xs text-muted-foreground space-y-2 pt-2 border-t border-border">
-        <p>
+      <footer className="mt-auto pt-4 text-right">
+        <p className="text-xs text-muted-foreground">
           Vibed with{' '}
           <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
             Shakespeare
