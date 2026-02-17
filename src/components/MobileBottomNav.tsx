@@ -31,7 +31,7 @@ export function MobileBottomNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/95 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
       <NavTab
         to="/"
-        icon={<Home className={cn("size-5", location.pathname === '/' && "fill-foreground")} />}
+        icon={<Home className="size-5" />}
         label="Home"
         active={location.pathname === '/'}
       />
