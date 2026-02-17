@@ -109,7 +109,7 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
       {/* Header — matches Ditto: ← Post Details */}
       <div className="sticky top-10 sidebar:top-0 z-10 flex items-center gap-4 px-4 h-[53px] bg-background/80 backdrop-blur-md">
         <button

@@ -42,7 +42,7 @@ export function SearchPage() {
 
   return (
     <MainLayout hideMobileTopBar>
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Tabs — sticky at top */}
         <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20 border-b border-border">
           <div className="flex">

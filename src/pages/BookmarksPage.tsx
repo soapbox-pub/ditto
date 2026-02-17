@@ -20,7 +20,7 @@ export function BookmarksPage() {
 
   return (
     <MainLayout hideMobileTopBar>
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Sticky header */}
         <div className="flex items-center gap-4 px-4 py-3 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
