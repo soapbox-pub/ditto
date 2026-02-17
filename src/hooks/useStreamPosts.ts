@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -7,19 +7,16 @@ interface StreamPostsOptions {
   mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
 }
 
-/** Extracts image URLs from note content. */
 function extractImages(content: string): string[] {
   const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
   return content.match(urlRegex) || [];
 }
 
-/** Extracts video URLs from note content. */
 function extractVideos(content: string): string[] {
   const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov|avi|mkv)(\?[^\s]*)?/gi;
   return content.match(urlRegex) || [];
 }
 
-/** Filters an event based on search options and rejects future-dated events. */
 function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
@@ -44,10 +41,6 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
 
 const STREAM_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.ditto.pub'];
 
-/**
- * Stream posts in real-time using the same pattern as bitmap/clawchat.
- * Fetches initial batch, then opens a persistent req() subscription.
- */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [posts, setPosts] = useState<NostrEvent[]>([]);
@@ -89,17 +82,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         for (const event of events) {
           addEvent(event);
         }
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
+      } catch {
+        // Expected on abort
+      }
+      if (isSubscribed) {
+        setIsLoading(false);
       }
     };
 
-    // Set up real-time subscription
+    // Set up real-time subscription for new posts
     const subscribeToMessages = async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
@@ -114,19 +105,18 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           if (msg[0] === 'EVENT') {
             addEvent(msg[2]);
           } else if (msg[0] === 'EOSE') {
-            // Subscription continues after EOSE
+            // Stream continues after EOSE
           } else if (msg[0] === 'CLOSED') {
             break;
           }
         }
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Stream subscription error:', error);
+          console.error('Stream error:', error);
         }
       }
     };
 
-    // Start fetching and subscribing in parallel
     fetchInitialMessages();
     subscribeToMessages();
 
