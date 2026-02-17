@@ -58,7 +58,7 @@ export function LeftSidebar() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
             placeholder="Search"
-            className="pl-10 h-10 rounded-full bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-primary"
+            className="pl-10 py-2.5 rounded-full bg-secondary border-0 focus-visible:ring-1 focus-visible:ring-primary"
           />
         </div>
       </div>
