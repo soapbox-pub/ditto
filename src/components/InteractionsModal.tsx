@@ -59,7 +59,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-[420px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+       <DialogContent className="max-w-[460px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold">Post interactions</DialogTitle>
@@ -80,12 +80,12 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
               key={key}
               onClick={() => setActiveTab(key)}
               className={cn(
-                'flex-1 flex items-center justify-center gap-1.5 py-3 text-sm font-medium transition-colors relative hover:bg-secondary/40',
+                'flex-1 flex items-center justify-center gap-1 py-3 text-[13px] font-medium transition-colors relative hover:bg-secondary/40 px-1',
                 activeTab === key ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
               {icon}
-              <span>{label}</span>
+              <span className="hidden min-[400px]:inline">{label}</span>
               {count > 0 && (
                 <span className={cn(
                   'text-xs tabular-nums',
@@ -95,7 +95,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
                 </span>
               )}
               {activeTab === key && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 bg-primary rounded-full" />
               )}
             </button>
           ))}
