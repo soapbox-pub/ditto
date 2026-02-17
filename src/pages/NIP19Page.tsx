@@ -1,6 +1,7 @@
 import { nip19 } from 'nostr-tools';
 import { useParams, Navigate } from 'react-router-dom';
 import NotFound from './NotFound';
+import { PostDetailPage } from './PostDetailPage';
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
@@ -25,11 +26,10 @@ export function NIP19Page() {
       return <Navigate to={`/u/${identifier}`} replace />;
 
     case 'note':
-      // Note view placeholder  
-      return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Note view coming soon</div>;
+      return <PostDetailPage eventId={decoded.data as string} />;
 
     case 'nevent':
-      return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Event view coming soon</div>;
+      return <PostDetailPage eventId={(decoded.data as { id: string }).id} />;
 
     case 'naddr':
       return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Addressable event view coming soon</div>;

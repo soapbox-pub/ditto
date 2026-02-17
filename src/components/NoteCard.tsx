@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
@@ -32,11 +32,13 @@ function extractImages(content: string): string[] {
 }
 
 export function NoteCard({ event, className }: NoteCardProps) {
+  const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const neventId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event.id, event.pubkey]);
   const images = useMemo(() => extractImages(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const [liked, setLiked] = useState(false);
@@ -52,6 +54,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
         'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer',
         className,
       )}
+      onClick={() => navigate(`/${neventId}`)}
     >
       {/* Reply context */}
       {isReply && replyTo && (
