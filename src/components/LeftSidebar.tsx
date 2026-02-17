@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, MoreHorizontal, UserPlus, LogOut } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -11,8 +11,10 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
+import { useTheme } from '@/hooks/useTheme';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
+import type { Theme } from '@/contexts/AppContext';
 
 interface NavItemProps {
   to: string;
@@ -42,6 +44,7 @@ export function LeftSidebar() {
   const { user, metadata } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
+  const { theme, setTheme } = useTheme();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
@@ -66,11 +69,22 @@ export function LeftSidebar() {
     setSignupDialogOpen(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    // Close popover first to avoid state update on unmounted component
     setAccountPopoverOpen(false);
-    await logout();
-    navigate('/');
+    // Use setTimeout to ensure popover closes before logout
+    setTimeout(() => {
+      logout();
+      navigate('/');
+    }, 100);
   };
+
+  const themes: { value: Theme; label: string }[] = [
+    { value: 'light', label: 'Mew' },
+    { value: 'light', label: 'Light' },
+    { value: 'black', label: 'Black' },
+    { value: 'pink', label: 'Pink' },
+  ];
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[280px] shrink-0">
@@ -137,7 +151,6 @@ export function LeftSidebar() {
                     {metadata?.nip05 ? `@${metadata.nip05}` : ''}
                   </span>
                 </div>
-                <MoreHorizontal className="size-5 text-muted-foreground shrink-0" />
               </button>
             </PopoverTrigger>
             <PopoverContent
@@ -196,6 +209,26 @@ export function LeftSidebar() {
                   ))}
                 </div>
               )}
+
+              {/* Theme selector */}
+              <div className="border-b border-border py-2">
+                <div className="px-4 py-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
+                  <Palette className="size-3.5" />
+                  <span>Theme</span>
+                </div>
+                {themes.map((themeOption) => (
+                  <button
+                    key={themeOption.label}
+                    onClick={() => setTheme(themeOption.value)}
+                    className="flex items-center justify-between w-full px-4 py-2 text-sm hover:bg-secondary/60 transition-colors"
+                  >
+                    <span>{themeOption.label}</span>
+                    {theme === themeOption.value && (
+                      <Check className="size-4 text-primary" />
+                    )}
+                  </button>
+                ))}
+              </div>
 
               {/* Actions */}
               <div className="py-1">

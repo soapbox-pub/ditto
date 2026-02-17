@@ -23,7 +23,7 @@ const RelayMetadataSchema = z.object({
 
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
-  theme: z.enum(['dark', 'light', 'system']),
+  theme: z.enum(['light', 'dark', 'black', 'pink', 'system']),
   relayMetadata: RelayMetadataSchema,
 }) satisfies z.ZodType<AppConfig>;
 
@@ -76,7 +76,7 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
 
-    root.classList.remove('light', 'dark');
+    root.classList.remove('light', 'dark', 'black', 'pink');
 
     if (theme === 'system') {
       const systemTheme = window.matchMedia('(prefers-color-scheme: dark)')
@@ -99,7 +99,7 @@ function useApplyTheme(theme: Theme) {
 
     const handleChange = () => {
       const root = window.document.documentElement;
-      root.classList.remove('light', 'dark');
+      root.classList.remove('light', 'dark', 'black', 'pink');
 
       const systemTheme = mediaQuery.matches ? 'dark' : 'light';
       root.classList.add(systemTheme);
