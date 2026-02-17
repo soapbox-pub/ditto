@@ -78,10 +78,7 @@ export function ProfilePage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="size-5" />
           </Link>
-          <div>
-            <h1 className="font-bold text-lg">{displayName}</h1>
-            <span className="text-xs text-muted-foreground">{posts?.length ?? 0} posts</span>
-          </div>
+          <h1 className="font-bold text-lg">{displayName}</h1>
         </div>
 
         {/* Banner */}
