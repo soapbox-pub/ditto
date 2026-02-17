@@ -19,6 +19,8 @@ interface ReactionButtonProps {
   reactionCount?: number;
   /** Reaction emojis from stats. */
   reactionEmojis?: string[];
+  /** Whether to show emoji indicators next to the count. */
+  showEmojis?: boolean;
   /** Optional extra class names. */
   className?: string;
 }
@@ -29,6 +31,7 @@ export function ReactionButton({
   eventKind,
   reactionCount = 0,
   reactionEmojis,
+  showEmojis = false,
   className,
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
@@ -120,7 +123,7 @@ export function ReactionButton({
           {displayCount > 0 && (
             <span className="text-xs">{displayCount}</span>
           )}
-          {!hasReacted && displayEmojis.length > 0 && (
+          {showEmojis && !hasReacted && displayEmojis.length > 0 && (
             <span className="text-xs leading-none">{displayEmojis.join('')}</span>
           )}
         </button>

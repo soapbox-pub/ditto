@@ -257,6 +257,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             eventKind={event.kind}
             reactionCount={stats?.reactions}
             reactionEmojis={stats?.reactionEmojis}
+            showEmojis
           />
 
           {/* Zap */}
