@@ -1,11 +1,10 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, ChevronDown, ChevronUp, Search as SearchIcon } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -29,91 +28,81 @@ export function SearchPage() {
 
   const [activeTab, setActiveTab] = useState<TabType>('posts');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(true);
 
   // Search filters
   const [includeReplies, setIncludeReplies] = useState(true);
   const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
   const [language, setLanguage] = useState('global');
 
-  // Search hooks
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, {
-    includeReplies,
-    mediaType,
-  });
+  // Hooks
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType });
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const { data: trends, isLoading: trendsLoading } = useTrendingTags();
 
   return (
     <MainLayout hideMobileTopBar>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
-        {/* Sticky header */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20">
-          {/* Search bar */}
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors shrink-0">
-              <ArrowLeft className="size-5" />
-            </Link>
-            <div className="flex-1 relative">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
-              <Input
-                type="text"
-                placeholder="Search"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-secondary/50 border-0 focus-visible:ring-1 rounded-full"
-                autoFocus
-              />
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <div className="flex border-b border-border">
+        {/* Tabs — sticky at top */}
+        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20 border-b border-border">
+          <div className="flex">
             <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
             <TabButton label="Trends" active={activeTab === 'trends'} onClick={() => setActiveTab('trends')} />
             <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
           </div>
         </div>
 
-        {/* === Posts Tab === */}
+        {/* ─── Posts Tab ─── */}
         {activeTab === 'posts' && (
           <>
-            {/* Collapsible search filters */}
+            {/* Search input */}
+            <div className="px-4 pt-4 pb-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+                  autoFocus
+                />
+                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Search filters — collapsible */}
             <div className="border-b border-border">
+              {/* Header row */}
               <button
                 onClick={() => setFiltersOpen(!filtersOpen)}
-                className="w-full px-4 py-3 flex items-center justify-between text-left hover:bg-secondary/30 transition-colors"
+                className="w-full px-4 py-3 flex items-center justify-between"
               >
-                <span className="font-bold text-lg">Search filters</span>
-                {filtersOpen
-                  ? <ChevronUp className="size-5 text-muted-foreground" />
-                  : <ChevronDown className="size-5 text-muted-foreground" />
-                }
+                <h2 className="font-bold text-lg">Search filters</h2>
+                <span className="size-8 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-secondary transition-colors">
+                  {filtersOpen ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+                </span>
               </button>
 
-              <div
-                className={cn(
-                  'overflow-hidden transition-all duration-200 ease-in-out',
-                  filtersOpen ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0',
-                )}
-              >
-                <div className="px-4 pb-4 space-y-5">
-                  {/* Include replies */}
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="include-replies" className="text-[15px] font-normal cursor-pointer">
-                      Including replies
-                    </Label>
+              {/* Filter controls */}
+              {filtersOpen && (
+                <div className="px-4 pb-4 space-y-4">
+                  {/* Including replies */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm">Including replies</span>
                     <Switch
-                      id="include-replies"
                       checked={includeReplies}
                       onCheckedChange={setIncludeReplies}
                     />
                   </div>
 
-                  {/* Media type */}
-                  <div className="space-y-2.5">
-                    <Label className="text-[15px] font-normal">With ONLY the media type:</Label>
-                    <RadioGroup value={mediaType} onValueChange={(v) => setMediaType(v as typeof mediaType)} className="space-y-1.5">
+                  {/* Media type — horizontal wrap */}
+                  <div className="space-y-2">
+                    <span className="font-bold text-sm">With ONLY the media type:</span>
+                    <RadioGroup
+                      value={mediaType}
+                      onValueChange={(v) => setMediaType(v as typeof mediaType)}
+                      className="flex flex-wrap gap-x-4 gap-y-2"
+                    >
                       {[
                         { value: 'all', label: 'All media' },
                         { value: 'images', label: 'Images' },
@@ -121,19 +110,19 @@ export function SearchPage() {
                         { value: 'vines', label: 'Short videos (Vines)' },
                         { value: 'none', label: 'No media' },
                       ].map(({ value, label }) => (
-                        <div key={value} className="flex items-center space-x-2">
+                        <div key={value} className="flex items-center space-x-1.5">
                           <RadioGroupItem value={value} id={`media-${value}`} />
-                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm text-muted-foreground">{label}</Label>
                         </div>
                       ))}
                     </RadioGroup>
                   </div>
 
-                  {/* Language */}
-                  <div className="space-y-2.5">
-                    <Label className="text-[15px] font-normal">In the language:</Label>
+                  {/* Language — inline */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm whitespace-nowrap">In the language:</span>
                     <Select value={language} onValueChange={setLanguage}>
-                      <SelectTrigger className="w-full bg-secondary/50 rounded-lg">
+                      <SelectTrigger className="w-40 bg-secondary/50">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -148,33 +137,31 @@ export function SearchPage() {
                     </Select>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* Post results */}
-            {searchQuery.trim() ? (
-              postsLoading && posts.length === 0 ? (
-                <div className="divide-y divide-border">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <PostSkeleton key={i} />
-                  ))}
-                </div>
-              ) : posts.length > 0 ? (
-                <div>
-                  {posts.map((event) => (
-                    <NoteCard key={event.id} event={event} />
-                  ))}
-                </div>
-              ) : (
-                <EmptyState message="No posts found matching your search." />
-              )
+            {/* Post results — stream */}
+            {postsLoading && posts.length === 0 ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            ) : posts.length > 0 ? (
+              <div>
+                {posts.map((event) => (
+                  <NoteCard key={event.id} event={event} />
+                ))}
+              </div>
+            ) : searchQuery.trim() ? (
+              <EmptyState message="No posts found matching your search." />
             ) : (
               <EmptyState message="Enter a search query to find posts." />
             )}
           </>
         )}
 
-        {/* === Trends Tab === */}
+        {/* ─── Trends Tab ─── */}
         {activeTab === 'trends' && (
           <div>
             {trendsLoading ? (
@@ -195,34 +182,53 @@ export function SearchPage() {
           </div>
         )}
 
-        {/* === Accounts Tab === */}
+        {/* ─── Accounts Tab ─── */}
         {activeTab === 'accounts' && (
-          <div>
-            {searchQuery.trim() ? (
-              profilesLoading ? (
-                <div className="divide-y divide-border">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <AccountSkeleton key={i} />
-                  ))}
-                </div>
-              ) : profiles && profiles.length > 0 ? (
-                <div className="divide-y divide-border">
-                  {profiles.map((profile) => (
-                    <AccountItem key={profile.pubkey} profile={profile} />
-                  ))}
-                </div>
+          <>
+            {/* Search input for accounts */}
+            <div className="px-4 pt-4 pb-2">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
+                  autoFocus
+                />
+                <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+              </div>
+            </div>
+
+            <div>
+              {searchQuery.trim() ? (
+                profilesLoading ? (
+                  <div className="divide-y divide-border">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <AccountSkeleton key={i} />
+                    ))}
+                  </div>
+                ) : profiles && profiles.length > 0 ? (
+                  <div className="divide-y divide-border">
+                    {profiles.map((profile) => (
+                      <AccountItem key={profile.pubkey} profile={profile} />
+                    ))}
+                  </div>
+                ) : (
+                  <EmptyState message="No accounts found matching your search." />
+                )
               ) : (
-                <EmptyState message="No accounts found matching your search." />
-              )
-            ) : (
-              <EmptyState message="Search for people by name or NIP-05 address." />
-            )}
-          </div>
+                <EmptyState message="Search for people by name or NIP-05 address." />
+              )}
+            </div>
+          </>
         )}
       </main>
     </MainLayout>
   );
 }
+
+/* ── Shared sub-components ── */
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
