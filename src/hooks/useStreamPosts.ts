@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -41,19 +41,22 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
 
 /**
  * Stream posts using a direct relay connection.
- * Uses nostr.relay() to get an NRelay1 instance and calls .req() directly,
- * bypassing the NPool which may not keep subscriptions alive.
+ * The stream only restarts when the search query changes.
+ * Filter toggles (replies, media type) are applied client-side
+ * without restarting the stream.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
-  const [posts, setPosts] = useState<NostrEvent[]>([]);
+  // allEvents holds every event from the stream, unfiltered
+  const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Stream effect — only depends on query, not filters
   useEffect(() => {
     const ac = new AbortController();
     let alive = true;
 
-    setPosts([]);
+    setAllEvents([]);
     setIsLoading(true);
 
     const eventMap = new Map<string, NostrEvent>();
@@ -61,12 +64,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     function addEvent(event: NostrEvent) {
       if (!alive) return;
       if (eventMap.has(event.id)) return;
-      if (!filterEvent(event, options)) return;
+      // Only filter future-dated events here — client filters applied in useMemo
+      const now = Math.floor(Date.now() / 1000);
+      if (event.created_at > now) return;
       eventMap.set(event.id, event);
-      setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
+      setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    // Use a single direct relay connection — NOT the pool
     const relay = nostr.relay('wss://relay.ditto.pub');
 
     const baseFilter: NostrFilter = { kinds: [1] };
@@ -90,11 +94,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (alive) setIsLoading(false);
     })();
 
-    // 2. Open a persistent subscription on the relay directly
+    // 2. Stream new posts
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
-
         for await (const msg of relay.req(
           [{ ...baseFilter, since: now, limit: 100 }],
           { signal: ac.signal },
@@ -105,7 +108,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           } else if (msg[0] === 'CLOSED') {
             break;
           }
-          // EOSE: keep going
         }
       } catch {
         // abort expected
@@ -116,7 +118,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, options.includeReplies, options.mediaType]);
+  }, [nostr, query]);
+
+  // Apply client-side filters without restarting the stream
+  const posts = useMemo(() => {
+    return allEvents.filter((event) => filterEvent(event, options));
+  }, [allEvents, options.includeReplies, options.mediaType]);
 
   return { posts, isLoading };
 }
