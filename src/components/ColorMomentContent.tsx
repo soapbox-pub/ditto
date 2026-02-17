@@ -71,42 +71,73 @@ function GridLayout({ colors }: { colors: string[] }) {
   );
 }
 
-function StarLayout({ colors }: { colors: string[] }) {
-  const n = colors.length;
-  const sliceAngle = 360 / n;
+/** Build a clip-path polygon for a pie slice with slight overlap to prevent gaps. */
+function pieSliceClipPath(index: number, total: number): string {
+  const angle = 360 / total;
+  const overlap = 0.5;
+  const startAngle = index * angle - 90 - overlap;
+  const sweepAngle = angle + overlap * 2;
+  const scale = 1.5; // extend past edges so slices cover the full rect
+  const steps = 12;
 
-  const stops = colors.map((color, i) => {
-    const start = sliceAngle * i;
-    const end = sliceAngle * (i + 1);
-    return `${color} ${start}deg ${end}deg`;
-  }).join(', ');
+  const points: string[] = ['50% 50%'];
+  for (let i = 0; i <= steps; i++) {
+    const a = startAngle + (sweepAngle * i) / steps;
+    const rad = (a * Math.PI) / 180;
+    const x = 50 + 50 * scale * Math.cos(rad);
+    const y = 50 + 50 * scale * Math.sin(rad);
+    points.push(`${x}% ${y}%`);
+  }
+  return `polygon(${points.join(', ')})`;
+}
+
+function StarLayout({ colors }: { colors: string[] }) {
+  return (
+    <div className="relative w-full rounded-2xl overflow-hidden" style={{ height: 180 }}>
+      {/* Background fill to cover the center seam where all slices meet */}
+      <div className="absolute inset-0" style={{ backgroundColor: colors[0] }} />
+      {colors.map((color, i) => (
+        <div
+          key={i}
+          className="absolute inset-0"
+          style={{
+            backgroundColor: color,
+            clipPath: pieSliceClipPath(i, colors.length),
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function CheckerboardLayout({ colors }: { colors: string[] }) {
+  const n = colors.length;
+  // Build an SVG pattern: n×n grid where each cell uses (row+col)%n
+  const cellSize = 1;
+  const svgSize = n * cellSize;
+
+  let rects = '';
+  for (let row = 0; row < n; row++) {
+    for (let col = 0; col < n; col++) {
+      const colorIndex = (row + col) % n;
+      rects += `<rect x="${col * cellSize}" y="${row * cellSize}" width="${cellSize}" height="${cellSize}" fill="${colors[colorIndex]}"/>`;
+    }
+  }
+
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" shape-rendering="crispEdges">${rects}</svg>`;
+  const encoded = encodeURIComponent(svg);
 
   return (
     <div
       className="w-full rounded-2xl overflow-hidden"
       style={{
         height: 180,
-        background: `conic-gradient(from 0deg at 50% 50%, ${stops})`,
+        backgroundImage: `url("data:image/svg+xml,${encoded}")`,
+        backgroundSize: '50% 50%',
+        backgroundRepeat: 'repeat',
+        imageRendering: 'pixelated',
       }}
     />
-  );
-}
-
-function CheckerboardLayout({ colors }: { colors: string[] }) {
-  const { cols } = gridDimensions(colors.length);
-  return (
-    <div
-      className="grid w-full rounded-2xl overflow-hidden"
-      style={{
-        height: 180,
-        gridTemplateColumns: `repeat(${cols}, 1fr)`,
-        gap: 2,
-      }}
-    >
-      {colors.map((color, i) => (
-        <div key={i} className="rounded-sm" style={{ backgroundColor: color }} />
-      ))}
-    </div>
   );
 }
 
