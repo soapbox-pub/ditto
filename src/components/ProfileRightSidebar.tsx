@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
@@ -6,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/useToast';
+import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 
 interface ProfileField {
@@ -18,20 +21,29 @@ interface ProfileRightSidebarProps {
   fields?: ProfileField[];
 }
 
-/** Extracts media URLs (images and videos) from kind 1 event content. */
-function extractMediaUrls(content: string): string[] {
-  const imageRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  const videoRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-  const images = content.match(imageRegex) || [];
-  const videos = content.match(videoRegex) || [];
-  return [...images, ...videos];
+interface MediaItem {
+  url: string;
+  eventId: string;
+  authorPubkey: string;
 }
 
-/** Hook to query media from a user's posts. */
+/** Extracts image URLs from content. */
+function extractImageUrls(content: string): string[] {
+  const regex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
+  return content.match(regex) || [];
+}
+
+/** Extracts video URLs from content. */
+function extractVideoUrls(content: string): string[] {
+  const regex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+  return content.match(regex) || [];
+}
+
+/** Hook to query media from a user's posts, returning URL + event ID pairs. */
 function useProfileMedia(pubkey: string) {
   const { nostr } = useNostr();
 
-  return useQuery<string[]>({
+  return useQuery<MediaItem[]>({
     queryKey: ['profile-media', pubkey],
     queryFn: async ({ signal }) => {
       const events = await nostr.query(
@@ -39,34 +51,65 @@ function useProfileMedia(pubkey: string) {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
-      const urls: string[] = [];
+      const items: MediaItem[] = [];
       const seen = new Set<string>();
 
       for (const event of events) {
-        const media = extractMediaUrls(event.content);
-        for (const url of media) {
+        const images = extractImageUrls(event.content);
+        const videos = extractVideoUrls(event.content);
+        for (const url of [...images, ...videos]) {
           if (!seen.has(url)) {
             seen.add(url);
-            urls.push(url);
+            items.push({ url, eventId: event.id, authorPubkey: event.pubkey });
           }
         }
       }
 
-      return urls.slice(0, 9);
+      return items.slice(0, 9);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,
   });
 }
 
-/** Get favicon URL from the site's own /favicon.ico. */
-function getFaviconUrl(url: string): string {
-  try {
-    const parsed = new URL(url);
-    return `${parsed.origin}/favicon.ico`;
-  } catch {
-    return '';
-  }
+/** Build a nevent link for navigating to an event. */
+function eventLink(item: MediaItem): string {
+  return `/${nip19.neventEncode({ id: item.eventId, author: item.authorPubkey })}`;
+}
+
+/** Try multiple favicon paths: /favicon.ico, then /favicon.svg. */
+function Favicon({ url }: { url: string }) {
+  const candidates = useMemo(() => {
+    try {
+      const origin = new URL(url).origin;
+      return [`${origin}/favicon.ico`, `${origin}/favicon.svg`];
+    } catch {
+      return [];
+    }
+  }, [url]);
+
+  const [index, setIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  if (candidates.length === 0 || failed) return null;
+
+  const src = candidates[index];
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="size-4 shrink-0"
+      loading="lazy"
+      onError={() => {
+        if (index < candidates.length - 1) {
+          setIndex(index + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
+  );
 }
 
 /** Bitcoin QR code modal */
@@ -136,24 +179,6 @@ function BitcoinQRModal({ address }: { address: string }) {
         </div>
       </div>
     </DialogContent>
-  );
-}
-
-/** Favicon image with graceful fallback. */
-function Favicon({ url }: { url: string }) {
-  const faviconSrc = getFaviconUrl(url);
-  const [failed, setFailed] = useState(false);
-
-  if (!faviconSrc || failed) return null;
-
-  return (
-    <img
-      src={faviconSrc}
-      alt=""
-      className="size-4 shrink-0"
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
   );
 }
 
@@ -252,32 +277,31 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
           </div>
         ) : media && media.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {media.map((url, i) => {
-              const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
+            {media.map((item, i) => {
+              const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(item.url);
               return (
-                <a
+                <Link
                   key={i}
-                  href={url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
+                  to={eventLink(item)}
+                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block"
                 >
                   {isVideo ? (
                     <video
-                      src={url}
+                      src={item.url}
                       className="w-full h-full object-cover"
                       muted
                       preload="metadata"
                     />
                   ) : (
                     <img
-                      src={url}
+                      src={item.url}
                       alt=""
                       className="w-full h-full object-cover"
+                      style={{ imageRendering: 'auto' }}
                       loading="lazy"
                     />
                   )}
-                </a>
+                </Link>
               );
             })}
           </div>
