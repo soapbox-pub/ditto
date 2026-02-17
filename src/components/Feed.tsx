@@ -3,10 +3,12 @@ import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeed } from '@/hooks/useFeed';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 
 export function Feed() {
-  const [activeTab, setActiveTab] = useState<'follows' | 'global'>('follows');
+  const { user } = useCurrentUser();
+  const [activeTab, setActiveTab] = useState<'follows' | 'global'>('global');
   const { data: events, isLoading } = useFeed(activeTab);
 
   return (
@@ -14,19 +16,21 @@ export function Feed() {
       {/* Compose area */}
       <ComposeBox compact />
 
-      {/* Tabs — stick below the mobile top bar (48px) on small screens, top-0 on desktop */}
-      <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-        <TabButton
-          label="Follows"
-          active={activeTab === 'follows'}
-          onClick={() => setActiveTab('follows')}
-        />
-        <TabButton
-          label="Global"
-          active={activeTab === 'global'}
-          onClick={() => setActiveTab('global')}
-        />
-      </div>
+      {/* Tabs — only show when logged in */}
+      {user && (
+        <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+          <TabButton
+            label="Follows"
+            active={activeTab === 'follows'}
+            onClick={() => setActiveTab('follows')}
+          />
+          <TabButton
+            label="Global"
+            active={activeTab === 'global'}
+            onClick={() => setActiveTab('global')}
+          />
+        </div>
+      )}
 
       {/* Feed content */}
       {isLoading ? (
