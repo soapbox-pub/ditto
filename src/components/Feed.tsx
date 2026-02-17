@@ -41,18 +41,17 @@ export function Feed() {
           />
         </div>
       ) : (
-        <div className="border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10 py-4 px-6">
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-sm font-medium">
-              <span className="text-foreground">Join Mew</span>{' '}
-              <span className="text-muted-foreground">to follow accounts & personalize your feed</span>
+        <div className="border-b border-border sticky top-10 sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-6">
+          <div className="flex flex-col items-center justify-center gap-3 text-center px-6">
+            <p className="text-base font-semibold text-foreground">
+              Join to unlock your personalized feed ✨
             </p>
             <Button
               onClick={() => setLoginDialogOpen(true)}
-              className="rounded-full shrink-0"
-              size="sm"
+              className="rounded-full px-8 shadow-lg hover:shadow-xl transition-shadow"
+              size="lg"
             >
-              Join
+              Join Mew
             </Button>
           </div>
         </div>
