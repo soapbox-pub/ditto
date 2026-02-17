@@ -47,8 +47,8 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
 
 /**
  * Stream posts in real-time.
- * 1. Fetches an initial batch via query() (limit: 40).
- * 2. Opens a live req() subscription (limit: 0, since: now) for new posts.
+ * 1. Fetches initial batch via query() in parallel.
+ * 2. Opens a live req() subscription for new posts.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
@@ -64,6 +64,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const ac = new AbortController();
     abortRef.current = ac;
+    let isSubscribed = true;
 
     setPosts([]);
     setIsLoading(true);
@@ -74,7 +75,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (eventMap.has(event.id)) return;
       if (!filterEvent(event, options)) return;
       eventMap.set(event.id, event);
-      setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
+      if (isSubscribed) {
+        setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
+      }
     }
 
     // Use relay.ditto.pub for NIP-50 search, otherwise default pool
@@ -90,36 +93,61 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const now = Math.floor(Date.now() / 1000);
 
-    (async () => {
+    // 1. Fetch initial batch
+    const fetchInitial = async () => {
       try {
-        // 1. Fetch initial batch
-        const initial = await store.query(
+        const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(8000)]);
+        const events = await store.query(
           [{ ...baseFilter, limit: 40 }],
+          { signal },
+        );
+
+        for (const event of events) {
+          addEvent(event);
+        }
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Failed to fetch initial posts:', error);
+        }
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    // 2. Stream new posts in real-time
+    const streamNew = async () => {
+      try {
+        const subscription = store.req(
+          [{ ...baseFilter, since: now, limit: 100 }],
           { signal: ac.signal },
         );
 
-        for (const event of initial) {
-          addEvent(event);
-        }
-        setIsLoading(false);
+        for await (const msg of subscription) {
+          if (!isSubscribed) break;
 
-        // 2. Stream new posts going forward
-        for await (const msg of store.req([{ ...baseFilter, since: now, limit: 0 }], { signal: ac.signal })) {
           if (msg[0] === 'EVENT') {
             addEvent(msg[2]);
-          }
-          if (msg[0] === 'CLOSED') {
+          } else if (msg[0] === 'CLOSED') {
             break;
           }
         }
-      } catch {
-        // AbortError is expected on cleanup
-      } finally {
-        setIsLoading(false);
+      } catch (error) {
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('Failed to maintain stream:', error);
+        }
       }
-    })();
+    };
+
+    // Run both in parallel
+    fetchInitial();
+    streamNew();
 
     return () => {
+      isSubscribed = false;
       ac.abort();
       abortRef.current = null;
     };
