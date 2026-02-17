@@ -2,10 +2,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
-import { LinkPreview } from '@/components/LinkPreview';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
-import { extractPreviewUrl } from '@/hooks/useLinkPreview';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -43,7 +41,6 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const neventId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event.id, event.pubkey]);
   const images = useMemo(() => extractImages(event.content), [event.content]);
-  const previewUrl = useMemo(() => extractPreviewUrl(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -130,11 +127,6 @@ export function NoteCard({ event, className }: NoteCardProps) {
                 </a>
               ))}
             </div>
-          )}
-
-          {/* Link preview */}
-          {previewUrl && (
-            <LinkPreview url={previewUrl} className="mt-3" />
           )}
 
           {/* Action buttons */}

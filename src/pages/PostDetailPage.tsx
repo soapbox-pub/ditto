@@ -9,7 +9,6 @@ import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
-import { LinkPreview } from '@/components/LinkPreview';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -18,7 +17,6 @@ import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
-import { extractPreviewUrl } from '@/hooks/useLinkPreview';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
@@ -112,7 +110,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const images = useMemo(() => extractImages(event.content), [event.content]);
-  const previewUrl = useMemo(() => extractPreviewUrl(event.content), [event.content]);
   const { data: stats } = useEventStats(event.id);
   const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
   const [liked, setLiked] = useState(false);
@@ -186,11 +183,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </a>
             ))}
           </div>
-        )}
-
-        {/* Link preview */}
-        {previewUrl && (
-          <LinkPreview url={previewUrl} className="mt-3" />
         )}
 
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}

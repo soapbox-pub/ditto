@@ -2,9 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 
 const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
 
-/** Regex to match media file URLs that should NOT get link previews. */
-const MEDIA_URL_REGEX = /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?$/i;
-
 export interface LinkPreviewData {
   url: string;
   title?: string;
@@ -12,21 +9,6 @@ export interface LinkPreviewData {
   image?: string;
   siteName?: string;
   favicon?: string;
-}
-
-/** Extract the first non-media URL from note content. */
-export function extractPreviewUrl(content: string): string | null {
-  const urlRegex = /https?:\/\/[^\s]+/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = urlRegex.exec(content)) !== null) {
-    const url = match[0];
-    if (!MEDIA_URL_REGEX.test(url)) {
-      return url;
-    }
-  }
-
-  return null;
 }
 
 /** Parse OG meta tags from raw HTML. */
