@@ -273,6 +273,7 @@ export function LeftSidebar() {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={handleLogin}
+        onSignupClick={() => setSignupDialogOpen(true)}
       />
       <SignupDialog
         isOpen={signupDialogOpen}

@@ -16,6 +16,7 @@ interface LoginDialogProps {
   isOpen: boolean;
   onClose: () => void;
   onLogin: () => void;
+  onSignupClick?: () => void;
 }
 
 const validateNsec = (nsec: string) => {
@@ -26,7 +27,7 @@ const validateBunkerUri = (uri: string) => {
   return uri.startsWith('bunker://');
 };
 
-const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) => {
+const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onSignupClick }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(false);
   const [nsec, setNsec] = useState('');
@@ -312,6 +313,19 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin }) =
                 {isLoading ? 'Logging in...' : 'Log in with Extension'}
               </Button>
             </div>
+          )}
+
+          {onSignupClick && (
+            <p className="text-center text-sm text-muted-foreground">
+              New here?{' '}
+              <button
+                type="button"
+                onClick={() => { onClose(); onSignupClick(); }}
+                className="text-primary hover:underline font-medium"
+              >
+                Create account
+              </button>
+            </p>
           )}
 
           {/* Tabs - wrapped in collapsible if extension is available, otherwise shown directly */}
