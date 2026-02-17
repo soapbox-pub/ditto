@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Quote, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
@@ -185,7 +185,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     setInteractionsOpen(true);
   };
 
-  const hasStats = !!(stats?.reposts || stats?.quotes || stats?.reactions || stats?.zapAmount);
+  const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
+  const hasStats = !!(repostTotal || stats?.reactions || stats?.zapAmount);
 
   return (
     <div>
@@ -249,22 +250,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
           <div className="flex items-center gap-x-3 py-2.5 mt-3 text-sm text-muted-foreground">
-            {stats?.reposts ? (
+            {repostTotal ? (
               <button
                 onClick={() => openInteractions('reposts')}
                 className="hover:underline transition-colors"
               >
-                <span className="font-bold text-foreground">{stats.reposts}</span>{' '}
-                Repost{stats.reposts !== 1 ? 's' : ''}
-              </button>
-            ) : null}
-            {stats?.quotes ? (
-              <button
-                onClick={() => openInteractions('quotes')}
-                className="hover:underline transition-colors"
-              >
-                <span className="font-bold text-foreground">{stats.quotes}</span>{' '}
-                Quote{stats.quotes !== 1 ? 's' : ''}
+                <span className="font-bold text-foreground">{repostTotal}</span>{' '}
+                Repost{repostTotal !== 1 ? 's' : ''}
               </button>
             ) : null}
             {stats?.reactions ? (
@@ -274,7 +266,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               >
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
                 {stats.reactionEmojis && stats.reactionEmojis.length > 0
-                  ? stats.reactionEmojis.slice(0, 8).join('')
+                  ? stats.reactionEmojis.slice(0, 3).join('')
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
               </button>
             ) : null}
@@ -317,17 +309,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onClick={() => openInteractions('reposts')}
           >
             <Repeat2 className="size-[18px]" />
-            {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
-          </button>
-
-          {/* Quotes */}
-          <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-blue-500 hover:bg-blue-500/10 transition-colors"
-            title="Quotes"
-            onClick={() => openInteractions('quotes')}
-          >
-            <Quote className="size-[18px]" />
-            {stats?.quotes ? <span className="text-xs">{stats.quotes}</span> : null}
+            {repostTotal ? <span className="text-xs">{repostTotal}</span> : null}
           </button>
 
           {/* React */}
