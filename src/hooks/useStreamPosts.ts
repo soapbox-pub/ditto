@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -48,12 +48,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [posts, setPosts] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // Use refs for filter values so the effect doesn't re-run when they change
-  const optionsRef = useRef(options);
-  optionsRef.current = options;
-
-  const queryRef = useRef(query);
-  queryRef.current = query;
 
   useEffect(() => {
     const ac = new AbortController();
@@ -67,7 +61,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     function addEvent(event: NostrEvent) {
       if (!alive) return;
       if (eventMap.has(event.id)) return;
-      if (!filterEvent(event, optionsRef.current)) return;
+      if (!filterEvent(event, options)) return;
       eventMap.set(event.id, event);
       setPosts(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
@@ -122,8 +116,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query]);
-  // NOTE: only nostr and query in deps — filter changes apply via ref without restarting the stream
+  }, [nostr, query, options.includeReplies, options.mediaType]);
 
   return { posts, isLoading };
 }
