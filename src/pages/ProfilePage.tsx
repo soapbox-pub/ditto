@@ -1,14 +1,14 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, LinkIcon, Bitcoin, Users, Pin, X } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { MainLayout } from '@/components/MainLayout';
@@ -24,6 +24,7 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
+import QRCode from 'qrcode';
 
 const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
@@ -345,11 +346,114 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
+// ----- Favicon (mobile) -----
+
+function Favicon({ url }: { url: string }) {
+  const candidates = useMemo(() => {
+    try {
+      const origin = new URL(url).origin;
+      return [`${origin}/favicon.ico`, `${origin}/favicon.svg`];
+    } catch {
+      return [];
+    }
+  }, [url]);
+
+  const [index, setIndex] = useState(0);
+  const [failed, setFailed] = useState(false);
+
+  if (candidates.length === 0 || failed) return null;
+
+  const src = candidates[index];
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className="size-4 shrink-0"
+      loading="lazy"
+      onError={() => {
+        if (index < candidates.length - 1) {
+          setIndex(index + 1);
+        } else {
+          setFailed(true);
+        }
+      }}
+    />
+  );
+}
+
+// ----- Bitcoin QR Modal (mobile) -----
+
+function BitcoinQRModal({ address }: { address: string }) {
+  const [qrUrl, setQrUrl] = useState('');
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    QRCode.toDataURL(`bitcoin:${address}`, {
+      width: 280,
+      margin: 2,
+      color: { dark: '#000000', light: '#FFFFFF' },
+    }).then(setQrUrl).catch(console.error);
+  }, [address]);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(address);
+    setCopied(true);
+    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <DialogContent className="sm:max-w-[360px] p-6 overflow-hidden rounded-2xl [&>button]:top-6 [&>button]:right-6">
+      <div className="min-w-0">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <div className="size-7 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+              <Bitcoin className="size-4 text-white" />
+            </div>
+            <span>Bitcoin</span>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="flex justify-center my-5">
+          <div className="bg-white p-3 rounded-xl">
+            {qrUrl ? (
+              <img src={qrUrl} alt="Bitcoin QR" className="size-[220px]" />
+            ) : (
+              <div className="size-[220px] bg-muted animate-pulse rounded" />
+            )}
+          </div>
+        </div>
+
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-2 w-full bg-secondary/60 hover:bg-secondary/80 transition-colors rounded-lg pl-3 pr-2.5 py-2.5 text-left cursor-pointer overflow-hidden"
+        >
+          <span className="min-w-0 font-mono text-xs truncate">{address}</span>
+          <span className="shrink-0 ml-auto">
+            {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4 text-muted-foreground" />}
+          </span>
+        </button>
+      </div>
+    </DialogContent>
+  );
+}
+
 // ----- Inline Profile Field (mobile) -----
 
 function ProfileFieldInline({ field }: { field: { label: string; value: string } }) {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
   const isBtc = field.label === '$BTC';
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(field.value);
+    setCopied(true);
+    toast({ title: 'Copied', description: 'Bitcoin address copied to clipboard' });
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   if (isBtc) {
     return (
@@ -359,6 +463,32 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
         </div>
         <span className="text-sm font-semibold shrink-0">Bitcoin</span>
         <span className="text-sm text-muted-foreground font-mono truncate">{field.value.slice(0, 12)}…{field.value.slice(-6)}</span>
+        <div className="ml-auto flex items-center gap-1 shrink-0">
+          <button
+            onClick={handleCopy}
+            className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+            title="Copy address"
+          >
+            {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+          </button>
+          <Dialog>
+            <DialogTrigger asChild>
+              <button className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary" title="Show QR code">
+                <QrCode className="size-4" />
+              </button>
+            </DialogTrigger>
+            <BitcoinQRModal address={field.value} />
+          </Dialog>
+          <a
+            href={`https://mempool.space/address/${field.value}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
+            title="View on mempool.space"
+          >
+            <ExternalLink className="size-4" />
+          </a>
+        </div>
       </div>
     );
   }
@@ -366,7 +496,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   if (isUrl) {
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <LinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <Favicon url={field.value} />
         <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
         <a
           href={field.value}
