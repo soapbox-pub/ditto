@@ -116,14 +116,17 @@ async function fetchLinkPreview(url: string, signal?: AbortSignal): Promise<Link
     const response = await fetch(proxiedUrl, {
       signal,
       headers: {
-        'Accept': 'text/html',
+        // Identify as a bot/crawler so dynamic sites (SPAs, Twitter, etc.)
+        // return server-rendered HTML with OG meta tags instead of a JS shell.
+        'User-Agent': 'Mew/1.0 (Link Preview Bot; +https://shakespeare.diy)',
+        'Accept': 'text/html,application/xhtml+xml',
       },
     });
 
     if (!response.ok) return null;
 
     const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('text/html')) return null;
+    if (!contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')) return null;
 
     const html = await response.text();
     const data = parseOpenGraph(html, url);

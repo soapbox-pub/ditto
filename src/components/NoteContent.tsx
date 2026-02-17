@@ -5,6 +5,7 @@ import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { LinkPreview } from '@/components/LinkPreview';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { cn } from '@/lib/utils';
 
 interface NoteContentProps {
@@ -15,10 +16,37 @@ interface NoteContentProps {
 /** Regex to detect media file URLs (images, video, audio, etc.) that are rendered as embeds. */
 const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?/i;
 
+/** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
+function extractYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    // youtube.com/watch?v=ID
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') && u.pathname === '/watch') {
+      return u.searchParams.get('v');
+    }
+    // youtube.com/embed/ID
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/embed/')) {
+      return u.pathname.split('/')[2] || null;
+    }
+    // youtube.com/shorts/ID
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/shorts/')) {
+      return u.pathname.split('/')[2] || null;
+    }
+    // youtu.be/ID
+    if (u.hostname === 'youtu.be') {
+      return u.pathname.slice(1) || null;
+    }
+  } catch {
+    // not a valid URL
+  }
+  return null;
+}
+
 /** A parsed token from note content. */
 type ContentToken =
   | { type: 'text'; value: string }
   | { type: 'link-preview'; url: string }
+  | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
@@ -28,11 +56,8 @@ export function NoteContent({
   event,
   className,
 }: NoteContentProps) {
-  // Parse content into tokens (pure data, no hooks)
   const tokens = useMemo(() => {
     const text = event.content;
-
-    // Regex to find URLs, Nostr references, and hashtags
     const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
@@ -49,15 +74,21 @@ export function NoteContent({
       }
 
       if (url) {
-        // Skip media URLs — they are rendered as embedded previews by the parent
+        // Skip media URLs — rendered as embedded previews by the parent
         if (MEDIA_URL_REGEX.test(url)) {
           lastIndex = index + fullMatch.length;
           continue;
         }
-        // Non-media URL → render as link preview card in-place
-        result.push({ type: 'link-preview', url });
+
+        // YouTube → playable embed
+        const ytId = extractYouTubeId(url);
+        if (ytId) {
+          result.push({ type: 'youtube-embed', videoId: ytId });
+        } else {
+          // Other non-media URL → link preview card
+          result.push({ type: 'link-preview', url });
+        }
       } else if (nostrPrefix && nostrData) {
-        // Handle Nostr references
         try {
           const nostrId = `${nostrPrefix}${nostrData}`;
           const decoded = nip19.decode(nostrId);
@@ -85,13 +116,33 @@ export function NoteContent({
       result.push({ type: 'text', value: text.substring(lastIndex) });
     }
 
-    // If no special content was found, just use the plain text
     if (result.length === 0) {
       result.push({ type: 'text', value: text });
     }
 
-    // Trim leading/trailing whitespace from text tokens at the edges
-    // (stripped URLs can leave trailing newlines)
+    // Collapse whitespace around block-level tokens (link-preview, youtube-embed)
+    // so that newlines surrounding a URL don't stack with the card's own spacing.
+    for (let i = 0; i < result.length; i++) {
+      const token = result[i];
+      if (token.type === 'link-preview' || token.type === 'youtube-embed') {
+        // Trim trailing whitespace from the preceding text token
+        if (i > 0) {
+          const prev = result[i - 1];
+          if (prev.type === 'text') {
+            prev.value = prev.value.replace(/\s+$/, '');
+          }
+        }
+        // Trim leading whitespace from the following text token
+        if (i < result.length - 1) {
+          const next = result[i + 1];
+          if (next.type === 'text') {
+            next.value = next.value.replace(/^\s+/, '');
+          }
+        }
+      }
+    }
+
+    // Trim leading/trailing whitespace from edge text tokens
     if (result.length > 0) {
       const first = result[0];
       if (first.type === 'text') {
@@ -103,7 +154,8 @@ export function NoteContent({
       }
     }
 
-    return result;
+    // Filter out empty text tokens
+    return result.filter((t) => !(t.type === 'text' && t.value === ''));
   }, [event]);
 
   return (
@@ -113,7 +165,9 @@ export function NoteContent({
           case 'text':
             return <span key={i}>{token.value}</span>;
           case 'link-preview':
-            return <LinkPreview key={i} url={token.url} className="my-2" />;
+            return <LinkPreview key={i} url={token.url} className="mt-1.5 mb-0.5" />;
+          case 'youtube-embed':
+            return <YouTubeEmbed key={i} videoId={token.videoId} className="mt-1.5 mb-0.5" />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
@@ -142,7 +196,6 @@ export function NoteContent({
   );
 }
 
-// Helper component to display user mentions
 function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const npub = nip19.npubEncode(pubkey);
