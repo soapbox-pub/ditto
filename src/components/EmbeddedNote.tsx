@@ -9,6 +9,50 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
+/** Bech32 charset used by NIP-19 identifiers. */
+const B32 = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex that matches nostr:npub1… and nostr:nprofile1… inside text. */
+const MENTION_REGEX = new RegExp(`nostr:(npub1|nprofile1)[${B32}]+`, 'g');
+
+/** A parsed segment of embedded-note text. */
+type EmbedSegment =
+  | { type: 'text'; value: string }
+  | { type: 'mention'; pubkey: string; npub: string };
+
+/** Split text into plain strings and mention segments. */
+function parseEmbedSegments(text: string): EmbedSegment[] {
+  const segments: EmbedSegment[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+
+  MENTION_REGEX.lastIndex = 0;
+  while ((m = MENTION_REGEX.exec(text)) !== null) {
+    if (m.index > last) {
+      segments.push({ type: 'text', value: text.slice(last, m.index) });
+    }
+    try {
+      const bech32 = m[0].slice('nostr:'.length);
+      const decoded = nip19.decode(bech32);
+      const pubkey = decoded.type === 'npub'
+        ? (decoded.data as string)
+        : (decoded.data as { pubkey: string }).pubkey;
+      const npub = nip19.npubEncode(pubkey);
+      segments.push({ type: 'mention', pubkey, npub });
+    } catch {
+      // If decode fails, keep as plain text
+      segments.push({ type: 'text', value: m[0] });
+    }
+    last = m.index + m[0].length;
+  }
+
+  if (last < text.length) {
+    segments.push({ type: 'text', value: text.slice(last) });
+  }
+
+  return segments;
+}
+
 interface EmbeddedNoteProps {
   /** Hex event ID to fetch and display. */
   eventId: string;
@@ -139,14 +183,48 @@ function EmbeddedNoteCard({
           </span>
         </div>
 
-        {/* Text preview */}
+        {/* Text preview with inline mentions */}
         {truncatedContent && (
-          <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words line-clamp-4">
-            {truncatedContent}
-          </p>
+          <EmbedContentPreview text={truncatedContent} />
         )}
       </div>
     </div>
+  );
+}
+
+/** Renders embedded-note text with @mentions resolved inline. */
+function EmbedContentPreview({ text }: { text: string }) {
+  const segments = useMemo(() => parseEmbedSegments(text), [text]);
+
+  return (
+    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words line-clamp-4">
+      {segments.map((seg, i) => {
+        if (seg.type === 'text') {
+          return <span key={i}>{seg.value}</span>;
+        }
+        return <EmbedMention key={i} pubkey={seg.pubkey} npub={seg.npub} />;
+      })}
+    </p>
+  );
+}
+
+/** Inline @mention inside an embedded note preview. */
+function EmbedMention({ pubkey, npub }: { pubkey: string; npub: string }) {
+  const author = useAuthor(pubkey);
+  const hasRealName = !!author.data?.metadata?.name;
+  const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+
+  return (
+    <Link
+      to={`/${npub}`}
+      className={cn(
+        'font-medium hover:underline',
+        hasRealName ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+      )}
+      onClick={(e) => e.stopPropagation()}
+    >
+      @{displayName}
+    </Link>
   );
 }
 
