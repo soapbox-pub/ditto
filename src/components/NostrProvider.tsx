@@ -26,6 +26,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     queryClient.invalidateQueries({ queryKey: ['nostr'] });
   }, [config.relayMetadata, queryClient]);
 
+  // Round-robin index for distributing reads across relays
+  const rrIndex = useRef(0);
+
   // Initialize NPool only once
   if (!pool.current) {
     pool.current = new NPool({
@@ -35,26 +38,26 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
 
-        // Route to all read relays
+        // Pick a single read relay (round-robin) so queries resolve on first EOSE
         const readRelays = relayMetadata.current.relays
           .filter(r => r.read)
           .map(r => r.url);
 
-        for (const url of readRelays) {
-          routes.set(url, filters);
+        if (readRelays.length > 0) {
+          const idx = rrIndex.current % readRelays.length;
+          rrIndex.current = idx + 1;
+          routes.set(readRelays[idx], filters);
         }
 
         return routes;
       },
       eventRouter(_event: NostrEvent) {
-        // Get write relays from metadata
+        // Publish to all write relays
         const writeRelays = relayMetadata.current.relays
           .filter(r => r.write)
           .map(r => r.url);
 
-        const allRelays = new Set<string>(writeRelays);
-
-        return [...allRelays];
+        return [...new Set(writeRelays)];
       },
     });
   }
