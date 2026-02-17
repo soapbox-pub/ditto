@@ -6,11 +6,18 @@ import { useQuery } from '@tanstack/react-query';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export function HashtagPage() {
   const { tag } = useParams<{ tag: string }>();
   const { nostr } = useNostr();
+  const { feedSettings } = useFeedSettings();
+
+  const extraKinds = getEnabledFeedKinds(feedSettings);
+  const kinds = [1, ...extraKinds];
+  const kindsKey = kinds.sort().join(',');
 
   useSeoMeta({
     title: `#${tag} | Mew`,
@@ -18,11 +25,11 @@ export function HashtagPage() {
   });
 
   const { data: events, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['hashtag', tag ?? ''],
+    queryKey: ['hashtag', tag ?? '', kindsKey],
     queryFn: async ({ signal }) => {
       if (!tag) return [];
       const results = await nostr.query(
-        [{ kinds: [1], '#t': [tag.toLowerCase()], limit: 40 }],
+        [{ kinds, '#t': [tag.toLowerCase()], limit: 40 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       return results.sort((a, b) => b.created_at - a.created_at);

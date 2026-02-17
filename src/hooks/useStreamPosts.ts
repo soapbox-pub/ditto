@@ -1,5 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo } from 'react';
+import { useFeedSettings } from './useFeedSettings';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -25,8 +27,8 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Kind 34236 (Vines) pass through — they're already the right type
-  if (event.kind === 34236) return true;
+  // Non-kind-1 events (extra kinds) pass through — media filters only apply to kind 1
+  if (event.kind !== 1) return true;
 
   if (!options.includeReplies) {
     if (event.tags.some(([name]) => name === 'e')) return false;
@@ -49,15 +51,20 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
 /**
  * Stream posts using a direct relay connection.
  * When mediaType is 'vines', streams kind 34236 events instead of kind 1.
+ * Includes extra kinds the user has enabled in feed settings.
  * Other filters are applied client-side via useMemo.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
+  const { feedSettings } = useFeedSettings();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Vines filter changes the kind queried, so it must restart the stream
   const isVines = options.mediaType === 'vines';
+
+  const extraKinds = getEnabledFeedKinds(feedSettings);
+  const extraKindsKey = extraKinds.sort().join(',');
 
   useEffect(() => {
     const ac = new AbortController();
@@ -73,8 +80,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       const now = Math.floor(Date.now() / 1000);
       if (event.created_at > now) return;
 
-      // For addressable events (kind 34236), dedupe by pubkey+kind+d
-      if (event.kind === 34236) {
+      // Addressable events (30000-39999) dedupe by pubkey+kind+d
+      if (event.kind >= 30000 && event.kind < 40000) {
         const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
         const key = `${event.pubkey}:${event.kind}:${dTag}`;
         const existing = eventMap.get(key);
@@ -90,9 +97,12 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const relay = nostr.relay('wss://relay.ditto.pub');
 
-    const baseFilter: NostrFilter = isVines
-      ? { kinds: [34236] }
-      : { kinds: [1] };
+    // Build the kinds list: either vines-only or kind 1 + enabled extras
+    const kinds: number[] = isVines
+      ? [34236]
+      : [1, ...extraKinds];
+
+    const baseFilter: NostrFilter = { kinds };
 
     if (query.trim()) {
       baseFilter.search = query.trim();
@@ -138,7 +148,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines]);
+  }, [nostr, query, isVines, extraKindsKey]);
 
   // Apply client-side filters without restarting the stream
   const posts = useMemo(() => {

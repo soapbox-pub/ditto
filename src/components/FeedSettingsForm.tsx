@@ -3,7 +3,16 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
 import type { FeedSettings } from '@/contexts/AppContext';
+
+/** Map route name → lucide icon. */
+const ICONS: Record<string, React.ReactNode> = {
+  vines: <Clapperboard className="size-5" />,
+  polls: <BarChart3 className="size-5" />,
+  treasures: <MapPin className="size-5" />,
+  colors: <Palette className="size-5" />,
+};
 
 interface ContentTypeConfig {
   id: keyof FeedSettings;
@@ -14,40 +23,14 @@ interface ContentTypeConfig {
   kindLabel: string;
 }
 
-const contentTypes: ContentTypeConfig[] = [
-  {
-    id: 'showVines',
-    feedId: 'feedIncludeVines',
-    label: 'Vines',
-    description: 'Short-form videos (kind 34236)',
-    icon: <Clapperboard className="size-5" />,
-    kindLabel: 'NIP-71',
-  },
-  {
-    id: 'showPolls',
-    feedId: 'feedIncludePolls',
-    label: 'Polls',
-    description: 'Community polls and votes (kind 1068)',
-    icon: <BarChart3 className="size-5" />,
-    kindLabel: 'NIP-88',
-  },
-  {
-    id: 'showTreasures',
-    feedId: 'feedIncludeTreasures',
-    label: 'Treasures',
-    description: 'Geocache listings (kind 37516)',
-    icon: <MapPin className="size-5" />,
-    kindLabel: 'Geocaching',
-  },
-  {
-    id: 'showColors',
-    feedId: 'feedIncludeColors',
-    label: 'Colors',
-    description: 'Color moment palettes (kind 3367)',
-    icon: <Palette className="size-5" />,
-    kindLabel: 'Espy',
-  },
-];
+const contentTypes: ContentTypeConfig[] = EXTRA_KINDS.map((def) => ({
+  id: def.showKey,
+  feedId: def.feedKey,
+  label: def.label,
+  description: def.description,
+  icon: ICONS[def.route] ?? <Palette className="size-5" />,
+  kindLabel: `kind ${def.kind}`,
+}));
 
 export function FeedSettingsForm() {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
@@ -92,7 +75,7 @@ export function FeedSettingsForm() {
       <section>
         <h2 className="text-base font-semibold mb-1">Feed Content</h2>
         <p className="text-sm text-muted-foreground mb-4">
-          Include these content types in your Follows and Global feeds alongside regular posts.
+          Include these content types alongside regular posts in all feeds (home, search, profiles, hashtags).
         </p>
 
         <div className="space-y-1">

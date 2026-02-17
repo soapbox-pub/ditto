@@ -10,7 +10,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import { VinesPage } from "./pages/VinesPage";
+import { KindFeedPage } from "./pages/KindFeedPage";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -26,10 +26,10 @@ export function AppRouter() {
         <Route path="/t/:tag" element={<HashtagPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/:section" element={<SettingsPage />} />
-        <Route path="/vines" element={<VinesPage />} />
-        <Route path="/polls" element={<PlaceholderPage title="Polls" />} />
-        <Route path="/treasures" element={<PlaceholderPage title="Treasures" />} />
-        <Route path="/colors" element={<PlaceholderPage title="Colors" />} />
+        <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" />} />
+        <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" />} />
+        <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" />} />
+        <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" />} />
         <Route path="/wallet" element={<PlaceholderPage title="Wallet" />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />

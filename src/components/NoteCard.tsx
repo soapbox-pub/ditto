@@ -6,6 +6,9 @@ import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
+import { PollContent } from '@/components/PollContent';
+import { GeocacheContent } from '@/components/GeocacheContent';
+import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
@@ -122,13 +125,17 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
   const [replyOpen, setReplyOpen] = useState(false);
 
   const isVine = event.kind === 34236;
+  const isPoll = event.kind === 1068;
+  const isGeocache = event.kind === 37516;
+  const isColor = event.kind === 3367;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor;
 
   // Kind 1 specific
-  const images = useMemo(() => isVine ? [] : extractImages(event.content), [event.content, isVine]);
-  const videos = useMemo(() => isVine ? [] : extractVideos(event.content), [event.content, isVine]);
-  const imetaMap = useMemo(() => isVine ? new Map<string, ImetaEntry>() : parseImetaMap(event.tags), [event.tags, isVine]);
-  const isReply = !isVine && event.tags.some(([name]) => name === 'e');
-  const replyTo = !isVine ? event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention') : undefined;
+  const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
+  const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
+  const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
+  const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
+  const replyTo = isTextNote ? event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention') : undefined;
 
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
@@ -201,12 +208,18 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
         )}
       </div>
 
-      {/* Content — full width */}
+      {/* Content — kind-based dispatch */}
       {isVine ? (
         <>
           {vineTitle && <p className="text-[15px] mt-2 leading-relaxed">{vineTitle}</p>}
           <VineMedia imeta={imeta} hashtags={hashtags} />
         </>
+      ) : isPoll ? (
+        <PollContent event={event} />
+      ) : isGeocache ? (
+        <GeocacheContent event={event} />
+      ) : isColor ? (
+        <ColorMomentContent event={event} />
       ) : (
         <>
           <div className="mt-2">

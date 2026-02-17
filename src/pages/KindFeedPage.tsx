@@ -4,15 +4,21 @@ import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useStreamVines } from '@/hooks/useStreamVines';
+import { useStreamKind } from '@/hooks/useStreamKind';
 
-export function VinesPage() {
+interface KindFeedPageProps {
+  kind: number;
+  title: string;
+  emptyMessage?: string;
+}
+
+export function KindFeedPage({ kind, title, emptyMessage }: KindFeedPageProps) {
   useSeoMeta({
-    title: 'Vines | Mew',
-    description: 'Short videos on Nostr',
+    title: `${title} | Mew`,
+    description: `${title} on Nostr`,
   });
 
-  const { vines, isLoading } = useStreamVines();
+  const { events, isLoading } = useStreamKind(kind);
 
   return (
     <MainLayout hideMobileTopBar>
@@ -22,25 +28,27 @@ export function VinesPage() {
           <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">Vines</h1>
+          <h1 className="text-xl font-bold">{title}</h1>
         </div>
 
         {/* Feed */}
-        {isLoading && vines.length === 0 ? (
+        {isLoading && events.length === 0 ? (
           <div className="divide-y divide-border">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <VineSkeleton key={i} />
+            {Array.from({ length: 5 }).map((_, i) => (
+              <FeedItemSkeleton key={i} />
             ))}
           </div>
-        ) : vines.length > 0 ? (
+        ) : events.length > 0 ? (
           <div>
-            {vines.map((event) => (
+            {events.map((event) => (
               <NoteCard key={event.id} event={event} />
             ))}
           </div>
         ) : (
           <div className="py-16 px-8 text-center">
-            <p className="text-muted-foreground">No vines yet. Check back soon!</p>
+            <p className="text-muted-foreground">
+              {emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
+            </p>
           </div>
         )}
       </main>
@@ -48,10 +56,9 @@ export function VinesPage() {
   );
 }
 
-function VineSkeleton() {
+function FeedItemSkeleton() {
   return (
     <div className="px-4 py-3 border-b border-border">
-      {/* Header: avatar + stacked name/handle — matches NoteCard layout */}
       <div className="flex items-center gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
         <div className="min-w-0 space-y-1.5">
@@ -59,17 +66,10 @@ function VineSkeleton() {
           <Skeleton className="h-3 w-36" />
         </div>
       </div>
-      {/* Title */}
-      <Skeleton className="h-4 w-48 mt-2" />
-      {/* Video thumbnail */}
-      <Skeleton className="w-full h-56 rounded-2xl mt-3" />
-      {/* Hashtags */}
-      <div className="flex gap-1.5 mt-2">
-        <Skeleton className="h-3 w-14" />
-        <Skeleton className="h-3 w-10" />
-        <Skeleton className="h-3 w-16" />
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
       </div>
-      {/* Actions */}
       <div className="flex items-center gap-6 mt-3 -ml-2">
         <Skeleton className="h-4 w-8" />
         <Skeleton className="h-4 w-8" />

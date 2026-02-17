@@ -21,6 +21,8 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -589,13 +591,19 @@ export function ProfilePage() {
     description: metadata?.about || 'Nostr profile',
   });
 
-  // Fetch posts (kind 1) from this user
+  // Feed settings for extra kinds
+  const { feedSettings } = useFeedSettings();
+  const profileExtraKinds = getEnabledFeedKinds(feedSettings);
+  const profileKinds = [1, ...profileExtraKinds];
+  const profileKindsKey = profileKinds.sort().join(',');
+
+  // Fetch posts (kind 1 + enabled extra kinds) from this user
   const { data: posts, isLoading: postsLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['profile-posts', pubkey ?? ''],
+    queryKey: ['profile-posts', pubkey ?? '', profileKindsKey],
     queryFn: async ({ signal }) => {
       if (!pubkey) return [];
       const events = await nostr.query(
-        [{ kinds: [1], authors: [pubkey], limit: 50 }],
+        [{ kinds: profileKinds, authors: [pubkey], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       return events.sort((a, b) => b.created_at - a.created_at);

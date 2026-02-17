@@ -2,25 +2,10 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { FeedSettings } from '@/contexts/AppContext';
 
 const PAGE_SIZE = 30;
-
-/** Extra content kind numbers mapped to their feed setting keys. */
-const EXTRA_KINDS: { kind: number; settingKey: keyof FeedSettings }[] = [
-  { kind: 34236, settingKey: 'feedIncludeVines' },
-  { kind: 1068, settingKey: 'feedIncludePolls' },
-  { kind: 37516, settingKey: 'feedIncludeTreasures' },
-  { kind: 3367, settingKey: 'feedIncludeColors' },
-];
-
-/** Build the list of extra kinds that should appear in the feed based on settings. */
-function getExtraKinds(feedSettings: FeedSettings): number[] {
-  return EXTRA_KINDS
-    .filter(({ settingKey }) => feedSettings[settingKey])
-    .map(({ kind }) => kind);
-}
 
 /** The base kinds always included in every feed query. */
 const BASE_FEED_KINDS = [1, 6];
@@ -83,7 +68,7 @@ export function useFeed(tab: 'follows' | 'global') {
   const { feedSettings } = useFeedSettings();
 
   // Build the full kinds list: base kinds + user-selected extra kinds.
-  const extraKinds = getExtraKinds(feedSettings);
+  const extraKinds = getEnabledFeedKinds(feedSettings);
   const allKinds = [...BASE_FEED_KINDS, ...extraKinds];
 
   // Stable key for the extra kinds so queries re-run when settings change.

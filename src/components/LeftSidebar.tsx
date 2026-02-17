@@ -14,6 +14,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
@@ -52,24 +53,32 @@ export function LeftSidebar() {
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
 
+  /** Map route name → lucide icon (size-6 for sidebar). */
+  const ROUTE_ICONS: Record<string, React.ReactNode> = {
+    vines: <Clapperboard className="size-6" />,
+    polls: <BarChart3 className="size-6" />,
+    treasures: <MapPin className="size-6" />,
+    colors: <Palette className="size-6" />,
+  };
+
   const navItems = useMemo(() => {
     const items = [
       { to: '/', icon: <Home className="size-6" />, label: 'Home' },
       { to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' },
       { to: '/search', icon: <Search className="size-6" />, label: 'Search' },
     ];
-    if (feedSettings.showVines) {
-      items.push({ to: '/vines', icon: <Clapperboard className="size-6" />, label: 'Vines' });
+
+    // Add enabled extra-kind links from the shared config
+    for (const def of EXTRA_KINDS) {
+      if (feedSettings[def.showKey]) {
+        items.push({
+          to: `/${def.route}`,
+          icon: ROUTE_ICONS[def.route] ?? <Palette className="size-6" />,
+          label: def.label,
+        });
+      }
     }
-    if (feedSettings.showPolls) {
-      items.push({ to: '/polls', icon: <BarChart3 className="size-6" />, label: 'Polls' });
-    }
-    if (feedSettings.showTreasures) {
-      items.push({ to: '/treasures', icon: <MapPin className="size-6" />, label: 'Treasures' });
-    }
-    if (feedSettings.showColors) {
-      items.push({ to: '/colors', icon: <Palette className="size-6" />, label: 'Colors' });
-    }
+
     items.push(
       { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
       { to: '/wallet', icon: <Wallet className="size-6" />, label: 'Wallet' },
@@ -77,7 +86,7 @@ export function LeftSidebar() {
       { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
     );
     return items;
-  }, [feedSettings.showVines, feedSettings.showPolls, feedSettings.showTreasures, feedSettings.showColors]);
+  }, [feedSettings]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
