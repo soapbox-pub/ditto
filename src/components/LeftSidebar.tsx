@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check, Moon, Sun, Zap, Heart } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Palette, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MewLogo } from '@/components/MewLogo';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
@@ -80,9 +81,9 @@ export function LeftSidebar() {
   };
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'dark', label: 'Mew', icon: <Moon className="size-4" /> },
+    { value: 'dark', label: 'Mew', icon: <Cat className="size-4" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
-    { value: 'black', label: 'Black', icon: <Zap className="size-4" /> },
+    { value: 'black', label: 'Black', icon: <Moon className="size-4" /> },
     { value: 'pink', label: 'Pink', icon: <Heart className="size-4" /> },
   ];
 
@@ -212,25 +213,36 @@ export function LeftSidebar() {
 
               {/* Theme selector */}
               <div className="border-b border-border py-2">
-                <div className="px-4 py-1.5 flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-                  <Palette className="size-3.5" />
-                  <span>Theme</span>
-                </div>
-                {themes.map((themeOption) => (
-                  <button
-                    key={themeOption.label}
-                    onClick={() => setTheme(themeOption.value)}
-                    className="flex items-center justify-between w-full px-4 py-2 text-sm hover:bg-secondary/60 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      {themeOption.icon}
-                      <span>{themeOption.label}</span>
-                    </div>
-                    {theme === themeOption.value && (
-                      <Check className="size-4 text-primary" />
-                    )}
-                  </button>
-                ))}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors rounded-md mx-1">
+                      <div className="flex items-center gap-3">
+                        <Palette className="size-4 text-muted-foreground" />
+                        <span>Theme</span>
+                      </div>
+                      <ChevronDown className="size-4 text-muted-foreground" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" className="w-48">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {themes.map((themeOption) => (
+                      <DropdownMenuItem
+                        key={themeOption.label}
+                        onClick={() => setTheme(themeOption.value)}
+                        className="flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          {themeOption.icon}
+                          <span>{themeOption.label}</span>
+                        </div>
+                        {theme === themeOption.value && (
+                          <Check className="size-4 text-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
 
               {/* Actions */}

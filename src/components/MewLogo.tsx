@@ -10,13 +10,13 @@ interface MewLogoProps {
 export function MewLogo({ className, size = 40 }: MewLogoProps) {
   const { theme } = useTheme();
   
-  // Define CSS filters for different themes
-  const getFilterClass = () => {
+  // Use opacity for light and pink themes
+  const getOpacityClass = () => {
     switch (theme) {
       case 'pink':
-        return 'brightness-0 saturate-100 invert(48%) sepia(79%) saturate(2476%) hue-rotate(310deg) brightness(98%) contrast(98%)';
+        return 'opacity-60';
       case 'light':
-        return 'brightness-0 saturate-100 invert(34%) sepia(85%) saturate(3048%) hue-rotate(245deg) brightness(95%) contrast(92%)';
+        return 'opacity-70';
       default:
         return '';
     }
@@ -28,7 +28,7 @@ export function MewLogo({ className, size = 40 }: MewLogoProps) {
       alt="Mew"
       width={size}
       height={size}
-      className={cn('object-contain transition-all duration-300', getFilterClass(), className)}
+      className={cn('object-contain transition-opacity duration-300', getOpacityClass(), className)}
     />
   );
 }
