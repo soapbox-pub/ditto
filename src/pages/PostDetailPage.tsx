@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -112,6 +113,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
   const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   const hasStats = !!(stats?.reposts || stats?.reactions || stats?.zapAmount);
 
@@ -215,6 +217,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           <button
             className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
             title="Reply"
+            onClick={() => setReplyOpen(true)}
           >
             <MessageCircle className="size-[18px]" />
             {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
@@ -264,6 +267,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </div>
 
         <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+        <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
       </article>
 
       {/* Replies */}

@@ -11,6 +11,7 @@ import { nip19 } from 'nostr-tools';
 import { useMemo, useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -43,6 +44,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
   const { data: stats } = useEventStats(event.id);
   const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [replyOpen, setReplyOpen] = useState(false);
 
   // Check if content is a reply
   const isReply = event.tags.some(([name]) => name === 'e');
@@ -133,7 +135,10 @@ export function NoteCard({ event, className }: NoteCardProps) {
             <button
               className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="Reply"
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                setReplyOpen(true);
+              }}
             >
               <MessageCircle className="size-[18px]" />
               {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
@@ -192,6 +197,9 @@ export function NoteCard({ event, className }: NoteCardProps) {
 
           {/* More menu dialog */}
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+
+          {/* Reply compose modal */}
+          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
         </div>
       </div>
     </article>

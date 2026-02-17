@@ -12,6 +12,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 const MAX_CHARS = 5000;
 
@@ -19,6 +20,12 @@ interface ComposeBoxProps {
   onSuccess?: () => void;
   placeholder?: string;
   compact?: boolean;
+  /** Event being replied to – adds NIP-10 reply tags when set. */
+  replyTo?: NostrEvent;
+  /** If true, the compose area is always expanded (e.g. inside a modal). */
+  forceExpanded?: boolean;
+  /** If true, hides the avatar (useful inside modals with their own layout). */
+  hideAvatar?: boolean;
 }
 
 /** Circular progress ring for character count. */
@@ -58,7 +65,7 @@ function CharRing({ count, max }: { count: number; max: number }) {
   );
 }
 
-export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", compact = false }: ComposeBoxProps) {
+export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", compact = false, replyTo, forceExpanded = false, hideAvatar = false }: ComposeBoxProps) {
   const { user, metadata } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -118,6 +125,32 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
       const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
 
+      // NIP-10 reply tags
+      if (replyTo) {
+        // Determine root of the thread
+        const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+        if (rootTag) {
+          // replyTo is itself a reply – preserve the root and mark replyTo as reply
+          tags.push(['e', rootTag[1], rootTag[2] || '', 'root', rootTag[4] || '']);
+          tags.push(['e', replyTo.id, '', 'reply', replyTo.pubkey]);
+        } else {
+          // replyTo is a top-level note – it becomes the root
+          tags.push(['e', replyTo.id, '', 'root', replyTo.pubkey]);
+        }
+
+        // Add p tags: original author + all existing p tags from the parent
+        const pPubkeys = new Set<string>();
+        pPubkeys.add(replyTo.pubkey);
+        for (const tag of replyTo.tags) {
+          if (tag[0] === 'p' && tag[1]) pPubkeys.add(tag[1]);
+        }
+        // Don't include ourselves
+        if (user.pubkey) pPubkeys.delete(user.pubkey);
+        for (const pk of pPubkeys) {
+          tags.push(['p', pk]);
+        }
+      }
+
       // NIP-36: content warning
       if (cwEnabled) {
         tags.push(['content-warning', cwText || '']);
@@ -139,23 +172,28 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       setCwText('');
       setExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      toast({ title: 'Posted!', description: 'Your note has been published.' });
+      if (replyTo) {
+        queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
+      }
+      toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : 'Your note has been published.' });
       onSuccess?.();
     } catch {
       toast({ title: 'Error', description: 'Failed to publish note.', variant: 'destructive' });
     }
   };
 
-  const isExpanded = expanded || content.length > 0 || !compact;
+  const isExpanded = forceExpanded || expanded || content.length > 0 || !compact;
 
   return (
-    <div className="flex gap-3 px-4 py-3 border-b border-border">
-      <Avatar className="size-11 shrink-0 mt-0.5">
-        <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-        <AvatarFallback className="bg-primary/20 text-primary text-sm">
-          {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
-        </AvatarFallback>
-      </Avatar>
+    <div className={cn("flex gap-3 px-4 py-3", !forceExpanded && "border-b border-border")}>
+      {!hideAvatar && (
+        <Avatar className="size-11 shrink-0 mt-0.5">
+          <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
+          </AvatarFallback>
+        </Avatar>
+      )}
 
       <div className="flex-1 min-w-0">
         {/* Textarea */}
