@@ -19,6 +19,7 @@ import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
+import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
 
@@ -50,6 +51,28 @@ function formatFullDate(timestamp: number): string {
     minute: '2-digit',
     hour12: true,
   });
+}
+
+/**
+ * Extracts the parent (replied-to) event ID from an event's tags following NIP-10 conventions.
+ * Supports both the preferred marked-tag scheme and the deprecated positional scheme.
+ */
+function getParentEventId(event: NostrEvent): string | undefined {
+  const eTags = event.tags.filter(([name]) => name === 'e');
+  if (eTags.length === 0) return undefined;
+
+  // Preferred: look for marked "reply" tag first
+  const replyTag = eTags.find(([, , , marker]) => marker === 'reply');
+  if (replyTag) return replyTag[1];
+
+  // If there's a "root" marker but no "reply" marker, the event replies directly to root
+  const rootTag = eTags.find(([, , , marker]) => marker === 'root');
+  if (rootTag) return rootTag[1];
+
+  // Deprecated positional scheme: last e-tag is the reply target
+  if (eTags.length >= 1) return eTags[eTags.length - 1][1];
+
+  return undefined;
 }
 
 export function PostDetailPage({ eventId }: PostDetailPageProps) {
@@ -118,6 +141,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
+  const parentEventId = useMemo(() => getParentEventId(event), [event]);
+
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
     setInteractionsOpen(true);
@@ -127,6 +152,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   return (
     <div>
+      {/* Parent event if this is a reply */}
+      {parentEventId && <ParentNote eventId={parentEventId} />}
+
       {/* Main post — expanded Ditto-style view */}
       <article className="px-4 pt-3 pb-0">
         {/* Author row */}
@@ -305,6 +333,104 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             No replies yet. Be the first to reply!
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/** Renders the parent event that this reply is responding to. */
+function ParentNote({ eventId }: { eventId: string }) {
+  const navigate = useNavigate();
+  const { data: event, isLoading } = useEvent(eventId);
+  const author = useAuthor(event?.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = event ? (metadata?.name || genUserName(event.pubkey)) : '';
+  const npub = useMemo(
+    () => event ? nip19.npubEncode(event.pubkey) : '',
+    [event],
+  );
+  const neventId = useMemo(
+    () => event ? nip19.neventEncode({ id: event.id, author: event.pubkey }) : '',
+    [event],
+  );
+
+  if (isLoading) {
+    return (
+      <div className="px-4 pt-3 pb-0">
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            <Skeleton className="size-10 rounded-full shrink-0" />
+            <div className="w-0.5 flex-1 mt-2 bg-border" />
+          </div>
+          <div className="flex-1 min-w-0 pb-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-16" />
+            </div>
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-full" />
+              <Skeleton className="h-4 w-3/4" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) return null;
+
+  return (
+    <div
+      className="px-4 pt-3 pb-0 cursor-pointer hover:bg-secondary/30 transition-colors"
+      onClick={() => navigate(`/${neventId}`)}
+    >
+      <div className="flex gap-3">
+        {/* Avatar + thread connector line */}
+        <div className="flex flex-col items-center">
+          <Link
+            to={`/${npub}`}
+            className="shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Avatar className="size-10">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+          <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 pb-4">
+          {/* Author row */}
+          <div className="flex items-center gap-1.5 min-w-0">
+            <Link
+              to={`/${npub}`}
+              className="font-bold text-[15px] hover:underline truncate"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+            {metadata?.nip05 && (
+              <>
+                <span className="text-sm text-muted-foreground truncate">
+                  @{metadata.nip05}
+                </span>
+                <span className="text-sm text-muted-foreground shrink-0">·</span>
+              </>
+            )}
+            <span className="text-sm text-muted-foreground shrink-0">
+              {timeAgo(event.created_at)}
+            </span>
+          </div>
+
+          {/* Note text */}
+          <div className="mt-1">
+            <NoteContent event={event} className="text-[15px] leading-relaxed" />
+          </div>
+        </div>
       </div>
     </div>
   );
