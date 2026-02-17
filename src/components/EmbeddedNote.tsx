@@ -51,11 +51,15 @@ function EmbeddedNoteCard({
     [event.id, event.pubkey],
   );
 
-  // Truncate long content
+  // Truncate long content, stripping media URLs and nested nostr event references
   const truncatedContent = useMemo(() => {
-    // Strip media URLs so we show only textual content in the embed
     const cleaned = event.content
+      // Strip media URLs
       .replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?/gi, '')
+      // Strip embedded event references (nevent / note) so they don't nest
+      .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '')
+      // Collapse leftover whitespace
+      .replace(/\n{3,}/g, '\n\n')
       .trim();
     if (cleaned.length <= MAX_CONTENT_LENGTH) return cleaned;
     return cleaned.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
