@@ -162,9 +162,14 @@ export function NoteContent({
     // so that newlines surrounding a URL don't stack with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      if (token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed' || token.type === 'naddr-embed') {
-        // Trim trailing whitespace from the preceding text token
-        if (i > 0) {
+      const isBlock = token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
+        || (token.type === 'naddr-embed' && !token.url);
+      // naddr-embed with a URL starts with inline text, so only trim after it
+      const isNaddrWithUrl = token.type === 'naddr-embed' && !!token.url;
+
+      if (isBlock || isNaddrWithUrl) {
+        // Trim trailing whitespace from the preceding text token (only for pure block tokens)
+        if (isBlock && i > 0) {
           const prev = result[i - 1];
           if (prev.type === 'text') {
             prev.value = prev.value.replace(/\s+$/, '');
