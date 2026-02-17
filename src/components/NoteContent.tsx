@@ -73,7 +73,7 @@ type ContentToken =
   | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string }
-  | { type: 'naddr-embed'; addr: AddrCoords }
+  | { type: 'naddr-embed'; addr: AddrCoords; url?: string }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
 
@@ -106,10 +106,10 @@ export function NoteContent({
           continue;
         }
 
-        // Check if the URL contains an naddr1 identifier → embed as Nostr event
+        // Check if the URL contains an naddr1 identifier → embed as Nostr event + preserve link
         const naddrFromUrl = extractNaddrFromUrl(url);
         if (naddrFromUrl) {
-          result.push({ type: 'naddr-embed', addr: naddrFromUrl });
+          result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
         } else {
           // YouTube → playable embed
           const ytId = extractYouTubeId(url);
@@ -209,7 +209,22 @@ export function NoteContent({
           case 'nevent-embed':
             return <EmbeddedNote key={i} eventId={token.eventId} className="my-2.5" />;
           case 'naddr-embed':
-            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" />;
+            return (
+              <span key={i}>
+                {token.url && (
+                  <a
+                    href={token.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline break-all"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {token.url}
+                  </a>
+                )}
+                <EmbeddedNaddr addr={token.addr} className="my-2.5" />
+              </span>
+            );
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':

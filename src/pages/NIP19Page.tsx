@@ -2,6 +2,8 @@ import { nip19 } from 'nostr-tools';
 import { useParams, Navigate } from 'react-router-dom';
 import NotFound from './NotFound';
 import { PostDetailPage } from './PostDetailPage';
+import { AddrDetailPage } from './AddrDetailPage';
+import type { AddressPointer } from 'nostr-tools/nip19';
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
@@ -31,8 +33,10 @@ export function NIP19Page() {
     case 'nevent':
       return <PostDetailPage eventId={(decoded.data as { id: string }).id} />;
 
-    case 'naddr':
-      return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Addressable event view coming soon</div>;
+    case 'naddr': {
+      const addr = decoded.data as AddressPointer;
+      return <AddrDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} />;
+    }
 
     default:
       return <NotFound />;
