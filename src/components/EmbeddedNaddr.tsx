@@ -127,26 +127,35 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
       <div className="px-3.5 py-2.5 space-y-1.5">
         {/* Author row */}
         <div className="flex items-center gap-2 min-w-0">
-          <Link
-            to={`/${npub}`}
-            className="shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Avatar className="size-5">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          {author.isLoading ? (
+            <>
+              <Skeleton className="size-5 rounded-full shrink-0" />
+              <Skeleton className="h-3.5 w-24" />
+            </>
+          ) : (
+            <>
+              <Link
+                to={`/${npub}`}
+                className="shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Avatar className="size-5">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
 
-          <Link
-            to={`/${npub}`}
-            className="text-sm font-semibold truncate hover:underline"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {displayName}
-          </Link>
+              <Link
+                to={`/${npub}`}
+                className="text-sm font-semibold truncate hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {displayName}
+              </Link>
+            </>
+          )}
 
           <span className="text-xs text-muted-foreground shrink-0">
             · {timeAgo(event.created_at)}

@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle, Repeat2, Zap, MoreHorizontal, Play } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -153,38 +154,50 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
 
       {/* Header: avatar + name/handle stacked */}
       <div className="flex items-center gap-3">
-        <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Avatar className="size-11">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-              {displayName[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
-
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
-            <Link
-              to={`/${npub}`}
-              className="font-bold text-[15px] hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
+        {author.isLoading ? (
+          <>
+            <Skeleton className="size-11 rounded-full shrink-0" />
+            <div className="min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          </>
+        ) : (
+          <>
+            <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+              <Avatar className="size-11">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
             </Link>
-            {metadata?.bot && (
-              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            {nip05 && (
-              <span className="truncate">@{nip05}</span>
-            )}
-            {nip05 && <span className="shrink-0">·</span>}
-            <span className="shrink-0 hover:underline">
-              {timeAgo(event.created_at)}
-            </span>
-          </div>
-        </div>
+
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <Link
+                  to={`/${npub}`}
+                  className="font-bold text-[15px] hover:underline truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {displayName}
+                </Link>
+                {metadata?.bot && (
+                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                {nip05 && (
+                  <span className="truncate">@{nip05}</span>
+                )}
+                {nip05 && <span className="shrink-0">·</span>}
+                <span className="shrink-0 hover:underline">
+                  {timeAgo(event.created_at)}
+                </span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Content — full width */}
@@ -368,14 +381,18 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14">
       <Repeat2 className="size-3.5 mr-1.5" />
-      <Link
-        to={`/${nip19.npubEncode(pubkey)}`}
-        className="font-medium hover:underline mr-1"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {name}
-      </Link>
-      <span>reposted</span>
+      {author.isLoading ? (
+        <Skeleton className="h-3 w-20 inline-block" />
+      ) : (
+        <Link
+          to={`/${nip19.npubEncode(pubkey)}`}
+          className="font-medium hover:underline mr-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {name}
+        </Link>
+      )}
+      <span className={author.isLoading ? 'ml-1' : ''}>reposted</span>
     </div>
   );
 }
@@ -387,9 +404,13 @@ function ReplyContext({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center text-sm text-muted-foreground mb-1 ml-14">
       <span className="mr-1">Replying to</span>
-      <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline">
-        @{name}
-      </Link>
+      {author.isLoading ? (
+        <Skeleton className="h-3.5 w-20 inline-block" />
+      ) : (
+        <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline">
+          @{name}
+        </Link>
+      )}
     </div>
   );
 }

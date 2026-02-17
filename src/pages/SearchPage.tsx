@@ -303,23 +303,24 @@ function EmptyState({ message }: { message: string }) {
 function PostSkeleton() {
   return (
     <div className="px-4 py-3">
-      <div className="flex gap-3">
+      {/* Header: avatar + stacked name/handle — matches NoteCard layout */}
+      <div className="flex items-center gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
-        <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-3 w-32" />
-          </div>
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-4/5" />
-          </div>
-          <div className="flex gap-12 mt-2">
-            <Skeleton className="h-4 w-8" />
-            <Skeleton className="h-4 w-8" />
-            <Skeleton className="h-4 w-8" />
-          </div>
+        <div className="min-w-0 space-y-1.5">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-36" />
         </div>
+      </div>
+      {/* Content */}
+      <div className="mt-2 space-y-1.5">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+      </div>
+      {/* Actions */}
+      <div className="flex items-center gap-6 mt-3 -ml-2">
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-4 w-8" />
+        <Skeleton className="h-4 w-8" />
       </div>
     </div>
   );

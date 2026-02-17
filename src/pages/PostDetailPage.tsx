@@ -195,28 +195,40 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       <article className="px-4 pt-3 pb-0">
         {/* Author row */}
         <div className="flex items-center gap-3">
-          <Link to={`/${npub}`}>
-            <Avatar className="size-11">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {displayName[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          {author.isLoading ? (
+            <>
+              <Skeleton className="size-11 rounded-full shrink-0" />
+              <div className="flex-1 min-w-0 space-y-1.5">
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-3 w-36" />
+              </div>
+            </>
+          ) : (
+            <>
+              <Link to={`/${npub}`}>
+                <Avatar className="size-11">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {displayName[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
 
-          <div className="flex-1 min-w-0">
-            <Link to={`/${npub}`} className="font-bold text-[15px] hover:underline block truncate">
-              {displayName}
-            </Link>
-            {nip05 && (
-              <span className="text-sm text-muted-foreground truncate block">
-                @{nip05}
-              </span>
-            )}
-          </div>
+              <div className="flex-1 min-w-0">
+                <Link to={`/${npub}`} className="font-bold text-[15px] hover:underline block truncate">
+                  {displayName}
+                </Link>
+                {nip05 && (
+                  <span className="text-sm text-muted-foreground truncate block">
+                    @{nip05}
+                  </span>
+                )}
+              </div>
 
-          {metadata?.bot && (
-            <span className="text-sm text-primary" title="Bot account">🤖</span>
+              {metadata?.bot && (
+                <span className="text-sm text-primary" title="Bot account">🤖</span>
+              )}
+            </>
           )}
         </div>
 
@@ -428,18 +440,22 @@ function ParentNote({ eventId }: { eventId: string }) {
       <div className="flex gap-3">
         {/* Avatar + thread connector line */}
         <div className="flex flex-col items-center">
-          <Link
-            to={`/${npub}`}
-            className="shrink-0"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Avatar className="size-10">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          {author.isLoading ? (
+            <Skeleton className="size-10 rounded-full shrink-0" />
+          ) : (
+            <Link
+              to={`/${npub}`}
+              className="shrink-0"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Avatar className="size-10">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          )}
           <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
         </div>
 
@@ -447,24 +463,33 @@ function ParentNote({ eventId }: { eventId: string }) {
         <div className="flex-1 min-w-0 pb-4">
           {/* Author row */}
           <div className="flex items-center gap-1.5 min-w-0">
-            <Link
-              to={`/${npub}`}
-              className="font-bold text-[15px] hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
-            {metadata?.nip05 && (
+            {author.isLoading ? (
               <>
-                <span className="text-sm text-muted-foreground truncate">
-                  @{metadata.nip05}
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-16" />
+              </>
+            ) : (
+              <>
+                <Link
+                  to={`/${npub}`}
+                  className="font-bold text-[15px] hover:underline truncate"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {displayName}
+                </Link>
+                {metadata?.nip05 && (
+                  <>
+                    <span className="text-sm text-muted-foreground truncate">
+                      @{metadata.nip05}
+                    </span>
+                    <span className="text-sm text-muted-foreground shrink-0">·</span>
+                  </>
+                )}
+                <span className="text-sm text-muted-foreground shrink-0">
+                  {timeAgo(event.created_at)}
                 </span>
-                <span className="text-sm text-muted-foreground shrink-0">·</span>
               </>
             )}
-            <span className="text-sm text-muted-foreground shrink-0">
-              {timeAgo(event.created_at)}
-            </span>
           </div>
 
           {/* Note text */}
