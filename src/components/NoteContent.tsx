@@ -6,8 +6,10 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { LinkPreview } from '@/components/LinkPreview';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { cn } from '@/lib/utils';
+import type { AddrCoords } from '@/hooks/useEvent';
 
 interface NoteContentProps {
   event: NostrEvent;
@@ -43,6 +45,27 @@ function extractYouTubeId(url: string): string | null {
   return null;
 }
 
+/** Bech32 charset used by NIP-19 identifiers. */
+const BECH32_CHARS = '023456789acdefghjklmnpqrstuvwxyz';
+
+/** Regex to extract an naddr1 identifier from a URL path. */
+const NADDR_IN_URL_REGEX = new RegExp(`naddr1[${BECH32_CHARS}]{10,}`, 'i');
+
+/** Try to extract naddr coordinates from a URL containing an naddr1 identifier. */
+function extractNaddrFromUrl(url: string): AddrCoords | null {
+  const match = url.match(NADDR_IN_URL_REGEX);
+  if (!match) return null;
+  try {
+    const decoded = nip19.decode(match[0]);
+    if (decoded.type === 'naddr') {
+      return decoded.data as AddrCoords;
+    }
+  } catch {
+    // invalid naddr
+  }
+  return null;
+}
+
 /** A parsed token from note content. */
 type ContentToken =
   | { type: 'text'; value: string }
@@ -50,6 +73,7 @@ type ContentToken =
   | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string }
+  | { type: 'naddr-embed'; addr: AddrCoords }
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
 
@@ -60,7 +84,7 @@ export function NoteContent({
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
-    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
+    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
     let lastIndex = 0;
@@ -82,13 +106,19 @@ export function NoteContent({
           continue;
         }
 
-        // YouTube → playable embed
-        const ytId = extractYouTubeId(url);
-        if (ytId) {
-          result.push({ type: 'youtube-embed', videoId: ytId });
+        // Check if the URL contains an naddr1 identifier → embed as Nostr event
+        const naddrFromUrl = extractNaddrFromUrl(url);
+        if (naddrFromUrl) {
+          result.push({ type: 'naddr-embed', addr: naddrFromUrl });
         } else {
-          // Other non-media URL → link preview card
-          result.push({ type: 'link-preview', url });
+          // YouTube → playable embed
+          const ytId = extractYouTubeId(url);
+          if (ytId) {
+            result.push({ type: 'youtube-embed', videoId: ytId });
+          } else {
+            // Other non-media URL → link preview card
+            result.push({ type: 'link-preview', url });
+          }
         }
       } else if (nostrPrefix && nostrData) {
         try {
@@ -103,6 +133,8 @@ export function NoteContent({
             result.push({ type: 'nevent-embed', eventId: decoded.data as string });
           } else if (decoded.type === 'nevent') {
             result.push({ type: 'nevent-embed', eventId: (decoded.data as { id: string }).id });
+          } else if (decoded.type === 'naddr') {
+            result.push({ type: 'naddr-embed', addr: decoded.data as AddrCoords });
           } else {
             result.push({ type: 'nostr-link', id: nostrId, raw: fullMatch });
           }
@@ -130,7 +162,7 @@ export function NoteContent({
     // so that newlines surrounding a URL don't stack with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      if (token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed') {
+      if (token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed' || token.type === 'naddr-embed') {
         // Trim trailing whitespace from the preceding text token
         if (i > 0) {
           const prev = result[i - 1];
@@ -176,6 +208,8 @@ export function NoteContent({
             return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
           case 'nevent-embed':
             return <EmbeddedNote key={i} eventId={token.eventId} className="my-2.5" />;
+          case 'naddr-embed':
+            return <EmbeddedNaddr key={i} addr={token.addr} className="my-2.5" />;
           case 'mention':
             return <NostrMention key={i} pubkey={token.pubkey} />;
           case 'nostr-link':
