@@ -61,6 +61,10 @@ export function useFeed(tab: 'follows' | 'global') {
   const { user } = useCurrentUser();
   const { data: followList } = useFollowList();
 
+  // For the follows tab, wait until the follow list is loaded before running any query.
+  // Without this guard, the query falls through to the global branch while followList is still loading.
+  const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
+
   return useInfiniteQuery<FeedItem[], Error>({
     queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0],
     queryFn: async ({ pageParam, signal }) => {
@@ -158,6 +162,7 @@ export function useFeed(tab: 'follows' | 'global') {
       return oldest.sortTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
+    enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
