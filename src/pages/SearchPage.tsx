@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
+import { VineCard } from '@/components/VineCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -150,7 +151,9 @@ export function SearchPage() {
             ) : posts.length > 0 ? (
               <div>
                 {posts.map((event) => (
-                  <NoteCard key={event.id} event={event} />
+                  event.kind === 34236
+                    ? <VineCard key={event.id} event={event} />
+                    : <NoteCard key={event.id} event={event} />
                 ))}
               </div>
             ) : searchQuery.trim() ? (

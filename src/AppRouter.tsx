@@ -10,6 +10,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { VinesPage } from "./pages/VinesPage";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -25,7 +26,7 @@ export function AppRouter() {
         <Route path="/t/:tag" element={<HashtagPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/:section" element={<SettingsPage />} />
-        <Route path="/vines" element={<PlaceholderPage title="Vines" />} />
+        <Route path="/vines" element={<VinesPage />} />
         <Route path="/wallet" element={<PlaceholderPage title="Wallet" />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />
