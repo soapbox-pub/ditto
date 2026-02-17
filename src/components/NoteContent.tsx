@@ -89,10 +89,12 @@ export function NoteContent({
     const result: ContentToken[] = [];
     let lastIndex = 0;
     let match: RegExpExecArray | null;
+    let hadMatches = false;
 
     while ((match = regex.exec(text)) !== null) {
       const [fullMatch, url, nostrPrefix, nostrData, hashtag] = match;
       const index = match.index;
+      hadMatches = true;
 
       // Add text before this match
       if (index > lastIndex) {
@@ -154,7 +156,7 @@ export function NoteContent({
       result.push({ type: 'text', value: text.substring(lastIndex) });
     }
 
-    if (result.length === 0) {
+    if (result.length === 0 && !hadMatches) {
       result.push({ type: 'text', value: text });
     }
 
