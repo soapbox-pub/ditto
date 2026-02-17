@@ -4,7 +4,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { ArrowLeft, LinkIcon } from 'lucide-react';
+import { LinkIcon } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -73,14 +73,6 @@ export function ProfilePage() {
   return (
     <MainLayout hideMobileTopBar>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        {/* Header */}
-        <div className="flex items-center gap-4 px-4 py-3 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border min-h-[75px]">
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <h1 className="font-bold text-lg">{displayName}</h1>
-        </div>
-
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
           {metadata?.banner && (
