@@ -463,7 +463,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
         </div>
         <span className="text-sm font-semibold shrink-0">Bitcoin</span>
         <span className="text-sm text-muted-foreground font-mono truncate">{field.value.slice(0, 12)}…{field.value.slice(-6)}</span>
-        <div className="ml-auto flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={handleCopy}
             className="p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-primary"
