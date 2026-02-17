@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Expand } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface VideoPlayerProps {
@@ -160,10 +160,10 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
             onClick={handleSeek}
           >
             <div
-              className="h-full bg-white rounded-full relative"
+              className="h-full bg-primary rounded-full relative"
               style={{ width: `${progress}%` }}
             >
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 size-3 bg-white rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 size-3 bg-primary rounded-full opacity-0 group-hover/progress:opacity-100 transition-opacity" />
             </div>
           </div>
 
@@ -178,13 +178,6 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
               {isPlaying ? <Pause className="size-5" fill="white" /> : <Play className="size-5 ml-0.5" fill="white" />}
             </button>
 
-            {/* Time */}
-            <span className="text-white text-xs tabular-nums min-w-0">
-              {formatTime(currentTime)} / {formatTime(duration)}
-            </span>
-
-            <div className="flex-1" />
-
             {/* Volume */}
             <button
               onClick={toggleMute}
@@ -194,13 +187,20 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
               {isMuted ? <VolumeX className="size-5" /> : <Volume2 className="size-5" />}
             </button>
 
+            {/* Time */}
+            <span className="text-white text-xs tabular-nums min-w-0">
+              {formatTime(currentTime)} / {formatTime(duration)}
+            </span>
+
+            <div className="flex-1" />
+
             {/* Fullscreen */}
             <button
               onClick={handleFullscreen}
               className="text-white hover:text-white/80 transition-colors"
               aria-label="Fullscreen"
             >
-              <Maximize className="size-4.5" />
+              <Expand className="size-[18px]" />
             </button>
           </div>
         </div>
