@@ -1,14 +1,16 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wallet, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Wallet, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
+import { useTheme } from '@/hooks/useTheme';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
 import { useState } from 'react';
+import type { Theme } from '@/contexts/AppContext';
 
 
 interface MobileDrawerProps {
@@ -40,8 +42,23 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { user, metadata } = useCurrentUser();
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+
+  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: 'dark', label: 'Mew', icon: <Cat className="size-5" /> },
+    { value: 'light', label: 'Light', icon: <Sun className="size-5" /> },
+    { value: 'black', label: 'Black', icon: <Moon className="size-5" /> },
+    { value: 'pink', label: 'Pink', icon: <Heart className="size-5" /> },
+  ];
+
+  const currentTheme = themes.find(t => t.value === theme) || themes[0];
+  const cycleTheme = () => {
+    const idx = themes.findIndex(t => t.value === theme);
+    const next = themes[(idx + 1) % themes.length];
+    setTheme(next.value);
+  };
 
   const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
   const nip05 = metadata?.nip05;
@@ -122,6 +139,22 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 <span className="font-medium">Logout</span>
               </button>
             </nav>
+
+            <Separator />
+
+            {/* Theme toggle */}
+            <div className="px-3 py-2">
+              <button
+                onClick={cycleTheme}
+                className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
+              >
+                <div className="flex items-center gap-4">
+                  <span className="text-muted-foreground">{currentTheme.icon}</span>
+                  <span className="font-medium">Theme</span>
+                </div>
+                <span className="text-sm text-muted-foreground">{currentTheme.label}</span>
+              </button>
+            </div>
 
             {otherUsers.length > 0 && (
               <>
