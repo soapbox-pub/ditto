@@ -104,8 +104,8 @@ export function NoteCard({ event, className }: NoteCardProps) {
         <ReplyContext pubkey={replyTo[1]} />
       )}
 
-      <div className="flex gap-3">
-        {/* Avatar */}
+      {/* Header: avatar + name + timestamp */}
+      <div className="flex items-center gap-3">
         <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
           <Avatar className="size-11">
             <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -115,51 +115,46 @@ export function NoteCard({ event, className }: NoteCardProps) {
           </Avatar>
         </Link>
 
-        {/* Header + text content */}
-        <div className="flex-1 min-w-0">
-          {/* Header */}
-          <div className="flex items-center gap-1.5 text-sm min-w-0">
-            <Link
-              to={`/${npub}`}
-              className="font-bold hover:underline shrink-0 max-w-[40%] truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
-            {nip05 && (
-              <span className="text-muted-foreground truncate min-w-0">
-                @{nip05}
-              </span>
-            )}
-            {metadata?.bot && (
-              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-            )}
-            <span className="text-muted-foreground shrink-0">·</span>
-            <span className="text-muted-foreground shrink-0 hover:underline">
-              {timeAgo(event.created_at)}
+        <div className="flex items-center gap-1.5 text-sm min-w-0">
+          <Link
+            to={`/${npub}`}
+            className="font-bold hover:underline shrink-0 max-w-[40%] truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayName}
+          </Link>
+          {nip05 && (
+            <span className="text-muted-foreground truncate min-w-0">
+              @{nip05}
             </span>
-          </div>
-
-          {/* Text content (inline with avatar) */}
-          {isVine ? (
-            vineTitle && <p className="text-[15px] mt-0.5 leading-relaxed">{vineTitle}</p>
-          ) : (
-            <div className="mt-0.5">
-              <NoteContent event={event} className="text-[15px] leading-relaxed" />
-            </div>
           )}
+          {metadata?.bot && (
+            <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+          )}
+          <span className="text-muted-foreground shrink-0">·</span>
+          <span className="text-muted-foreground shrink-0 hover:underline">
+            {timeAgo(event.created_at)}
+          </span>
         </div>
       </div>
 
-      {/* Media — full width, outside avatar row */}
+      {/* Content — full width */}
       {isVine ? (
-        <VineMedia imeta={imeta} hashtags={hashtags} />
+        <>
+          {vineTitle && <p className="text-[15px] mt-2 leading-relaxed">{vineTitle}</p>}
+          <VineMedia imeta={imeta} hashtags={hashtags} />
+        </>
       ) : (
-        <NoteMedia images={images} />
+        <>
+          <div className="mt-2">
+            <NoteContent event={event} className="text-[15px] leading-relaxed" />
+          </div>
+          <NoteMedia images={images} />
+        </>
       )}
 
-      {/* Action buttons — full width */}
-      <div className="flex items-center justify-between mt-2 max-w-md ml-12">
+      {/* Action buttons */}
+      <div className="flex items-center justify-between mt-2 max-w-md -ml-2">
         <button
           className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
           title="Reply"
