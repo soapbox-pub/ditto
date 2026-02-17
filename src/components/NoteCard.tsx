@@ -314,7 +314,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
       <Repeat2 className="size-3.5 mr-1.5" />
       <Link
         to={`/${nip19.npubEncode(pubkey)}`}
-        className="font-medium hover:underline mr-0.5"
+        className="font-medium hover:underline mr-1"
         onClick={(e) => e.stopPropagation()}
       >
         {name}
@@ -329,8 +329,8 @@ function ReplyContext({ pubkey }: { pubkey: string }) {
   const name = author.data?.metadata?.name || genUserName(pubkey);
 
   return (
-    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-1 ml-14">
-      <span>Replying to</span>
+    <div className="flex items-center text-sm text-muted-foreground mb-1 ml-14">
+      <span className="mr-1">Replying to</span>
       <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline">
         @{name}
       </Link>
