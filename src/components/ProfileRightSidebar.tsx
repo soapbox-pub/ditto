@@ -135,7 +135,7 @@ function BitcoinQRModal({ address }: { address: string }) {
 
   return (
     <DialogContent className="sm:max-w-[360px] p-0 overflow-hidden rounded-2xl">
-      <div className="bg-card p-6">
+      <div className="bg-card p-6 min-w-0">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <div className="size-7 rounded-full bg-orange-500 flex items-center justify-center">
@@ -167,10 +167,12 @@ function BitcoinQRModal({ address }: { address: string }) {
         {/* Address + Copy */}
         <button
           onClick={handleCopy}
-          className="flex items-center gap-2 w-full bg-secondary/60 hover:bg-secondary/80 transition-colors rounded-lg px-3 py-2.5 text-left cursor-pointer"
+          className="flex items-center gap-2 w-full bg-secondary/60 hover:bg-secondary/80 transition-colors rounded-lg pl-3 pr-2.5 py-2.5 text-left cursor-pointer overflow-hidden"
         >
-          <span className="flex-1 min-w-0 font-mono text-xs truncate">{address}</span>
-          {copied ? <Check className="size-4 text-green-500 shrink-0" /> : <Copy className="size-4 text-muted-foreground shrink-0" />}
+          <span className="min-w-0 font-mono text-xs truncate">{address}</span>
+          <span className="shrink-0 ml-auto">
+            {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4 text-muted-foreground" />}
+          </span>
         </button>
       </div>
     </DialogContent>
