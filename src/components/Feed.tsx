@@ -43,12 +43,14 @@ export function Feed() {
       ) : (
         <div className="border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10 py-4 px-6">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">
-              Join to personalize your feed
+            <p className="text-sm font-medium">
+              <span className="text-foreground">Join Mew</span>{' '}
+              <span className="text-muted-foreground">to follow accounts & personalize your feed</span>
             </p>
             <Button
               onClick={() => setLoginDialogOpen(true)}
               className="rounded-full shrink-0"
+              size="sm"
             >
               Join
             </Button>
