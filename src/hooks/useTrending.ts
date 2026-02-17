@@ -54,7 +54,7 @@ export function useLatestAccounts() {
         [{ kinds: [0], limit: 5 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
-      return events.sort((a, b) => b.created_at - a.created_at);
+      return events.sort((a, b) => b.created_at - a.created_at).slice(0, 5);
     },
     staleTime: 5 * 60 * 1000,
   });
