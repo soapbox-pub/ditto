@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Wallet, Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Wallet, Plus, Trash2, Zap, Globe, WalletMinimal, CheckCircle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -13,9 +12,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useNWC } from '@/hooks/useNWCContext';
@@ -243,45 +239,55 @@ export function WalletPage() {
         )}
       </main>
 
-      {/* Add wallet dialog */}
+      {/* Add wallet dialog — compose-modal style */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Connect NWC Wallet</DialogTitle>
-            <DialogDescription>
-              Enter your connection string from a compatible wallet.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 px-4">
-            <div>
-              <Label htmlFor="wallet-alias">Wallet Name (optional)</Label>
-              <Input
-                id="wallet-alias"
-                placeholder="My Lightning Wallet"
-                value={alias}
-                onChange={(e) => setAlias(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="wallet-connection-uri">Connection URI</Label>
-              <Textarea
-                id="wallet-connection-uri"
-                placeholder="nostr+walletconnect://..."
-                value={connectionUri}
-                onChange={(e) => setConnectionUri(e.target.value)}
-                rows={3}
-              />
-            </div>
+        <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 h-12">
+            <DialogTitle className="text-base font-semibold">
+              Connect NWC Wallet
+            </DialogTitle>
+            <button
+              onClick={() => setAddDialogOpen(false)}
+              className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <X className="size-5" />
+            </button>
           </div>
-          <DialogFooter className="px-4">
+
+          {/* Description */}
+          <p className="px-4 -mt-1 mb-2 text-sm text-muted-foreground">
+            Paste a connection string from your NWC-compatible wallet.
+          </p>
+
+          {/* Form fields */}
+          <div className="px-4 space-y-4">
+            <Input
+              placeholder="Wallet name (optional)"
+              value={alias}
+              onChange={(e) => setAlias(e.target.value)}
+              className="bg-transparent"
+            />
+            <Textarea
+              placeholder="nostr+walletconnect://..."
+              value={connectionUri}
+              onChange={(e) => setConnectionUri(e.target.value)}
+              rows={3}
+              className="bg-transparent resize-none"
+            />
+          </div>
+
+          {/* Footer */}
+          <div className="flex items-center justify-end px-4 py-3">
             <Button
               onClick={handleAddConnection}
               disabled={isConnecting || !connectionUri.trim()}
-              className="w-full"
+              className="rounded-full px-5 font-bold"
+              size="sm"
             >
               {isConnecting ? 'Connecting...' : 'Connect'}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </MainLayout>

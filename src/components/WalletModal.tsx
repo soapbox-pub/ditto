@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -20,7 +19,6 @@ import {
   DrawerClose,
 } from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -43,26 +41,20 @@ const AddWalletContent = forwardRef<HTMLDivElement, {
   connectionUri: string;
   setConnectionUri: (value: string) => void;
 }>(({ alias, setAlias, connectionUri, setConnectionUri }, ref) => (
-  <div className="space-y-4 px-4" ref={ref}>
-    <div>
-      <Label htmlFor="alias">Wallet Name (optional)</Label>
-      <Input
-        id="alias"
-        placeholder="My Lightning Wallet"
-        value={alias}
-        onChange={(e) => setAlias(e.target.value)}
-      />
-    </div>
-    <div>
-      <Label htmlFor="connection-uri">Connection URI</Label>
-      <Textarea
-        id="connection-uri"
-        placeholder="nostr+walletconnect://..."
-        value={connectionUri}
-        onChange={(e) => setConnectionUri(e.target.value)}
-        rows={3}
-      />
-    </div>
+  <div className="px-4 space-y-4" ref={ref}>
+    <Input
+      placeholder="Wallet name (optional)"
+      value={alias}
+      onChange={(e) => setAlias(e.target.value)}
+      className="bg-transparent"
+    />
+    <Textarea
+      placeholder="nostr+walletconnect://..."
+      value={connectionUri}
+      onChange={(e) => setConnectionUri(e.target.value)}
+      rows={3}
+      className="bg-transparent resize-none"
+    />
   </div>
 ));
 AddWalletContent.displayName = 'AddWalletContent';
@@ -274,28 +266,43 @@ export function WalletModal({ children, className }: WalletModalProps) {
 
   const addWalletDialog = (
     <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>Connect NWC Wallet</DialogTitle>
-          <DialogDescription>
-            Enter your connection string from a compatible wallet.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 h-12">
+          <DialogTitle className="text-base font-semibold">
+            Connect NWC Wallet
+          </DialogTitle>
+          <button
+            onClick={() => setAddDialogOpen(false)}
+            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* Description */}
+        <p className="px-4 -mt-1 mb-2 text-sm text-muted-foreground">
+          Paste a connection string from your NWC-compatible wallet.
+        </p>
+
         <AddWalletContent
           alias={alias}
           setAlias={setAlias}
           connectionUri={connectionUri}
           setConnectionUri={setConnectionUri}
         />
-        <DialogFooter className="px-4">
+
+        {/* Footer */}
+        <div className="flex items-center justify-end px-4 py-3">
           <Button
             onClick={handleAddConnection}
             disabled={isConnecting || !connectionUri.trim()}
-            className="w-full"
+            className="rounded-full px-5 font-bold"
+            size="sm"
           >
             {isConnecting ? 'Connecting...' : 'Connect'}
           </Button>
-        </DialogFooter>
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -336,10 +343,10 @@ export function WalletModal({ children, className }: WalletModalProps) {
         {/* Render Add Wallet as a separate Drawer for mobile */}
         <Drawer open={addDialogOpen} onOpenChange={setAddDialogOpen}>
           <DrawerContent>
-            <DrawerHeader>
+            <DrawerHeader className="text-left">
               <DrawerTitle>Connect NWC Wallet</DrawerTitle>
-              <DrawerDescription>
-                Enter your connection string from a compatible wallet.
+              <DrawerDescription className="text-sm text-muted-foreground">
+                Paste a connection string from your NWC-compatible wallet.
               </DrawerDescription>
             </DrawerHeader>
             <AddWalletContent
@@ -348,11 +355,12 @@ export function WalletModal({ children, className }: WalletModalProps) {
               connectionUri={connectionUri}
               setConnectionUri={setConnectionUri}
             />
-            <div className="p-4">
+            <div className="flex items-center justify-end px-4 py-3">
               <Button
                 onClick={handleAddConnection}
                 disabled={isConnecting || !connectionUri.trim()}
-                className="w-full"
+                className="rounded-full px-5 font-bold"
+                size="sm"
               >
                 {isConnecting ? 'Connecting...' : 'Connect'}
               </Button>
