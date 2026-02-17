@@ -291,47 +291,21 @@ function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: str
   );
 }
 
-/** Inline video player with play/pause overlay — same UX as vine videos. */
+/** Inline video player with native browser controls. */
 function NoteVideoPlayer({ url, poster }: { url: string; poster?: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-
-  const handlePlayToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const video = videoRef.current;
-    if (!video) return;
-    if (video.paused) {
-      video.play();
-      setIsPlaying(true);
-    } else {
-      video.pause();
-      setIsPlaying(false);
-    }
-  };
-
   return (
     <div
-      className="relative mt-3 rounded-2xl overflow-hidden border border-border cursor-pointer"
-      onClick={handlePlayToggle}
+      className="mt-3 rounded-2xl overflow-hidden border border-border"
+      onClick={(e) => e.stopPropagation()}
     >
       <video
-        ref={videoRef}
         src={url}
         poster={poster}
-        className="w-full max-h-[70vh] object-cover"
-        loop
+        className="w-full max-h-[70vh]"
+        controls
         playsInline
-        preload="none"
-        onPlay={() => setIsPlaying(true)}
-        onPause={() => setIsPlaying(false)}
+        preload="metadata"
       />
-      {!isPlaying && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-          <div className="size-14 rounded-full bg-black/60 flex items-center justify-center backdrop-blur-sm">
-            <Play className="size-7 text-white ml-1" fill="white" />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
