@@ -17,15 +17,18 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { genUserName } from '@/lib/genUserName';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-const STREAK_WINDOW_HOURS = 36;
+const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
 
-/** Calculate posting streak: consecutive posts within a 36-hour window of each other. */
+/** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
 function calculateStreak(posts: NostrEvent[]): number {
   if (!posts || posts.length === 0) return 0;
 
-  // Posts should already be sorted newest-first
-  const sorted = [...posts].sort((a, b) => b.created_at - a.created_at);
+  // Only count kind 1 events
+  const kind1Posts = posts.filter((e) => e.kind === 1);
+  if (kind1Posts.length === 0) return 0;
+
+  const sorted = [...kind1Posts].sort((a, b) => b.created_at - a.created_at);
   const windowSeconds = STREAK_WINDOW_HOURS * 3600;
 
   let streak = 1;
@@ -165,24 +168,23 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="min-w-0">
-              <h2 className="text-xl font-bold">{displayName}</h2>
-              {metadata?.nip05 && (
-                <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
-              )}
-            </div>
+          <h2 className="text-xl font-bold">{displayName}</h2>
+          {metadata?.nip05 && (
+            <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
+          )}
 
-            {/* Streak badge */}
-            {streak > 1 && (
-              <div className="flex items-center gap-1 bg-orange-500/15 text-orange-500 px-2.5 py-1 rounded-full shrink-0" title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}>
-                <Flame className="size-4" />
-                <span className="text-sm font-bold tabular-nums">
-                  {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-                </span>
-              </div>
-            )}
-          </div>
+          {/* Streak indicator */}
+          {streak > 1 && (
+            <div
+              className="flex items-center gap-1 text-primary mt-2"
+              title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+            >
+              <Flame className="size-4 fill-primary" />
+              <span className="text-sm font-bold tabular-nums">
+                {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
+              </span>
+            </div>
+          )}
 
           {metadata?.about && (
             <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>

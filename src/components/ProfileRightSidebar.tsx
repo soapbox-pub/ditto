@@ -1,12 +1,11 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { Copy, Check, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
+import { Check, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/useToast';
-import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 
 interface ProfileField {
@@ -53,11 +52,21 @@ function useProfileMedia(pubkey: string) {
         }
       }
 
-      return urls.slice(0, 9); // Max 9 items for a 3x3 grid
+      return urls.slice(0, 9);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,
   });
+}
+
+/** Get favicon URL for a given website URL using Google's favicon service. */
+function getFaviconUrl(url: string): string {
+  try {
+    const hostname = new URL(url).hostname;
+    return `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`;
+  } catch {
+    return '';
+  }
 }
 
 /** Bitcoin QR code modal */
@@ -130,6 +139,24 @@ function BitcoinQRModal({ address }: { address: string }) {
   );
 }
 
+/** Favicon image with graceful fallback. */
+function Favicon({ url }: { url: string }) {
+  const faviconSrc = getFaviconUrl(url);
+  const [failed, setFailed] = useState(false);
+
+  if (!faviconSrc || failed) return null;
+
+  return (
+    <img
+      src={faviconSrc}
+      alt=""
+      className="size-4 shrink-0 rounded-sm"
+      loading="lazy"
+      onError={() => setFailed(true)}
+    />
+  );
+}
+
 /** A single profile field row. Handles $BTC specially. */
 function ProfileFieldRow({ field }: { field: ProfileField }) {
   const [copied, setCopied] = useState(false);
@@ -186,7 +213,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
     );
   }
 
-  // Regular field: label + linked value
+  // Regular field: label + linked value with favicon
   const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
 
   return (
@@ -197,9 +224,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
           href={field.value}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-primary hover:underline truncate block"
+          className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
         >
-          {field.value}
+          <Favicon url={field.value} />
+          <span className="truncate">{field.value.replace(/^https?:\/\//, '')}</span>
         </a>
       ) : (
         <p className="text-sm text-muted-foreground truncate">{field.value}</p>
@@ -217,13 +245,13 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
       <section className="mb-6">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
-          <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-3 gap-1.5">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square" />
+              <Skeleton key={i} className="aspect-square rounded-lg" />
             ))}
           </div>
         ) : media && media.length > 0 ? (
-          <div className="grid grid-cols-3 gap-1 rounded-xl overflow-hidden">
+          <div className="grid grid-cols-3 gap-1.5">
             {media.map((url, i) => {
               const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(url);
               return (
@@ -232,7 +260,7 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
                   href={url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="aspect-square overflow-hidden hover:opacity-80 transition-opacity"
+                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
                 >
                   {isVideo ? (
                     <video
@@ -247,6 +275,7 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      sizes="96px"
                     />
                   )}
                 </a>
