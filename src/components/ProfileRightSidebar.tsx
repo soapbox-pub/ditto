@@ -165,8 +165,8 @@ function BitcoinQRModal({ address }: { address: string }) {
         </div>
 
         {/* Address + Copy */}
-        <div className="flex items-center gap-2">
-          <div className="flex-1 bg-secondary/60 rounded-lg px-3 py-2.5 font-mono text-sm truncate">
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex-1 min-w-0 bg-secondary/60 rounded-lg px-3 py-2.5 font-mono text-sm truncate">
             {address}
           </div>
           <Button

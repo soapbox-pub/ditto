@@ -324,7 +324,7 @@ export function ProfilePage() {
   // Follow list
   const { data: followData } = useFollowList();
   const isFollowing = useMemo(() => {
-    if (!pubkey || !followData) return false;
+    if (!pubkey || !followData?.pubkeys) return false;
     return followData.pubkeys.includes(pubkey);
   }, [pubkey, followData]);
 
