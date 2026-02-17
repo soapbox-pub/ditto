@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Loader2 } from 'lucide-react';
+import { Search } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -25,22 +25,13 @@ export function ProfileSearchDropdown({
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: profiles, isFetching } = useSearchProfiles(debouncedQuery);
-
-  // Debounce the search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(query);
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [query]);
+  const { data: profiles, isFetching } = useSearchProfiles(query);
 
   // Show dropdown when we have results
   useEffect(() => {
@@ -68,7 +59,6 @@ export function ProfileSearchDropdown({
   const handleSelect = useCallback((profile: SearchProfile) => {
     setOpen(false);
     setQuery('');
-    setDebouncedQuery('');
     if (onSelect) {
       onSelect(profile);
     } else {
@@ -123,7 +113,16 @@ export function ProfileSearchDropdown({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
         {isFetching && (
-          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground animate-spin" />
+          <svg
+            className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground"
+            style={{ animation: 'spin 1s linear infinite' }}
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
         )}
         <Input
           ref={inputRef}
