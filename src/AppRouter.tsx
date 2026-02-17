@@ -10,6 +10,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { WalletPage } from "./pages/WalletPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import NotFound from "./pages/NotFound";
 
@@ -30,10 +31,10 @@ export function AppRouter() {
         <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" />} />
         <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" />} />
-        <Route path="/wallet" element={<PlaceholderPage title="Wallet" />} />
+        <Route path="/wallet" element={<WalletPage />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />
-        <Route path="/domain-blocks" element={<PlaceholderPage title="Domain blocks" />} />
+
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wallet, Bookmark, EyeOff, Settings, ShieldBan, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
+import { User, Wallet, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -109,12 +109,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 label="Preferences"
                 onClick={handleClose}
               />
-              <DrawerMenuItem
-                to="/domain-blocks"
-                icon={<ShieldBan className="size-5" />}
-                label="Domain blocks"
-                onClick={handleClose}
-              />
 
               <button
                 onClick={() => {
@@ -129,46 +123,50 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               </button>
             </nav>
 
-            <Separator />
+            {otherUsers.length > 0 && (
+              <>
+                <Separator />
 
-            {/* Switch accounts section */}
-            <div className="px-3 py-2">
-              <button
-                onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
-                className="flex items-center justify-between w-full py-3 px-2 text-[15px] font-medium"
-              >
-                <span>Switch accounts</span>
-                {showAccountSwitcher
-                  ? <ChevronUp className="size-4 text-muted-foreground" />
-                  : <ChevronDown className="size-4 text-muted-foreground" />
-                }
-              </button>
+                {/* Switch accounts section */}
+                <div className="px-3 py-2">
+                  <button
+                    onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
+                    className="flex items-center justify-between w-full py-3 px-2 text-[15px] font-medium"
+                  >
+                    <span>Switch accounts</span>
+                    {showAccountSwitcher
+                      ? <ChevronUp className="size-4 text-muted-foreground" />
+                      : <ChevronDown className="size-4 text-muted-foreground" />
+                    }
+                  </button>
 
-              {showAccountSwitcher && otherUsers.length > 0 && (
-                <div className="space-y-1 pb-2">
-                  {otherUsers.map((account) => (
-                    <button
-                      key={account.id}
-                      onClick={() => {
-                        setLogin(account.id);
-                        handleClose();
-                      }}
-                      className="flex items-center gap-3 w-full py-2 px-2 rounded-lg hover:bg-secondary/60 transition-colors"
-                    >
-                      <Avatar className="size-8">
-                        <AvatarImage src={account.metadata.picture} alt={account.metadata.name} />
-                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                          {(account.metadata.name?.[0] || genUserName(account.pubkey)[0]).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm truncate">
-                        {account.metadata.name || genUserName(account.pubkey)}
-                      </span>
-                    </button>
-                  ))}
+                  {showAccountSwitcher && (
+                    <div className="space-y-1 pb-2">
+                      {otherUsers.map((account) => (
+                        <button
+                          key={account.id}
+                          onClick={() => {
+                            setLogin(account.id);
+                            handleClose();
+                          }}
+                          className="flex items-center gap-3 w-full py-2 px-2 rounded-lg hover:bg-secondary/60 transition-colors"
+                        >
+                          <Avatar className="size-8">
+                            <AvatarImage src={account.metadata.picture} alt={account.metadata.name} />
+                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                              {(account.metadata.name?.[0] || genUserName(account.pubkey)[0]).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm truncate">
+                            {account.metadata.name || genUserName(account.pubkey)}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
