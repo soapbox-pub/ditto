@@ -213,15 +213,19 @@ export function LeftSidebar() {
               <div className="border-b border-border py-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors rounded-md mx-1">
+                    <button className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 transition-colors">
                       <div className="flex items-center gap-3">
-                        {themes.find(t => t.value === theme)?.icon ?? <Palette className="size-4" />}
-                        <span>{themes.find(t => t.value === theme)?.label ?? 'Theme'}</span>
+                        <Palette className="size-4 text-muted-foreground" />
+                        <span>Theme</span>
                       </div>
-                      <ChevronDown className="size-4 text-muted-foreground" />
+                      <div className="flex items-center gap-2 text-muted-foreground">
+                        {themes.find(t => t.value === theme)?.icon}
+                        <span className="text-xs">{themes.find(t => t.value === theme)?.label}</span>
+                        <ChevronDown className="size-4" />
+                      </div>
                     </button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start" className="w-48">
+                  <DropdownMenuContent align="start" side="top" className="w-48">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     {themes.map((themeOption) => (
