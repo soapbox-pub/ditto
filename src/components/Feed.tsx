@@ -8,13 +8,14 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
+import type { FeedItem } from '@/hooks/useFeed';
 
 export function Feed() {
   const { user } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<'follows' | 'global'>('global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
-  const { data: events, isLoading } = useFeed(activeTab);
+  const { data: feedItems, isLoading } = useFeed(activeTab);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
@@ -64,10 +65,14 @@ export function Feed() {
             <NoteCardSkeleton key={i} />
           ))}
         </div>
-      ) : events && events.length > 0 ? (
+      ) : feedItems && feedItems.length > 0 ? (
         <div>
-          {events.map((event) => (
-            <NoteCard key={event.id} event={event} />
+          {feedItems.map((item: FeedItem) => (
+            <NoteCard
+              key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+              event={item.event}
+              repostedBy={item.repostedBy}
+            />
           ))}
         </div>
       ) : (

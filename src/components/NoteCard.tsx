@@ -17,6 +17,8 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 interface NoteCardProps {
   event: NostrEvent;
   className?: string;
+  /** If set, shows a "Reposted by" header with this pubkey. */
+  repostedBy?: string;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -67,7 +69,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className }: NoteCardProps) {
+export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -99,6 +101,11 @@ export function NoteCard({ event, className }: NoteCardProps) {
       )}
       onClick={() => navigate(`/${encodedId}`)}
     >
+      {/* Repost header */}
+      {repostedBy && (
+        <RepostHeader pubkey={repostedBy} />
+      )}
+
       {/* Reply context (kind 1 only) */}
       {isReply && replyTo?.[1] && (
         <ReplyContext pubkey={replyTo[1]} />
@@ -295,6 +302,25 @@ function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: st
         </div>
       )}
     </>
+  );
+}
+
+function RepostHeader({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+
+  return (
+    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-2">
+      <Repeat2 className="size-3.5" />
+      <Link
+        to={`/${nip19.npubEncode(pubkey)}`}
+        className="font-medium hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {name}
+      </Link>
+      <span>reposted</span>
+    </div>
   );
 }
 
