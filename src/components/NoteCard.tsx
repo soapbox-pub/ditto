@@ -115,7 +115,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
           </Avatar>
         </Link>
 
-        {/* Content */}
+        {/* Header + text content */}
         <div className="flex-1 min-w-0">
           {/* Header */}
           <div className="flex items-center gap-1.5 text-sm min-w-0">
@@ -140,103 +140,106 @@ export function NoteCard({ event, className }: NoteCardProps) {
             </span>
           </div>
 
-          {/* Body — kind-specific content */}
+          {/* Text content (inline with avatar) */}
           {isVine ? (
-            <VineBody title={vineTitle} imeta={imeta} hashtags={hashtags} />
+            vineTitle && <p className="text-[15px] mt-0.5 leading-relaxed">{vineTitle}</p>
           ) : (
-            <NoteBody event={event} images={images} />
+            <div className="mt-0.5">
+              <NoteContent event={event} className="text-[15px] leading-relaxed" />
+            </div>
           )}
-
-          {/* Action buttons — shared across all kinds */}
-          <div className="flex items-center justify-between mt-2 max-w-md -ml-2">
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
-            >
-              <MessageCircle className="size-[18px]" />
-              {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
-            </button>
-
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-              title="Repost"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Repeat2 className="size-[18px]" />
-              {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
-            </button>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-              reactionEmojis={stats?.reactionEmojis}
-            />
-
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-              title="Zap"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Zap className="size-[18px]" />
-              {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
-            </button>
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-            >
-              <MoreHorizontal className="size-[18px]" />
-            </button>
-          </div>
-
-          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
         </div>
       </div>
+
+      {/* Media — full width, outside avatar row */}
+      {isVine ? (
+        <VineMedia imeta={imeta} hashtags={hashtags} />
+      ) : (
+        <NoteMedia images={images} />
+      )}
+
+      {/* Action buttons — full width */}
+      <div className="flex items-center justify-between mt-2 max-w-md ml-12">
+        <button
+          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="Reply"
+          onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
+        >
+          <MessageCircle className="size-[18px]" />
+          {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
+        </button>
+
+        <button
+          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+          title="Repost"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Repeat2 className="size-[18px]" />
+          {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
+        </button>
+
+        <ReactionButton
+          eventId={event.id}
+          eventPubkey={event.pubkey}
+          eventKind={event.kind}
+          reactionCount={stats?.reactions}
+          reactionEmojis={stats?.reactionEmojis}
+        />
+
+        <button
+          className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+          title="Zap"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Zap className="size-[18px]" />
+          {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+        </button>
+
+        <button
+          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+          title="More"
+          onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+        >
+          <MoreHorizontal className="size-[18px]" />
+        </button>
+      </div>
+
+      <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+      <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
     </article>
   );
 }
 
-/** Body content for kind 1 text notes. */
-function NoteBody({ event, images }: { event: NostrEvent; images: string[] }) {
+/** Media content for kind 1 text notes — rendered at full card width. */
+function NoteMedia({ images }: { images: string[] }) {
+  if (images.length === 0) return null;
   return (
-    <>
-      <div className="mt-0.5">
-        <NoteContent event={event} className="text-[15px] leading-relaxed" />
-      </div>
-      {images.length > 0 && (
-        <div className={cn(
-          'mt-3 rounded-2xl overflow-hidden border border-border',
-          images.length > 1 && 'grid grid-cols-2 gap-0.5',
-        )}>
-          {images.slice(0, 4).map((url, i) => (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={url}
-                alt=""
-                className="w-full h-auto max-h-[400px] object-cover"
-                loading="lazy"
-              />
-            </a>
-          ))}
-        </div>
-      )}
-    </>
+    <div className={cn(
+      'mt-3 rounded-2xl overflow-hidden border border-border',
+      images.length > 1 && 'grid grid-cols-2 gap-0.5',
+    )}>
+      {images.slice(0, 4).map((url, i) => (
+        <a
+          key={i}
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <img
+            src={url}
+            alt=""
+            className="w-full h-auto max-h-[400px] object-cover"
+            loading="lazy"
+          />
+        </a>
+      ))}
+    </div>
   );
 }
 
-/** Body content for kind 34236 vine events. */
-function VineBody({ title, imeta, hashtags }: { title?: string; imeta?: { url?: string; thumbnail?: string }; hashtags: string[] }) {
+/** Media content for kind 34236 vine events — rendered at full card width. */
+function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: string }; hashtags: string[] }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
@@ -255,10 +258,6 @@ function VineBody({ title, imeta, hashtags }: { title?: string; imeta?: { url?: 
 
   return (
     <>
-      {title && (
-        <p className="text-[15px] mt-0.5 leading-relaxed">{title}</p>
-      )}
-
       {imeta?.url && (
         <div
           className="relative mt-3 rounded-2xl overflow-hidden cursor-pointer"
