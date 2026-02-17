@@ -616,12 +616,12 @@ export function ProfilePage() {
           <div className="flex items-center gap-4 mt-2">
             {profileFollowing && (
               <button
-                className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                 onClick={() => setFollowingModalOpen(true)}
                 title={`${profileFollowing.count} following`}
               >
-                <Users className="size-4" />
-                <span className="text-sm font-bold tabular-nums">{profileFollowing.count}</span>
+                <Users className="size-4 text-primary" />
+                <span className="text-sm font-bold tabular-nums text-primary">{profileFollowing.count}</span>
                 <span className="text-sm text-muted-foreground">following</span>
               </button>
             )}

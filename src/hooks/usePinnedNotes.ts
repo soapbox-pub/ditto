@@ -26,7 +26,6 @@ export function usePinnedNotes(pubkey?: string) {
       return events[0] ?? null;
     },
     enabled: !!pubkey,
-    staleTime: 5 * 60 * 1000,
   });
 
   // Extract pinned event IDs from e tags

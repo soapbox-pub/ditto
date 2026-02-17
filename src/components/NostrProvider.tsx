@@ -20,10 +20,18 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Use refs so the pool always has the latest data
   const relayMetadata = useRef(config.relayMetadata);
 
-  // Invalidate Nostr queries when relay metadata changes
+  // Update relay metadata ref and invalidate all queries when relays change,
+  // since any cached query may have been fetched from a different set of relays.
   useEffect(() => {
+    const prev = relayMetadata.current;
     relayMetadata.current = config.relayMetadata;
-    queryClient.invalidateQueries({ queryKey: ['nostr'] });
+
+    // Only invalidate if the relay URLs actually changed
+    const prevUrls = prev.relays.map(r => r.url).sort().join(',');
+    const nextUrls = config.relayMetadata.relays.map(r => r.url).sort().join(',');
+    if (prevUrls !== nextUrls) {
+      queryClient.invalidateQueries();
+    }
   }, [config.relayMetadata, queryClient]);
 
   // Initialize NPool only once
