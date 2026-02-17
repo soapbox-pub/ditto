@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import LoginDialog from '@/components/auth/LoginDialog';
+import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
@@ -9,15 +12,22 @@ import { cn } from '@/lib/utils';
 export function Feed() {
   const { user } = useCurrentUser();
   const [activeTab, setActiveTab] = useState<'follows' | 'global'>('global');
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const { data: events, isLoading } = useFeed(activeTab);
+
+  const handleLogin = () => {
+    setLoginDialogOpen(false);
+    setSignupDialogOpen(false);
+  };
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
       {/* Compose area */}
       <ComposeBox compact />
 
-      {/* Tabs — only show when logged in */}
-      {user && (
+      {/* Tabs (logged in) or CTA (logged out) */}
+      {user ? (
         <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           <TabButton
             label="Follows"
@@ -29,6 +39,20 @@ export function Feed() {
             active={activeTab === 'global'}
             onClick={() => setActiveTab('global')}
           />
+        </div>
+      ) : (
+        <div className="border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10 py-4 px-6">
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-muted-foreground">
+              Join Mew to personalize your feed and connect with others
+            </p>
+            <Button
+              onClick={() => setLoginDialogOpen(true)}
+              className="rounded-full shrink-0"
+            >
+              Join
+            </Button>
+          </div>
         </div>
       )}
 
@@ -52,6 +76,18 @@ export function Feed() {
           </p>
         </div>
       )}
+
+      {/* Login/Signup dialogs */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={handleLogin}
+        onSignupClick={() => setSignupDialogOpen(true)}
+      />
+      <SignupDialog
+        isOpen={signupDialogOpen}
+        onClose={() => setSignupDialogOpen(false)}
+      />
     </main>
   );
 }
