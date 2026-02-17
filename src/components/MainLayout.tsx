@@ -28,7 +28,7 @@ export function MainLayout({ children, hideMobileTopBar, rightSidebar }: MainLay
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
       {/* Main layout - three column on desktop */}
-      <div className="flex justify-center min-h-screen mx-auto max-w-[1240px]">
+      <div className="flex justify-center min-h-screen mx-auto max-w-[1200px]">
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <div className="hidden sidebar:block">
           <LeftSidebar />
