@@ -4,7 +4,7 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { LinkIcon, Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, LinkIcon, Bitcoin } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -260,6 +260,49 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
+// ----- Inline Profile Field (mobile) -----
+
+function ProfileFieldInline({ field }: { field: { label: string; value: string } }) {
+  const isBtc = field.label === '$BTC';
+  const isUrl = field.value.startsWith('http://') || field.value.startsWith('https://');
+
+  if (isBtc) {
+    return (
+      <div className="flex items-center gap-2 min-w-0">
+        <div className="size-5 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
+          <Bitcoin className="size-3 text-white" />
+        </div>
+        <span className="text-sm font-semibold shrink-0">Bitcoin</span>
+        <span className="text-sm text-muted-foreground font-mono truncate">{field.value.slice(0, 12)}…{field.value.slice(-6)}</span>
+      </div>
+    );
+  }
+
+  if (isUrl) {
+    return (
+      <div className="flex items-center gap-1.5 min-w-0">
+        <LinkIcon className="size-3.5 shrink-0 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
+        <a
+          href={field.value}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-primary hover:underline truncate"
+        >
+          {field.value.replace(/^https?:\/\//, '')}
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-1.5 min-w-0">
+      <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
+      <span className="text-sm truncate">{field.value}</span>
+    </div>
+  );
+}
+
 // ----- Main Component -----
 
 export function ProfilePage() {
@@ -291,11 +334,15 @@ export function ProfilePage() {
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
-  // Parse profile fields from the raw kind 0 event content
+  // Parse profile fields from the raw kind 0 event content, prepending website if present
   const fields = useMemo(() => {
-    if (!author.data?.event?.content) return [];
-    return parseProfileFields(author.data.event.content);
-  }, [author.data?.event?.content]);
+    const parsed = author.data?.event?.content ? parseProfileFields(author.data.event.content) : [];
+    // Prepend the website field from metadata if it exists
+    if (metadata?.website) {
+      return [{ label: 'Website', value: metadata.website }, ...parsed];
+    }
+    return parsed;
+  }, [author.data?.event?.content, metadata?.website]);
 
   useSeoMeta({
     title: `${displayName} | Mew`,
@@ -490,12 +537,12 @@ export function ProfilePage() {
             <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>
           )}
 
-          {metadata?.website && (
-            <div className="flex mt-3 text-sm text-muted-foreground min-w-0">
-              <a href={metadata.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-primary hover:underline min-w-0">
-                <LinkIcon className="size-3.5 shrink-0" />
-                <span className="truncate">{metadata.website.replace(/^https?:\/\//, '')}</span>
-              </a>
+          {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+          {fields.length > 0 && (
+            <div className="mt-4 space-y-3 xl:hidden">
+              {fields.map((field, i) => (
+                <ProfileFieldInline key={i} field={field} />
+              ))}
             </div>
           )}
         </div>
