@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
+import { Check, Copy, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -165,17 +165,13 @@ function BitcoinQRModal({ address }: { address: string }) {
         </div>
 
         {/* Address + Copy */}
-        <div className="space-y-2">
-          <div className="bg-secondary/60 rounded-lg px-3 py-2.5 font-mono text-xs break-all leading-relaxed">
-            {address}
-          </div>
-          <Button
-            onClick={handleCopy}
-            className="w-full rounded-lg font-semibold"
-          >
-            {copied ? <><Check className="size-4 mr-2" /> Copied</> : 'Copy address'}
-          </Button>
-        </div>
+        <button
+          onClick={handleCopy}
+          className="flex items-center gap-2 w-full bg-secondary/60 hover:bg-secondary/80 transition-colors rounded-lg px-3 py-2.5 text-left cursor-pointer"
+        >
+          <span className="flex-1 min-w-0 font-mono text-xs truncate">{address}</span>
+          {copied ? <Check className="size-4 text-green-500 shrink-0" /> : <Copy className="size-4 text-muted-foreground shrink-0" />}
+        </button>
       </div>
     </DialogContent>
   );
