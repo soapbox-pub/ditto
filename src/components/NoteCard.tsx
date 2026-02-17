@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { MessageCircle, Repeat2, Zap, MoreHorizontal, Play } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { NoteContent } from '@/components/NoteContent';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { ReactionButton } from '@/components/ReactionButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
@@ -291,23 +292,9 @@ function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: str
   );
 }
 
-/** Inline video player with native browser controls. */
+/** Inline video player for kind 1 notes. */
 function NoteVideoPlayer({ url, poster }: { url: string; poster?: string }) {
-  return (
-    <div
-      className="mt-3 rounded-2xl overflow-hidden border border-border"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <video
-        src={url}
-        poster={poster}
-        className="w-full max-h-[70vh]"
-        controls
-        playsInline
-        preload="metadata"
-      />
-    </div>
-  );
+  return <VideoPlayer src={url} poster={poster} />;
 }
 
 /** Media content for kind 34236 vine events — rendered at full card width. */

@@ -9,6 +9,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
+import { VideoPlayer } from '@/components/VideoPlayer';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -226,7 +227,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Video attachments */}
         {videos.map((url, i) => (
-          <DetailVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} />
+          <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
         ))}
 
         {/* Image attachments */}
@@ -472,22 +473,6 @@ function ParentNote({ eventId }: { eventId: string }) {
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/** Inline video player with native browser controls for the detail page. */
-function DetailVideoPlayer({ url, poster }: { url: string; poster?: string }) {
-  return (
-    <div className="mt-3 rounded-2xl overflow-hidden border border-border">
-      <video
-        src={url}
-        poster={poster}
-        className="w-full max-h-[70vh]"
-        controls
-        playsInline
-        preload="metadata"
-      />
     </div>
   );
 }
