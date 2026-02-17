@@ -21,57 +21,40 @@ function extractVideos(content: string): string[] {
 
 /** Filters an event based on search options and rejects future-dated events. */
 function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
-  // Reject events with created_at in the future
   const now = Math.floor(Date.now() / 1000);
-  if (event.created_at > now) {
-    return false;
-  }
+  if (event.created_at > now) return false;
 
   if (!options.includeReplies) {
-    if (event.tags.some(([name]) => name === 'e')) {
-      return false;
-    }
+    if (event.tags.some(([name]) => name === 'e')) return false;
   }
 
   if (options.mediaType !== 'all') {
     const hasImages = extractImages(event.content).length > 0;
     const hasVideos = extractVideos(event.content).length > 0;
-
     switch (options.mediaType) {
-      case 'images':
-        return hasImages;
+      case 'images': return hasImages;
       case 'videos':
-      case 'vines':
-        return hasVideos;
-      case 'none':
-        return !hasImages && !hasVideos;
+      case 'vines': return hasVideos;
+      case 'none': return !hasImages && !hasVideos;
     }
   }
 
   return true;
 }
 
-const STREAM_RELAYS = ['wss://relay.ditto.pub', 'wss://relay.damus.io', 'wss://relay.primal.net'];
+const STREAM_RELAYS = ['wss://relay.damus.io', 'wss://relay.primal.net', 'wss://relay.ditto.pub'];
 
 /**
- * Stream posts in real-time.
- * 1. Fetches initial batch via query().
- * 2. Opens a live req() subscription for new posts in parallel.
+ * Stream posts in real-time using the same pattern as bitmap/clawchat.
+ * Fetches initial batch, then opens a persistent req() subscription.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [posts, setPosts] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    // Abort any existing stream
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
-
-    const ac = new AbortController();
-    abortRef.current = ac;
+    const abortController = new AbortController();
     let isSubscribed = true;
 
     setPosts([]);
@@ -88,46 +71,42 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
-    // Build base filter
     const baseFilter: NostrFilter = { kinds: [1] };
     if (query.trim()) {
       baseFilter.search = query.trim();
     }
 
-    // For NIP-50 search, only use relay.ditto.pub
     const relays = query.trim() ? ['wss://relay.ditto.pub'] : STREAM_RELAYS;
 
-    const now = Math.floor(Date.now() / 1000);
-
-    // 1. Fetch initial batch
-    const fetchInitial = async () => {
+    // Fetch initial messages
+    const fetchInitialMessages = async () => {
       try {
-        const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(8000)]);
+        const signal = AbortSignal.any([abortController.signal, AbortSignal.timeout(30000)]);
         const events = await nostr.query(
           [{ ...baseFilter, limit: 40 }],
           { signal, relays },
         );
-
         for (const event of events) {
           addEvent(event);
         }
-      } catch (error) {
-        if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Failed to fetch initial posts:', error);
+        if (isSubscribed) {
+          setIsLoading(false);
         }
-      }
-      if (isSubscribed) {
-        setIsLoading(false);
+      } catch (error) {
+        if (isSubscribed) {
+          setIsLoading(false);
+        }
       }
     };
 
-    // 2. Stream new posts in real-time
-    const streamNew = async () => {
+    // Set up real-time subscription
+    const subscribeToMessages = async () => {
       try {
-        const subscription = nostr.req(
-          [{ ...baseFilter, since: now, limit: 100 }],
-          { signal: ac.signal, relays },
-        );
+        const now = Math.floor(Date.now() / 1000);
+
+        const subscription = nostr.req([
+          { ...baseFilter, since: now, limit: 100 }
+        ], { signal: abortController.signal, relays });
 
         for await (const msg of subscription) {
           if (!isSubscribed) break;
@@ -135,26 +114,25 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           if (msg[0] === 'EVENT') {
             addEvent(msg[2]);
           } else if (msg[0] === 'EOSE') {
-            // Stream continues after EOSE
+            // Subscription continues after EOSE
           } else if (msg[0] === 'CLOSED') {
             break;
           }
         }
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
-          console.error('Failed to maintain stream:', error);
+          console.error('Stream subscription error:', error);
         }
       }
     };
 
-    // Run both in parallel
-    fetchInitial();
-    streamNew();
+    // Start fetching and subscribing in parallel
+    fetchInitialMessages();
+    subscribeToMessages();
 
     return () => {
       isSubscribed = false;
-      ac.abort();
-      abortRef.current = null;
+      abortController.abort();
     };
   }, [query, options.includeReplies, options.mediaType, nostr]);
 
