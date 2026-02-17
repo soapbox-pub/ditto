@@ -89,7 +89,7 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l lg:border-r border-border min-h-screen">
-      {/* Header */}
+      {/* Header — matches Ditto: ← Post Details */}
       <div className="sticky top-10 sidebar:top-0 z-10 flex items-center gap-4 px-4 h-[53px] bg-background/80 backdrop-blur-md border-b border-border">
         <button
           onClick={() => navigate(-1)}
@@ -98,7 +98,7 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-lg font-bold">Post Details</h1>
+        <h1 className="text-xl font-bold">Post Details</h1>
       </div>
 
       {children}
@@ -118,14 +118,16 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [liked, setLiked] = useState(false);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
+  const hasStats = !!(stats?.reposts || stats?.reactions || stats?.zapAmount);
+
   return (
     <div>
-      {/* Main post — expanded view */}
-      <article className="px-4 pt-4">
+      {/* Main post — expanded Ditto-style view */}
+      <article className="px-4 pt-3 pb-0">
         {/* Author row */}
         <div className="flex items-center gap-3">
           <Link to={`/${npub}`}>
-            <Avatar className="size-12">
+            <Avatar className="size-11">
               <AvatarImage src={metadata?.picture} alt={displayName} />
               <AvatarFallback className="bg-primary/20 text-primary text-sm">
                 {displayName[0].toUpperCase()}
@@ -149,9 +151,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
         </div>
 
-        {/* Post content — larger text */}
+        {/* Post content */}
         <div className="mt-3">
-          <NoteContent event={event} className="text-base leading-relaxed" />
+          <NoteContent event={event} className="text-[15px] leading-relaxed" />
         </div>
 
         {/* Image attachments */}
@@ -178,88 +180,96 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
         )}
 
-        {/* Stats row: reposts, reactions, date */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 text-sm text-muted-foreground">
-          {stats?.reposts ? (
-            <span>
-              <span className="font-semibold text-foreground">{stats.reposts}</span>{' '}
-              Repost{stats.reposts !== 1 ? 's' : ''}
-            </span>
-          ) : null}
-          {stats?.reactions ? (
-            <span>
-              <span className="font-semibold text-foreground">{stats.reactions}</span>{' '}
-              Like{stats.reactions !== 1 ? 's' : ''}
-            </span>
-          ) : null}
-          {stats?.zapAmount ? (
-            <span>
-              <span className="font-semibold text-foreground">{formatSats(stats.zapAmount)}</span> sats
-            </span>
-          ) : null}
-          <span className="ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex items-center justify-between py-2 mt-1 border-t border-b border-border -mx-4 px-4">
-          <div className="flex items-center justify-between w-full max-w-md">
-            {/* Reply */}
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
-            </button>
-
-            {/* Repost */}
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-              title="Repost"
-            >
-              <Repeat2 className="size-5" />
-              {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
-            </button>
-
-            {/* Like */}
-            <button
-              className={cn(
-                'flex items-center gap-1 p-2 rounded-full transition-colors',
-                liked
-                  ? 'text-pink-500'
-                  : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
-              )}
-              title="Like"
-              onClick={() => setLiked(!liked)}
-            >
-              <Heart className={cn('size-5', liked && 'fill-pink-500')} />
-              {stats?.reactions ? <span className="text-xs">{stats.reactions}</span> : null}
-            </button>
-
-            {/* Zap */}
-            <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-              title="Zap"
-            >
-              <Zap className="size-5" />
-              {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
-            </button>
-
-            {/* More */}
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={() => setMoreMenuOpen(true)}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
+        {/* Stats row: "2 Reposts 1 Like" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
+        {hasStats && (
+          <div className="flex items-center gap-x-3 py-2.5 mt-3 border-t border-border text-sm text-muted-foreground">
+            {stats?.reposts ? (
+              <span>
+                <span className="font-bold text-foreground">{stats.reposts}</span>{' '}
+                Repost{stats.reposts !== 1 ? 's' : ''}
+              </span>
+            ) : null}
+            {stats?.reactions ? (
+              <span>
+                <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
+                Like{stats.reactions !== 1 ? 's' : ''}
+              </span>
+            ) : null}
+            {stats?.zapAmount ? (
+              <span>
+                <span className="font-bold text-foreground">{formatSats(stats.zapAmount)}</span>{' '}
+                sats
+              </span>
+            ) : null}
+            <span className="ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
           </div>
+        )}
+
+        {/* Date-only row if no stats */}
+        {!hasStats && (
+          <div className="py-2.5 mt-3 border-t border-border text-sm text-muted-foreground">
+            {formatFullDate(event.created_at)}
+          </div>
+        )}
+
+        {/* Action buttons — Ditto style: full width, evenly spaced */}
+        <div className="flex items-center justify-around py-1 border-t border-b border-border -mx-4 px-4">
+          {/* Reply */}
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="Reply"
+          >
+            <MessageCircle className="size-[18px]" />
+            {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
+          </button>
+
+          {/* Repost */}
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+            title="Repost"
+          >
+            <Repeat2 className="size-[18px]" />
+            {stats?.reposts ? <span className="text-xs">{stats.reposts}</span> : null}
+          </button>
+
+          {/* Like */}
+          <button
+            className={cn(
+              'flex items-center gap-1.5 p-2 rounded-full transition-colors',
+              liked
+                ? 'text-pink-500'
+                : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+            )}
+            title="Like"
+            onClick={() => setLiked(!liked)}
+          >
+            <Heart className={cn('size-[18px]', liked && 'fill-pink-500')} />
+            {stats?.reactions ? <span className="text-xs">{stats.reactions}</span> : null}
+          </button>
+
+          {/* Zap */}
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+            title="Zap"
+          >
+            <Zap className="size-[18px]" />
+            {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+          </button>
+
+          {/* More */}
+          <button
+            className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            title="More"
+            onClick={() => setMoreMenuOpen(true)}
+          >
+            <MoreHorizontal className="size-[18px]" />
+          </button>
         </div>
 
         <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
       </article>
 
-      {/* Reply composer */}
+      {/* Reply composer — Ditto style: avatar + "Post your reply" */}
       <ReplyComposer event={event} />
 
       {/* Replies */}
@@ -284,13 +294,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Inline reply composer for the post detail page. */
+/** Inline reply composer for the post detail page — matches Ditto style. */
 function ReplyComposer({ event }: { event: NostrEvent }) {
   const { user, metadata } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [content, setContent] = useState('');
+  const [expanded, setExpanded] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   if (!user) return null;
@@ -318,6 +329,7 @@ function ReplyComposer({ event }: { event: NostrEvent }) {
       });
 
       setContent('');
+      setExpanded(false);
       queryClient.invalidateQueries({ queryKey: ['replies', event.id] });
       queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
       toast({ title: 'Reply posted!' });
@@ -326,11 +338,13 @@ function ReplyComposer({ event }: { event: NostrEvent }) {
     }
   };
 
+  const isExpanded = expanded || content.length > 0;
+
   return (
-    <div className="flex gap-3 px-4 py-3 border-b border-border">
-      <Avatar className="size-10 shrink-0 mt-0.5">
+    <div className="flex gap-3 px-4 py-3 border-b border-border items-start">
+      <Avatar className="size-9 shrink-0 mt-1">
         <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-        <AvatarFallback className="bg-primary/20 text-primary text-sm">
+        <AvatarFallback className="bg-primary/20 text-primary text-xs">
           {(metadata?.name?.[0] || '?').toUpperCase()}
         </AvatarFallback>
       </Avatar>
@@ -340,9 +354,13 @@ function ReplyComposer({ event }: { event: NostrEvent }) {
           ref={textareaRef}
           value={content}
           onChange={(e) => setContent(e.target.value)}
+          onFocus={() => setExpanded(true)}
           placeholder="Post your reply"
-          className="w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-[15px] py-2 min-h-[44px]"
-          rows={1}
+          className={cn(
+            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-[15px] py-1.5',
+            isExpanded ? 'min-h-[80px]' : 'min-h-[36px]',
+          )}
+          rows={isExpanded ? 3 : 1}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               handleSubmit();
@@ -355,23 +373,25 @@ function ReplyComposer({ event }: { event: NostrEvent }) {
           }}
         />
 
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSubmit}
-            disabled={!content.trim() || isPending}
-            className="rounded-full px-5 font-bold"
-            size="sm"
-          >
-            {isPending ? (
-              <>
-                <Loader2 className="size-4 animate-spin mr-1.5" />
-                Replying...
-              </>
-            ) : (
-              'Reply'
-            )}
-          </Button>
-        </div>
+        {isExpanded && (
+          <div className="flex justify-end mt-1">
+            <Button
+              onClick={handleSubmit}
+              disabled={!content.trim() || isPending}
+              className="rounded-full px-5 font-bold"
+              size="sm"
+            >
+              {isPending ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-1.5" />
+                  Replying...
+                </>
+              ) : (
+                'Reply'
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -379,10 +399,10 @@ function ReplyComposer({ event }: { event: NostrEvent }) {
 
 function PostDetailSkeleton() {
   return (
-    <div className="px-4 pt-4">
+    <div className="px-4 pt-3">
       {/* Author */}
       <div className="flex items-center gap-3">
-        <Skeleton className="size-12 rounded-full" />
+        <Skeleton className="size-11 rounded-full" />
         <div className="space-y-1.5">
           <Skeleton className="h-4 w-28" />
           <Skeleton className="h-3 w-36" />
@@ -390,21 +410,21 @@ function PostDetailSkeleton() {
       </div>
 
       {/* Content */}
-      <div className="mt-4 space-y-2">
-        <Skeleton className="h-5 w-full" />
-        <Skeleton className="h-5 w-4/5" />
-        <Skeleton className="h-5 w-3/5" />
+      <div className="mt-3 space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-4 w-3/5" />
       </div>
 
       {/* Stats */}
-      <div className="flex gap-4 mt-4">
+      <div className="flex gap-4 mt-3 pt-2.5 border-t border-border">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-32 ml-auto" />
       </div>
 
       {/* Actions */}
-      <div className="flex gap-8 py-3 mt-2 border-t border-b border-border">
+      <div className="flex justify-around py-2 mt-0 border-t border-b border-border">
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-8" />
@@ -412,8 +432,14 @@ function PostDetailSkeleton() {
         <Skeleton className="h-5 w-5" />
       </div>
 
+      {/* Reply composer skeleton */}
+      <div className="flex gap-3 py-3 border-b border-border">
+        <Skeleton className="size-9 rounded-full" />
+        <Skeleton className="h-9 flex-1 rounded-lg" />
+      </div>
+
       {/* Replies skeleton */}
-      <div className="mt-4 divide-y divide-border">
+      <div className="divide-y divide-border">
         {Array.from({ length: 3 }).map((_, i) => (
           <ReplyCardSkeleton key={i} />
         ))}
