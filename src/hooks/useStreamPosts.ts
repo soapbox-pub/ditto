@@ -19,8 +19,14 @@ function extractVideos(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-/** Filters an event based on search options. */
+/** Filters an event based on search options and rejects future-dated events. */
 function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
+  // Reject events with created_at in the future
+  const now = Math.floor(Date.now() / 1000);
+  if (event.created_at > now) {
+    return false;
+  }
+
   if (!options.includeReplies) {
     if (event.tags.some(([name]) => name === 'e')) {
       return false;
@@ -45,10 +51,13 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   return true;
 }
 
+// Use relay.ditto.pub for all search streaming (supports NIP-50)
+const SEARCH_RELAY = 'wss://relay.ditto.pub';
+
 /**
- * Stream posts in real-time.
- * 1. Fetches initial batch via query() in parallel.
- * 2. Opens a live req() subscription for new posts.
+ * Stream posts in real-time from a single relay.
+ * 1. Fetches initial batch via query().
+ * 2. Opens a live req() subscription for new posts in parallel.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
@@ -80,10 +89,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       }
     }
 
-    // Use relay.ditto.pub for NIP-50 search, otherwise default pool
-    const store = query.trim()
-      ? nostr.relay('wss://relay.ditto.pub')
-      : nostr;
+    // Always use a single relay for streaming (pool eoseTimeout kills subscriptions)
+    const relay = nostr.relay(SEARCH_RELAY);
 
     // Build base filter
     const baseFilter: NostrFilter = { kinds: [1] };
@@ -97,7 +104,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const fetchInitial = async () => {
       try {
         const signal = AbortSignal.any([ac.signal, AbortSignal.timeout(8000)]);
-        const events = await store.query(
+        const events = await relay.query(
           [{ ...baseFilter, limit: 40 }],
           { signal },
         );
@@ -105,28 +112,20 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         for (const event of events) {
           addEvent(event);
         }
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('Failed to fetch initial posts:', error);
         }
-        if (isSubscribed) {
-          setIsLoading(false);
-        }
+      }
+      if (isSubscribed) {
+        setIsLoading(false);
       }
     };
 
     // 2. Stream new posts in real-time
     const streamNew = async () => {
       try {
-        const subscription = store.req(
-          [{ ...baseFilter, since: now, limit: 100 }],
-          { signal: ac.signal },
-        );
-
-        for await (const msg of subscription) {
+        for await (const msg of relay.req([{ ...baseFilter, since: now, limit: 100 }], { signal: ac.signal })) {
           if (!isSubscribed) break;
 
           if (msg[0] === 'EVENT') {
