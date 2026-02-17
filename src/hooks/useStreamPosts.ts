@@ -32,32 +32,42 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
     if (event.tags.some(([name]) => name === 'e')) return false;
   }
 
-  if (options.mediaType !== 'all') {
-    const hasImages = hasImageImeta(event);
-    const hasVideos = hasVideoImeta(event);
-    switch (options.mediaType) {
-      case 'images': return hasImages;
-      case 'videos': return hasVideos;
-      case 'vines': return false; // kind 1 posts aren't vines
-      case 'none': return !hasImages && !hasVideos;
-    }
+  // For images/videos, verify the imeta tag matches (relay returns kind 1 with any imeta)
+  switch (options.mediaType) {
+    case 'images': return hasImageImeta(event);
+    case 'videos': return hasVideoImeta(event);
+    case 'none': return !hasImageImeta(event) && !hasVideoImeta(event);
   }
 
   return true;
 }
 
+/** Build the relay filter for the given media type. */
+function buildFilter(mediaType: StreamPostsOptions['mediaType']): NostrFilter {
+  switch (mediaType) {
+    case 'vines':
+      return { kinds: [34236] };
+    case 'images':
+      return { kinds: [1], '#m': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml', 'image/apng'] };
+    case 'videos':
+      return { kinds: [1], '#m': ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/mpeg'] };
+    default:
+      return { kinds: [1] };
+  }
+}
+
 /**
  * Stream posts using a direct relay connection.
- * When mediaType is 'vines', streams kind 34236 events instead of kind 1.
- * Other filters are applied client-side via useMemo.
+ * Each media type produces its own unique query so the relay returns
+ * the most relevant results for that filter.
  */
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Vines filter changes the kind queried, so it must restart the stream
-  const isVines = options.mediaType === 'vines';
+  // mediaType changes the relay filter, so it must restart the stream
+  const { mediaType } = options;
 
   useEffect(() => {
     const ac = new AbortController();
@@ -90,9 +100,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const relay = nostr.relay('wss://relay.ditto.pub');
 
-    const baseFilter: NostrFilter = isVines
-      ? { kinds: [34236] }
-      : { kinds: [1] };
+    const baseFilter: NostrFilter = buildFilter(mediaType);
 
     if (query.trim()) {
       baseFilter.search = query.trim();
@@ -138,9 +146,9 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines]);
+  }, [nostr, query, mediaType]);
 
-  // Apply client-side filters without restarting the stream
+  // Apply client-side filters (replies toggle + imeta verification)
   const posts = useMemo(() => {
     return allEvents.filter((event) => filterEvent(event, options));
   }, [allEvents, options.includeReplies, options.mediaType]);
