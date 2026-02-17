@@ -137,19 +137,11 @@ function BitcoinQRModal({ address }: { address: string }) {
     <DialogContent className="sm:max-w-[360px] p-0 overflow-hidden rounded-2xl">
       <div className="bg-card p-6 min-w-0">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 pr-10">
+          <DialogTitle className="flex items-center gap-2">
             <div className="size-7 rounded-full bg-orange-500 flex items-center justify-center shrink-0">
               <Bitcoin className="size-4 text-white" />
             </div>
             <span>Bitcoin</span>
-            <a
-              href={`https://mempool.space/address/${address}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ml-auto text-muted-foreground hover:text-primary transition-colors shrink-0"
-            >
-              <ExternalLink className="size-4" />
-            </a>
           </DialogTitle>
         </DialogHeader>
 
