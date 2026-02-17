@@ -27,7 +27,7 @@ export function Feed() {
 
   const {
     data,
-    isLoading,
+    isPending,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -100,7 +100,7 @@ export function Feed() {
       )}
 
       {/* Feed content */}
-      {isLoading ? (
+      {isPending ? (
         <div className="divide-y divide-border">
           {Array.from({ length: 5 }).map((_, i) => (
             <NoteCardSkeleton key={i} />
