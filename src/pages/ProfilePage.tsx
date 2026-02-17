@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,11 +17,11 @@ import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -76,29 +76,7 @@ function hasMedia(content: string): boolean {
   return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(content);
 }
 
-/** Hook to fetch the logged-in user's follow list (kind 3). */
-function useFollowList() {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-
-  return useQuery<{ event: NostrEvent | null; pubkeys: string[] }>({
-    queryKey: ['follow-list', user?.pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!user) return { event: null, pubkeys: [] };
-      const [event] = await nostr.query(
-        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
-      );
-      if (!event) return { event: null, pubkeys: [] };
-      const pubkeys = event.tags
-        .filter(([name]) => name === 'p')
-        .map(([, pubkey]) => pubkey);
-      return { event, pubkeys };
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
-}
+// useFollowList is now imported from @/hooks/useFollowActions
 
 /** Hook to query a user's liked events (kind 7 reactions they've sent). */
 function useProfileLikes(pubkey: string | undefined) {
@@ -551,8 +529,7 @@ export function ProfilePage() {
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -616,8 +593,11 @@ export function ProfilePage() {
     activeTab === 'likes' ? pubkey : undefined,
   );
 
-  // Follow list (for logged-in user's follow actions)
+  // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
+
+  // Safe follow/unfollow actions (fetches fresh data from multiple relays before mutating)
+  const { follow, unfollow, isPending: followPending } = useFollowActions();
 
   // Profile's following list (for the viewed profile)
   const { data: profileFollowing } = useProfileFollowing(pubkey);
@@ -629,38 +609,18 @@ export function ProfilePage() {
     return followData.pubkeys.includes(pubkey);
   }, [pubkey, followData]);
 
-  const [followPending, setFollowPending] = useState(false);
-
   const handleToggleFollow = async () => {
-    if (!user || !pubkey || !followData) return;
-    setFollowPending(true);
+    if (!user || !pubkey) return;
     try {
-      const currentTags = followData.event?.tags.filter(([n]) => n === 'p') ?? [];
-
-      let newTags: string[][];
       if (isFollowing) {
-        // Unfollow: remove the pubkey
-        newTags = currentTags.filter(([, pk]) => pk !== pubkey);
+        await unfollow(pubkey);
       } else {
-        // Follow: add the pubkey
-        newTags = [...currentTags, ['p', pubkey]];
+        await follow(pubkey);
       }
-
-      await publishEvent({
-        kind: 3,
-        content: followData.event?.content ?? '',
-        tags: newTags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
-
-      // Invalidate the follow list cache
-      queryClient.invalidateQueries({ queryKey: ['follow-list'] });
       toast({ title: isFollowing ? `Unfollowed @${displayName}` : `Followed @${displayName}` });
     } catch (err) {
       console.error('Follow toggle failed:', err);
       toast({ title: 'Failed to update follow list', variant: 'destructive' });
-    } finally {
-      setFollowPending(false);
     }
   };
 

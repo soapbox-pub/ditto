@@ -1,0 +1,180 @@
+import { useCallback, useState } from 'react';
+import { useNostr } from '@nostrify/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCurrentUser } from './useCurrentUser';
+import { useAppContext } from './useAppContext';
+import { useNostrPublish } from './useNostrPublish';
+import type { NostrEvent } from '@nostrify/nostrify';
+
+/**
+ * Discovery relays used to find the user's latest kind 3 event.
+ * We cast a wide net to avoid acting on stale data.
+ */
+const DISCOVERY_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.primal.net',
+  'wss://purplepag.es',
+  'wss://relay.snort.social',
+];
+
+/**
+ * Fetches the absolute freshest kind 3 follow list from multiple relays.
+ * This prevents stale-data mutations that could accidentally wipe follows.
+ */
+async function fetchFreshFollowEvent(
+  nostr: ReturnType<typeof useNostr>['nostr'],
+  pubkey: string,
+  userRelayUrls: string[],
+): Promise<NostrEvent | null> {
+  const allRelayUrls = [...new Set([...DISCOVERY_RELAYS, ...userRelayUrls])];
+
+  const signal = AbortSignal.timeout(10_000);
+  const relayGroup = nostr.group(allRelayUrls);
+
+  const followEvents = await relayGroup.query(
+    [{ kinds: [3], authors: [pubkey], limit: 1 }],
+    { signal },
+  );
+
+  if (followEvents.length === 0) return null;
+
+  // Pick the most recent event across all relays
+  return followEvents.reduce((latest, current) =>
+    current.created_at > latest.created_at ? current : latest,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// useFollowList — cached view of the user's follow list for UI reads
+// ---------------------------------------------------------------------------
+
+export interface FollowListData {
+  /** The raw kind 3 event (null if none found). */
+  event: NostrEvent | null;
+  /** All pubkeys from `p` tags. */
+  pubkeys: string[];
+}
+
+/**
+ * Cached hook to read the logged-in user's follow list.
+ * Use this for **display only** (e.g. checking "is this person followed?").
+ * For mutations, `useFollowActions` fetches fresh data before writing.
+ */
+export function useFollowList() {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+
+  return useQuery<FollowListData>({
+    queryKey: ['follow-list', user?.pubkey ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!user) return { event: null, pubkeys: [] };
+      const [event] = await nostr.query(
+        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
+      );
+      if (!event) return { event: null, pubkeys: [] };
+      const pubkeys = event.tags
+        .filter(([name]) => name === 'p')
+        .map(([, pk]) => pk);
+      return { event, pubkeys };
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// ---------------------------------------------------------------------------
+// useFollowActions — safe follow / unfollow mutation
+// ---------------------------------------------------------------------------
+
+export interface UseFollowActionsReturn {
+  /** Whether a follow/unfollow mutation is in progress. */
+  isPending: boolean;
+  /** Follow a pubkey. Fetches the freshest kind 3 first, then publishes. */
+  follow: (pubkey: string) => Promise<void>;
+  /** Unfollow a pubkey. Fetches the freshest kind 3 first, then publishes. */
+  unfollow: (pubkey: string) => Promise<void>;
+}
+
+/**
+ * Safe follow / unfollow actions modelled after the follow-party project.
+ *
+ * Key safety properties:
+ * 1. Fetches the freshest kind 3 event from multiple relays **right before** mutating.
+ * 2. Picks the event with the highest `created_at` across all relay responses.
+ * 3. Preserves **all** existing tags (not just `p` tags) so non-follow metadata is not lost.
+ * 4. Preserves the `content` field (some clients store relay hints there).
+ */
+export function useFollowActions(): UseFollowActionsReturn {
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
+  const { config } = useAppContext();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
+
+  const [isPending, setIsPending] = useState(false);
+
+  /** User's read-enabled relay URLs (from NIP-65 config). */
+  const userRelayUrls = config.relayMetadata.relays
+    .filter((r) => r.read)
+    .map((r) => r.url);
+
+  const mutateFollowList = useCallback(
+    async (targetPubkey: string, action: 'follow' | 'unfollow') => {
+      if (!user) throw new Error('Not logged in');
+      setIsPending(true);
+
+      try {
+        // ① Fetch the freshest kind 3 event from a wide relay set
+        const latestEvent = await fetchFreshFollowEvent(nostr, user.pubkey, userRelayUrls);
+
+        // ② Separate tags into `p` tags (follow entries) and everything else
+        const existingTags = latestEvent?.tags ?? [];
+        const pTags = existingTags.filter(([name]) => name === 'p');
+        const nonPTags = existingTags.filter(([name]) => name !== 'p');
+
+        // ③ Compute the new set of `p` tags
+        let newPTags: string[][];
+        if (action === 'follow') {
+          // Add only if not already present (dedup)
+          const alreadyFollowed = pTags.some(([, pk]) => pk === targetPubkey);
+          newPTags = alreadyFollowed ? pTags : [...pTags, ['p', targetPubkey]];
+        } else {
+          // Remove the target pubkey
+          newPTags = pTags.filter(([, pk]) => pk !== targetPubkey);
+        }
+
+        // ④ Rebuild the full tag array: non-p tags first, then p tags
+        const newTags = [...nonPTags, ...newPTags];
+
+        // ⑤ Preserve the content field (relay hints / petnames in some clients)
+        const content = latestEvent?.content ?? '';
+
+        await publishEvent({
+          kind: 3,
+          content,
+          tags: newTags,
+        });
+
+        // ⑥ Invalidate cached follow-list queries so UI updates
+        queryClient.invalidateQueries({ queryKey: ['follow-list'] });
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [nostr, user, userRelayUrls, publishEvent, queryClient],
+  );
+
+  const follow = useCallback(
+    (pubkey: string) => mutateFollowList(pubkey, 'follow'),
+    [mutateFollowList],
+  );
+
+  const unfollow = useCallback(
+    (pubkey: string) => mutateFollowList(pubkey, 'unfollow'),
+    [mutateFollowList],
+  );
+
+  return { isPending, follow, unfollow };
+}

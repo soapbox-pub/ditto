@@ -1,7 +1,8 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
+import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -18,29 +19,6 @@ export interface FeedItem {
   repostedBy?: string;
   /** Sort timestamp — uses the repost timestamp when present for correct ordering. */
   sortTimestamp: number;
-}
-
-/** Hook to fetch the user's follow list (kind 3 contact list). */
-function useFollowList() {
-  const { nostr } = useNostr();
-  const { user } = useCurrentUser();
-
-  return useQuery<string[]>({
-    queryKey: ['follow-list', user?.pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!user) return [];
-      const [event] = await nostr.query(
-        [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
-      );
-      if (!event) return [];
-      return event.tags
-        .filter(([name]) => name === 'p')
-        .map(([, pubkey]) => pubkey);
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
 }
 
 /**
@@ -64,7 +42,8 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
 export function useFeed(tab: 'follows' | 'global') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { data: followList } = useFollowList();
+  const { data: followData } = useFollowList();
+  const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
 
   // Build the full kinds list: base kinds + user-selected extra kinds.
