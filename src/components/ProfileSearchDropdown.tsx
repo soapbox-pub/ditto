@@ -196,11 +196,13 @@ function ProfileItem({
 }) {
   const { metadata, pubkey } = profile;
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
-  const username = metadata.name;
   const nip05 = metadata.nip05;
 
   // Format nip05 for display — strip leading underscore prefix
   const nip05Display = nip05?.startsWith('_@') ? nip05.slice(2) : nip05;
+  
+  // Show NIP-05 if available, otherwise show npub
+  const identifier = nip05Display || nip19.npubEncode(pubkey);
 
   return (
     <button
@@ -228,15 +230,11 @@ function ProfileItem({
             <span className="text-xs text-primary" title="Bot account">🤖</span>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {username && (
-            <span className="truncate">@{username}</span>
-          )}
-          {nip05Display && nip05Display !== username && (
-            <>
-              {username && <span>·</span>}
-              <span className="truncate">{nip05Display}</span>
-            </>
+        <div className="text-xs text-muted-foreground truncate">
+          {nip05Display ? (
+            <span className="truncate">{identifier}</span>
+          ) : (
+            <span className="truncate font-mono text-[11px]">{identifier}</span>
           )}
         </div>
       </div>
