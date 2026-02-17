@@ -73,22 +73,17 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     }
 
     // Use a single direct relay connection — NOT the pool
-    const relay = nostr.relay('wss://relay.damus.io');
+    const relay = nostr.relay('wss://relay.ditto.pub');
 
     const baseFilter: NostrFilter = { kinds: [1] };
     if (query.trim()) {
-      // For NIP-50 search, switch to ditto relay
       baseFilter.search = query.trim();
     }
-
-    const searchRelay = query.trim()
-      ? nostr.relay('wss://relay.ditto.pub')
-      : relay;
 
     // 1. Fetch initial batch
     (async () => {
       try {
-        const events = await searchRelay.query(
+        const events = await relay.query(
           [{ ...baseFilter, limit: 40 }],
           { signal: ac.signal },
         );
@@ -106,7 +101,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       try {
         const now = Math.floor(Date.now() / 1000);
 
-        for await (const msg of searchRelay.req(
+        for await (const msg of relay.req(
           [{ ...baseFilter, since: now, limit: 100 }],
           { signal: ac.signal },
         )) {
