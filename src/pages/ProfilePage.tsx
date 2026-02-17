@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -20,9 +19,9 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
 import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
-import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
+import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -30,8 +29,6 @@ import QRCode from 'qrcode';
 
 const STREAK_WINDOW_HOURS = 24;
 const STREAK_DISPLAY_LIMIT = 99;
-
-type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 
 /** Calculate posting streak: consecutive kind 1 posts within 24-hour windows. */
 function calculateStreak(posts: NostrEvent[]): number {
@@ -71,46 +68,7 @@ function parseProfileFields(content: string): Array<{ label: string; value: stri
   return [];
 }
 
-/** Extract image/video URLs from content. */
-function hasMedia(content: string): boolean {
-  return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(content);
-}
-
 // useFollowList is now imported from @/hooks/useFollowActions
-
-/** Hook to query a user's liked events (kind 7 reactions they've sent). */
-function useProfileLikes(pubkey: string | undefined) {
-  const { nostr } = useNostr();
-
-  return useQuery<NostrEvent[]>({
-    queryKey: ['profile-likes', pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!pubkey) return [];
-      // Get kind 7 reactions from this user
-      const reactions = await nostr.query(
-        [{ kinds: [7], authors: [pubkey], limit: 50 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-
-      // Extract the event IDs they liked
-      const likedIds = reactions
-        .map((r) => r.tags.find(([n]) => n === 'e')?.[1])
-        .filter((id): id is string => !!id);
-
-      if (likedIds.length === 0) return [];
-
-      // Fetch the original events
-      const events = await nostr.query(
-        [{ ids: likedIds, limit: likedIds.length }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-
-      return events.sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!pubkey,
-    staleTime: 5 * 60 * 1000,
-  });
-}
 
 // ----- Profile More Menu -----
 
@@ -527,7 +485,6 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
 export function ProfilePage() {
   const { npub } = useParams<{ npub: string }>();
   const { user } = useCurrentUser();
-  const { nostr } = useNostr();
   const { toast } = useToast();
 
 
@@ -568,30 +525,23 @@ export function ProfilePage() {
     description: metadata?.about || 'Nostr profile',
   });
 
-  // Feed settings for extra kinds
-  const { feedSettings } = useFeedSettings();
-  const profileExtraKinds = getEnabledFeedKinds(feedSettings);
-  const profileKinds = [1, ...profileExtraKinds];
-  const profileKindsKey = profileKinds.sort().join(',');
+  // Infinite-scroll profile feed (posts/replies/media)
+  const {
+    data: feedData,
+    isPending: feedPending,
+    fetchNextPage: fetchNextFeedPage,
+    hasNextPage: hasNextFeedPage,
+    isFetchingNextPage: isFetchingNextFeedPage,
+  } = useProfileFeed(pubkey, activeTab);
 
-  // Fetch posts (kind 1 + enabled extra kinds) from this user
-  const { data: posts, isLoading: postsLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['profile-posts', pubkey ?? '', profileKindsKey],
-    queryFn: async ({ signal }) => {
-      if (!pubkey) return [];
-      const events = await nostr.query(
-        [{ kinds: profileKinds, authors: [pubkey], limit: 50 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-      return events.sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!pubkey,
-  });
-
-  // Fetch likes
-  const { data: likedEvents, isLoading: likesLoading } = useProfileLikes(
-    activeTab === 'likes' ? pubkey : undefined,
-  );
+  // Infinite-scroll likes
+  const {
+    data: likesData,
+    isPending: likesPending,
+    fetchNextPage: fetchNextLikesPage,
+    hasNextPage: hasNextLikesPage,
+    isFetchingNextPage: isFetchingNextLikesPage,
+  } = useProfileLikesInfinite(pubkey, activeTab === 'likes');
 
   // Follow list (cached, for display checks only)
   const { data: followData } = useFollowList();
@@ -624,25 +574,55 @@ export function ProfilePage() {
     }
   };
 
-  const streak = useMemo(() => calculateStreak(posts ?? []), [posts]);
-
-  // Derived content for each tab
-  const filteredPosts = useMemo(() => {
-    if (!posts) return [];
-    switch (activeTab) {
-      case 'posts':
-        // Only top-level posts (no replies)
-        return posts.filter((e) => !e.tags.some(([n]) => n === 'e'));
-      case 'replies':
-        // All posts including replies
-        return posts;
-      case 'media':
-        // Posts with media
-        return posts.filter((e) => hasMedia(e.content));
-      default:
-        return [];
+  // Flatten feed pages and deduplicate
+  const feedItems = useMemo(() => {
+    if (!feedData?.pages) return [];
+    const seen = new Set<string>();
+    const items: NostrEvent[] = [];
+    for (const page of feedData.pages) {
+      for (const event of page) {
+        if (!seen.has(event.id)) {
+          seen.add(event.id);
+          items.push(event);
+        }
+      }
     }
-  }, [posts, activeTab]);
+    return items;
+  }, [feedData?.pages]);
+
+  // Flatten likes pages and deduplicate
+  const likedItems = useMemo(() => {
+    if (!likesData?.pages) return [];
+    const seen = new Set<string>();
+    const items: NostrEvent[] = [];
+    for (const page of likesData.pages) {
+      for (const event of page.events) {
+        if (!seen.has(event.id)) {
+          seen.add(event.id);
+          items.push(event);
+        }
+      }
+    }
+    return items;
+  }, [likesData?.pages]);
+
+  const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
+
+  // Infinite scroll sentinel
+  const { ref: scrollRef, inView } = useInView();
+
+  useEffect(() => {
+    if (!inView) return;
+    if (activeTab === 'likes') {
+      if (hasNextLikesPage && !isFetchingNextLikesPage) {
+        fetchNextLikesPage();
+      }
+    } else {
+      if (hasNextFeedPage && !isFetchingNextFeedPage) {
+        fetchNextFeedPage();
+      }
+    }
+  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
 
   if (!pubkey) {
     return (
@@ -659,10 +639,10 @@ export function ProfilePage() {
   const isOwnProfile = user?.pubkey === pubkey;
   const authorEvent = author.data?.event;
 
-  const showPosts = activeTab === 'posts' || activeTab === 'replies' || activeTab === 'media';
-  const currentPosts = showPosts ? filteredPosts : [];
-  const currentLoading = showPosts ? postsLoading : likesLoading;
-  const currentEvents = activeTab === 'likes' ? (likedEvents ?? []) : currentPosts;
+  const currentEvents = activeTab === 'likes' ? likedItems : feedItems;
+  const currentLoading = activeTab === 'likes' ? likesPending : feedPending;
+  const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
+  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
   return (
     <MainLayout
@@ -815,7 +795,18 @@ export function ProfilePage() {
               ))}
             </div>
           ) : currentEvents.length > 0 ? (
-            currentEvents.map((event) => <NoteCard key={event.id} event={event} />)
+            <div>
+              {currentEvents.map((event) => <NoteCard key={event.id} event={event} />)}
+
+              {/* Infinite scroll sentinel */}
+              {hasMore && (
+                <div ref={scrollRef} className="flex justify-center py-6">
+                  {isFetchingMore && (
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              )}
+            </div>
           ) : (
             <div className="py-12 text-center text-muted-foreground">
               {activeTab === 'posts' && 'No posts yet.'}
