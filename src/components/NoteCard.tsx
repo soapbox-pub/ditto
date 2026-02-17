@@ -100,7 +100,7 @@ export function NoteCard({ event, className }: NoteCardProps) {
       onClick={() => navigate(`/${encodedId}`)}
     >
       {/* Reply context (kind 1 only) */}
-      {isReply && replyTo && (
+      {isReply && replyTo?.[1] && (
         <ReplyContext pubkey={replyTo[1]} />
       )}
 
