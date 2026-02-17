@@ -82,7 +82,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const eventMap = new Map<string, NostrEvent>();
 
     // Create a subscription for streaming events
-    const sub = relay.req([{ kinds: [1], search: query.trim(), limit: 100 }], {
+    const sub = relay.req([{ kinds: [1], search: query.trim(), limit: 0 }], {
       onevent(event: NostrEvent) {
         // Check if event passes filters
         if (!filterEvent(event, options)) {
