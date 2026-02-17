@@ -5,5 +5,18 @@
   "start_url": "/",
   "display": "standalone",
   "background_color": "#161b2e",
-  "theme_color": "#7c3aed"
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "128x128",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
 }
