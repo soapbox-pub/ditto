@@ -146,7 +146,7 @@ export function RightSidebar() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto pt-4 text-right">
+      <footer className="mt-auto pt-4 pb-4 text-right">
         <p className="text-xs text-muted-foreground">
           Vibed with{' '}
           <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
