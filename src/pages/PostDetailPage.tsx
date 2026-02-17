@@ -1,13 +1,12 @@
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Heart, Zap, MoreHorizontal, Loader2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Heart, Zap, MoreHorizontal } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 
 import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { NoteCard } from '@/components/NoteCard';
@@ -16,10 +15,6 @@ import { useEvent } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useNostrPublish } from '@/hooks/useNostrPublish';
-import { useQueryClient } from '@tanstack/react-query';
-import { useToast } from '@/hooks/useToast';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 import NotFound from './NotFound';
@@ -192,7 +187,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             {stats?.reactions ? (
               <span>
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
-                Like{stats.reactions !== 1 ? 's' : ''}
+                {stats.reactionEmojis && stats.reactionEmojis.length > 0
+                  ? stats.reactionEmojis.slice(0, 8).join('')
+                  : `Like${stats.reactions !== 1 ? 's' : ''}`}
               </span>
             ) : null}
             {stats?.zapAmount ? (
@@ -212,8 +209,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </div>
         )}
 
-        {/* Action buttons — Ditto style: full width, evenly spaced */}
-        <div className="flex items-center justify-around py-1 border-t border-b border-border -mx-4 px-4">
+        {/* Action buttons — Ditto style: distributed across full width */}
+        <div className="flex items-center justify-between py-1 border-t border-b border-border -mx-4 px-4">
           {/* Reply */}
           <button
             className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
@@ -269,9 +266,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
       </article>
 
-      {/* Reply composer — Ditto style: avatar + "Post your reply" */}
-      <ReplyComposer event={event} />
-
       {/* Replies */}
       <div>
         {repliesLoading ? (
@@ -287,109 +281,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         ) : (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** Inline reply composer for the post detail page — matches Ditto style. */
-function ReplyComposer({ event }: { event: NostrEvent }) {
-  const { user, metadata } = useCurrentUser();
-  const { mutateAsync: createEvent, isPending } = useNostrPublish();
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-  const [content, setContent] = useState('');
-  const [expanded, setExpanded] = useState(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  if (!user) return null;
-
-  const handleSubmit = async () => {
-    if (!content.trim() || isPending) return;
-
-    try {
-      const tags: string[][] = [
-        ['e', event.id, '', 'root'],
-        ['p', event.pubkey],
-      ];
-
-      // Extract hashtags
-      const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
-      for (const t of hashtags) {
-        tags.push(['t', t.toLowerCase()]);
-      }
-
-      await createEvent({
-        kind: 1,
-        content: content.trim(),
-        tags,
-        created_at: Math.floor(Date.now() / 1000),
-      });
-
-      setContent('');
-      setExpanded(false);
-      queryClient.invalidateQueries({ queryKey: ['replies', event.id] });
-      queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
-      toast({ title: 'Reply posted!' });
-    } catch {
-      toast({ title: 'Error', description: 'Failed to post reply.', variant: 'destructive' });
-    }
-  };
-
-  const isExpanded = expanded || content.length > 0;
-
-  return (
-    <div className="flex gap-3 px-4 py-3 border-b border-border items-start">
-      <Avatar className="size-9 shrink-0 mt-1">
-        <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-        <AvatarFallback className="bg-primary/20 text-primary text-xs">
-          {(metadata?.name?.[0] || '?').toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-
-      <div className="flex-1 min-w-0">
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onFocus={() => setExpanded(true)}
-          placeholder="Post your reply"
-          className={cn(
-            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-[15px] py-1.5',
-            isExpanded ? 'min-h-[80px]' : 'min-h-[36px]',
-          )}
-          rows={isExpanded ? 3 : 1}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              handleSubmit();
-            }
-          }}
-          onInput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = 'auto';
-            target.style.height = `${target.scrollHeight}px`;
-          }}
-        />
-
-        {isExpanded && (
-          <div className="flex justify-end mt-1">
-            <Button
-              onClick={handleSubmit}
-              disabled={!content.trim() || isPending}
-              className="rounded-full px-5 font-bold"
-              size="sm"
-            >
-              {isPending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin mr-1.5" />
-                  Replying...
-                </>
-              ) : (
-                'Reply'
-              )}
-            </Button>
           </div>
         )}
       </div>
@@ -424,18 +315,12 @@ function PostDetailSkeleton() {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-around py-2 mt-0 border-t border-b border-border">
+      <div className="flex justify-between py-2 mt-0 border-t border-b border-border">
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-8" />
         <Skeleton className="h-5 w-5" />
-      </div>
-
-      {/* Reply composer skeleton */}
-      <div className="flex gap-3 py-3 border-b border-border">
-        <Skeleton className="size-9 rounded-full" />
-        <Skeleton className="h-9 flex-1 rounded-lg" />
       </div>
 
       {/* Replies skeleton */}

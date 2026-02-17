@@ -122,7 +122,7 @@ export function useEventStats(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { replies: 0, reposts: 0, reactions: 0, zapAmount: 0 };
+      if (!eventId) return { replies: 0, reposts: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] as string[] };
 
       const events = await nostr.query(
         [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
@@ -133,12 +133,21 @@ export function useEventStats(eventId: string | undefined) {
       let reposts = 0;
       let reactions = 0;
       let zapAmount = 0;
+      const reactionEmojiSet = new Set<string>();
 
       for (const e of events) {
         switch (e.kind) {
           case 1: replies++; break;
           case 6: reposts++; break;
-          case 7: reactions++; break;
+          case 7: {
+            reactions++;
+            // Extract the emoji from the reaction content (kind 7 events use content for the emoji)
+            const emoji = e.content.trim();
+            if (emoji && emoji !== '+' && emoji !== '-') {
+              reactionEmojiSet.add(emoji);
+            }
+            break;
+          }
           case 9735: {
             const msats = extractZapAmount(e);
             if (msats > 0) {
@@ -149,7 +158,7 @@ export function useEventStats(eventId: string | undefined) {
         }
       }
 
-      return { replies, reposts, reactions, zapAmount };
+      return { replies, reposts, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
