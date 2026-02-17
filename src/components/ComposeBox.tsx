@@ -205,7 +205,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
           onFocus={expand}
           placeholder={placeholder}
           className={cn(
-            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg py-2',
+            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-3 pb-2',
             isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
           )}
           rows={isExpanded ? 4 : 1}
