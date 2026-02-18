@@ -319,14 +319,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
         {/* Quoted event preview */}
         {showQuotedEvent && quotedEvent && quotedEventKey && (
-          <div className="relative mt-4 mb-3">
-            <button
-              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(quotedEventKey))}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-              title="Remove embed"
-            >
-              <X className="size-3.5" />
-            </button>
+          <div className="mt-4 mb-3">
             <EmbeddedNote eventId={quotedEvent.id} />
           </div>
         )}
