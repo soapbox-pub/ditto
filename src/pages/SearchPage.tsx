@@ -13,7 +13,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { TrendSparkline } from '@/components/RightSidebar';
 import { useTrendingTags, useSortedPosts } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -205,7 +204,7 @@ export function SearchPage() {
                 ))}
               </div>
             ) : trends && trends.length > 0 ? (
-              <div>
+              <div className="flex flex-wrap gap-2 px-4 pb-2">
                 {trends.slice(0, 5).map((trend, index) => (
                   <TrendItem key={index} trend={trend} />
                 ))}
@@ -340,15 +339,12 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="flex items-center justify-between px-4 py-1.5 hover:bg-secondary/30 transition-colors"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold"
     >
-      <div className="flex items-center gap-2">
-        <span className="font-bold text-sm">#{trend.tag}</span>
-        {trend.count > 0 && (
-          <span className="text-xs text-muted-foreground"><span className="text-primary font-semibold">{trend.count}</span> posts</span>
-        )}
-      </div>
-      <TrendSparkline />
+      #{trend.tag}
+      {trend.count > 0 && (
+        <span className="text-xs text-muted-foreground font-normal">{trend.count}</span>
+      )}
     </Link>
   );
 }
