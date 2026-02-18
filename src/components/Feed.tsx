@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
@@ -152,14 +151,6 @@ export function Feed() {
           <div>
             {pageItems.map(({ pageIndex, items }) => (
               <div key={pageIndex}>
-                {/* Page boundary at the TOP - triggers next page when this page starts */}
-                <PageBoundary
-                  pageIndex={pageIndex}
-                  totalPages={data?.pages?.length ?? 0}
-                  hasNextPage={hasNextPage}
-                  isFetchingNextPage={isFetchingNextPage}
-                  onLoadNext={fetchNextPage}
-                />
                 {items.map((item: FeedItem) => (
                   <NoteCard
                     key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
@@ -167,6 +158,14 @@ export function Feed() {
                     repostedBy={item.repostedBy}
                   />
                 ))}
+                {/* Page boundary at the BOTTOM - triggers next page when reaching end of this page */}
+                <PageBoundary
+                  pageIndex={pageIndex}
+                  totalPages={data?.pages?.length ?? 0}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onLoadNext={fetchNextPage}
+                />
               </div>
             ))}
             {/* Loading indicator at the very bottom */}
@@ -219,13 +218,13 @@ function PageBoundary({
 
   useEffect(() => {
     // Trigger next page when this page boundary comes into view
-    // Skip page 0 since it auto-loads page 1
-    if (inView && pageIndex > 0 && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
+    // Only trigger if this is the last page currently loaded
+    if (inView && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
       onLoadNext();
     }
   }, [inView, pageIndex, totalPages, hasNextPage, isFetchingNextPage, onLoadNext]);
 
-  // Invisible boundary marker at the top of each page
+  // Invisible boundary marker at the bottom of each page
   return <div ref={ref} className="h-0" />;
 }
 
