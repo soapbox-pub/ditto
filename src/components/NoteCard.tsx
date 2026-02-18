@@ -6,6 +6,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
+import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
@@ -306,14 +307,15 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
             </button>
 
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-              title="Repost"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Repeat2 className="size-5" />
-              {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-            </button>
+            <RepostMenu event={event}>
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+                title="Repost"
+              >
+                <Repeat2 className="size-5" />
+                {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+              </button>
+            </RepostMenu>
 
             <ReactionButton
               eventId={event.id}

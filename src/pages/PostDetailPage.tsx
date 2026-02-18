@@ -19,6 +19,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReactionButton } from '@/components/ReactionButton';
+import { RepostMenu } from '@/components/RepostMenu';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { PollContent } from '@/components/PollContent';
@@ -649,14 +650,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           </button>
 
           {/* Repost */}
-          <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-            title="Reposts"
-            onClick={() => openInteractions('reposts')}
-          >
-            <Repeat2 className="size-5" />
-            {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
-          </button>
+          <RepostMenu event={event}>
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+              title="Reposts"
+            >
+              <Repeat2 className="size-5" />
+              {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
+            </button>
+          </RepostMenu>
 
           {/* React */}
           <ReactionButton
