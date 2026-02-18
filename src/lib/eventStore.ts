@@ -141,7 +141,15 @@ class EventStore {
       const checkComplete = () => {
         if (pendingOperations === 0 && !hasError) {
           const duration = performance.now() - startTime;
-          console.debug(`[EventStore] Query completed in ${duration.toFixed(2)}ms, ${allEvents.length} events found`);
+          const filterDesc = filters.map(f => {
+            const parts = [];
+            if (f.kinds) parts.push(`kinds:${f.kinds.join(',')}`);
+            if (f.authors) parts.push(`authors:${f.authors.length}`);
+            if (f.ids) parts.push(`ids:${f.ids.length}`);
+            if (f.limit) parts.push(`limit:${f.limit}`);
+            return parts.join(' ');
+          }).join(' | ');
+          console.debug(`[EventStore] Query [${filterDesc}] completed in ${duration.toFixed(2)}ms, found ${allEvents.length} events`);
           this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
         }
       };
