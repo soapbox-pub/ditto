@@ -250,23 +250,23 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (
         <>
-          <div className="flex items-center justify-between mt-3 -ml-2 max-w-xs sidebar:max-w-none">
+          <div className="flex items-center mt-3 -ml-2">
             <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors min-w-0"
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="Reply"
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-[18px] shrink-0" />
-              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+              {stats?.replies ? <span className="text-xs tabular-nums">{stats.replies}</span> : null}
             </button>
 
             <button
-              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors min-w-0"
+              className="flex items-center gap-1.5 p-2 ml-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
               title="Repost"
               onClick={(e) => e.stopPropagation()}
             >
               <Repeat2 className="size-[18px] shrink-0" />
-              {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+              {(stats?.reposts || stats?.quotes) ? <span className="text-xs tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
             </button>
 
             <ReactionButton
@@ -274,20 +274,21 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               eventPubkey={event.pubkey}
               eventKind={event.kind}
               reactionCount={stats?.reactions}
+              className="ml-2"
             />
 
             <ZapDialog target={event}>
               <button
-                className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors min-w-0"
+                className="flex items-center gap-1.5 p-2 ml-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
                 title="Zap"
               >
                 <Zap className="size-[18px] shrink-0" />
-                {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+                {stats?.zapAmount ? <span className="text-xs tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
               </button>
             </ZapDialog>
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
+              className="p-2 ml-auto rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="More"
               onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
             >
