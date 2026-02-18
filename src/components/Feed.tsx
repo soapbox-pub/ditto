@@ -215,6 +215,7 @@ function PageBoundary({
 }) {
   const { ref, inView } = useInView({
     threshold: 0,
+    rootMargin: '400px',
   });
 
   useEffect(() => {
