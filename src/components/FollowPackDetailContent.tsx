@@ -15,7 +15,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
-import { useAppContext } from '@/hooks/useAppContext';
 import { genUserName } from '@/lib/genUserName';
 
 /** Parse a follow pack / starter pack event into structured data. */
@@ -37,7 +36,6 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
   const { toast } = useToast();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
   const { data: followList } = useFollowList();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
@@ -71,21 +69,9 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
 
     setIsFollowingAll(true);
     try {
-      const discoveryRelays = [
-        'wss://relay.damus.io',
-        'wss://nos.lol',
-        'wss://relay.primal.net',
-        'wss://purplepag.es',
-      ];
-      const userRelays = config.relayMetadata.relays
-        .filter((r) => r.read)
-        .map((r) => r.url);
-      const allRelayUrls = [...new Set([...discoveryRelays, ...userRelays])];
-
       const signal = AbortSignal.timeout(10_000);
-      const relayGroup = nostr.group(allRelayUrls);
 
-      const followEvents = await relayGroup.query(
+      const followEvents = await nostr.query(
         [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
         { signal },
       );
@@ -123,7 +109,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
     } finally {
       setIsFollowingAll(false);
     }
-  }, [user, pubkeys, nostr, config, publishEvent, toast]);
+  }, [user, pubkeys, nostr, publishEvent, toast]);
 
   const handleCopyLink = useCallback(() => {
     const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';

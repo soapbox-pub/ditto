@@ -95,8 +95,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    const relay = nostr.relay('wss://relay.ditto.pub');
-
     // Build the kinds list: either vines-only or kind 1 + enabled extras
     const kinds: number[] = isVines
       ? [34236]
@@ -108,10 +106,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       baseFilter.search = query.trim();
     }
 
-    // 1. Fetch initial batch
+    // 1. Fetch initial batch (uses pool, reuses existing connections)
     (async () => {
       try {
-        const events = await relay.query(
+        const events = await nostr.query(
           [{ ...baseFilter, limit: 40 }],
           { signal: ac.signal },
         );
@@ -124,11 +122,11 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (alive) setIsLoading(false);
     })();
 
-    // 2. Stream new events
+    // 2. Stream new events (uses pool, reuses existing connections)
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
-        for await (const msg of relay.req(
+        for await (const msg of nostr.req(
           [{ ...baseFilter, since: now, limit: 100 }],
           { signal: ac.signal },
         )) {

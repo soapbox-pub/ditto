@@ -2,37 +2,20 @@ import { useCallback, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
-import { useAppContext } from './useAppContext';
 import { useNostrPublish } from './useNostrPublish';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
- * Discovery relays used to find the user's latest kind 3 event.
- * We cast a wide net to avoid acting on stale data.
- */
-const DISCOVERY_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.primal.net',
-  'wss://purplepag.es',
-  'wss://relay.snort.social',
-];
-
-/**
- * Fetches the absolute freshest kind 3 follow list from multiple relays.
- * This prevents stale-data mutations that could accidentally wipe follows.
+ * Fetches the absolute freshest kind 3 follow list via the pool.
+ * The pool already routes to all configured read relays.
  */
 async function fetchFreshFollowEvent(
   nostr: ReturnType<typeof useNostr>['nostr'],
   pubkey: string,
-  userRelayUrls: string[],
 ): Promise<NostrEvent | null> {
-  const allRelayUrls = [...new Set([...DISCOVERY_RELAYS, ...userRelayUrls])];
-
   const signal = AbortSignal.timeout(10_000);
-  const relayGroup = nostr.group(allRelayUrls);
 
-  const followEvents = await relayGroup.query(
+  const followEvents = await nostr.query(
     [{ kinds: [3], authors: [pubkey], limit: 1 }],
     { signal },
   );
@@ -109,16 +92,10 @@ export interface UseFollowActionsReturn {
 export function useFollowActions(): UseFollowActionsReturn {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
   const { mutateAsync: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
 
   const [isPending, setIsPending] = useState(false);
-
-  /** User's read-enabled relay URLs (from NIP-65 config). */
-  const userRelayUrls = config.relayMetadata.relays
-    .filter((r) => r.read)
-    .map((r) => r.url);
 
   const mutateFollowList = useCallback(
     async (targetPubkey: string, action: 'follow' | 'unfollow') => {
@@ -126,8 +103,8 @@ export function useFollowActions(): UseFollowActionsReturn {
       setIsPending(true);
 
       try {
-        // ① Fetch the freshest kind 3 event from a wide relay set
-        const latestEvent = await fetchFreshFollowEvent(nostr, user.pubkey, userRelayUrls);
+        // ① Fetch the freshest kind 3 event via pool
+        const latestEvent = await fetchFreshFollowEvent(nostr, user.pubkey);
 
         // ② Separate tags into `p` tags (follow entries) and everything else
         const existingTags = latestEvent?.tags ?? [];
@@ -163,7 +140,7 @@ export function useFollowActions(): UseFollowActionsReturn {
         setIsPending(false);
       }
     },
-    [nostr, user, userRelayUrls, publishEvent, queryClient],
+    [nostr, user, publishEvent, queryClient],
   );
 
   const follow = useCallback(

@@ -18,10 +18,8 @@ export function useSearchProfiles(query: string) {
     queryFn: async ({ signal }) => {
       if (!query.trim()) return [];
 
-      // Use relay.ditto.pub specifically for NIP-50 profile search
-      const relay = nostr.relay('wss://relay.ditto.pub');
-
-      const events = await relay.query(
+      // NIP-50 profile search (uses pool, reuses existing connections)
+      const events = await nostr.query(
         [{ kinds: [0], search: query.trim(), limit: 10 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );

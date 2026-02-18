@@ -21,9 +21,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays));
 
-  // Track previous relay URLs to detect changes
-  const prevRelayUrlsRef = useRef<string>('');
-
   // Update effective relays ref and invalidate all queries when relays change,
   // since any cached query may have been fetched from a different set of relays.
   useEffect(() => {
@@ -33,31 +30,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     // Only invalidate if the relay URLs actually changed
     const prevUrls = prev.relays.map(r => r.url).sort().join(',');
     const nextUrls = effectiveRelays.current.relays.map(r => r.url).sort().join(',');
-    
     if (prevUrls !== nextUrls) {
-      // Close connections to relays that are no longer in the list
-      if (pool.current && prevRelayUrlsRef.current) {
-        const prevSet = new Set(prevUrls.split(',').filter(Boolean));
-        const nextSet = new Set(nextUrls.split(',').filter(Boolean));
-        
-        // Find relays that were removed
-        const removedRelays = [...prevSet].filter(url => !nextSet.has(url));
-        
-        // Close removed relay connections
-        for (const url of removedRelays) {
-          try {
-            const relay = (pool.current as any).relays?.get?.(url);
-            if (relay) {
-              relay.close();
-              (pool.current as any).relays?.delete?.(url);
-            }
-          } catch (e) {
-            // Ignore errors
-          }
-        }
-      }
-      
-      prevRelayUrlsRef.current = nextUrls;
       queryClient.invalidateQueries();
     }
   }, [config.relayMetadata, config.useAppRelays, queryClient]);

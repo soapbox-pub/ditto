@@ -67,13 +67,12 @@ export function useStreamKind(kind: number | number[]) {
       setEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    const relay = nostr.relay('wss://relay.ditto.pub');
     const filter = { kinds };
 
-    // 1. Fetch initial batch
+    // 1. Fetch initial batch (uses pool, reuses existing connections)
     (async () => {
       try {
-        const results = await relay.query(
+        const results = await nostr.query(
           [{ ...filter, limit: 40 }],
           { signal: ac.signal },
         );
@@ -86,11 +85,11 @@ export function useStreamKind(kind: number | number[]) {
       if (alive) setIsLoading(false);
     })();
 
-    // 2. Stream new events
+    // 2. Stream new events (uses pool, reuses existing connections)
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
-        for await (const msg of relay.req(
+        for await (const msg of nostr.req(
           [{ ...filter, since: now, limit: 100 }],
           { signal: ac.signal },
         )) {
