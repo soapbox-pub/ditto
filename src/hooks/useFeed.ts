@@ -75,7 +75,7 @@ function prefetchPageData(
   // Profiles
   if (pubkeysToFetch.length > 0) {
     nostr.query(
-      [{ kinds: [0], authors: pubkeysToFetch, limit: pubkeysToFetch.length }],
+      [{ kinds: [0], authors: pubkeysToFetch }],
       { signal: AbortSignal.timeout(5000) },
     ).then((profileEvents) => {
       for (const ev of profileEvents) {

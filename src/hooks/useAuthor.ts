@@ -4,16 +4,19 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 /**
  * Module-level batcher: collects pubkeys requested in the same JS tick,
- * fires ONE relay query for all of them, then seeds each ['author', pubkey]
- * cache entry. This means 20 NoteCards mounting simultaneously share a
- * single round trip instead of firing 20 individual queries.
+ * fires ONE relay query for all of them, distributes results back.
+ *
+ * For pubkeys the relay didn't return a profile for, we reject their
+ * promise so TanStack Query marks them as errored and retries — rather
+ * than permanently caching {} and showing the fallback name forever.
  */
 
 type Nostr = ReturnType<typeof useNostr>['nostr'];
 type QueryClient = ReturnType<typeof useQueryClient>;
 
 interface PendingEntry {
-  resolve: (data: { event?: NostrEvent; metadata?: NostrMetadata }) => void;
+  resolve: (data: { event: NostrEvent; metadata?: NostrMetadata }) => void;
+  reject: (err: Error) => void;
 }
 
 const pendingByPubkey = new Map<string, PendingEntry[]>();
@@ -42,7 +45,7 @@ async function flushBatch() {
 
   if (!nostr || !qc) {
     for (const [, entries] of batch) {
-      for (const e of entries) e.resolve({});
+      for (const e of entries) e.reject(new Error('nostr not ready'));
     }
     return;
   }
@@ -50,14 +53,18 @@ async function flushBatch() {
   let profileEvents: NostrEvent[] = [];
   try {
     profileEvents = await nostr.query(
-      [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+      [{ kinds: [0], authors: pubkeys }],
       { signal: AbortSignal.timeout(5000) },
     );
   } catch {
-    // Relay unavailable — resolve with empty so components show fallback names
+    // Relay error — reject all so TanStack retries
+    for (const [, entries] of batch) {
+      for (const e of entries) e.reject(new Error('relay timeout'));
+    }
+    return;
   }
 
-  const results = new Map<string, { event?: NostrEvent; metadata?: NostrMetadata }>();
+  const results = new Map<string, { event: NostrEvent; metadata?: NostrMetadata }>();
   for (const ev of profileEvents) {
     let metadata: NostrMetadata | undefined;
     try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
@@ -65,12 +72,14 @@ async function flushBatch() {
   }
 
   for (const [pubkey, entries] of batch) {
-    const data = results.get(pubkey) ?? {};
-    for (const e of entries) e.resolve(data);
-    // Seed cache as fresh so TanStack Query won't immediately refetch.
-    // Only seed if we got real data — don't overwrite good data with {}.
-    if (results.has(pubkey)) {
+    const data = results.get(pubkey);
+    if (data) {
+      // Seed cache as fresh — updatedAt prevents immediate stale refetch
       qc.setQueryData(['author', pubkey], data, { updatedAt: Date.now() });
+      for (const e of entries) e.resolve(data);
+    } else {
+      // Profile not found — reject so TanStack retries rather than caching {}
+      for (const e of entries) e.reject(new Error('profile not found'));
     }
   }
 }
@@ -81,27 +90,31 @@ export function useAuthor(pubkey: string | undefined) {
 
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
-    queryFn: async () => {
-      if (!pubkey) return {};
+    queryFn: () => {
+      if (!pubkey) return Promise.resolve({});
 
-      // Queue this pubkey into the batch. All useAuthor calls in the same
-      // JS tick are coalesced into one relay query by flushBatch().
-      return new Promise((resolve) => {
+      // If the prefetch already seeded this while we were waiting to be called,
+      // return it directly — no relay round trip needed.
+      const seeded = queryClient.getQueryData<{ event?: NostrEvent; metadata?: NostrMetadata }>(['author', pubkey]);
+      if (seeded !== undefined) return Promise.resolve(seeded);
+
+      return new Promise((resolve, reject) => {
         const entries = pendingByPubkey.get(pubkey) ?? [];
-        entries.push({ resolve });
+        entries.push({ resolve, reject });
         pendingByPubkey.set(pubkey, entries);
         scheduleBatchFlush(nostr, queryClient);
       });
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    retry: false,
+    retry: 2,
+    retryDelay: 1000,
   });
 }
 
 /**
- * Seed author data into the TanStack Query cache as fresh, so useAuthor()
- * won't trigger a refetch for these pubkeys. Called by useFeed's prefetch.
+ * Seed author data into the TanStack Query cache as fresh so useAuthor()
+ * won't refetch for these pubkeys within staleTime. Called by useFeed prefetch.
  */
 export function seedAuthorCache(
   qc: QueryClient,

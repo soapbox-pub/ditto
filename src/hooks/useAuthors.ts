@@ -29,7 +29,7 @@ export function useAuthors(pubkeys: string[]) {
       if (uncached.length === 0) return new Map();
 
       const events = await nostr.query(
-        [{ kinds: [0], authors: uncached, limit: uncached.length }],
+        [{ kinds: [0], authors: uncached }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
