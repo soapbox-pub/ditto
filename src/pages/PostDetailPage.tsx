@@ -451,8 +451,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 /** Renders the parent event that this reply is responding to. */
 function ParentNote({ eventId }: { eventId: string }) {
   const navigate = useNavigate();
-  // Use a 30-second timeout for parent events to ensure they load even on slow relays
-  const { data: event, isLoading } = useEvent(eventId, { timeout: 30000 });
+  const { data: event, isLoading } = useEvent(eventId);
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
   const displayName = event ? (metadata?.name || genUserName(event.pubkey)) : '';
