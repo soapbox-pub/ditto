@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -9,11 +10,13 @@ import { useAppContext } from '@/hooks/useAppContext';
  * This component runs globally to sync various Nostr data when the user logs in.
  * Currently syncs:
  * - NIP-65 relay list (kind 10002)
+ * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
  */
 export function NostrSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
+  const { settings: encryptedSettings, isLoading: settingsLoading } = useEncryptedSettings();
 
   useEffect(() => {
     if (!user) return;
@@ -57,6 +60,38 @@ export function NostrSync() {
 
     syncRelaysFromNostr();
   }, [user, config.relayMetadata.updatedAt, nostr, updateConfig]);
+
+  // Sync encrypted settings from Nostr on login
+  useEffect(() => {
+    if (!user || settingsLoading || !encryptedSettings) return;
+
+    console.log('Syncing encrypted settings from Nostr:', encryptedSettings);
+
+    // Update local config with encrypted settings if they exist
+    updateConfig((current) => {
+      const updates: any = { ...current };
+
+      // Sync theme if available
+      if (encryptedSettings.theme && encryptedSettings.theme !== current.theme) {
+        updates.theme = encryptedSettings.theme;
+      }
+
+      // Sync useAppRelays if available
+      if (encryptedSettings.useAppRelays !== undefined && encryptedSettings.useAppRelays !== current.useAppRelays) {
+        updates.useAppRelays = encryptedSettings.useAppRelays;
+      }
+
+      // Sync feedSettings if available
+      if (encryptedSettings.feedSettings) {
+        updates.feedSettings = {
+          ...current.feedSettings,
+          ...encryptedSettings.feedSettings,
+        };
+      }
+
+      return updates;
+    });
+  }, [user, encryptedSettings, settingsLoading, updateConfig]);
 
   return null;
 }
