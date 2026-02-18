@@ -13,6 +13,7 @@ import { BookmarksPage } from "./pages/BookmarksPage";
 
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
+import MuteSettingsPage from "./pages/MuteSettingsPage";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -35,6 +36,7 @@ export function AppRouter() {
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
 
         <Route path="/bookmarks" element={<BookmarksPage />} />
+        <Route path="/mutes" element={<MuteSettingsPage />} />
 
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
