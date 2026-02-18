@@ -3,6 +3,7 @@ import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveRelays } from '@/lib/appRelays';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -18,21 +19,21 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const pool = useRef<NPool | undefined>(undefined);
 
   // Use refs so the pool always has the latest data
-  const relayMetadata = useRef(config.relayMetadata);
+  const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays));
 
-  // Update relay metadata ref and invalidate all queries when relays change,
+  // Update effective relays ref and invalidate all queries when relays change,
   // since any cached query may have been fetched from a different set of relays.
   useEffect(() => {
-    const prev = relayMetadata.current;
-    relayMetadata.current = config.relayMetadata;
+    const prev = effectiveRelays.current;
+    effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
 
     // Only invalidate if the relay URLs actually changed
     const prevUrls = prev.relays.map(r => r.url).sort().join(',');
-    const nextUrls = config.relayMetadata.relays.map(r => r.url).sort().join(',');
+    const nextUrls = effectiveRelays.current.relays.map(r => r.url).sort().join(',');
     if (prevUrls !== nextUrls) {
       queryClient.invalidateQueries();
     }
-  }, [config.relayMetadata, queryClient]);
+  }, [config.relayMetadata, config.useAppRelays, queryClient]);
 
   // Initialize NPool only once
   if (!pool.current) {
@@ -44,7 +45,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         const routes = new Map<string, NostrFilter[]>();
 
         // Route to all read relays
-        const readRelays = relayMetadata.current.relays
+        const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
           .map(r => r.url);
 
@@ -55,8 +56,8 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return routes;
       },
       eventRouter(_event: NostrEvent) {
-        // Get write relays from metadata
-        const writeRelays = relayMetadata.current.relays
+        // Get write relays from effective relays
+        const writeRelays = effectiveRelays.current.relays
           .filter(r => r.write)
           .map(r => r.url);
 

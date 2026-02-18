@@ -33,12 +33,9 @@ const queryClient = new QueryClient({
 
 const defaultConfig: AppConfig = {
   theme: "dark",
+  useAppRelays: true,
   relayMetadata: {
-    relays: [
-      { url: 'wss://relay.ditto.pub', read: true, write: true },
-      { url: 'wss://relay.primal.net', read: true, write: true },
-      { url: 'wss://relay.damus.io', read: true, write: true },
-    ],
+    relays: [],
     updatedAt: 0,
   },
   feedSettings: {

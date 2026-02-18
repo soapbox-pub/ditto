@@ -44,6 +44,8 @@ export interface AppConfig {
   theme: Theme;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
+  /** Whether to use app default relays in addition to user relays */
+  useAppRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
 }

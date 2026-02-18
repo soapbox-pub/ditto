@@ -42,6 +42,7 @@ const FeedSettingsSchema = z.object({
 const AppConfigSchema = z.object({
   theme: z.enum(['dark', 'light', 'black', 'pink']),
   relayMetadata: RelayMetadataSchema,
+  useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
 }) satisfies z.ZodType<AppConfig>;
 

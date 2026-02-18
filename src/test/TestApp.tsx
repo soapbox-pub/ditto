@@ -23,11 +23,27 @@ export function TestApp({ children }: TestAppProps) {
 
   const defaultConfig: AppConfig = {
     theme: 'light',
+    useAppRelays: true,
     relayMetadata: {
       relays: [
         { url: 'wss://relay.primal.net', read: true, write: true },
       ],
       updatedAt: 0,
+    },
+    feedSettings: {
+      showVines: true,
+      showPolls: false,
+      showTreasures: false,
+      showTreasureGeocaches: true,
+      showTreasureFoundLogs: true,
+      showColors: false,
+      showPacks: true,
+      feedIncludeVines: false,
+      feedIncludePolls: false,
+      feedIncludeTreasureGeocaches: false,
+      feedIncludeTreasureFoundLogs: false,
+      feedIncludeColors: false,
+      feedIncludePacks: false,
     },
   };
 
