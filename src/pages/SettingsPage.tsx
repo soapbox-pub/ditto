@@ -22,7 +22,7 @@ export function SettingsPage() {
   return (
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 py-3 bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 h-20 bg-background/80 backdrop-blur-md z-10')}>
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
