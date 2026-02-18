@@ -85,6 +85,7 @@ export function NoteContent({
   const tokens = useMemo(() => {
     const text = event.content;
     // Match: URLs | nostr:-prefixed NIP-19 ids | @-prefixed or bare NIP-19 ids | hashtags
+    // NIP-19 ids can appear anywhere (with optional @ prefix that gets consumed)
     const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|@?(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
