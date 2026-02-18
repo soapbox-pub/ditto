@@ -21,7 +21,11 @@ import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
+import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
+
+/** Kinds that get the full follow-pack detail view. */
+const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
@@ -170,6 +174,17 @@ export function AddrPostDetailPage({ addr }: AddrPostDetailPageProps) {
 
   if (isError || !event) {
     return <NotFound />;
+  }
+
+  // Follow packs get their own full detail view with member list + Follow All
+  if (FOLLOW_PACK_KINDS.has(event.kind)) {
+    return (
+      <MainLayout>
+        <PostDetailShell>
+          <FollowPackDetailContent event={event} />
+        </PostDetailShell>
+      </MainLayout>
+    );
   }
 
   return (
