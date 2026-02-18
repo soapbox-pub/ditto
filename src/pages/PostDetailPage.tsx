@@ -126,13 +126,14 @@ function getParentEventId(event: NostrEvent): string | undefined {
 }
 
 export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId, relays);
+  const { data: event, isLoading, isError, isFetching } = useEvent(eventId, relays);
 
   useSeoMeta({
     title: event ? 'Post Details - Mew' : 'Loading... - Mew',
   });
 
-  if (isLoading) {
+  // Show skeleton while loading or retrying
+  if (isLoading || (!event && isFetching)) {
     return (
       <MainLayout>
         <PostDetailShell>
@@ -157,7 +158,7 @@ export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
 
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
-  const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
+  const { data: event, isLoading, isError, isFetching } = useAddrEvent(addr, relays);
 
   useSeoMeta({
     title: event
@@ -165,7 +166,8 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       : 'Loading... - Mew',
   });
 
-  if (isLoading) {
+  // Show skeleton while loading or retrying
+  if (isLoading || (!event && isFetching)) {
     return (
       <MainLayout>
         <PostDetailShell>
