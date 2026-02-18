@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon, VolumeX } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
@@ -37,12 +37,22 @@ export function SettingsPage() {
         <div className="flex border-b border-border">
           <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
           <SettingsTab to="/settings/feed" label="Feed" active={activeSection === 'feed'} />
+          <SettingsTab to="/settings/mutes" label="Mutes" active={activeSection === 'mutes'} />
           <SettingsTab to="/settings/relays" label="Relays" active={activeSection === 'relays'} />
           <SettingsTab to="/settings/wallet" label="Wallet" active={activeSection === 'wallet'} />
         </div>
 
         <div className="p-4">
-          {activeSection === 'feed' ? (
+          {activeSection === 'mutes' ? (
+            !user ? (
+              <p className="text-center text-muted-foreground py-8">Log in to manage your mute list.</p>
+            ) : (
+              <div className="py-16 text-center space-y-3">
+                <VolumeX className="size-10 mx-auto text-muted-foreground/50" />
+                <p className="text-muted-foreground">Mute list management coming soon.</p>
+              </div>
+            )
+          ) : activeSection === 'feed' ? (
             <FeedSettingsForm />
           ) : activeSection === 'wallet' ? (
             !user ? (

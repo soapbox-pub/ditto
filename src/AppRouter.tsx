@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, Palette, PartyPopper, VolumeX } from "lucide-react";
+import { Clapperboard, BarChart3, Palette, PartyPopper } from "lucide-react";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
@@ -10,7 +10,6 @@ import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
 
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
@@ -36,7 +35,6 @@ export function AppRouter() {
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
 
         <Route path="/bookmarks" element={<BookmarksPage />} />
-        <Route path="/mutes" element={<PlaceholderPage title="Mutes" icon={<VolumeX className="size-5" />} />} />
 
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
