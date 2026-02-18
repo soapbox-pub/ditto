@@ -4,7 +4,6 @@ import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { eventStore } from '@/lib/eventStore';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 30;
@@ -72,22 +71,10 @@ export function useFeed(tab: 'follows' | 'global') {
           filter.until = pageParam;
         }
 
-        // Try cache first for instant load
-        let events = await eventStore.query([filter as { kinds: number[]; authors: string[]; limit: number; until?: number }]);
-        
-        // If cache is empty or stale, fetch from network
-        if (events.length === 0 || !pageParam) {
-          events = await nostr.query(
-            [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-            { signal: querySignal },
-          );
-        } else {
-          // Background refresh (fire and forget)
-          nostr.query(
-            [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-            { signal: AbortSignal.timeout(5000) }
-          ).catch(() => {});
-        }
+        const events = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+          { signal: querySignal },
+        );
 
         const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];

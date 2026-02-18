@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Wifi, Settings, Server, User, Database, Download, Upload, Trash2 } from 'lucide-react';
+import { Plus, X, Wifi, Settings, Server, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,6 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { APP_RELAYS } from '@/lib/appRelays';
 import { cn } from '@/lib/utils';
-import { eventStore } from '@/lib/eventStore';
 
 interface Relay {
   url: string;
@@ -28,104 +27,12 @@ export function RelayListManager() {
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
   const [newRelayUrl, setNewRelayUrl] = useState('');
   const [useAppRelays, setUseAppRelays] = useState(config.useAppRelays);
-  const [eventCount, setEventCount] = useState<number>(0);
 
   // Sync local state with config when it changes (e.g., from NostrProvider sync)
   useEffect(() => {
     setRelays(config.relayMetadata.relays);
     setUseAppRelays(config.useAppRelays);
   }, [config.relayMetadata.relays, config.useAppRelays]);
-
-  // Load local event store count
-  useEffect(() => {
-    loadEventCount();
-  }, []);
-
-  const loadEventCount = async () => {
-    try {
-      await eventStore.init();
-      const count = await eventStore.getCount();
-      setEventCount(count);
-    } catch (error) {
-      console.error('Failed to get event count:', error);
-    }
-  };
-
-  const handleExportEvents = async () => {
-    try {
-      const jsonl = await eventStore.exportToJSONL();
-      const blob = new Blob([jsonl], { type: 'application/jsonl' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `mew-events-${Date.now()}.jsonl`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      toast({
-        title: 'Events exported',
-        description: `Exported ${eventCount} events to JSONL file.`,
-      });
-    } catch (error) {
-      console.error('Failed to export events:', error);
-      toast({
-        title: 'Export failed',
-        description: 'There was an error exporting your events.',
-        variant: 'destructive',
-      });
-    }
-  };
-
-  const handleImportEvents = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.jsonl,.txt';
-    input.onchange = async (e) => {
-      const file = (e.target as HTMLInputElement).files?.[0];
-      if (!file) return;
-
-      try {
-        const text = await file.text();
-        const count = await eventStore.importFromJSONL(text, ['local-import']);
-        await loadEventCount();
-        toast({
-          title: 'Events imported',
-          description: `Imported ${count} events from JSONL file.`,
-        });
-      } catch (error) {
-        console.error('Failed to import events:', error);
-        toast({
-          title: 'Import failed',
-          description: 'There was an error importing your events.',
-          variant: 'destructive',
-        });
-      }
-    };
-    input.click();
-  };
-
-  const handleClearCache = async () => {
-    if (!confirm('Are you sure you want to clear the local cache? This will delete all cached events.')) {
-      return;
-    }
-
-    try {
-      await eventStore.clear();
-      await loadEventCount();
-      toast({
-        title: 'Cache cleared',
-        description: 'Local event cache has been cleared.',
-      });
-    } catch (error) {
-      console.error('Failed to clear cache:', error);
-      toast({
-        title: 'Clear failed',
-        description: 'There was an error clearing the cache.',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const normalizeRelayUrl = (url: string): string => {
     url = url.trim();
@@ -302,63 +209,6 @@ export function RelayListManager() {
 
   return (
     <div className="space-y-6">
-      {/* Local Relay Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Database className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-medium">Local Cache</h3>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Events are cached locally in IndexedDB for instant loading. This relay is always included in queries.
-        </p>
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 p-3 rounded-md border bg-muted/20">
-            <Database className="h-4 w-4 text-primary shrink-0" />
-            <span className="font-mono text-sm flex-1">
-              local://indexeddb
-            </span>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <span className="px-1.5 py-0.5 rounded bg-primary/10 text-primary">
-                {eventCount.toLocaleString()} events
-              </span>
-              <span className="px-1.5 py-0.5 rounded bg-green-500/10 text-green-600 dark:text-green-400">Read</span>
-              <span className="px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-600 dark:text-blue-400">Write</span>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportEvents}
-              disabled={eventCount === 0}
-              className="flex-1"
-            >
-              <Download className="h-4 w-4 mr-2" />
-              Export
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleImportEvents}
-              className="flex-1"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Import
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearCache}
-              disabled={eventCount === 0}
-              className="flex-1"
-            >
-              <Trash2 className="h-4 w-4 mr-2" />
-              Clear
-            </Button>
-          </div>
-        </div>
-      </div>
-
       {/* App Relays Section */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">

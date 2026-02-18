@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import { useNostrPublish } from './useNostrPublish';
-import { eventStore } from '@/lib/eventStore';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -70,25 +69,6 @@ export function useFollowList() {
     queryKey: ['follow-list', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user) return { event: null, pubkeys: [] };
-      
-      // Check IndexedDB cache first
-      const [cachedEvent] = await eventStore.query([{ kinds: [3], authors: [user.pubkey], limit: 1 }]);
-      
-      if (cachedEvent) {
-        const pubkeys = cachedEvent.tags
-          .filter(([name]) => name === 'p')
-          .map(([, pk]) => pk);
-        
-        // Fetch fresh in background
-        nostr.query(
-          [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
-          { signal: AbortSignal.timeout(3000) }
-        ).catch(() => {});
-        
-        return { event: cachedEvent, pubkeys };
-      }
-      
-      // No cache - fetch from network
       const [event] = await nostr.query(
         [{ kinds: [3], authors: [user.pubkey], limit: 1 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
