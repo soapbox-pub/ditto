@@ -27,18 +27,44 @@ function useIsXl(): boolean {
   return isXl;
 }
 
-/** Small sparkline SVG for trending tags. */
-export function TrendSparkline() {
-  // Generate a simple random-ish upward sparkline
+/**
+ * Simple deterministic hash that turns a string into a number.
+ * Same input always produces the same output.
+ */
+function hashSeed(str: string): number {
+  let hash = 5381;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+/**
+ * Seeded pseudo-random number generator (mulberry32).
+ * Returns a function that produces deterministic values 0–1.
+ */
+function seededRng(seed: number) {
+  let t = seed | 0;
+  return () => {
+    t = (t + 0x6d2b79f5) | 0;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Small sparkline SVG for trending tags. Deterministic per tag name. */
+export function TrendSparkline({ seed = 'default' }: { seed?: string }) {
   const points = useMemo(() => {
+    const rng = seededRng(hashSeed(seed));
     const pts: string[] = [];
-    let y = 20 + Math.random() * 10;
+    let y = 20 + rng() * 10;
     for (let x = 0; x <= 50; x += 5) {
-      y = Math.max(5, Math.min(30, y + (Math.random() - 0.4) * 8));
+      y = Math.max(5, Math.min(30, y + (rng() - 0.4) * 8));
       pts.push(`${x},${y}`);
     }
     return pts.join(' ');
-  }, []);
+  }, [seed]);
 
   return (
     <svg width="50" height="35" viewBox="0 0 50 35" className="text-primary/60">
@@ -98,7 +124,7 @@ export function RightSidebar() {
                     </div>
                   )}
                 </div>
-                <TrendSparkline />
+                <TrendSparkline seed={item.tag} />
               </Link>
             ))}
           </div>
