@@ -2,6 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
+import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 interface PlaceholderPageProps {
   title: string;
@@ -15,10 +16,10 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
   });
 
   return (
-    <MainLayout hideMobileTopBar>
+    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        <div className="flex items-center gap-4 px-4 py-3 sticky top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors">
+        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 py-3 bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
+          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
           <h1 className="text-xl font-bold">{title}</h1>

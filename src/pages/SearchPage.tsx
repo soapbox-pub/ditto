@@ -15,7 +15,7 @@ import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
-import { cn } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
 type TabType = 'posts' | 'trends' | 'accounts';
@@ -61,10 +61,10 @@ export function SearchPage() {
   const { data: trends, isLoading: trendsLoading } = useTrendingTags();
 
   return (
-    <MainLayout hideMobileTopBar>
+    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Tabs — sticky at top */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-md z-20 border-b border-border">
+        <div className={cn(STICKY_HEADER_CLASS, 'bg-background/95 backdrop-blur-md z-20 border-b border-border')}>
           <div className="flex">
             <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
             <TabButton label="Trends" active={activeTab === 'trends'} onClick={() => setActiveTab('trends')} />

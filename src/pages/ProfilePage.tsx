@@ -23,7 +23,7 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { genUserName } from '@/lib/genUserName';
-import { cn } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 
@@ -754,7 +754,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />

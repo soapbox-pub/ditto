@@ -21,7 +21,7 @@ import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import { cn } from '@/lib/utils';
+import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -67,7 +67,7 @@ export function NotificationsPage() {
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Header */}
-        <div className="flex items-center gap-4 px-4 py-3 sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10 border-b border-border">
+        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 py-3 bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>

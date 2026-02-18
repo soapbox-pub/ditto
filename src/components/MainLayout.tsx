@@ -8,21 +8,17 @@ import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 
 interface MainLayoutProps {
   children: React.ReactNode;
-  /** Hide the mobile top bar (e.g., when a page has its own sticky header) */
-  hideMobileTopBar?: boolean;
   /** Optional custom right sidebar to replace the default one */
   rightSidebar?: React.ReactNode;
 }
 
-export function MainLayout({ children, hideMobileTopBar, rightSidebar }: MainLayoutProps) {
+export function MainLayout({ children, rightSidebar }: MainLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <>
       {/* Mobile top bar - only on small screens */}
-      {!hideMobileTopBar && (
-        <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
-      )}
+      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
