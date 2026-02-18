@@ -74,7 +74,7 @@ export function RightSidebar() {
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
-  const { data: sparklineData } = useTagSparklines(visibleTags, isXl && visibleTags.length > 0);
+  const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, isXl && visibleTags.length > 0);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-5">
@@ -113,7 +113,11 @@ export function RightSidebar() {
                     </div>
                   )}
                 </div>
-                <TrendSparkline data={sparklineData?.get(item.tag) ?? []} />
+                {sparklinesLoading ? (
+                  <Skeleton className="h-[35px] w-[50px] rounded" />
+                ) : (
+                  <TrendSparkline data={sparklineData?.get(item.tag) ?? []} />
+                )}
               </Link>
             ))}
           </div>
