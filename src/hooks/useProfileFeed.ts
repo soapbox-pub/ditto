@@ -17,7 +17,12 @@ function hasMedia(content: string): boolean {
 function filterByTab(events: NostrEvent[], tab: ProfileTab): NostrEvent[] {
   switch (tab) {
     case 'posts':
-      return events.filter((e) => !e.tags.some(([n]) => n === 'e'));
+      // Show posts (kind 1 without reply markers) and reposts (kind 6)
+      return events.filter((e) => {
+        if (e.kind === 6) return true; // Always show reposts
+        if (e.kind === 1) return !e.tags.some(([n]) => n === 'e'); // Kind 1 without e tags
+        return !e.tags.some(([n]) => n === 'e'); // Other kinds without e tags
+      });
     case 'replies':
       return events;
     case 'media':
@@ -36,7 +41,7 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const { feedSettings } = useFeedSettings();
 
   const extraKinds = getEnabledFeedKinds(feedSettings);
-  const profileKinds = [1, ...extraKinds];
+  const profileKinds = [1, 6, ...extraKinds]; // Include kind 6 reposts
   const kindsKey = profileKinds.sort().join(',');
 
   return useInfiniteQuery<NostrEvent[], Error>({
