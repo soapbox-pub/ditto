@@ -21,13 +21,13 @@ export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void } {
         theme,
       }));
       
-      // Sync to encrypted storage after a delay to let theme apply first
+      // Sync to encrypted storage after 2 seconds to let theme fully apply
       if (user) {
         setTimeout(() => {
           updateSettings.mutateAsync({ theme }).catch((error) => {
             console.error('Failed to sync theme to encrypted storage:', error);
           });
-        }, 500);
+        }, 2000);
       }
     }
   }
