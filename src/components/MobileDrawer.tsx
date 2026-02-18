@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
+import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -120,6 +120,24 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
             {/* Menu items */}
             <nav className="flex-1 px-3 py-2">
+              {/* Extra kind pages (Vines, Polls, Treasures, etc.) */}
+              {extraKindItems.length > 0 && (
+                <>
+                  {extraKindItems.map((item) => (
+                    <DrawerMenuItem
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      onClick={handleClose}
+                    />
+                  ))}
+                  <div className="my-2 mx-2">
+                    <Separator />
+                  </div>
+                </>
+              )}
+
               <DrawerMenuItem
                 to="/profile"
                 icon={<User className="size-5" />}
@@ -133,38 +151,11 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 onClick={handleClose}
               />
               <DrawerMenuItem
-                to="/mutes"
-                icon={<EyeOff className="size-5" />}
-                label="Mutes"
-                onClick={handleClose}
-              />
-              <DrawerMenuItem
                 to="/settings"
                 icon={<Settings className="size-5" />}
                 label="Settings"
                 onClick={handleClose}
               />
-
-              {/* Extra kind pages (Vines, Polls, Treasures, etc.) */}
-              {extraKindItems.length > 0 && (
-                <>
-                  <div className="my-2 mx-2">
-                    <Separator />
-                  </div>
-                  <p className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
-                    Other Stuff
-                  </p>
-                  {extraKindItems.map((item) => (
-                    <DrawerMenuItem
-                      key={item.to}
-                      to={item.to}
-                      icon={item.icon}
-                      label={item.label}
-                      onClick={handleClose}
-                    />
-                  ))}
-                </>
-              )}
 
               <button
                 onClick={() => {
