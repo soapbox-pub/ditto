@@ -106,35 +106,30 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
 
 export function FeedSettingsForm() {
   return (
-    <div className="space-y-6">
-      {/* Intro illustration + explanation */}
-      <div className="space-y-2 pt-2">
+    <div>
+      {/* Intro — compact horizontal layout */}
+      <div className="flex items-center gap-4 pb-4 mb-1 border-b border-border">
         <img
           src="/feed-intro.png"
-          alt="Nostr has more than just posts — videos, polls, treasures, and more"
-          className="w-full max-w-[160px] mx-auto mix-blend-difference opacity-40"
+          alt=""
+          className="size-16 shrink-0 mix-blend-difference opacity-40 object-contain"
         />
-        <div className="text-center space-y-1">
-          <h2 className="text-base font-semibold">Other Stuff</h2>
-          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-            Nostr isn't just text posts — people publish all kinds of weird and wonderful things. Toggle what shows up in your sidebar and feed.
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold mb-0.5">Other Stuff</h2>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
           </p>
         </div>
-      </div>
-
-      {/* Table */}
-      <div>
-        {/* Column headers */}
-        <div className="flex items-center justify-end gap-2 px-3 pb-3 border-b border-border">
-          <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
-          <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+        <div className="flex items-end gap-2 shrink-0 self-end">
+          <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
+          <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
         </div>
-
-        {/* Content type rows */}
-        {EXTRA_KINDS.map((def) => (
-          <ContentTypeRow key={def.showKey} def={def} />
-        ))}
       </div>
+
+      {/* Content type rows */}
+      {EXTRA_KINDS.map((def) => (
+        <ContentTypeRow key={def.showKey} def={def} />
+      ))}
     </div>
   );
 }
