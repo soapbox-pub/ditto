@@ -1,62 +1,104 @@
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 const DB_NAME = 'mew-events';
-const DB_VERSION = 1;
-const STORE_NAME = 'events';
+const DB_VERSION = 2;
+
+// Separate stores for different event types (like Jumble does)
+const StoreNames = {
+  PROFILES: 'profiles',           // kind 0 - keyed by pubkey
+  CONTACTS: 'contacts',            // kind 3 - keyed by pubkey
+  RELAY_LISTS: 'relayLists',      // kind 10002 - keyed by pubkey
+  EVENTS: 'events',                // all other events - keyed by event.id
+} as const;
 
 interface EventWithRelays extends NostrEvent {
   _relays?: string[];
 }
 
-class EventStore {
+interface EventRecord {
+  event: EventWithRelays;
+  relays: string[];
+}
+
+class EventStoreV2 {
   private db: IDBDatabase | null = null;
+  private initPromise: Promise<void> | null = null;
 
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    if (this.initPromise) return this.initPromise;
+
+    this.initPromise = new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
+        console.debug('[EventStoreV2] Database initialized');
         resolve();
       };
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
 
-        if (!db.objectStoreNames.contains(STORE_NAME)) {
-          const objectStore = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-          objectStore.createIndex('pubkey', 'pubkey', { unique: false });
-          objectStore.createIndex('kind', 'kind', { unique: false });
-          objectStore.createIndex('created_at', 'created_at', { unique: false });
-          // Composite index for kind+pubkey queries
-          objectStore.createIndex('kind_pubkey', ['kind', 'pubkey'], { unique: false });
+        // Create profiles store (kind 0) - keyed by pubkey
+        if (!db.objectStoreNames.contains(StoreNames.PROFILES)) {
+          db.createObjectStore(StoreNames.PROFILES, { keyPath: 'event.pubkey' });
+        }
+
+        // Create contacts store (kind 3) - keyed by pubkey
+        if (!db.objectStoreNames.contains(StoreNames.CONTACTS)) {
+          db.createObjectStore(StoreNames.CONTACTS, { keyPath: 'event.pubkey' });
+        }
+
+        // Create relay lists store (kind 10002) - keyed by pubkey
+        if (!db.objectStoreNames.contains(StoreNames.RELAY_LISTS)) {
+          db.createObjectStore(StoreNames.RELAY_LISTS, { keyPath: 'event.pubkey' });
+        }
+
+        // Create events store (all other events) - keyed by event.id
+        if (!db.objectStoreNames.contains(StoreNames.EVENTS)) {
+          const eventsStore = db.createObjectStore(StoreNames.EVENTS, { keyPath: 'event.id' });
+          eventsStore.createIndex('createdAtIndex', 'event.created_at');
+          eventsStore.createIndex('pubkeyIndex', 'event.pubkey');
+          eventsStore.createIndex('kindIndex', 'event.kind');
         }
       };
     });
+
+    return this.initPromise;
   }
 
   async addEvent(event: NostrEvent, relays: string[]): Promise<void> {
-    if (!this.db) await this.init();
+    await this.init();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-      const objectStore = transaction.objectStore(STORE_NAME);
+      const storeName = this.getStoreName(event.kind);
+      const transaction = this.db!.transaction([storeName], 'readwrite');
+      const store = transaction.objectStore(storeName);
 
-      // Get existing event to merge relays
-      const getRequest = objectStore.get(event.id);
+      const key = this.getKey(event);
+      const getRequest = store.get(key);
 
       getRequest.onsuccess = () => {
-        const existing = getRequest.result as EventWithRelays | undefined;
-        const existingRelays = existing?._relays || [];
+        const existing = getRequest.result as EventRecord | undefined;
+        
+        // For replaceable events, only update if newer
+        if (existing && this.isReplaceableKind(event.kind)) {
+          if (existing.event.created_at >= event.created_at) {
+            resolve();
+            return;
+          }
+        }
+
+        const existingRelays = existing?.relays || [];
         const mergedRelays = Array.from(new Set([...existingRelays, ...relays]));
 
-        const eventWithRelays: EventWithRelays = {
-          ...event,
-          _relays: mergedRelays,
+        const record: EventRecord = {
+          event: { ...event, _relays: mergedRelays },
+          relays: mergedRelays,
         };
 
-        const putRequest = objectStore.put(eventWithRelays);
+        const putRequest = store.put(record);
         putRequest.onsuccess = () => resolve();
         putRequest.onerror = () => reject(putRequest.error);
       };
@@ -66,340 +108,353 @@ class EventStore {
   }
 
   async addEvents(events: NostrEvent[], relays: string[]): Promise<void> {
-    if (!this.db) await this.init();
+    await this.init();
+
+    // Group events by kind to minimize transaction overhead
+    const eventsByKind = new Map<number, NostrEvent[]>();
+    for (const event of events) {
+      const kind = event.kind;
+      if (!eventsByKind.has(kind)) {
+        eventsByKind.set(kind, []);
+      }
+      eventsByKind.get(kind)!.push(event);
+    }
+
+    // Process each kind group
+    for (const [kind, kindEvents] of eventsByKind) {
+      const storeName = this.getStoreName(kind);
+      await new Promise<void>((resolve, reject) => {
+        const transaction = this.db!.transaction([storeName], 'readwrite');
+        const store = transaction.objectStore(storeName);
+
+        let completed = 0;
+        const total = kindEvents.length;
+
+        for (const event of kindEvents) {
+          const key = this.getKey(event);
+          const getRequest = store.get(key);
+
+          getRequest.onsuccess = () => {
+            const existing = getRequest.result as EventRecord | undefined;
+            
+            // For replaceable events, only update if newer
+            if (existing && this.isReplaceableKind(event.kind)) {
+              if (existing.event.created_at >= event.created_at) {
+                completed++;
+                if (completed === total) resolve();
+                return;
+              }
+            }
+
+            const existingRelays = existing?.relays || [];
+            const mergedRelays = Array.from(new Set([...existingRelays, ...relays]));
+
+            const record: EventRecord = {
+              event: { ...event, _relays: mergedRelays },
+              relays: mergedRelays,
+            };
+
+            const putRequest = store.put(record);
+            putRequest.onsuccess = () => {
+              completed++;
+              if (completed === total) resolve();
+            };
+            putRequest.onerror = () => reject(putRequest.error);
+          };
+
+          getRequest.onerror = () => reject(getRequest.error);
+        }
+      });
+    }
+  }
+
+  async query(filters: NostrFilter[]): Promise<EventWithRelays[]> {
+    await this.init();
+    const startTime = performance.now();
+
+    const results: EventWithRelays[] = [];
+    const seenIds = new Set<string>();
+
+    for (const filter of filters) {
+      const events = await this.queryFilter(filter);
+      for (const event of events) {
+        if (!seenIds.has(event.id)) {
+          seenIds.add(event.id);
+          results.push(event);
+        }
+      }
+    }
+
+    // Sort by created_at descending
+    results.sort((a, b) => b.created_at - a.created_at);
+
+    // Apply limit
+    const limit = filters[0]?.limit;
+    const limited = limit ? results.slice(0, limit) : results;
+
+    const duration = performance.now() - startTime;
+    console.debug(`[EventStoreV2] Query completed in ${duration.toFixed(2)}ms, found ${limited.length} events`);
+
+    return limited;
+  }
+
+  /**
+   * Batch-fetch profiles for multiple pubkeys (like Jumble's getManyReplaceableEvents)
+   * This is MUCH faster than separate queries per pubkey
+   */
+  async getManyProfiles(pubkeys: string[]): Promise<(EventWithRelays | null)[]> {
+    await this.init();
+    const startTime = performance.now();
 
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-      const objectStore = transaction.objectStore(STORE_NAME);
-
+      const transaction = this.db!.transaction([StoreNames.PROFILES], 'readonly');
+      const store = transaction.objectStore(StoreNames.PROFILES);
+      
+      const results: (EventWithRelays | null)[] = new Array(pubkeys.length).fill(null);
       let completed = 0;
-      const total = events.length;
 
-      if (total === 0) {
-        resolve();
-        return;
-      }
-
-      events.forEach((event) => {
-        const getRequest = objectStore.get(event.id);
-
-        getRequest.onsuccess = () => {
-          const existing = getRequest.result as EventWithRelays | undefined;
-          const existingRelays = existing?._relays || [];
-          const mergedRelays = Array.from(new Set([...existingRelays, ...relays]));
-
-          const eventWithRelays: EventWithRelays = {
-            ...event,
-            _relays: mergedRelays,
-          };
-
-          const putRequest = objectStore.put(eventWithRelays);
-          putRequest.onsuccess = () => {
-            completed++;
-            if (completed === total) resolve();
-          };
-          putRequest.onerror = () => reject(putRequest.error);
+      pubkeys.forEach((pubkey, i) => {
+        const request = store.get(pubkey);
+        
+        request.onsuccess = () => {
+          const record = request.result as EventRecord | undefined;
+          results[i] = record?.event || null;
+          
+          completed++;
+          if (completed === pubkeys.length) {
+            const duration = performance.now() - startTime;
+            console.debug(`[EventStoreV2] Batch profile query for ${pubkeys.length} pubkeys in ${duration.toFixed(2)}ms`);
+            resolve(results);
+          }
         };
-
-        getRequest.onerror = () => reject(getRequest.error);
+        
+        request.onerror = () => {
+          completed++;
+          if (completed === pubkeys.length) {
+            resolve(results);
+          }
+        };
       });
-
-      transaction.onerror = () => reject(transaction.error);
     });
   }
 
-  async query(filters: Array<{
-    ids?: string[];
-    authors?: string[];
-    kinds?: number[];
-    since?: number;
-    until?: number;
-    limit?: number;
-    [key: string]: unknown;
-  }>): Promise<EventWithRelays[]> {
-    if (!this.db) await this.init();
+  private async queryFilter(filter: NostrFilter): Promise<EventWithRelays[]> {
+    // Optimize for common queries
+    if (filter.kinds?.length === 1 && filter.kinds[0] === 0 && filter.authors?.length === 1) {
+      // Profile query - direct lookup
+      return this.queryProfiles(filter.authors);
+    }
 
-    const startTime = performance.now();
+    if (filter.kinds?.length === 1 && filter.kinds[0] === 3 && filter.authors?.length === 1) {
+      // Contacts query - direct lookup
+      return this.queryContacts(filter.authors);
+    }
 
-    // For simplicity and reliability, use a single transaction and collect all matching events
+    if (filter.kinds?.length === 1 && filter.kinds[0] === 10002 && filter.authors?.length === 1) {
+      // Relay list query - direct lookup
+      return this.queryRelayLists(filter.authors);
+    }
+
+    // General query using cursor
+    return this.queryCursor(filter);
+  }
+
+  private async queryProfiles(pubkeys: string[]): Promise<EventWithRelays[]> {
     return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      
-      const allEvents: EventWithRelays[] = [];
-      const seenIds = new Set<string>();
+      const transaction = this.db!.transaction([StoreNames.PROFILES], 'readonly');
+      const store = transaction.objectStore(StoreNames.PROFILES);
+      const results: EventWithRelays[] = [];
 
-      if (filters.length === 0) {
-        resolve([]);
-        return;
+      let completed = 0;
+      for (const pubkey of pubkeys) {
+        const request = store.get(pubkey);
+        request.onsuccess = () => {
+          const record = request.result as EventRecord | undefined;
+          if (record) results.push(record.event);
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
+        request.onerror = () => {
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
       }
+    });
+  }
 
-      // Process each filter
-      let pendingOperations = 0;
-      let hasError = false;
+  private async queryContacts(pubkeys: string[]): Promise<EventWithRelays[]> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([StoreNames.CONTACTS], 'readonly');
+      const store = transaction.objectStore(StoreNames.CONTACTS);
+      const results: EventWithRelays[] = [];
 
-      const checkComplete = () => {
-        if (pendingOperations === 0 && !hasError) {
-          const duration = performance.now() - startTime;
-          const filterDesc = filters.map(f => {
-            const parts = [];
-            if (f.kinds) parts.push(`kinds:${f.kinds.join(',')}`);
-            if (f.authors) parts.push(`authors:${f.authors.length}`);
-            if (f.ids) parts.push(`ids:${f.ids.length}`);
-            if (f.limit) parts.push(`limit:${f.limit}`);
-            return parts.join(' ');
-          }).join(' | ');
-          console.debug(`[EventStore] Query [${filterDesc}] completed in ${duration.toFixed(2)}ms, found ${allEvents.length} events`);
-          this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+      let completed = 0;
+      for (const pubkey of pubkeys) {
+        const request = store.get(pubkey);
+        request.onsuccess = () => {
+          const record = request.result as EventRecord | undefined;
+          if (record) results.push(record.event);
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
+        request.onerror = () => {
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
+      }
+    });
+  }
+
+  private async queryRelayLists(pubkeys: string[]): Promise<EventWithRelays[]> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([StoreNames.RELAY_LISTS], 'readonly');
+      const store = transaction.objectStore(StoreNames.RELAY_LISTS);
+      const results: EventWithRelays[] = [];
+
+      let completed = 0;
+      for (const pubkey of pubkeys) {
+        const request = store.get(pubkey);
+        request.onsuccess = () => {
+          const record = request.result as EventRecord | undefined;
+          if (record) results.push(record.event);
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
+        request.onerror = () => {
+          completed++;
+          if (completed === pubkeys.length) resolve(results);
+        };
+      }
+    });
+  }
+
+  private async queryCursor(filter: NostrFilter): Promise<EventWithRelays[]> {
+    return new Promise((resolve, reject) => {
+      const transaction = this.db!.transaction([StoreNames.EVENTS], 'readonly');
+      const store = transaction.objectStore(StoreNames.EVENTS);
+      const index = store.index('createdAtIndex');
+      
+      // Use cursor in reverse order (newest first)
+      const request = index.openCursor(null, 'prev');
+      const results: EventWithRelays[] = [];
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        
+        if (cursor && (!filter.limit || results.length < filter.limit)) {
+          const record = cursor.value as EventRecord;
+          if (this.matchesFilter(record.event, filter)) {
+            results.push(record.event);
+          }
+          cursor.continue();
+        } else {
+          resolve(results);
         }
       };
 
-      for (const filter of filters) {
-        // Optimize common query patterns
-        if (filter.kinds && filter.kinds.length > 0 && filter.authors && filter.authors.length > 0) {
-          // Use composite index for kind+author (most common feed query)
-          for (const kind of filter.kinds) {
-            for (const author of filter.authors) {
-              pendingOperations++;
-              const index = objectStore.index('kind_pubkey');
-              const range = IDBKeyRange.only([kind, author]);
-              const request = index.getAll(range);
-              
-              request.onsuccess = () => {
-                const events = request.result as EventWithRelays[];
-                for (const event of events) {
-                  if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                    seenIds.add(event.id);
-                    allEvents.push(event);
-                  }
-                }
-                pendingOperations--;
-                checkComplete();
-              };
-              
-              request.onerror = () => {
-                hasError = true;
-                reject(request.error);
-              };
-            }
-          }
-        } else if (filter.ids && filter.ids.length > 0) {
-          // Query by IDs directly
-          for (const id of filter.ids) {
-            pendingOperations++;
-            const request = objectStore.get(id);
-            
-            request.onsuccess = () => {
-              if (request.result) {
-                const event = request.result as EventWithRelays;
-                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                  seenIds.add(event.id);
-                  allEvents.push(event);
-                }
-              }
-              pendingOperations--;
-              checkComplete();
-            };
-            
-            request.onerror = () => {
-              hasError = true;
-              reject(request.error);
-            };
-          }
-        } else {
-          // Fallback: load all events and filter
-          pendingOperations++;
-          const request = objectStore.getAll();
-          
-          request.onsuccess = () => {
-            const events = request.result as EventWithRelays[];
-            for (const event of events) {
-              if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                seenIds.add(event.id);
-                allEvents.push(event);
-              }
-            }
-            pendingOperations--;
-            checkComplete();
-          };
-          
-          request.onerror = () => {
-            hasError = true;
-            reject(request.error);
-          };
-        }
-      }
-
-      // If no async operations were queued, resolve immediately
-      if (pendingOperations === 0) {
-        this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
-      }
+      request.onerror = () => reject(request.error);
     });
   }
 
-  private matchesFilter(event: EventWithRelays, filter: {
-    ids?: string[];
-    authors?: string[];
-    kinds?: number[];
-    since?: number;
-    until?: number;
-    [key: string]: unknown;
-  }): boolean {
-    // Filter by IDs
-    if (filter.ids && !filter.ids.includes(event.id)) {
-      return false;
-    }
+  private matchesFilter(event: EventWithRelays, filter: NostrFilter): boolean {
+    if (filter.ids && !filter.ids.includes(event.id)) return false;
+    if (filter.authors && !filter.authors.includes(event.pubkey)) return false;
+    if (filter.kinds && !filter.kinds.includes(event.kind)) return false;
+    if (filter.since && event.created_at < filter.since) return false;
+    if (filter.until && event.created_at > filter.until) return false;
 
-    // Filter by authors
-    if (filter.authors && !filter.authors.includes(event.pubkey)) {
-      return false;
-    }
-
-    // Filter by kinds
-    if (filter.kinds && !filter.kinds.includes(event.kind)) {
-      return false;
-    }
-
-    // Filter by since (created_at >= since)
-    if (filter.since && event.created_at < filter.since) {
-      return false;
-    }
-
-    // Filter by until (created_at <= until)
-    if (filter.until && event.created_at > filter.until) {
-      return false;
-    }
-
-    // Filter by tag filters (#e, #p, etc.)
+    // Tag filters
     for (const key in filter) {
-      if (key.startsWith('#') && Array.isArray(filter[key])) {
+      if (key.startsWith('#')) {
         const tagName = key.slice(1);
-        const tagValues = filter[key] as string[];
+        const tagValues = (filter as any)[key] as string[];
         const hasTag = event.tags.some(
           ([name, value]) => name === tagName && tagValues.includes(value)
         );
-        if (!hasTag) {
-          return false;
-        }
+        if (!hasTag) return false;
       }
     }
 
     return true;
   }
 
-  private finalizeQueryResults(
-    events: EventWithRelays[],
-    limit: number | undefined,
-    resolve: (value: EventWithRelays[]) => void
-  ): void {
-    // Sort by created_at descending
-    events.sort((a, b) => b.created_at - a.created_at);
+  private getStoreName(kind: number): string {
+    if (kind === 0) return StoreNames.PROFILES;
+    if (kind === 3) return StoreNames.CONTACTS;
+    if (kind === 10002) return StoreNames.RELAY_LISTS;
+    return StoreNames.EVENTS;
+  }
 
-    // Apply limit if specified
-    if (limit && limit > 0) {
-      events = events.slice(0, limit);
+  private getKey(event: NostrEvent): string {
+    // For replaceable events, key is pubkey
+    if (this.isReplaceableKind(event.kind)) {
+      return event.pubkey;
     }
-
-    resolve(events);
+    // For regular events, key is event id
+    return event.id;
   }
 
-  async getEventById(eventId: string): Promise<EventWithRelays | undefined> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const request = objectStore.get(eventId);
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async getAllEvents(): Promise<EventWithRelays[]> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const request = objectStore.getAll();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async getEventsByPubkey(pubkey: string, limit?: number): Promise<EventWithRelays[]> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const index = objectStore.index('pubkey');
-      const request = index.getAll(pubkey);
-
-      request.onsuccess = () => {
-        let results = request.result;
-        // Sort by created_at descending
-        results.sort((a, b) => b.created_at - a.created_at);
-        if (limit) results = results.slice(0, limit);
-        resolve(results);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async getEventsByKindAndPubkey(kind: number, pubkey: string): Promise<EventWithRelays[]> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const index = objectStore.index('kind_pubkey');
-      const request = index.getAll([kind, pubkey]);
-
-      request.onsuccess = () => {
-        const results = request.result;
-        // Sort by created_at descending to get the most recent
-        results.sort((a, b) => b.created_at - a.created_at);
-        resolve(results);
-      };
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async deleteEvent(eventId: string): Promise<void> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const request = objectStore.delete(eventId);
-
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
+  private isReplaceableKind(kind: number): boolean {
+    return kind === 0 || kind === 3 || (kind >= 10000 && kind < 20000);
   }
 
   async getCount(): Promise<number> {
-    if (!this.db) await this.init();
+    await this.init();
+    
+    const stores = [StoreNames.PROFILES, StoreNames.CONTACTS, StoreNames.RELAY_LISTS, StoreNames.EVENTS];
+    const transaction = this.db!.transaction(stores, 'readonly');
+    
+    const counts = await Promise.all(stores.map(storeName => {
+      return new Promise<number>((resolve) => {
+        const store = transaction.objectStore(storeName);
+        const request = store.count();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => resolve(0);
+      });
+    }));
+    
+    return counts.reduce((a, b) => a + b, 0);
+  }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readonly');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const request = objectStore.count();
-
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
+  async clear(): Promise<void> {
+    await this.init();
+    
+    const stores = [StoreNames.PROFILES, StoreNames.CONTACTS, StoreNames.RELAY_LISTS, StoreNames.EVENTS];
+    const transaction = this.db!.transaction(stores, 'readwrite');
+    
+    await Promise.all(stores.map(storeName => {
+      return new Promise<void>((resolve, reject) => {
+        const store = transaction.objectStore(storeName);
+        const request = store.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+    }));
   }
 
   async exportToJSONL(): Promise<string> {
-    const events = await this.getAllEvents();
-    return events.map(event => {
-      const { _relays, ...cleanEvent } = event;
-      return JSON.stringify(cleanEvent);
-    }).join('\n');
+    await this.init();
+    
+    const stores = [StoreNames.PROFILES, StoreNames.CONTACTS, StoreNames.RELAY_LISTS, StoreNames.EVENTS];
+    const allEvents: NostrEvent[] = [];
+    
+    for (const storeName of stores) {
+      const transaction = this.db!.transaction([storeName], 'readonly');
+      const store = transaction.objectStore(storeName);
+      const request = store.getAll();
+      
+      const records = await new Promise<EventRecord[]>((resolve, reject) => {
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      
+      for (const record of records) {
+        const { _relays, ...event } = record.event;
+        allEvents.push(event as NostrEvent);
+      }
+    }
+    
+    return allEvents.map(event => JSON.stringify(event)).join('\n');
   }
 
   async importFromJSONL(jsonl: string, relays: string[]): Promise<number> {
@@ -409,8 +464,7 @@ class EventStore {
     for (const line of lines) {
       if (line.trim()) {
         try {
-          const event = JSON.parse(line);
-          events.push(event);
+          events.push(JSON.parse(line));
         } catch (error) {
           console.error('Failed to parse event:', error);
         }
@@ -420,20 +474,7 @@ class EventStore {
     await this.addEvents(events, relays);
     return events.length;
   }
-
-  async clear(): Promise<void> {
-    if (!this.db) await this.init();
-
-    return new Promise((resolve, reject) => {
-      const transaction = this.db!.transaction([STORE_NAME], 'readwrite');
-      const objectStore = transaction.objectStore(STORE_NAME);
-      const request = objectStore.clear();
-
-      request.onsuccess = () => resolve();
-      request.onerror = () => reject(request.error);
-    });
-  }
 }
 
-export const eventStore = new EventStore();
+export const eventStore = new EventStoreV2();
 export type { EventWithRelays };
