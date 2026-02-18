@@ -391,7 +391,9 @@ function EventNotFound({
           </div>
           <h2 className="text-xl font-bold">Event not found</h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to.
+            {authorPubkey
+              ? "This event couldn't be loaded from your connected relays or the author's outbox relays. It may exist on a relay neither of you are connected to."
+              : "This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to."}
           </p>
         </div>
 
