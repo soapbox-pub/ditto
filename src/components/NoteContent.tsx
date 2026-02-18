@@ -244,6 +244,7 @@ export function NoteContent({
                 key={i}
                 to={`/${token.id}`}
                 className="text-primary hover:underline break-all"
+                onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}
               </Link>
@@ -254,6 +255,7 @@ export function NoteContent({
                 key={i}
                 to={`/t/${token.tag}`}
                 className="text-primary hover:underline"
+                onClick={(e) => e.stopPropagation()}
               >
                 {token.raw}
               </Link>
@@ -279,6 +281,7 @@ function NostrMention({ pubkey }: { pubkey: string }) {
           ? 'text-primary'
           : 'text-muted-foreground hover:text-foreground',
       )}
+      onClick={(e) => e.stopPropagation()}
     >
       @{displayName}
     </Link>
