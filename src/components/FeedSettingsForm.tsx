@@ -2,6 +2,8 @@ import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Switch } from '@/components/ui/switch';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 import { cn } from '@/lib/utils';
@@ -25,6 +27,19 @@ function KindBadge({ kind }: { kind: number }) {
 
 function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: boolean }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const handleToggle = async (key: string, value: boolean) => {
+    // Update local settings immediately
+    updateFeedSettings({ [key]: value });
+    
+    // Sync to encrypted storage if logged in
+    if (user) {
+      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+    }
+  };
 
   return (
     <div className={cn(
@@ -41,14 +56,14 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
         <div className="w-[52px] flex justify-center">
           <Switch
             checked={feedSettings[sub.showKey]}
-            onCheckedChange={(checked) => updateFeedSettings({ [sub.showKey]: checked })}
+            onCheckedChange={(checked) => handleToggle(sub.showKey, checked)}
             className="scale-90"
           />
         </div>
         <div className="w-[52px] flex justify-center">
           <Switch
             checked={feedSettings[sub.feedKey]}
-            onCheckedChange={(checked) => updateFeedSettings({ [sub.feedKey]: checked })}
+            onCheckedChange={(checked) => handleToggle(sub.feedKey, checked)}
             className="scale-90"
           />
         </div>
@@ -59,8 +74,21 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
 
 function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
   const icon = ICONS[def.route] ?? <Palette className="size-5" />;
   const hasSubKinds = !!def.subKinds;
+
+  const handleToggle = async (key: string, value: boolean) => {
+    // Update local settings immediately
+    updateFeedSettings({ [key]: value });
+    
+    // Sync to encrypted storage if logged in
+    if (user) {
+      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+    }
+  };
 
   return (
     <div className="border-b border-border last:border-b-0">
@@ -78,14 +106,14 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           <div className="w-[52px] flex justify-center">
             <Switch
               checked={feedSettings[def.showKey]}
-              onCheckedChange={(checked) => updateFeedSettings({ [def.showKey]: checked })}
+              onCheckedChange={(checked) => handleToggle(def.showKey, checked)}
             />
           </div>
           <div className="w-[52px] flex justify-center">
             {!hasSubKinds && def.feedKey ? (
               <Switch
                 checked={feedSettings[def.feedKey]}
-                onCheckedChange={(checked) => updateFeedSettings({ [def.feedKey]: checked })}
+                onCheckedChange={(checked) => handleToggle(def.feedKey, checked)}
               />
             ) : null}
           </div>

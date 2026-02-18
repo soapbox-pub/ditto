@@ -8,6 +8,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useToast } from '@/hooks/useToast';
 import { APP_RELAYS } from '@/lib/appRelays';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ export function RelayListManager() {
   const { config, updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
+  const { updateSettings } = useEncryptedSettings();
   const { toast } = useToast();
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
@@ -60,12 +62,20 @@ export function RelayListManager() {
     }
   };
 
-  const handleToggleAppRelays = (enabled: boolean) => {
+  const handleToggleAppRelays = async (enabled: boolean) => {
     setUseAppRelays(enabled);
+    
+    // Update local settings immediately
     updateConfig((current) => ({
       ...current,
       useAppRelays: enabled,
     }));
+    
+    // Sync to encrypted storage if logged in
+    if (user) {
+      await updateSettings.mutateAsync({ useAppRelays: enabled });
+    }
+    
     toast({
       title: enabled ? 'App relays enabled' : 'App relays disabled',
       description: enabled
