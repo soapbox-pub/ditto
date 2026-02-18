@@ -41,27 +41,19 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
 
   return useInfiniteQuery<NostrEvent[], Error>({
     queryKey: ['profile-feed', pubkey ?? '', tab, kindsKey],
-    queryFn: async ({ pageParam, signal }) => {
+    queryFn: async ({ pageParam, signal: querySignal }) => {
       if (!pubkey) return [];
 
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const signal = AbortSignal.any([querySignal, AbortSignal.timeout(5000)]);
 
       // Fetch more than PAGE_SIZE because client-side filtering (e.g. "posts only"
       // excludes replies, "media" excludes non-media) can discard many events.
       const fetchLimit = tab === 'replies' ? PAGE_SIZE : PAGE_SIZE * 3;
 
-      const filter: Record<string, unknown> = {
-        kinds: profileKinds,
-        authors: [pubkey],
-        limit: fetchLimit,
-      };
-      if (pageParam) {
-        filter.until = pageParam;
-      }
-
+      const until = pageParam as number | undefined;
       const events = await nostr.query(
-        [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-        { signal: querySignal },
+        [{ kinds: profileKinds, authors: [pubkey], limit: fetchLimit, ...(until && { until }) }],
+        { signal },
       );
 
       const sorted = events.sort((a, b) => b.created_at - a.created_at);
@@ -74,7 +66,8 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
     },
     initialPageParam: undefined as number | undefined,
     enabled: !!pubkey && tab !== 'likes',
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   });
 }
 
@@ -94,23 +87,15 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
 
   return useInfiniteQuery<LikesPage, Error>({
     queryKey: ['profile-likes-infinite', pubkey ?? ''],
-    queryFn: async ({ pageParam, signal }) => {
+    queryFn: async ({ pageParam, signal: querySignal }) => {
       if (!pubkey) return { events: [], oldestReactionTimestamp: undefined };
 
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
-
-      const filter: Record<string, unknown> = {
-        kinds: [7],
-        authors: [pubkey],
-        limit: PAGE_SIZE,
-      };
-      if (pageParam) {
-        filter.until = pageParam;
-      }
+      const signal = AbortSignal.any([querySignal, AbortSignal.timeout(5000)]);
+      const until = pageParam as number | undefined;
 
       const reactions = await nostr.query(
-        [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-        { signal: querySignal },
+        [{ kinds: [7], authors: [pubkey], limit: PAGE_SIZE, ...(until && { until }) }],
+        { signal },
       );
 
       if (reactions.length === 0) return { events: [], oldestReactionTimestamp: undefined };
@@ -133,7 +118,7 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
       // Fetch the original events
       const events = await nostr.query(
         [{ ids: likedIds, limit: likedIds.length }],
-        { signal: querySignal },
+        { signal },
       );
 
       // Sort by the reaction order (preserves the "liked at" timeline)
@@ -151,6 +136,7 @@ export function useProfileLikes(pubkey: string | undefined, active: boolean) {
     },
     initialPageParam: undefined as number | undefined,
     enabled: !!pubkey && active,
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   });
 }

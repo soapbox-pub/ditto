@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2 } from 'lucide-react';
@@ -21,6 +20,7 @@ import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { genUserName } from '@/lib/genUserName';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -608,21 +608,12 @@ export function ProfilePage() {
 
   const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
 
-  // Infinite scroll sentinel
-  const { ref: scrollRef, inView } = useInView();
-
-  useEffect(() => {
-    if (!inView) return;
-    if (activeTab === 'likes') {
-      if (hasNextLikesPage && !isFetchingNextLikesPage) {
-        fetchNextLikesPage();
-      }
-    } else {
-      if (hasNextFeedPage && !isFetchingNextFeedPage) {
-        fetchNextFeedPage();
-      }
-    }
-  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
+  // Infinite scroll — uses native IntersectionObserver (Agora pattern)
+  const observerTarget = useInfiniteScroll({
+    hasNextPage: activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage,
+    isFetchingNextPage: activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage,
+    fetchNextPage: activeTab === 'likes' ? fetchNextLikesPage : fetchNextFeedPage,
+  });
 
   if (!pubkey) {
     return (
@@ -799,7 +790,7 @@ export function ProfilePage() {
 
               {/* Infinite scroll sentinel */}
               {hasMore && (
-                <div ref={scrollRef} className="flex justify-center py-6">
+                <div ref={observerTarget} className="flex justify-center py-6">
                   {isFetchingMore && (
                     <Loader2 className="size-5 animate-spin text-muted-foreground" />
                   )}

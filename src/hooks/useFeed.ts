@@ -6,7 +6,7 @@ import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 20;
 
 /** The base kinds always included in every feed query. */
 const BASE_FEED_KINDS = [1, 6];
@@ -46,34 +46,26 @@ export function useFeed(tab: 'follows' | 'global') {
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
 
-  // Build the full kinds list: base kinds + user-selected extra kinds.
   const extraKinds = getEnabledFeedKinds(feedSettings);
   const allKinds = [...BASE_FEED_KINDS, ...extraKinds];
-
-  // Stable key for the extra kinds so queries re-run when settings change.
   const extraKindsKey = extraKinds.sort().join(',');
 
   // For the follows tab, wait until the follow list is loaded before running any query.
-  // Without this guard, the query falls through to the global branch while followList is still loading.
   const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
 
   return useInfiniteQuery<FeedItem[], Error>({
     queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey],
-    queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+    queryFn: async ({ pageParam, signal: querySignal }) => {
+      const signal = AbortSignal.any([querySignal, AbortSignal.timeout(5000)]);
+      const until = pageParam as number | undefined;
       const now = Math.floor(Date.now() / 1000);
 
       if (tab === 'follows' && user && followList && followList.length > 0) {
-        // Follows feed — posts, reposts, and extra kinds from people you follow
+        // Follows feed
         const authors = [...followList, user.pubkey];
-        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
-        if (pageParam) {
-          filter.until = pageParam;
-        }
-
         const events = await nostr.query(
-          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-          { signal: querySignal },
+          [{ kinds: allKinds, authors, limit: PAGE_SIZE, ...(until && { until }) }],
+          { signal },
         );
 
         const items: FeedItem[] = [];
@@ -84,7 +76,6 @@ export function useFeed(tab: 'follows' | 'global') {
           if (ev.created_at > now) continue;
 
           if (ev.kind === 6) {
-            // Handle reposts
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
@@ -96,7 +87,6 @@ export function useFeed(tab: 'follows' | 'global') {
               }
             }
           } else {
-            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
             items.push({ event: ev, sortTimestamp: ev.created_at });
           }
         }
@@ -106,7 +96,7 @@ export function useFeed(tab: 'follows' | 'global') {
           try {
             const originals = await nostr.query(
               [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal: querySignal },
+              { signal },
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
@@ -115,7 +105,7 @@ export function useFeed(tab: 'follows' | 'global') {
               }
             }
           } catch {
-            // timeout or abort — just skip the missing reposts
+            // timeout or abort — skip missing reposts
           }
         }
 
@@ -132,16 +122,11 @@ export function useFeed(tab: 'follows' | 'global') {
 
         return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
-        // Global feed — kind 1 notes + user-selected extra kinds
+        // Global feed
         const globalKinds = [1, ...extraKinds];
-        const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
-        if (pageParam) {
-          filter.until = pageParam;
-        }
-
         const events = await nostr.query(
-          [filter as { kinds: number[]; limit: number; until?: number }],
-          { signal: querySignal },
+          [{ kinds: globalKinds, limit: PAGE_SIZE, ...(until && { until }) }],
+          { signal },
         );
 
         return events
@@ -152,14 +137,12 @@ export function useFeed(tab: 'follows' | 'global') {
     },
     getNextPageParam: (lastPage) => {
       if (lastPage.length === 0) return undefined;
-      // Use the oldest item's sortTimestamp minus 1 (since `until` is inclusive)
       const oldest = lastPage[lastPage.length - 1];
       return oldest.sortTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
     enabled: followsReady,
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
-    placeholderData: (previousData) => previousData, // Keep showing previous data while refetching (avoids flicker)
+    staleTime: 30_000,
+    placeholderData: (previousData) => previousData,
   });
 }

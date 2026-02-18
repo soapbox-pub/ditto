@@ -1,5 +1,4 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useInView } from 'react-intersection-observer';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +9,7 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
+import { useInfiniteScroll } from '@/hooks/useInfiniteScroll';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -34,13 +34,12 @@ export function Feed() {
     isFetchingNextPage,
   } = useFeed(activeTab);
 
-  const { ref, inView } = useInView();
-
-  useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
-      fetchNextPage();
-    }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  // Agora-style infinite scroll with native IntersectionObserver
+  const observerTarget = useInfiniteScroll({
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
 
   // Flatten pages and deduplicate by event id
   const feedItems = useMemo(() => {
@@ -59,10 +58,7 @@ export function Feed() {
     return items;
   }, [data?.pages]);
 
-  // Batch-prefetch all author profiles in a single relay query instead of
-  // firing N individual useAuthor() calls from each NoteCard.  The results
-  // are seeded into the ['author', pubkey] cache so NoteCard's own
-  // useAuthor() resolves instantly from cache.
+  // Batch-prefetch all author profiles
   const feedPubkeys = useMemo(() => {
     const keys = new Set<string>();
     for (const item of feedItems) {
@@ -133,7 +129,7 @@ export function Feed() {
 
           {/* Infinite scroll sentinel */}
           {hasNextPage && (
-            <div ref={ref} className="flex justify-center py-6">
+            <div ref={observerTarget} className="flex justify-center py-6">
               {isFetchingNextPage && (
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               )}
