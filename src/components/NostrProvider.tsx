@@ -4,6 +4,8 @@ import { NostrContext } from '@nostrify/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays } from '@/lib/appRelays';
+import { LocalRelay } from '@/lib/LocalRelay';
+import { eventStore } from '@/lib/eventStore';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -37,12 +39,27 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
   // Initialize NPool only once
   if (!pool.current) {
+    // Initialize the local event store
+    eventStore.init().catch(error => {
+      console.error('[NostrProvider] Failed to initialize event store:', error);
+    });
+
+    // Create local relay instance
+    const localRelay = new LocalRelay();
+
     pool.current = new NPool({
       open(url: string) {
+        // If it's the local relay URL, return the local relay instance
+        if (url === 'local://indexeddb') {
+          return localRelay as unknown as NRelay1;
+        }
         return new NRelay1(url);
       },
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
+
+        // Always include the local relay for queries
+        routes.set('local://indexeddb', filters);
 
         // Route to all read relays
         const readRelays = effectiveRelays.current.relays
@@ -55,7 +72,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         return routes;
       },
-      eventRouter(_event: NostrEvent) {
+      eventRouter(event: NostrEvent) {
+        // Store all published events to local relay
+        eventStore.addEvent(event, ['local://indexeddb']).catch(error => {
+          console.error('[NostrProvider] Failed to store event locally:', error);
+        });
+
         // Get write relays from effective relays
         const writeRelays = effectiveRelays.current.relays
           .filter(r => r.write)
