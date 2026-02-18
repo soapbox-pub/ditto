@@ -49,12 +49,11 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
  * Includes post authors, repost authors, and mentioned p-tag pubkeys so that
  * @mentions and reply-to lines also resolve without individual round trips.
  */
-function prefetchPageData(
+async function prefetchPageData(
   items: FeedItem[],
   nostr: ReturnType<typeof import('@nostrify/react').useNostr>['nostr'],
   queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
 ) {
-  // Collect every pubkey we'll need: authors, reposters, and p-tag mentions
   const allPubkeys = new Set<string>();
   for (const item of items) {
     allPubkeys.add(item.event.pubkey);
@@ -72,34 +71,34 @@ function prefetchPageData(
     .map((item) => item.event.id)
     .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
 
-  // Profiles
-  if (pubkeysToFetch.length > 0) {
-    nostr.query(
-      [{ kinds: [0], authors: pubkeysToFetch }],
-      { signal: AbortSignal.timeout(5000) },
-    ).then((profileEvents) => {
-      for (const ev of profileEvents) {
-        let metadata: NostrMetadata | undefined;
-        try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-        seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
-      }
-    }).catch(() => { /* relay timeout — useAuthor per-card will handle it */ });
-  }
+  await Promise.all([
+    pubkeysToFetch.length > 0
+      ? nostr.query(
+          [{ kinds: [0], authors: pubkeysToFetch }],
+          { signal: AbortSignal.timeout(3000) },
+        ).then((profileEvents) => {
+          for (const ev of profileEvents) {
+            let metadata: NostrMetadata | undefined;
+            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+            seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
+          }
+        }).catch(() => {})
+      : Promise.resolve(),
 
-  // Stats
-  if (eventIdsToFetch.length > 0) {
-    nostr.query(
-      [
-        { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
-        { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
-      ],
-      { signal: AbortSignal.timeout(6000) },
-    ).then((statEvents) => {
-      for (const id of eventIdsToFetch) {
-        queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
-      }
-    }).catch(() => { /* relay timeout — useEventStats per-card will handle it */ });
-  }
+    eventIdsToFetch.length > 0
+      ? nostr.query(
+          [
+            { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
+            { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
+          ],
+          { signal: AbortSignal.timeout(6000) },
+        ).then((statEvents) => {
+          for (const id of eventIdsToFetch) {
+            queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
+          }
+        }).catch(() => {})
+      : Promise.resolve(),
+  ]);
 }
 
 /** Hook to fetch the global or followed feed with infinite scroll pagination. */
@@ -202,9 +201,10 @@ export function useFeed(tab: 'follows' | 'global') {
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
 
-      // Kick off author + stats prefetch in the background.
-      // Does NOT block this queryFn — items render immediately.
-      prefetchPageData(items, nostr, queryClient);
+      // Prefetch authors and stats in parallel before returning.
+      // This ensures cache is populated before NoteCards mount, so individual
+      // useAuthor/useEventStats calls hit cache and never open relay subscriptions.
+      await prefetchPageData(items, nostr, queryClient);
 
       return items;
     },
