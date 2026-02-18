@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Bell, Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -21,7 +21,7 @@ import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -66,14 +66,6 @@ export function NotificationsPage() {
   return (
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        {/* Header — desktop only */}
-        <div className={cn(STICKY_HEADER_CLASS, 'hidden sidebar:flex items-center gap-4 px-4 h-20 bg-background/80 backdrop-blur-md z-10')}>
-          <div className="flex items-center gap-2">
-            <Bell className="size-5" />
-            <h1 className="text-xl font-bold">Notifications</h1>
-          </div>
-        </div>
-
         {/* Tab bar */}
         <div className="flex border-b border-border sticky top-12 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           {tabs.map(({ key, label }) => (
@@ -81,7 +73,7 @@ export function NotificationsPage() {
               key={key}
               onClick={() => setActiveTab(key)}
               className={cn(
-                'flex-1 py-3 text-sm font-semibold transition-colors relative hover:bg-secondary/40',
+                'flex-1 py-5 text-sm font-semibold transition-colors relative hover:bg-secondary/40',
                 activeTab === key ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
