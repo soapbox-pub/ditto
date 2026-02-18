@@ -131,7 +131,7 @@ function getParentEventId(event: NostrEvent): string | undefined {
 }
 
 export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPageProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId, relays);
+  const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
