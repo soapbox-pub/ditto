@@ -42,7 +42,7 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  const { ref, inView } = useInView({ rootMargin: '400px' });
+  const { ref, inView } = useInView({ rootMargin: '800px' });
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetching) {
@@ -126,14 +126,12 @@ export function Feed() {
               />
             ))}
 
-            {/* Infinite scroll sentinel */}
-            {hasNextPage && (
-              <div ref={ref} className="flex justify-center py-6">
-                {isFetchingNextPage && (
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                )}
-              </div>
-            )}
+            {/* Infinite scroll sentinel — always rendered so IntersectionObserver fires reliably */}
+            <div ref={ref} className="flex justify-center py-6">
+              {isFetchingNextPage && (
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              )}
+            </div>
           </div>
         ) : (
           <div className="py-16 px-8 text-center">

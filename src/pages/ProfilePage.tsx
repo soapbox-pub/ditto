@@ -609,7 +609,7 @@ export function ProfilePage() {
   const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
 
   // Infinite scroll sentinel
-  const { ref: scrollRef, inView } = useInView();
+  const { ref: scrollRef, inView } = useInView({ rootMargin: '800px' });
 
   useEffect(() => {
     if (!inView) return;
@@ -797,14 +797,12 @@ export function ProfilePage() {
             <div>
               {currentEvents.map((event) => <NoteCard key={event.id} event={event} />)}
 
-              {/* Infinite scroll sentinel */}
-              {hasMore && (
-                <div ref={scrollRef} className="flex justify-center py-6">
-                  {isFetchingMore && (
-                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                  )}
-                </div>
-              )}
+              {/* Infinite scroll sentinel — always rendered so IntersectionObserver fires reliably */}
+              <div ref={scrollRef} className="flex justify-center py-6">
+                {isFetchingMore && (
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                )}
+              </div>
             </div>
           ) : (
             <div className="py-12 text-center text-muted-foreground">
