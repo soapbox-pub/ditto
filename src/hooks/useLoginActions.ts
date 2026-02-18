@@ -87,7 +87,7 @@ export function useLoginActions() {
     },
     // Login via nostrconnect:// (client-initiated NIP-46)
     // The client displays a QR code and waits for the remote signer to connect
-    async nostrconnect(params: NostrConnectParams): Promise<void> {
+    async nostrconnect(params: NostrConnectParams, abortSignal?: AbortSignal): Promise<void> {
       const clientSigner = new NSecSigner(params.clientSecretKey);
       const clientPubkey = getPublicKey(params.clientSecretKey);
 
@@ -96,7 +96,8 @@ export function useLoginActions() {
 
       // Wait for the connect response from the remote signer
       // We subscribe to kind 24133 events p-tagged to our client pubkey
-      const signal = AbortSignal.timeout(120_000); // 2 minute timeout
+      // Use provided abort signal or create a 2 minute timeout
+      const signal = abortSignal || AbortSignal.timeout(120_000);
 
       const sub = relayGroup.req(
         [{ kinds: [24133], '#p': [clientPubkey], limit: 1 }],

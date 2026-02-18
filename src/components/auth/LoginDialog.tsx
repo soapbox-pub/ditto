@@ -79,12 +79,15 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
       abortControllerRef.current = new AbortController();
 
       try {
-        await login.nostrconnect(nostrConnectParams);
+        await login.nostrconnect(nostrConnectParams, abortControllerRef.current.signal);
         onLogin();
         onClose();
       } catch (error) {
         console.error('Nostrconnect failed:', error);
-        setConnectError(error instanceof Error ? error.message : 'Connection failed');
+        // Don't show error if it was aborted (dialog closed)
+        if (error instanceof Error && error.name !== 'AbortError') {
+          setConnectError(error.message);
+        }
         setIsWaitingForConnect(false);
       }
     };
