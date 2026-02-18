@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
-import { useNostrPublish } from './useNostrPublish';
 import type { Theme, FeedSettings } from '@/contexts/AppContext';
 import type { ContentFilter } from './useContentFilters';
 
@@ -33,7 +32,6 @@ export function useEncryptedSettings() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
 
   // Query the encrypted settings event
   const query = useQuery({
@@ -100,13 +98,24 @@ export function useEncryptedSettings() {
       const plaintext = JSON.stringify(updatedSettings);
       const encrypted = await user.signer.nip44.encrypt(user.pubkey, plaintext);
 
-      await publishEvent({
+      // Sign the event
+      const unsignedEvent = {
         kind: 30078,
         content: encrypted,
         tags: [
           ['d', SETTINGS_D_TAG],
           ['title', 'Mew Settings'],
+          ['client', location.hostname],
         ],
+        created_at: Math.floor(Date.now() / 1000),
+      };
+
+      const signedEvent = await user.signer.signEvent(unsignedEvent);
+
+      // Publish directly without triggering React Query mutation
+      // This happens in the background without causing re-renders
+      nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) }).catch((error) => {
+        console.error('Failed to publish encrypted settings:', error);
       });
 
       return updatedSettings;
