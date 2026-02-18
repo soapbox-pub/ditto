@@ -29,12 +29,14 @@ export function NIP19Page() {
     case 'note':
       return <PostDetailPage eventId={decoded.data as string} />;
 
-    case 'nevent':
-      return <PostDetailPage eventId={(decoded.data as { id: string }).id} />;
+    case 'nevent': {
+      const neventData = decoded.data as { id: string; relays?: string[] };
+      return <PostDetailPage eventId={neventData.id} relays={neventData.relays} />;
+    }
 
     case 'naddr': {
       const addr = decoded.data as AddressPointer;
-      return <AddrPostDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} />;
+      return <AddrPostDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} relays={addr.relays} />;
     }
 
     default:

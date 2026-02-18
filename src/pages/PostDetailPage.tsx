@@ -36,10 +36,12 @@ import NotFound from './NotFound';
 
 interface PostDetailPageProps {
   eventId: string;
+  relays?: string[];
 }
 
 interface AddrPostDetailPageProps {
   addr: AddrCoords;
+  relays?: string[];
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -123,8 +125,8 @@ function getParentEventId(event: NostrEvent): string | undefined {
   return undefined;
 }
 
-export function PostDetailPage({ eventId }: PostDetailPageProps) {
-  const { data: event, isLoading, isError } = useEvent(eventId);
+export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
+  const { data: event, isLoading, isError } = useEvent(eventId, relays);
 
   useSeoMeta({
     title: event ? 'Post Details - Mew' : 'Loading... - Mew',
@@ -154,8 +156,8 @@ export function PostDetailPage({ eventId }: PostDetailPageProps) {
 }
 
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
-export function AddrPostDetailPage({ addr }: AddrPostDetailPageProps) {
-  const { data: event, isLoading, isError } = useAddrEvent(addr);
+export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
+  const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
 
   useSeoMeta({
     title: event
