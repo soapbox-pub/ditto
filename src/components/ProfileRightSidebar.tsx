@@ -254,7 +254,7 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
   const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey);
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
+    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-4 pb-3 px-5">
       {/* Media Section */}
       <section className="mb-6">
         <h2 className="text-xl font-bold mb-3">Media</h2>
