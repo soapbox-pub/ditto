@@ -342,7 +342,9 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
       className="flex items-center justify-between px-4 py-2 hover:bg-secondary/30 transition-colors"
     >
       <span className="font-bold text-[15px]">#{trend.tag}</span>
-      <span className="text-xs text-muted-foreground">Trending</span>
+      {trend.count > 0 && (
+        <span className="text-xs text-muted-foreground">{trend.count} posts</span>
+      )}
     </Link>
   );
 }

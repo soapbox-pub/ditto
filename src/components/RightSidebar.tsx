@@ -92,7 +92,9 @@ export function RightSidebar() {
               >
                 <div>
                   <div className="font-bold text-sm">#{item.tag}</div>
-                  <div className="text-xs text-muted-foreground">Trending</div>
+                  <div className="text-xs text-muted-foreground">
+                    {item.count > 0 && <><span className="text-primary font-semibold">{item.count}</span> posts · </>}Trending
+                  </div>
                 </div>
                 <TrendSparkline />
               </Link>
