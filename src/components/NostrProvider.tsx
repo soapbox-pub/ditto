@@ -44,8 +44,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
 
-        // Route to all read relays — eoseTimeout races them so the
-        // first relay to finish wins while the rest are cut off.
+        // Route to all read relays
         const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
           .map(r => r.url);
@@ -57,12 +56,14 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return routes;
       },
       eventRouter(_event: NostrEvent) {
-        // Publish to all write relays for maximum reach
+        // Get write relays from effective relays
         const writeRelays = effectiveRelays.current.relays
           .filter(r => r.write)
           .map(r => r.url);
 
-        return [...new Set(writeRelays)];
+        const allRelays = new Set<string>(writeRelays);
+
+        return [...allRelays];
       },
       // Resolve queries quickly once any relay sends EOSE, instead of
       // waiting for every relay to finish. This is the single biggest

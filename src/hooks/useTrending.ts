@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export interface TrendingTag {
@@ -117,165 +117,67 @@ function parseBolt11Amount(bolt11: string): number {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Batched event stats — collects individual event ID requests within a 50 ms
-// window and resolves them all with a single pair of relay queries.
-// ---------------------------------------------------------------------------
+/** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
+export function useEventStats(eventId: string | undefined) {
+  const { nostr } = useNostr();
 
-type NostrPool = ReturnType<typeof useNostr>['nostr'];
+  return useQuery({
+    queryKey: ['event-stats', eventId ?? ''],
+    queryFn: async ({ signal }) => {
+      if (!eventId) return { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] as string[] };
 
-export interface EventStats {
-  replies: number;
-  reposts: number;
-  quotes: number;
-  reactions: number;
-  zapAmount: number;
-  reactionEmojis: string[];
-}
+      const timeout = AbortSignal.timeout(5000);
+      const combined = AbortSignal.any([signal, timeout]);
 
-const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] };
-
-interface PendingStatsRequest {
-  resolve: (data: EventStats) => void;
-  reject: (err: Error) => void;
-}
-
-const pendingStatsBatch = new Map<string, PendingStatsRequest[]>();
-let statsFlushTimer: ReturnType<typeof setTimeout> | null = null;
-let statsPool: NostrPool | null = null;
-let statsQueryClient: ReturnType<typeof useQueryClient> | null = null;
-
-function flushStatsBatch() {
-  statsFlushTimer = null;
-  const pool = statsPool;
-  const qc = statsQueryClient;
-  if (!pool || !qc) return;
-
-  const batch = new Map(pendingStatsBatch);
-  pendingStatsBatch.clear();
-
-  const eventIds = [...batch.keys()];
-  if (eventIds.length === 0) return;
-
-  (async () => {
-    try {
-      // Two batched queries for ALL pending event IDs at once
+      // Two queries: one for e-tag interactions, one for q-tag quotes
       const [eTagEvents, qTagEvents] = await Promise.all([
-        pool.query(
-          [{ kinds: [1, 6, 7, 9735], '#e': eventIds, limit: eventIds.length * 50 }],
-          { signal: AbortSignal.timeout(5000) },
+        nostr.query(
+          [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
+          { signal: combined },
         ),
-        pool.query(
-          [{ kinds: [1], '#q': eventIds, limit: eventIds.length * 10 }],
-          { signal: AbortSignal.timeout(5000) },
+        nostr.query(
+          [{ kinds: [1], '#q': [eventId], limit: 50 }],
+          { signal: combined },
         ),
       ]);
 
-      // Group results by referenced event ID
-      const statsMap = new Map<string, {
-        replies: number; reposts: number; reactions: number; zapAmount: number;
-        reactionEmojis: Set<string>; quotes: number;
-      }>();
+      let replies = 0;
+      let reposts = 0;
+      let reactions = 0;
+      let zapAmount = 0;
+      const reactionEmojiSet = new Set<string>();
 
-      // Initialize
-      for (const id of eventIds) {
-        statsMap.set(id, { replies: 0, reposts: 0, reactions: 0, zapAmount: 0, reactionEmojis: new Set(), quotes: 0 });
-      }
-
-      // Process e-tag events
       for (const e of eTagEvents) {
-        const refId = e.tags.find(([name]) => name === 'e')?.[1];
-        if (!refId) continue;
-        const entry = statsMap.get(refId);
-        if (!entry) continue;
-
         switch (e.kind) {
-          case 1: entry.replies++; break;
-          case 6: entry.reposts++; break;
+          case 1: replies++; break;
+          case 6: reposts++; break;
           case 7: {
-            entry.reactions++;
+            reactions++;
+            // Extract the emoji from the reaction content (kind 7 events use content for the emoji)
             const emoji = e.content.trim();
             if (emoji === '+' || emoji === '') {
-              entry.reactionEmojis.add('👍');
+              reactionEmojiSet.add('👍');
             } else if (emoji !== '-') {
-              entry.reactionEmojis.add(emoji);
+              reactionEmojiSet.add(emoji);
             }
             break;
           }
           case 9735: {
             const msats = extractZapAmount(e);
-            if (msats > 0) entry.zapAmount += Math.floor(msats / 1000);
+            if (msats > 0) {
+              zapAmount += Math.floor(msats / 1000);
+            }
             break;
           }
         }
       }
 
-      // Process q-tag events (quotes)
-      for (const e of qTagEvents) {
-        const refId = e.tags.find(([name]) => name === 'q')?.[1];
-        if (!refId) continue;
-        const entry = statsMap.get(refId);
-        if (entry) entry.quotes++;
-      }
+      const quotes = qTagEvents.length;
 
-      // Resolve all pending requests
-      for (const [id, resolvers] of batch) {
-        const raw = statsMap.get(id);
-        const result: EventStats = raw
-          ? { replies: raw.replies, reposts: raw.reposts, quotes: raw.quotes, reactions: raw.reactions, zapAmount: raw.zapAmount, reactionEmojis: [...raw.reactionEmojis] }
-          : { ...EMPTY_STATS };
-
-        qc.setQueryData(['event-stats', id], result);
-
-        for (const r of resolvers) {
-          r.resolve(result);
-        }
-      }
-    } catch (err) {
-      for (const resolvers of batch.values()) {
-        for (const r of resolvers) {
-          r.reject(err instanceof Error ? err : new Error(String(err)));
-        }
-      }
-    }
-  })();
-}
-
-function fetchStatsBatched(
-  eventId: string,
-  pool: NostrPool,
-  queryClient: ReturnType<typeof useQueryClient>,
-): Promise<EventStats> {
-  statsPool = pool;
-  statsQueryClient = queryClient;
-
-  return new Promise((resolve, reject) => {
-    const existing = pendingStatsBatch.get(eventId);
-    if (existing) {
-      existing.push({ resolve, reject });
-    } else {
-      pendingStatsBatch.set(eventId, [{ resolve, reject }]);
-    }
-
-    if (!statsFlushTimer) {
-      statsFlushTimer = setTimeout(flushStatsBatch, 50);
-    }
-  });
-}
-
-/** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
-export function useEventStats(eventId: string | undefined) {
-  const { nostr } = useNostr();
-  const queryClient = useQueryClient();
-
-  return useQuery<EventStats>({
-    queryKey: ['event-stats', eventId ?? ''],
-    queryFn: async () => {
-      if (!eventId) return { ...EMPTY_STATS };
-      return fetchStatsBatched(eventId, nostr, queryClient);
+      return { replies, reposts, quotes, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
-    placeholderData: (prev) => prev,
+    placeholderData: (prev) => prev, // Keep showing previous counts while refetching
   });
 }
