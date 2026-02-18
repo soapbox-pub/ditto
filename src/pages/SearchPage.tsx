@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
@@ -13,10 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useTrendingTags } from '@/hooks/useTrending';
+import { useTrendingTags, useSortedPosts } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 type TabType = 'posts' | 'trends' | 'accounts';
 
@@ -28,25 +29,29 @@ export function SearchPage() {
 
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') ?? '';
+  const initialTab = searchParams.get('tab') as TabType | null;
 
-  const [activeTab, setActiveTab] = useState<TabType>('posts');
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab === 'trends' || initialTab === 'accounts' ? initialTab : 'posts');
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(true);
 
-  // Sync search query to URL params
+  // Sync search query and tab to URL params
   useEffect(() => {
-    if (searchQuery.trim()) {
-      setSearchParams({ q: searchQuery.trim() }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [searchQuery, setSearchParams]);
+    const params: Record<string, string> = {};
+    if (searchQuery.trim()) params.q = searchQuery.trim();
+    if (activeTab !== 'posts') params.tab = activeTab;
+    setSearchParams(params, { replace: true });
+  }, [searchQuery, activeTab, setSearchParams]);
 
   // Update search query when URL params change externally (e.g., from sidebar search)
   useEffect(() => {
     const q = searchParams.get('q') ?? '';
     if (q && q !== searchQuery) {
       setSearchQuery(q);
+    }
+    const tab = searchParams.get('tab') as TabType | null;
+    if (tab && tab !== activeTab) {
+      setActiveTab(tab);
     }
   }, [searchParams]);
 
@@ -58,7 +63,11 @@ export function SearchPage() {
   // Hooks
   const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType });
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
-  const { data: trends, isLoading: trendsLoading } = useTrendingTags();
+  const isTrendsTab = activeTab === 'trends';
+  const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
+  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isTrendsTab);
+  const { data: risingPosts, isLoading: risingLoading } = useSortedPosts('rising', 5, isTrendsTab);
+  const { data: controversialPosts, isLoading: controversialLoading } = useSortedPosts('controversial', 5, isTrendsTab);
 
   return (
     <MainLayout>
@@ -184,9 +193,13 @@ export function SearchPage() {
         {/* ─── Trends Tab ─── */}
         {activeTab === 'trends' && (
           <div>
+            {/* Trending Hashtags */}
+            <div className="px-4 pt-4 pb-2">
+              <h3 className="text-lg font-bold">Trending Hashtags</h3>
+            </div>
             {trendsLoading ? (
               <div className="divide-y divide-border">
-                {Array.from({ length: 8 }).map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <TrendSkeleton key={i} />
                 ))}
               </div>
@@ -197,8 +210,32 @@ export function SearchPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState message="No trends available at the moment." />
+              <EmptyState message="No trending hashtags right now." />
             )}
+
+            {/* Hot Posts */}
+            <SortedPostsSection
+              title="Hot"
+              icon={<Flame className="size-5 text-orange-500" />}
+              posts={hotPosts}
+              isLoading={hotLoading}
+            />
+
+            {/* Rising Posts */}
+            <SortedPostsSection
+              title="Rising"
+              icon={<TrendingUp className="size-5 text-green-500" />}
+              posts={risingPosts}
+              isLoading={risingLoading}
+            />
+
+            {/* Controversial Posts */}
+            <SortedPostsSection
+              title="Controversial"
+              icon={<Swords className="size-5 text-red-500" />}
+              posts={controversialPosts}
+              isLoading={controversialLoading}
+            />
           </div>
         )}
 
@@ -249,6 +286,37 @@ export function SearchPage() {
 }
 
 /* ── Shared sub-components ── */
+
+function SortedPostsSection({ title, icon, posts, isLoading }: {
+  title: string;
+  icon: React.ReactNode;
+  posts: NostrEvent[] | undefined;
+  isLoading: boolean;
+}) {
+  return (
+    <>
+      <div className="px-4 pt-6 pb-2 flex items-center gap-2">
+        {icon}
+        <h3 className="text-lg font-bold">{title}</h3>
+      </div>
+      {isLoading ? (
+        <div className="divide-y divide-border">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <PostSkeleton key={i} />
+          ))}
+        </div>
+      ) : posts && posts.length > 0 ? (
+        <div>
+          {posts.slice(0, 5).map((event) => (
+            <NoteCard key={event.id} event={event} />
+          ))}
+        </div>
+      ) : (
+        <EmptyState message={`No ${title.toLowerCase()} posts right now.`} />
+      )}
+    </>
+  );
+}
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (

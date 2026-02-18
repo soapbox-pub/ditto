@@ -1,11 +1,14 @@
-import { Link } from 'react-router-dom';
-import { X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { X, Flame } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTrendingTags, useLatestAccounts } from '@/hooks/useTrending';
+import { useTrendingTags, useLatestAccounts, useSortedPosts } from '@/hooks/useTrending';
+import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useMemo, useState, useEffect } from 'react';
 import { useIsFetching } from '@tanstack/react-query';
 
@@ -56,7 +59,6 @@ export function RightSidebar() {
   const isXl = useIsXl();
 
   // Only start sidebar queries once the feed has finished its initial fetch.
-  // Track: feed must start fetching first, then finish, before we enable sidebar queries.
   const feedFetching = useIsFetching({ queryKey: ['feed'] });
   const [feedStarted, setFeedStarted] = useState(false);
   const [feedHasLoaded, setFeedHasLoaded] = useState(false);
@@ -73,6 +75,7 @@ export function RightSidebar() {
   const sidebarEnabled = isXl && feedHasLoaded;
 
   const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(sidebarEnabled);
+  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, sidebarEnabled);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(sidebarEnabled);
 
   return (
@@ -81,7 +84,7 @@ export function RightSidebar() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold">Trends</h2>
-          <Link to="/search" className="text-sm text-primary hover:underline">View all</Link>
+          <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">View all</Link>
         </div>
 
         {tagsLoading ? (
@@ -96,9 +99,9 @@ export function RightSidebar() {
               </div>
             ))}
           </div>
-        ) : (
+        ) : trendingTags && trendingTags.length > 0 ? (
           <div className="space-y-3">
-            {trendingTags?.map((item) => (
+            {trendingTags.slice(0, 5).map((item) => (
               <Link
                 key={item.tag}
                 to={`/t/${item.tag}`}
@@ -106,22 +109,55 @@ export function RightSidebar() {
               >
                 <div>
                   <div className="font-bold text-sm">#{item.tag}</div>
-                  <div className="text-xs text-muted-foreground">
-                    <span className="text-primary font-semibold">{item.count}</span> people talking
-                  </div>
+                  <div className="text-xs text-muted-foreground">Trending</div>
                 </div>
                 <TrendSparkline />
               </Link>
             ))}
           </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No trends available.</p>
+        )}
+      </section>
+
+      {/* Hot Posts */}
+      <section className="mb-6">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold flex items-center gap-1.5">
+            <Flame className="size-5 text-orange-500" />
+            Hot Posts
+          </h2>
+          <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
+        </div>
+
+        {hotLoading ? (
+          <div className="space-y-3">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <div key={i} className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <Skeleton className="size-5 rounded-full" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-3.5 w-3/4" />
+              </div>
+            ))}
+          </div>
+        ) : hotPosts && hotPosts.length > 0 ? (
+          <div className="space-y-1">
+            {hotPosts.slice(0, 5).map((event) => (
+              <HotPostCard key={event.id} event={event} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">No hot posts right now.</p>
         )}
       </section>
 
       {/* Latest Accounts */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold">Latest Accounts</h2>
-          <Link to="/search" className="text-sm text-primary hover:underline">View all</Link>
+          <h2 className="text-xl font-bold">New Accounts</h2>
         </div>
 
         {accountsLoading ? (
@@ -155,6 +191,42 @@ export function RightSidebar() {
         </p>
       </footer>
     </aside>
+  );
+}
+
+/** Compact hot post card for the sidebar. */
+function HotPostCard({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(event.pubkey);
+  const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
+
+  // Truncate content for sidebar display
+  const snippet = useMemo(() => {
+    // Strip URLs for a cleaner snippet
+    const clean = event.content.replace(/https?:\/\/\S+/g, '').trim();
+    if (clean.length > 100) return clean.slice(0, 100) + '…';
+    return clean || '(media)';
+  }, [event.content]);
+
+  return (
+    <button
+      onClick={() => navigate(`/${encodedId}`)}
+      className="block w-full text-left hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors"
+    >
+      <div className="flex items-center gap-1.5 mb-0.5">
+        <Avatar className="size-4">
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-[8px]">
+            {displayName[0]?.toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+        <span className="text-xs font-semibold truncate">{displayName}</span>
+        <span className="text-xs text-muted-foreground shrink-0">· {timeAgo(event.created_at)}</span>
+      </div>
+      <p className="text-[13px] text-muted-foreground leading-snug line-clamp-2">{snippet}</p>
+    </button>
   );
 }
 

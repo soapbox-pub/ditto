@@ -2,42 +2,115 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
+/** The sole relay used for trend data. */
+const DITTO_RELAY = 'wss://relay.ditto.pub';
+
 export interface TrendingTag {
   tag: string;
   count: number;
 }
 
-/** Extracts trending hashtags from recent notes. */
+/**
+ * Fetches trending hashtags from relay.ditto.pub via kind 1985 label events.
+ * These are published with L: "pub.ditto.trends" and l: "#t", "pub.ditto.trends".
+ * Each label event contains `t` tags with the trending hashtags.
+ */
 export function useTrendingTags(enabled = true) {
   const { nostr } = useNostr();
 
   return useQuery<TrendingTag[]>({
     queryKey: ['trending-tags'],
     queryFn: async ({ signal }) => {
-      const events = await nostr.query(
-        [{ kinds: [1], limit: 50 }],
+      const ditto = nostr.relay(DITTO_RELAY);
+      const events = await ditto.query(
+        [{
+          kinds: [1985],
+          '#L': ['pub.ditto.trends'],
+          '#l': ['#t'],
+          limit: 1,
+        }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
-      // Count hashtag usage
-      const tagCounts = new Map<string, number>();
-      for (const event of events) {
-        const tTags = event.tags.filter(([name]) => name === 't');
-        const seen = new Set<string>();
-        for (const [, value] of tTags) {
-          const normalized = value.toLowerCase();
-          if (!seen.has(normalized)) {
-            seen.add(normalized);
-            tagCounts.set(normalized, (tagCounts.get(normalized) || 0) + 1);
-          }
-        }
-      }
+      if (events.length === 0) return [];
 
-      // Sort by count and take top 5
-      return Array.from(tagCounts.entries())
-        .map(([tag, count]) => ({ tag, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      // The label event contains `t` tags for each trending hashtag
+      const tTags = events[0].tags.filter(([name]) => name === 't');
+      return tTags.map(([, tag], index) => ({
+        tag: tag.toLowerCase(),
+        // Use reverse index as a rough popularity signal (first = most trending)
+        count: tTags.length - index,
+      }));
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+/**
+ * Fetches trending event IDs from relay.ditto.pub via kind 1985 label events,
+ * then fetches the actual events.
+ */
+export function useTrendingPosts(enabled = true) {
+  const { nostr } = useNostr();
+
+  return useQuery<NostrEvent[]>({
+    queryKey: ['trending-posts'],
+    queryFn: async ({ signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const labelEvents = await ditto.query(
+        [{
+          kinds: [1985],
+          '#L': ['pub.ditto.trends'],
+          '#l': ['#e'],
+          limit: 1,
+        }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+
+      if (labelEvents.length === 0) return [];
+
+      // Extract event IDs from `e` tags
+      const eventIds = labelEvents[0].tags
+        .filter(([name]) => name === 'e')
+        .map(([, id]) => id)
+        .filter(Boolean);
+
+      if (eventIds.length === 0) return [];
+
+      // Fetch the actual events
+      const events = await nostr.query(
+        [{ ids: eventIds.slice(0, 10), limit: 10 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+
+      // Sort by the order they appeared in the label event (first = most trending)
+      const idOrder = new Map(eventIds.map((id, i) => [id, i]));
+      return events.sort((a, b) => (idOrder.get(a.id) ?? 999) - (idOrder.get(b.id) ?? 999));
+    },
+    enabled,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export type SortMode = 'hot' | 'rising' | 'controversial';
+
+/**
+ * Fetches sorted posts from relay.ditto.pub using NIP-50 search extensions.
+ * Supports sort:hot, sort:rising, sort:controversial.
+ */
+export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
+  const { nostr } = useNostr();
+
+  return useQuery<NostrEvent[]>({
+    queryKey: ['sorted-posts', sort, limit],
+    queryFn: async ({ signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const events = await ditto.query(
+        [{ kinds: [1], search: `sort:${sort}`, limit }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+      return events;
     },
     enabled,
     staleTime: 5 * 60 * 1000,
