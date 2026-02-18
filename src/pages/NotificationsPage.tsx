@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Bell, Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -66,11 +66,8 @@ export function NotificationsPage() {
   return (
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        {/* Header */}
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 h-20 bg-background/80 backdrop-blur-md z-10')}>
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
+        {/* Header — desktop only */}
+        <div className={cn(STICKY_HEADER_CLASS, 'hidden sidebar:flex items-center gap-4 px-4 h-20 bg-background/80 backdrop-blur-md z-10')}>
           <div className="flex items-center gap-2">
             <Bell className="size-5" />
             <h1 className="text-xl font-bold">Notifications</h1>
@@ -78,7 +75,7 @@ export function NotificationsPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-border">
+        <div className="flex border-b border-border sidebar:sticky sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           {tabs.map(({ key, label }) => (
             <button
               key={key}

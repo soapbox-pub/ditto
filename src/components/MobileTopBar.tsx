@@ -27,7 +27,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
 
       {/* Center: Mew logo */}
       <div className="flex-1 flex items-center justify-center">
-        <MewLogo size={22} />
+        <MewLogo size={28} />
       </div>
 
       {/* Right: spacer for symmetry */}
