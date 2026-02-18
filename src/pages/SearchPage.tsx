@@ -309,7 +309,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
     <button
       onClick={onClick}
       className={cn(
-        'flex-1 py-3.5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        'flex-1 py-3.5 sidebar:py-5 text-center text-sm font-medium transition-colors relative hover:bg-secondary/40',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
