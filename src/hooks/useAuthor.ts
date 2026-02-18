@@ -15,7 +15,7 @@ type Nostr = ReturnType<typeof useNostr>['nostr'];
 type QueryClient = ReturnType<typeof useQueryClient>;
 
 interface PendingEntry {
-  resolve: (data: { event: NostrEvent; metadata?: NostrMetadata }) => void;
+  resolve: (data: { event?: NostrEvent; metadata?: NostrMetadata }) => void;
   reject: (err: Error) => void;
 }
 
@@ -57,9 +57,10 @@ async function flushBatch() {
       { signal: AbortSignal.timeout(5000) },
     );
   } catch {
-    // Relay error — reject all so TanStack retries
+    // Relay error — resolve all with {} so components show fallback names
+    // without triggering retries that would flood the relay
     for (const [, entries] of batch) {
-      for (const e of entries) e.reject(new Error('relay timeout'));
+      for (const e of entries) e.resolve({});
     }
     return;
   }
@@ -72,15 +73,13 @@ async function flushBatch() {
   }
 
   for (const [pubkey, entries] of batch) {
-    const data = results.get(pubkey);
-    if (data) {
-      // Seed cache as fresh — updatedAt prevents immediate stale refetch
+    const data = results.get(pubkey) ?? {};
+    // Only seed cache for real profile data — don't permanently cache {}
+    // for missing profiles (they may exist on other relays or be fetched later)
+    if (results.has(pubkey)) {
       qc.setQueryData(['author', pubkey], data, { updatedAt: Date.now() });
-      for (const e of entries) e.resolve(data);
-    } else {
-      // Profile not found — reject so TanStack retries rather than caching {}
-      for (const e of entries) e.reject(new Error('profile not found'));
     }
+    for (const e of entries) e.resolve(data);
   }
 }
 
@@ -107,8 +106,7 @@ export function useAuthor(pubkey: string | undefined) {
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    retry: 2,
-    retryDelay: 1000,
+    retry: false,
   });
 }
 

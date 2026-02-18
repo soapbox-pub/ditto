@@ -35,6 +35,7 @@ export function Feed() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
+    isFetching,
   } = useFeed(activeTab);
 
   const handleRefresh = useCallback(async () => {
@@ -44,10 +45,10 @@ export function Feed() {
   const { ref, inView } = useInView();
 
   useEffect(() => {
-    if (inView && hasNextPage && !isFetchingNextPage) {
+    if (inView && hasNextPage && !isFetching) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetching, fetchNextPage]);
 
   // Flatten pages and deduplicate by event id
   const feedItems = useMemo(() => {
