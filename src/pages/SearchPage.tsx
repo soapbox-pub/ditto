@@ -13,11 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useTrendingTags, useSortedPosts } from '@/hooks/useTrending';
+import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
+
 
 type TabType = 'posts' | 'trends' | 'accounts';
 
@@ -34,6 +34,7 @@ export function SearchPage() {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab === 'trends' || initialTab === 'accounts' ? initialTab : 'posts');
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(true);
+  const [trendSort, setTrendSort] = useState<SortMode>('hot');
 
   // Sync search query and tab to URL params
   useEffect(() => {
@@ -65,9 +66,7 @@ export function SearchPage() {
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
-  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isTrendsTab);
-  const { data: risingPosts, isLoading: risingLoading } = useSortedPosts('rising', 5, isTrendsTab);
-  const { data: controversialPosts, isLoading: controversialLoading } = useSortedPosts('controversial', 5, isTrendsTab);
+  const { data: sortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
 
   return (
     <MainLayout>
@@ -213,29 +212,29 @@ export function SearchPage() {
               <EmptyState message="No trending hashtags right now." />
             )}
 
-            {/* Hot Posts */}
-            <SortedPostsSection
-              title="Hot"
-              icon={<Flame className="size-5 text-primary" />}
-              posts={hotPosts}
-              isLoading={hotLoading}
-            />
+            {/* Sort sub-tabs */}
+            <div className="flex border-b border-border">
+              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} />
+              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} />
+              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} />
+            </div>
 
-            {/* Rising Posts */}
-            <SortedPostsSection
-              title="Rising"
-              icon={<TrendingUp className="size-5 text-primary" />}
-              posts={risingPosts}
-              isLoading={risingLoading}
-            />
-
-            {/* Controversial Posts */}
-            <SortedPostsSection
-              title="Controversial"
-              icon={<Swords className="size-5 text-primary" />}
-              posts={controversialPosts}
-              isLoading={controversialLoading}
-            />
+            {/* Sorted posts */}
+            {sortedLoading ? (
+              <div className="divide-y divide-border">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <PostSkeleton key={i} />
+                ))}
+              </div>
+            ) : sortedPosts && sortedPosts.length > 0 ? (
+              <div>
+                {sortedPosts.slice(0, 5).map((event) => (
+                  <NoteCard key={event.id} event={event} />
+                ))}
+              </div>
+            ) : (
+              <EmptyState message={`No ${trendSort} posts right now.`} />
+            )}
           </div>
         )}
 
@@ -287,34 +286,21 @@ export function SearchPage() {
 
 /* ── Shared sub-components ── */
 
-function SortedPostsSection({ title, icon, posts, isLoading }: {
-  title: string;
-  icon: React.ReactNode;
-  posts: NostrEvent[] | undefined;
-  isLoading: boolean;
-}) {
+function SortTabButton({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
   return (
-    <>
-      <div className="px-4 pt-6 pb-2 flex items-center gap-2">
-        {icon}
-        <h3 className="text-lg font-bold">{title}</h3>
-      </div>
-      {isLoading ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <PostSkeleton key={i} />
-          ))}
-        </div>
-      ) : posts && posts.length > 0 ? (
-        <div>
-          {posts.slice(0, 5).map((event) => (
-            <NoteCard key={event.id} event={event} />
-          ))}
-        </div>
-      ) : (
-        <EmptyState message={`No ${title.toLowerCase()} posts right now.`} />
+    <button
+      onClick={onClick}
+      className={cn(
+        'flex-1 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors relative hover:bg-secondary/40',
+        active ? 'text-foreground' : 'text-muted-foreground',
       )}
-    </>
+    >
+      {icon}
+      {label}
+      {active && (
+        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+      )}
+    </button>
   );
 }
 
