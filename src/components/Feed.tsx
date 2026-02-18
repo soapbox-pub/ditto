@@ -215,11 +215,10 @@ function PageBoundary({
 }) {
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: '800px', // Start loading well before the user reaches this page
   });
 
   useEffect(() => {
-    // Trigger next page when this page comes into view
+    // Trigger next page when this page boundary comes into view
     // Skip page 0 since it auto-loads page 1
     if (inView && pageIndex > 0 && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
       onLoadNext();

@@ -609,7 +609,9 @@ export function ProfilePage() {
   const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
 
   // Infinite scroll sentinel
-  const { ref: scrollRef, inView } = useInView();
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+  });
 
   useEffect(() => {
     if (!inView) return;
