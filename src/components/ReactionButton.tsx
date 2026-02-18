@@ -97,9 +97,9 @@ export function ReactionButton({
           }}
         >
           {hasReacted ? (
-            <span className="text-base leading-none size-[18px] flex items-center justify-center">{userReaction}</span>
+            <span className="text-base leading-none size-5 flex items-center justify-center">{userReaction}</span>
           ) : (
-            <Heart className="size-[18px]" />
+            <Heart className="size-5" />
           )}
           {displayCount > 0 && (
             <span className="text-sm tabular-nums">{displayCount}</span>

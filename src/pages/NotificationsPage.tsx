@@ -530,13 +530,13 @@ function ActionButtons({
   const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
 
   return (
-    <div className="flex items-center gap-6 mt-3 -ml-2 mb-1">
+    <div className="flex items-center gap-4 mt-3 -ml-2 mb-1">
       <button
         className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
         title="Reply"
         onClick={(e) => { e.stopPropagation(); onReply(); }}
       >
-        <MessageCircle className="size-[18px]" />
+        <MessageCircle className="size-5" />
         {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
       </button>
 
@@ -545,7 +545,7 @@ function ActionButtons({
         title="Repost"
         onClick={(e) => e.stopPropagation()}
       >
-        <Repeat2 className="size-[18px]" />
+        <Repeat2 className="size-5" />
         {stats?.reposts ? <span className="text-sm tabular-nums">{stats.reposts}</span> : null}
       </button>
 
@@ -562,7 +562,7 @@ function ActionButtons({
             className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
             title="Zap"
           >
-            <Zap className="size-[18px]" />
+            <Zap className="size-5" />
             {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
           </button>
         </ZapDialog>
@@ -573,7 +573,7 @@ function ActionButtons({
         title="More"
         onClick={(e) => { e.stopPropagation(); onMore(); }}
       >
-        <MoreHorizontal className="size-[18px]" />
+        <MoreHorizontal className="size-5" />
       </button>
     </div>
   );

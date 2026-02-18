@@ -644,7 +644,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             title="Reply"
             onClick={() => setReplyOpen(true)}
           >
-            <MessageCircle className="size-[18px]" />
+            <MessageCircle className="size-5" />
             {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
           </button>
 
@@ -654,7 +654,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             title="Reposts"
             onClick={() => openInteractions('reposts')}
           >
-            <Repeat2 className="size-[18px]" />
+            <Repeat2 className="size-5" />
             {repostTotal ? <span className="text-xs">{repostTotal}</span> : null}
           </button>
 
@@ -673,7 +673,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
                 title="Zaps"
               >
-                <Zap className="size-[18px]" />
+                <Zap className="size-5" />
                 {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
               </button>
             </ZapDialog>
@@ -685,7 +685,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             title="More"
             onClick={() => setMoreMenuOpen(true)}
           >
-            <MoreHorizontal className="size-[18px]" />
+            <MoreHorizontal className="size-5" />
           </button>
         </div>
 
