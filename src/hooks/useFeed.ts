@@ -152,61 +152,54 @@ export function useFeed(tab: 'follows' | 'global') {
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
 
-      // --- Pre-populate author and stats caches ---
-      // By seeding the cache here, inside the queryFn, we guarantee that
-      // ['author', pubkey] and ['event-stats', id] are populated *before*
-      // React re-renders and NoteCard's individual hooks run. This eliminates
-      // the race where NoteCards mount and fire per-card queries before the
-      // batch results arrive.
+      // --- Pre-populate author and stats caches in parallel ---
+      // Seeding here, inside the queryFn, guarantees caches are populated
+      // before React re-renders and NoteCard's individual hooks run —
+      // eliminating the race where per-card queries fire before batch results arrive.
+      // We only fetch what isn't already cached, and we never seed empty entries
+      // so that mentions / quoted-note authors can still resolve via useAuthor.
 
-      // Authors — only fetch pubkeys not already cached
       const pubkeysToFetch = [...new Set(
         items.flatMap((item) => item.repostedBy ? [item.event.pubkey, item.repostedBy] : [item.event.pubkey]),
       )].filter((pk) => queryClient.getQueryData(['author', pk]) === undefined);
 
-      if (pubkeysToFetch.length > 0) {
-        try {
-          const profileEvents = await nostr.query(
-            [{ kinds: [0], authors: pubkeysToFetch, limit: pubkeysToFetch.length }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-          );
-          for (const ev of profileEvents) {
-            let metadata: NostrMetadata | undefined;
-            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-            queryClient.setQueryData(['author', ev.pubkey], { event: ev, metadata });
-          }
-          // Seed empty entry for any pubkey that returned no profile
-          for (const pk of pubkeysToFetch) {
-            if (queryClient.getQueryData(['author', pk]) === undefined) {
-              queryClient.setQueryData(['author', pk], {});
-            }
-          }
-        } catch {
-          // Timeout or abort — NoteCard's individual useAuthor will handle it
-        }
-      }
-
-      // Stats — only fetch event IDs not already cached
       const eventIdsToFetch = items
         .map((item) => item.event.id)
         .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
 
-      if (eventIdsToFetch.length > 0) {
-        try {
-          const statEvents = await nostr.query(
-            [
-              { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
-              { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
-            ],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) },
-          );
-          for (const id of eventIdsToFetch) {
-            queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
-          }
-        } catch {
-          // Timeout or abort — NoteCard's individual useEventStats will handle it
-        }
-      }
+      await Promise.all([
+        // Fetch author profiles
+        pubkeysToFetch.length > 0
+          ? nostr.query(
+              [{ kinds: [0], authors: pubkeysToFetch, limit: pubkeysToFetch.length }],
+              { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+            ).then((profileEvents) => {
+              for (const ev of profileEvents) {
+                let metadata: NostrMetadata | undefined;
+                try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+                queryClient.setQueryData(['author', ev.pubkey], { event: ev, metadata });
+              }
+              // Note: we intentionally do NOT seed {} for pubkeys with no profile.
+              // Doing so would block useAuthor from querying for mentioned users
+              // whose pubkeys weren't in the feed events themselves.
+            }).catch(() => { /* timeout — per-card useAuthor will handle it */ })
+          : Promise.resolve(),
+
+        // Fetch interaction stats
+        eventIdsToFetch.length > 0
+          ? nostr.query(
+              [
+                { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
+                { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
+              ],
+              { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) },
+            ).then((statEvents) => {
+              for (const id of eventIdsToFetch) {
+                queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
+              }
+            }).catch(() => { /* timeout — per-card useEventStats will handle it */ })
+          : Promise.resolve(),
+      ]);
 
       return items;
     },
