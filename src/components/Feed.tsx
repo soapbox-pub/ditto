@@ -53,6 +53,7 @@ export function Feed() {
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
     threshold: 0,
+    rootMargin: '400px', // Trigger 400px before the element comes into view
   });
 
   useEffect(() => {
