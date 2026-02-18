@@ -1,9 +1,6 @@
-import { useNostr } from '@nostrify/react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrFilter } from '@nostrify/nostrify';
-
+import { useMemo } from 'react';
+import { useEncryptedSettings } from './useEncryptedSettings';
 import { useCurrentUser } from './useCurrentUser';
-import { useNostrPublish } from './useNostrPublish';
 
 export interface ContentFilter {
   id: string;
@@ -22,69 +19,24 @@ export interface FilterRule {
   caseSensitive?: boolean;
 }
 
-const CONTENT_FILTERS_D_TAG = 'mew-content-filters';
-
 /**
- * Hook to manage encrypted client-side content filters using NIP-78
- * Stores filters as encrypted JSON in kind 30078 events
+ * Hook to manage encrypted client-side content filters using unified encrypted settings
+ * Stores filters as part of encrypted app settings in NIP-78
  */
 export function useContentFilters() {
-  const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const queryClient = useQueryClient();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const { settings, updateSettings, isLoading, isError, error, hasNip44Support } = useEncryptedSettings();
 
-  // Query the content filters event
-  const query = useQuery({
-    queryKey: ['contentFilters', user?.pubkey],
-    queryFn: async () => {
-      if (!user) return null;
-
-      const filter: NostrFilter = {
-        kinds: [30078],
-        authors: [user.pubkey],
-        '#d': [CONTENT_FILTERS_D_TAG],
-        limit: 1,
-      };
-
-      const events = await nostr.query([filter]);
-      if (events.length === 0) return null;
-
-      return events[0];
-    },
-    enabled: !!user,
-  });
-
-  // Parse filters from encrypted content
-  const filters = useQuery({
-    queryKey: ['parsedFilters', query.data?.id],
-    queryFn: async () => {
-      const event = query.data;
-      if (!event || !user) return [];
-
-      // Decrypt the content
-      if (!event.content || !user.signer.nip44) {
-        return [];
-      }
-
-      try {
-        const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-        const parsed = JSON.parse(decrypted) as ContentFilter[];
-        return parsed;
-      } catch (error) {
-        console.error('Failed to decrypt content filters:', error);
-        return [];
-      }
-    },
-    enabled: !!query.data && !!user,
-  });
+  const filters = useMemo(() => {
+    return settings?.contentFilters || [];
+  }, [settings]);
 
   // Add a new filter
-  const addFilter = useMutation({
-    mutationFn: async (filter: Omit<ContentFilter, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addFilter = {
+    mutateAsync: async (filter: Omit<ContentFilter, 'id' | 'createdAt' | 'updatedAt'>) => {
       if (!user) throw new Error('User not logged in');
 
-      const currentFilters = filters.data || [];
+      const currentFilters = filters;
       const newFilter: ContentFilter = {
         ...filter,
         id: crypto.randomUUID(),
@@ -93,86 +45,59 @@ export function useContentFilters() {
       };
 
       const updatedFilters = [...currentFilters, newFilter];
-      await saveFilters(updatedFilters);
+      await updateSettings.mutateAsync({ contentFilters: updatedFilters });
       return newFilter;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contentFilters', user?.pubkey] });
-    },
-  });
+    isPending: updateSettings.isPending,
+  };
 
   // Update an existing filter
-  const updateFilter = useMutation({
-    mutationFn: async (filter: ContentFilter) => {
+  const updateFilter = {
+    mutateAsync: async (filter: ContentFilter) => {
       if (!user) throw new Error('User not logged in');
 
-      const currentFilters = filters.data || [];
+      const currentFilters = filters;
       const updatedFilters = currentFilters.map((f) =>
         f.id === filter.id ? { ...filter, updatedAt: Date.now() } : f
       );
 
-      await saveFilters(updatedFilters);
+      await updateSettings.mutateAsync({ contentFilters: updatedFilters });
       return filter;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contentFilters', user?.pubkey] });
-    },
-  });
+    isPending: updateSettings.isPending,
+  };
 
   // Delete a filter
-  const deleteFilter = useMutation({
-    mutationFn: async (filterId: string) => {
+  const deleteFilter = {
+    mutateAsync: async (filterId: string) => {
       if (!user) throw new Error('User not logged in');
 
-      const currentFilters = filters.data || [];
+      const currentFilters = filters;
       const updatedFilters = currentFilters.filter((f) => f.id !== filterId);
 
-      await saveFilters(updatedFilters);
+      await updateSettings.mutateAsync({ contentFilters: updatedFilters });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contentFilters', user?.pubkey] });
-    },
-  });
+    isPending: updateSettings.isPending,
+  };
 
   // Toggle filter enabled state
-  const toggleFilter = useMutation({
-    mutationFn: async (filterId: string) => {
+  const toggleFilter = {
+    mutateAsync: async (filterId: string) => {
       if (!user) throw new Error('User not logged in');
 
-      const currentFilters = filters.data || [];
+      const currentFilters = filters;
       const updatedFilters = currentFilters.map((f) =>
         f.id === filterId ? { ...f, enabled: !f.enabled, updatedAt: Date.now() } : f
       );
 
-      await saveFilters(updatedFilters);
+      await updateSettings.mutateAsync({ contentFilters: updatedFilters });
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['contentFilters', user?.pubkey] });
-    },
-  });
-
-  // Save filters to Nostr
-  const saveFilters = async (filtersToSave: ContentFilter[]) => {
-    if (!user) throw new Error('User not logged in');
-    if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
-
-    // Encrypt the filters
-    const plaintext = JSON.stringify(filtersToSave);
-    const encrypted = await user.signer.nip44.encrypt(user.pubkey, plaintext);
-
-    await publishEvent({
-      kind: 30078,
-      content: encrypted,
-      tags: [
-        ['d', CONTENT_FILTERS_D_TAG],
-        ['title', 'Mew Content Filters'],
-      ],
-    });
+    isPending: updateSettings.isPending,
   };
 
   // Apply filters to a Nostr event
   const shouldFilterEvent = (event: any): boolean => {
-    const enabledFilters = (filters.data || []).filter((f) => f.enabled);
+    const enabledFilters = filters.filter((f) => f.enabled);
     if (enabledFilters.length === 0) return false;
 
     return enabledFilters.some((filter) => {
@@ -231,15 +156,15 @@ export function useContentFilters() {
   };
 
   return {
-    filters: filters.data || [],
-    isLoading: query.isLoading || filters.isLoading,
-    isError: query.isError || filters.isError,
-    error: query.error || filters.error,
+    filters,
+    isLoading,
+    isError,
+    error,
     addFilter,
     updateFilter,
     deleteFilter,
     toggleFilter,
     shouldFilterEvent,
-    hasNip44Support: !!user?.signer.nip44,
+    hasNip44Support,
   };
 }

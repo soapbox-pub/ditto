@@ -1,11 +1,12 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Settings as SettingsIcon, VolumeX } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { RelayListManager } from '@/components/RelayListManager';
 import { FeedSettingsForm } from '@/components/FeedSettingsForm';
 import { WalletSettings } from '@/components/WalletSettings';
+import { MuteSettings } from '@/components/MuteSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
@@ -47,10 +48,7 @@ export function SettingsPage() {
             !user ? (
               <p className="text-center text-muted-foreground py-8">Log in to manage your mute list.</p>
             ) : (
-              <div className="py-16 text-center space-y-3">
-                <VolumeX className="size-10 mx-auto text-muted-foreground/50" />
-                <p className="text-muted-foreground">Mute list management coming soon.</p>
-              </div>
+              <MuteSettings />
             )
           ) : activeSection === 'feed' ? (
             <FeedSettingsForm />

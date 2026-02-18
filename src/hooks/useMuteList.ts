@@ -9,12 +9,11 @@ import { useNostrPublish } from './useNostrPublish';
 export interface MuteListItem {
   type: 'pubkey' | 'hashtag' | 'word' | 'thread';
   value: string;
-  isPrivate: boolean;
 }
 
 /**
  * Hook to manage NIP-51 mute lists (kind 10000)
- * Supports both public and encrypted private mute items
+ * All mute items are encrypted for privacy
  */
 export function useMuteList() {
   const { nostr } = useNostr();
@@ -49,57 +48,38 @@ export function useMuteList() {
       const event = query.data;
       if (!event || !user) return [];
 
-      const items: MuteListItem[] = [];
-
-      // Parse public items from tags
-      for (const tag of event.tags) {
-        const [tagName, value] = tag;
-        if (!value) continue;
-
-        switch (tagName) {
-          case 'p':
-            items.push({ type: 'pubkey', value, isPrivate: false });
-            break;
-          case 't':
-            items.push({ type: 'hashtag', value, isPrivate: false });
-            break;
-          case 'word':
-            items.push({ type: 'word', value, isPrivate: false });
-            break;
-          case 'e':
-            items.push({ type: 'thread', value, isPrivate: false });
-            break;
-        }
+      // All mutes are encrypted in content field
+      if (!event.content || !user.signer.nip44) {
+        return [];
       }
 
-      // Parse encrypted private items from content
-      if (event.content && user.signer.nip44) {
-        try {
-          const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-          const privateTags = JSON.parse(decrypted) as string[][];
+      const items: MuteListItem[] = [];
 
-          for (const tag of privateTags) {
-            const [tagName, value] = tag;
-            if (!value) continue;
+      try {
+        const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
+        const tags = JSON.parse(decrypted) as string[][];
 
-            switch (tagName) {
-              case 'p':
-                items.push({ type: 'pubkey', value, isPrivate: true });
-                break;
-              case 't':
-                items.push({ type: 'hashtag', value, isPrivate: true });
-                break;
-              case 'word':
-                items.push({ type: 'word', value, isPrivate: true });
-                break;
-              case 'e':
-                items.push({ type: 'thread', value, isPrivate: true });
-                break;
-            }
+        for (const tag of tags) {
+          const [tagName, value] = tag;
+          if (!value) continue;
+
+          switch (tagName) {
+            case 'p':
+              items.push({ type: 'pubkey', value });
+              break;
+            case 't':
+              items.push({ type: 'hashtag', value });
+              break;
+            case 'word':
+              items.push({ type: 'word', value });
+              break;
+            case 'e':
+              items.push({ type: 'thread', value });
+              break;
           }
-        } catch (error) {
-          console.error('Failed to decrypt private mute items:', error);
         }
+      } catch (error) {
+        console.error('Failed to decrypt mute items:', error);
       }
 
       return items;
@@ -138,7 +118,7 @@ export function useMuteList() {
 
       const currentItems = muteItems.data || [];
       const newItems = currentItems.filter(
-        (i) => !(i.type === item.type && i.value === item.value && i.isPrivate === item.isPrivate)
+        (i) => !(i.type === item.type && i.value === item.value)
       );
 
       await updateMuteList(newItems);
@@ -151,9 +131,9 @@ export function useMuteList() {
   // Update entire mute list
   const updateMuteList = async (items: MuteListItem[]) => {
     if (!user) throw new Error('User not logged in');
+    if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported');
 
-    const publicTags: string[][] = [];
-    const privateTags: string[][] = [];
+    const tags: string[][] = [];
 
     for (const item of items) {
       const tag = [
@@ -163,25 +143,17 @@ export function useMuteList() {
         'e',
         item.value,
       ];
-
-      if (item.isPrivate) {
-        privateTags.push(tag);
-      } else {
-        publicTags.push(tag);
-      }
+      tags.push(tag);
     }
 
-    // Encrypt private tags if NIP-44 is available
-    let content = '';
-    if (privateTags.length > 0 && user.signer.nip44) {
-      const plaintext = JSON.stringify(privateTags);
-      content = await user.signer.nip44.encrypt(user.pubkey, plaintext);
-    }
+    // Encrypt all mutes
+    const plaintext = JSON.stringify(tags);
+    const content = await user.signer.nip44.encrypt(user.pubkey, plaintext);
 
     await publishEvent({
       kind: 10000,
       content,
-      tags: publicTags,
+      tags: [], // No public tags, everything encrypted
     });
   };
 

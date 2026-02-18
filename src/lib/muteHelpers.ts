@@ -84,7 +84,6 @@ export function getMuteSummary(muteItems: MuteListItem[]): {
     words: muteItems.filter((item) => item.type === 'word').length,
     threads: muteItems.filter((item) => item.type === 'thread').length,
     total: muteItems.length,
-    hasPrivate: muteItems.some((item) => item.isPrivate),
   };
 }
 
