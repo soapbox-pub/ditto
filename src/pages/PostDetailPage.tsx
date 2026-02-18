@@ -19,6 +19,7 @@ import { InteractionsModal, type InteractionTab } from '@/components/Interaction
 import { ZapDialog } from '@/components/ZapDialog';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
+import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
@@ -225,13 +226,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
-  // Kind detection — mirrors NoteCard
-  const isVine = event.kind === 34236;
-  const isPoll = event.kind === 1068;
-  const isGeocache = event.kind === 37516;
-  const isColor = event.kind === 3367;
-  const isFollowPack = event.kind === 39089 || event.kind === 30000;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor && !isFollowPack;
+    // Kind detection — mirrors NoteCard
+    const isVine = event.kind === 34236;
+    const isPoll = event.kind === 1068;
+    const isGeocache = event.kind === 37516;
+    const isFoundLog = event.kind === 7516;
+    const isColor = event.kind === 3367;
+    const isFollowPack = event.kind === 39089 || event.kind === 30000;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack;
 
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -300,10 +302,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         </div>
 
         {/* Post content — kind-based dispatch (same as NoteCard) */}
-        {isVine || isPoll || isGeocache || isColor || isFollowPack ? (
+        {isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
           <>
             {isPoll && <PollContent event={event} />}
             {isGeocache && <GeocacheContent event={event} />}
+            {isFoundLog && <FoundLogContent event={event} />}
             {isColor && <ColorMomentContent event={event} />}
             {isFollowPack && <FollowPackContent event={event} />}
           </>

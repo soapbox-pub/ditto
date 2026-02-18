@@ -8,8 +8,10 @@ import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
+import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
@@ -131,9 +133,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const isVine = event.kind === 34236;
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
+  const isFoundLog = event.kind === 7516;
+  const isTreasure = isGeocache || isFoundLog;
   const isColor = event.kind === 3367;
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor && !isFollowPack;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack;
 
   // Kind 1 specific
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
@@ -158,6 +162,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Repost header */}
       {repostedBy && (
         <RepostHeader pubkey={repostedBy} />
+      )}
+
+      {/* Treasure header — "<chest> <name> hid/found a treasure" */}
+      {isTreasure && (
+        <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
       )}
 
       {/* Reply context (kind 1 only) */}
@@ -223,6 +232,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         <PollContent event={event} />
       ) : isGeocache ? (
         <GeocacheContent event={event} />
+      ) : isFoundLog ? (
+        <FoundLogContent event={event} />
       ) : isColor ? (
         <ColorMomentContent event={event} />
       ) : isFollowPack ? (
@@ -418,6 +429,31 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
         </Link>
       )}
       <span className={author.isLoading ? 'ml-1' : ''}>reposted</span>
+    </div>
+  );
+}
+
+function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 'found' }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+
+  return (
+    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14">
+      <ChestIcon className="size-3.5 mr-1.5" />
+      {author.isLoading ? (
+        <Skeleton className="h-3 w-20 inline-block" />
+      ) : (
+        <Link
+          to={`/${nip19.npubEncode(pubkey)}`}
+          className="font-medium hover:underline mr-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {name}
+        </Link>
+      )}
+      <span className={author.isLoading ? 'ml-1' : ''}>
+        {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
+      </span>
     </div>
   );
 }
