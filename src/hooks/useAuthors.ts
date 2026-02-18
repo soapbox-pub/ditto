@@ -25,10 +25,6 @@ export function useAuthors(pubkeys: string[]) {
   const queryClient = useQueryClient();
   const { config } = useAppContext();
 
-  // Get the effective relays (same ones used by the pool)
-  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-  const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
-
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
 
@@ -38,6 +34,11 @@ export function useAuthors(pubkeys: string[]) {
       if (uniquePubkeys.length === 0) {
         return new Map();
       }
+
+      // Get the effective relays (same ones used by the pool) - do this inside queryFn
+      // so we have the latest relay configuration when the query executes
+      const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
+      const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
 
       const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
@@ -68,6 +69,7 @@ export function useAuthors(pubkeys: string[]) {
       // individually with more time (5000ms vs 500ms EOSE timeout).
       const missing = uniquePubkeys.filter(pk => !found.has(pk));
       if (missing.length > 0 && readRelayUrls.length > 0) {
+        console.log('[useAuthors] Loser race for', missing.length, 'missing profiles on', readRelayUrls.length, 'relays');
         await new Promise<void>((resolve) => {
           const needed = new Set(missing);
           let pending = readRelayUrls.length;
@@ -77,6 +79,9 @@ export function useAuthors(pubkeys: string[]) {
               [{ kinds: [0], authors: missing, limit: missing.length }],
               { signal: combinedSignal },
             ).then((relayEvents) => {
+              if (relayEvents.length > 0) {
+                console.log('[useAuthors] Found', relayEvents.length, 'profiles on', url);
+              }
               for (const event of relayEvents) {
                 if (needed.has(event.pubkey)) {
                   const parsed = parseAuthorEvent(event);
@@ -87,11 +92,13 @@ export function useAuthors(pubkeys: string[]) {
               }
               if (needed.size === 0) resolve();
               if (--pending === 0) resolve();
-            }).catch(() => {
+            }).catch((err) => {
+              console.warn('[useAuthors] Relay failed:', url, err);
               if (--pending === 0) resolve();
             });
           }
         });
+        console.log('[useAuthors] Loser race complete, still missing:', needed.size);
       }
 
       return authorMap;
