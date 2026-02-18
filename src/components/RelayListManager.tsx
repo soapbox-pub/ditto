@@ -28,13 +28,11 @@ export function RelayListManager() {
 
   const [relays, setRelays] = useState<Relay[]>(config.relayMetadata.relays);
   const [newRelayUrl, setNewRelayUrl] = useState('');
-  const [useAppRelays, setUseAppRelays] = useState(config.useAppRelays);
 
-  // Sync local state with config when it changes (e.g., from NostrProvider sync)
+  // Sync local relay state with config when it changes (e.g., from NostrProvider sync)
   useEffect(() => {
     setRelays(config.relayMetadata.relays);
-    setUseAppRelays(config.useAppRelays);
-  }, [config.relayMetadata.relays, config.useAppRelays]);
+  }, [config.relayMetadata.relays]);
 
   const normalizeRelayUrl = (url: string): string => {
     url = url.trim();
@@ -63,8 +61,6 @@ export function RelayListManager() {
   };
 
   const handleToggleAppRelays = async (enabled: boolean) => {
-    setUseAppRelays(enabled);
-    
     // Update local settings immediately
     updateConfig((current) => ({
       ...current,
@@ -228,11 +224,11 @@ export function RelayListManager() {
           </div>
           <div className="flex items-center gap-2">
             <Label htmlFor="use-app-relays" className="text-sm text-muted-foreground cursor-pointer">
-              {useAppRelays ? 'Enabled' : 'Disabled'}
+              {config.useAppRelays ? 'Enabled' : 'Disabled'}
             </Label>
             <Switch
               id="use-app-relays"
-              checked={useAppRelays}
+              checked={config.useAppRelays}
               onCheckedChange={handleToggleAppRelays}
             />
           </div>
@@ -242,7 +238,7 @@ export function RelayListManager() {
         </p>
         <div className={cn(
           "space-y-2 transition-opacity",
-          !useAppRelays && "opacity-50"
+          !config.useAppRelays && "opacity-50"
         )}>
           {APP_RELAYS.relays.map((relay) => (
             <div
