@@ -1,16 +1,28 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart } from 'lucide-react';
+import { User, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { useTheme } from '@/hooks/useTheme';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
+
+/** Map route name → icon for extra kind drawer items. */
+const ROUTE_ICONS: Record<string, React.ReactNode> = {
+  vines: <Clapperboard className="size-5" />,
+  polls: <BarChart3 className="size-5" />,
+  treasures: <ChestIcon className="size-5" />,
+  colors: <Palette className="size-5" />,
+  packs: <PartyPopper className="size-5" />,
+};
 
 
 interface MobileDrawerProps {
@@ -43,8 +55,20 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
   const { theme, setTheme } = useTheme();
+  const { feedSettings } = useFeedSettings();
   const navigate = useNavigate();
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+
+  /** Enabled extra-kind nav items, derived from feed settings. */
+  const extraKindItems = useMemo(() => {
+    return EXTRA_KINDS
+      .filter((def) => feedSettings[def.showKey])
+      .map((def) => ({
+        to: `/${def.route}`,
+        icon: ROUTE_ICONS[def.route] ?? <Palette className="size-5" />,
+        label: def.label,
+      }));
+  }, [feedSettings]);
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: 'dark', label: 'Mew', icon: <Cat className="size-5" /> },
@@ -120,6 +144,27 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 label="Settings"
                 onClick={handleClose}
               />
+
+              {/* Extra kind pages (Vines, Polls, Treasures, etc.) */}
+              {extraKindItems.length > 0 && (
+                <>
+                  <div className="my-2 mx-2">
+                    <Separator />
+                  </div>
+                  <p className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-muted-foreground uppercase tracking-wider">
+                    Other Stuff
+                  </p>
+                  {extraKindItems.map((item) => (
+                    <DrawerMenuItem
+                      key={item.to}
+                      to={item.to}
+                      icon={item.icon}
+                      label={item.label}
+                      onClick={handleClose}
+                    />
+                  ))}
+                </>
+              )}
 
               <button
                 onClick={() => {
