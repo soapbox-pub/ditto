@@ -14,10 +14,11 @@ The local relay is built using three main components:
 
 ### Automatic Caching
 
-Events are automatically cached to IndexedDB in two ways:
+Events are automatically cached to IndexedDB as they stream in from the network:
 
-1. **Query Results** - When you query relays, the local relay is included and returns cached events instantly
+1. **Incoming Events** - All events received from remote relays are automatically cached as they arrive
 2. **Published Events** - When you publish events, they're automatically stored locally via the `eventRouter`
+3. **No Syncing Required** - The cache builds naturally as you use the app, no background syncing needed
 
 ### Query Flow
 
@@ -25,37 +26,36 @@ When you query events with `nostr.query()`:
 
 1. The query is routed to the local relay (`local://indexeddb`) AND remote relays
 2. Local relay responds immediately with cached events from IndexedDB
-3. Remote relays respond with fresh events from the network
-4. Results are deduplicated by event ID
-5. New events from remote relays are automatically cached locally for future queries
+3. Remote relays stream fresh events from the network
+4. **Each event from remote relays is automatically cached as it arrives**
+5. Results are deduplicated by event ID
 
 This means you get:
 - **Instant results** from the local cache
 - **Fresh data** from remote relays
-- **Offline access** to previously cached events
+- **Automatic caching** of all events you encounter
+- **Offline access** to previously viewed content
 
-### Event Syncing
+### Streaming Cache Updates
 
-You can use the `useEventSync` hook to automatically sync events to the local cache:
+The NostrProvider intercepts the event stream from each relay and caches events in real-time:
 
 ```typescript
-import { useEventSync } from '@/hooks/useEventSync';
-
-function MyComponent() {
-  // Sync posts from users you follow
-  useEventSync({
-    filters: [
-      { kinds: [1], authors: followingPubkeys, limit: 100 }
-    ],
-    interval: 30000, // Sync every 30 seconds
-    onNewEvents: (count) => {
-      console.log(`Synced ${count} new events`);
-    }
-  });
-
-  // ...rest of component
-}
+// In NostrProvider - automatically happens for every query
+relay.req = async function* (filters, opts) {
+  for await (const event of originalReq(filters, opts)) {
+    // Cache each event as it streams in (fire and forget)
+    eventStore.addEvent(event, [url]);
+    yield event;
+  }
+};
 ```
+
+This means:
+- Posts are cached when you view the feed
+- Profiles are cached when you view author info
+- Replies are cached when you open a thread
+- No manual syncing required - the cache builds as you browse
 
 ## Settings UI
 
@@ -165,11 +165,16 @@ for await (const event of localRelay.req([{ kinds: [1] }])) {
 
 ## Comparison to mi
 
-This implementation is inspired by the local event storage system in the `mi` project, with the following differences:
+This implementation is inspired by the local event storage system in the `mi` project, with the following key differences:
 
 1. **Automatic integration** - The local relay is transparently integrated into the NPool, so all queries automatically include it
 2. **Relay interface** - Implements a full relay interface rather than just a storage layer
-3. **Composite indexes** - Includes a `kind_pubkey` composite index for more efficient queries
-4. **UI integration** - Displays cache status and management in the relay settings
+3. **Streaming cache** - Events are cached in real-time as they stream in from relays, not via polling/syncing
+4. **Composite indexes** - Includes a `kind_pubkey` composite index for more efficient queries
+5. **UI integration** - Displays cache status and management in the relay settings
 
-The key advantage is that you don't need to explicitly query the event store - it's automatically queried as part of every `nostr.query()` call, providing instant results from the cache while simultaneously fetching fresh data from remote relays.
+The key advantages:
+- **Zero configuration** - You don't need to explicitly query the event store or set up syncing
+- **Real-time caching** - Events are cached as they arrive, building the cache organically as you use the app
+- **Instant loads on refresh** - Profiles and posts load instantly from cache while fresh data streams in from relays
+- **No background syncing** - No polling intervals or sync hooks needed, everything happens naturally

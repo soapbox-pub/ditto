@@ -53,7 +53,22 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         if (url === 'local://indexeddb') {
           return localRelay as unknown as NRelay1;
         }
-        return new NRelay1(url);
+        
+        const relay = new NRelay1(url);
+        
+        // Intercept events as they stream in from remote relays and cache them
+        const originalReq = relay.req.bind(relay);
+        relay.req = async function* (filters: NostrFilter[], opts?: { signal?: AbortSignal }) {
+          for await (const event of originalReq(filters, opts)) {
+            // Cache event from this relay (fire and forget)
+            eventStore.addEvent(event, [url]).catch(error => {
+              console.debug('[NostrProvider] Failed to cache event from relay:', error);
+            });
+            yield event;
+          }
+        };
+        
+        return relay;
       },
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
