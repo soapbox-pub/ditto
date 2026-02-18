@@ -205,7 +205,7 @@ export function SearchPage() {
                 ))}
               </div>
             ) : trends && trends.length > 0 ? (
-              <div className="divide-y divide-border">
+              <div>
                 {trends.slice(0, 5).map((trend, index) => (
                   <TrendItem key={index} trend={trend} />
                 ))}
@@ -340,12 +340,12 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="flex items-center justify-between px-4 py-2 hover:bg-secondary/30 transition-colors"
+      className="flex items-center justify-between px-4 py-1.5 hover:bg-secondary/30 transition-colors"
     >
-      <div>
-        <div className="font-bold text-[15px]">#{trend.tag}</div>
+      <div className="flex items-center gap-2">
+        <span className="font-bold text-sm">#{trend.tag}</span>
         {trend.count > 0 && (
-          <div className="text-xs text-muted-foreground">{trend.count} posts</div>
+          <span className="text-xs text-muted-foreground"><span className="text-primary font-semibold">{trend.count}</span> posts</span>
         )}
       </div>
       <TrendSparkline />
