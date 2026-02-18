@@ -27,6 +27,8 @@ interface NoteCardProps {
   className?: string;
   /** If set, shows a "Reposted by" header with this pubkey. */
   repostedBy?: string;
+  /** If true, hide action buttons (used for embeds). */
+  compact?: boolean;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -114,7 +116,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
+export function NoteCard({ event, className, repostedBy, compact }: NoteCardProps) {
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -234,54 +236,58 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
         </>
       )}
 
-      {/* Action buttons */}
-      <div className="flex items-center gap-6 mt-3 -ml-2">
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="Reply"
-          onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
-        >
-          <MessageCircle className="size-[18px]" />
-          {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
-        </button>
+      {/* Action buttons — hidden in compact/embed mode */}
+      {!compact && (
+        <>
+          <div className="flex items-center gap-6 mt-3 -ml-2">
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="Reply"
+              onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
+            >
+              <MessageCircle className="size-[18px]" />
+              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+            </button>
 
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-          title="Repost"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <Repeat2 className="size-[18px]" />
-          {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-        </button>
+            <button
+              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+              title="Repost"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Repeat2 className="size-[18px]" />
+              {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+            </button>
 
-        <ReactionButton
-          eventId={event.id}
-          eventPubkey={event.pubkey}
-          eventKind={event.kind}
-          reactionCount={stats?.reactions}
-        />
+            <ReactionButton
+              eventId={event.id}
+              eventPubkey={event.pubkey}
+              eventKind={event.kind}
+              reactionCount={stats?.reactions}
+            />
 
-        <ZapDialog target={event}>
-          <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-            title="Zap"
-          >
-            <Zap className="size-[18px]" />
-            {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-          </button>
-        </ZapDialog>
+            <ZapDialog target={event}>
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                title="Zap"
+              >
+                <Zap className="size-[18px]" />
+                {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+              </button>
+            </ZapDialog>
 
-        <button
-          className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-          title="More"
-          onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-        >
-          <MoreHorizontal className="size-[18px]" />
-        </button>
-      </div>
+            <button
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              title="More"
+              onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+            >
+              <MoreHorizontal className="size-[18px]" />
+            </button>
+          </div>
 
-      <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-      <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+          <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+          <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+        </>
+      )}
     </article>
   );
 }

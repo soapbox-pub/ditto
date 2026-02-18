@@ -68,11 +68,11 @@ export function EmbeddedNaddr({ addr, className }: EmbeddedNaddrProps) {
     return null;
   }
 
-  // For follow packs / starter packs, render the same NoteCard used in feeds
+  // For follow packs / starter packs, render the same NoteCard used in feeds (without actions)
   if (NOTECARD_KINDS.has(event.kind)) {
     return (
       <div className={className} onClick={(e) => e.stopPropagation()}>
-        <NoteCard event={event} className="rounded-2xl border border-border !border-b overflow-hidden" />
+        <NoteCard event={event} compact className="rounded-2xl border border-border !border-b overflow-hidden" />
       </div>
     );
   }

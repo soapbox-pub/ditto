@@ -19,8 +19,6 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
     [event.tags],
   );
 
-  const isStarterPack = event.kind === 39089;
-
   // Only fetch first few avatars for the preview
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 8), [pubkeys]);
   const { data: membersMap } = useAuthors(previewPubkeys);
@@ -34,17 +32,6 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
-
-      {/* Badge + count */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-3">
-        <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
-          {isStarterPack ? 'Starter Pack' : 'Follow Set'}
-        </Badge>
-        <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
-          <Users className="size-3" />
-          {pubkeys.length} member{pubkeys.length !== 1 ? 's' : ''}
-        </Badge>
-      </div>
 
       {/* Description */}
       {description && (
@@ -68,9 +55,13 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Member avatar stack */}
+      {/* Member count pill + avatar stack */}
       {pubkeys.length > 0 && (
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-[11px] gap-1 font-medium shrink-0">
+            <Users className="size-3" />
+            {pubkeys.length}
+          </Badge>
           <div className="flex -space-x-2">
             {previewPubkeys.map((pk) => {
               const member = membersMap?.get(pk);
@@ -86,7 +77,7 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
             })}
           </div>
           {pubkeys.length > previewPubkeys.length && (
-            <span className="text-xs text-muted-foreground ml-2">
+            <span className="text-xs text-muted-foreground">
               +{pubkeys.length - previewPubkeys.length} more
             </span>
           )}
