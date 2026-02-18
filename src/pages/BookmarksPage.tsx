@@ -27,7 +27,10 @@ export function BookmarksPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">Bookmarks</h1>
+          <div className="flex items-center gap-2">
+            <Bookmark className="size-5" />
+            <h1 className="text-xl font-bold">Bookmarks</h1>
+          </div>
         </div>
 
         {/* Content */}

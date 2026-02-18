@@ -6,10 +6,11 @@ import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 interface PlaceholderPageProps {
   title: string;
+  icon?: React.ReactNode;
   description?: string;
 }
 
-export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
+export function PlaceholderPage({ title, icon, description }: PlaceholderPageProps) {
   useSeoMeta({
     title: `${title} | Mew`,
     description: description || `${title} page`,
@@ -22,7 +23,10 @@ export function PlaceholderPage({ title, description }: PlaceholderPageProps) {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">{title}</h1>
+          <div className="flex items-center gap-2">
+            {icon}
+            <h1 className="text-xl font-bold">{title}</h1>
+          </div>
         </div>
         <div className="py-20 text-center">
           <p className="text-muted-foreground text-lg">Coming soon</p>

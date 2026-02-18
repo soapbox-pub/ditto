@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, Bell, Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -71,7 +71,10 @@ export function NotificationsPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">Notifications</h1>
+          <div className="flex items-center gap-2">
+            <Bell className="size-5" />
+            <h1 className="text-xl font-bold">Notifications</h1>
+          </div>
         </div>
 
         {/* Tab bar */}

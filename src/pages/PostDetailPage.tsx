@@ -210,7 +210,10 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
         >
           <ArrowLeft className="size-5" />
         </button>
-        <h1 className="text-xl font-bold">Post Details</h1>
+        <div className="flex items-center gap-2">
+          <MessageCircle className="size-5" />
+          <h1 className="text-xl font-bold">Post Details</h1>
+        </div>
       </div>
 
       {children}

@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Hash } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -45,7 +45,10 @@ export function HashtagPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">#{tag}</h1>
+          <div className="flex items-center gap-2">
+            <Hash className="size-5" />
+            <h1 className="text-xl font-bold">#{tag}</h1>
+          </div>
         </div>
 
         {isLoading ? (

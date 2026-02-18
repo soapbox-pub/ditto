@@ -10,10 +10,11 @@ import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 interface KindFeedPageProps {
   kind: number;
   title: string;
+  icon?: React.ReactNode;
   emptyMessage?: string;
 }
 
-export function KindFeedPage({ kind, title, emptyMessage }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPageProps) {
   useSeoMeta({
     title: `${title} | Mew`,
     description: `${title} on Nostr`,
@@ -29,7 +30,10 @@ export function KindFeedPage({ kind, title, emptyMessage }: KindFeedPageProps) {
           <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">{title}</h1>
+          <div className="flex items-center gap-2">
+            {icon}
+            <h1 className="text-xl font-bold">{title}</h1>
+          </div>
         </div>
 
         {/* Feed */}

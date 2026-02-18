@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
@@ -26,7 +26,10 @@ export function SettingsPage() {
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <h1 className="text-xl font-bold">Settings</h1>
+          <div className="flex items-center gap-2">
+            <SettingsIcon className="size-5" />
+            <h1 className="text-xl font-bold">Settings</h1>
+          </div>
         </div>
 
         {/* Tab navigation */}

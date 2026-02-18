@@ -1,4 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { Clapperboard, BarChart3, MapPin, Palette, PartyPopper, VolumeX } from "lucide-react";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
@@ -27,14 +28,14 @@ export function AppRouter() {
         <Route path="/t/:tag" element={<HashtagPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/:section" element={<SettingsPage />} />
-        <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" />} />
-        <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" />} />
-        <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" />} />
-        <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" />} />
-        <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" />} />
+        <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" icon={<Clapperboard className="size-5" />} />} />
+        <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" icon={<BarChart3 className="size-5" />} />} />
+        <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" icon={<MapPin className="size-5" />} />} />
+        <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
+        <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
-        <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />
+        <Route path="/mutes" element={<PlaceholderPage title="Mutes" icon={<VolumeX className="size-5" />} />} />
 
         {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
         <Route path="/:nip19" element={<NIP19Page />} />
