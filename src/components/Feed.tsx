@@ -1,7 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
+import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
@@ -27,6 +29,8 @@ export function Feed() {
     }
   }, [user]);
 
+  const queryClient = useQueryClient();
+
   const {
     data,
     isPending,
@@ -34,6 +38,10 @@ export function Feed() {
     hasNextPage,
     isFetchingNextPage,
   } = useFeed(activeTab);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
+  }, [queryClient, activeTab]);
 
   const { ref, inView } = useInView();
 
@@ -122,39 +130,41 @@ export function Feed() {
         </div>
       )}
 
-      {/* Feed content */}
-      {isPending ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <NoteCardSkeleton key={i} />
-          ))}
-        </div>
-      ) : feedItems.length > 0 ? (
-        <div>
-          {feedItems.map((item: FeedItem) => (
-            <NoteCard
-              key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-              event={item.event}
-              repostedBy={item.repostedBy}
-            />
-          ))}
+      {/* Pull-to-refresh + feed content */}
+      <PullToRefresh onRefresh={handleRefresh}>
+        {isPending ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <NoteCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : feedItems.length > 0 ? (
+          <div>
+            {feedItems.map((item: FeedItem) => (
+              <NoteCard
+                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                event={item.event}
+                repostedBy={item.repostedBy}
+              />
+            ))}
 
-          {/* Infinite scroll sentinel */}
-          {hasNextPage && (
-            <div ref={ref} className="flex justify-center py-6">
-              {isFetchingNextPage && (
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="py-16 px-8 text-center">
-          <p className="text-muted-foreground text-lg">
-            No posts yet. Follow some people or switch to the Global tab to discover content.
-          </p>
-        </div>
-      )}
+            {/* Infinite scroll sentinel */}
+            {hasNextPage && (
+              <div ref={ref} className="flex justify-center py-6">
+                {isFetchingNextPage && (
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-16 px-8 text-center">
+            <p className="text-muted-foreground text-lg">
+              No posts yet. Follow some people or switch to the Global tab to discover content.
+            </p>
+          </div>
+        )}
+      </PullToRefresh>
 
       {/* Login/Signup dialogs */}
       <LoginDialog
