@@ -108,11 +108,11 @@ export function FeedSettingsForm() {
   return (
     <div className="space-y-6">
       {/* Intro illustration + explanation */}
-      <div className="rounded-xl bg-secondary/40 p-5 space-y-3">
+      <div className="space-y-2 pt-2">
         <img
           src="/feed-intro.png"
           alt="Nostr has more than just posts — videos, polls, treasures, and more"
-          className="w-full max-w-[280px] mx-auto opacity-80"
+          className="w-full max-w-[160px] mx-auto opacity-70"
         />
         <div className="text-center space-y-1">
           <h2 className="text-base font-semibold">Other Stuff</h2>
