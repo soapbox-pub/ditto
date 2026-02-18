@@ -84,7 +84,8 @@ export function NoteContent({
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
-    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
+    // Match: URLs | nostr:-prefixed NIP-19 ids | bare NIP-19 ids | hashtags
+    const regex = /(https?:\/\/[^\s]+)|nostr:(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|\b(npub1|note1|nprofile1|nevent1|naddr1)([023456789acdefghjklmnpqrstuvwxyz]+)|(#\w+)/g;
 
     const result: ContentToken[] = [];
     let lastIndex = 0;
@@ -92,7 +93,7 @@ export function NoteContent({
     let hadMatches = false;
 
     while ((match = regex.exec(text)) !== null) {
-      const [fullMatch, url, nostrPrefix, nostrData, hashtag] = match;
+      const [fullMatch, url, nostrPrefix, nostrData, barePrefix, bareData, hashtag] = match;
       const index = match.index;
       hadMatches = true;
 
@@ -122,9 +123,12 @@ export function NoteContent({
             result.push({ type: 'link-preview', url });
           }
         }
-      } else if (nostrPrefix && nostrData) {
+      } else if ((nostrPrefix && nostrData) || (barePrefix && bareData)) {
+        // Handle both nostr:-prefixed and bare NIP-19 identifiers
+        const prefix = nostrPrefix || barePrefix;
+        const data = nostrData || bareData;
         try {
-          const nostrId = `${nostrPrefix}${nostrData}`;
+          const nostrId = `${prefix}${data}`;
           const decoded = nip19.decode(nostrId);
 
           if (decoded.type === 'npub') {
