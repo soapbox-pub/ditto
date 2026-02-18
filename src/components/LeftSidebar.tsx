@@ -123,7 +123,7 @@ export function LeftSidebar() {
       <div className="px-2 py-4">
         <ProfileSearchDropdown
           placeholder="Search..."
-          inputClassName="py-2.5"
+          inputClassName="py-3.5"
           enableTextSearch
         />
       </div>
