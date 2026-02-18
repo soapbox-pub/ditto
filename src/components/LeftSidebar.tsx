@@ -116,7 +116,7 @@ export function LeftSidebar() {
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
       {/* Logo */}
       <Link to="/" className="px-3 py-2 mb-1">
-        <MewLogo size={36} />
+        <MewLogo size={48} />
       </Link>
 
       {/* Search bar - visible on xl */}
