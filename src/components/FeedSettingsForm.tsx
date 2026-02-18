@@ -1,6 +1,7 @@
 import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
@@ -15,6 +16,14 @@ const ICONS: Record<string, React.ReactNode> = {
   packs: <PartyPopper className="size-5" />,
 };
 
+function KindBadge({ kind }: { kind: number }) {
+  return (
+    <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-4 rounded shrink-0">
+      {kind}
+    </Badge>
+  );
+}
+
 function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: boolean }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
 
@@ -23,7 +32,10 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
       'flex items-center justify-between py-2.5 pl-12 pr-3 transition-colors',
       !parentEnabled && 'opacity-40 pointer-events-none',
     )}>
-      <span className="text-sm">{sub.label}</span>
+      <div className="flex items-center gap-2">
+        <KindBadge kind={sub.kind} />
+        <span className="text-sm">{sub.label}</span>
+      </div>
       <div className="flex items-center gap-2">
         <div className="w-[52px] flex justify-center">
           <Switch
@@ -52,14 +64,17 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   return (
     <div className="border-b border-border last:border-b-0">
       <div className="flex items-center justify-between py-3.5 px-3">
-        <div className="flex items-center gap-3">
-          <span className="text-muted-foreground">{icon}</span>
-          <div>
-            <span className="text-sm font-medium">{def.label}</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-muted-foreground shrink-0">{icon}</span>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <KindBadge kind={def.kind} />
+              <span className="text-sm font-medium">{def.label}</span>
+            </div>
             <p className="text-xs text-muted-foreground mt-0.5">{def.description}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <div className="w-[52px] flex justify-center">
             <Switch
               checked={feedSettings[def.showKey]}
@@ -91,17 +106,28 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
 
 export function FeedSettingsForm() {
   return (
-    <div>
-      {/* Column headers */}
-      <div className="flex items-center justify-end gap-2 px-3 pb-3 border-b border-border">
-        <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
-        <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+    <div className="space-y-6">
+      {/* Intro */}
+      <div>
+        <h2 className="text-base font-semibold mb-1">Content Types</h2>
+        <p className="text-sm text-muted-foreground">
+          Nostr supports more than just text posts. Mew can display videos, polls, color palettes, and other content types published by people on the network. Choose which ones you'd like to see.
+        </p>
       </div>
 
-      {/* Content type rows */}
-      {EXTRA_KINDS.map((def) => (
-        <ContentTypeRow key={def.showKey} def={def} />
-      ))}
+      {/* Table */}
+      <div>
+        {/* Column headers */}
+        <div className="flex items-center justify-end gap-2 px-3 pb-3 border-b border-border">
+          <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
+          <span className="text-xs font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+        </div>
+
+        {/* Content type rows */}
+        {EXTRA_KINDS.map((def) => (
+          <ContentTypeRow key={def.showKey} def={def} />
+        ))}
+      </div>
     </div>
   );
 }
