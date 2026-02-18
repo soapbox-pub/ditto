@@ -42,7 +42,7 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  const { ref, inView } = useInView();
+  const { ref, inView } = useInView({ rootMargin: '400px' });
 
   useEffect(() => {
     if (inView && hasNextPage && !isFetching) {

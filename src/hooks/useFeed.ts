@@ -71,34 +71,36 @@ async function prefetchPageData(
     .map((item) => item.event.id)
     .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
 
-  await Promise.all([
-    pubkeysToFetch.length > 0
-      ? nostr.query(
-          [{ kinds: [0], authors: pubkeysToFetch }],
-          { signal: AbortSignal.timeout(3000) },
-        ).then((profileEvents) => {
-          for (const ev of profileEvents) {
-            let metadata: NostrMetadata | undefined;
-            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-            seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
-          }
-        }).catch(() => {})
-      : Promise.resolve(),
+  // Await author prefetch with a short deadline — whatever profiles arrive
+  // in time get cached; cards whose authors miss the window fall back to
+  // individual useAuthor queries (acceptable for a minority of cards).
+  if (pubkeysToFetch.length > 0) {
+    await nostr.query(
+      [{ kinds: [0], authors: pubkeysToFetch }],
+      { signal: AbortSignal.timeout(1500) },
+    ).then((profileEvents) => {
+      for (const ev of profileEvents) {
+        let metadata: NostrMetadata | undefined;
+        try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+        seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
+      }
+    }).catch(() => {});
+  }
 
-    eventIdsToFetch.length > 0
-      ? nostr.query(
-          [
-            { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
-            { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
-          ],
-          { signal: AbortSignal.timeout(6000) },
-        ).then((statEvents) => {
-          for (const id of eventIdsToFetch) {
-            queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
-          }
-        }).catch(() => {})
-      : Promise.resolve(),
-  ]);
+  // Stats are fire-and-forget — nice to have pre-cached but not worth blocking on.
+  if (eventIdsToFetch.length > 0) {
+    nostr.query(
+      [
+        { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
+        { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
+      ],
+      { signal: AbortSignal.timeout(6000) },
+    ).then((statEvents) => {
+      for (const id of eventIdsToFetch) {
+        queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
+      }
+    }).catch(() => {});
+  }
 }
 
 /** Hook to fetch the global or followed feed with infinite scroll pagination. */
