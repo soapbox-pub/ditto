@@ -15,8 +15,12 @@ export interface FeedSettings {
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */
   showPolls: boolean;
-  /** Show Treasures / Geocaches (kind 37516) link in sidebar */
+  /** Show Treasures link in sidebar */
   showTreasures: boolean;
+  /** Show Geocache listings (kind 37516) in Treasures */
+  showTreasureGeocaches: boolean;
+  /** Show Found logs (kind 7516) in Treasures */
+  showTreasureFoundLogs: boolean;
   /** Show Colors (kind 3367) link in sidebar */
   showColors: boolean;
   /** Show Follow Packs (kind 39089) link in sidebar */
@@ -25,8 +29,10 @@ export interface FeedSettings {
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
   feedIncludePolls: boolean;
-  /** Include Treasures in the follows/global feed */
-  feedIncludeTreasures: boolean;
+  /** Include Treasure geocaches in the follows/global feed */
+  feedIncludeTreasureGeocaches: boolean;
+  /** Include Treasure found logs in the follows/global feed */
+  feedIncludeTreasureFoundLogs: boolean;
   /** Include Colors in the follows/global feed */
   feedIncludeColors: boolean;
   /** Include Follow Packs in the follows/global feed */

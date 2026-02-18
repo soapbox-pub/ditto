@@ -8,7 +8,7 @@ import { useStreamKind } from '@/hooks/useStreamKind';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 interface KindFeedPageProps {
-  kind: number;
+  kind: number | number[];
   title: string;
   icon?: React.ReactNode;
   emptyMessage?: string;

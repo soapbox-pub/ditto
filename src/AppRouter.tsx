@@ -13,6 +13,7 @@ import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { WalletPage } from "./pages/WalletPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
+import { TreasuresPage } from "./pages/TreasuresPage";
 import NotFound from "./pages/NotFound";
 
 export function AppRouter() {
@@ -30,7 +31,7 @@ export function AppRouter() {
         <Route path="/settings/:section" element={<SettingsPage />} />
         <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" icon={<Clapperboard className="size-5" />} />} />
         <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" icon={<BarChart3 className="size-5" />} />} />
-        <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" icon={<MapPin className="size-5" />} />} />
+        <Route path="/treasures" element={<TreasuresPage />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
         <Route path="/wallet" element={<WalletPage />} />

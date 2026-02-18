@@ -4,7 +4,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
-import type { FeedSettings } from '@/contexts/AppContext';
+import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 
 /** Map route name → lucide icon. */
 const ICONS: Record<string, React.ReactNode> = {
@@ -15,27 +15,113 @@ const ICONS: Record<string, React.ReactNode> = {
   packs: <PartyPopper className="size-5" />,
 };
 
-interface ContentTypeConfig {
-  id: keyof FeedSettings;
-  feedId: keyof FeedSettings;
-  label: string;
-  description: string;
-  icon: React.ReactNode;
-  kindLabel: string;
+function SubKindRow({ sub, section }: { sub: SubKindDef; section: 'sidebar' | 'feed' }) {
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const key = section === 'sidebar' ? sub.showKey : sub.feedKey;
+  const htmlId = `${section}-${key}`;
+
+  return (
+    <div className="flex items-center justify-between py-2.5 px-3 pl-12 rounded-lg hover:bg-secondary/30 transition-colors">
+      <div>
+        <Label htmlFor={htmlId} className="text-sm font-medium cursor-pointer">
+          {sub.label}
+        </Label>
+        <span className="inline-block ml-2 text-[10px] font-mono text-muted-foreground/70 bg-secondary/60 px-1.5 py-0.5 rounded">
+          kind {sub.kind}
+        </span>
+        <p className="text-xs text-muted-foreground mt-0.5">{sub.description}</p>
+      </div>
+      <Switch
+        id={htmlId}
+        checked={feedSettings[key]}
+        onCheckedChange={(checked) => updateFeedSettings({ [key]: checked })}
+      />
+    </div>
+  );
 }
 
-const contentTypes: ContentTypeConfig[] = EXTRA_KINDS.map((def) => ({
-  id: def.showKey,
-  feedId: def.feedKey,
-  label: def.label,
-  description: def.description,
-  icon: ICONS[def.route] ?? <Palette className="size-5" />,
-  kindLabel: `kind ${def.kind}`,
-}));
+function SidebarRow({ def }: { def: ExtraKindDef }) {
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const icon = ICONS[def.route] ?? <Palette className="size-5" />;
+
+  return (
+    <div>
+      <div className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-secondary/30 transition-colors">
+        <div className="flex items-center gap-3">
+          <span className="text-muted-foreground">{icon}</span>
+          <div>
+            <Label htmlFor={`sidebar-${def.showKey}`} className="text-sm font-medium cursor-pointer">
+              {def.label}
+            </Label>
+            <p className="text-xs text-muted-foreground mt-0.5">{def.description}</p>
+          </div>
+        </div>
+        <Switch
+          id={`sidebar-${def.showKey}`}
+          checked={feedSettings[def.showKey]}
+          onCheckedChange={(checked) => updateFeedSettings({ [def.showKey]: checked })}
+        />
+      </div>
+      {/* Sub-kind toggles (only shown when parent is enabled) */}
+      {def.subKinds && feedSettings[def.showKey] && (
+        <div className="space-y-0.5">
+          {def.subKinds.map((sub) => (
+            <SubKindRow key={sub.showKey} sub={sub} section="sidebar" />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FeedRow({ def }: { def: ExtraKindDef }) {
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const icon = ICONS[def.route] ?? <Palette className="size-5" />;
+
+  // Entries with sub-kinds show a parent label + nested sub-kind toggles
+  if (def.subKinds) {
+    return (
+      <div>
+        <div className="flex items-center gap-3 py-3 px-3">
+          <span className="text-muted-foreground">{icon}</span>
+          <div>
+            <span className="text-sm font-medium">{def.label}</span>
+            <p className="text-xs text-muted-foreground mt-0.5">{def.description}</p>
+          </div>
+        </div>
+        <div className="space-y-0.5">
+          {def.subKinds.map((sub) => (
+            <SubKindRow key={sub.feedKey} sub={sub} section="feed" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Simple entries (no sub-kinds)
+  return (
+    <div className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-secondary/30 transition-colors">
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground">{icon}</span>
+        <div>
+          <Label htmlFor={`feed-${def.feedKey}`} className="text-sm font-medium cursor-pointer">
+            {def.label}
+          </Label>
+          <span className="inline-block ml-2 text-[10px] font-mono text-muted-foreground/70 bg-secondary/60 px-1.5 py-0.5 rounded">
+            kind {def.kind}
+          </span>
+        </div>
+      </div>
+      <Switch
+        id={`feed-${def.feedKey}`}
+        checked={def.feedKey ? feedSettings[def.feedKey] : false}
+        onCheckedChange={(checked) => def.feedKey && updateFeedSettings({ [def.feedKey]: checked })}
+      />
+    </div>
+  );
+}
 
 export function FeedSettingsForm() {
-  const { feedSettings, updateFeedSettings } = useFeedSettings();
-
   return (
     <div className="space-y-8">
       {/* Sidebar Links section */}
@@ -46,26 +132,8 @@ export function FeedSettingsForm() {
         </p>
 
         <div className="space-y-1">
-          {contentTypes.map((type) => (
-            <div
-              key={type.id}
-              className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-secondary/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground">{type.icon}</span>
-                <div>
-                  <Label htmlFor={`sidebar-${type.id}`} className="text-sm font-medium cursor-pointer">
-                    {type.label}
-                  </Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">{type.description}</p>
-                </div>
-              </div>
-              <Switch
-                id={`sidebar-${type.id}`}
-                checked={feedSettings[type.id]}
-                onCheckedChange={(checked) => updateFeedSettings({ [type.id]: checked })}
-              />
-            </div>
+          {EXTRA_KINDS.map((def) => (
+            <SidebarRow key={def.showKey} def={def} />
           ))}
         </div>
       </section>
@@ -80,28 +148,8 @@ export function FeedSettingsForm() {
         </p>
 
         <div className="space-y-1">
-          {contentTypes.map((type) => (
-            <div
-              key={type.feedId}
-              className="flex items-center justify-between py-3 px-3 rounded-lg hover:bg-secondary/30 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground">{type.icon}</span>
-                <div>
-                  <Label htmlFor={`feed-${type.feedId}`} className="text-sm font-medium cursor-pointer">
-                    {type.label}
-                  </Label>
-                  <span className="inline-block ml-2 text-[10px] font-mono text-muted-foreground/70 bg-secondary/60 px-1.5 py-0.5 rounded">
-                    {type.kindLabel}
-                  </span>
-                </div>
-              </div>
-              <Switch
-                id={`feed-${type.feedId}`}
-                checked={feedSettings[type.feedId]}
-                onCheckedChange={(checked) => updateFeedSettings({ [type.feedId]: checked })}
-              />
-            </div>
+          {EXTRA_KINDS.map((def) => (
+            <FeedRow key={def.feedKey ?? def.showKey} def={def} />
           ))}
         </div>
       </section>

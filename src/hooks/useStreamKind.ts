@@ -1,22 +1,37 @@
 import { useNostr } from '@nostrify/react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
- * Generic streaming hook that fetches an initial batch of events for a given
- * kind and then streams new ones in real-time.
+ * Generic streaming hook that fetches an initial batch of events for the given
+ * kind(s) and then streams new ones in real-time.
  *
  * Handles deduplication for both regular events (by id) and addressable
  * events (by pubkey+kind+d).
+ *
+ * Accepts a single kind number or an array of kinds.
  */
-export function useStreamKind(kind: number) {
+export function useStreamKind(kind: number | number[]) {
   const { nostr } = useNostr();
   const [events, setEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAddressable = kind >= 30000 && kind < 40000;
+  // Normalise to a stable array
+  const kinds = useMemo(
+    () => (Array.isArray(kind) ? kind : [kind]),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [JSON.stringify(Array.isArray(kind) ? kind.slice().sort() : [kind])],
+  );
+
+  const kindsSet = useMemo(() => new Set(kinds), [kinds]);
 
   useEffect(() => {
+    if (kinds.length === 0) {
+      setEvents([]);
+      setIsLoading(false);
+      return;
+    }
+
     const ac = new AbortController();
     let alive = true;
 
@@ -25,8 +40,12 @@ export function useStreamKind(kind: number) {
 
     const eventMap = new Map<string, NostrEvent>();
 
+    function isAddressable(k: number): boolean {
+      return k >= 30000 && k < 40000;
+    }
+
     function dedupeKey(event: NostrEvent): string {
-      if (isAddressable) {
+      if (isAddressable(event.kind)) {
         const dTag = event.tags.find(([name]) => name === 'd')?.[1] ?? '';
         return `${event.pubkey}:${event.kind}:${dTag}`;
       }
@@ -35,7 +54,7 @@ export function useStreamKind(kind: number) {
 
     function addEvent(event: NostrEvent) {
       if (!alive) return;
-      if (event.kind !== kind) return;
+      if (!kindsSet.has(event.kind)) return;
 
       const now = Math.floor(Date.now() / 1000);
       if (event.created_at > now) return;
@@ -49,7 +68,7 @@ export function useStreamKind(kind: number) {
     }
 
     const relay = nostr.relay('wss://relay.ditto.pub');
-    const filter = { kinds: [kind] };
+    const filter = { kinds };
 
     // 1. Fetch initial batch
     (async () => {
@@ -91,7 +110,7 @@ export function useStreamKind(kind: number) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, kind, isAddressable]);
+  }, [nostr, kinds, kindsSet]);
 
   return { events, isLoading };
 }
