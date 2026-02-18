@@ -95,17 +95,27 @@ function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
     
-    // Add transition class before changing theme
-    root.style.setProperty('transition', 'background-color 0.3s ease, color 0.3s ease');
-
-    root.classList.remove('dark', 'light', 'black', 'pink');
-    root.classList.add(theme);
-    
-    // Remove transition after it completes to avoid affecting other animations
-    const timer = setTimeout(() => {
-      root.style.removeProperty('transition');
-    }, 300);
-    
-    return () => clearTimeout(timer);
+    // Use double RAF to ensure theme change happens after paint
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        // Add view transition if supported
+        if ('startViewTransition' in document) {
+          (document as any).startViewTransition(() => {
+            root.classList.remove('dark', 'light', 'black', 'pink');
+            root.classList.add(theme);
+          });
+        } else {
+          // Fallback: add transitions manually
+          root.style.setProperty('transition', 'background-color 0.2s ease-in-out, color 0.2s ease-in-out');
+          
+          root.classList.remove('dark', 'light', 'black', 'pink');
+          root.classList.add(theme);
+          
+          setTimeout(() => {
+            root.style.removeProperty('transition');
+          }, 200);
+        }
+      });
+    });
   }, [theme]);
 }
