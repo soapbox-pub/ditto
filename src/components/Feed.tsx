@@ -10,7 +10,6 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
-import { useBatchedEventStats } from '@/hooks/useEngagementCounts';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -73,12 +72,6 @@ export function Feed() {
     return [...keys];
   }, [feedItems]);
   useAuthors(feedPubkeys);
-
-  // Batch-prefetch engagement stats for all visible posts in 2 queries
-  // instead of 2 per card. Results are seeded into the per-event cache
-  // so each NoteCard's useEventStats() resolves instantly.
-  const feedEventIds = useMemo(() => feedItems.map((item) => item.event.id), [feedItems]);
-  useBatchedEventStats(feedEventIds);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
