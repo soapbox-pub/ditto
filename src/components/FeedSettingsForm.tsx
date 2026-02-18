@@ -108,16 +108,18 @@ export function FeedSettingsForm() {
   return (
     <div>
       {/* Intro */}
-      <div className="text-center px-3 pt-2 pb-4">
+      <div className="flex items-center gap-4 px-3 pt-2 pb-4">
         <img
           src="/feed-intro.png"
           alt=""
-          className="w-24 mx-auto mb-2 mix-blend-difference opacity-40"
+          className="w-28 shrink-0 mix-blend-difference opacity-40"
         />
-        <h2 className="text-sm font-semibold">Other Stuff</h2>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-        </p>
+        <div className="min-w-0">
+          <h2 className="text-sm font-semibold">Other Stuff</h2>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+          </p>
+        </div>
       </div>
 
       {/* Column headers */}
