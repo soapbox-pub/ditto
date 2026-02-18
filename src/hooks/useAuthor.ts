@@ -1,130 +1,68 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
+import { APP_RELAYS } from '@/lib/appRelays';
 
-// ---------------------------------------------------------------------------
-// Batching layer — collects individual pubkey requests within a 50 ms window
-// and resolves them all with a single relay query.
-// ---------------------------------------------------------------------------
+/** Fallback relay URLs used when the pool's EOSE timeout returns empty. */
+const PROFILE_RELAYS = APP_RELAYS.relays.map(r => r.url);
 
-type NostrPool = ReturnType<typeof useNostr>['nostr'];
-
-interface PendingRequest {
-  resolve: (data: { event?: NostrEvent; metadata?: NostrMetadata }) => void;
-  reject: (err: Error) => void;
+/** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
+export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
+  try {
+    const metadata = n.json().pipe(n.metadata()).parse(event.content);
+    return { metadata, event };
+  } catch {
+    return { event };
+  }
 }
-
-/** Map of pubkey → pending resolvers, flushed every 50 ms. */
-const pendingBatch = new Map<string, PendingRequest[]>();
-let flushTimer: ReturnType<typeof setTimeout> | null = null;
-let currentPool: NostrPool | null = null;
-let currentQueryClient: ReturnType<typeof useQueryClient> | null = null;
-
-function flushBatch() {
-  flushTimer = null;
-  const pool = currentPool;
-  const qc = currentQueryClient;
-  if (!pool || !qc) return;
-
-  // Snapshot & clear
-  const batch = new Map(pendingBatch);
-  pendingBatch.clear();
-
-  const pubkeys = [...batch.keys()];
-  if (pubkeys.length === 0) return;
-
-  (async () => {
-    try {
-      const events = await pool.query(
-        [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
-        { signal: AbortSignal.timeout(5000) },
-      );
-
-      // Index results by pubkey
-      const byPubkey = new Map<string, NostrEvent>();
-      for (const event of events) {
-        const existing = byPubkey.get(event.pubkey);
-        if (!existing || event.created_at > existing.created_at) {
-          byPubkey.set(event.pubkey, event);
-        }
-      }
-
-      // Resolve each pending request
-      for (const [pk, resolvers] of batch) {
-        const event = byPubkey.get(pk);
-        let result: { event?: NostrEvent; metadata?: NostrMetadata };
-
-        if (event) {
-          let metadata: NostrMetadata | undefined;
-          try {
-            metadata = n.json().pipe(n.metadata()).parse(event.content);
-          } catch {
-            // unparseable
-          }
-          result = { event, metadata };
-        } else {
-          result = {};
-        }
-
-        // Seed individual cache
-        qc.setQueryData(['author', pk], result);
-
-        for (const r of resolvers) {
-          r.resolve(result);
-        }
-      }
-    } catch (err) {
-      // Reject all pending
-      for (const resolvers of batch.values()) {
-        for (const r of resolvers) {
-          r.reject(err instanceof Error ? err : new Error(String(err)));
-        }
-      }
-    }
-  })();
-}
-
-function fetchAuthorBatched(
-  pubkey: string,
-  pool: NostrPool,
-  queryClient: ReturnType<typeof useQueryClient>,
-): Promise<{ event?: NostrEvent; metadata?: NostrMetadata }> {
-  // Keep refs current so the flush uses the latest pool
-  currentPool = pool;
-  currentQueryClient = queryClient;
-
-  return new Promise((resolve, reject) => {
-    const existing = pendingBatch.get(pubkey);
-    if (existing) {
-      existing.push({ resolve, reject });
-    } else {
-      pendingBatch.set(pubkey, [{ resolve, reject }]);
-    }
-
-    // Schedule a flush if not already pending
-    if (!flushTimer) {
-      flushTimer = setTimeout(flushBatch, 50);
-    }
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Hook
-// ---------------------------------------------------------------------------
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
-  const queryClient = useQueryClient();
 
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
-    queryFn: async () => {
-      if (!pubkey) {
-        return {};
+    queryFn: async ({ signal }) => {
+      const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+
+      // Fast path: use the pool (races all relays, returns quickly via EOSE timeout)
+      const [event] = await nostr.query(
+        [{ kinds: [0], authors: [pubkey!], limit: 1 }],
+        { signal: combinedSignal },
+      );
+
+      if (event) {
+        return parseAuthorEvent(event);
       }
-      return fetchAuthorBatched(pubkey, nostr, queryClient);
+
+      // Slow path (losers bracket): pool returned empty because EOSE timeout
+      // cut off slower relays. Query each relay individually and resolve on
+      // the first hit.
+      return new Promise<{ event?: NostrEvent; metadata?: NostrMetadata }>((resolve) => {
+        let settled = false;
+        let pending = PROFILE_RELAYS.length;
+
+        for (const url of PROFILE_RELAYS) {
+          nostr.relay(url).query(
+            [{ kinds: [0], authors: [pubkey!], limit: 1 }],
+            { signal: combinedSignal },
+          ).then((events) => {
+            if (settled) return;
+            if (events.length > 0) {
+              settled = true;
+              resolve(parseAuthorEvent(events[0]));
+            } else if (--pending === 0) {
+              resolve({});
+            }
+          }).catch(() => {
+            if (settled) return;
+            if (--pending === 0) resolve({});
+          });
+        }
+      });
     },
+    enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     retry: 1,
   });
 }
