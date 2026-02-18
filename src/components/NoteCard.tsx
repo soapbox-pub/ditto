@@ -145,8 +145,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
   const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
   
-  // Find the person being replied to - check p tags and e tag pubkeys
-  const replyTo = isTextNote ? (() => {
+  // Find the person being replied to
+  const replyTo = isTextNote && isReply ? (() => {
     // First try to find a p tag that's not a mention
     const directReply = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
     if (directReply) return directReply;
@@ -160,7 +160,10 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       return ['p', rootOrReply[4]];
     }
     
-    return undefined;
+    // Fallback: if this is a reply but all p tags are mentions, use the first p tag anyway
+    // This handles cases where clients mark all p tags as mentions
+    const firstP = event.tags.find(([name]) => name === 'p');
+    return firstP;
   })() : undefined;
 
   // Kind 34236 specific
