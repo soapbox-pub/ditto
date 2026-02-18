@@ -33,7 +33,13 @@ export function ImageGallery({
     setLightboxIndex(index);
   };
 
-  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const closeLightbox = useCallback((e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
+    setLightboxIndex(null);
+  }, []);
 
   const goNext = useCallback(() => {
     setLightboxIndex((prev) => (prev !== null ? (prev + 1) % images.length : null));
@@ -175,11 +181,14 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
     const target = e.target as HTMLElement;
     // Don't close if clicking on the image, a button, or inside the top bar
     if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
+    e.stopPropagation();
+    e.preventDefault();
     onClose();
   };
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     const a = document.createElement('a');
     a.href = currentUrl;
     a.target = '_blank';
@@ -218,7 +227,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
             <Download className="size-5" />
           </button>
           <button
-            onClick={onClose}
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
             className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
             title="Close (Esc)"
           >

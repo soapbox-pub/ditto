@@ -130,6 +130,26 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
+  // Handler to navigate to post detail, but only if click didn't originate from a modal
+  const handleCardClick = (e: React.MouseEvent) => {
+    // Don't navigate if clicking on interactive elements or if a modal/dialog is involved
+    const target = e.target as HTMLElement;
+    
+    // Check if click is on or within a dialog/drawer/portal element
+    if (
+      target.closest('[role="dialog"]') ||
+      target.closest('[data-radix-dialog-overlay]') ||
+      target.closest('[data-radix-dialog-content]') ||
+      target.closest('[data-vaul-drawer]') ||
+      target.closest('[data-vaul-drawer-overlay]') ||
+      target.closest('[data-testid="zap-modal"]')
+    ) {
+      return;
+    }
+
+    navigate(`/${encodedId}`);
+  };
+
   const isVine = event.kind === 34236;
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
@@ -177,7 +197,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer',
         className,
       )}
-      onClick={() => navigate(`/${encodedId}`)}
+      onClick={handleCardClick}
     >
       {/* Repost header */}
       {repostedBy && (
