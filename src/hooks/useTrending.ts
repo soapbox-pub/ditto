@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useIsFetching } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export interface TrendingTag {
@@ -181,6 +181,10 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
 
+  // If a batch stats query (useBatchEventStats) is currently in-flight, wait
+  // for it to finish and seed our cache instead of firing an individual query.
+  const batchFetching = useIsFetching({ queryKey: ['batch-event-stats'] });
+
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
@@ -199,7 +203,7 @@ export function useEventStats(eventId: string | undefined) {
 
       return computeStats(eventId, events);
     },
-    enabled: !!eventId,
+    enabled: !!eventId && batchFetching === 0,
     staleTime: 60 * 1000,
     placeholderData: (prev) => prev,
   });
