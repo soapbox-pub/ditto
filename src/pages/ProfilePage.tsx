@@ -626,7 +626,7 @@ export function ProfilePage() {
 
   if (!pubkey) {
     return (
-      <MainLayout hideMobileTopBar>
+      <MainLayout>
         <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
           <div className="p-8 text-center text-muted-foreground">
             <p>Please log in to view your profile.</p>
@@ -646,7 +646,6 @@ export function ProfilePage() {
 
   return (
     <MainLayout
-      hideMobileTopBar
       rightSidebar={<ProfileRightSidebar pubkey={pubkey} fields={fields} />}
     >
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
@@ -755,7 +754,7 @@ export function ProfilePage() {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-border sticky top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-border sticky top-10 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
           <TabButton label="Posts & replies" active={activeTab === 'replies'} onClick={() => setActiveTab('replies')} />
           <TabButton label="Media" active={activeTab === 'media'} onClick={() => setActiveTab('media')} />
