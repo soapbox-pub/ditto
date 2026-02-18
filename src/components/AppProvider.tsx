@@ -94,8 +94,18 @@ export function AppProvider(props: AppProviderProps) {
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
+    
+    // Add transition class before changing theme
+    root.style.setProperty('transition', 'background-color 0.3s ease, color 0.3s ease');
 
     root.classList.remove('dark', 'light', 'black', 'pink');
     root.classList.add(theme);
+    
+    // Remove transition after it completes to avoid affecting other animations
+    const timer = setTimeout(() => {
+      root.style.removeProperty('transition');
+    }, 300);
+    
+    return () => clearTimeout(timer);
   }, [theme]);
 }
