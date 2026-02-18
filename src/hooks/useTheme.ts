@@ -21,11 +21,13 @@ export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void } {
         theme,
       }));
       
-      // Sync to encrypted storage if logged in (fire and forget)
+      // Sync to encrypted storage after a short delay to let theme apply first
       if (user) {
-        updateSettings.mutateAsync({ theme }).catch((error) => {
-          console.error('Failed to sync theme to encrypted storage:', error);
-        });
+        setTimeout(() => {
+          updateSettings.mutateAsync({ theme }).catch((error) => {
+            console.error('Failed to sync theme to encrypted storage:', error);
+          });
+        }, 100);
       }
     }
   }
