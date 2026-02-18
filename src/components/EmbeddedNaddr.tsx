@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
-import { Users, PartyPopper } from 'lucide-react';
+import { Users } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
@@ -190,7 +190,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
         {isFollowPack && memberCount > 0 && (
           <div className="flex items-center gap-2 pt-0.5">
             <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-              {isStarterPack ? <PartyPopper className="size-3" /> : <Users className="size-3" />}
+              <Users className="size-3" />
               {isStarterPack ? 'Starter Pack' : 'Follow Set'}
             </span>
             <span className="text-xs text-muted-foreground flex items-center gap-1">

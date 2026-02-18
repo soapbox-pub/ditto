@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Users, UserPlus, Check, Loader2, Copy, PartyPopper } from 'lucide-react';
+import { ArrowLeft, Users, UserPlus, Check, Loader2, Copy } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { useSeoMeta } from '@unhead/react';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
@@ -85,7 +85,7 @@ function FollowPackShell({ children }: { children: React.ReactNode }) {
           <ArrowLeft className="size-5" />
         </button>
         <div className="flex items-center gap-2">
-          <PartyPopper className="size-5 text-primary" />
+          <Users className="size-5 text-primary" />
           <h1 className="text-xl font-bold">Follow Pack</h1>
         </div>
       </div>
@@ -238,7 +238,7 @@ function FollowPackContent({ event }: { event: NostrEvent }) {
           </div>
 
           <Badge variant="secondary" className="shrink-0 gap-1">
-            {isStarterPack ? <PartyPopper className="size-3" /> : <Users className="size-3" />}
+            <Users className="size-3" />
             {isStarterPack ? 'Starter Pack' : 'Follow Set'}
           </Badge>
         </div>
