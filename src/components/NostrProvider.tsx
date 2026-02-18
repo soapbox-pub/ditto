@@ -72,6 +72,16 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     });
   }
 
+  // Cleanup: Close all relay connections when the provider unmounts
+  useEffect(() => {
+    return () => {
+      if (pool.current) {
+        // Close all active relay connections
+        pool.current.close();
+      }
+    };
+  }, []);
+
   return (
     <NostrContext.Provider value={{ nostr: pool.current }}>
       {children}
