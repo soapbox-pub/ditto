@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
@@ -41,7 +41,6 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
 /** Hook to fetch the global or followed feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global') {
   const { nostr } = useNostr();
-  const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
@@ -131,15 +130,7 @@ export function useFeed(tab: 'follows' | 'global') {
           }
         }
 
-        const result = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-
-        // Seed the per-event cache so detail pages resolve instantly,
-        // even for events embedded in reposts that can't be fetched by ID.
-        for (const item of result) {
-          queryClient.setQueryData(['event', item.event.id], item.event);
-        }
-
-        return result;
+        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
         // Global feed — kind 1 notes + user-selected extra kinds
         const globalKinds = [1, ...extraKinds];
@@ -153,17 +144,10 @@ export function useFeed(tab: 'follows' | 'global') {
           { signal: querySignal },
         );
 
-        const result = events
+        return events
           .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
-
-        // Seed the per-event cache so detail pages resolve instantly.
-        for (const item of result) {
-          queryClient.setQueryData(['event', item.event.id], item.event);
-        }
-
-        return result;
       }
     },
     getNextPageParam: (lastPage) => {
