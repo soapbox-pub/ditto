@@ -41,15 +41,15 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
 }
 
 /**
- * Prefetch author profiles and interaction stats for a set of feed items,
- * seeding the TanStack Query cache so per-card hooks resolve without opening
- * individual relay subscriptions.
+ * Fire-and-forget: seed ['author', pubkey] and ['event-stats', id] caches
+ * for a page of feed items so that NoteCard's per-card hooks resolve from
+ * cache rather than firing individual relay queries.
  *
- * Called from a useEffect in Feed.tsx — runs after render, never blocks
- * the queryFn. Authors use a 1500ms timeout (partial results are fine);
- * stats are fully fire-and-forget.
+ * Runs in the background — does NOT block the queryFn from returning items.
+ * Includes post authors, repost authors, and mentioned p-tag pubkeys so that
+ * @mentions and reply-to lines also resolve without individual round trips.
  */
-export function prefetchFeedData(
+async function prefetchPageData(
   items: FeedItem[],
   nostr: ReturnType<typeof import('@nostrify/react').useNostr>['nostr'],
   queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
@@ -71,8 +71,11 @@ export function prefetchFeedData(
     .map((item) => item.event.id)
     .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
 
+  // Await author prefetch with a short deadline — whatever profiles arrive
+  // in time get cached; cards whose authors miss the window fall back to
+  // individual useAuthor queries (acceptable for a minority of cards).
   if (pubkeysToFetch.length > 0) {
-    nostr.query(
+    await nostr.query(
       [{ kinds: [0], authors: pubkeysToFetch }],
       { signal: AbortSignal.timeout(1500) },
     ).then((profileEvents) => {
@@ -81,38 +84,10 @@ export function prefetchFeedData(
         try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
         seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
       }
-      // Follow-up for orphans: pubkeys the first query didn't return within
-      // the timeout. Retry them in one grouped query under the same conditions.
-      const orphans = pubkeysToFetch.filter(
-        (pk) => queryClient.getQueryData(['author', pk]) === undefined,
-      );
-      if (orphans.length > 0) {
-        nostr.query(
-          [{ kinds: [0], authors: orphans }],
-          { signal: AbortSignal.timeout(4000) },
-        ).then((retryEvents) => {
-          for (const ev of retryEvents) {
-            let metadata: NostrMetadata | undefined;
-            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-            seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
-          }
-        }).catch(() => {});
-      }
-    }).catch(() => {
-      // First query failed entirely — retry the whole batch with more time.
-      nostr.query(
-        [{ kinds: [0], authors: pubkeysToFetch }],
-        { signal: AbortSignal.timeout(4000) },
-      ).then((retryEvents) => {
-        for (const ev of retryEvents) {
-          let metadata: NostrMetadata | undefined;
-          try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-          seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
-        }
-      }).catch(() => {});
-    });
+    }).catch(() => {});
   }
 
+  // Stats are fire-and-forget — nice to have pre-cached but not worth blocking on.
   if (eventIdsToFetch.length > 0) {
     nostr.query(
       [
@@ -227,6 +202,11 @@ export function useFeed(tab: 'follows' | 'global') {
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
+
+      // Prefetch authors and stats in parallel before returning.
+      // This ensures cache is populated before NoteCards mount, so individual
+      // useAuthor/useEventStats calls hit cache and never open relay subscriptions.
+      await prefetchPageData(items, nostr, queryClient);
 
       return items;
     },

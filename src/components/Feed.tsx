@@ -9,8 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
-import { useNostr } from '@nostrify/react';
-import { useFeed, prefetchFeedData } from '@/hooks/useFeed';
+import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
@@ -28,7 +27,6 @@ export function Feed() {
     }
   }, [user]);
 
-  const { nostr } = useNostr();
   const queryClient = useQueryClient();
 
   const {
@@ -68,15 +66,6 @@ export function Feed() {
     }
     return items;
   }, [data?.pages]);
-
-  // After each new page renders, prefetch authors and stats in the background.
-  // Runs after render so it never blocks pagination — the 400px early sentinel
-  // gives enough lead time for profiles to arrive before the user scrolls to them.
-  useEffect(() => {
-    if (feedItems.length > 0) {
-      prefetchFeedData(feedItems, nostr, queryClient);
-    }
-  }, [feedItems, nostr, queryClient]);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
