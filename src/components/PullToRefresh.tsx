@@ -24,6 +24,15 @@ export function PullToRefresh({ onRefresh, children, className }: PullToRefreshP
   const onRefreshRef = useRef(onRefresh);
   onRefreshRef.current = onRefresh;
 
+  // Disable native browser pull-to-refresh only while this component is mounted
+  useEffect(() => {
+    const prev = document.documentElement.style.overscrollBehaviorY;
+    document.documentElement.style.overscrollBehaviorY = 'contain';
+    return () => {
+      document.documentElement.style.overscrollBehaviorY = prev;
+    };
+  }, []);
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
