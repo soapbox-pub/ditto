@@ -144,7 +144,24 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
   const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
-  const replyTo = isTextNote ? event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention') : undefined;
+  
+  // Find the person being replied to - check p tags and e tag pubkeys
+  const replyTo = isTextNote ? (() => {
+    // First try to find a p tag that's not a mention
+    const directReply = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
+    if (directReply) return directReply;
+    
+    // If no direct reply p tag, check if there's a root or reply e tag with a pubkey
+    const rootOrReply = event.tags.find(([name, , , marker]) => 
+      name === 'e' && (marker === 'root' || marker === 'reply')
+    );
+    if (rootOrReply?.[4]) {
+      // Return a p tag format with the pubkey from the e tag
+      return ['p', rootOrReply[4]];
+    }
+    
+    return undefined;
+  })() : undefined;
 
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
