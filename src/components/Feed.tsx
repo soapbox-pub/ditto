@@ -43,6 +43,13 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
+  // Auto-fetch page 2 when page 1 loads
+  useEffect(() => {
+    if (!isPending && hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
+      fetchNextPage();
+    }
+  }, [isPending, hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
+
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
     threshold: 0,
