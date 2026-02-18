@@ -123,75 +123,218 @@ class EventStore {
       const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const objectStore = transaction.objectStore(STORE_NAME);
       
-      // Get all events and filter in memory
-      // For a production app, you'd want to optimize this with proper index usage
-      const request = objectStore.getAll();
+      const allEvents: EventWithRelays[] = [];
+      const seenIds = new Set<string>();
+      let completed = 0;
+      const totalFilters = filters.length;
 
-      request.onsuccess = () => {
-        let events = request.result as EventWithRelays[];
+      if (totalFilters === 0) {
+        resolve([]);
+        return;
+      }
 
-        // Apply all filters
-        for (const filter of filters) {
-          const filteredEvents = events.filter(event => {
-            // Filter by IDs
-            if (filter.ids && !filter.ids.includes(event.id)) {
-              return false;
-            }
+      // Process each filter separately using indexes when possible
+      for (const filter of filters) {
+        let request: IDBRequest<EventWithRelays[]>;
 
-            // Filter by authors
-            if (filter.authors && !filter.authors.includes(event.pubkey)) {
-              return false;
-            }
-
-            // Filter by kinds
-            if (filter.kinds && !filter.kinds.includes(event.kind)) {
-              return false;
-            }
-
-            // Filter by since (created_at >= since)
-            if (filter.since && event.created_at < filter.since) {
-              return false;
-            }
-
-            // Filter by until (created_at <= until)
-            if (filter.until && event.created_at > filter.until) {
-              return false;
-            }
-
-            // Filter by tag filters (#e, #p, etc.)
-            for (const key in filter) {
-              if (key.startsWith('#') && Array.isArray(filter[key])) {
-                const tagName = key.slice(1);
-                const tagValues = filter[key] as string[];
-                const hasTag = event.tags.some(
-                  ([name, value]) => name === tagName && tagValues.includes(value)
-                );
-                if (!hasTag) {
-                  return false;
+        // Optimize using indexes when possible
+        if (filter.ids && filter.ids.length > 0) {
+          // Query by IDs directly - most specific
+          const ids = filter.ids;
+          let idsProcessed = 0;
+          for (const id of ids) {
+            const getReq = objectStore.get(id);
+            getReq.onsuccess = () => {
+              if (getReq.result) {
+                const event = getReq.result as EventWithRelays;
+                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                  seenIds.add(event.id);
+                  allEvents.push(event);
                 }
               }
+              idsProcessed++;
+              if (idsProcessed === ids.length) {
+                completed++;
+                if (completed === totalFilters) {
+                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+                }
+              }
+            };
+            getReq.onerror = () => reject(getReq.error);
+          }
+          continue;
+        } else if (filter.kinds && filter.kinds.length === 1 && filter.authors && filter.authors.length > 0) {
+          // Use kind_pubkey composite index for kind+author queries
+          const kind = filter.kinds[0];
+          const authors = filter.authors;
+          let authorsProcessed = 0;
+          
+          for (const author of authors) {
+            const index = objectStore.index('kind_pubkey');
+            const range = IDBKeyRange.only([kind, author]);
+            const indexReq = index.getAll(range);
+            
+            indexReq.onsuccess = () => {
+              const events = indexReq.result as EventWithRelays[];
+              for (const event of events) {
+                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                  seenIds.add(event.id);
+                  allEvents.push(event);
+                }
+              }
+              authorsProcessed++;
+              if (authorsProcessed === authors.length) {
+                completed++;
+                if (completed === totalFilters) {
+                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+                }
+              }
+            };
+            indexReq.onerror = () => reject(indexReq.error);
+          }
+          continue;
+        } else if (filter.authors && filter.authors.length > 0 && !filter.kinds) {
+          // Use pubkey index for author-only queries
+          const authors = filter.authors;
+          let authorsProcessed = 0;
+          
+          for (const author of authors) {
+            const index = objectStore.index('pubkey');
+            const indexReq = index.getAll(author);
+            
+            indexReq.onsuccess = () => {
+              const events = indexReq.result as EventWithRelays[];
+              for (const event of events) {
+                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                  seenIds.add(event.id);
+                  allEvents.push(event);
+                }
+              }
+              authorsProcessed++;
+              if (authorsProcessed === authors.length) {
+                completed++;
+                if (completed === totalFilters) {
+                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+                }
+              }
+            };
+            indexReq.onerror = () => reject(indexReq.error);
+          }
+          continue;
+        } else if (filter.kinds && filter.kinds.length > 0 && !filter.authors) {
+          // Use kind index for kind-only queries
+          const kinds = filter.kinds;
+          let kindsProcessed = 0;
+          
+          for (const kind of kinds) {
+            const index = objectStore.index('kind');
+            const indexReq = index.getAll(kind);
+            
+            indexReq.onsuccess = () => {
+              const events = indexReq.result as EventWithRelays[];
+              for (const event of events) {
+                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                  seenIds.add(event.id);
+                  allEvents.push(event);
+                }
+              }
+              kindsProcessed++;
+              if (kindsProcessed === kinds.length) {
+                completed++;
+                if (completed === totalFilters) {
+                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+                }
+              }
+            };
+            indexReq.onerror = () => reject(indexReq.error);
+          }
+          continue;
+        }
+
+        // Fallback: scan all events (slowest path)
+        request = objectStore.getAll();
+        request.onsuccess = () => {
+          const events = request.result as EventWithRelays[];
+          for (const event of events) {
+            if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+              seenIds.add(event.id);
+              allEvents.push(event);
             }
-
-            return true;
-          });
-
-          events = filteredEvents;
-        }
-
-        // Sort by created_at descending
-        events.sort((a, b) => b.created_at - a.created_at);
-
-        // Apply limit if specified (use the first filter's limit)
-        const limit = filters[0]?.limit;
-        if (limit && limit > 0) {
-          events = events.slice(0, limit);
-        }
-
-        resolve(events);
-      };
-
-      request.onerror = () => reject(request.error);
+          }
+          completed++;
+          if (completed === totalFilters) {
+            this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+          }
+        };
+        request.onerror = () => reject(request.error);
+      }
     });
+  }
+
+  private matchesFilter(event: EventWithRelays, filter: {
+    ids?: string[];
+    authors?: string[];
+    kinds?: number[];
+    since?: number;
+    until?: number;
+    [key: string]: unknown;
+  }): boolean {
+    // Filter by IDs
+    if (filter.ids && !filter.ids.includes(event.id)) {
+      return false;
+    }
+
+    // Filter by authors
+    if (filter.authors && !filter.authors.includes(event.pubkey)) {
+      return false;
+    }
+
+    // Filter by kinds
+    if (filter.kinds && !filter.kinds.includes(event.kind)) {
+      return false;
+    }
+
+    // Filter by since (created_at >= since)
+    if (filter.since && event.created_at < filter.since) {
+      return false;
+    }
+
+    // Filter by until (created_at <= until)
+    if (filter.until && event.created_at > filter.until) {
+      return false;
+    }
+
+    // Filter by tag filters (#e, #p, etc.)
+    for (const key in filter) {
+      if (key.startsWith('#') && Array.isArray(filter[key])) {
+        const tagName = key.slice(1);
+        const tagValues = filter[key] as string[];
+        const hasTag = event.tags.some(
+          ([name, value]) => name === tagName && tagValues.includes(value)
+        );
+        if (!hasTag) {
+          return false;
+        }
+      }
+    }
+
+    return true;
+  }
+
+  private finalizeQueryResults(
+    events: EventWithRelays[],
+    limit: number | undefined,
+    resolve: (value: EventWithRelays[]) => void
+  ): void {
+    // Sort by created_at descending
+    events.sort((a, b) => b.created_at - a.created_at);
+
+    // Apply limit if specified
+    if (limit && limit > 0) {
+      events = events.slice(0, limit);
+    }
+
+    resolve(events);
   }
 
   async getEventById(eventId: string): Promise<EventWithRelays | undefined> {

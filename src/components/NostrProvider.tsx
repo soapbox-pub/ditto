@@ -102,10 +102,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         return [...allRelays];
       },
-      // Resolve queries quickly once any relay sends EOSE, instead of
-      // waiting for every relay to finish. This is the single biggest
-      // latency win — Agora uses the same 500 ms timeout.
-      eoseTimeout: 500,
+      // Resolve queries immediately when the first relay sends EOSE.
+      // Since the local relay always responds first (instant IndexedDB query),
+      // queries resolve in ~10-20ms while remote relays continue streaming in background.
+      // This gives a near-instant UX on page load/refresh when data is cached.
+      eoseTimeout: 10,
     });
   }
 
