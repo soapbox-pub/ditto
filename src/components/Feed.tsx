@@ -10,7 +10,7 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
-import { useEngagementCounts } from '@/hooks/useEngagementCounts';
+import { useBatchedEventStats } from '@/hooks/useEngagementCounts';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -74,10 +74,11 @@ export function Feed() {
   }, [feedItems]);
   useAuthors(feedPubkeys);
 
-  // Batch-fetch engagement counts for visible posts using NIP-45 COUNT
-  // queries instead of downloading full interaction events per card.
-  const feedEvents = useMemo(() => feedItems.map((item) => item.event), [feedItems]);
-  const { data: engagementCounts } = useEngagementCounts(feedEvents);
+  // Batch-prefetch engagement stats for all visible posts in 2 queries
+  // instead of 2 per card. Results are seeded into the per-event cache
+  // so each NoteCard's useEventStats() resolves instantly.
+  const feedEventIds = useMemo(() => feedItems.map((item) => item.event.id), [feedItems]);
+  useBatchedEventStats(feedEventIds);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
@@ -134,7 +135,6 @@ export function Feed() {
               key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
               event={item.event}
               repostedBy={item.repostedBy}
-              stats={engagementCounts?.get(item.event.id)}
             />
           ))}
 
