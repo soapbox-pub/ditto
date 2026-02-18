@@ -56,7 +56,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
 
         {/* Compose area */}
         <ComposeBox
-          replyTo={event ?? undefined}
+          replyTo={isQuote ? undefined : (event ?? undefined)}
           quotedEvent={quotedEvent ?? undefined}
           onSuccess={() => onOpenChange(false)}
           placeholder={isReply ? "What's on your mind?" : isQuote ? "Add a comment..." : "What's happening?"}
