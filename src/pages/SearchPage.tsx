@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
+import { TrendSparkline } from '@/components/RightSidebar';
 import { useTrendingTags, useSortedPosts } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -341,10 +342,13 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
       to={`/t/${encodeURIComponent(trend.tag)}`}
       className="flex items-center justify-between px-4 py-2 hover:bg-secondary/30 transition-colors"
     >
-      <span className="font-bold text-[15px]">#{trend.tag}</span>
-      {trend.count > 0 && (
-        <span className="text-xs text-muted-foreground">{trend.count} posts</span>
-      )}
+      <div>
+        <div className="font-bold text-[15px]">#{trend.tag}</div>
+        {trend.count > 0 && (
+          <div className="text-xs text-muted-foreground">{trend.count} posts</div>
+        )}
+      </div>
+      <TrendSparkline />
     </Link>
   );
 }

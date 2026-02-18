@@ -28,7 +28,7 @@ function useIsXl(): boolean {
 }
 
 /** Small sparkline SVG for trending tags. */
-function TrendSparkline() {
+export function TrendSparkline() {
   // Generate a simple random-ish upward sparkline
   const points = useMemo(() => {
     const pts: string[] = [];
@@ -92,9 +92,11 @@ export function RightSidebar() {
               >
                 <div>
                   <div className="font-bold text-sm">#{item.tag}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {item.count > 0 && <><span className="text-primary font-semibold">{item.count}</span> posts · </>}Trending
-                  </div>
+                  {item.count > 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="text-primary font-semibold">{item.count}</span> posts
+                    </div>
+                  )}
                 </div>
                 <TrendSparkline />
               </Link>
