@@ -54,8 +54,8 @@ export function useEncryptedSettings() {
       return events[0];
     },
     enabled: !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes - refetch on page load after this
-    gcTime: 30 * 60 * 1000, // 30 minutes - keep in cache
+    staleTime: 30 * 60 * 1000, // 30 minutes - refetch on page load after this
+    gcTime: 60 * 60 * 1000, // 1 hour - keep in cache
   });
 
   // Parse settings from encrypted content
@@ -80,7 +80,7 @@ export function useEncryptedSettings() {
       }
     },
     enabled: !!query.data && !!user,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // Update settings
