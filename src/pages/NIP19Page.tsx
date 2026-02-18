@@ -3,7 +3,11 @@ import { useParams, Navigate } from 'react-router-dom';
 import NotFound from './NotFound';
 import { PostDetailPage } from './PostDetailPage';
 import { AddrDetailPage } from './AddrDetailPage';
+import { FollowPackDetailPage } from '@/components/FollowPackDetail';
 import type { AddressPointer } from 'nostr-tools/nip19';
+
+/** Follow set and starter pack kinds (NIP-51). */
+const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 
 export function NIP19Page() {
   const { nip19: identifier } = useParams<{ nip19: string }>();
@@ -35,7 +39,14 @@ export function NIP19Page() {
 
     case 'naddr': {
       const addr = decoded.data as AddressPointer;
-      return <AddrDetailPage addr={{ kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier }} />;
+      const coords = { kind: addr.kind, pubkey: addr.pubkey, identifier: addr.identifier };
+
+      // Route follow packs / starter packs to the dedicated view
+      if (FOLLOW_PACK_KINDS.has(addr.kind)) {
+        return <FollowPackDetailPage addr={coords} />;
+      }
+
+      return <AddrDetailPage addr={coords} />;
     }
 
     default:

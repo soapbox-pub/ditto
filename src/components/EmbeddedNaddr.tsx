@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { Users, PartyPopper } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
@@ -9,6 +10,9 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+/** Follow set and starter pack kinds (NIP-51). */
+const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 
 interface EmbeddedNaddrProps {
   /** The decoded naddr coordinates. */
@@ -86,6 +90,12 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
     if (description.length <= MAX_CONTENT_LENGTH) return description;
     return description.slice(0, MAX_CONTENT_LENGTH).trimEnd() + '…';
   }, [description]);
+
+  const isFollowPack = FOLLOW_PACK_KINDS.has(event.kind);
+  const isStarterPack = event.kind === 39089;
+  const memberCount = isFollowPack
+    ? event.tags.filter(([n]) => n === 'p').length
+    : 0;
 
   return (
     <div
@@ -174,6 +184,20 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
             {truncatedDesc}
           </p>
+        )}
+
+        {/* Follow pack badge + member count */}
+        {isFollowPack && memberCount > 0 && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+              {isStarterPack ? <PartyPopper className="size-3" /> : <Users className="size-3" />}
+              {isStarterPack ? 'Starter Pack' : 'Follow Set'}
+            </span>
+            <span className="text-xs text-muted-foreground flex items-center gap-1">
+              <Users className="size-3" />
+              {memberCount} member{memberCount !== 1 ? 's' : ''}
+            </span>
+          </div>
         )}
       </div>
     </div>
