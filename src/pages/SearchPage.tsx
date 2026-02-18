@@ -205,7 +205,7 @@ export function SearchPage() {
               </div>
             ) : trends && trends.length > 0 ? (
               <div className="divide-y divide-border">
-                {trends.map((trend, index) => (
+                {trends.slice(0, 5).map((trend, index) => (
                   <TrendItem key={index} trend={trend} />
                 ))}
               </div>
@@ -339,11 +339,10 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="block px-4 py-3.5 hover:bg-secondary/30 transition-colors"
+      className="flex items-center justify-between px-4 py-2 hover:bg-secondary/30 transition-colors"
     >
-      <p className="text-xs text-muted-foreground">Trending</p>
-      <p className="font-bold text-[15px] mt-0.5">#{trend.tag}</p>
-      <p className="text-sm text-muted-foreground mt-0.5">{trend.count.toLocaleString()} posts</p>
+      <span className="font-bold text-[15px]">#{trend.tag}</span>
+      <span className="text-xs text-muted-foreground">Trending</span>
     </Link>
   );
 }
