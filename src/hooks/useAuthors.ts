@@ -1,6 +1,7 @@
-import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { parseAuthorEvent, PROFILE_RELAYS } from '@/hooks/useAuthor';
 
 export interface AuthorData {
   pubkey: string;
@@ -9,15 +10,13 @@ export interface AuthorData {
 }
 
 /**
- * Batch-fetch multiple author profiles in a single relay query.
- *
- * Much more efficient than calling `useAuthor` once per pubkey — one
- * round-trip instead of N.  Results are also seeded into the individual
- * `['author', pubkey]` cache entries so that later `useAuthor()` calls
- * for the same pubkeys resolve instantly from cache.
- *
- * @param pubkeys - Array of hex pubkeys to fetch profiles for
- * @returns React Query result with a Map<pubkey, AuthorData>
+ * Batch fetch multiple author profiles in a single query.
+ * More efficient than calling useAuthor for each pubkey individually.
+ * Results are also seeded into the individual ['author', pubkey] cache
+ * so that subsequent useAuthor() calls for the same pubkeys are instant.
+ * 
+ * @param pubkeys - Array of pubkeys to fetch profiles for
+ * @returns Query result with map of pubkey -> AuthorData
  */
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
@@ -35,33 +34,55 @@ export function useAuthors(pubkeys: string[]) {
 
       const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
+      // Fast path: use the pool (races all relays, returns quickly via EOSE timeout)
       const events = await nostr.query(
         [{ kinds: [0], authors: uniquePubkeys, limit: uniquePubkeys.length }],
         { signal: combinedSignal },
       );
 
       const authorMap = new Map<string, AuthorData>();
+      const found = new Set<string>();
 
-      // Initialize every requested pubkey so callers always get an entry
-      for (const pk of uniquePubkeys) {
-        authorMap.set(pk, { pubkey: pk });
+      // Initialize all pubkeys with empty data
+      for (const pubkey of uniquePubkeys) {
+        authorMap.set(pubkey, { pubkey });
       }
 
-      // Process returned kind-0 events
+      // Process pool results
       for (const event of events) {
-        let metadata: NostrMetadata | undefined;
-        try {
-          metadata = n.json().pipe(n.metadata()).parse(event.content);
-        } catch {
-          // unparseable — leave metadata undefined
-        }
+        const parsed = parseAuthorEvent(event);
+        authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
+        queryClient.setQueryData(['author', event.pubkey], parsed);
+        found.add(event.pubkey);
+      }
 
-        const data: AuthorData = { pubkey: event.pubkey, event, metadata };
-        authorMap.set(event.pubkey, data);
+      // Slow path: for any pubkeys not found by the pool, query relays individually.
+      const missing = uniquePubkeys.filter(pk => !found.has(pk));
+      if (missing.length > 0) {
+        await new Promise<void>((resolve) => {
+          const needed = new Set(missing);
+          let pending = PROFILE_RELAYS.length;
 
-        // Seed the individual `useAuthor(pubkey)` cache so it resolves
-        // instantly for any card that mounts later.
-        queryClient.setQueryData(['author', event.pubkey], { event, metadata });
+          for (const url of PROFILE_RELAYS) {
+            nostr.relay(url).query(
+              [{ kinds: [0], authors: missing, limit: missing.length }],
+              { signal: combinedSignal },
+            ).then((relayEvents) => {
+              for (const event of relayEvents) {
+                if (needed.has(event.pubkey)) {
+                  const parsed = parseAuthorEvent(event);
+                  authorMap.set(event.pubkey, { pubkey: event.pubkey, ...parsed });
+                  queryClient.setQueryData(['author', event.pubkey], parsed);
+                  needed.delete(event.pubkey);
+                }
+              }
+              if (needed.size === 0) resolve();
+              if (--pending === 0) resolve();
+            }).catch(() => {
+              if (--pending === 0) resolve();
+            });
+          }
+        });
       }
 
       return authorMap;
