@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal, Radio, Loader2, AlertCircle } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNostr } from '@nostrify/react';
 import { useSeoMeta } from '@unhead/react';
 
 import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ImageGallery } from '@/components/ImageGallery';
@@ -32,7 +35,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import NotFound from './NotFound';
+import { APP_RELAYS } from '@/lib/appRelays';
 
 interface PostDetailPageProps {
   eventId: string;
@@ -127,9 +130,10 @@ function getParentEventId(event: NostrEvent): string | undefined {
 
 export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
   const { data: event, isLoading, isError } = useEvent(eventId, relays);
+  const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
-    title: event ? 'Post Details - Mew' : 'Loading... - Mew',
+    title: (event || retryEvent) ? 'Post Details - Mew' : 'Loading... - Mew',
   });
 
   if (isLoading) {
@@ -142,14 +146,25 @@ export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
     );
   }
 
-  if (isError || !event) {
-    return <NotFound />;
+  const resolvedEvent = event || retryEvent;
+
+  if (isError || !resolvedEvent) {
+    return (
+      <MainLayout>
+        <PostDetailShell>
+          <EventNotFound
+            context={{ type: 'event', eventId, relays }}
+            onEventFound={setRetryEvent}
+          />
+        </PostDetailShell>
+      </MainLayout>
+    );
   }
 
   return (
     <MainLayout>
       <PostDetailShell>
-        <PostDetailContent event={event} />
+        <PostDetailContent event={resolvedEvent} />
       </PostDetailShell>
     </MainLayout>
   );
@@ -158,10 +173,13 @@ export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
 /** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
 export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   const { data: event, isLoading, isError } = useAddrEvent(addr, relays);
+  const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
+
+  const resolvedEvent = event || retryEvent;
 
   useSeoMeta({
-    title: event
-      ? `${event.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Mew`
+    title: resolvedEvent
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Mew`
       : 'Loading... - Mew',
   });
 
@@ -175,16 +193,25 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     );
   }
 
-  if (isError || !event) {
-    return <NotFound />;
-  }
-
-  // Follow packs get their own full detail view with member list + Follow All
-  if (FOLLOW_PACK_KINDS.has(event.kind)) {
+  if (isError || !resolvedEvent) {
     return (
       <MainLayout>
         <PostDetailShell>
-          <FollowPackDetailContent event={event} />
+          <EventNotFound
+            context={{ type: 'addr', addr, relays }}
+            onEventFound={setRetryEvent}
+          />
+        </PostDetailShell>
+      </MainLayout>
+    );
+  }
+
+  // Follow packs get their own full detail view with member list + Follow All
+  if (FOLLOW_PACK_KINDS.has(resolvedEvent.kind)) {
+    return (
+      <MainLayout>
+        <PostDetailShell>
+          <FollowPackDetailContent event={resolvedEvent} />
         </PostDetailShell>
       </MainLayout>
     );
@@ -193,7 +220,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   return (
     <MainLayout>
       <PostDetailShell>
-        <PostDetailContent event={event} />
+        <PostDetailContent event={resolvedEvent} />
       </PostDetailShell>
     </MainLayout>
   );
@@ -218,6 +245,217 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
 
       {children}
     </main>
+  );
+}
+
+/** Context info about the event that wasn't found. */
+type EventNotFoundContext =
+  | { type: 'event'; eventId: string; relays?: string[] }
+  | { type: 'addr'; addr: AddrCoords; relays?: string[] };
+
+/** Well-known public relays a user can try as fallback. */
+const SUGGESTED_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://relay.primal.net',
+  'wss://nos.lol',
+  'wss://relay.ditto.pub',
+  'wss://cache2.primal.net/v1',
+  'wss://relay.nostr.band',
+  'wss://purplepag.es',
+  'wss://relay.snort.social',
+];
+
+/** Shows a "not found" state with contextual event info and a relay retry option. */
+function EventNotFound({
+  context,
+  onEventFound,
+}: {
+  context: EventNotFoundContext;
+  onEventFound: (event: NostrEvent) => void;
+}) {
+  const { nostr } = useNostr();
+  const [relayUrl, setRelayUrl] = useState('');
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [retryError, setRetryError] = useState<string | null>(null);
+
+  // Build the list of relays already tried
+  const triedRelays = useMemo(() => {
+    const tried = new Set<string>();
+    for (const r of APP_RELAYS.relays) {
+      tried.add(r.url);
+    }
+    if (context.relays) {
+      for (const r of context.relays) {
+        tried.add(r);
+      }
+    }
+    return tried;
+  }, [context.relays]);
+
+  // Filter suggested relays to exclude already-tried ones
+  const availableSuggestions = useMemo(
+    () => SUGGESTED_RELAYS.filter((url) => !triedRelays.has(url)),
+    [triedRelays],
+  );
+
+  const handleRetry = useCallback(async (targetUrl: string) => {
+    const url = targetUrl.trim();
+    if (!url) return;
+
+    // Basic validation
+    if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
+      setRetryError('Relay URL must start with wss:// or ws://');
+      return;
+    }
+
+    setIsRetrying(true);
+    setRetryError(null);
+
+    try {
+      const relay = nostr.relay(url);
+      const signal = AbortSignal.timeout(8000);
+
+      let filter;
+      if (context.type === 'event') {
+        filter = [{ ids: [context.eventId], limit: 1 }];
+      } else {
+        filter = [{
+          kinds: [context.addr.kind],
+          authors: [context.addr.pubkey],
+          '#d': [context.addr.identifier],
+          limit: 1,
+        }];
+      }
+
+      const events = await relay.query(filter, { signal });
+      if (events.length > 0) {
+        onEventFound(events[0]);
+      } else {
+        setRetryError(`Event not found on ${url}`);
+      }
+    } catch {
+      setRetryError(`Failed to connect to ${url}`);
+    } finally {
+      setIsRetrying(false);
+    }
+  }, [nostr, context, onEventFound]);
+
+  // Truncate hex IDs for display
+  const truncateHex = (hex: string) => `${hex.slice(0, 8)}…${hex.slice(-8)}`;
+
+  return (
+    <div className="px-4 py-12">
+      <div className="max-w-md mx-auto space-y-6">
+        {/* Not found message */}
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center justify-center size-14 rounded-full bg-muted/60 mb-2">
+            <AlertCircle className="size-7 text-muted-foreground" />
+          </div>
+          <h2 className="text-xl font-bold">Event not found</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            This event couldn't be loaded from your connected relays. It may exist on a relay you're not connected to.
+          </p>
+        </div>
+
+        {/* Context details */}
+        <div className="rounded-xl border border-border bg-secondary/30 p-4 space-y-2 text-sm">
+          <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-2">
+            Event details
+          </p>
+          {context.type === 'event' ? (
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground shrink-0 w-14">ID</span>
+                <span className="font-mono text-xs break-all">{truncateHex(context.eventId)}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground shrink-0 w-14">Kind</span>
+                <span className="font-mono text-xs">{context.addr.kind}</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-muted-foreground shrink-0 w-14">Author</span>
+                <span className="font-mono text-xs break-all">{truncateHex(context.addr.pubkey)}</span>
+              </div>
+              {context.addr.identifier && (
+                <div className="flex items-start gap-2">
+                  <span className="text-muted-foreground shrink-0 w-14">d-tag</span>
+                  <span className="font-mono text-xs break-all">{context.addr.identifier}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {context.relays && context.relays.length > 0 && (
+            <div className="flex items-start gap-2 pt-1">
+              <span className="text-muted-foreground shrink-0 w-14">Hints</span>
+              <span className="font-mono text-xs break-all">{context.relays.join(', ')}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Relay retry */}
+        <div className="space-y-3">
+          <p className="text-sm font-semibold">Try another relay</p>
+
+          <div className="flex gap-2">
+            <Input
+              value={relayUrl}
+              onChange={(e) => setRelayUrl(e.target.value)}
+              placeholder="wss://relay.example.com"
+              className="flex-1 font-mono text-xs h-9"
+              disabled={isRetrying}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleRetry(relayUrl);
+              }}
+            />
+            <Button
+              size="sm"
+              onClick={() => handleRetry(relayUrl)}
+              disabled={isRetrying || !relayUrl.trim()}
+              className="shrink-0 h-9"
+            >
+              {isRetrying ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Radio className="size-4" />
+              )}
+              <span className="ml-1.5">Try</span>
+            </Button>
+          </div>
+
+          {retryError && (
+            <p className="text-xs text-destructive flex items-center gap-1.5">
+              <AlertCircle className="size-3 shrink-0" />
+              {retryError}
+            </p>
+          )}
+
+          {/* Quick-pick suggestions */}
+          {availableSuggestions.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">Or try one of these relays:</p>
+              <div className="flex flex-wrap gap-1.5">
+                {availableSuggestions.map((url) => (
+                  <button
+                    key={url}
+                    onClick={() => {
+                      setRelayUrl(url);
+                      handleRetry(url);
+                    }}
+                    disabled={isRetrying}
+                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors border border-border disabled:opacity-50"
+                  >
+                    {url.replace('wss://', '')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
