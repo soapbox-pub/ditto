@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, MapPin, Palette, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, MapPin, Palette, PartyPopper, User, Wallet, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -59,6 +59,7 @@ export function LeftSidebar() {
     polls: <BarChart3 className="size-6" />,
     treasures: <MapPin className="size-6" />,
     colors: <Palette className="size-6" />,
+    packs: <PartyPopper className="size-6" />,
   };
 
   const navItems = useMemo(() => {

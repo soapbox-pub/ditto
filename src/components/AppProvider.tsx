@@ -27,10 +27,12 @@ const FeedSettingsSchema = z.object({
   showPolls: z.boolean(),
   showTreasures: z.boolean(),
   showColors: z.boolean(),
+  showPacks: z.boolean(),
   feedIncludeVines: z.boolean(),
   feedIncludePolls: z.boolean(),
   feedIncludeTreasures: z.boolean(),
   feedIncludeColors: z.boolean(),
+  feedIncludePacks: z.boolean(),
 }) satisfies z.ZodType<FeedSettings>;
 
 // Zod schema for AppConfig validation

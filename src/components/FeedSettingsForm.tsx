@@ -1,4 +1,4 @@
-import { Clapperboard, BarChart3, MapPin, Palette } from 'lucide-react';
+import { Clapperboard, BarChart3, MapPin, Palette, PartyPopper } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -12,6 +12,7 @@ const ICONS: Record<string, React.ReactNode> = {
   polls: <BarChart3 className="size-5" />,
   treasures: <MapPin className="size-5" />,
   colors: <Palette className="size-5" />,
+  packs: <PartyPopper className="size-5" />,
 };
 
 interface ContentTypeConfig {

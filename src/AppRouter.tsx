@@ -31,6 +31,7 @@ export function AppRouter() {
         <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" />} />
         <Route path="/treasures" element={<KindFeedPage kind={37516} title="Treasures" />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" />} />
+        <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" />} />
         <Route path="/wallet" element={<WalletPage />} />
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" />} />

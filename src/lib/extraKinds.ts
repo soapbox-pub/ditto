@@ -55,6 +55,15 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'colors',
     addressable: false,
   },
+  {
+    kind: 39089,
+    showKey: 'showPacks',
+    feedKey: 'feedIncludePacks',
+    label: 'Follow Packs',
+    description: 'Starter packs / follow sets (kind 39089)',
+    route: 'packs',
+    addressable: true,
+  },
 ];
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */

@@ -46,10 +46,12 @@ const defaultConfig: AppConfig = {
     showPolls: false,
     showTreasures: false,
     showColors: false,
+    showPacks: true,
     feedIncludeVines: false,
     feedIncludePolls: false,
     feedIncludeTreasures: false,
     feedIncludeColors: false,
+    feedIncludePacks: false,
   },
 };
 

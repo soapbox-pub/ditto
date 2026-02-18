@@ -9,6 +9,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { FollowPackContent } from '@/components/FollowPackContent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
@@ -129,7 +130,8 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
   const isPoll = event.kind === 1068;
   const isGeocache = event.kind === 37516;
   const isColor = event.kind === 3367;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor;
+  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor && !isFollowPack;
 
   // Kind 1 specific
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
@@ -221,6 +223,8 @@ export function NoteCard({ event, className, repostedBy }: NoteCardProps) {
         <GeocacheContent event={event} />
       ) : isColor ? (
         <ColorMomentContent event={event} />
+      ) : isFollowPack ? (
+        <FollowPackContent event={event} />
       ) : (
         <>
           <div className="mt-2">
