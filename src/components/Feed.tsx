@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
@@ -10,6 +11,8 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthors } from '@/hooks/useAuthors';
+import { useBatchEventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -34,63 +37,25 @@ export function Feed() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-    isFetching,
   } = useFeed(activeTab);
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  // Keep refs fresh so the IntersectionObserver callback never has stale closures
-  const hasNextPageRef = useRef(hasNextPage);
-  const isFetchingRef = useRef(isFetching);
-  const fetchNextPageRef = useRef(fetchNextPage);
-  useEffect(() => { hasNextPageRef.current = hasNextPage; }, [hasNextPage]);
-  useEffect(() => { isFetchingRef.current = isFetching; }, [isFetching]);
-  useEffect(() => { fetchNextPageRef.current = fetchNextPage; }, [fetchNextPage]);
-
-  // Raw IntersectionObserver — fires reliably regardless of iframe/scroll context.
-  // rootMargin of 800px means we start loading the next page well before the
-  // sentinel actually scrolls into view.
-  const sentinelRef = useRef<HTMLDivElement>(null);
+  // Auto-fetch next page when first page loads
   useEffect(() => {
-    const el = sentinelRef.current;
-    if (!el) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasNextPageRef.current && !isFetchingRef.current) {
-          fetchNextPageRef.current();
-        }
-      },
-      { rootMargin: '800px' },
-    );
-
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []); // intentionally empty — refs stay fresh above
-
-  // Also trigger when isFetching transitions to false while sentinel is visible.
-  // This covers the case where the sentinel was in view but fetching was in
-  // progress, so the observer callback was blocked. When fetching completes we
-  // check again and load the next batch if still in view.
-  useEffect(() => {
-    if (isFetching) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    // Check if within 800px of the viewport
-    if (rect.top <= window.innerHeight + 800 && hasNextPage) {
+    if (!isPending && hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
       fetchNextPage();
     }
-  }, [isFetching, hasNextPage, fetchNextPage]);
+  }, [isPending, hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
 
-  // Flatten pages and deduplicate by event id
-  const feedItems = useMemo(() => {
+  // Track page boundaries for intersection observers
+  const pageItems = useMemo(() => {
     if (!data?.pages) return [];
-    const seen = new Set<string>();
-    const items: FeedItem[] = [];
-    for (const page of data.pages) {
+    return data.pages.map((page, pageIndex) => {
+      const seen = new Set<string>();
+      const items: FeedItem[] = [];
       for (const item of page) {
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
@@ -98,9 +63,35 @@ export function Feed() {
           items.push(item);
         }
       }
-    }
-    return items;
+      return { pageIndex, items };
+    });
   }, [data?.pages]);
+
+  // Flatten all items for author/stats prefetching
+  const feedItems = useMemo(() => {
+    return pageItems.flatMap(p => p.items);
+  }, [pageItems]);
+
+  // Batch-prefetch all author profiles in a single relay query instead of
+  // firing N individual useAuthor() calls from each NoteCard.  The results
+  // are seeded into the ['author', pubkey] cache so NoteCard's own
+  // useAuthor() resolves instantly from cache.
+  const feedPubkeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const item of feedItems) {
+      keys.add(item.event.pubkey);
+      if (item.repostedBy) keys.add(item.repostedBy);
+    }
+    return [...keys];
+  }, [feedItems]);
+  useAuthors(feedPubkeys);
+
+  // Batch-prefetch interaction stats for all visible events in a single
+  // relay query instead of firing 2 queries per NoteCard.
+  const feedEventIds = useMemo(() => {
+    return feedItems.map((item) => item.event.id);
+  }, [feedItems]);
+  useBatchEventStats(feedEventIds);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
@@ -153,20 +144,25 @@ export function Feed() {
           </div>
         ) : feedItems.length > 0 ? (
           <div>
-            {feedItems.map((item: FeedItem) => (
-              <NoteCard
-                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                event={item.event}
-                repostedBy={item.repostedBy}
-              />
+            {pageItems.map(({ pageIndex, items }) => (
+              <div key={pageIndex}>
+                {items.map((item: FeedItem) => (
+                  <NoteCard
+                    key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                  />
+                ))}
+                {/* Page boundary - triggers next page when this page's boundary is reached */}
+                <PageBoundary
+                  pageIndex={pageIndex}
+                  totalPages={data?.pages?.length ?? 0}
+                  hasNextPage={hasNextPage}
+                  isFetchingNextPage={isFetchingNextPage}
+                  onLoadNext={fetchNextPage}
+                />
+              </div>
             ))}
-
-            {/* Infinite scroll sentinel — always in DOM so the observer stays active */}
-            <div ref={sentinelRef} className="flex justify-center py-6">
-              {isFetchingNextPage && (
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
-              )}
-            </div>
           </div>
         ) : (
           <div className="py-16 px-8 text-center">
@@ -190,6 +186,46 @@ export function Feed() {
       />
     </main>
   );
+}
+
+function PageBoundary({
+  pageIndex,
+  totalPages,
+  hasNextPage,
+  isFetchingNextPage,
+  onLoadNext,
+}: {
+  pageIndex: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onLoadNext: () => void;
+}) {
+  const { ref, inView } = useInView({
+    threshold: 0,
+    rootMargin: '400px', // Start loading before the user reaches the boundary
+  });
+
+  useEffect(() => {
+    // Only trigger if this is the last page and there's more to load
+    if (inView && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
+      onLoadNext();
+    }
+  }, [inView, pageIndex, totalPages, hasNextPage, isFetchingNextPage, onLoadNext]);
+
+  // Only show loading indicator for the last page
+  if (pageIndex === totalPages - 1 && hasNextPage) {
+    return (
+      <div ref={ref} className="flex justify-center py-6">
+        {isFetchingNextPage && (
+          <Loader2 className="size-5 animate-spin text-muted-foreground" />
+        )}
+      </div>
+    );
+  }
+
+  // Silent boundary for earlier pages
+  return <div ref={ref} />;
 }
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {

@@ -1,12 +1,10 @@
-import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { computePageStats } from './useTrending';
-import { seedAuthorCache } from './useAuthor';
+import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
 
@@ -40,69 +38,6 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
   return undefined;
 }
 
-/**
- * Fire-and-forget: seed ['author', pubkey] and ['event-stats', id] caches
- * for a page of feed items so that NoteCard's per-card hooks resolve from
- * cache rather than firing individual relay queries.
- *
- * Runs in the background — does NOT block the queryFn from returning items.
- * Includes post authors, repost authors, and mentioned p-tag pubkeys so that
- * @mentions and reply-to lines also resolve without individual round trips.
- */
-async function prefetchPageData(
-  items: FeedItem[],
-  nostr: ReturnType<typeof import('@nostrify/react').useNostr>['nostr'],
-  queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
-) {
-  const allPubkeys = new Set<string>();
-  for (const item of items) {
-    allPubkeys.add(item.event.pubkey);
-    if (item.repostedBy) allPubkeys.add(item.repostedBy);
-    for (const tag of item.event.tags) {
-      if (tag[0] === 'p' && tag[1]) allPubkeys.add(tag[1]);
-    }
-  }
-
-  const pubkeysToFetch = [...allPubkeys].filter(
-    (pk) => queryClient.getQueryData(['author', pk]) === undefined,
-  );
-
-  const eventIdsToFetch = items
-    .map((item) => item.event.id)
-    .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
-
-  // Await author prefetch with a short deadline — whatever profiles arrive
-  // in time get cached; cards whose authors miss the window fall back to
-  // individual useAuthor queries (acceptable for a minority of cards).
-  if (pubkeysToFetch.length > 0) {
-    await nostr.query(
-      [{ kinds: [0], authors: pubkeysToFetch }],
-      { signal: AbortSignal.timeout(1500) },
-    ).then((profileEvents) => {
-      for (const ev of profileEvents) {
-        let metadata: NostrMetadata | undefined;
-        try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-        seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
-      }
-    }).catch(() => {});
-  }
-
-  // Stats are fire-and-forget — nice to have pre-cached but not worth blocking on.
-  if (eventIdsToFetch.length > 0) {
-    nostr.query(
-      [
-        { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
-        { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
-      ],
-      { signal: AbortSignal.timeout(6000) },
-    ).then((statEvents) => {
-      for (const id of eventIdsToFetch) {
-        queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
-      }
-    }).catch(() => {});
-  }
-}
-
 /** Hook to fetch the global or followed feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global') {
   const { nostr } = useNostr();
@@ -110,7 +45,6 @@ export function useFeed(tab: 'follows' | 'global') {
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
-  const queryClient = useQueryClient();
 
   // Build the full kinds list: base kinds + user-selected extra kinds.
   const extraKinds = getEnabledFeedKinds(feedSettings);
@@ -120,6 +54,7 @@ export function useFeed(tab: 'follows' | 'global') {
   const extraKindsKey = extraKinds.sort().join(',');
 
   // For the follows tab, wait until the follow list is loaded before running any query.
+  // Without this guard, the query falls through to the global branch while followList is still loading.
   const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
 
   return useInfiniteQuery<FeedItem[], Error>({
@@ -128,24 +63,28 @@ export function useFeed(tab: 'follows' | 'global') {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
 
-      let items: FeedItem[] = [];
-
       if (tab === 'follows' && user && followList && followList.length > 0) {
+        // Follows feed — posts, reposts, and extra kinds from people you follow
         const authors = [...followList, user.pubkey];
         const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
-        if (pageParam) filter.until = pageParam;
+        if (pageParam) {
+          filter.until = pageParam;
+        }
 
         const events = await nostr.query(
           [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
           { signal: querySignal },
         );
 
+        const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
         const repostMap = new Map<string, NostrEvent>();
 
         for (const ev of events) {
           if (ev.created_at > now) continue;
+
           if (ev.kind === 6) {
+            // Handle reposts
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
@@ -157,10 +96,12 @@ export function useFeed(tab: 'follows' | 'global') {
               }
             }
           } else {
+            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
             items.push({ event: ev, sortTimestamp: ev.created_at });
           }
         }
 
+        // Fetch any missing reposted events in a single query
         if (repostMissingIds.length > 0) {
           try {
             const originals = await nostr.query(
@@ -173,9 +114,12 @@ export function useFeed(tab: 'follows' | 'global') {
                 items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
               }
             }
-          } catch { /* skip missing reposts */ }
+          } catch {
+            // timeout or abort — just skip the missing reposts
+          }
         }
 
+        // Deduplicate
         const seen = new Map<string, FeedItem>();
         for (const item of items) {
           const existing = seen.get(item.event.id);
@@ -185,33 +129,30 @@ export function useFeed(tab: 'follows' | 'global') {
             seen.set(item.event.id, item);
           }
         }
-        items = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
+        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
+        // Global feed — kind 1 notes + user-selected extra kinds
         const globalKinds = [1, ...extraKinds];
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
-        if (pageParam) filter.until = pageParam;
+        if (pageParam) {
+          filter.until = pageParam;
+        }
 
         const events = await nostr.query(
           [filter as { kinds: number[]; limit: number; until?: number }],
           { signal: querySignal },
         );
 
-        items = events
+        return events
           .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
-
-      // Prefetch authors and stats in parallel before returning.
-      // This ensures cache is populated before NoteCards mount, so individual
-      // useAuthor/useEventStats calls hit cache and never open relay subscriptions.
-      await prefetchPageData(items, nostr, queryClient);
-
-      return items;
     },
     getNextPageParam: (lastPage) => {
       if (lastPage.length === 0) return undefined;
+      // Use the oldest item's sortTimestamp minus 1 (since `until` is inclusive)
       const oldest = lastPage[lastPage.length - 1];
       return oldest.sortTimestamp - 1;
     },
@@ -219,6 +160,6 @@ export function useFeed(tab: 'follows' | 'global') {
     enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
-    placeholderData: (previousData) => previousData,
+    placeholderData: (previousData) => previousData, // Keep showing previous data while refetching (avoids flicker)
   });
 }

@@ -202,11 +202,8 @@ export interface EventStats {
 
 const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] };
 
-/**
- * Computes stats for a single event ID from a flat array of interaction events.
- * Exported so useFeed can call it directly when seeding the per-page cache.
- */
-export function computePageStats(eventId: string, events: NostrEvent[]): EventStats {
+/** Computes stats for a single event ID from a flat array of interaction events. */
+function computeStats(eventId: string, events: NostrEvent[]): EventStats {
   let replies = 0;
   let reposts = 0;
   let quotes = 0;
@@ -273,7 +270,7 @@ export function useEventStats(eventId: string | undefined) {
         { signal: combined },
       );
 
-      return computePageStats(eventId, events);
+      return computeStats(eventId, events);
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
@@ -357,49 +354,40 @@ export function useTagSparklines(tags: string[], enabled = true) {
 /**
  * Batch-fetch interaction stats for multiple event IDs in a single relay query.
  *
- * Only fetches IDs that are not already present in the individual
- * ['event-stats', id] cache. This means the query key stabilises once
- * all events on a given set of feed pages have been fetched — loading
- * page 2 does NOT re-fetch page 1's stats.
- *
- * Results are seeded into individual cache entries so NoteCard's own
- * useEventStats() calls resolve instantly from cache.
+ * Much more efficient than calling `useEventStats` once per event — one
+ * round-trip instead of N.  Results are also seeded into the individual
+ * `['event-stats', id]` cache entries so that `useEventStats()` calls
+ * for the same IDs resolve instantly from cache.
  */
 export function useBatchEventStats(eventIds: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
 
-  const allUnique = [...new Set(eventIds)].sort();
-
-  // Only fetch IDs not already cached
-  const uncached = allUnique.filter(
-    (id) => queryClient.getQueryData(['event-stats', id]) === undefined,
-  );
+  const uniqueIds = [...new Set(eventIds)].sort();
 
   return useQuery<Map<string, EventStats>>({
-    // Key on the uncached set — stable once all stats are fetched
-    queryKey: ['batch-event-stats', uncached.join(',')],
+    queryKey: ['batch-event-stats', uniqueIds.join(',')],
     queryFn: async ({ signal }) => {
-      if (uncached.length === 0) return new Map();
+      if (uniqueIds.length === 0) return new Map();
 
       const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
-      // Single query covering all uncached event IDs — relay handles as OR
+      // Single query covering all event IDs — relay handles as OR
       const events = await nostr.query(
         [
-          { kinds: [1, 6, 7, 9735], '#e': uncached, limit: uncached.length * 10 },
-          { kinds: [1], '#q': uncached, limit: uncached.length * 3 },
+          { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
+          { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
         ],
         { signal: combined },
       );
 
       const statsMap = new Map<string, EventStats>();
 
-      for (const id of uncached) {
-        const stats = computePageStats(id, events);
+      for (const id of uniqueIds) {
+        const stats = computeStats(id, events);
         statsMap.set(id, stats);
 
-        // Seed individual cache so useEventStats() resolves from cache instantly
+        // Seed individual cache
         queryClient.setQueryData(['event-stats', id], stats);
       }
 
@@ -407,7 +395,7 @@ export function useBatchEventStats(eventIds: string[]) {
     },
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
-    enabled: uncached.length > 0,
+    enabled: uniqueIds.length > 0,
     placeholderData: (prev) => prev,
   });
 }
