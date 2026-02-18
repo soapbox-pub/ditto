@@ -170,20 +170,30 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
-        || (token.type === 'naddr-embed' && !token.url);
-      // naddr-embed with a URL starts with inline text, so only trim after it
-      const isNaddrWithUrl = token.type === 'naddr-embed' && !!token.url;
+        || token.type === 'naddr-embed';
 
-      if (isBlock || isNaddrWithUrl) {
-        // Trim trailing whitespace from the preceding text token (only for pure block tokens)
-        if (isBlock && i > 0) {
+      if (isBlock) {
+        // Trim trailing whitespace from the preceding text token
+        if (i > 0) {
           const prev = result[i - 1];
           if (prev.type === 'text') {
             prev.value = prev.value.replace(/\s+$/, '');
           }
         }
-        // Trim leading whitespace from the following text token
-        if (i < result.length - 1) {
+        // For naddr-embed, preserve one newline if present, otherwise trim all whitespace
+        if (token.type === 'naddr-embed' && i < result.length - 1) {
+          const next = result[i + 1];
+          if (next.type === 'text') {
+            // If there are newlines, preserve one and trim the rest
+            const hasNewline = /\n/.test(next.value);
+            if (hasNewline) {
+              next.value = next.value.replace(/^\s+/, '\n');
+            } else {
+              next.value = next.value.replace(/^\s+/, '');
+            }
+          }
+        } else if (i < result.length - 1) {
+          // For other block tokens, trim all leading whitespace
           const next = result[i + 1];
           if (next.type === 'text') {
             next.value = next.value.replace(/^\s+/, '');
