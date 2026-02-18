@@ -41,15 +41,15 @@ function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
 }
 
 /**
- * Fire-and-forget: seed ['author', pubkey] and ['event-stats', id] caches
- * for a page of feed items so that NoteCard's per-card hooks resolve from
- * cache rather than firing individual relay queries.
+ * Prefetch author profiles and interaction stats for a set of feed items,
+ * seeding the TanStack Query cache so per-card hooks resolve without opening
+ * individual relay subscriptions.
  *
- * Runs in the background — does NOT block the queryFn from returning items.
- * Includes post authors, repost authors, and mentioned p-tag pubkeys so that
- * @mentions and reply-to lines also resolve without individual round trips.
+ * Called from a useEffect in Feed.tsx — runs after render, never blocks
+ * the queryFn. Authors use a 1500ms timeout (partial results are fine);
+ * stats are fully fire-and-forget.
  */
-async function prefetchPageData(
+export function prefetchFeedData(
   items: FeedItem[],
   nostr: ReturnType<typeof import('@nostrify/react').useNostr>['nostr'],
   queryClient: ReturnType<typeof import('@tanstack/react-query').useQueryClient>,
@@ -71,11 +71,8 @@ async function prefetchPageData(
     .map((item) => item.event.id)
     .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
 
-  // Await author prefetch with a short deadline — whatever profiles arrive
-  // in time get cached; cards whose authors miss the window fall back to
-  // individual useAuthor queries (acceptable for a minority of cards).
   if (pubkeysToFetch.length > 0) {
-    await nostr.query(
+    nostr.query(
       [{ kinds: [0], authors: pubkeysToFetch }],
       { signal: AbortSignal.timeout(1500) },
     ).then((profileEvents) => {
@@ -87,7 +84,6 @@ async function prefetchPageData(
     }).catch(() => {});
   }
 
-  // Stats are fire-and-forget — nice to have pre-cached but not worth blocking on.
   if (eventIdsToFetch.length > 0) {
     nostr.query(
       [
@@ -202,11 +198,6 @@ export function useFeed(tab: 'follows' | 'global') {
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
-
-      // Prefetch authors and stats in parallel before returning.
-      // This ensures cache is populated before NoteCards mount, so individual
-      // useAuthor/useEventStats calls hit cache and never open relay subscriptions.
-      await prefetchPageData(items, nostr, queryClient);
 
       return items;
     },
