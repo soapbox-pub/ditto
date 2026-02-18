@@ -1,7 +1,9 @@
 import { type NostrEvent, type NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { parseAuthorEvent, PROFILE_RELAYS } from '@/hooks/useAuthor';
+import { parseAuthorEvent } from '@/hooks/useAuthor';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveRelays } from '@/lib/appRelays';
 
 export interface AuthorData {
   pubkey: string;
@@ -21,6 +23,11 @@ export interface AuthorData {
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
+  const { config } = useAppContext();
+
+  // Get the effective relays (same ones used by the pool)
+  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
+  const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
 
   // Deduplicate and sort for a stable query key
   const uniquePubkeys = [...new Set(pubkeys)].sort();
@@ -56,16 +63,16 @@ export function useAuthors(pubkeys: string[]) {
         found.add(event.pubkey);
       }
 
-      // Slow path: for any pubkeys not found by the pool, query relays individually.
-      // This is the "loser's race" - we query specific profile relays that may have
-      // been cut off by the pool's EOSE timeout.
+      // Slow path: for any pubkeys not found by the pool, query each relay individually.
+      // This is the "loser's race" - we query the same relays from the pool, but
+      // individually with more time (5000ms vs 500ms EOSE timeout).
       const missing = uniquePubkeys.filter(pk => !found.has(pk));
-      if (missing.length > 0) {
+      if (missing.length > 0 && readRelayUrls.length > 0) {
         await new Promise<void>((resolve) => {
           const needed = new Set(missing);
-          let pending = PROFILE_RELAYS.length;
+          let pending = readRelayUrls.length;
 
-          for (const url of PROFILE_RELAYS) {
+          for (const url of readRelayUrls) {
             nostr.relay(url).query(
               [{ kinds: [0], authors: missing, limit: missing.length }],
               { signal: combinedSignal },

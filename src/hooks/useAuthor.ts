@@ -1,15 +1,8 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-
-/** Profile relay URLs used as fallback when the pool's EOSE timeout returns empty. */
-export const PROFILE_RELAYS = [
-  'wss://relay.primal.net',
-  'wss://relay.damus.io',
-  'wss://relay.ditto.pub',
-  'wss://ditto.pub/relay',
-  'wss://purplepag.es',
-];
+import { useAppContext } from '@/hooks/useAppContext';
+import { getEffectiveRelays } from '@/lib/appRelays';
 
 /** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
 export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
@@ -23,6 +16,11 @@ export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metada
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+
+  // Get the effective relays (same ones used by the pool)
+  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
+  const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
 
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
@@ -44,12 +42,16 @@ export function useAuthor(pubkey: string | undefined) {
       }
 
       // Slow path: pool returned empty (EOSE timeout may have cut off slower relays).
-      // Query each relay individually and resolve on first hit.
+      // Query each relay individually (same relays as pool, but with more time).
+      if (readRelayUrls.length === 0) {
+        return {};
+      }
+
       return new Promise<{ event?: NostrEvent; metadata?: NostrMetadata }>((resolve) => {
         let settled = false;
-        let pending = PROFILE_RELAYS.length;
+        let pending = readRelayUrls.length;
 
-        for (const url of PROFILE_RELAYS) {
+        for (const url of readRelayUrls) {
           nostr.relay(url).query(
             [{ kinds: [0], authors: [pubkey!], limit: 1 }],
             { signal: combinedSignal },
