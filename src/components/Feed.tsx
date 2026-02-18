@@ -215,20 +215,14 @@ function PageBoundary({
 }) {
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: '400px', // Start loading before the user reaches this page
+    rootMargin: '800px', // Start loading well before the user reaches this page
   });
 
   useEffect(() => {
-    // Trigger next page when ANY page boundary comes into view (not just the last one)
-    // This prevents race conditions when scrolling fast
+    // Trigger next page when this page comes into view
     // Skip page 0 since it auto-loads page 1
-    if (inView && pageIndex > 0 && hasNextPage && !isFetchingNextPage) {
-      // Only trigger if this is the last page, OR if we're close to it (within 1 page)
-      // This prevents triggering page 10 when we're only on page 2
-      const isRelevant = pageIndex >= totalPages - 2;
-      if (isRelevant) {
-        onLoadNext();
-      }
+    if (inView && pageIndex > 0 && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
+      onLoadNext();
     }
   }, [inView, pageIndex, totalPages, hasNextPage, isFetchingNextPage, onLoadNext]);
 

@@ -18,17 +18,16 @@ export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
 
+  // Get the effective relays (same ones used by the pool)
+  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
+  const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
+
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!pubkey) {
         return {};
       }
-
-      // Get the effective relays (same ones used by the pool) - do this inside queryFn
-      // so we have the latest relay configuration when the query executes
-      const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-      const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
 
       const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
