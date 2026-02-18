@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
@@ -17,6 +18,8 @@ interface ReactionButtonProps {
   eventKind: number;
   /** Current reaction count from stats. */
   reactionCount?: number;
+  /** Whether stats are still loading — shows a skeleton placeholder. */
+  statsLoading?: boolean;
   /** Optional extra class names. */
   className?: string;
 }
@@ -26,6 +29,7 @@ export function ReactionButton({
   eventPubkey,
   eventKind,
   reactionCount = 0,
+  statsLoading = false,
   className,
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
@@ -101,9 +105,11 @@ export function ReactionButton({
           ) : (
             <Heart className="size-[18px]" />
           )}
-          {displayCount > 0 && (
-            <span className="text-sm tabular-nums">{displayCount}</span>
-          )}
+          {statsLoading && !hasReacted ? (
+            <Skeleton className="h-3 w-4 rounded" />
+          ) : displayCount > 0 ? (
+            <span className="text-xs tabular-nums">{displayCount}</span>
+          ) : null}
         </button>
       </PopoverTrigger>
       <PopoverContent

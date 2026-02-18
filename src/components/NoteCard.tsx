@@ -126,7 +126,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
-  const { data: stats } = useEventStats(event.id);
+  const { data: stats, isLoading: statsLoading } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
@@ -257,7 +257,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
               <MessageCircle className="size-[18px] shrink-0" />
-              {stats?.replies ? <span className="text-xs tabular-nums">{stats.replies}</span> : null}
+              {statsLoading ? <Skeleton className="h-3 w-4 rounded" /> : stats?.replies ? <span className="text-xs tabular-nums">{stats.replies}</span> : null}
             </button>
 
             <button
@@ -266,7 +266,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               onClick={(e) => e.stopPropagation()}
             >
               <Repeat2 className="size-[18px] shrink-0" />
-              {(stats?.reposts || stats?.quotes) ? <span className="text-xs tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+              {statsLoading ? <Skeleton className="h-3 w-4 rounded" /> : (stats?.reposts || stats?.quotes) ? <span className="text-xs tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
             </button>
 
             <ReactionButton
@@ -274,6 +274,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               eventPubkey={event.pubkey}
               eventKind={event.kind}
               reactionCount={stats?.reactions}
+              statsLoading={statsLoading}
               className="ml-2"
             />
 
@@ -283,7 +284,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                 title="Zap"
               >
                 <Zap className="size-[18px] shrink-0" />
-                {stats?.zapAmount ? <span className="text-xs tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+                {statsLoading ? <Skeleton className="h-3 w-4 rounded" /> : stats?.zapAmount ? <span className="text-xs tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
               </button>
             </ZapDialog>
 
