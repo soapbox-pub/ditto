@@ -216,7 +216,7 @@ export function SearchPage() {
             {/* Hot Posts */}
             <SortedPostsSection
               title="Hot"
-              icon={<Flame className="size-5 text-orange-500" />}
+              icon={<Flame className="size-5 text-primary" />}
               posts={hotPosts}
               isLoading={hotLoading}
             />
@@ -224,7 +224,7 @@ export function SearchPage() {
             {/* Rising Posts */}
             <SortedPostsSection
               title="Rising"
-              icon={<TrendingUp className="size-5 text-green-500" />}
+              icon={<TrendingUp className="size-5 text-primary" />}
               posts={risingPosts}
               isLoading={risingLoading}
             />
@@ -232,7 +232,7 @@ export function SearchPage() {
             {/* Controversial Posts */}
             <SortedPostsSection
               title="Controversial"
-              icon={<Swords className="size-5 text-red-500" />}
+              icon={<Swords className="size-5 text-primary" />}
               posts={controversialPosts}
               isLoading={controversialLoading}
             />

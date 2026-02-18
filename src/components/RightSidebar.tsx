@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { X, Flame } from 'lucide-react';
+import { X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useTrendingTags, useLatestAccounts, useSortedPosts } from '@/hooks/useTrending';
@@ -106,10 +106,7 @@ export function RightSidebar() {
       {/* Hot Posts */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold flex items-center gap-1.5">
-            <Flame className="size-5 text-orange-500" />
-            Hot Posts
-          </h2>
+          <h2 className="text-xl font-bold">Hot Posts</h2>
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
         </div>
 
