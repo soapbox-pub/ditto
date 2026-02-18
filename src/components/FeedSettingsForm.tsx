@@ -112,7 +112,7 @@ export function FeedSettingsForm() {
         <img
           src="/feed-intro.png"
           alt=""
-          className="w-40 shrink-0 blend-art opacity-80"
+          className="w-40 shrink-0 mix-blend-difference opacity-80"
         />
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">Other Stuff</h2>
