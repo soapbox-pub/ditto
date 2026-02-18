@@ -94,8 +94,8 @@ export function NoteContent({
     let hadMatches = false;
 
     while ((match = regex.exec(text)) !== null) {
-      const [fullMatch, url, nostrPrefix, nostrData, barePrefix, bareData, hashtag] = match;
-      const index = match.index;
+      let [fullMatch, url, nostrPrefix, nostrData, barePrefix, bareData, hashtag] = match;
+      let index = match.index;
       hadMatches = true;
 
       // Add text before this match
@@ -104,6 +104,18 @@ export function NoteContent({
       }
 
       if (url) {
+        // Strip common trailing punctuation that's likely not part of the URL
+        // This handles cases like "(https://example.com)" or "Check this: https://example.com."
+        const trailingPunctMatch = url.match(/^(.*?)([.,;:!?)\]]+)$/);
+        if (trailingPunctMatch) {
+          const [, urlWithoutPunct, punctuation] = trailingPunctMatch;
+          // Only strip the punctuation if the URL without it is still valid
+          if (urlWithoutPunct && urlWithoutPunct.length > 10) {
+            url = urlWithoutPunct;
+            fullMatch = urlWithoutPunct;
+            // The punctuation will be part of the next text token
+          }
+        }
         // Skip media URLs — rendered as embedded previews by the parent
         if (MEDIA_URL_REGEX.test(url)) {
           lastIndex = index + fullMatch.length;
@@ -165,38 +177,28 @@ export function NoteContent({
       result.push({ type: 'text', value: text });
     }
 
-    // Collapse whitespace around block-level tokens (link-preview, youtube-embed)
-    // so that newlines surrounding a URL don't stack with the card's own spacing.
+    // Collapse excessive whitespace around block-level tokens (link-preview, youtube-embed)
+    // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
         || token.type === 'naddr-embed';
 
       if (isBlock) {
-        // Trim trailing whitespace from the preceding text token
+        // Trim trailing whitespace from the preceding text token (before the block)
         if (i > 0) {
           const prev = result[i - 1];
           if (prev.type === 'text') {
-            prev.value = prev.value.replace(/\s+$/, '');
+            // Collapse multiple trailing newlines to max 2, trim trailing spaces
+            prev.value = prev.value.replace(/[ \t]+$/gm, '').replace(/\n{3,}$/, '\n\n');
           }
         }
-        // For naddr-embed, preserve one newline if present, otherwise trim all whitespace
-        if (token.type === 'naddr-embed' && i < result.length - 1) {
+        // After the block, collapse multiple leading newlines but preserve one if present
+        if (i < result.length - 1) {
           const next = result[i + 1];
           if (next.type === 'text') {
-            // If there are newlines, preserve one and trim the rest
-            const hasNewline = /\n/.test(next.value);
-            if (hasNewline) {
-              next.value = next.value.replace(/^\s+/, '\n');
-            } else {
-              next.value = next.value.replace(/^\s+/, '');
-            }
-          }
-        } else if (i < result.length - 1) {
-          // For other block tokens, trim all leading whitespace
-          const next = result[i + 1];
-          if (next.type === 'text') {
-            next.value = next.value.replace(/^\s+/, '');
+            // Collapse multiple leading newlines to max 2, trim leading spaces on each line
+            next.value = next.value.replace(/^[ \t]+/gm, '').replace(/^\n{3,}/, '\n\n');
           }
         }
       }
