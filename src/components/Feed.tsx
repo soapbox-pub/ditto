@@ -146,14 +146,7 @@ export function Feed() {
           <div>
             {pageItems.map(({ pageIndex, items }) => (
               <div key={pageIndex}>
-                {items.map((item: FeedItem) => (
-                  <NoteCard
-                    key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                    event={item.event}
-                    repostedBy={item.repostedBy}
-                  />
-                ))}
-                {/* Page boundary - triggers next page when this page's boundary is reached */}
+                {/* Page boundary at the TOP - triggers next page when this page starts */}
                 <PageBoundary
                   pageIndex={pageIndex}
                   totalPages={data?.pages?.length ?? 0}
@@ -161,8 +154,21 @@ export function Feed() {
                   isFetchingNextPage={isFetchingNextPage}
                   onLoadNext={fetchNextPage}
                 />
+                {items.map((item: FeedItem) => (
+                  <NoteCard
+                    key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                    event={item.event}
+                    repostedBy={item.repostedBy}
+                  />
+                ))}
               </div>
             ))}
+            {/* Loading indicator at the very bottom */}
+            {hasNextPage && isFetchingNextPage && (
+              <div className="flex justify-center py-6">
+                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+              </div>
+            )}
           </div>
         ) : (
           <div className="py-16 px-8 text-center">
@@ -203,29 +209,19 @@ function PageBoundary({
 }) {
   const { ref, inView } = useInView({
     threshold: 0,
-    rootMargin: '400px', // Start loading before the user reaches the boundary
+    rootMargin: '800px', // Start loading well before the user reaches this page
   });
 
   useEffect(() => {
-    // Only trigger if this is the last page and there's more to load
-    if (inView && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
+    // Trigger next page when this page comes into view
+    // Skip page 0 since it auto-loads page 1
+    if (inView && pageIndex > 0 && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
       onLoadNext();
     }
   }, [inView, pageIndex, totalPages, hasNextPage, isFetchingNextPage, onLoadNext]);
 
-  // Only show loading indicator for the last page
-  if (pageIndex === totalPages - 1 && hasNextPage) {
-    return (
-      <div ref={ref} className="flex justify-center py-6">
-        {isFetchingNextPage && (
-          <Loader2 className="size-5 animate-spin text-muted-foreground" />
-        )}
-      </div>
-    );
-  }
-
-  // Silent boundary for earlier pages
-  return <div ref={ref} />;
+  // Invisible boundary marker at the top of each page
+  return <div ref={ref} className="h-0" />;
 }
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
