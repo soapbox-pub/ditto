@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2 } from 'lucide-react';
@@ -608,21 +607,64 @@ export function ProfilePage() {
 
   const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
 
-  // Infinite scroll sentinel
-  const { ref: scrollRef, inView } = useInView({ rootMargin: '800px' });
+  // Keep refs fresh so the IntersectionObserver callback never has stale closures
+  const hasNextFeedPageRef = useRef(hasNextFeedPage);
+  const hasNextLikesPageRef = useRef(hasNextLikesPage);
+  const isFetchingNextFeedPageRef = useRef(isFetchingNextFeedPage);
+  const isFetchingNextLikesPageRef = useRef(isFetchingNextLikesPage);
+  const fetchNextFeedPageRef = useRef(fetchNextFeedPage);
+  const fetchNextLikesPageRef = useRef(fetchNextLikesPage);
+  const activeTabRef = useRef(activeTab);
+  useEffect(() => { hasNextFeedPageRef.current = hasNextFeedPage; }, [hasNextFeedPage]);
+  useEffect(() => { hasNextLikesPageRef.current = hasNextLikesPage; }, [hasNextLikesPage]);
+  useEffect(() => { isFetchingNextFeedPageRef.current = isFetchingNextFeedPage; }, [isFetchingNextFeedPage]);
+  useEffect(() => { isFetchingNextLikesPageRef.current = isFetchingNextLikesPage; }, [isFetchingNextLikesPage]);
+  useEffect(() => { fetchNextFeedPageRef.current = fetchNextFeedPage; }, [fetchNextFeedPage]);
+  useEffect(() => { fetchNextLikesPageRef.current = fetchNextLikesPage; }, [fetchNextLikesPage]);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
+  // Raw IntersectionObserver sentinel — fires reliably regardless of scroll context
+  const scrollRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!inView) return;
-    if (activeTab === 'likes') {
-      if (hasNextLikesPage && !isFetchingNextLikesPage) {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting) return;
+        if (activeTabRef.current === 'likes') {
+          if (hasNextLikesPageRef.current && !isFetchingNextLikesPageRef.current) {
+            fetchNextLikesPageRef.current();
+          }
+        } else {
+          if (hasNextFeedPageRef.current && !isFetchingNextFeedPageRef.current) {
+            fetchNextFeedPageRef.current();
+          }
+        }
+      },
+      { rootMargin: '800px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []); // intentionally empty — refs stay fresh above
+
+  // Also trigger when fetching completes while sentinel is near viewport
+  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
+  const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
+  useEffect(() => {
+    if (isFetchingMore) return;
+    const el = scrollRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.top <= window.innerHeight + 800 && hasMore) {
+      if (activeTab === 'likes') {
         fetchNextLikesPage();
-      }
-    } else {
-      if (hasNextFeedPage && !isFetchingNextFeedPage) {
+      } else {
         fetchNextFeedPage();
       }
     }
-  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
+  }, [isFetchingMore, hasMore, activeTab, fetchNextFeedPage, fetchNextLikesPage]);
 
   if (!pubkey) {
     return (
@@ -641,8 +683,7 @@ export function ProfilePage() {
 
   const currentEvents = activeTab === 'likes' ? likedItems : feedItems;
   const currentLoading = activeTab === 'likes' ? likesPending : feedPending;
-  const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
-  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
+  const isFetchingMoreDisplay = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
   return (
     <MainLayout
@@ -799,7 +840,7 @@ export function ProfilePage() {
 
               {/* Infinite scroll sentinel — always rendered so IntersectionObserver fires reliably */}
               <div ref={scrollRef} className="flex justify-center py-6">
-                {isFetchingMore && (
+                {isFetchingMoreDisplay && (
                   <Loader2 className="size-5 animate-spin text-muted-foreground" />
                 )}
               </div>

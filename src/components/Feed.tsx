@@ -1,5 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
@@ -42,13 +41,49 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  const { ref, inView } = useInView({ rootMargin: '800px' });
+  // Keep refs fresh so the IntersectionObserver callback never has stale closures
+  const hasNextPageRef = useRef(hasNextPage);
+  const isFetchingRef = useRef(isFetching);
+  const fetchNextPageRef = useRef(fetchNextPage);
+  useEffect(() => { hasNextPageRef.current = hasNextPage; }, [hasNextPage]);
+  useEffect(() => { isFetchingRef.current = isFetching; }, [isFetching]);
+  useEffect(() => { fetchNextPageRef.current = fetchNextPage; }, [fetchNextPage]);
 
+  // Raw IntersectionObserver — fires reliably regardless of iframe/scroll context.
+  // rootMargin of 800px means we start loading the next page well before the
+  // sentinel actually scrolls into view.
+  const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (inView && hasNextPage && !isFetching) {
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPageRef.current && !isFetchingRef.current) {
+          fetchNextPageRef.current();
+        }
+      },
+      { rootMargin: '800px' },
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []); // intentionally empty — refs stay fresh above
+
+  // Also trigger when isFetching transitions to false while sentinel is visible.
+  // This covers the case where the sentinel was in view but fetching was in
+  // progress, so the observer callback was blocked. When fetching completes we
+  // check again and load the next batch if still in view.
+  useEffect(() => {
+    if (isFetching) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    // Check if within 800px of the viewport
+    if (rect.top <= window.innerHeight + 800 && hasNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetching, fetchNextPage]);
+  }, [isFetching, hasNextPage, fetchNextPage]);
 
   // Flatten pages and deduplicate by event id
   const feedItems = useMemo(() => {
@@ -126,8 +161,8 @@ export function Feed() {
               />
             ))}
 
-            {/* Infinite scroll sentinel — always rendered so IntersectionObserver fires reliably */}
-            <div ref={ref} className="flex justify-center py-6">
+            {/* Infinite scroll sentinel — always in DOM so the observer stays active */}
+            <div ref={sentinelRef} className="flex justify-center py-6">
               {isFetchingNextPage && (
                 <Loader2 className="size-5 animate-spin text-muted-foreground" />
               )}
