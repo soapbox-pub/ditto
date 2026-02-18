@@ -69,7 +69,7 @@ export function useAuthors(pubkeys: string[]) {
       // individually with more time (5000ms vs 500ms EOSE timeout).
       const missing = uniquePubkeys.filter(pk => !found.has(pk));
       if (missing.length > 0 && readRelayUrls.length > 0) {
-        console.log('[useAuthors] Loser race for', missing.length, 'missing profiles on', readRelayUrls.length, 'relays');
+        console.log('[useAuthors] Loser race for', missing.length, 'missing profiles on', readRelayUrls.length, 'relays:', readRelayUrls);
         await new Promise<void>((resolve) => {
           const needed = new Set(missing);
           let pending = readRelayUrls.length;
