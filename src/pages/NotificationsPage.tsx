@@ -20,6 +20,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
+import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
@@ -521,6 +522,13 @@ function ActionButtons({
   onReply: () => void;
   onMore: () => void;
 }) {
+  const { user } = useCurrentUser();
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+
+  // Check if the current user can zap this event's author
+  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
+
   return (
     <div className="flex items-center gap-6 mt-3 -ml-2 mb-1">
       <button
@@ -548,15 +556,17 @@ function ActionButtons({
         reactionCount={stats?.reactions}
       />
 
-      <ZapDialog target={event}>
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-          title="Zap"
-        >
-          <Zap className="size-[18px]" />
-          {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-        </button>
-      </ZapDialog>
+      {canZapAuthor && (
+        <ZapDialog target={event}>
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+            title="Zap"
+          >
+            <Zap className="size-[18px]" />
+            {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+          </button>
+        </ZapDialog>
+      )}
 
       <button
         className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"

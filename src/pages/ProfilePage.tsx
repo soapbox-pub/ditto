@@ -23,6 +23,7 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { genUserName } from '@/lib/genUserName';
+import { canZap } from '@/lib/canZap';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -681,7 +682,7 @@ export function ProfilePage() {
                 </Button>
               )}
               {/* Zap button */}
-              {!isOwnProfile && authorEvent && (metadata?.lud16 || metadata?.lud06) && (
+              {!isOwnProfile && authorEvent && canZap(metadata) && (
                 <ZapDialog target={authorEvent}>
                   <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
                     <Zap className="size-5" />

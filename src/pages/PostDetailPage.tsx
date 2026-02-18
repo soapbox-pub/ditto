@@ -33,8 +33,10 @@ import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
+import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
 
 
@@ -485,6 +487,7 @@ function EventNotFound({
 }
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
+  const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
@@ -511,6 +514,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
+
+  // Check if the current user can zap this event's author
+  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
 
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
@@ -661,15 +667,17 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           />
 
           {/* Zap */}
-          <ZapDialog target={event}>
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-              title="Zaps"
-            >
-              <Zap className="size-[18px]" />
-              {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
-            </button>
-          </ZapDialog>
+          {canZapAuthor && (
+            <ZapDialog target={event}>
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                title="Zaps"
+              >
+                <Zap className="size-[18px]" />
+                {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+              </button>
+            </ZapDialog>
+          )}
 
           {/* More */}
           <button

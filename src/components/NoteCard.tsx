@@ -13,9 +13,11 @@ import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
+import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState, useRef, useEffect } from 'react';
@@ -120,6 +122,7 @@ function encodeEventId(event: NostrEvent): string {
 
 export function NoteCard({ event, className, repostedBy, compact }: NoteCardProps) {
   const navigate = useNavigate();
+  const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
@@ -129,6 +132,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
+
+  // Check if the current user can zap this event's author
+  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
 
   // Handler to navigate to post detail, but only if click didn't originate from a modal
   const handleCardClick = (e: React.MouseEvent) => {
@@ -316,15 +322,17 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               reactionCount={stats?.reactions}
             />
 
-            <ZapDialog target={event}>
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                title="Zap"
-              >
-                <Zap className="size-[18px]" />
-                {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-              </button>
-            </ZapDialog>
+            {canZapAuthor && (
+              <ZapDialog target={event}>
+                <button
+                  className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                  title="Zap"
+                >
+                  <Zap className="size-[18px]" />
+                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+                </button>
+              </ZapDialog>
+            )}
 
             <button
               className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
