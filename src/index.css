@@ -183,6 +183,21 @@
   }
 }
 
+/* Blend white-on-black line art into any theme background */
+:root .blend-art {
+  mix-blend-mode: darken;
+  filter: invert(1);
+}
+.dark .blend-art,
+.black .blend-art {
+  mix-blend-mode: lighten;
+  filter: none;
+}
+.pink .blend-art {
+  mix-blend-mode: darken;
+  filter: invert(1);
+}
+
 @keyframes spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
