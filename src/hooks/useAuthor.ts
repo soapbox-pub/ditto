@@ -7,6 +7,8 @@ export const PROFILE_RELAYS = [
   'wss://relay.primal.net',
   'wss://relay.damus.io',
   'wss://relay.ditto.pub',
+  'wss://ditto.pub/relay',
+  'wss://purplepag.es',
 ];
 
 /** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
