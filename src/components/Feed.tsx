@@ -9,6 +9,7 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAuthors } from '@/hooks/useAuthors';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -57,6 +58,20 @@ export function Feed() {
     }
     return items;
   }, [data?.pages]);
+
+  // Batch-prefetch all author profiles in a single relay query instead of
+  // firing N individual useAuthor() calls from each NoteCard.  The results
+  // are seeded into the ['author', pubkey] cache so NoteCard's own
+  // useAuthor() resolves instantly from cache.
+  const feedPubkeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const item of feedItems) {
+      keys.add(item.event.pubkey);
+      if (item.repostedBy) keys.add(item.repostedBy);
+    }
+    return [...keys];
+  }, [feedItems]);
+  useAuthors(feedPubkeys);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);

@@ -160,5 +160,6 @@ export function useFeed(tab: 'follows' | 'global') {
     enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
+    placeholderData: (previousData) => previousData, // Keep showing previous data while refetching (avoids flicker)
   });
 }

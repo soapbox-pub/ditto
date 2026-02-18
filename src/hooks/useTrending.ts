@@ -178,5 +178,6 @@ export function useEventStats(eventId: string | undefined) {
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
+    placeholderData: (prev) => prev, // Keep showing previous counts while refetching
   });
 }
