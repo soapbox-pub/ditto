@@ -112,7 +112,7 @@ export function FeedSettingsForm() {
         <img
           src="/feed-intro.png"
           alt="Nostr has more than just posts — videos, polls, treasures, and more"
-          className="w-full max-w-[160px] mx-auto opacity-70"
+          className="w-full max-w-[160px] mx-auto mix-blend-difference opacity-40"
         />
         <div className="text-center space-y-1">
           <h2 className="text-base font-semibold">Other Stuff</h2>
