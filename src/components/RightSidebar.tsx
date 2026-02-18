@@ -2,7 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useTrendingTags, useLatestAccounts, useSortedPosts } from '@/hooks/useTrending';
+import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
@@ -27,44 +27,29 @@ function useIsXl(): boolean {
   return isXl;
 }
 
-/**
- * Simple deterministic hash that turns a string into a number.
- * Same input always produces the same output.
- */
-function hashSeed(str: string): number {
-  let hash = 5381;
-  for (let i = 0; i < str.length; i++) {
-    hash = ((hash << 5) + hash + str.charCodeAt(i)) | 0;
-  }
-  return Math.abs(hash);
-}
-
-/**
- * Seeded pseudo-random number generator (mulberry32).
- * Returns a function that produces deterministic values 0–1.
- */
-function seededRng(seed: number) {
-  let t = seed | 0;
-  return () => {
-    t = (t + 0x6d2b79f5) | 0;
-    let r = Math.imul(t ^ (t >>> 15), 1 | t);
-    r = (r + Math.imul(r ^ (r >>> 7), 61 | r)) ^ r;
-    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
-  };
-}
-
-/** Small sparkline SVG for trending tags. Deterministic per tag name. */
-export function TrendSparkline({ seed = 'default' }: { seed?: string }) {
+/** Small sparkline SVG driven by real data points. */
+export function TrendSparkline({ data }: { data: number[] }) {
   const points = useMemo(() => {
-    const rng = seededRng(hashSeed(seed));
-    const pts: string[] = [];
-    let y = 20 + rng() * 10;
-    for (let x = 0; x <= 50; x += 5) {
-      y = Math.max(5, Math.min(30, y + (rng() - 0.4) * 8));
-      pts.push(`${x},${y}`);
-    }
-    return pts.join(' ');
-  }, [seed]);
+    if (data.length === 0) return '';
+
+    const max = Math.max(...data, 1); // avoid division by zero
+    const w = 50;
+    const h = 30;
+    const padding = 3;
+    const usableH = h - padding * 2;
+    const step = w / Math.max(data.length - 1, 1);
+
+    return data
+      .map((v, i) => {
+        const x = i * step;
+        // Invert y so higher values go up
+        const y = padding + usableH - (v / max) * usableH;
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(' ');
+  }, [data]);
+
+  if (!points) return null;
 
   return (
     <svg width="50" height="35" viewBox="0 0 50 35" className="text-primary/60">
@@ -86,6 +71,10 @@ export function RightSidebar() {
   const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl);
   const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
+
+  // Fetch real sparkline data for the visible trending tags
+  const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
+  const { data: sparklineData } = useTagSparklines(visibleTags, isXl && visibleTags.length > 0);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-5">
@@ -124,7 +113,7 @@ export function RightSidebar() {
                     </div>
                   )}
                 </div>
-                <TrendSparkline seed={item.tag} />
+                <TrendSparkline data={sparklineData?.get(item.tag) ?? []} />
               </Link>
             ))}
           </div>

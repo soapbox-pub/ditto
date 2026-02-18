@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 /** The sole relay used for trend data. */
 const DITTO_RELAY = 'wss://relay.ditto.pub';
@@ -275,6 +275,79 @@ export function useEventStats(eventId: string | undefined) {
     enabled: !!eventId,
     staleTime: 60 * 1000,
     placeholderData: (prev) => prev,
+  });
+}
+
+/** Number of time buckets for sparkline charts. */
+const SPARKLINE_BUCKETS = 10;
+/** Time window for sparkline data (24 hours in seconds). */
+const SPARKLINE_WINDOW = 24 * 60 * 60;
+
+/**
+ * Batch-fetches sparkline data for multiple hashtags in a single relay query.
+ * Returns a map of tag → number[] where each number is the post count in that time bucket.
+ *
+ * Divides the last 24 hours into 10 buckets and counts kind-1 posts per bucket per tag.
+ */
+export function useTagSparklines(tags: string[], enabled = true) {
+  const { nostr } = useNostr();
+
+  const sortedTags = [...new Set(tags.map((t) => t.toLowerCase()))].sort();
+
+  return useQuery<Map<string, number[]>>({
+    queryKey: ['tag-sparklines', sortedTags.join(',')],
+    queryFn: async ({ signal }) => {
+      if (sortedTags.length === 0) return new Map();
+
+      const now = Math.floor(Date.now() / 1000);
+      const since = now - SPARKLINE_WINDOW;
+
+      // Single query for all tags — relay returns posts matching any of them
+      const filters: NostrFilter[] = [{
+        kinds: [1],
+        '#t': sortedTags,
+        since,
+        limit: sortedTags.length * 50,
+      }];
+
+      const events = await nostr.query(
+        filters,
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
+      );
+
+      const bucketSize = SPARKLINE_WINDOW / SPARKLINE_BUCKETS;
+
+      // Initialise empty buckets for every tag
+      const sparkMap = new Map<string, number[]>();
+      for (const tag of sortedTags) {
+        sparkMap.set(tag, new Array(SPARKLINE_BUCKETS).fill(0));
+      }
+
+      // Distribute events into buckets
+      for (const event of events) {
+        const bucketIndex = Math.min(
+          SPARKLINE_BUCKETS - 1,
+          Math.floor((event.created_at - since) / bucketSize),
+        );
+        if (bucketIndex < 0) continue;
+
+        // An event can have multiple t-tags; count it for each matching tag
+        const eventTags = event.tags
+          .filter(([name]) => name === 't')
+          .map(([, val]) => val.toLowerCase());
+
+        for (const et of eventTags) {
+          const buckets = sparkMap.get(et);
+          if (buckets) {
+            buckets[bucketIndex]++;
+          }
+        }
+      }
+
+      return sparkMap;
+    },
+    enabled: enabled && sortedTags.length > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }
 
