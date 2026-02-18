@@ -92,7 +92,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
     startListening();
   }, [nostrConnectParams, login, onLogin, onClose, isWaitingForConnect]);
 
-  // Clean up on close, or generate session when opening without extension
+  // Clean up on close
   useEffect(() => {
     if (!isOpen) {
       setNostrConnectParams(null);
@@ -102,12 +102,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-    } else if (!hasExtension && !nostrConnectParams && !connectError) {
-      // On web without extension, 'connect' is the default tab
-      // Generate the session when dialog opens
-      generateConnectSession();
     }
-  }, [isOpen, hasExtension, nostrConnectParams, connectError, generateConnectSession]);
+  }, [isOpen]);
 
   // Retry connection with new params
   const handleRetry = useCallback(() => {
@@ -249,24 +245,84 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
   const renderTabs = () => (
     <Tabs 
-      defaultValue="connect" 
+      defaultValue="key" 
       className="w-full"
       onValueChange={(value) => {
-        if (value === 'connect' && !nostrConnectParams && !connectError) {
+        if (value === 'remote' && !nostrConnectParams && !connectError) {
           generateConnectSession();
         }
       }}
     >
       <TabsList className="grid w-full grid-cols-2 bg-muted/80 rounded-lg mb-4">
-        <TabsTrigger value="connect" className="flex items-center gap-2">
-          <span>Connect</span>
-        </TabsTrigger>
         <TabsTrigger value="key" className="flex items-center gap-2">
           <span>Secret Key</span>
         </TabsTrigger>
+        <TabsTrigger value="remote" className="flex items-center gap-2">
+          <span>Remote Signer</span>
+        </TabsTrigger>
       </TabsList>
 
-      <TabsContent value='connect' className='space-y-4'>
+      <TabsContent value='key' className='space-y-4'>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          handleKeyLogin();
+        }} className='space-y-4'>
+          <div className='space-y-2'>
+            <Input
+              id='nsec'
+              type="password"
+              value={nsec}
+              onChange={(e) => {
+                setNsec(e.target.value);
+                if (errors.nsec) setErrors(prev => ({ ...prev, nsec: undefined }));
+              }}
+              className={`rounded-lg ${
+                errors.nsec ? 'border-red-500 focus-visible:ring-red-500' : ''
+              }`}
+              placeholder='nsec1...'
+              autoComplete="off"
+            />
+            {errors.nsec && (
+              <p className="text-sm text-red-500">{errors.nsec}</p>
+            )}
+          </div>
+
+          <div className="flex space-x-2">
+            <Button
+              type="submit"
+              size="lg"
+              disabled={isLoading || !nsec.trim()}
+              className="flex-1"
+            >
+              {isLoading ? 'Verifying...' : 'Log in'}
+            </Button>
+
+            <input
+              type="file"
+              accept=".txt"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="lg"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isLoading || isFileLoading}
+              className="px-3"
+            >
+              <Upload className="w-4 h-4" />
+            </Button>
+          </div>
+
+          {errors.file && (
+            <p className="text-sm text-red-500 text-center">{errors.file}</p>
+          )}
+        </form>
+      </TabsContent>
+
+      <TabsContent value='remote' className='space-y-4'>
         {/* Nostrconnect Section */}
         <div className='flex flex-col items-center space-y-4'>
           {connectError ? (
@@ -374,66 +430,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
           )}
         </div>
       </TabsContent>
-
-      <TabsContent value='key' className='space-y-4'>
-        <form onSubmit={(e) => {
-          e.preventDefault();
-          handleKeyLogin();
-        }} className='space-y-4'>
-          <div className='space-y-2'>
-            <Input
-              id='nsec'
-              type="password"
-              value={nsec}
-              onChange={(e) => {
-                setNsec(e.target.value);
-                if (errors.nsec) setErrors(prev => ({ ...prev, nsec: undefined }));
-              }}
-              className={`rounded-lg ${
-                errors.nsec ? 'border-red-500 focus-visible:ring-red-500' : ''
-              }`}
-              placeholder='nsec1...'
-              autoComplete="off"
-            />
-            {errors.nsec && (
-              <p className="text-sm text-red-500">{errors.nsec}</p>
-            )}
-          </div>
-
-          <div className="flex space-x-2">
-            <Button
-              type="submit"
-              size="lg"
-              disabled={isLoading || !nsec.trim()}
-              className="flex-1"
-            >
-              {isLoading ? 'Verifying...' : 'Log in'}
-            </Button>
-
-            <input
-              type="file"
-              accept=".txt"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleFileUpload}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="lg"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isLoading || isFileLoading}
-              className="px-3"
-            >
-              <Upload className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {errors.file && (
-            <p className="text-sm text-red-500 text-center">{errors.file}</p>
-          )}
-        </form>
-      </TabsContent>
     </Tabs>
   );
 
@@ -467,18 +463,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
               >
                 {isLoading ? 'Logging in...' : 'Log in with Extension'}
               </Button>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setIsMoreOptionsOpen(true);
-                  if (!nostrConnectParams && !connectError) {
-                    generateConnectSession();
-                  }
-                }}
-              >
-                Use remote signer
-              </Button>
             </div>
           )}
 
@@ -497,17 +481,16 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
           {/* Tabs - wrapped in collapsible if extension is available, otherwise shown directly */}
           {hasExtension ? (
-            <Collapsible 
-              className="space-y-4" 
-              open={isMoreOptionsOpen} 
-              onOpenChange={(open) => {
-                setIsMoreOptionsOpen(open);
-                // Generate connect session when opening collapsible (Connect is default tab)
-                if (open && !nostrConnectParams && !connectError) {
-                  generateConnectSession();
-                }
-              }}
-            >
+            <Collapsible className="space-y-4" open={isMoreOptionsOpen} onOpenChange={setIsMoreOptionsOpen}>
+              <button 
+                type="button"
+                onClick={() => setIsMoreOptionsOpen(!isMoreOptionsOpen)}
+                className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+              >
+                <span>More Options</span>
+                <ChevronDown className={`w-4 h-4 transition-transform ${isMoreOptionsOpen ? 'rotate-180' : ''}`} />
+              </button>
+
               <CollapsibleContent>
                 {renderTabs()}
               </CollapsibleContent>
