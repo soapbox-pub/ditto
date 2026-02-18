@@ -67,9 +67,9 @@ export function RelayListManager() {
       useAppRelays: enabled,
     }));
     
-    // Sync to encrypted storage if logged in
+    // Sync to encrypted storage if logged in (non-blocking)
     if (user) {
-      await updateSettings.mutateAsync({ useAppRelays: enabled });
+      updateSettings.mutate({ useAppRelays: enabled });
     }
     
     toast({

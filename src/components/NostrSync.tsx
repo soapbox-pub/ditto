@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -17,6 +17,9 @@ export function NostrSync() {
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const { settings: encryptedSettings, isLoading: settingsLoading, recentlyWritten } = useEncryptedSettings();
+  
+  // Track the last synced settings timestamp to prevent re-syncing the same data
+  const lastSyncedTimestamp = useRef<number>(0);
 
   useEffect(() => {
     if (!user) return;
@@ -66,7 +69,21 @@ export function NostrSync() {
     if (!user || settingsLoading || !encryptedSettings) return;
 
     // Don't overwrite local config if we just saved settings
-    if (recentlyWritten()) return;
+    if (recentlyWritten()) {
+      console.log('Skipping settings sync - recent write');
+      return;
+    }
+
+    // Get the remote sync timestamp
+    const remoteSync = encryptedSettings.lastSync || 0;
+    
+    // Only sync if we haven't already synced this exact timestamp
+    if (remoteSync <= lastSyncedTimestamp.current) {
+      return;
+    }
+
+    console.log('Syncing encrypted settings from Nostr', remoteSync);
+    lastSyncedTimestamp.current = remoteSync;
 
     // Update local config with encrypted settings if they exist
     updateConfig((current) => {
@@ -92,7 +109,7 @@ export function NostrSync() {
 
       return updates;
     });
-  }, [user, encryptedSettings, settingsLoading, updateConfig]);
+  }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten]);
 
   return null;
 }
