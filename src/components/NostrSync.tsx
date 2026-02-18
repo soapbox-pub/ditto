@@ -16,7 +16,7 @@ export function NostrSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
-  const { settings: encryptedSettings, isLoading: settingsLoading } = useEncryptedSettings();
+  const { settings: encryptedSettings, isLoading: settingsLoading, recentlyWritten } = useEncryptedSettings();
 
   useEffect(() => {
     if (!user) return;
@@ -65,7 +65,8 @@ export function NostrSync() {
   useEffect(() => {
     if (!user || settingsLoading || !encryptedSettings) return;
 
-    console.log('Syncing encrypted settings from Nostr:', encryptedSettings);
+    // Don't overwrite local config if we just saved settings
+    if (recentlyWritten()) return;
 
     // Update local config with encrypted settings if they exist
     updateConfig((current) => {

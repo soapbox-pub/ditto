@@ -9,6 +9,13 @@ import type { ContentFilter } from './useContentFilters';
 const SETTINGS_D_TAG = 'mew-settings';
 
 /**
+ * Timestamp of last local write. NostrSync should skip applying
+ * encrypted settings for a short window after a local write to
+ * avoid overwriting the value we just set.
+ */
+let lastWriteTs = 0;
+
+/**
  * Complete encrypted app settings stored in NIP-78
  */
 export interface EncryptedSettings {
@@ -112,6 +119,9 @@ export function useEncryptedSettings() {
 
       const signedEvent = await user.signer.signEvent(unsignedEvent);
 
+      // Mark that we just wrote, so NostrSync doesn't fight us
+      lastWriteTs = Date.now();
+
       // Publish in background
       nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) }).catch((error) => {
         console.error('Failed to publish encrypted settings:', error);
@@ -148,5 +158,7 @@ export function useEncryptedSettings() {
     initializeSettings,
     hasNip44Support: !!user?.signer.nip44,
     lastSync: settings.data?.lastSync,
+    /** True if a local write happened recently. NostrSync should skip applying. */
+    recentlyWritten: () => Date.now() - lastWriteTs < 10_000,
   };
 }
