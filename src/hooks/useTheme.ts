@@ -14,16 +14,18 @@ export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void } {
 
   return {
     theme: config.theme,
-    setTheme: async (theme: Theme) => {
+    setTheme: (theme: Theme) => {
       // Update local immediately
       updateConfig((currentConfig) => ({
         ...currentConfig,
         theme,
       }));
       
-      // Sync to encrypted storage if logged in
+      // Sync to encrypted storage if logged in (fire and forget)
       if (user) {
-        await updateSettings.mutateAsync({ theme });
+        updateSettings.mutateAsync({ theme }).catch((error) => {
+          console.error('Failed to sync theme to encrypted storage:', error);
+        });
       }
     }
   }
