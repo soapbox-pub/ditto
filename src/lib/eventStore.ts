@@ -1,7 +1,7 @@
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 const DB_NAME = 'mew-events';
-const DB_VERSION = 2;
+const DB_VERSION = 3; // Increment to force migration from broken v2
 
 // Separate stores for different event types (like Jumble does)
 const StoreNames = {
