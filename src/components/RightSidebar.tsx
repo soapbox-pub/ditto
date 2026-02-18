@@ -10,7 +10,6 @@ import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useMemo, useState, useEffect } from 'react';
-import { useIsFetching } from '@tanstack/react-query';
 
 const XL_BREAKPOINT = 1280;
 
@@ -58,25 +57,9 @@ function TrendSparkline() {
 export function RightSidebar() {
   const isXl = useIsXl();
 
-  // Only start sidebar queries once the feed has finished its initial fetch.
-  const feedFetching = useIsFetching({ queryKey: ['feed'] });
-  const [feedStarted, setFeedStarted] = useState(false);
-  const [feedHasLoaded, setFeedHasLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!feedStarted && feedFetching > 0) {
-      setFeedStarted(true);
-    }
-    if (feedStarted && !feedHasLoaded && feedFetching === 0) {
-      setFeedHasLoaded(true);
-    }
-  }, [feedFetching, feedStarted, feedHasLoaded]);
-
-  const sidebarEnabled = isXl && feedHasLoaded;
-
-  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(sidebarEnabled);
-  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, sidebarEnabled);
-  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(sidebarEnabled);
+  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl);
+  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
+  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-6 pb-3 px-5">

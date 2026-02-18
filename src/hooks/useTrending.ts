@@ -29,7 +29,7 @@ export function useTrendingTags(enabled = true) {
           '#l': ['#t'],
           limit: 1,
         }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
 
       if (events.length === 0) return [];
@@ -65,7 +65,7 @@ export function useTrendingPosts(enabled = true) {
           '#l': ['#e'],
           limit: 1,
         }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
 
       if (labelEvents.length === 0) return [];
@@ -81,7 +81,7 @@ export function useTrendingPosts(enabled = true) {
       // Fetch the actual events
       const events = await nostr.query(
         [{ ids: eventIds.slice(0, 10), limit: 10 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
 
       // Sort by the order they appeared in the label event (first = most trending)
@@ -108,7 +108,7 @@ export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
       const ditto = nostr.relay(DITTO_RELAY);
       const events = await ditto.query(
         [{ kinds: [1], search: `sort:${sort}`, limit }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
       return events;
     },
