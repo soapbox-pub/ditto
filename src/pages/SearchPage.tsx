@@ -203,7 +203,7 @@ export function SearchPage() {
                 ))}
               </div>
             ) : trends && trends.length > 0 ? (
-              <div className="flex flex-wrap gap-2 px-4 pb-2">
+              <div className="flex flex-wrap gap-2 px-4 pb-4">
                 {trends.slice(0, 5).map((trend, index) => (
                   <TrendItem key={index} trend={trend} />
                 ))}
