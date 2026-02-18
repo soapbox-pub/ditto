@@ -5,6 +5,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { RelayListManager } from '@/components/RelayListManager';
 import { FeedSettingsForm } from '@/components/FeedSettingsForm';
+import { WalletSettings } from '@/components/WalletSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
@@ -37,11 +38,18 @@ export function SettingsPage() {
           <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
           <SettingsTab to="/settings/feed" label="Feed" active={activeSection === 'feed'} />
           <SettingsTab to="/settings/relays" label="Relays" active={activeSection === 'relays'} />
+          <SettingsTab to="/settings/wallet" label="Wallet" active={activeSection === 'wallet'} />
         </div>
 
         <div className="p-4">
           {activeSection === 'feed' ? (
             <FeedSettingsForm />
+          ) : activeSection === 'wallet' ? (
+            !user ? (
+              <p className="text-center text-muted-foreground py-8">Log in to manage your wallet.</p>
+            ) : (
+              <WalletSettings />
+            )
           ) : !user ? (
             <p className="text-center text-muted-foreground py-8">Log in to manage settings.</p>
           ) : activeSection === 'profile' ? (

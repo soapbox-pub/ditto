@@ -11,7 +11,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
-import { WalletPage } from "./pages/WalletPage";
+
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import NotFound from "./pages/NotFound";
@@ -34,7 +34,7 @@ export function AppRouter() {
         <Route path="/treasures" element={<TreasuresPage />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
-        <Route path="/wallet" element={<WalletPage />} />
+
         <Route path="/bookmarks" element={<BookmarksPage />} />
         <Route path="/mutes" element={<PlaceholderPage title="Mutes" icon={<VolumeX className="size-5" />} />} />
 

@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Wallet, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart } from 'lucide-react';
+import { User, Bookmark, EyeOff, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -103,12 +103,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 onClick={handleClose}
               />
               <DrawerMenuItem
-                to="/wallet"
-                icon={<Wallet className="size-5" />}
-                label="Wallet"
-                onClick={handleClose}
-              />
-              <DrawerMenuItem
                 to="/bookmarks"
                 icon={<Bookmark className="size-5" />}
                 label="Bookmarks"
@@ -123,7 +117,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               <DrawerMenuItem
                 to="/settings"
                 icon={<Settings className="size-5" />}
-                label="Preferences"
+                label="Settings"
                 onClick={handleClose}
               />
 
