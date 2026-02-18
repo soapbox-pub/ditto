@@ -75,7 +75,7 @@ export function NotificationsPage() {
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-border sidebar:sticky sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-border sticky top-12 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           {tabs.map(({ key, label }) => (
             <button
               key={key}

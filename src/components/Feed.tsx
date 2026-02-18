@@ -101,7 +101,7 @@ export function Feed() {
 
       {/* Tabs (logged in) or CTA (logged out) */}
       {user ? (
-        <div className="flex border-b border-border sidebar:sticky sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        <div className="flex border-b border-border sticky top-12 sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
           <TabButton
             label="Follows"
             active={activeTab === 'follows'}
@@ -114,7 +114,7 @@ export function Feed() {
           />
         </div>
       ) : (
-        <div className="border-b border-border sidebar:sticky sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
+        <div className="border-b border-border sticky top-12 sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
               Follow accounts you care about on Mew
