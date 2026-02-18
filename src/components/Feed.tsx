@@ -43,34 +43,27 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  // Auto-fetch next page when first page loads
+  // Intersection observer for infinite scroll
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+  });
+
   useEffect(() => {
-    if (!isPending && hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
+    if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [isPending, hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Track page boundaries for intersection observers
-  const pageItems = useMemo(() => {
-    if (!data?.pages) return [];
-    return data.pages.map((page, pageIndex) => {
-      const seen = new Set<string>();
-      const items: FeedItem[] = [];
-      for (const item of page) {
-        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
-        if (!seen.has(key)) {
-          seen.add(key);
-          items.push(item);
-        }
-      }
-      return { pageIndex, items };
-    });
-  }, [data?.pages]);
-
-  // Flatten all items for author/stats prefetching
+  // Flatten all items and deduplicate
   const feedItems = useMemo(() => {
-    return pageItems.flatMap(p => p.items);
-  }, [pageItems]);
+    const seen = new Set<string>();
+    return data?.pages.flat().filter(item => {
+      const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }) || [];
+  }, [data?.pages]);
 
   // Batch-prefetch all author profiles in a single relay query instead of
   // firing N individual useAuthor() calls from each NoteCard.  The results
@@ -150,29 +143,21 @@ export function Feed() {
           </div>
         ) : feedItems.length > 0 ? (
           <div>
-            {pageItems.map(({ pageIndex, items }) => (
-              <div key={pageIndex}>
-                {items.map((item: FeedItem) => (
-                  <NoteCard
-                    key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                    event={item.event}
-                    repostedBy={item.repostedBy}
-                  />
-                ))}
-                {/* Page boundary at the BOTTOM - triggers next page when reaching end of this page */}
-                <PageBoundary
-                  pageIndex={pageIndex}
-                  totalPages={data?.pages?.length ?? 0}
-                  hasNextPage={hasNextPage}
-                  isFetchingNextPage={isFetchingNextPage}
-                  onLoadNext={fetchNextPage}
-                />
-              </div>
+            {feedItems.map((item: FeedItem) => (
+              <NoteCard
+                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                event={item.event}
+                repostedBy={item.repostedBy}
+              />
             ))}
-            {/* Loading indicator at the very bottom */}
-            {hasNextPage && isFetchingNextPage && (
-              <div className="flex justify-center py-6">
-                <Loader2 className="size-5 animate-spin text-muted-foreground" />
+            {/* Infinite scroll trigger */}
+            {hasNextPage && (
+              <div ref={scrollRef} className="py-4">
+                {isFetchingNextPage && (
+                  <div className="flex justify-center">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -198,36 +183,6 @@ export function Feed() {
       />
     </main>
   );
-}
-
-function PageBoundary({
-  pageIndex,
-  totalPages,
-  hasNextPage,
-  isFetchingNextPage,
-  onLoadNext,
-}: {
-  pageIndex: number;
-  totalPages: number;
-  hasNextPage: boolean;
-  isFetchingNextPage: boolean;
-  onLoadNext: () => void;
-}) {
-  const { ref, inView } = useInView({
-    threshold: 0,
-    rootMargin: '400px',
-  });
-
-  useEffect(() => {
-    // Trigger next page when this page boundary comes into view
-    // Only trigger if this is the last page currently loaded
-    if (inView && pageIndex === totalPages - 1 && hasNextPage && !isFetchingNextPage) {
-      onLoadNext();
-    }
-  }, [inView, pageIndex, totalPages, hasNextPage, isFetchingNextPage, onLoadNext]);
-
-  // Invisible boundary marker at the bottom of each page
-  return <div ref={ref} className="h-0" />;
 }
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
