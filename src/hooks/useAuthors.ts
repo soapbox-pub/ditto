@@ -1,5 +1,6 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface AuthorData {
@@ -11,64 +12,89 @@ export interface AuthorData {
 /**
  * Batch-fetch multiple author profiles in a single relay query.
  *
- * Much more efficient than calling `useAuthor` once per pubkey — one
- * round-trip instead of N.  Results are also seeded into the individual
- * `['author', pubkey]` cache entries so that later `useAuthor()` calls
- * for the same pubkeys resolve instantly from cache.
+ * Only fetches pubkeys that aren't already in the `['author', pubkey]`
+ * cache — so scrolling through pages of a feed never re-fetches profiles
+ * that were already loaded by earlier pages.
  *
- * @param pubkeys - Array of hex pubkeys to fetch profiles for
- * @returns React Query result with a Map<pubkey, AuthorData>
+ * Results are seeded into the individual `['author', pubkey]` cache so
+ * that `useAuthor()` calls resolve instantly from cache.
  */
 export function useAuthors(pubkeys: string[]) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
 
-  // Deduplicate and sort for a stable query key
-  const uniquePubkeys = [...new Set(pubkeys)].sort();
+  // Deduplicate
+  const uniquePubkeys = useMemo(() => [...new Set(pubkeys)], [pubkeys]);
 
-  return useQuery<Map<string, AuthorData>>({
-    queryKey: ['authors', uniquePubkeys.join(',')],
+  // Filter out pubkeys that already have a cached ['author', pubkey] entry
+  const uncachedPubkeys = useMemo(() => {
+    return uniquePubkeys.filter(
+      (pk) => !queryClient.getQueryData(['author', pk]),
+    );
+  }, [uniquePubkeys, queryClient]);
+
+  // Stable key: only the uncached pubkeys, sorted
+  const sortedUncached = useMemo(() => [...uncachedPubkeys].sort(), [uncachedPubkeys]);
+
+  const query = useQuery<Map<string, AuthorData>>({
+    queryKey: ['authors-batch', sortedUncached.join(',')],
     queryFn: async ({ signal }) => {
-      if (uniquePubkeys.length === 0) {
-        return new Map();
-      }
+      if (sortedUncached.length === 0) return new Map();
 
       const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
       const events = await nostr.query(
-        [{ kinds: [0], authors: uniquePubkeys, limit: uniquePubkeys.length }],
+        [{ kinds: [0], authors: sortedUncached, limit: sortedUncached.length }],
         { signal: combinedSignal },
       );
 
       const authorMap = new Map<string, AuthorData>();
 
-      // Initialize every requested pubkey so callers always get an entry
-      for (const pk of uniquePubkeys) {
-        authorMap.set(pk, { pubkey: pk });
-      }
-
-      // Process returned kind-0 events
       for (const event of events) {
         let metadata: NostrMetadata | undefined;
         try {
           metadata = n.json().pipe(n.metadata()).parse(event.content);
         } catch {
-          // unparseable — leave metadata undefined
+          // unparseable
         }
 
         const data: AuthorData = { pubkey: event.pubkey, event, metadata };
         authorMap.set(event.pubkey, data);
-
-        // Seed the individual `useAuthor(pubkey)` cache so it resolves
-        // instantly for any card that mounts later.
-        queryClient.setQueryData(['author', event.pubkey], { event, metadata });
       }
 
       return authorMap;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
-    enabled: uniquePubkeys.length > 0,
-    placeholderData: (prev) => prev,
+    enabled: sortedUncached.length > 0,
   });
+
+  // Seed individual ['author', pubkey] caches when batch resolves.
+  // Use a ref to track what we've already seeded to avoid re-seeding.
+  const seededRef = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!query.data) return;
+
+    for (const [pubkey, data] of query.data) {
+      if (!seededRef.current.has(pubkey)) {
+        seededRef.current.add(pubkey);
+        queryClient.setQueryData(['author', pubkey], {
+          event: data.event,
+          metadata: data.metadata,
+        });
+      }
+    }
+
+    // Also seed empty entries for pubkeys we asked for but got no result
+    // so we don't re-fetch them next time.
+    for (const pk of sortedUncached) {
+      if (!seededRef.current.has(pk) && !query.data.has(pk)) {
+        seededRef.current.add(pk);
+        queryClient.setQueryData(['author', pk], { event: undefined, metadata: undefined });
+      }
+    }
+  }, [query.data, sortedUncached, queryClient]);
+
+  return query;
 }
