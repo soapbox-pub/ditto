@@ -119,154 +119,112 @@ class EventStore {
   }>): Promise<EventWithRelays[]> {
     if (!this.db) await this.init();
 
+    const startTime = performance.now();
+
+    // For simplicity and reliability, use a single transaction and collect all matching events
     return new Promise((resolve, reject) => {
       const transaction = this.db!.transaction([STORE_NAME], 'readonly');
       const objectStore = transaction.objectStore(STORE_NAME);
       
       const allEvents: EventWithRelays[] = [];
       const seenIds = new Set<string>();
-      let completed = 0;
-      const totalFilters = filters.length;
 
-      if (totalFilters === 0) {
+      if (filters.length === 0) {
         resolve([]);
         return;
       }
 
-      // Process each filter separately using indexes when possible
-      for (const filter of filters) {
-        let request: IDBRequest<EventWithRelays[]>;
+      // Process each filter
+      let pendingOperations = 0;
+      let hasError = false;
 
-        // Optimize using indexes when possible
-        if (filter.ids && filter.ids.length > 0) {
-          // Query by IDs directly - most specific
-          const ids = filter.ids;
-          let idsProcessed = 0;
-          for (const id of ids) {
-            const getReq = objectStore.get(id);
-            getReq.onsuccess = () => {
-              if (getReq.result) {
-                const event = getReq.result as EventWithRelays;
-                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                  seenIds.add(event.id);
-                  allEvents.push(event);
-                }
-              }
-              idsProcessed++;
-              if (idsProcessed === ids.length) {
-                completed++;
-                if (completed === totalFilters) {
-                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
-                }
-              }
-            };
-            getReq.onerror = () => reject(getReq.error);
-          }
-          continue;
-        } else if (filter.kinds && filter.kinds.length === 1 && filter.authors && filter.authors.length > 0) {
-          // Use kind_pubkey composite index for kind+author queries
-          const kind = filter.kinds[0];
-          const authors = filter.authors;
-          let authorsProcessed = 0;
-          
-          for (const author of authors) {
-            const index = objectStore.index('kind_pubkey');
-            const range = IDBKeyRange.only([kind, author]);
-            const indexReq = index.getAll(range);
-            
-            indexReq.onsuccess = () => {
-              const events = indexReq.result as EventWithRelays[];
-              for (const event of events) {
-                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                  seenIds.add(event.id);
-                  allEvents.push(event);
-                }
-              }
-              authorsProcessed++;
-              if (authorsProcessed === authors.length) {
-                completed++;
-                if (completed === totalFilters) {
-                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
-                }
-              }
-            };
-            indexReq.onerror = () => reject(indexReq.error);
-          }
-          continue;
-        } else if (filter.authors && filter.authors.length > 0 && !filter.kinds) {
-          // Use pubkey index for author-only queries
-          const authors = filter.authors;
-          let authorsProcessed = 0;
-          
-          for (const author of authors) {
-            const index = objectStore.index('pubkey');
-            const indexReq = index.getAll(author);
-            
-            indexReq.onsuccess = () => {
-              const events = indexReq.result as EventWithRelays[];
-              for (const event of events) {
-                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                  seenIds.add(event.id);
-                  allEvents.push(event);
-                }
-              }
-              authorsProcessed++;
-              if (authorsProcessed === authors.length) {
-                completed++;
-                if (completed === totalFilters) {
-                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
-                }
-              }
-            };
-            indexReq.onerror = () => reject(indexReq.error);
-          }
-          continue;
-        } else if (filter.kinds && filter.kinds.length > 0 && !filter.authors) {
-          // Use kind index for kind-only queries
-          const kinds = filter.kinds;
-          let kindsProcessed = 0;
-          
-          for (const kind of kinds) {
-            const index = objectStore.index('kind');
-            const indexReq = index.getAll(kind);
-            
-            indexReq.onsuccess = () => {
-              const events = indexReq.result as EventWithRelays[];
-              for (const event of events) {
-                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-                  seenIds.add(event.id);
-                  allEvents.push(event);
-                }
-              }
-              kindsProcessed++;
-              if (kindsProcessed === kinds.length) {
-                completed++;
-                if (completed === totalFilters) {
-                  this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
-                }
-              }
-            };
-            indexReq.onerror = () => reject(indexReq.error);
-          }
-          continue;
+      const checkComplete = () => {
+        if (pendingOperations === 0 && !hasError) {
+          const duration = performance.now() - startTime;
+          console.debug(`[EventStore] Query completed in ${duration.toFixed(2)}ms, ${allEvents.length} events found`);
+          this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
         }
+      };
 
-        // Fallback: scan all events (slowest path)
-        request = objectStore.getAll();
-        request.onsuccess = () => {
-          const events = request.result as EventWithRelays[];
-          for (const event of events) {
-            if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
-              seenIds.add(event.id);
-              allEvents.push(event);
+      for (const filter of filters) {
+        // Optimize common query patterns
+        if (filter.kinds && filter.kinds.length > 0 && filter.authors && filter.authors.length > 0) {
+          // Use composite index for kind+author (most common feed query)
+          for (const kind of filter.kinds) {
+            for (const author of filter.authors) {
+              pendingOperations++;
+              const index = objectStore.index('kind_pubkey');
+              const range = IDBKeyRange.only([kind, author]);
+              const request = index.getAll(range);
+              
+              request.onsuccess = () => {
+                const events = request.result as EventWithRelays[];
+                for (const event of events) {
+                  if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                    seenIds.add(event.id);
+                    allEvents.push(event);
+                  }
+                }
+                pendingOperations--;
+                checkComplete();
+              };
+              
+              request.onerror = () => {
+                hasError = true;
+                reject(request.error);
+              };
             }
           }
-          completed++;
-          if (completed === totalFilters) {
-            this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
+        } else if (filter.ids && filter.ids.length > 0) {
+          // Query by IDs directly
+          for (const id of filter.ids) {
+            pendingOperations++;
+            const request = objectStore.get(id);
+            
+            request.onsuccess = () => {
+              if (request.result) {
+                const event = request.result as EventWithRelays;
+                if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                  seenIds.add(event.id);
+                  allEvents.push(event);
+                }
+              }
+              pendingOperations--;
+              checkComplete();
+            };
+            
+            request.onerror = () => {
+              hasError = true;
+              reject(request.error);
+            };
           }
-        };
-        request.onerror = () => reject(request.error);
+        } else {
+          // Fallback: load all events and filter
+          pendingOperations++;
+          const request = objectStore.getAll();
+          
+          request.onsuccess = () => {
+            const events = request.result as EventWithRelays[];
+            for (const event of events) {
+              if (!seenIds.has(event.id) && this.matchesFilter(event, filter)) {
+                seenIds.add(event.id);
+                allEvents.push(event);
+              }
+            }
+            pendingOperations--;
+            checkComplete();
+          };
+          
+          request.onerror = () => {
+            hasError = true;
+            reject(request.error);
+          };
+        }
+      }
+
+      // If no async operations were queued, resolve immediately
+      if (pendingOperations === 0) {
+        this.finalizeQueryResults(allEvents, filters[0]?.limit, resolve);
       }
     });
   }

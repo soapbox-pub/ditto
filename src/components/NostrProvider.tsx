@@ -59,12 +59,17 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         // Intercept events as they stream in from remote relays and cache them
         const originalReq = relay.req.bind(relay);
         relay.req = async function* (filters: NostrFilter[], opts?: { signal?: AbortSignal }) {
+          let eventCount = 0;
           for await (const event of originalReq(filters, opts)) {
+            eventCount++;
             // Cache event from this relay (fire and forget)
             eventStore.addEvent(event, [url]).catch(error => {
               console.debug('[NostrProvider] Failed to cache event from relay:', error);
             });
             yield event;
+          }
+          if (eventCount > 0) {
+            console.debug(`[NostrProvider] ${url} sent ${eventCount} events`);
           }
         };
         
