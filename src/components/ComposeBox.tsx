@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -6,12 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
+import { LinkPreview } from '@/components/LinkPreview';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const MAX_CHARS = 5000;
@@ -22,6 +26,8 @@ interface ComposeBoxProps {
   compact?: boolean;
   /** Event being replied to – adds NIP-10 reply tags when set. */
   replyTo?: NostrEvent;
+  /** Event being quoted – shows embedded preview and adds quote tags. */
+  quotedEvent?: NostrEvent;
   /** If true, the compose area is always expanded (e.g. inside a modal). */
   forceExpanded?: boolean;
   /** If true, hides the avatar (useful inside modals with their own layout). */
@@ -65,7 +71,7 @@ function CharRing({ count, max }: { count: number; max: number }) {
   );
 }
 
-export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", compact = false, replyTo, forceExpanded = false, hideAvatar = false }: ComposeBoxProps) {
+export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", compact = false, replyTo, quotedEvent, forceExpanded = false, hideAvatar = false }: ComposeBoxProps) {
   const { user, metadata } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -77,8 +83,16 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-expand when quotedEvent is provided
+  useEffect(() => {
+    if (quotedEvent) {
+      setExpanded(true);
+    }
+  }, [quotedEvent]);
 
   const charCount = content.length;
   const remaining = MAX_CHARS - charCount;
@@ -86,6 +100,60 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const expand = useCallback(() => {
     if (!expanded) setExpanded(true);
   }, [expanded]);
+
+  // Detect embeds in content (nevent, note, naddr, URLs)
+  const detectedEmbeds = useMemo(() => {
+    const embeds: Array<{ type: 'nevent' | 'note' | 'naddr' | 'link'; value: string; eventId?: string; addr?: { kind: number; pubkey: string; identifier: string } }> = [];
+    
+    // Detect nostr: URIs
+    const nostrMatches = content.matchAll(/nostr:(nevent1|note1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+/g);
+    for (const match of nostrMatches) {
+      const bech32 = match[0].slice('nostr:'.length);
+      try {
+        const decoded = nip19.decode(bech32);
+        if (decoded.type === 'nevent') {
+          embeds.push({ type: 'nevent', value: match[0], eventId: decoded.data.id });
+        } else if (decoded.type === 'note') {
+          embeds.push({ type: 'note', value: match[0], eventId: decoded.data });
+        } else if (decoded.type === 'naddr') {
+          embeds.push({ 
+            type: 'naddr', 
+            value: match[0], 
+            addr: { 
+              kind: decoded.data.kind, 
+              pubkey: decoded.data.pubkey, 
+              identifier: decoded.data.identifier 
+            } 
+          });
+        }
+      } catch {
+        // Invalid bech32, skip
+      }
+    }
+
+    // Detect regular URLs (but not image/video URLs)
+    const urlMatches = content.matchAll(/https?:\/\/[^\s]+/g);
+    for (const match of urlMatches) {
+      const url = match[0];
+      // Skip media URLs
+      if (!/\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?$/i.test(url)) {
+        embeds.push({ type: 'link', value: url });
+      }
+    }
+
+    return embeds;
+  }, [content]);
+
+  // Filter out removed embeds
+  const visibleEmbeds = useMemo(() => 
+    detectedEmbeds.filter(embed => !removedEmbeds.has(embed.value)),
+    [detectedEmbeds, removedEmbeds]
+  );
+
+  // Include quoted event if provided and not removed
+  const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
+  const quotedEventKey = quotedEventId ? `nostr:${quotedEventId}` : null;
+  const showQuotedEvent = quotedEvent && quotedEventKey && !removedEmbeds.has(quotedEventKey);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
@@ -149,6 +217,14 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
         }
       }
 
+      // Quote tags (if quoted event and not removed)
+      if (showQuotedEvent && quotedEvent) {
+        tags.push(['e', quotedEvent.id, '', 'mention']);
+        tags.push(['p', quotedEvent.pubkey]);
+        // Add the q tag for NIP-18 quote reposts
+        tags.push(['q', quotedEvent.id]);
+      }
+
       // NIP-36: content warning
       if (cwEnabled) {
         tags.push(['content-warning', cwText || '']);
@@ -169,11 +245,16 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       setCwEnabled(false);
       setCwText('');
       setExpanded(false);
+      setRemovedEmbeds(new Set());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
       }
-      toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : 'Your note has been published.' });
+      if (quotedEvent) {
+        queryClient.invalidateQueries({ queryKey: ['event-stats', quotedEvent.id] });
+        queryClient.invalidateQueries({ queryKey: ['event-interactions', quotedEvent.id] });
+      }
+      toast({ title: 'Posted!', description: replyTo ? 'Your reply has been published.' : quotedEvent ? 'Your quote has been published.' : 'Your note has been published.' });
       onSuccess?.();
     } catch {
       toast({ title: 'Error', description: 'Failed to publish note.', variant: 'destructive' });
@@ -235,6 +316,42 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
             </button>
           </div>
         )}
+
+        {/* Quoted event preview */}
+        {showQuotedEvent && quotedEvent && quotedEventKey && (
+          <div className="relative mt-2">
+            <button
+              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(quotedEventKey))}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+              title="Remove embed"
+            >
+              <X className="size-3.5" />
+            </button>
+            <EmbeddedNote eventId={quotedEvent.id} />
+          </div>
+        )}
+
+        {/* Detected embeds */}
+        {visibleEmbeds.map((embed, i) => (
+          <div key={`${embed.type}-${i}`} className="relative mt-2">
+            <button
+              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+              title="Remove embed"
+            >
+              <X className="size-3.5" />
+            </button>
+            {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
+              <EmbeddedNote eventId={embed.eventId} />
+            )}
+            {embed.type === 'naddr' && embed.addr && (
+              <EmbeddedNaddr addr={embed.addr} />
+            )}
+            {embed.type === 'link' && (
+              <LinkPreview url={embed.value} />
+            )}
+          </div>
+        ))}
 
         {/* Toolbar + post button */}
         {isExpanded && (

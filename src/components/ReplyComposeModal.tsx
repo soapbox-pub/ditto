@@ -19,6 +19,8 @@ import { timeAgo } from '@/lib/timeAgo';
 interface ReplyComposeModalProps {
   /** The event being replied to. When `null`, the modal acts as a "New post" composer. */
   event?: NostrEvent | null;
+  /** The event being quoted (for quote posts). */
+  quotedEvent?: NostrEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -29,8 +31,9 @@ function extractImages(content: string): string[] {
   return content.match(urlRegex) || [];
 }
 
-export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeModalProps) {
+export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: ReplyComposeModalProps) {
   const isReply = !!event;
+  const isQuote = !!quotedEvent;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -38,7 +41,7 @@ export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeMod
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold">
-            {isReply ? 'Reply to post' : 'New post'}
+            {isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post'}
           </DialogTitle>
           <button
             onClick={() => onOpenChange(false)}
@@ -48,14 +51,15 @@ export function ReplyComposeModal({ event, open, onOpenChange }: ReplyComposeMod
           </button>
         </div>
 
-        {/* Embedded original post (reply only) */}
-        {event && <EmbeddedPost event={event} />}
+        {/* Embedded original post (reply only - quote embeds are shown in ComposeBox) */}
+        {event && !isQuote && <EmbeddedPost event={event} />}
 
         {/* Compose area */}
         <ComposeBox
           replyTo={event ?? undefined}
+          quotedEvent={quotedEvent ?? undefined}
           onSuccess={() => onOpenChange(false)}
-          placeholder={isReply ? "What's on your mind?" : "What's happening?"}
+          placeholder={isReply ? "What's on your mind?" : isQuote ? "Add a comment..." : "What's happening?"}
           forceExpanded
           hideAvatar
         />

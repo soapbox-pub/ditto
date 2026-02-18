@@ -4,6 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -18,6 +19,7 @@ interface RepostMenuProps {
 export function RepostMenu({ event, children }: RepostMenuProps) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
+  const [quoteOpen, setQuoteOpen] = useState(false);
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
@@ -56,10 +58,8 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
   };
 
   const handleQuote = () => {
-    // TODO: Implement quote post functionality
-    // For now, just show a toast
-    toast({ title: 'Quote post is not yet implemented' });
     setOpen(false);
+    setQuoteOpen(true);
   };
 
   const menuContent = (
@@ -103,30 +103,44 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerTrigger asChild onClick={(e) => e.stopPropagation()}>
-          {children}
-        </DrawerTrigger>
-        <DrawerContent className="px-0 pb-2">
-          {menuContent}
-        </DrawerContent>
-      </Drawer>
+      <>
+        <Drawer open={open} onOpenChange={setOpen}>
+          <DrawerTrigger asChild onClick={(e) => e.stopPropagation()}>
+            {children}
+          </DrawerTrigger>
+          <DrawerContent className="px-0 pb-2">
+            {menuContent}
+          </DrawerContent>
+        </Drawer>
+        <ReplyComposeModal 
+          quotedEvent={event}
+          open={quoteOpen}
+          onOpenChange={setQuoteOpen}
+        />
+      </>
     );
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
-        {children}
-      </PopoverTrigger>
-      <PopoverContent 
-        className="w-48 p-0 rounded-xl overflow-hidden"
-        align="start"
-        side="top"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {menuContent}
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild onClick={(e) => e.stopPropagation()}>
+          {children}
+        </PopoverTrigger>
+        <PopoverContent 
+          className="w-48 p-0 rounded-xl overflow-hidden"
+          align="start"
+          side="top"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {menuContent}
+        </PopoverContent>
+      </Popover>
+      <ReplyComposeModal 
+        quotedEvent={event}
+        open={quoteOpen}
+        onOpenChange={setQuoteOpen}
+      />
+    </>
   );
 }
