@@ -14,6 +14,7 @@ import { FollowPackContent } from '@/components/FollowPackContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
+import type { EngagementCounts } from '@/hooks/useEngagementCounts';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -31,6 +32,8 @@ interface NoteCardProps {
   repostedBy?: string;
   /** If true, hide action buttons (used for embeds). */
   compact?: boolean;
+  /** Pre-fetched engagement counts from feed-level batch query. When provided, skips per-card useEventStats. */
+  stats?: EngagementCounts;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -118,7 +121,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className, repostedBy, compact }: NoteCardProps) {
+export function NoteCard({ event, className, repostedBy, compact, stats: propStats }: NoteCardProps) {
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -126,7 +129,10 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
-  const { data: stats } = useEventStats(event.id);
+  // Use pre-fetched stats from feed-level batch when available;
+  // only fall back to per-card query when rendered outside a feed (e.g. PostDetailPage).
+  const { data: fetchedStats } = useEventStats(!propStats ? event.id : undefined);
+  const stats = propStats ?? fetchedStats;
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
