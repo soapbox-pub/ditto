@@ -9,6 +9,7 @@ export const APP_RELAYS: RelayMetadata = {
     { url: 'wss://relay.ditto.pub', read: true, write: true },
     { url: 'wss://relay.primal.net', read: true, write: true },
     { url: 'wss://relay.damus.io', read: true, write: true },
+    { url: 'wss://nos.lol', read: true, write: true },
   ],
   updatedAt: 0,
 };
