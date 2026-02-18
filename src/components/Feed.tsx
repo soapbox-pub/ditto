@@ -10,6 +10,7 @@ import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
+import { useBatchEventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -72,6 +73,13 @@ export function Feed() {
     return [...keys];
   }, [feedItems]);
   useAuthors(feedPubkeys);
+
+  // Batch-prefetch interaction stats for all visible events in a single
+  // relay query instead of firing 2 queries per NoteCard.
+  const feedEventIds = useMemo(() => {
+    return feedItems.map((item) => item.event.id);
+  }, [feedItems]);
+  useBatchEventStats(feedEventIds);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);

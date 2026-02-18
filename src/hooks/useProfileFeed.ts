@@ -4,7 +4,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 20;
 
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 

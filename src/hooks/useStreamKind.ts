@@ -90,7 +90,7 @@ export function useStreamKind(kind: number | number[]) {
       try {
         const now = Math.floor(Date.now() / 1000);
         for await (const msg of nostr.req(
-          [{ ...filter, since: now, limit: 100 }],
+          [{ ...filter, since: now, limit: 0 }],
           { signal: ac.signal },
         )) {
           if (!alive) break;

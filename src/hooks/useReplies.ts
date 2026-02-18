@@ -12,7 +12,7 @@ export function useReplies(eventId: string | undefined) {
       if (!eventId) return [];
 
       const events = await nostr.query(
-        [{ kinds: [1], '#e': [eventId], limit: 100 }],
+        [{ kinds: [1], '#e': [eventId], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 

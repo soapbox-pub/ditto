@@ -126,16 +126,17 @@ export function useEventInteractions(eventId: string | undefined) {
       const timeout = AbortSignal.timeout(5000);
       const combined = AbortSignal.any([signal, timeout]);
 
-      const [eTagEvents, qTagEvents] = await Promise.all([
-        nostr.query(
-          [{ kinds: [6, 7, 9735], '#e': [eventId], limit: 500 }],
-          { signal: combined },
-        ),
-        nostr.query(
-          [{ kinds: [1], '#q': [eventId], limit: 100 }],
-          { signal: combined },
-        ),
-      ]);
+      // Single query with two filter objects — relay handles as OR
+      const allEvents = await nostr.query(
+        [
+          { kinds: [6, 7, 9735], '#e': [eventId], limit: 50 },
+          { kinds: [1], '#q': [eventId], limit: 20 },
+        ],
+        { signal: combined },
+      );
+
+      const eTagEvents = allEvents.filter(e => e.kind !== 1 || e.tags.some(([n, v]) => n === 'e' && v === eventId));
+      const qTagEvents = allEvents.filter(e => e.kind === 1 && e.tags.some(([n, v]) => n === 'q' && v === eventId));
 
       const reposts: RepostEntry[] = [];
       const quotes: QuoteEntry[] = [];

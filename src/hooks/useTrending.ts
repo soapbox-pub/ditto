@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 export interface TrendingTag {
@@ -15,7 +15,7 @@ export function useTrendingTags(enabled = true) {
     queryKey: ['trending-tags'],
     queryFn: async ({ signal }) => {
       const events = await nostr.query(
-        [{ kinds: [1], limit: 200 }],
+        [{ kinds: [1], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
@@ -117,6 +117,66 @@ function parseBolt11Amount(bolt11: string): number {
   }
 }
 
+/** The stats shape returned by useEventStats and useBatchEventStats. */
+export interface EventStats {
+  replies: number;
+  reposts: number;
+  quotes: number;
+  reactions: number;
+  zapAmount: number;
+  reactionEmojis: string[];
+}
+
+const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] };
+
+/** Computes stats for a single event ID from a flat array of interaction events. */
+function computeStats(eventId: string, events: NostrEvent[]): EventStats {
+  let replies = 0;
+  let reposts = 0;
+  let quotes = 0;
+  let reactions = 0;
+  let zapAmount = 0;
+  const reactionEmojiSet = new Set<string>();
+
+  for (const e of events) {
+    // Check if this event references our target via e-tag or q-tag
+    const refersViaE = e.tags.some(([name, val]) => name === 'e' && val === eventId);
+    const refersViaQ = e.tags.some(([name, val]) => name === 'q' && val === eventId);
+
+    if (!refersViaE && !refersViaQ) continue;
+
+    switch (e.kind) {
+      case 1:
+        if (refersViaQ) {
+          quotes++;
+        } else {
+          replies++;
+        }
+        break;
+      case 6: reposts++; break;
+      case 7: {
+        reactions++;
+        const emoji = e.content.trim();
+        if (emoji === '+' || emoji === '') {
+          reactionEmojiSet.add('👍');
+        } else if (emoji !== '-') {
+          reactionEmojiSet.add(emoji);
+        }
+        break;
+      }
+      case 9735: {
+        const msats = extractZapAmount(e);
+        if (msats > 0) {
+          zapAmount += Math.floor(msats / 1000);
+        }
+        break;
+      }
+    }
+  }
+
+  return { replies, reposts, quotes, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
+}
+
 /** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
@@ -124,60 +184,72 @@ export function useEventStats(eventId: string | undefined) {
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
-      if (!eventId) return { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] as string[] };
+      if (!eventId) return EMPTY_STATS;
 
-      const timeout = AbortSignal.timeout(5000);
-      const combined = AbortSignal.any([signal, timeout]);
+      const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
-      // Two queries: one for e-tag interactions, one for q-tag quotes
-      const [eTagEvents, qTagEvents] = await Promise.all([
-        nostr.query(
-          [{ kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 200 }],
-          { signal: combined },
-        ),
-        nostr.query(
-          [{ kinds: [1], '#q': [eventId], limit: 50 }],
-          { signal: combined },
-        ),
-      ]);
+      // Single query with two filter objects — relay handles as OR
+      const events = await nostr.query(
+        [
+          { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
+          { kinds: [1], '#q': [eventId], limit: 20 },
+        ],
+        { signal: combined },
+      );
 
-      let replies = 0;
-      let reposts = 0;
-      let reactions = 0;
-      let zapAmount = 0;
-      const reactionEmojiSet = new Set<string>();
-
-      for (const e of eTagEvents) {
-        switch (e.kind) {
-          case 1: replies++; break;
-          case 6: reposts++; break;
-          case 7: {
-            reactions++;
-            // Extract the emoji from the reaction content (kind 7 events use content for the emoji)
-            const emoji = e.content.trim();
-            if (emoji === '+' || emoji === '') {
-              reactionEmojiSet.add('👍');
-            } else if (emoji !== '-') {
-              reactionEmojiSet.add(emoji);
-            }
-            break;
-          }
-          case 9735: {
-            const msats = extractZapAmount(e);
-            if (msats > 0) {
-              zapAmount += Math.floor(msats / 1000);
-            }
-            break;
-          }
-        }
-      }
-
-      const quotes = qTagEvents.length;
-
-      return { replies, reposts, quotes, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
+      return computeStats(eventId, events);
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
-    placeholderData: (prev) => prev, // Keep showing previous counts while refetching
+    placeholderData: (prev) => prev,
+  });
+}
+
+/**
+ * Batch-fetch interaction stats for multiple event IDs in a single relay query.
+ *
+ * Much more efficient than calling `useEventStats` once per event — one
+ * round-trip instead of N.  Results are also seeded into the individual
+ * `['event-stats', id]` cache entries so that `useEventStats()` calls
+ * for the same IDs resolve instantly from cache.
+ */
+export function useBatchEventStats(eventIds: string[]) {
+  const { nostr } = useNostr();
+  const queryClient = useQueryClient();
+
+  const uniqueIds = [...new Set(eventIds)].sort();
+
+  return useQuery<Map<string, EventStats>>({
+    queryKey: ['batch-event-stats', uniqueIds.join(',')],
+    queryFn: async ({ signal }) => {
+      if (uniqueIds.length === 0) return new Map();
+
+      const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
+
+      // Single query covering all event IDs — relay handles as OR
+      const events = await nostr.query(
+        [
+          { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
+          { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
+        ],
+        { signal: combined },
+      );
+
+      const statsMap = new Map<string, EventStats>();
+
+      for (const id of uniqueIds) {
+        const stats = computeStats(id, events);
+        statsMap.set(id, stats);
+
+        // Seed individual cache
+        queryClient.setQueryData(['event-stats', id], stats);
+      }
+
+      return statsMap;
+    },
+    staleTime: 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    enabled: uniqueIds.length > 0,
+    placeholderData: (prev) => prev,
   });
 }

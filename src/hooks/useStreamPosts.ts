@@ -127,7 +127,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       try {
         const now = Math.floor(Date.now() / 1000);
         for await (const msg of nostr.req(
-          [{ ...baseFilter, since: now, limit: 100 }],
+          [{ ...baseFilter, since: now, limit: 0 }],
           { signal: ac.signal },
         )) {
           if (!alive) break;
