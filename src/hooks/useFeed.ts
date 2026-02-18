@@ -6,6 +6,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { computePageStats } from './useTrending';
+import { seedAuthorCache } from './useAuthor';
 
 const PAGE_SIZE = 15;
 
@@ -80,7 +81,7 @@ function prefetchPageData(
       for (const ev of profileEvents) {
         let metadata: NostrMetadata | undefined;
         try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
-        queryClient.setQueryData(['author', ev.pubkey], { event: ev, metadata });
+        seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
       }
     }).catch(() => { /* relay timeout — useAuthor per-card will handle it */ });
   }
