@@ -11,8 +11,7 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAuthors } from '@/hooks/useAuthors';
-import { useBatchEventStats } from '@/hooks/useTrending';
+import { usePageBatch } from '@/hooks/usePageBatch';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -68,26 +67,10 @@ export function Feed() {
     return items;
   }, [data?.pages]);
 
-  // Batch-prefetch all author profiles in a single relay query instead of
-  // firing N individual useAuthor() calls from each NoteCard.  The results
-  // are seeded into the ['author', pubkey] cache so NoteCard's own
-  // useAuthor() resolves instantly from cache.
-  const feedPubkeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const item of feedItems) {
-      keys.add(item.event.pubkey);
-      if (item.repostedBy) keys.add(item.repostedBy);
-    }
-    return [...keys];
-  }, [feedItems]);
-  useAuthors(feedPubkeys);
-
-  // Batch-prefetch interaction stats for all visible events in a single
-  // relay query instead of firing 2 queries per NoteCard.
-  const feedEventIds = useMemo(() => {
-    return feedItems.map((item) => item.event.id);
-  }, [feedItems]);
-  useBatchEventStats(feedEventIds);
+  // Batch-prefetch authors and stats per page so that each page's cache
+  // entry is stable — adding a new page doesn't invalidate previous pages'
+  // already-fetched data.
+  usePageBatch(data?.pages ?? []);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);

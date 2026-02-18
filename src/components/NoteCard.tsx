@@ -250,22 +250,22 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (
         <>
-          <div className="flex items-center gap-6 mt-3 -ml-2">
+          <div className="flex items-center justify-between mt-3 -ml-2 max-w-xs sidebar:max-w-none">
             <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors min-w-0"
               title="Reply"
               onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
             >
-              <MessageCircle className="size-[18px]" />
+              <MessageCircle className="size-[18px] shrink-0" />
               {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
             </button>
 
             <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+              className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors min-w-0"
               title="Repost"
               onClick={(e) => e.stopPropagation()}
             >
-              <Repeat2 className="size-[18px]" />
+              <Repeat2 className="size-[18px] shrink-0" />
               {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
             </button>
 
@@ -278,16 +278,16 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
 
             <ZapDialog target={event}>
               <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                className="flex items-center gap-1 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors min-w-0"
                 title="Zap"
               >
-                <Zap className="size-[18px]" />
+                <Zap className="size-[18px] shrink-0" />
                 {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
               </button>
             </ZapDialog>
 
             <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors shrink-0"
               title="More"
               onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
             >
