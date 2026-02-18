@@ -94,28 +94,9 @@ export function AppProvider(props: AppProviderProps) {
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
     const root = window.document.documentElement;
-    
-    // Use double RAF to ensure theme change happens after paint
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        // Add view transition if supported
-        if ('startViewTransition' in document) {
-          (document as any).startViewTransition(() => {
-            root.classList.remove('dark', 'light', 'black', 'pink');
-            root.classList.add(theme);
-          });
-        } else {
-          // Fallback: add transitions manually
-          root.style.setProperty('transition', 'background-color 0.2s ease-in-out, color 0.2s ease-in-out');
-          
-          root.classList.remove('dark', 'light', 'black', 'pink');
-          root.classList.add(theme);
-          
-          setTimeout(() => {
-            root.style.removeProperty('transition');
-          }, 200);
-        }
-      });
-    });
+
+    // Just apply the theme instantly - no transitions, no RAF
+    root.classList.remove('dark', 'light', 'black', 'pink');
+    root.classList.add(theme);
   }, [theme]);
 }
