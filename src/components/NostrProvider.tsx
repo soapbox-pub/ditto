@@ -18,32 +18,52 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
-  // Calculate effective relays
-  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-  
-  // Store relay URLs as a sorted string for comparison
-  const relayUrlsKey = effectiveRelays.relays.map(r => r.url).sort().join(',');
-  const prevRelayUrlsKey = useRef<string>(relayUrlsKey);
+  // Use refs so the pool always has the latest data
+  const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays));
 
-  // Update effective relays ref for use in router functions
-  const effectiveRelaysRef = useRef(effectiveRelays);
-  effectiveRelaysRef.current = effectiveRelays;
+  // Track previous relay URLs to detect changes
+  const prevRelayUrlsRef = useRef<string>('');
 
-  // Recreate pool when relay list changes
+  // Update effective relays ref and invalidate all queries when relays change,
+  // since any cached query may have been fetched from a different set of relays.
   useEffect(() => {
-    // Check if relay URLs actually changed
-    if (prevRelayUrlsKey.current === relayUrlsKey && pool.current) {
-      return; // No change, keep existing pool
-    }
+    const prev = effectiveRelays.current;
+    effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
 
-    // Close existing pool connections if they exist
-    if (pool.current) {
-      console.log('Closing old relay connections...');
-      pool.current.close();
+    // Only invalidate if the relay URLs actually changed
+    const prevUrls = prev.relays.map(r => r.url).sort().join(',');
+    const nextUrls = effectiveRelays.current.relays.map(r => r.url).sort().join(',');
+    
+    if (prevUrls !== nextUrls) {
+      // Close connections to relays that are no longer in the list
+      if (pool.current && prevRelayUrlsRef.current) {
+        const prevSet = new Set(prevUrls.split(',').filter(Boolean));
+        const nextSet = new Set(nextUrls.split(',').filter(Boolean));
+        
+        // Find relays that were removed
+        const removedRelays = [...prevSet].filter(url => !nextSet.has(url));
+        
+        // Close removed relay connections
+        for (const url of removedRelays) {
+          try {
+            const relay = (pool.current as any).relays?.get?.(url);
+            if (relay) {
+              relay.close();
+              (pool.current as any).relays?.delete?.(url);
+            }
+          } catch (e) {
+            // Ignore errors
+          }
+        }
+      }
+      
+      prevRelayUrlsRef.current = nextUrls;
+      queryClient.invalidateQueries();
     }
+  }, [config.relayMetadata, config.useAppRelays, queryClient]);
 
-    // Create new pool with updated relays
-    console.log('Creating new pool with relays:', effectiveRelays.relays.map(r => r.url));
+  // Initialize NPool only once
+  if (!pool.current) {
     pool.current = new NPool({
       open(url: string) {
         return new NRelay1(url);
@@ -52,7 +72,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         const routes = new Map<string, NostrFilter[]>();
 
         // Route to all read relays
-        const readRelays = effectiveRelaysRef.current.relays
+        const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
           .map(r => r.url);
 
@@ -64,7 +84,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       },
       eventRouter(_event: NostrEvent) {
         // Get write relays from effective relays
-        const writeRelays = effectiveRelaysRef.current.relays
+        const writeRelays = effectiveRelays.current.relays
           .filter(r => r.write)
           .map(r => r.url);
 
@@ -77,18 +97,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       // latency win — Agora uses the same 500 ms timeout.
       eoseTimeout: 500,
     });
-
-    prevRelayUrlsKey.current = relayUrlsKey;
-
-    // Invalidate queries since we're using a new pool with different relays
-    queryClient.invalidateQueries();
-  }, [relayUrlsKey, queryClient, effectiveRelays.relays]);
+  }
 
   // Cleanup: Close all relay connections when the provider unmounts
   useEffect(() => {
     return () => {
       if (pool.current) {
-        console.log('NostrProvider unmounting, closing all connections');
         pool.current.close();
       }
     };
