@@ -1,10 +1,11 @@
+import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { computePageStats } from './useTrending';
 
 const PAGE_SIZE = 15;
 
@@ -45,6 +46,7 @@ export function useFeed(tab: 'follows' | 'global') {
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
+  const queryClient = useQueryClient();
 
   // Build the full kinds list: base kinds + user-selected extra kinds.
   const extraKinds = getEnabledFeedKinds(feedSettings);
@@ -63,6 +65,8 @@ export function useFeed(tab: 'follows' | 'global') {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
 
+      let items: FeedItem[] = [];
+
       if (tab === 'follows' && user && followList && followList.length > 0) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
         const authors = [...followList, user.pubkey];
@@ -76,7 +80,6 @@ export function useFeed(tab: 'follows' | 'global') {
           { signal: querySignal },
         );
 
-        const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
         const repostMap = new Map<string, NostrEvent>();
 
@@ -96,7 +99,6 @@ export function useFeed(tab: 'follows' | 'global') {
               }
             }
           } else {
-            // Kind 1, 1068, 3367, 34236, 37516, etc. — direct post / extra kinds
             items.push({ event: ev, sortTimestamp: ev.created_at });
           }
         }
@@ -130,7 +132,7 @@ export function useFeed(tab: 'follows' | 'global') {
           }
         }
 
-        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        items = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       } else {
         // Global feed — kind 1 notes + user-selected extra kinds
         const globalKinds = [1, ...extraKinds];
@@ -144,11 +146,69 @@ export function useFeed(tab: 'follows' | 'global') {
           { signal: querySignal },
         );
 
-        return events
+        items = events
           .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
       }
+
+      // --- Pre-populate author and stats caches ---
+      // By seeding the cache here, inside the queryFn, we guarantee that
+      // ['author', pubkey] and ['event-stats', id] are populated *before*
+      // React re-renders and NoteCard's individual hooks run. This eliminates
+      // the race where NoteCards mount and fire per-card queries before the
+      // batch results arrive.
+
+      // Authors — only fetch pubkeys not already cached
+      const pubkeysToFetch = [...new Set(
+        items.flatMap((item) => item.repostedBy ? [item.event.pubkey, item.repostedBy] : [item.event.pubkey]),
+      )].filter((pk) => queryClient.getQueryData(['author', pk]) === undefined);
+
+      if (pubkeysToFetch.length > 0) {
+        try {
+          const profileEvents = await nostr.query(
+            [{ kinds: [0], authors: pubkeysToFetch, limit: pubkeysToFetch.length }],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+          );
+          for (const ev of profileEvents) {
+            let metadata: NostrMetadata | undefined;
+            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+            queryClient.setQueryData(['author', ev.pubkey], { event: ev, metadata });
+          }
+          // Seed empty entry for any pubkey that returned no profile
+          for (const pk of pubkeysToFetch) {
+            if (queryClient.getQueryData(['author', pk]) === undefined) {
+              queryClient.setQueryData(['author', pk], {});
+            }
+          }
+        } catch {
+          // Timeout or abort — NoteCard's individual useAuthor will handle it
+        }
+      }
+
+      // Stats — only fetch event IDs not already cached
+      const eventIdsToFetch = items
+        .map((item) => item.event.id)
+        .filter((id) => queryClient.getQueryData(['event-stats', id]) === undefined);
+
+      if (eventIdsToFetch.length > 0) {
+        try {
+          const statEvents = await nostr.query(
+            [
+              { kinds: [1, 6, 7, 9735], '#e': eventIdsToFetch, limit: eventIdsToFetch.length * 10 },
+              { kinds: [1], '#q': eventIdsToFetch, limit: eventIdsToFetch.length * 3 },
+            ],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(6000)]) },
+          );
+          for (const id of eventIdsToFetch) {
+            queryClient.setQueryData(['event-stats', id], computePageStats(id, statEvents));
+          }
+        } catch {
+          // Timeout or abort — NoteCard's individual useEventStats will handle it
+        }
+      }
+
+      return items;
     },
     getNextPageParam: (lastPage) => {
       if (lastPage.length === 0) return undefined;
@@ -160,6 +220,6 @@ export function useFeed(tab: 'follows' | 'global') {
     enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
-    placeholderData: (previousData) => previousData, // Keep showing previous data while refetching (avoids flicker)
+    placeholderData: (previousData) => previousData,
   });
 }

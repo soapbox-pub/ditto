@@ -11,8 +11,6 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAuthors } from '@/hooks/useAuthors';
-import { useBatchEventStats } from '@/hooks/useTrending';
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -67,26 +65,6 @@ export function Feed() {
     }
     return items;
   }, [data?.pages]);
-
-  // Batch-prefetch all author profiles. useAuthors only fetches pubkeys not
-  // already in cache, so loading page 2 doesn't re-request page 1's authors.
-  const feedPubkeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const item of feedItems) {
-      keys.add(item.event.pubkey);
-      if (item.repostedBy) keys.add(item.repostedBy);
-    }
-    return [...keys];
-  }, [feedItems]);
-  useAuthors(feedPubkeys);
-
-  // Batch-prefetch stats. useBatchEventStats only fetches IDs not already
-  // in cache, so loading page 2 doesn't re-request page 1's stats.
-  const feedEventIds = useMemo(
-    () => feedItems.map((item) => item.event.id),
-    [feedItems],
-  );
-  useBatchEventStats(feedEventIds);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);

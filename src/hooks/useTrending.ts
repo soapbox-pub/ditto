@@ -202,8 +202,11 @@ export interface EventStats {
 
 const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] };
 
-/** Computes stats for a single event ID from a flat array of interaction events. */
-function computeStats(eventId: string, events: NostrEvent[]): EventStats {
+/**
+ * Computes stats for a single event ID from a flat array of interaction events.
+ * Exported so useFeed can call it directly when seeding the per-page cache.
+ */
+export function computePageStats(eventId: string, events: NostrEvent[]): EventStats {
   let replies = 0;
   let reposts = 0;
   let quotes = 0;
@@ -270,7 +273,7 @@ export function useEventStats(eventId: string | undefined) {
         { signal: combined },
       );
 
-      return computeStats(eventId, events);
+      return computePageStats(eventId, events);
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
@@ -393,7 +396,7 @@ export function useBatchEventStats(eventIds: string[]) {
       const statsMap = new Map<string, EventStats>();
 
       for (const id of uncached) {
-        const stats = computeStats(id, events);
+        const stats = computePageStats(id, events);
         statsMap.set(id, stats);
 
         // Seed individual cache so useEventStats() resolves from cache instantly
