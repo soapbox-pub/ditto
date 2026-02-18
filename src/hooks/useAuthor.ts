@@ -29,6 +29,6 @@ export function useAuthor(pubkey: string | undefined) {
       }
     },
     staleTime: 5 * 60 * 1000, // Keep cached data fresh for 5 minutes
-    retry: 3,
+    retry: 1,
   });
 }
