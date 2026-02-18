@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { ChevronUp, ChevronDown, Search as SearchIcon } from 'lucide-react';
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useMemo, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -26,9 +26,29 @@ export function SearchPage() {
     description: 'Search Nostr',
   });
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialQuery = searchParams.get('q') ?? '';
+
   const [activeTab, setActiveTab] = useState<TabType>('posts');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(true);
+
+  // Sync search query to URL params
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setSearchParams({ q: searchQuery.trim() }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchQuery, setSearchParams]);
+
+  // Update search query when URL params change externally (e.g., from sidebar search)
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    if (q && q !== searchQuery) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]);
 
   // Search filters
   const [includeReplies, setIncludeReplies] = useState(true);

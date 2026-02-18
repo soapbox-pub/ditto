@@ -14,6 +14,8 @@ interface ProfileSearchDropdownProps {
   inputClassName?: string;
   autoFocus?: boolean;
   onSelect?: (profile: SearchProfile) => void;
+  /** When true, pressing Enter without a profile selected navigates to the search page */
+  enableTextSearch?: boolean;
 }
 
 export function ProfileSearchDropdown({
@@ -22,6 +24,7 @@ export function ProfileSearchDropdown({
   inputClassName,
   autoFocus,
   onSelect,
+  enableTextSearch,
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
@@ -33,12 +36,14 @@ export function ProfileSearchDropdown({
 
   const { data: profiles, isFetching } = useSearchProfiles(query);
 
-  // Show dropdown when we have results
+  // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
-    if (profiles && profiles.length > 0 && query.trim().length > 0) {
-      setOpen(true);
+    if (query.trim().length > 0) {
+      if (enableTextSearch || (profiles && profiles.length > 0)) {
+        setOpen(true);
+      }
     }
-  }, [profiles, query]);
+  }, [profiles, query, enableTextSearch]);
 
   // Reset selected index when results change
   useEffect(() => {
@@ -67,14 +72,35 @@ export function ProfileSearchDropdown({
     }
   }, [navigate, onSelect]);
 
+  const handleTextSearch = useCallback(() => {
+    if (!enableTextSearch || !query.trim()) return;
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+    navigate(`/search?q=${encodeURIComponent(query.trim())}`);
+  }, [enableTextSearch, query, navigate]);
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!open || !profiles || profiles.length === 0) {
-      if (e.key === 'Escape') {
-        setOpen(false);
-        inputRef.current?.blur();
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+      inputRef.current?.blur();
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      // If a profile is highlighted, select it
+      if (open && profiles && selectedIndex >= 0 && selectedIndex < profiles.length) {
+        handleSelect(profiles[selectedIndex]);
+      } else {
+        // Otherwise do a text search
+        handleTextSearch();
       }
       return;
     }
+
+    if (!open || !profiles || profiles.length === 0) return;
 
     switch (e.key) {
       case 'ArrowDown':
@@ -84,17 +110,6 @@ export function ProfileSearchDropdown({
       case 'ArrowUp':
         e.preventDefault();
         setSelectedIndex((prev) => (prev > 0 ? prev - 1 : profiles.length - 1));
-        break;
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < profiles.length) {
-          handleSelect(profiles[selectedIndex]);
-        }
-        break;
-      case 'Escape':
-        e.preventDefault();
-        setOpen(false);
-        inputRef.current?.blur();
         break;
     }
   };
@@ -134,7 +149,7 @@ export function ProfileSearchDropdown({
             }
           }}
           onFocus={() => {
-            if (profiles && profiles.length > 0 && query.trim().length > 0) {
+            if (query.trim().length > 0 && (enableTextSearch || (profiles && profiles.length > 0))) {
               setOpen(true);
             }
           }}
@@ -153,8 +168,8 @@ export function ProfileSearchDropdown({
         />
       </div>
 
-      {/* Dropdown results */}
-      {open && profiles && profiles.length > 0 && (
+      {/* Dropdown results — only when text search is not enabled */}
+      {!enableTextSearch && open && profiles && profiles.length > 0 && (
         <div
           ref={listRef}
           role="listbox"
@@ -173,8 +188,42 @@ export function ProfileSearchDropdown({
         </div>
       )}
 
-      {/* Empty state */}
-      {open && query.trim().length > 0 && !isFetching && profiles && profiles.length === 0 && (
+      {/* Text search option */}
+      {enableTextSearch && open && query.trim().length > 0 && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
+          <div className="max-h-[320px] overflow-y-auto py-1">
+            {/* Search text option */}
+            <button
+              className={cn(
+                'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
+                (!profiles || profiles.length === 0 || selectedIndex === -1) ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
+              )}
+              onClick={handleTextSearch}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <div className="size-10 shrink-0 rounded-full bg-primary/10 flex items-center justify-center">
+                <Search className="size-4 text-primary" />
+              </div>
+              <span className="text-sm font-medium truncate">
+                Search for "{query.trim()}"
+              </span>
+            </button>
+
+            {/* Profile results */}
+            {profiles && profiles.length > 0 && profiles.map((profile, index) => (
+              <ProfileItem
+                key={profile.pubkey}
+                profile={profile}
+                isSelected={index === selectedIndex}
+                onClick={() => handleSelect(profile)}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty state — only when text search is not enabled */}
+      {!enableTextSearch && open && query.trim().length > 0 && !isFetching && profiles && profiles.length === 0 && (
         <div className="absolute top-full left-0 right-0 mt-1.5 z-50 rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150">
           <div className="py-6 text-center text-sm text-muted-foreground">
             No profiles found
