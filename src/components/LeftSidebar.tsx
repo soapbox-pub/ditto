@@ -120,10 +120,10 @@ export function LeftSidebar() {
       </Link>
 
       {/* Search bar - visible on xl */}
-      <div className="px-2 py-4">
+      <div className="px-2 py-3.5">
         <ProfileSearchDropdown
           placeholder="Search..."
-          inputClassName="py-3.5"
+          inputClassName="py-2.5"
           enableTextSearch
         />
       </div>
