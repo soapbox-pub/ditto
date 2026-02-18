@@ -112,16 +112,17 @@ export function useEncryptedSettings() {
 
       const signedEvent = await user.signer.signEvent(unsignedEvent);
 
-      // Publish directly without triggering React Query mutation
-      // This happens in the background without causing re-renders
+      // Publish in background
       nostr.event(signedEvent, { signal: AbortSignal.timeout(5000) }).catch((error) => {
         console.error('Failed to publish encrypted settings:', error);
       });
 
       return updatedSettings;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['encryptedSettings', user?.pubkey] });
+    // Update cache in-place instead of refetching, which avoids
+    // NostrSync re-running and causing a re-render loop
+    onSuccess: (data) => {
+      queryClient.setQueryData(['parsedSettings', query.data?.id], data);
     },
   });
 
