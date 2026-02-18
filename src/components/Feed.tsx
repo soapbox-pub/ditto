@@ -81,6 +81,12 @@ export function Feed() {
     for (const item of feedItems) {
       keys.add(item.event.pubkey);
       if (item.repostedBy) keys.add(item.repostedBy);
+      
+      // For text notes, also prefetch the "replying to" pubkey if it exists
+      if (item.event.kind === 1) {
+        const replyTo = item.event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
+        if (replyTo?.[1]) keys.add(replyTo[1]);
+      }
     }
     return [...keys];
   }, [feedItems]);
