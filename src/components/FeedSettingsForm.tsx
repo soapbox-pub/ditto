@@ -1,7 +1,6 @@
 import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Switch } from '@/components/ui/switch';
-import { Badge } from '@/components/ui/badge';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
@@ -18,9 +17,9 @@ const ICONS: Record<string, React.ReactNode> = {
 
 function KindBadge({ kind }: { kind: number }) {
   return (
-    <Badge variant="secondary" className="text-[10px] font-mono px-1.5 py-0 h-4 rounded shrink-0">
-      {kind}
-    </Badge>
+    <span className="text-[10px] font-mono text-muted-foreground/60 shrink-0">
+      [{kind}]
+    </span>
   );
 }
 
@@ -32,11 +31,13 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
       'flex items-center justify-between py-2.5 pl-12 pr-3 transition-colors',
       !parentEnabled && 'opacity-40 pointer-events-none',
     )}>
-      <div className="flex items-center gap-2">
-        <KindBadge kind={sub.kind} />
+      <div className="min-w-0">
         <span className="text-sm">{sub.label}</span>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          <KindBadge kind={sub.kind} />{' '}{sub.description}
+        </p>
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         <div className="w-[52px] flex justify-center">
           <Switch
             checked={feedSettings[sub.showKey]}
@@ -67,11 +68,10 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
         <div className="flex items-center gap-3 min-w-0">
           <span className="text-muted-foreground shrink-0">{icon}</span>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <KindBadge kind={def.kind} />
-              <span className="text-sm font-medium">{def.label}</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{def.description}</p>
+            <span className="text-sm font-medium">{def.label}</span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              <KindBadge kind={def.kind} />{' '}{def.description}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -107,12 +107,19 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
 export function FeedSettingsForm() {
   return (
     <div className="space-y-6">
-      {/* Intro */}
-      <div>
-        <h2 className="text-base font-semibold mb-1">Content Types</h2>
-        <p className="text-sm text-muted-foreground">
-          Nostr supports more than just text posts. Mew can display videos, polls, color palettes, and other content types published by people on the network. Choose which ones you'd like to see.
-        </p>
+      {/* Intro illustration + explanation */}
+      <div className="rounded-xl bg-secondary/40 p-5 space-y-3">
+        <img
+          src="/feed-intro.png"
+          alt="Nostr has more than just posts — videos, polls, treasures, and more"
+          className="w-full max-w-[280px] mx-auto opacity-80"
+        />
+        <div className="text-center space-y-1">
+          <h2 className="text-base font-semibold">Other Stuff</h2>
+          <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+            Nostr isn't just text posts — people publish all kinds of weird and wonderful things. Toggle what shows up in your sidebar and feed.
+          </p>
+        </div>
       </div>
 
       {/* Table */}
