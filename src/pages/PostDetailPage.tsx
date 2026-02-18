@@ -17,7 +17,11 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ReactionButton } from '@/components/ReactionButton';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
-import { useEvent } from '@/hooks/useEvent';
+import { PollContent } from '@/components/PollContent';
+import { GeocacheContent } from '@/components/GeocacheContent';
+import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { FollowPackContent } from '@/components/FollowPackContent';
+import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
@@ -27,6 +31,10 @@ import NotFound from './NotFound';
 
 interface PostDetailPageProps {
   eventId: string;
+}
+
+interface AddrPostDetailPageProps {
+  addr: AddrCoords;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -140,6 +148,39 @@ export function PostDetailPage({ eventId }: PostDetailPageProps) {
   );
 }
 
+/** Detail page for addressable events (naddr). Same layout as PostDetailPage. */
+export function AddrPostDetailPage({ addr }: AddrPostDetailPageProps) {
+  const { data: event, isLoading, isError } = useAddrEvent(addr);
+
+  useSeoMeta({
+    title: event
+      ? `${event.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Mew`
+      : 'Loading... - Mew',
+  });
+
+  if (isLoading) {
+    return (
+      <MainLayout>
+        <PostDetailShell>
+          <PostDetailSkeleton />
+        </PostDetailShell>
+      </MainLayout>
+    );
+  }
+
+  if (isError || !event) {
+    return <NotFound />;
+  }
+
+  return (
+    <MainLayout>
+      <PostDetailShell>
+        <PostDetailContent event={event} />
+      </PostDetailShell>
+    </MainLayout>
+  );
+}
+
 function PostDetailShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
@@ -168,9 +209,18 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
-  const images = useMemo(() => extractImages(event.content), [event.content]);
-  const videos = useMemo(() => extractVideos(event.content), [event.content]);
-  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event.tags]);
+
+  // Kind detection — mirrors NoteCard
+  const isVine = event.kind === 34236;
+  const isPoll = event.kind === 1068;
+  const isGeocache = event.kind === 37516;
+  const isColor = event.kind === 3367;
+  const isFollowPack = event.kind === 39089 || event.kind === 30000;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isColor && !isFollowPack;
+
+  const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
+  const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
+  const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
   const { data: stats } = useEventStats(event.id);
   const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -178,7 +228,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const [interactionsOpen, setInteractionsOpen] = useState(false);
   const [interactionsTab, setInteractionsTab] = useState<InteractionTab>('reposts');
 
-  const parentEventId = useMemo(() => getParentEventId(event), [event]);
+  const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);
@@ -234,18 +284,25 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
         </div>
 
-        {/* Post content */}
-        <div className="mt-3">
-          <NoteContent event={event} className="text-[15px] leading-relaxed" />
-        </div>
-
-        {/* Video attachments */}
-        {videos.map((url, i) => (
-          <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
-        ))}
-
-        {/* Image attachments */}
-        <ImageGallery images={images} maxGridHeight="500px" />
+        {/* Post content — kind-based dispatch (same as NoteCard) */}
+        {isVine || isPoll || isGeocache || isColor || isFollowPack ? (
+          <>
+            {isPoll && <PollContent event={event} />}
+            {isGeocache && <GeocacheContent event={event} />}
+            {isColor && <ColorMomentContent event={event} />}
+            {isFollowPack && <FollowPackContent event={event} />}
+          </>
+        ) : (
+          <>
+            <div className="mt-3">
+              <NoteContent event={event} className="text-[15px] leading-relaxed" />
+            </div>
+            {videos.map((url, i) => (
+              <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
+            ))}
+            <ImageGallery images={images} maxGridHeight="500px" />
+          </>
+        )}
 
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
