@@ -81,7 +81,36 @@ export function prefetchFeedData(
         try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
         seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
       }
-    }).catch(() => {});
+      // Follow-up for orphans: pubkeys the first query didn't return within
+      // the timeout. Retry them in one grouped query under the same conditions.
+      const orphans = pubkeysToFetch.filter(
+        (pk) => queryClient.getQueryData(['author', pk]) === undefined,
+      );
+      if (orphans.length > 0) {
+        nostr.query(
+          [{ kinds: [0], authors: orphans }],
+          { signal: AbortSignal.timeout(4000) },
+        ).then((retryEvents) => {
+          for (const ev of retryEvents) {
+            let metadata: NostrMetadata | undefined;
+            try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+            seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
+          }
+        }).catch(() => {});
+      }
+    }).catch(() => {
+      // First query failed entirely — retry the whole batch with more time.
+      nostr.query(
+        [{ kinds: [0], authors: pubkeysToFetch }],
+        { signal: AbortSignal.timeout(4000) },
+      ).then((retryEvents) => {
+        for (const ev of retryEvents) {
+          let metadata: NostrMetadata | undefined;
+          try { metadata = n.json().pipe(n.metadata()).parse(ev.content); } catch { /* skip */ }
+          seedAuthorCache(queryClient, ev.pubkey, { event: ev, metadata });
+        }
+      }).catch(() => {});
+    });
   }
 
   if (eventIdsToFetch.length > 0) {
