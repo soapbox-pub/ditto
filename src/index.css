@@ -172,6 +172,10 @@
     display: none;
   }
 
+  html, body {
+    overscroll-behavior-y: contain;
+  }
+
   body {
     @apply bg-background text-foreground;
   }

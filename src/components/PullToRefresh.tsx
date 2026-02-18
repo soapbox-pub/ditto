@@ -1,10 +1,10 @@
-import { useState, useRef, useCallback, type ReactNode } from 'react';
+import { useState, useRef, useEffect, type ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const THRESHOLD = 80; // px to pull before triggering refresh
-const MAX_PULL = 120; // max visual pull distance
-const RESISTANCE = 0.45; // damping factor for overscroll feel
+const THRESHOLD = 80; // raw px before triggering
+const MAX_PULL = 120; // max visual distance (after damping)
+const RESISTANCE = 0.45; // rubber-band damping
 
 interface PullToRefreshProps {
   onRefresh: () => Promise<void>;
@@ -14,109 +14,119 @@ interface PullToRefreshProps {
 
 export function PullToRefresh({ onRefresh, children, className }: PullToRefreshProps) {
   const [pullDistance, setPullDistance] = useState(0);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const touchStartY = useRef(0);
-  const isPulling = useRef(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const canPull = useCallback(() => {
-    // Only allow pull-to-refresh when we're scrolled to the top
-    return window.scrollY <= 0;
+  const startY = useRef(0);
+  const pulling = useRef(false);
+  const busy = useRef(false);
+  const currentPull = useRef(0); // mirror of pullDistance for sync reads in handlers
+  const containerRef = useRef<HTMLDivElement>(null);
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const atTop = () => window.scrollY <= 0;
+
+    function onStart(e: TouchEvent) {
+      if (busy.current || !atTop()) return;
+      startY.current = e.touches[0].clientY;
+      pulling.current = false;
+    }
+
+    function onMove(e: TouchEvent) {
+      if (busy.current) return;
+      const diff = e.touches[0].clientY - startY.current;
+
+      if (diff > 0 && atTop()) {
+        e.preventDefault(); // block native browser pull-to-refresh
+        pulling.current = true;
+        const d = Math.min(diff * RESISTANCE, MAX_PULL);
+        currentPull.current = d;
+        setPullDistance(d);
+      } else if (pulling.current) {
+        pulling.current = false;
+        currentPull.current = 0;
+        setPullDistance(0);
+      }
+    }
+
+    async function onEnd() {
+      if (busy.current || !pulling.current) {
+        pulling.current = false;
+        currentPull.current = 0;
+        setPullDistance(0);
+        return;
+      }
+
+      pulling.current = false;
+      const reached = currentPull.current >= THRESHOLD * RESISTANCE;
+
+      if (reached) {
+        busy.current = true;
+        currentPull.current = 40;
+        setPullDistance(40);
+        setRefreshing(true);
+
+        try {
+          await onRefreshRef.current();
+        } finally {
+          busy.current = false;
+          setRefreshing(false);
+          currentPull.current = 0;
+          setPullDistance(0);
+        }
+      } else {
+        currentPull.current = 0;
+        setPullDistance(0);
+      }
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true });
+    el.addEventListener('touchmove', onMove, { passive: false });
+    el.addEventListener('touchend', onEnd, { passive: true });
+
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
   }, []);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing) return;
-    if (!canPull()) return;
-    touchStartY.current = e.touches[0].clientY;
-    isPulling.current = false;
-  }, [isRefreshing, canPull]);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    if (isRefreshing) return;
-
-    const currentY = e.touches[0].clientY;
-    const diff = currentY - touchStartY.current;
-
-    // Only start pulling if we're scrolled to top and dragging down
-    if (diff > 0 && canPull()) {
-      isPulling.current = true;
-      // Apply resistance for a natural rubber-band feel
-      const dampedDistance = Math.min(diff * RESISTANCE, MAX_PULL);
-      setPullDistance(dampedDistance);
-    } else {
-      if (isPulling.current) {
-        isPulling.current = false;
-        setPullDistance(0);
-      }
-    }
-  }, [isRefreshing, canPull]);
-
-  const handleTouchEnd = useCallback(async () => {
-    if (isRefreshing || !isPulling.current) {
-      setPullDistance(0);
-      return;
-    }
-
-    isPulling.current = false;
-
-    if (pullDistance >= THRESHOLD * RESISTANCE) {
-      // Triggered — show spinner at a settled position
-      setIsRefreshing(true);
-      setPullDistance(40);
-
-      try {
-        await onRefresh();
-      } finally {
-        setIsRefreshing(false);
-        setPullDistance(0);
-      }
-    } else {
-      // Not enough pull — snap back
-      setPullDistance(0);
-    }
-  }, [isRefreshing, pullDistance, onRefresh]);
-
   const progress = Math.min(pullDistance / (THRESHOLD * RESISTANCE), 1);
-  const showIndicator = pullDistance > 4 || isRefreshing;
+  const visible = pullDistance > 4 || refreshing;
 
   return (
-    <div
-      ref={containerRef}
-      className={className}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      {/* Pull indicator — only visible on mobile */}
+    <div ref={containerRef} className={className}>
+      {/* Pull indicator — mobile only */}
       <div
-        className="flex items-center justify-center overflow-hidden transition-[height] duration-150 ease-out sidebar:hidden"
+        className="flex items-center justify-center overflow-hidden sidebar:hidden"
         style={{
-          height: showIndicator ? `${pullDistance}px` : '0px',
-          transition: isPulling.current ? 'none' : undefined,
+          height: visible ? `${pullDistance}px` : '0px',
+          transition: pulling.current ? 'none' : 'height 150ms ease-out',
         }}
       >
         <div
-          className={cn(
-            'flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-sm',
-            'transition-transform duration-150',
-          )}
+          className="flex items-center justify-center size-8 rounded-full bg-secondary/80 border border-border shadow-sm"
           style={{
             opacity: progress,
-            transform: isRefreshing
+            transform: refreshing
               ? 'scale(1)'
               : `scale(${0.5 + progress * 0.5}) rotate(${progress * 360}deg)`,
+            transition: 'transform 150ms ease-out',
           }}
         >
           <Loader2
             className={cn(
               'size-4 text-primary',
-              isRefreshing && 'animate-spin',
+              refreshing && 'animate-spin',
             )}
           />
         </div>
       </div>
 
-      {/* Content */}
       {children}
     </div>
   );
