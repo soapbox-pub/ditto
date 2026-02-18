@@ -30,8 +30,8 @@ export function NIP19Page() {
       return <PostDetailPage eventId={decoded.data as string} />;
 
     case 'nevent': {
-      const neventData = decoded.data as { id: string; relays?: string[] };
-      return <PostDetailPage eventId={neventData.id} relays={neventData.relays} />;
+      const neventData = decoded.data as { id: string; relays?: string[]; author?: string };
+      return <PostDetailPage eventId={neventData.id} relays={neventData.relays} authorHint={neventData.author} />;
     }
 
     case 'naddr': {

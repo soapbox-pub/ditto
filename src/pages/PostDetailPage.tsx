@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal, Radio, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Repeat2, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -10,6 +10,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -35,11 +36,12 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
-import { APP_RELAYS } from '@/lib/appRelays';
+
 
 interface PostDetailPageProps {
   eventId: string;
   relays?: string[];
+  authorHint?: string;
 }
 
 interface AddrPostDetailPageProps {
@@ -128,7 +130,7 @@ function getParentEventId(event: NostrEvent): string | undefined {
   return undefined;
 }
 
-export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
+export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPageProps) {
   const { data: event, isLoading, isError } = useEvent(eventId, relays);
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
@@ -153,7 +155,7 @@ export function PostDetailPage({ eventId, relays }: PostDetailPageProps) {
       <MainLayout>
         <PostDetailShell>
           <EventNotFound
-            context={{ type: 'event', eventId, relays }}
+            context={{ type: 'event', eventId, relays, authorHint }}
             onEventFound={setRetryEvent}
           />
         </PostDetailShell>
@@ -250,22 +252,78 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
 
 /** Context info about the event that wasn't found. */
 type EventNotFoundContext =
-  | { type: 'event'; eventId: string; relays?: string[] }
+  | { type: 'event'; eventId: string; relays?: string[]; authorHint?: string }
   | { type: 'addr'; addr: AddrCoords; relays?: string[] };
 
-/** Well-known public relays a user can try as fallback. */
-const SUGGESTED_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://relay.primal.net',
-  'wss://nos.lol',
-  'wss://relay.ditto.pub',
-  'wss://cache2.primal.net/v1',
-  'wss://relay.nostr.band',
-  'wss://purplepag.es',
-  'wss://relay.snort.social',
-];
+/** Copiable hex value — shows full ID truncated at the end, with a copy button. */
+function CopyableHex({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
 
-/** Shows a "not found" state with contextual event info and a relay retry option. */
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <button
+      onClick={handleCopy}
+      className="group flex items-center gap-1.5 min-w-0 text-left"
+      title="Click to copy"
+    >
+      <span className="font-mono text-xs truncate">{value}</span>
+      <span className="shrink-0 text-muted-foreground group-hover:text-foreground transition-colors">
+        {copied ? (
+          <Check className="size-3" />
+        ) : (
+          <Copy className="size-3" />
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** Inline author preview shown when we have a pubkey hint. */
+function AuthorHintRow({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(pubkey);
+  const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+
+  return (
+    <div className="flex items-center gap-2.5 pt-1">
+      <span className="text-muted-foreground shrink-0 w-14 text-sm">Author</span>
+      <Link to={`/${npub}`} className="flex items-center gap-2 min-w-0 group">
+        {author.isLoading ? (
+          <>
+            <Skeleton className="size-6 rounded-full shrink-0" />
+            <Skeleton className="h-3.5 w-24" />
+          </>
+        ) : (
+          <>
+            <Avatar className="size-6 shrink-0">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <span className="text-xs font-medium group-hover:underline truncate">
+              {displayName}
+            </span>
+            {metadata?.nip05 && (
+              <span className="text-xs text-muted-foreground truncate hidden sm:inline">
+                @{metadata.nip05}
+              </span>
+            )}
+          </>
+        )}
+      </Link>
+    </div>
+  );
+}
+
+/** Shows a "not found" state with contextual event info and a collapsible relay retry option. */
 function EventNotFound({
   context,
   onEventFound,
@@ -277,32 +335,15 @@ function EventNotFound({
   const [relayUrl, setRelayUrl] = useState('');
   const [isRetrying, setIsRetrying] = useState(false);
   const [retryError, setRetryError] = useState<string | null>(null);
+  const [retryOpen, setRetryOpen] = useState(false);
 
-  // Build the list of relays already tried
-  const triedRelays = useMemo(() => {
-    const tried = new Set<string>();
-    for (const r of APP_RELAYS.relays) {
-      tried.add(r.url);
-    }
-    if (context.relays) {
-      for (const r of context.relays) {
-        tried.add(r);
-      }
-    }
-    return tried;
-  }, [context.relays]);
-
-  // Filter suggested relays to exclude already-tried ones
-  const availableSuggestions = useMemo(
-    () => SUGGESTED_RELAYS.filter((url) => !triedRelays.has(url)),
-    [triedRelays],
-  );
+  // Extract author pubkey from context if available
+  const authorPubkey = context.type === 'event' ? context.authorHint : context.addr.pubkey;
 
   const handleRetry = useCallback(async (targetUrl: string) => {
     const url = targetUrl.trim();
     if (!url) return;
 
-    // Basic validation
     if (!url.startsWith('wss://') && !url.startsWith('ws://')) {
       setRetryError('Relay URL must start with wss:// or ws://');
       return;
@@ -340,9 +381,6 @@ function EventNotFound({
     }
   }, [nostr, context, onEventFound]);
 
-  // Truncate hex IDs for display
-  const truncateHex = (hex: string) => `${hex.slice(0, 8)}…${hex.slice(-8)}`;
-
   return (
     <div className="px-4 py-12">
       <div className="max-w-md mx-auto space-y-6">
@@ -364,9 +402,9 @@ function EventNotFound({
           </p>
           {context.type === 'event' ? (
             <div className="space-y-1.5">
-              <div className="flex items-start gap-2">
+              <div className="flex items-start gap-2 min-w-0">
                 <span className="text-muted-foreground shrink-0 w-14">ID</span>
-                <span className="font-mono text-xs break-all">{truncateHex(context.eventId)}</span>
+                <CopyableHex value={context.eventId} />
               </div>
             </div>
           ) : (
@@ -375,14 +413,14 @@ function EventNotFound({
                 <span className="text-muted-foreground shrink-0 w-14">Kind</span>
                 <span className="font-mono text-xs">{context.addr.kind}</span>
               </div>
-              <div className="flex items-start gap-2">
-                <span className="text-muted-foreground shrink-0 w-14">Author</span>
-                <span className="font-mono text-xs break-all">{truncateHex(context.addr.pubkey)}</span>
+              <div className="flex items-start gap-2 min-w-0">
+                <span className="text-muted-foreground shrink-0 w-14">Pubkey</span>
+                <CopyableHex value={context.addr.pubkey} />
               </div>
               {context.addr.identifier && (
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-2 min-w-0">
                   <span className="text-muted-foreground shrink-0 w-14">d-tag</span>
-                  <span className="font-mono text-xs break-all">{context.addr.identifier}</span>
+                  <CopyableHex value={context.addr.identifier} />
                 </div>
               )}
             </div>
@@ -393,67 +431,52 @@ function EventNotFound({
               <span className="font-mono text-xs break-all">{context.relays.join(', ')}</span>
             </div>
           )}
+          {authorPubkey && <AuthorHintRow pubkey={authorPubkey} />}
         </div>
 
-        {/* Relay retry */}
-        <div className="space-y-3">
-          <p className="text-sm font-semibold">Try another relay</p>
-
-          <div className="flex gap-2">
-            <Input
-              value={relayUrl}
-              onChange={(e) => setRelayUrl(e.target.value)}
-              placeholder="wss://relay.example.com"
-              className="flex-1 font-mono text-xs h-9"
-              disabled={isRetrying}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleRetry(relayUrl);
-              }}
-            />
-            <Button
-              size="sm"
-              onClick={() => handleRetry(relayUrl)}
-              disabled={isRetrying || !relayUrl.trim()}
-              className="shrink-0 h-9"
-            >
-              {isRetrying ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Radio className="size-4" />
-              )}
-              <span className="ml-1.5">Try</span>
-            </Button>
-          </div>
-
-          {retryError && (
-            <p className="text-xs text-destructive flex items-center gap-1.5">
-              <AlertCircle className="size-3 shrink-0" />
-              {retryError}
-            </p>
-          )}
-
-          {/* Quick-pick suggestions */}
-          {availableSuggestions.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">Or try one of these relays:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {availableSuggestions.map((url) => (
-                  <button
-                    key={url}
-                    onClick={() => {
-                      setRelayUrl(url);
-                      handleRetry(url);
-                    }}
-                    disabled={isRetrying}
-                    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-mono bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground transition-colors border border-border disabled:opacity-50"
-                  >
-                    {url.replace('wss://', '')}
-                  </button>
-                ))}
-              </div>
+        {/* Collapsible relay retry */}
+        <Collapsible open={retryOpen} onOpenChange={setRetryOpen}>
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full">
+              <ChevronRight className={`size-4 transition-transform duration-200 ${retryOpen ? 'rotate-90' : ''}`} />
+              <span>Try another relay</span>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3 space-y-3">
+            <div className="flex gap-2">
+              <Input
+                value={relayUrl}
+                onChange={(e) => setRelayUrl(e.target.value)}
+                placeholder="wss://relay.example.com"
+                className="flex-1 font-mono text-xs h-9"
+                disabled={isRetrying}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleRetry(relayUrl);
+                }}
+              />
+              <Button
+                size="sm"
+                onClick={() => handleRetry(relayUrl)}
+                disabled={isRetrying || !relayUrl.trim()}
+                className="shrink-0 h-9"
+              >
+                {isRetrying ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <Radio className="size-4" />
+                )}
+                <span className="ml-1.5">Try</span>
+              </Button>
             </div>
-          )}
-        </div>
+
+            {retryError && (
+              <p className="text-xs text-destructive flex items-center gap-1.5">
+                <AlertCircle className="size-3 shrink-0" />
+                {retryError}
+              </p>
+            )}
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </div>
   );
