@@ -77,7 +77,7 @@ export function RightSidebar() {
   const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, isXl && visibleTags.length > 0);
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-4 pb-3 px-5">
+    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
       {/* Trending Tags */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">

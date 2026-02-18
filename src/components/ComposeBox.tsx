@@ -188,7 +188,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   return (
     <div className={cn("flex gap-3 px-4 py-3", !forceExpanded && "border-b border-border")}>
       {!hideAvatar && (
-        <Avatar className="size-11 shrink-0 mt-0.5">
+        <Avatar className="size-12 shrink-0 mt-0.5">
           <AvatarImage src={metadata?.picture} alt={metadata?.name} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
@@ -205,7 +205,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
           onFocus={expand}
           placeholder={placeholder}
           className={cn(
-            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-3 pb-2',
+            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
             isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
           )}
           rows={isExpanded ? 4 : 1}
