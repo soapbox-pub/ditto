@@ -107,23 +107,23 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
 export function FeedSettingsForm() {
   return (
     <div>
-      {/* Intro — compact horizontal layout */}
-      <div className="flex items-center gap-4 pb-4 mb-1 border-b border-border">
+      {/* Intro */}
+      <div className="text-center px-3 pt-2 pb-4">
         <img
           src="/feed-intro.png"
           alt=""
-          className="size-16 shrink-0 mix-blend-difference opacity-40 object-contain"
+          className="w-24 mx-auto mb-2 mix-blend-difference opacity-40"
         />
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold mb-0.5">Other Stuff</h2>
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-          </p>
-        </div>
-        <div className="flex items-end gap-2 shrink-0 self-end">
-          <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
-          <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
-        </div>
+        <h2 className="text-sm font-semibold">Other Stuff</h2>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+        </p>
+      </div>
+
+      {/* Column headers */}
+      <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+        <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
+        <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
       </div>
 
       {/* Content type rows */}
