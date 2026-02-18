@@ -530,7 +530,7 @@ function ActionButtons({
   const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
 
   return (
-    <div className="flex items-center gap-4 mt-3 -ml-2 mb-1">
+    <div className="flex items-center gap-5 mt-3 -ml-2 mb-1">
       <button
         className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
         title="Reply"

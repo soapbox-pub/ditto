@@ -645,7 +645,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onClick={() => setReplyOpen(true)}
           >
             <MessageCircle className="size-5" />
-            {stats?.replies ? <span className="text-xs">{stats.replies}</span> : null}
+            {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
           </button>
 
           {/* Repost */}
@@ -655,7 +655,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             onClick={() => openInteractions('reposts')}
           >
             <Repeat2 className="size-5" />
-            {repostTotal ? <span className="text-xs">{repostTotal}</span> : null}
+            {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
           </button>
 
           {/* React */}
@@ -674,7 +674,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 title="Zaps"
               >
                 <Zap className="size-5" />
-                {stats?.zapAmount ? <span className="text-xs">{formatSats(stats.zapAmount)}</span> : null}
+                {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
               </button>
             </ZapDialog>
           )}

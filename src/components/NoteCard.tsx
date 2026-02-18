@@ -296,7 +296,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (
         <>
-          <div className="flex items-center gap-4 mt-3 -ml-2">
+          <div className="flex items-center gap-5 mt-3 -ml-2">
             <button
               className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
               title="Reply"
