@@ -1,6 +1,7 @@
 import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { eventStore } from '@/lib/eventStore';
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
@@ -12,17 +13,33 @@ export function useAuthor(pubkey: string | undefined) {
         return {};
       }
 
-      const queryStart = performance.now();
+      // Check IndexedDB cache first (instant)
+      const cachedProfiles = await eventStore.getManyProfiles([pubkey]);
+      const cachedEvent = cachedProfiles[0];
+
+      if (cachedEvent) {
+        try {
+          const metadata = n.json().pipe(n.metadata()).parse(cachedEvent.content);
+          
+          // Fetch fresh data in background without blocking (fire and forget)
+          nostr.query(
+            [{ kinds: [0], authors: [pubkey], limit: 1 }],
+            { signal: AbortSignal.timeout(3000) }
+          ).catch(() => {});
+          
+          return { metadata, event: cachedEvent };
+        } catch {
+          return { event: cachedEvent };
+        }
+      }
+
+      // No cache - fetch from network
       const [event] = await nostr.query(
-        [{ kinds: [0], authors: [pubkey!], limit: 1 }],
+        [{ kinds: [0], authors: [pubkey], limit: 1 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(1500)]) },
       );
-      const queryDuration = performance.now() - queryStart;
-      
-      console.debug(`[useAuthor] Query for ${pubkey.substring(0, 8)}... took ${queryDuration.toFixed(2)}ms, found: ${!!event}`);
 
       if (!event) {
-        // Return empty object instead of throwing - profile doesn't exist or isn't cached yet
         return {};
       }
 
@@ -33,8 +50,8 @@ export function useAuthor(pubkey: string | undefined) {
         return { event };
       }
     },
-    staleTime: 5 * 60 * 1000, // Keep cached data fresh for 5 minutes
-    gcTime: Infinity, // Never garbage collect - profiles are small and useful to keep
-    retry: false, // Don't retry - if profile isn't found, it just doesn't exist
+    staleTime: 5 * 60 * 1000,
+    gcTime: Infinity,
+    retry: false,
   });
 }

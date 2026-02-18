@@ -385,17 +385,22 @@ class EventStoreV2 {
     return StoreNames.EVENTS;
   }
 
-  private getKey(event: NostrEvent): string {
-    // For replaceable events, key is pubkey
-    if (this.isReplaceableKind(event.kind)) {
+  private getKey(event: NostrEvent): string | IDBValidKey {
+    const storeName = this.getStoreName(event.kind);
+    
+    // For stores that use pubkey as key
+    if (storeName === StoreNames.PROFILES || 
+        storeName === StoreNames.CONTACTS || 
+        storeName === StoreNames.RELAY_LISTS) {
       return event.pubkey;
     }
-    // For regular events, key is event id
+    
+    // For events store, use event.id
     return event.id;
   }
 
   private isReplaceableKind(kind: number): boolean {
-    return kind === 0 || kind === 3 || (kind >= 10000 && kind < 20000);
+    return kind === 0 || kind === 3 || kind === 10002 || (kind >= 10000 && kind < 20000);
   }
 
   async getCount(): Promise<number> {
