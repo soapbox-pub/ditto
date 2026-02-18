@@ -1,4 +1,5 @@
-import { Clapperboard, BarChart3, MapPin, Palette, PartyPopper } from 'lucide-react';
+import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
@@ -10,7 +11,7 @@ import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 const ICONS: Record<string, React.ReactNode> = {
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
-  treasures: <MapPin className="size-5" />,
+  treasures: <ChestIcon className="size-5" />,
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
 };

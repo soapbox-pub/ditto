@@ -1,6 +1,6 @@
-import { MapPin } from 'lucide-react';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS, getPageKinds } from '@/lib/extraKinds';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { KindFeedPage } from './KindFeedPage';
 
 /** Find the Treasures definition from EXTRA_KINDS. */
@@ -14,7 +14,7 @@ export function TreasuresPage() {
     <KindFeedPage
       kind={kinds}
       title="Treasures"
-      icon={<MapPin className="size-5" />}
+      icon={<ChestIcon className="size-5" />}
       emptyMessage={
         kinds.length === 0
           ? 'All treasure types are disabled. Enable geocaches or found logs in Settings > Feed.'

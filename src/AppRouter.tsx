@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, MapPin, Palette, PartyPopper, VolumeX } from "lucide-react";
+import { Clapperboard, BarChart3, Palette, PartyPopper, VolumeX } from "lucide-react";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
