@@ -1,5 +1,10 @@
 import type { RelayMetadata } from '@/contexts/AppContext';
 
+/** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
+function normalizeUrl(url: string): string {
+  return url.toLowerCase().replace(/\/+$/, '');
+}
+
 /**
  * App default relays that are used as a fallback when the user has no NIP-65 relay list,
  * and can be optionally combined with user relays.
@@ -24,18 +29,39 @@ export function getEffectiveRelays(
   useAppRelays: boolean
 ): RelayMetadata {
   if (!useAppRelays) {
-    return userRelays;
+    return deduplicateRelays(userRelays);
   }
 
-  // Merge app relays with user relays, avoiding duplicates
-  const appRelayUrls = new Set(APP_RELAYS.relays.map(r => r.url));
-  const mergedRelays = [
-    ...APP_RELAYS.relays,
-    ...userRelays.relays.filter(r => !appRelayUrls.has(r.url)),
-  ];
+  // Merge app relays with user relays, avoiding duplicates by normalized URL
+  const seen = new Set<string>();
+  const mergedRelays = [];
+
+  for (const relay of [...APP_RELAYS.relays, ...userRelays.relays]) {
+    const normalized = normalizeUrl(relay.url);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      mergedRelays.push(relay);
+    }
+  }
 
   return {
     relays: mergedRelays,
     updatedAt: userRelays.updatedAt,
   };
+}
+
+/** Deduplicate relays within a single list by normalized URL. */
+function deduplicateRelays(metadata: RelayMetadata): RelayMetadata {
+  const seen = new Set<string>();
+  const relays = [];
+
+  for (const relay of metadata.relays) {
+    const normalized = normalizeUrl(relay.url);
+    if (!seen.has(normalized)) {
+      seen.add(normalized);
+      relays.push(relay);
+    }
+  }
+
+  return { relays, updatedAt: metadata.updatedAt };
 }

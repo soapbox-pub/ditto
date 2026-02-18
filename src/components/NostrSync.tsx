@@ -33,7 +33,7 @@ export function NostrSync() {
             const fetchedRelays = event.tags
               .filter(([name]) => name === 'r')
               .map(([_, url, marker]) => ({
-                url,
+                url: url.replace(/\/+$/, ''),
                 read: !marker || marker === 'read',
                 write: !marker || marker === 'write',
               }));
