@@ -6,7 +6,7 @@ import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-const PAGE_SIZE = 30;
+const PAGE_SIZE = 15;
 
 /** The base kinds always included in every feed query. */
 const BASE_FEED_KINDS = [1, 6];
