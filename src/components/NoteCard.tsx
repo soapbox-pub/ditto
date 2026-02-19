@@ -471,7 +471,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
-      <div className="size-11 shrink-0 flex items-center justify-end">
+      <div className="w-11 shrink-0 flex justify-end">
         <Repeat2 className="size-3.5" />
       </div>
       <div className="flex items-center min-w-0">
@@ -499,7 +499,7 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
-      <div className="size-11 shrink-0 flex items-center justify-end">
+      <div className="w-11 shrink-0 flex justify-end">
         <ChestIcon className="size-3.5" />
       </div>
       <div className="flex items-center min-w-0">
