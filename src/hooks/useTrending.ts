@@ -527,6 +527,17 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
     enabled: enabled && uniqueIds.length > 0,
-    placeholderData: (prev) => prev,
+    placeholderData: () => {
+      // When pagination adds new events, pull cached stats from individual queries
+      // to prevent stats from disappearing while the new batch query is loading
+      const placeholderMap = new Map<string, EventStats>();
+      for (const id of uniqueIds) {
+        const cached = queryClient.getQueryData<EventStats>(['event-stats', id]);
+        if (cached) {
+          placeholderMap.set(id, cached);
+        }
+      }
+      return placeholderMap.size > 0 ? placeholderMap : undefined;
+    },
   });
 }
