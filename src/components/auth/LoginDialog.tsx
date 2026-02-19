@@ -62,8 +62,8 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
 
   // Generate nostrconnect params (sync) - just creates the QR code data
   const generateConnectSession = useCallback(() => {
-    const relayUrl = login.getRelayUrl();
-    const params = generateNostrConnectParams([relayUrl]);
+    const relayUrls = login.getRelayUrls();
+    const params = generateNostrConnectParams(relayUrls);
     const uri = generateNostrConnectURI(params, 'Mew');
     setNostrConnectParams(params);
     setNostrConnectUri(uri);

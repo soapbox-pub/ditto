@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /**
  * Fetches a NIP-05 nostr.json URL. Tries direct first, falls back to CORS proxy.
  */
-async function fetchNostrJson(url: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
+async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
   // Try direct fetch first (works when server has proper CORS headers)
   try {
     const response = await fetch(url, { signal });
@@ -18,7 +17,7 @@ async function fetchNostrJson(url: string, signal: AbortSignal): Promise<Record<
 
   // Fallback: CORS proxy
   try {
-    const response = await fetch(`${CORS_PROXY}${encodeURIComponent(url)}`, { signal });
+    const response = await fetch(corsProxy.replace('{href}', encodeURIComponent(url)), { signal });
     if (response.ok) {
       return await response.json();
     }
@@ -38,6 +37,7 @@ async function fetchNostrJson(url: string, signal: AbortSignal): Promise<Record<
  * - `domain.com` (no @) → looks up `_` (default user) at `domain.com`
  */
 export function useNip05Resolve(identifier: string | undefined) {
+  const { config } = useAppContext();
   return useQuery<string | null>({
     queryKey: ['nip05-resolve', identifier],
     queryFn: async ({ signal }) => {
@@ -61,7 +61,7 @@ export function useNip05Resolve(identifier: string | undefined) {
       const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
       const fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
 
-      const data = await fetchNostrJson(url, fetchSignal);
+      const data = await fetchNostrJson(url, config.corsProxy, fetchSignal);
       if (!data) return null;
 
       const names = data.names;

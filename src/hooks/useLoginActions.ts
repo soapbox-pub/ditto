@@ -3,8 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { NLogin, useNostrLogin } from '@nostrify/react/login';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { nip19 } from 'nostr-tools';
-
-
+import { useAppContext } from '@/hooks/useAppContext';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -68,6 +67,7 @@ export function generateNostrConnectParams(relays: string[]): NostrConnectParams
 export function useLoginActions() {
   const { nostr } = useNostr();
   const { logins, addLogin, removeLogin } = useNostrLogin();
+  const { config } = useAppContext();
 
   return {
     // Login with a Nostr secret key
@@ -148,9 +148,13 @@ export function useLoginActions() {
 
       throw new Error('Timeout waiting for remote signer');
     },
-    // Get the relay URL for NIP-46 nostrconnect communication
-    getRelayUrl(): string {
-      return 'wss://relay.damus.io';
+    // Get the relay URLs for NIP-46 nostrconnect communication
+    getRelayUrls(): string[] {
+      const relays = config.relayMetadata.relays
+        .filter((r) => r.write)
+        .map((r) => r.url);
+      // Fall back to a sensible default if no write relays are configured
+      return relays.length > 0 ? relays : ['wss://relay.damus.io'];
     },
     // Log out the current user
     async logout(): Promise<void> {

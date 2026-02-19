@@ -49,6 +49,10 @@ const AppConfigSchema = z.object({
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
   nip85OnlyMode: z.boolean(),
+  blossomServers: z.array(z.url()),
+  defaultZapComment: z.string(),
+  faviconProvider: z.string(),
+  corsProxy: z.string(),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

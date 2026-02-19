@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
+import { useAppContext } from '@/hooks/useAppContext';
 
 interface DomainFaviconProps {
   /** Full URL or just domain name */
@@ -13,10 +14,10 @@ interface DomainFaviconProps {
  * Fetches the HTML of a domain via CORS proxy and parses for favicon link tags.
  * Returns the discovered favicon URL or null if not found.
  */
-async function discoverFavicon(origin: string): Promise<string | null> {
+async function discoverFavicon(origin: string, corsProxy: string): Promise<string | null> {
   try {
     // Use CORS proxy to fetch the HTML
-    const proxyUrl = `https://proxy.shakespeare.diy/?url=${encodeURIComponent(origin)}`;
+    const proxyUrl = corsProxy.replace('{href}', encodeURIComponent(origin));
     const response = await fetch(proxyUrl, { 
       method: 'GET',
       headers: { 'Accept': 'text/html' }
@@ -55,12 +56,13 @@ async function discoverFavicon(origin: string): Promise<string | null> {
 
 /**
  * Displays a favicon for a domain or URL.
- * Strategy: Scrape HTML for favicon → try common paths → fallback to Google → hide if all fail
+ * Strategy: Scrape HTML for favicon → try common paths → fallback to favicon provider → hide if all fail
  */
 export function DomainFavicon({ domain, size = 16, className }: DomainFaviconProps) {
+  const { config } = useAppContext();
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const [fallbackIndex, setFallbackIndex] = useState(0);
-  const [triedGoogle, setTriedGoogle] = useState(false);
+  const [triedProvider, setTriedProvider] = useState(false);
   const [failed, setFailed] = useState(false);
 
   // Get origin from domain
@@ -85,12 +87,11 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     ];
   }, [origin]);
 
-  // Google fallback URL
-  const googleUrl = useMemo(() => {
+  // Favicon provider fallback URL (configurable template)
+  const providerUrl = useMemo(() => {
     if (!origin) return null;
-    const domainOnly = origin.replace(/^https?:\/\//, '');
-    return `https://www.google.com/s2/favicons?domain=${domainOnly}&sz=32`;
-  }, [origin]);
+    return config.faviconProvider.replace('{href}', encodeURIComponent(origin));
+  }, [origin, config.faviconProvider]);
 
   // Discover favicon from HTML on mount
   useEffect(() => {
@@ -102,7 +103,7 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     let mounted = true;
 
     // Try to discover favicon from HTML
-    discoverFavicon(origin).then((url) => {
+    discoverFavicon(origin, config.corsProxy).then((url) => {
       if (mounted) {
         if (url) {
           // Found favicon in HTML, use it
@@ -122,8 +123,8 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
     
-    // If this is Google's service, check if it returned the default placeholder
-    if (faviconUrl?.includes('google.com/s2/favicons')) {
+    // If this is a favicon provider service, check if it returned the default placeholder
+    if (faviconUrl === providerUrl) {
       // Google's default placeholder is exactly 16x16 gray globe
       // Real favicons from Google are usually larger or have different aspect ratios
       if (img.naturalWidth === 16 && img.naturalHeight === 16) {
@@ -139,10 +140,10 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     if (fallbackIndex < directUrls.length - 1) {
       setFallbackIndex(fallbackIndex + 1);
       setFaviconUrl(directUrls[fallbackIndex + 1]);
-    } else if (!triedGoogle && googleUrl) {
-      // All direct URLs failed, try Google
-      setTriedGoogle(true);
-      setFaviconUrl(googleUrl);
+    } else if (!triedProvider && providerUrl) {
+      // All direct URLs failed, try favicon provider
+      setTriedProvider(true);
+      setFaviconUrl(providerUrl);
     } else {
       // Even Google failed, hide the favicon
       setFailed(true);

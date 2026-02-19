@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useAppContext } from '@/hooks/useAppContext';
 import type { Event } from 'nostr-tools';
 import QRCode from 'qrcode';
 import type { WebLNProvider } from "@webbtc/webln-types";
@@ -242,6 +243,7 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const { toast } = useToast();
   const { webln, activeNWC } = useWallet();
   const { zap, isZapping, invoice, setInvoice } = useZaps(target, webln, activeNWC, () => setOpen(false));
+  const { config } = useAppContext();
   const [amount, setAmount] = useState<number | string>(100);
   const [comment, setComment] = useState<string>('');
   const [copied, setCopied] = useState(false);
@@ -251,9 +253,9 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
 
   useEffect(() => {
     if (target) {
-      setComment('Zapped with MKStack!');
+      setComment(config.defaultZapComment);
     }
-  }, [target]);
+  }, [target, config.defaultZapComment]);
 
   // Generate QR code
   useEffect(() => {

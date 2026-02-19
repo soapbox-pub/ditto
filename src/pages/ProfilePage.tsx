@@ -718,7 +718,7 @@ export function ProfilePage() {
   const authorEvent = author.data?.event;
 
   // For likes, convert NostrEvents to FeedItems
-  const likedFeedItems = useMemo(() => 
+  const likedFeedItems: FeedItem[] = useMemo(() => 
     likedItems.map(event => ({ event, sortTimestamp: event.created_at })),
     [likedItems]
   );

@@ -52,6 +52,14 @@ export interface AppConfig {
   nip85StatsPubkey: string;
   /** Whether to disable manual stat calculation fallback (NIP-85 only mode) */
   nip85OnlyMode: boolean;
+  /** Blossom file upload server URLs */
+  blossomServers: string[];
+  /** Default comment attached to zaps */
+  defaultZapComment: string;
+  /** Favicon provider URI template. Use {href} as placeholder for the page URL. */
+  faviconProvider: string;
+  /** CORS proxy URI template. Use {href} as placeholder for the target URL (URL-encoded). */
+  corsProxy: string;
 }
 
 export interface AppContextType {

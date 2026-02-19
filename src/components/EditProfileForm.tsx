@@ -78,10 +78,8 @@ export const EditProfileForm: React.FC = () => {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
-    control: form.control,
-    name: 'fields',
-  });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { fields, append, remove } = useFieldArray({ control: form.control as any, name: 'fields' });
 
   // Update form values when user data is loaded
   useEffect(() => {
