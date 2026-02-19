@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 
 interface DomainFaviconProps {
@@ -10,51 +10,120 @@ interface DomainFaviconProps {
 }
 
 /**
+ * Fetches the HTML of a domain and parses for favicon link tags.
+ * Returns the discovered favicon URL or null if not found.
+ */
+async function discoverFavicon(origin: string): Promise<string | null> {
+  try {
+    const response = await fetch(origin, { 
+      method: 'GET',
+      headers: { 'Accept': 'text/html' }
+    });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    
+    // Parse favicon from <link> tags
+    // Look for rel="icon", rel="shortcut icon", or rel="apple-touch-icon"
+    const iconRegex = /<link[^>]*rel=["'](?:shortcut )?icon["'][^>]*>/gi;
+    const appleIconRegex = /<link[^>]*rel=["']apple-touch-icon["'][^>]*>/gi;
+    
+    const matches = [...html.matchAll(iconRegex), ...html.matchAll(appleIconRegex)];
+    
+    for (const match of matches) {
+      const linkTag = match[0];
+      const hrefMatch = linkTag.match(/href=["']([^"']+)["']/i);
+      if (hrefMatch && hrefMatch[1]) {
+        let href = hrefMatch[1];
+        // Make absolute URL if relative
+        if (href.startsWith('/')) {
+          href = `${origin}${href}`;
+        } else if (!href.startsWith('http')) {
+          href = `${origin}/${href}`;
+        }
+        return href;
+      }
+    }
+    
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Displays a favicon for a domain or URL.
- * Tries common favicon formats (.svg, .ico, .png) and hides if none are found.
+ * Intelligently discovers favicons by parsing HTML link tags, then falls back to common paths.
  */
 export function DomainFavicon({ domain, size = 16, className }: DomainFaviconProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  const [fallbackIndex, setFallbackIndex] = useState(0);
   const [failed, setFailed] = useState(false);
 
-  // Generate favicon URLs to try
-  const faviconUrls = useMemo(() => {
+  // Get origin from domain
+  const origin = useMemo(() => {
     try {
-      // If it's a full URL, extract the origin
       if (domain.startsWith('http://') || domain.startsWith('https://')) {
-        const origin = new URL(domain).origin;
-        return [
-          `${origin}/favicon.svg`,
-          `${origin}/favicon.ico`,
-          `${origin}/favicon.png`,
-        ];
+        return new URL(domain).origin;
       }
-      // Otherwise treat it as a domain
-      return [
-        `https://${domain}/favicon.svg`,
-        `https://${domain}/favicon.ico`,
-        `https://${domain}/favicon.png`,
-      ];
+      return `https://${domain}`;
     } catch {
-      return [];
+      return null;
     }
   }, [domain]);
 
+  // Fallback URLs to try if discovery fails
+  const fallbackUrls = useMemo(() => {
+    if (!origin) return [];
+    return [
+      `${origin}/favicon.svg`,
+      `${origin}/favicon.ico`,
+      `${origin}/favicon.png`,
+    ];
+  }, [origin]);
+
+  // Discover favicon from HTML on mount
+  useEffect(() => {
+    if (!origin) {
+      setFailed(true);
+      return;
+    }
+
+    let mounted = true;
+
+    discoverFavicon(origin).then((url) => {
+      if (mounted) {
+        if (url) {
+          setFaviconUrl(url);
+        } else {
+          // No favicon discovered, try fallbacks
+          setFaviconUrl(fallbackUrls[0] || null);
+        }
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
+  }, [origin, fallbackUrls]);
+
   const handleError = () => {
-    if (currentIndex < faviconUrls.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+    // If current URL failed, try next fallback
+    if (fallbackIndex < fallbackUrls.length - 1) {
+      setFallbackIndex(fallbackIndex + 1);
+      setFaviconUrl(fallbackUrls[fallbackIndex + 1]);
     } else {
       setFailed(true);
     }
   };
 
-  if (faviconUrls.length === 0 || failed) {
+  if (!faviconUrl || failed) {
     return null;
   }
 
   return (
     <img
-      src={faviconUrls[currentIndex]}
+      src={faviconUrl}
       alt=""
       className={cn('shrink-0', className)}
       style={{ width: size, height: size }}
