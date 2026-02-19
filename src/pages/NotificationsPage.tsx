@@ -352,11 +352,6 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
       className="cursor-pointer"
       onClick={handleNavigate}
     >
-      {/* Reply context */}
-      {isReply && replyTo?.[1] && (
-        <ReplyContext pubkey={replyTo[1]} />
-      )}
-
       {/* Author row */}
       <div className="flex items-center gap-3">
         <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -387,6 +382,11 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
           </div>
         </div>
       </div>
+
+      {/* Reply context */}
+      {isReply && replyTo?.[1] && (
+        <ReplyContext pubkey={replyTo[1]} />
+      )}
 
       {/* Content */}
       <div className="mt-2">
@@ -462,11 +462,6 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
       className="cursor-pointer"
       onClick={handleNavigate}
     >
-      {/* Reply context */}
-      {isReply && replyToPubkey && (
-        <ReplyContext pubkey={replyToPubkey} />
-      )}
-
       {/* Author row */}
       <div className="flex items-center gap-3">
         <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -497,6 +492,11 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
           </div>
         </div>
       </div>
+
+      {/* Reply context */}
+      {isReply && replyToPubkey && (
+        <ReplyContext pubkey={replyToPubkey} />
+      )}
 
       {/* Content */}
       <div className="mt-2">
