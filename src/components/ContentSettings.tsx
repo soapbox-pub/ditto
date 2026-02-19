@@ -35,7 +35,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-2 border-primary"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Feed Tabs</span>
               {feedTabsOpen ? (
@@ -59,7 +59,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-2 border-primary"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Other Stuff</span>
               {otherStuffOpen ? (
