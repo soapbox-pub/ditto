@@ -9,7 +9,7 @@ const Index = () => {
   });
 
   return (
-    <MainLayout>
+    <MainLayout showFAB>
       <Feed />
     </MainLayout>
   );
