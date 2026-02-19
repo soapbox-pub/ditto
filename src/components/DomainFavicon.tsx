@@ -75,10 +75,12 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
   // Fallback URLs to try if discovery fails
   const fallbackUrls = useMemo(() => {
     if (!origin) return [];
+    const domain = origin.replace(/^https?:\/\//, '');
     return [
       `${origin}/favicon.svg`,
       `${origin}/favicon.ico`,
       `${origin}/favicon.png`,
+      `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
     ];
   }, [origin]);
 
