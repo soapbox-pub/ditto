@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -84,6 +84,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
+  const [showPreviews, setShowPreviews] = useState(true);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,25 +103,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     if (!expanded) setExpanded(true);
   }, [expanded]);
 
-  // Handle content changes - detect new identifiers and ensure newline after them
-  const handleContentChange = useCallback((newValue: string) => {
-    setContent(newValue);
-    
-    // Auto-add newline after pasted identifier
-    const nip19Regex = /\b(nostr:)?(nevent1|note1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+$/;
-    const match = newValue.match(nip19Regex);
-    
-    if (match && textareaRef.current) {
-      const matchEnd = newValue.length;
-      // Add newline after the identifier
-      const withNewline = newValue + '\n';
-      setContent(withNewline);
-      
-      requestAnimationFrame(() => {
-        textareaRef.current?.setSelectionRange(matchEnd + 1, matchEnd + 1);
-      });
-    }
-  }, []);
+
 
   // Detect embeds in content (nevent, note, naddr, URLs) with their positions
   const detectedEmbeds = useMemo(() => {
@@ -211,18 +194,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
-  // Split content into lines for inline embed rendering
-  const contentLines = useMemo(() => {
-    const lines = content.split('\n');
-    return lines.map((line, lineIndex) => {
-      // Check if this line contains a NIP-19 identifier
-      const embed = visibleEmbeds.find(e => 
-        e.type !== 'link' && line.includes(e.value)
-      );
-      
-      return { line, lineIndex, embed };
-    });
-  }, [content, visibleEmbeds]);
+
 
   // Include quoted event if provided and not removed
   const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
@@ -356,82 +328,51 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       )}
 
       <div className="flex-1 min-w-0">
-        {/* Textarea with line-by-line rendering */}
-        <div className="relative">
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => handleContentChange(e.target.value)}
-            onFocus={expand}
-            placeholder={!content ? placeholder : ''}
-            className={cn(
-              'w-full bg-transparent resize-none outline-none text-lg pt-2.5 pb-2',
-              isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-              'opacity-0 absolute inset-0',
-            )}
-            rows={isExpanded ? 4 : 1}
-            disabled={!user}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                handleSubmit();
-              }
-            }}
-          />
-          
-          {/* Visual display with inline embeds */}
-          <div 
-            className="pointer-events-none text-lg pt-2.5 pb-2"
-            onClick={() => textareaRef.current?.focus()}
-          >
-            {contentLines.map(({ line, lineIndex, embed }) => (
-              <div key={lineIndex}>
-                {/* Show line text (hide if it's just the identifier) */}
-                {!embed && (
-                  <div className="text-foreground opacity-85 whitespace-pre-wrap break-words min-h-[1.5em]">
-                    {line || '\u00A0'}
-                  </div>
+        {/* Textarea */}
+        <textarea
+          ref={textareaRef}
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          onFocus={expand}
+          placeholder={placeholder}
+          className={cn(
+            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+            isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
+          )}
+          rows={isExpanded ? 4 : 1}
+          disabled={!user}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              handleSubmit();
+            }
+          }}
+        />
+
+        {/* Embed previews (shown when toggle is on) */}
+        {showPreviews && visibleEmbeds.length > 0 && (
+          <div className="space-y-3 mt-3">
+            {visibleEmbeds.map((embed, i) => (
+              <div key={`${embed.type}-${i}`} className="relative">
+                <button
+                  onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
+                  className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+                  title="Remove embed"
+                >
+                  <X className="size-3.5" />
+                </button>
+                {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
+                  <EmbeddedNote eventId={embed.eventId} />
                 )}
-                
-                {/* Show embed card instead of identifier text */}
-                {embed && (
-                  <div className="pointer-events-auto relative my-2">
-                    <button
-                      onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
-                      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-                      title="Remove embed"
-                    >
-                      <X className="size-3.5" />
-                    </button>
-                    {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
-                      <EmbeddedNote eventId={embed.eventId} />
-                    )}
-                    {embed.type === 'naddr' && embed.addr && (
-                      <EmbeddedNaddr addr={embed.addr} />
-                    )}
-                  </div>
+                {embed.type === 'naddr' && embed.addr && (
+                  <EmbeddedNaddr addr={embed.addr} />
+                )}
+                {embed.type === 'link' && (
+                  <LinkPreview url={embed.value} />
                 )}
               </div>
             ))}
-            
-            {!content && (
-              <div className="text-muted-foreground opacity-85">{placeholder}</div>
-            )}
           </div>
-        </div>
-
-        {/* URL link previews (rendered at bottom, not inline) */}
-        {visibleEmbeds.filter(e => e.type === 'link').map((embed, i) => (
-          <div key={`link-${i}`} className="relative mt-4 mb-3">
-            <button
-              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-              title="Remove embed"
-            >
-              <X className="size-3.5" />
-            </button>
-            <LinkPreview url={embed.value} />
-          </div>
-        ))}
+        )}
 
         {/* Content warning input */}
         {cwEnabled && (
@@ -540,6 +481,27 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                 </TooltipTrigger>
                 <TooltipContent>Content warning (NIP-36)</TooltipContent>
               </Tooltip>
+
+              {/* Preview toggle */}
+              {visibleEmbeds.length > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      onClick={() => setShowPreviews(!showPreviews)}
+                      className={cn(
+                        'p-2 rounded-full transition-colors',
+                        showPreviews
+                          ? 'text-primary bg-primary/10'
+                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
+                      )}
+                    >
+                      {showPreviews ? <Eye className="size-[18px]" /> : <EyeOff className="size-[18px]" />}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent>Toggle previews</TooltipContent>
+                </Tooltip>
+              )}
             </div>
 
             {/* Right: char count + post button */}
