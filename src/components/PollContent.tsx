@@ -4,6 +4,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { NoteContent } from '@/components/NoteContent';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -123,7 +124,9 @@ export function PollContent({ event }: { event: NostrEvent }) {
   return (
     <div className="mt-2" onClick={(e) => e.stopPropagation()}>
       {/* Question */}
-      <p className="text-[15px] leading-relaxed font-medium">{event.content}</p>
+      <div className="text-[15px] leading-relaxed font-medium break-words">
+        <NoteContent event={event} />
+      </div>
 
       {/* Poll type + expiry badges */}
       <div className="flex items-center gap-2 mt-2">
@@ -160,7 +163,7 @@ export function PollContent({ event }: { event: NostrEvent }) {
               <div className="relative flex items-center justify-between px-3 py-2.5">
                 <div className="flex items-center gap-2 min-w-0">
                   {isMyVote && <CheckCircle2 className="size-4 text-primary shrink-0" />}
-                  <span className={cn('text-sm', isMyVote && 'font-semibold')}>{opt.label}</span>
+                  <span className={cn('text-sm break-words', isMyVote && 'font-semibold')}>{opt.label}</span>
                 </div>
                 <span className="text-sm font-medium tabular-nums text-muted-foreground shrink-0 ml-3">
                   {pct}%
