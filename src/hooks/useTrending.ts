@@ -259,6 +259,7 @@ export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
+  const nip85OnlyMode = config.nip85OnlyMode;
 
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
@@ -279,12 +280,16 @@ export function useEventStats(eventId: string | undefined) {
             { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
           );
         } catch {
-          // NIP-85 failed or timed out, continue to manual calculation
+          // NIP-85 failed or timed out
         }
       }
 
-      // If we have NIP-85 stats, we can skip most of the manual queries
       const hasNip85 = nip85Stats.length > 0;
+
+      // If NIP-85 only mode is enabled and we don't have NIP-85 stats, return empty
+      if (nip85OnlyMode && !hasNip85) {
+        return EMPTY_STATS;
+      }
       
       const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
@@ -421,6 +426,7 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
   const queryClient = useQueryClient();
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
+  const nip85OnlyMode = config.nip85OnlyMode;
 
   const uniqueIds = [...new Set(eventIds)].sort();
 
@@ -461,11 +467,22 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
             });
           }
         } catch {
-          // NIP-85 failed or timed out, continue to manual calculation
+          // NIP-85 failed or timed out
         }
       }
 
       const hasAnyNip85Stats = nip85StatsMap.size > 0;
+
+      // If NIP-85 only mode is enabled and we have no stats, return empty map
+      if (nip85OnlyMode && !hasAnyNip85Stats) {
+        const emptyMap = new Map<string, EventStats>();
+        for (const id of uniqueIds) {
+          emptyMap.set(id, EMPTY_STATS);
+          queryClient.setQueryData(['event-stats', id], EMPTY_STATS);
+        }
+        return emptyMap;
+      }
+
       const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
       // Fetch only what we need based on whether we have NIP-85 stats

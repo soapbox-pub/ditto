@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { WalletSettings } from '@/components/WalletSettings';
 import { RelayListManager } from '@/components/RelayListManager';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -27,11 +28,15 @@ export function AdvancedSettings() {
       updateConfig(() => ({ nip85StatsPubkey: value.toLowerCase() }));
       toast({
         title: 'Stats source updated',
-        description: 'NIP-85 stats pubkey has been saved.',
+        description: 'Using NIP-85 stats from this pubkey.',
       });
     } else if (value.length === 0) {
-      // Allow clearing the field
+      // Allow clearing the field - disable NIP-85
       updateConfig(() => ({ nip85StatsPubkey: '' }));
+      toast({
+        title: 'Stats source cleared',
+        description: 'Stats will be calculated manually.',
+      });
     }
   };
 
@@ -118,34 +123,58 @@ export function AdvancedSettings() {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="pb-4 pt-4 px-3 space-y-3">
-              <div>
-                <Label htmlFor="stats-pubkey" className="text-sm font-medium">
-                  NIP-85 Stats Pubkey
-                </Label>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Enter a trusted pubkey for pre-computed engagement stats (likes, reposts, comments). 
-                  Leave empty to always calculate stats manually.
-                </p>
-                <Input
-                  id="stats-pubkey"
-                  value={statsPubkey}
-                  onChange={(e) => handleStatsPubkeyChange(e.target.value)}
-                  placeholder="Enter 64-character hex pubkey"
-                  className="font-mono text-sm"
-                  maxLength={64}
-                />
-                {statsPubkey && statsPubkey.length !== 64 && (
-                  <p className="text-xs text-destructive mt-1">
-                    Pubkey must be exactly 64 hexadecimal characters
+            <div className="pb-4">
+              <div className="px-3 pt-3 pb-4 space-y-3">
+                <div>
+                  <Label htmlFor="stats-pubkey" className="text-sm font-medium">
+                    NIP-85 Stats Pubkey
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">
+                    Enter a trusted pubkey for pre-computed engagement stats (likes, reposts, comments). 
+                    Leave empty to always calculate stats manually.
                   </p>
-                )}
+                  <Input
+                    id="stats-pubkey"
+                    value={statsPubkey}
+                    onChange={(e) => handleStatsPubkeyChange(e.target.value)}
+                    placeholder="Enter 64-character hex pubkey or leave empty"
+                    className="font-mono text-sm"
+                    maxLength={64}
+                  />
+                  {statsPubkey && statsPubkey.length !== 64 && (
+                    <p className="text-xs text-destructive mt-1">
+                      Pubkey must be exactly 64 hexadecimal characters
+                    </p>
+                  )}
+                  <div className="text-xs text-muted-foreground mt-2">
+                    <span className="font-medium">Default: </span>
+                    <span className="font-mono">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
+                  </div>
+                </div>
               </div>
-              <div className="text-xs text-muted-foreground space-y-1">
-                <p className="font-medium">Default pubkey:</p>
-                <p className="font-mono break-all">
-                  5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea
-                </p>
+
+              <div className="flex items-center justify-between py-2.5 px-3 border-t border-border">
+                <div className="min-w-0">
+                  <span className="text-sm">NIP-85 Only Mode</span>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Disable manual stat calculation. Stats will only show if NIP-85 pubkey provides them.
+                  </p>
+                </div>
+                <Switch
+                  id="nip85-only-mode"
+                  checked={config.nip85OnlyMode}
+                  onCheckedChange={(checked) => {
+                    updateConfig(() => ({ nip85OnlyMode: checked }));
+                    toast({
+                      title: checked ? 'NIP-85 only mode enabled' : 'NIP-85 only mode disabled',
+                      description: checked 
+                        ? 'Manual stat calculation is disabled.' 
+                        : 'Manual stat calculation will be used as fallback.',
+                    });
+                  }}
+                  disabled={!statsPubkey}
+                  className="scale-90"
+                />
               </div>
             </div>
           </CollapsibleContent>

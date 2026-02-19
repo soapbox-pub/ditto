@@ -50,6 +50,8 @@ export interface AppConfig {
   feedSettings: FeedSettings;
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
+  /** Whether to disable manual stat calculation fallback (NIP-85 only mode) */
+  nip85OnlyMode: boolean;
 }
 
 export interface AppContextType {
