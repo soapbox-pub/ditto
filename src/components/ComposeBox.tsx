@@ -257,7 +257,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     expand();
   }, [content, expand]);
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = useCallback(async (file: File) => {
     try {
       const tags = await uploadFile(file);
       const [[, url]] = tags;
@@ -269,7 +269,25 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     } catch {
       toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
     }
-  };
+  }, [uploadFile, expand, toast]);
+
+  const handlePaste = useCallback(async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+
+    // Check for image files in clipboard
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        e.preventDefault(); // Prevent default paste behavior for images
+        const file = item.getAsFile();
+        if (file) {
+          await handleFileUpload(file);
+        }
+        break;
+      }
+    }
+  }, [handleFileUpload]);
 
   const handleSubmit = async () => {
     if (!content.trim() || !user || charCount > MAX_CHARS) return;
@@ -420,6 +438,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
             value={content}
             onChange={(e) => setContent(e.target.value)}
             onFocus={expand}
+            onPaste={handlePaste}
             placeholder={placeholder}
             className={cn(
               'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
