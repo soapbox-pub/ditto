@@ -27,14 +27,14 @@ export function AdvancedSettings() {
       </div>
 
       {/* Wallet Section */}
-      <div className="border-b border-border">
+      <div className="border-b-2 border-primary">
         <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
             >
-              <span className="text-sm font-medium">Wallet</span>
+              <span className="text-base font-semibold">Wallet</span>
               {walletOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -59,14 +59,14 @@ export function AdvancedSettings() {
       </div>
 
       {/* Network (Relays) Section */}
-      <div className="border-b border-border">
+      <div className="border-b-2 border-primary">
         <Collapsible open={relaysOpen} onOpenChange={setRelaysOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
             >
-              <span className="text-sm font-medium">Network</span>
+              <span className="text-base font-semibold">Network</span>
               {relaysOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (

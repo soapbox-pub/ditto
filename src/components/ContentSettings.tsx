@@ -26,15 +26,25 @@ export function ContentSettings() {
         </div>
       </div>
 
+      {/* Other Stuff Section */}
+      <div className="border-b-2 border-primary">
+        <div className="px-3 py-3">
+          <h3 className="text-base font-semibold">Other Stuff</h3>
+          <p className="text-xs text-muted-foreground mt-1">
+            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+          </p>
+        </div>
+      </div>
+
       {/* Content Types Section */}
-      <div className="border-b border-border">
+      <div className="border-b-2 border-primary">
         <Collapsible open={contentTypesOpen} onOpenChange={setContentTypesOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
             >
-              <span className="text-sm font-medium">Content Types</span>
+              <span className="text-base font-semibold">Content Types</span>
               {contentTypesOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -44,10 +54,6 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
-              <p className="text-xs text-muted-foreground px-3 pb-3">
-                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-              </p>
-
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
                 <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
@@ -62,14 +68,14 @@ export function ContentSettings() {
       </div>
 
       {/* Muted Content Section */}
-      <div className="border-b border-border">
+      <div className="border-b-2 border-primary">
         <Collapsible open={mutesOpen} onOpenChange={setMutesOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
             >
-              <span className="text-sm font-medium">Muted Content</span>
+              <span className="text-base font-semibold">Muted Content</span>
               {mutesOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
@@ -320,9 +326,6 @@ function MuteSettingsInternals() {
 
   return (
     <div>
-      <p className="text-xs text-muted-foreground px-3 pb-3">
-        Hide posts from specific users, hashtags, words, or entire threads. All mutes are encrypted and private.
-      </p>
 
       {/* Add mute section */}
       <div className="border-b border-border pb-4 mb-4">
