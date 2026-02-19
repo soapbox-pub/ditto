@@ -143,18 +143,18 @@ export function Feed() {
             active={activeTab === 'follows'}
             onClick={() => setActiveTab('follows')}
           />
-          {showGlobalFeed && (
-            <TabButton
-              label="Global"
-              active={activeTab === 'global'}
-              onClick={() => setActiveTab('global')}
-            />
-          )}
           {showCommunityFeed && (
             <TabButton
               label={communityLabel}
               active={activeTab === 'communities'}
               onClick={() => setActiveTab('communities')}
+            />
+          )}
+          {showGlobalFeed && (
+            <TabButton
+              label="Global"
+              active={activeTab === 'global'}
+              onClick={() => setActiveTab('global')}
             />
           )}
         </div>
