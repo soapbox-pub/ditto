@@ -182,6 +182,32 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
+  // Compute display content with NIP-19 identifiers hidden (replaced with placeholder)
+  const displayContent = useMemo(() => {
+    let result = content;
+    // Sort embeds by position (descending) to replace from end to start
+    const embedsWithPosition: Array<{ value: string; index: number }> = [];
+    
+    // Find all embed positions
+    for (const embed of visibleEmbeds) {
+      if (embed.type === 'link') continue; // Don't hide URL links
+      const index = result.indexOf(embed.value);
+      if (index !== -1) {
+        embedsWithPosition.push({ value: embed.value, index });
+      }
+    }
+    
+    // Sort by index descending
+    embedsWithPosition.sort((a, b) => b.index - a.index);
+    
+    // Replace each embed with empty string
+    for (const { value, index } of embedsWithPosition) {
+      result = result.slice(0, index) + result.slice(index + value.length);
+    }
+    
+    return result;
+  }, [content, visibleEmbeds]);
+
   // Include quoted event if provided and not removed
   const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
   const quotedEventKey = quotedEventId ? `nostr:${quotedEventId}` : null;
@@ -314,25 +340,39 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       )}
 
       <div className="flex-1 min-w-0">
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onFocus={expand}
-          placeholder={placeholder}
-          className={cn(
-            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
-            isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-          )}
-          rows={isExpanded ? 4 : 1}
-          disabled={!user}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              handleSubmit();
-            }
-          }}
-        />
+        {/* Textarea wrapper with overlay for display */}
+        <div className="relative">
+          {/* Hidden textarea for actual content */}
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onFocus={expand}
+            placeholder={placeholder}
+            className={cn(
+              'w-full bg-transparent resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+              isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
+              'text-transparent caret-foreground selection:bg-primary/20',
+            )}
+            rows={isExpanded ? 4 : 1}
+            disabled={!user}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                handleSubmit();
+              }
+            }}
+          />
+          {/* Display overlay showing content with identifiers hidden */}
+          <div 
+            className={cn(
+              'absolute inset-0 pointer-events-none whitespace-pre-wrap break-words text-lg pt-2.5 pb-2 opacity-85',
+              displayContent ? 'text-foreground' : 'text-muted-foreground',
+            )}
+            aria-hidden="true"
+          >
+            {displayContent || placeholder}
+          </div>
+        </div>
 
         {/* Content warning input */}
         {cwEnabled && (
