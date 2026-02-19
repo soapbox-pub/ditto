@@ -17,15 +17,17 @@ function NavTab({ to, icon, label, active, showIndicator }: NavTabProps) {
     <Link
       to={to}
       className={cn(
-        'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors relative',
+        'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
         active ? 'text-foreground' : 'text-muted-foreground',
       )}
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {showIndicator && (
+          <span className="absolute top-0 right-0 size-2.5 bg-primary rounded-full" />
+        )}
+      </span>
       <span className="text-[10px] font-medium">{label}</span>
-      {showIndicator && (
-        <span className="absolute top-1.5 left-1/2 translate-x-1 size-2 bg-primary rounded-full" />
-      )}
     </Link>
   );
 }
