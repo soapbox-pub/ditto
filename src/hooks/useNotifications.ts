@@ -55,24 +55,27 @@ export function useNotifications(): NotificationData {
     placeholderData: (prev) => prev, // Keep previous data during refetch to prevent flickering
   });
 
-  // Get cursor from encrypted settings (defaults to 0 if not set)
-  const notificationsCursor = settings?.notificationsCursor ?? 0;
+  // Only use cursor if settings have actually loaded, otherwise null
+  // This prevents false positives when settings are still loading
+  const notificationsCursor = settings !== undefined && settings !== null 
+    ? (settings.notificationsCursor ?? 0)
+    : null;
 
   // Determine which notifications are new (created after cursor)
-  const newNotifications = notifications.filter(
-    (event) => event.created_at > notificationsCursor
-  );
+  // Only calculate if we have a valid cursor (settings loaded)
+  const newNotifications = notificationsCursor !== null
+    ? notifications.filter((event) => event.created_at > notificationsCursor)
+    : [];
 
-  // Don't show unread badge until:
-  // 1. Notifications query is enabled and complete
-  // 2. Settings are loaded (to get the correct cursor)
-  // 3. There are actually new notifications
-  // This prevents flickering when encrypted settings load after notifications
-  const hasUnread = queryEnabled && !isLoading && !settingsLoading && newNotifications.length > 0;
+  // Only show unread badge when:
+  // 1. Settings have loaded (cursor is not null)
+  // 2. Notifications query has run
+  // 3. There are new notifications
+  const hasUnread = notificationsCursor !== null && queryEnabled && newNotifications.length > 0;
 
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {
-    if (!user || notifications.length === 0) return;
+    if (!user || notifications.length === 0 || notificationsCursor === null) return;
 
     // Set cursor to the timestamp of the newest notification
     const newestTimestamp = Math.max(...notifications.map((e) => e.created_at));
