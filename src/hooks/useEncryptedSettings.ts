@@ -88,6 +88,9 @@ export function useEncryptedSettings() {
     },
     enabled: !!query.data && !!user,
     staleTime: 30 * 60 * 1000, // 30 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour - keep in cache
+    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid spam
+    refetchOnReconnect: false, // Don't refetch on reconnect
   });
 
   // Update settings

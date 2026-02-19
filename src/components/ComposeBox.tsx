@@ -8,8 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -89,6 +87,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
+  const [uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,12 +176,13 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       }
     }
 
-    // Detect regular URLs (but not image/video URLs)
+    // Detect regular URLs (but not image/video URLs that will be rendered inline)
     const urlMatches = content.matchAll(/https?:\/\/[^\s]+/g);
     for (const match of urlMatches) {
       const url = match[0];
-      // Skip media URLs
-      if (!/\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?$/i.test(url)) {
+      // Skip media URLs that render inline
+      // Note: SVGs not excluded - LinkPreview checks content-type and handles both cases
+      if (!/\.(jpg|jpeg|png|gif|webp|mp4|webm|mov|avi|mkv|flv)(\?[^\s]*)?$/i.test(url)) {
         embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }
@@ -248,7 +248,11 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
   const handleFileUpload = async (file: File) => {
     try {
-      const [[, url]] = await uploadFile(file);
+      const tags = await uploadFile(file);
+      const [[, url]] = tags;
+      
+      // Store the full NIP-94 tags for later use in imeta
+      setUploadedFileTags((prev) => [...prev, ...tags]);
       setContent((prev) => (prev ? prev + '\n' + url : url));
       expand();
     } catch {
@@ -310,6 +314,49 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
         }
       }
 
+      // NIP-92: Add imeta tags for media URLs in content
+      const mediaUrlMatches = finalContent.matchAll(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|avi|mkv|flv)(\?[^\s]*)?/gi);
+      const processedUrls = new Set<string>();
+      
+      for (const match of mediaUrlMatches) {
+        const url = match[0];
+        if (processedUrls.has(url)) continue;
+        processedUrls.add(url);
+        
+        // Check if this URL was uploaded (has full metadata)
+        const uploadedTag = uploadedFileTags.find(tag => tag[0] === 'url' && tag[1] === url);
+        
+        if (uploadedTag) {
+          // Use the full NIP-94 metadata from the upload
+          const imetaFields = uploadedFileTags
+            .filter(tag => {
+              // Get all tags for this URL
+              const urlTag = uploadedFileTags.find(t => t[0] === 'url' && t[1] === url);
+              return urlTag && uploadedFileTags.indexOf(tag) >= uploadedFileTags.indexOf(urlTag);
+            })
+            .map(tag => `${tag[0]} ${tag[1]}`);
+          
+          tags.push(['imeta', ...imetaFields]);
+        } else {
+          // Fallback: basic imeta tag with URL and inferred mime type
+          const ext = match[1].toLowerCase();
+          const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+            : ext === 'png' ? 'image/png'
+            : ext === 'gif' ? 'image/gif'
+            : ext === 'webp' ? 'image/webp'
+            : ext === 'svg' ? 'image/svg+xml'
+            : ext === 'mp4' ? 'video/mp4'
+            : ext === 'webm' ? 'video/webm'
+            : ext === 'mov' ? 'video/quicktime'
+            : ext === 'avi' ? 'video/x-msvideo'
+            : ext === 'mkv' ? 'video/x-matroska'
+            : ext === 'flv' ? 'video/x-flv'
+            : 'application/octet-stream';
+          
+          tags.push(['imeta', `url ${url}`, `m ${mimeType}`]);
+        }
+      }
+
       await createEvent({
         kind: 1,
         content: finalContent,
@@ -322,6 +369,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       setCwText('');
       setExpanded(false);
       setRemovedEmbeds(new Set());
+      setUploadedFileTags([]);
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
@@ -496,15 +544,29 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
             {/* Center: Preview toggle */}
             {hasPreviewableContent && (
-              <div className="flex items-center gap-2">
-                <Switch
-                  id="preview-mode"
-                  checked={previewMode}
-                  onCheckedChange={setPreviewMode}
-                />
-                <Label htmlFor="preview-mode" className="text-xs font-medium cursor-pointer">
+              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+                <button
+                  onClick={() => setPreviewMode(false)}
+                  className={cn(
+                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                    !previewMode 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setPreviewMode(true)}
+                  className={cn(
+                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                    previewMode 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
                   Preview
-                </Label>
+                </button>
               </div>
             )}
 

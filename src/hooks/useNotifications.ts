@@ -25,7 +25,7 @@ export interface NotificationData {
 export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { settings, updateSettings } = useEncryptedSettings();
+  const { settings, updateSettings, isLoading: settingsLoading } = useEncryptedSettings();
 
   const { data: notifications = [], isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['notifications', user?.pubkey ?? ''],
