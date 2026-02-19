@@ -14,6 +14,26 @@ echo -e "${GREEN}🔨 Mew APK Builder (Secure)${NC}\n"
 DATE_TAG="v$(date +%Y.%m.%d)"
 echo -e "This build date: ${GREEN}${DATE_TAG}${NC}\n"
 
+# Check/create Android SDK local.properties
+if [ ! -f "android/local.properties" ]; then
+  echo -e "${YELLOW}⚠️  android/local.properties not found${NC}"
+  
+  if [ -n "$ANDROID_HOME" ]; then
+    echo -e "${GREEN}✓ Using ANDROID_HOME: $ANDROID_HOME${NC}"
+    echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+  elif [ -n "$ANDROID_SDK_ROOT" ]; then
+    echo -e "${GREEN}✓ Using ANDROID_SDK_ROOT: $ANDROID_SDK_ROOT${NC}"
+    echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+  else
+    echo -e "${RED}❌ Android SDK location not configured!${NC}"
+    echo -e "${YELLOW}Please set ANDROID_HOME environment variable or create android/local.properties manually${NC}"
+    echo -e "\nExample android/local.properties:"
+    echo -e "  sdk.dir=/path/to/android-sdk"
+    echo ""
+    exit 1
+  fi
+fi
+
 # Check if keystore exists
 if [ ! -f "android/app/my-upload-key.keystore" ]; then
   echo -e "${RED}❌ Keystore not found!${NC}"
