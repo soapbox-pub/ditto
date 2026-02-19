@@ -92,8 +92,24 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const extraKindsKey = extraKinds.sort().join(',');
 
   useEffect(() => {
+    console.log('[useStreamPosts] Effect running with deps:', { 
+      query, 
+      isVines, 
+      extraKindsKey, 
+      language: options.language, 
+      mediaType: options.mediaType 
+    });
+    
     const ac = new AbortController();
     let alive = true;
+    
+    // Log when abort is called
+    const originalAbort = ac.abort.bind(ac);
+    ac.abort = () => {
+      console.log('[useStreamPosts] AbortController.abort() called');
+      console.trace();
+      originalAbort();
+    };
 
     setAllEvents([]);
     setIsLoading(true);
@@ -129,30 +145,31 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const streamFilter: NostrFilter = { kinds };
 
     // Search filter for initial query (includes NIP-50 extensions)
+    // TEMPORARILY DISABLED FOR DEBUGGING
     const searchParts: string[] = [];
     
-    if (query.trim()) {
-      searchParts.push(query.trim());
-    }
+    // if (query.trim()) {
+    //   searchParts.push(query.trim());
+    // }
 
-    // Add language filter (NIP-50 extension supported by Ditto)
-    if (options.language && options.language !== 'global') {
-      searchParts.push(`language:${options.language}`);
-    }
+    // // Add language filter (NIP-50 extension supported by Ditto)
+    // if (options.language && options.language !== 'global') {
+    //   searchParts.push(`language:${options.language}`);
+    // }
 
-    // Add media filter (NIP-50 extension supported by Ditto)
-    // Only apply to non-vines queries (kind 1)
-    if (!isVines) {
-      if (options.mediaType === 'images') {
-        searchParts.push('media:true');
-        searchParts.push('video:false');
-      } else if (options.mediaType === 'videos') {
-        searchParts.push('video:true');
-      } else if (options.mediaType === 'none') {
-        searchParts.push('media:false');
-      }
-      // 'all' means no media filter
-    }
+    // // Add media filter (NIP-50 extension supported by Ditto)
+    // // Only apply to non-vines queries (kind 1)
+    // if (!isVines) {
+    //   if (options.mediaType === 'images') {
+    //     searchParts.push('media:true');
+    //     searchParts.push('video:false');
+    //   } else if (options.mediaType === 'videos') {
+    //     searchParts.push('video:true');
+    //   } else if (options.mediaType === 'none') {
+    //     searchParts.push('media:false');
+    //   }
+    //   // 'all' means no media filter
+    // }
 
     const initialFilter: NostrFilter = { ...streamFilter };
     if (searchParts.length > 0) {
@@ -177,28 +194,54 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     // 2. Stream new events WITHOUT search (relays don't support streaming search)
     // Client-side filtering is applied via useMemo at the end
+    // 
+    // CRITICAL: The pool has eoseTimeout: 500 which aborts req() subscriptions 500ms after
+    // the first EOSE. This kills streaming! Solution: Use relay() directly for one relay
+    // to avoid the pool's timeout logic.
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
-        for await (const msg of nostr.req(
+        console.log('[useStreamPosts] Starting stream subscription:', { kinds, since: now });
+        
+        // Use relay.ditto.pub directly for streaming to avoid pool's eoseTimeout
+        const dittoRelay = nostr.relay('wss://relay.ditto.pub');
+        
+        for await (const msg of dittoRelay.req(
           [{ ...streamFilter, since: now, limit: 0 }],
-          { signal: ac.signal },
+          { signal: ac.signal }
         )) {
-          if (!alive) break;
+          if (!alive) {
+            console.log('[useStreamPosts] Component unmounted, stopping stream');
+            break;
+          }
+          
           if (msg[0] === 'EVENT') {
+            console.log('[useStreamPosts] Received streaming event:', msg[2].id);
             addEvent(msg[2]);
+          } else if (msg[0] === 'EOSE') {
+            console.log('[useStreamPosts] Received EOSE, subscription is now active for new events');
+            // Don't break - keep listening for new events
           } else if (msg[0] === 'CLOSED') {
+            console.log('[useStreamPosts] Subscription closed by relay');
             break;
           }
         }
-      } catch {
-        // abort expected
+        
+        console.log('[useStreamPosts] Stream loop ended');
+      } catch (error) {
+        if (!ac.signal.aborted) {
+          console.error('[useStreamPosts] Stream error:', error);
+        } else {
+          console.log('[useStreamPosts] Stream aborted (expected on unmount/filter change)');
+        }
       }
     })();
 
     return () => {
+      console.log('[useStreamPosts] Cleanup: stopping stream');
       alive = false;
-      ac.abort();
+      ac.abort(); // This will still abort the initial query
+      // The stream subscription will stop on its own when alive=false triggers the break
     };
   }, [nostr, query, isVines, extraKindsKey, options.language, options.mediaType]);
 
