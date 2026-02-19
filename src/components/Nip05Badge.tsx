@@ -20,27 +20,29 @@ function getNip05Domain(nip05: string | undefined): string | undefined {
 
 /**
  * Displays a NIP-05 identifier with its domain favicon.
- * Uses Google's favicon service but validates the image to avoid showing default placeholders.
+ * Tries common favicon paths directly from the domain.
  */
 export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps) {
   const [showFavicon, setShowFavicon] = useState(true);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const domain = getNip05Domain(nip05);
 
-  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
-    
-    // Google returns a 16x16 default globe for missing favicons
-    // Check if it's exactly 16x16 and likely the default
-    if (img.naturalWidth === 16 && img.naturalHeight === 16) {
-      // It might be the default globe - hide it to be safe
-      // Real favicons from Google's service are often larger or have different dimensions
-      setShowFavicon(false);
-      return;
-    }
+  // Try common favicon locations in order
+  const getFaviconUrl = (domain: string) => {
+    return `https://${domain}/favicon.svg`;
   };
 
   const handleError = () => {
-    setShowFavicon(false);
+    // If SVG fails, try ICO
+    if (faviconUrl?.endsWith('.svg')) {
+      setFaviconUrl(`https://${domain}/favicon.ico`);
+    } else if (faviconUrl?.endsWith('.ico')) {
+      // If ICO fails, try PNG
+      setFaviconUrl(`https://${domain}/favicon.png`);
+    } else {
+      // All attempts failed, hide favicon
+      setShowFavicon(false);
+    }
   };
 
   return (
@@ -48,12 +50,11 @@ export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps)
       <span className="truncate">@{nip05}</span>
       {domain && showFavicon && (
         <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
+          src={faviconUrl || getFaviconUrl(domain)}
           alt=""
-          className="shrink-0 rounded-sm bg-white/5"
+          className="shrink-0"
           style={{ width: iconSize, height: iconSize }}
           loading="lazy"
-          onLoad={handleLoad}
           onError={handleError}
         />
       )}
