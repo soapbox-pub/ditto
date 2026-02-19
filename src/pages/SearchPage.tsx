@@ -104,7 +104,7 @@ export function SearchPage() {
         {activeTab === 'posts' && (
           <>
             {/* Search input */}
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-4 pt-5 pb-2">
               <div className="relative">
                 <Input
                   type="text"
@@ -295,7 +295,7 @@ export function SearchPage() {
         {activeTab === 'accounts' && (
           <>
             {/* Search input for accounts */}
-            <div className="px-4 pt-4 pb-2">
+            <div className="px-4 pt-5 pb-2">
               <div className="relative">
                 <Input
                   type="text"
