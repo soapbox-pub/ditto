@@ -500,9 +500,8 @@ function FeedTabsSection() {
             </Button>
           </div>
         ) : (
-          <div className="flex items-center justify-between py-2.5 px-3 border border-border rounded-lg hover:bg-muted/20 transition-colors">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="min-w-0">
                 <p className="text-sm font-medium truncate">{community.label}</p>
                 <p className="text-xs text-muted-foreground truncate">
