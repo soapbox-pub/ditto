@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/useToast';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -25,6 +27,9 @@ interface MediaItem {
   url: string;
   eventId: string;
   authorPubkey: string;
+  /** For addressable events — needed to build naddr links. */
+  kind?: number;
+  dTag?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -39,15 +44,28 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
+/** Extract the video URL from a vine's imeta tag. */
+function extractImetaUrl(event: NostrEvent): string | undefined {
+  const imetaTag = event.tags.find(([name]) => name === 'imeta');
+  if (!imetaTag) return undefined;
+  for (let i = 1; i < imetaTag.length; i++) {
+    const part = imetaTag[i];
+    if (part.startsWith('url ')) return part.slice(4);
+  }
+  return undefined;
+}
+
 /** Hook to query media from a user's posts, returning URL + event ID pairs. */
-function useProfileMedia(pubkey: string) {
+function useProfileMedia(pubkey: string, extraKinds: number[]) {
   const { nostr } = useNostr();
+  const kinds = [1, ...extraKinds];
+  const kindsKey = kinds.sort().join(',');
 
   return useQuery<MediaItem[]>({
-    queryKey: ['profile-media', pubkey],
+    queryKey: ['profile-media', pubkey, kindsKey],
     queryFn: async ({ signal }) => {
       const events = await nostr.query(
-        [{ kinds: [1], authors: [pubkey], limit: 50 }],
+        [{ kinds, authors: [pubkey], limit: 50 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
@@ -55,6 +73,18 @@ function useProfileMedia(pubkey: string) {
       const seen = new Set<string>();
 
       for (const event of events) {
+        // For media-native kinds (vines etc.), extract from imeta tags
+        if (event.kind !== 1) {
+          const imetaUrl = extractImetaUrl(event);
+          if (imetaUrl && !seen.has(imetaUrl)) {
+            seen.add(imetaUrl);
+            const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+            items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag });
+          }
+          continue;
+        }
+
+        // For kind 1, extract from content
         const images = extractImageUrls(event.content);
         const videos = extractVideoUrls(event.content);
         for (const url of [...images, ...videos]) {
@@ -72,8 +102,11 @@ function useProfileMedia(pubkey: string) {
   });
 }
 
-/** Build a nevent link for navigating to an event. */
+/** Build a nevent/naddr link for navigating to an event. */
 function eventLink(item: MediaItem): string {
+  if (item.kind && item.kind >= 30000 && item.kind < 40000 && item.dTag !== undefined) {
+    return `/${nip19.naddrEncode({ kind: item.kind, pubkey: item.authorPubkey, identifier: item.dTag })}`;
+  }
   return `/${nip19.neventEncode({ id: item.eventId, author: item.authorPubkey })}`;
 }
 
@@ -251,7 +284,9 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
 }
 
 export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps) {
-  const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey);
+  const { feedSettings } = useFeedSettings();
+  const extraKinds = getEnabledFeedKinds(feedSettings);
+  const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey, extraKinds);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
