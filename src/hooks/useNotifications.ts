@@ -26,7 +26,7 @@ export interface NotificationData {
 export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { settings, updateSettings } = useEncryptedSettings();
+  const { settings, updateSettings, isLoading: settingsLoading } = useEncryptedSettings();
 
   // Delay notifications query by 3 seconds to avoid competing with feed load
   const [queryEnabled, setQueryEnabled] = useState(false);
@@ -63,8 +63,12 @@ export function useNotifications(): NotificationData {
     (event) => event.created_at > notificationsCursor
   );
 
-  // Don't show unread badge until query has actually run
-  const hasUnread = queryEnabled && newNotifications.length > 0;
+  // Don't show unread badge until:
+  // 1. Notifications query is enabled and complete
+  // 2. Settings are loaded (to get the correct cursor)
+  // 3. There are actually new notifications
+  // This prevents flickering when encrypted settings load after notifications
+  const hasUnread = queryEnabled && !isLoading && !settingsLoading && newNotifications.length > 0;
 
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {
