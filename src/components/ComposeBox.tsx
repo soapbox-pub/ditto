@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Toggle } from '@/components/ui/toggle';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -489,14 +490,16 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
             {/* Center: Preview toggle */}
             {content && (
-              <button
-                type="button"
-                onClick={() => setPreviewMode(!previewMode)}
-                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              <Toggle
+                pressed={previewMode}
+                onPressedChange={setPreviewMode}
+                aria-label="Toggle preview"
+                size="sm"
+                className="gap-1.5"
               >
-                {previewMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
-                {previewMode ? 'Edit' : 'Preview'}
-              </button>
+                <Eye className="size-3.5" />
+                <span className="text-xs">Preview</span>
+              </Toggle>
             )}
 
             {/* Right: char count + post button */}
