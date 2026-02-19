@@ -525,7 +525,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   };
 
   const repostTotal = (stats?.reposts ?? 0) + (stats?.quotes ?? 0);
-  const hasStats = !!(repostTotal || stats?.reactions || stats?.zapAmount);
+  const hasStats = !!(repostTotal || stats?.reactions || stats?.zapCount);
 
   return (
     <div>
@@ -617,13 +617,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
               </button>
             ) : null}
-            {stats?.zapAmount ? (
+            {stats?.zapCount ? (
               <button
                 onClick={() => openInteractions('zaps')}
                 className="hover:underline transition-colors"
               >
-                <span className="font-bold text-foreground">{formatSats(stats.zapAmount)}</span>{' '}
-                sats
+                <span className="font-bold text-foreground">{stats.zapCount}</span>{' '}
+                Zap{stats.zapCount !== 1 ? 's' : ''}
               </button>
             ) : null}
             <span className="ml-auto shrink-0">{formatFullDate(event.created_at)}</span>

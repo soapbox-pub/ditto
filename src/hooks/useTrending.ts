@@ -197,10 +197,11 @@ export interface EventStats {
   quotes: number;
   reactions: number;
   zapAmount: number;
+  zapCount: number;
   reactionEmojis: string[];
 }
 
-const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, reactionEmojis: [] };
+const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] };
 
 /** Computes stats for a single event ID from a flat array of interaction events. */
 function computeStats(eventId: string, events: NostrEvent[]): EventStats {
@@ -209,6 +210,7 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
   let quotes = 0;
   let reactions = 0;
   let zapAmount = 0;
+  let zapCount = 0;
   const reactionEmojiSet = new Set<string>();
 
   for (const e of events) {
@@ -241,13 +243,14 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
         const msats = extractZapAmount(e);
         if (msats > 0) {
           zapAmount += Math.floor(msats / 1000);
+          zapCount++;
         }
         break;
       }
     }
   }
 
-  return { replies, reposts, quotes, reactions, zapAmount, reactionEmojis: Array.from(reactionEmojiSet) };
+  return { replies, reposts, quotes, reactions, zapAmount, zapCount, reactionEmojis: Array.from(reactionEmojiSet) };
 }
 
 /** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
