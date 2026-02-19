@@ -6,13 +6,13 @@ interface MewLogoProps {
   size?: number;
 }
 
-/** The Mew logo rendered from the custom PNG asset. */
+/** The Mew logo rendered from the custom SVG asset. */
 export function MewLogo({ className, size = 40 }: MewLogoProps) {
   const { theme } = useTheme();
   
   return (
     <img
-      src="/logo.png"
+      src="/logo.svg"
       alt="Mew"
       width={size}
       height={size}
