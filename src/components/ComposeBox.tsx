@@ -197,12 +197,23 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
+  // Extract images and videos for preview mode
+  const previewImages = useMemo(() => {
+    if (!content) return [];
+    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
+    return content.match(urlRegex) || [];
+  }, [content]);
+
+  const previewVideos = useMemo(() => {
+    if (!content) return [];
+    const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+    return content.match(urlRegex) || [];
+  }, [content]);
+
   // Check if content has any previewable content (link previews, images, or videos)
   const hasPreviewableContent = useMemo(() => {
     return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0;
   }, [visibleEmbeds, previewImages, previewVideos]);
-
-
 
   // Include quoted event if provided and not removed
   const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
@@ -226,19 +237,6 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       sig: '',
     };
   }, [user, content]);
-
-  // Extract images and videos for preview mode
-  const previewImages = useMemo(() => {
-    if (!content) return [];
-    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-    return content.match(urlRegex) || [];
-  }, [content]);
-
-  const previewVideos = useMemo(() => {
-    if (!content) return [];
-    const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
-    return content.match(urlRegex) || [];
-  }, [content]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
