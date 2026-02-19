@@ -10,6 +10,7 @@ import { MewLogo } from '@/components/MewLogo';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
+import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
@@ -62,6 +63,7 @@ export function LeftSidebar() {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   /** Map route name → lucide icon (size-6 for sidebar). */
   const ROUTE_ICONS: Record<string, React.ReactNode> = {
@@ -158,14 +160,15 @@ export function LeftSidebar() {
 
         {/* Compose/Join button */}
         {user ? (
-          <Button
-            className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
-          >
-            <span>Compose</span>
-          </Button>
+          <>
+            <Button
+              className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
+              onClick={() => setComposeOpen(true)}
+            >
+              <span>Compose</span>
+            </Button>
+            <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
+          </>
         ) : (
           <Button
             className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
