@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -6,6 +6,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { cn } from '@/lib/utils';
 
 interface QuickReactMenuProps {
@@ -15,28 +16,26 @@ interface QuickReactMenuProps {
   eventPubkey: string;
   /** The kind number of the event being reacted to. */
   eventKind: number;
-  /** Quick emoji options to display. */
-  quickEmojis?: string[];
   /** Optional extra class names. */
   className?: string;
 }
-
-// Default quick reaction emojis matching Ditto style
-const DEFAULT_QUICK_EMOJIS = ['❤️', '😂', '💯', '🔥', '👍', '📌'];
 
 export function QuickReactMenu({
   eventId,
   eventPubkey,
   eventKind,
-  quickEmojis = DEFAULT_QUICK_EMOJIS,
   className,
 }: QuickReactMenuProps) {
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+  const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
 
   const [pickerOpen, setPickerOpen] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
+
+  // Get user's most-used emojis (or defaults)
+  const quickEmojis = useMemo(() => getTopEmojis(6), [getTopEmojis]);
 
   const handleEmojiSelect = useCallback((emoji: string) => {
     if (!user) return;
@@ -46,6 +45,9 @@ export function QuickReactMenu({
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
+
+    // Track emoji usage
+    trackEmojiUsage(emoji);
 
     // Publish kind 7 reaction
     publishEvent(
@@ -71,7 +73,7 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient]);
+  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient, trackEmojiUsage]);
 
   if (!user) return null;
 

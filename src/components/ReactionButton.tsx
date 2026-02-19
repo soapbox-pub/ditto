@@ -44,6 +44,12 @@ export function ReactionButton({
             if (!user) return;
             setMenuOpen((prev) => !prev);
           }}
+          onMouseEnter={() => {
+            if (user) setMenuOpen(true);
+          }}
+          onMouseLeave={() => {
+            // Don't close on mouse leave - let user move to the menu
+          }}
         >
           <Heart className="size-5" />
           {reactionCount > 0 && (
@@ -54,9 +60,11 @@ export function ReactionButton({
       <PopoverContent
         className="w-auto p-0 border-0 bg-transparent shadow-none"
         side="top"
-        align="center"
+        align="start"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseEnter={() => setMenuOpen(true)}
+        onMouseLeave={() => setMenuOpen(false)}
       >
         <QuickReactMenu
           eventId={eventId}
