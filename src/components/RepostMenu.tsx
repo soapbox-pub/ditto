@@ -54,9 +54,13 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         onSuccess: () => {
           toast({ title: 'Reposted!' });
           setOpen(false);
-          // Invalidate stats to refetch real counts
-          queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
-          queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+          // Delay invalidation so the relay has time to index the new event.
+          // Without this, the refetch returns stale counts and overwrites
+          // the optimistic update.
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+          }, 3000);
         },
         onError: () => {
           toast({ title: 'Failed to repost', variant: 'destructive' });
