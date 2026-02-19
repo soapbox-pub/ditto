@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
@@ -136,7 +136,7 @@ export function SearchPage() {
                 <div className="px-4 pb-4 space-y-4">
                   {/* Including replies */}
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-sm">Including replies</span>
+                    <span className="font-medium">Including replies</span>
                     <Switch
                       checked={includeReplies}
                       onCheckedChange={setIncludeReplies}
@@ -145,7 +145,7 @@ export function SearchPage() {
 
                   {/* Media type — horizontal wrap */}
                   <div className="space-y-2">
-                    <span className="font-medium text-sm">With ONLY the media type:</span>
+                    <span className="font-medium">With ONLY the media type:</span>
                     <RadioGroup
                       value={mediaType}
                       onValueChange={(v) => setMediaType(v as typeof mediaType)}
@@ -153,14 +153,17 @@ export function SearchPage() {
                     >
                       {[
                         { value: 'all', label: 'All media' },
-                        { value: 'images', label: 'Images' },
-                        { value: 'videos', label: 'Videos' },
-                        { value: 'vines', label: 'Vines' },
+                        { value: 'images', label: 'Images', icon: Image },
+                        { value: 'videos', label: 'Videos', icon: Video },
+                        { value: 'vines', label: 'Vines', icon: Film },
                         { value: 'none', label: 'No media' },
-                      ].map(({ value, label }) => (
-                        <div key={value} className="flex items-center space-x-1.5">
+                      ].map(({ value, label, icon: Icon }) => (
+                        <div key={value} className="flex items-center space-x-2">
                           <RadioGroupItem value={value} id={`media-${value}`} />
-                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm">{label}</Label>
+                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer flex items-center gap-1.5">
+                            {Icon && <Icon className="size-4 text-muted-foreground" />}
+                            {label}
+                          </Label>
                         </div>
                       ))}
                     </RadioGroup>
@@ -168,7 +171,10 @@ export function SearchPage() {
 
                   {/* Language — inline */}
                   <div className="flex items-center gap-3">
-                    <span className="font-medium text-sm whitespace-nowrap">In the language:</span>
+                    <div className="flex items-center gap-1.5">
+                      <Languages className="size-4 text-muted-foreground" />
+                      <span className="font-medium whitespace-nowrap">In the language:</span>
+                    </div>
                     <Select value={language} onValueChange={setLanguage}>
                       <SelectTrigger className="w-40 bg-secondary/50">
                         <SelectValue />
@@ -187,7 +193,7 @@ export function SearchPage() {
 
                   {/* Platform filter */}
                   <div className="space-y-2">
-                    <span className="font-medium text-sm">Show posts from:</span>
+                    <span className="font-medium">Show posts from:</span>
                     <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <div className="flex items-center space-x-2">
                         <Checkbox
@@ -195,7 +201,7 @@ export function SearchPage() {
                           checked={showNostr}
                           onCheckedChange={(checked) => setShowNostr(!!checked)}
                         />
-                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer text-sm">
+                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer">
                           Nostr
                         </Label>
                       </div>
@@ -205,7 +211,7 @@ export function SearchPage() {
                           checked={showMastodon}
                           onCheckedChange={(checked) => setShowMastodon(!!checked)}
                         />
-                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer text-sm">
+                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer">
                           Mastodon
                         </Label>
                       </div>
