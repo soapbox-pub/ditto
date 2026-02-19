@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Heart, Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -151,19 +151,22 @@ function formatSats(sats: number): string {
 }
 
 // ──────────────────────────────────────
-// Like Notification: "❤️ {name} liked your post"
-// Shows the original post being liked
+// Like Notification: "{emoji} {name} reacted to your post"
+// Shows the original post being reacted to
 // ──────────────────────────────────────
 function LikeNotification({ event }: { event: NostrEvent }) {
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
+  // Get the actual emoji from the reaction content, default to ❤️ if empty
+  const emoji = event.content || '❤️';
+
   return (
     <div className="px-4 pt-3 pb-1">
       <NotificationHeader
         actorPubkey={event.pubkey}
-        icon={<Heart className="size-4 fill-pink-500 text-pink-500" />}
-        action="liked your post"
+        icon={<span className="text-base leading-none size-4 flex items-center justify-center">{emoji}</span>}
+        action="reacted to your post"
       />
       {referencedEvent && (
         <ReferencedPostCard event={referencedEvent} />
