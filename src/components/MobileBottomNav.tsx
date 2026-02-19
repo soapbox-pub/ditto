@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface NavTabProps {
   to: string;
@@ -31,6 +32,7 @@ function NavTab({ to, icon, label, active, showIndicator }: NavTabProps) {
 
 export function MobileBottomNav() {
   const location = useLocation();
+  const { user } = useCurrentUser();
   const { hasUnread } = useNotifications();
 
   return (
@@ -41,13 +43,15 @@ export function MobileBottomNav() {
         label="Home"
         active={location.pathname === '/'}
       />
-      <NavTab
-        to="/notifications"
-        icon={<Bell className="size-5" />}
-        label="Notifications"
-        active={location.pathname === '/notifications'}
-        showIndicator={hasUnread}
-      />
+      {user && (
+        <NavTab
+          to="/notifications"
+          icon={<Bell className="size-5" />}
+          label="Notifications"
+          active={location.pathname === '/notifications'}
+          showIndicator={hasUnread}
+        />
+      )}
       <NavTab
         to="/search"
         icon={<Search className="size-5" />}

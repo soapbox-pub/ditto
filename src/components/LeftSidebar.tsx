@@ -72,9 +72,14 @@ export function LeftSidebar() {
   const navItems = useMemo(() => {
     const items = [
       { to: '/', icon: <Home className="size-6" />, label: 'Home' },
-      { to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' },
-      { to: '/search', icon: <Search className="size-6" />, label: 'Search' },
     ];
+
+    // Only show notifications when logged in
+    if (user) {
+      items.push({ to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' });
+    }
+
+    items.push({ to: '/search', icon: <Search className="size-6" />, label: 'Search' });
 
     // Add enabled extra-kind links from the shared config
     for (const def of EXTRA_KINDS) {
@@ -93,7 +98,7 @@ export function LeftSidebar() {
       { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
     );
     return items;
-  }, [feedSettings]);
+  }, [feedSettings, user]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
