@@ -685,28 +685,28 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 Zap{stats.zapCount !== 1 ? 's' : ''}
               </button>
             ) : null}
-            <span className="ml-auto shrink-0">
+            <span className="ml-auto shrink-0 flex items-center gap-1.5">
               {clientName && (
                 <>
-                  {clientName}
-                  <span className="mx-1.5">·</span>
+                  <span>{clientName}</span>
+                  <span>·</span>
                 </>
               )}
-              {formatFullDate(event.created_at)}
+              <span>{formatFullDate(event.created_at)}</span>
             </span>
           </div>
         )}
 
         {/* Date-only row if no stats */}
         {!hasStats && (
-          <div className="py-2.5 mt-3 text-sm text-muted-foreground">
+          <div className="py-2.5 mt-3 text-sm text-muted-foreground flex items-center gap-1.5">
             {clientName && (
               <>
-                {clientName}
-                <span className="mx-1.5">·</span>
+                <span>{clientName}</span>
+                <span>·</span>
               </>
             )}
-            {formatFullDate(event.created_at)}
+            <span>{formatFullDate(event.created_at)}</span>
           </div>
         )}
 
