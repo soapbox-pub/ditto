@@ -445,7 +445,7 @@ export function ComposeBox({
 
   return (
     <div className={cn("flex gap-3 px-4 py-3", !forceExpanded && "border-b border-border")}>
-      {!hideAvatar && (
+      {!hideAvatar && !compact && (
         <Avatar className="size-12 shrink-0 mt-0.5">
           <AvatarImage src={metadata?.picture} alt={metadata?.name} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
