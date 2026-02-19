@@ -52,6 +52,7 @@ export function useNotifications(): NotificationData {
     },
     enabled: queryEnabled && !!user,
     refetchInterval: 60_000, // Refetch every minute for new notifications
+    placeholderData: (prev) => prev, // Keep previous data during refetch to prevent flickering
   });
 
   // Get cursor from encrypted settings (defaults to 0 if not set)
