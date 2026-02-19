@@ -25,9 +25,9 @@ export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps)
   const domain = getNip05Domain(nip05);
 
   return (
-    <span className={cn('inline-flex items-center gap-1.5', className)}>
-      <span className="truncate">@{nip05}</span>
-      {domain && <DomainFavicon domain={domain} size={iconSize} />}
+    <span className={cn('inline-flex items-center gap-1.5 min-w-0', className)}>
+      <span className="truncate min-w-0">@{nip05}</span>
+      {domain && <DomainFavicon domain={domain} size={iconSize} className="shrink-0" />}
     </span>
   );
 }
