@@ -15,6 +15,13 @@ const BASE_FEED_KINDS = [1, 6];
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
+/** Extended FeedItem with pagination metadata. */
+interface FeedPage {
+  items: FeedItem[];
+  /** The oldest timestamp from the raw relay query (before deduplication) for pagination. */
+  oldestQueryTimestamp: number;
+}
+
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const { nostr } = useNostr();
@@ -51,7 +58,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
     }
   })();
 
-  return useInfiniteQuery<FeedItem[], Error>({
+  return useInfiniteQuery<FeedPage, Error>({
     queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey, communityPubkeys.length],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
@@ -112,14 +119,18 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
             })
           : events; // Fallback if no domain found
 
+        // Track oldest timestamp from the raw query for pagination
+        const validFilteredEvents = filteredEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = validFilteredEvents.length > 0
+          ? Math.min(...validFilteredEvents.map((ev) => ev.created_at))
+          : now;
+
         // Process reposts same as follows feed
         const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
         const repostMap = new Map<string, NostrEvent>();
 
-        for (const ev of filteredEvents) {
-          if (ev.created_at > now) continue;
-
+        for (const ev of validFilteredEvents) {
           if (ev.kind === 6) {
             // Handle reposts
             const embedded = parseRepostContent(ev);
@@ -167,7 +178,9 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           }
         }
 
-        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        
+        return { items: dedupedItems, oldestQueryTimestamp };
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
         // If followList is empty, just query own posts
@@ -182,13 +195,17 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           { signal: querySignal },
         );
 
+        // Track oldest timestamp from the raw query for pagination
+        const validEvents = events.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = validEvents.length > 0
+          ? Math.min(...validEvents.map((ev) => ev.created_at))
+          : now;
+
         const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
         const repostMap = new Map<string, NostrEvent>();
 
-        for (const ev of events) {
-          if (ev.created_at > now) continue;
-
+        for (const ev of validEvents) {
           if (ev.kind === 6) {
             // Handle reposts
             const embedded = parseRepostContent(ev);
@@ -236,7 +253,9 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           }
         }
 
-        return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
+        
+        return { items: dedupedItems, oldestQueryTimestamp };
       } else {
         // Global feed — kind 1 notes + user-selected extra kinds
         const globalKinds = [1, ...extraKinds];
@@ -250,17 +269,23 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           { signal: querySignal },
         );
 
-        return events
-          .filter((ev) => ev.created_at <= now)
+        const validEvents = events.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = validEvents.length > 0
+          ? Math.min(...validEvents.map((ev) => ev.created_at))
+          : now;
+
+        const items = validEvents
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
+
+        return { items, oldestQueryTimestamp };
       }
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.length === 0) return undefined;
-      // Use the oldest item's sortTimestamp minus 1 (since `until` is inclusive)
-      const oldest = lastPage[lastPage.length - 1];
-      return oldest.sortTimestamp - 1;
+      if (lastPage.items.length === 0) return undefined;
+      // Use the oldest timestamp from the raw relay query (before deduplication) minus 1
+      // This ensures we don't skip events when deduplication reduces the page size
+      return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
     enabled: followsReady,

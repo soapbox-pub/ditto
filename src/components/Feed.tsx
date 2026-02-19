@@ -91,7 +91,7 @@ export function Feed() {
   // Flatten all items and deduplicate
   const feedItems = useMemo(() => {
     const seen = new Set<string>();
-    return data?.pages.flat().filter(item => {
+    return data?.pages.flatMap(page => page.items).filter(item => {
       const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
       if (!key || seen.has(key)) return false;
       seen.add(key);
