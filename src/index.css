@@ -185,6 +185,14 @@
   .safe-area-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+  
+  .safe-area-inset-top {
+    top: env(safe-area-inset-top, 0px);
+  }
+  
+  .safe-area-inset-bottom {
+    bottom: env(safe-area-inset-bottom, 0px);
+  }
 }
 
 

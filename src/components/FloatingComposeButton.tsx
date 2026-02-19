@@ -17,7 +17,8 @@ export function FloatingComposeButton() {
       <>
         <Button
           onClick={() => setComposeOpen(true)}
-          className="fixed bottom-20 right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+          className="fixed right-4 z-30 sidebar:hidden size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground"
+          style={{ bottom: `calc(5rem + env(safe-area-inset-bottom, 0px))` }}
           size="icon"
         >
           <Pencil className="size-6" />
@@ -31,7 +32,8 @@ export function FloatingComposeButton() {
     <>
       <Button
         onClick={() => setLoginOpen(true)}
-        className="fixed bottom-20 right-4 z-30 sidebar:hidden h-14 px-5 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+        className="fixed right-4 z-30 sidebar:hidden h-14 px-5 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+        style={{ bottom: `calc(5rem + env(safe-area-inset-bottom, 0px))` }}
       >
         <UserPlus className="size-6" />
         <span className="text-base font-bold">Join</span>

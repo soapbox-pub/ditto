@@ -18,6 +18,7 @@ import { DomainFavicon } from '@/components/DomainFavicon';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
+import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
@@ -128,7 +129,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
