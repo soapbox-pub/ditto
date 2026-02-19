@@ -30,12 +30,12 @@ export function ContentSettings() {
       </div>
 
       {/* Feed Tabs Section */}
-      <div className="border-b-2 border-primary">
+      <div>
         <Collapsible open={feedTabsOpen} onOpenChange={setFeedTabsOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-2 border-primary"
             >
               <span className="text-base font-semibold">Feed Tabs</span>
               {feedTabsOpen ? (
