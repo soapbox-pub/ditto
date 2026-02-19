@@ -612,12 +612,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 </Avatar>
               </Link>
 
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 overflow-hidden">
                 <Link to={`/${npub}`} className="font-bold text-[15px] hover:underline block truncate">
                   {displayName}
                 </Link>
                 {nip05 && (
-                  <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
+                  <div className="min-w-0">
+                    <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
+                  </div>
                 )}
               </div>
 
