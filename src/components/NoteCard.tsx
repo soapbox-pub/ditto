@@ -14,12 +14,15 @@ import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { Nip05Badge } from '@/components/Nip05Badge';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
+
+import { getProfileUrl } from '@/lib/profileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
@@ -131,7 +134,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -227,31 +230,34 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           </>
         ) : (
           <>
-            <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-11">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
+            <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Avatar className="size-11">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </Link>
+            </ProfileHoverCard>
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
-                <Link
-                  to={`/${npub}`}
-                  className="font-bold text-[15px] hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {displayName}
-                </Link>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-bold text-[15px] hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {displayName}
+                  </Link>
+                </ProfileHoverCard>
                 {metadata?.bot && (
                   <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
                 )}
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
-                {nip05 && <span className="truncate">@{nip05}</span>}
-                {nip05 && <DomainFavicon domain={nip05.split('@')[1]} size={16} className="shrink-0" />}
+                {nip05 && <Nip05Badge nip05={nip05} />}
                 {nip05 && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline whitespace-nowrap">
                   {timeAgo(event.created_at)}
@@ -461,6 +467,7 @@ function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: st
 function RepostHeader({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
     <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
@@ -469,7 +476,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
         <Skeleton className="h-3 w-20 inline-block" />
       ) : (
         <Link
-          to={`/${nip19.npubEncode(pubkey)}`}
+          to={url}
           className="font-medium hover:underline mr-1 truncate"
           onClick={(e) => e.stopPropagation()}
         >
@@ -484,6 +491,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
 function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 'found' }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
     <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
@@ -492,7 +500,7 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
         <Skeleton className="h-3 w-20 inline-block" />
       ) : (
         <Link
-          to={`/${nip19.npubEncode(pubkey)}`}
+          to={url}
           className="font-medium hover:underline mr-1 truncate"
           onClick={(e) => e.stopPropagation()}
         >

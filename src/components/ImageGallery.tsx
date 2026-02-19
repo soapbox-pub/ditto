@@ -208,7 +208,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
       <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
 
       {/* Top bar */}
-      <div data-gallery-topbar className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3">
+      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
         {/* Counter */}
         {hasMultiple && (
           <span className="text-white/80 text-sm font-medium tabular-nums">

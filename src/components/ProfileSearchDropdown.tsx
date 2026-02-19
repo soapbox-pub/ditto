@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -67,8 +68,7 @@ export function ProfileSearchDropdown({
     if (onSelect) {
       onSelect(profile);
     } else {
-      const npub = nip19.npubEncode(profile.pubkey);
-      navigate(`/${npub}`);
+      navigate(getProfileUrl(profile.pubkey, profile.metadata));
     }
   }, [navigate, onSelect]);
 

@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2 } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +15,7 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { DomainFavicon } from '@/components/DomainFavicon';
+import { Nip05Badge } from '@/components/Nip05Badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
@@ -23,7 +24,9 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
+import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
+import { formatNip05Display } from '@/lib/nip05';
 import { canZap } from '@/lib/canZap';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -218,7 +221,7 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
           <div className="min-w-0 flex-1">
             <div className="font-bold text-sm truncate">{displayName}</div>
             {metadata?.nip05 && (
-              <div className="text-xs text-muted-foreground truncate">@{metadata.nip05}</div>
+              <div className="text-xs text-muted-foreground truncate">@{formatNip05Display(metadata.nip05)}</div>
             )}
             {metadata?.about && (
               <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{metadata.about}</div>
@@ -451,10 +454,100 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
   );
 }
 
+// ----- Profile Image Lightbox -----
+
+function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose: () => void }) {
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [onClose]);
+
+  // Lock body scroll
+  useEffect(() => {
+    const original = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, []);
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
+    e.stopPropagation();
+    e.preventDefault();
+    onClose();
+  };
+
+  const handleDownload = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const a = document.createElement('a');
+    a.href = imageUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.click();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
+      onClick={handleBackdropClick}
+    >
+      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
+
+      <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-end px-4 py-3 safe-area-inset-top">
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleDownload}
+            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            title="Open original"
+          >
+            <Download className="size-5" />
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
+            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+            title="Close (Esc)"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16">
+        {!isLoaded && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
+          </div>
+        )}
+        <img
+          key={imageUrl}
+          src={imageUrl}
+          alt=""
+          className={cn(
+            'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+            isLoaded ? 'opacity-100' : 'opacity-0',
+          )}
+          onLoad={() => setIsLoaded(true)}
+          draggable={false}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ----- Main Component -----
 
 export function ProfilePage() {
-  const { npub } = useParams<{ npub: string }>();
+  const params = useParams();
+  const npub = params.npub ?? params.nip19;
   const { user } = useCurrentUser();
   const { toast } = useToast();
 
@@ -462,10 +555,29 @@ export function ProfilePage() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
-  // Determine pubkey: from URL param or logged-in user
+  // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
+  const isNip05Param = useMemo(() => {
+    if (!npub) return false;
+    // If it contains @, it's a NIP-05 identifier (e.g., user@domain.com)
+    if (npub.includes('@')) return true;
+    // If it contains a dot and doesn't start with npub1/nprofile1, it's a domain (e.g., fiatjaf.com)
+    if (npub.includes('.') && !npub.startsWith('npub1') && !npub.startsWith('nprofile1')) return true;
+    return false;
+  }, [npub]);
+
+  // Resolve NIP-05 identifier to pubkey if needed
+  const { data: nip05Pubkey, isLoading: nip05Loading } = useNip05Resolve(isNip05Param ? npub : undefined);
+
+  // Determine pubkey: from NIP-05 resolution, NIP-19 decoding, or logged-in user
   const pubkey = useMemo(() => {
     if (npub) {
+      // If it's a NIP-05 identifier, use the resolved pubkey
+      if (isNip05Param) {
+        return nip05Pubkey ?? undefined;
+      }
+      // Otherwise try to decode as NIP-19
       try {
         const decoded = nip19.decode(npub);
         if (decoded.type === 'npub') return decoded.data;
@@ -475,7 +587,7 @@ export function ProfilePage() {
       }
     }
     return user?.pubkey;
-  }, [npub, user]);
+  }, [npub, user, isNip05Param, nip05Pubkey]);
 
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
@@ -602,18 +714,6 @@ export function ProfilePage() {
     }
   }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
 
-  if (!pubkey) {
-    return (
-      <MainLayout>
-        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-          <div className="p-8 text-center text-muted-foreground">
-            <p>Please log in to view your profile.</p>
-          </div>
-        </main>
-      </MainLayout>
-    );
-  }
-
   const isOwnProfile = user?.pubkey === pubkey;
   const authorEvent = author.data?.event;
 
@@ -628,6 +728,48 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
+  if (!pubkey) {
+    // If we're resolving a NIP-05, show loading state
+    if (isNip05Param && nip05Loading) {
+      return (
+        <MainLayout>
+          <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+            <div className="h-36 md:h-48 bg-secondary animate-pulse" />
+            <div className="px-4 pb-4">
+              <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+                <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
+              </div>
+              <Skeleton className="h-6 w-40 mt-2" />
+              <Skeleton className="h-4 w-56 mt-2" />
+            </div>
+          </main>
+        </MainLayout>
+      );
+    }
+    // If NIP-05 resolved to null (not found), show error
+    if (isNip05Param && !nip05Loading) {
+      return (
+        <MainLayout>
+          <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+            <div className="p-8 text-center text-muted-foreground">
+              <p>User not found: {npub}</p>
+              <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
+            </div>
+          </main>
+        </MainLayout>
+      );
+    }
+    return (
+      <MainLayout>
+        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+          <div className="p-8 text-center text-muted-foreground">
+            <p>Please log in to view your profile.</p>
+          </div>
+        </main>
+      </MainLayout>
+    );
+  }
+
   return (
     <MainLayout
       rightSidebar={<ProfileRightSidebar pubkey={pubkey} fields={fields} />}
@@ -636,19 +778,30 @@ export function ProfilePage() {
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
           {metadata?.banner && (
-            <img src={metadata.banner} alt="" className="w-full h-full object-cover" />
+            <img
+              src={metadata.banner}
+              alt=""
+              className="w-full h-full object-cover cursor-pointer"
+              onClick={() => setLightboxImage(metadata.banner!)}
+            />
           )}
         </div>
 
         {/* Profile info */}
         <div className="px-4 pb-4">
           <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
-            <Avatar className="size-24 md:size-32 border-4 border-background">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                {displayName[0].toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <button
+              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+              onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
+              disabled={!metadata?.picture}
+            >
+              <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                  {displayName[0].toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </button>
             <div className="flex items-center gap-2 mt-14 md:mt-20">
               {/* More menu */}
               {!isOwnProfile && (
@@ -694,7 +847,7 @@ export function ProfilePage() {
 
           <h2 className="text-xl font-bold">{displayName}</h2>
           {metadata?.nip05 && (
-            <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
+            <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
           )}
 
           {/* Following count + Streak indicator */}
@@ -823,6 +976,14 @@ export function ProfilePage() {
             open={followingModalOpen}
             onOpenChange={setFollowingModalOpen}
             displayName={displayName}
+          />
+        )}
+
+        {/* Image lightbox for avatar/banner */}
+        {lightboxImage && (
+          <ProfileImageLightbox
+            imageUrl={lightboxImage}
+            onClose={() => setLightboxImage(null)}
           />
         )}
       </main>
