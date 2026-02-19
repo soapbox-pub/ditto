@@ -227,6 +227,19 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     };
   }, [user, content]);
 
+  // Extract images and videos for preview mode
+  const previewImages = useMemo(() => {
+    if (!content) return [];
+    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
+    return content.match(urlRegex) || [];
+  }, [content]);
+
+  const previewVideos = useMemo(() => {
+    if (!content) return [];
+    const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
+    return content.match(urlRegex) || [];
+  }, [content]);
+
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
     if (textarea) {
@@ -429,6 +442,27 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
               <div className="whitespace-pre-wrap break-words text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
+              {/* Render images */}
+              {previewImages.map((url, i) => (
+                <div key={i} className="mt-3 rounded-2xl overflow-hidden border border-border">
+                  <img
+                    src={url}
+                    alt=""
+                    className="w-full h-auto max-h-[500px] object-contain bg-muted"
+                    loading="lazy"
+                  />
+                </div>
+              ))}
+              {/* Render videos */}
+              {previewVideos.map((url, i) => (
+                <div key={i} className="mt-3 rounded-2xl overflow-hidden border border-border">
+                  <video
+                    src={url}
+                    controls
+                    className="w-full h-auto max-h-[500px] bg-muted"
+                  />
+                </div>
+              ))}
             </div>
           )
         )}
