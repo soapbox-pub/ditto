@@ -10,19 +10,65 @@ interface StreamPostsOptions {
   language?: string;
 }
 
-function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
+/** Check if an event has imeta tags with image MIME types. */
+function hasImageImeta(event: NostrEvent): boolean {
+  return event.tags.some(
+    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('image/')),
+  );
+}
+
+/** Check if an event has imeta tags with video MIME types. */
+function hasVideoImeta(event: NostrEvent): boolean {
+  return event.tags.some(
+    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('video/')),
+  );
+}
+
+/**
+ * Client-side filtering for streaming events.
+ * Initial query uses relay-level filters (NIP-50 search), but streaming
+ * events need client-side filtering since relays don't support streaming search.
+ */
+function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery: string): boolean {
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Non-kind-1 events (extra kinds) pass through
+  // Non-kind-1 events (extra kinds) pass through without filtering
   if (event.kind !== 1) return true;
 
+  // Filter replies
   if (!options.includeReplies) {
     if (event.tags.some(([name]) => name === 'e')) return false;
   }
 
-  // Media and language filtering is now handled by relay-level filters
-  // using NIP-50 search extensions (media:, video:, language:)
+  // Client-side search (for streaming events only - initial query uses relay search)
+  if (searchQuery.trim()) {
+    const lowerContent = event.content.toLowerCase();
+    const lowerQuery = searchQuery.toLowerCase();
+    if (!lowerContent.includes(lowerQuery)) return false;
+  }
+
+  // Client-side media filtering (for streaming events only)
+  if (options.mediaType !== 'all') {
+    const hasImages = hasImageImeta(event);
+    const hasVideos = hasVideoImeta(event);
+    switch (options.mediaType) {
+      case 'images': 
+        if (!hasImages || hasVideos) return false;
+        break;
+      case 'videos': 
+        if (!hasVideos) return false;
+        break;
+      case 'vines': 
+        return false; // kind 1 posts aren't vines
+      case 'none': 
+        if (hasImages || hasVideos) return false;
+        break;
+    }
+  }
+
+  // Note: Language filtering is only done at relay-level (NIP-50 language:)
+  // We can't reliably detect language client-side for streaming events
 
   return true;
 }
@@ -79,9 +125,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       ? [34236]
       : [1, ...extraKinds];
 
-    const baseFilter: NostrFilter = { kinds };
+    // Base filter for streaming (kinds only - no search)
+    const streamFilter: NostrFilter = { kinds };
 
-    // Build NIP-50 search query with extensions
+    // Search filter for initial query (includes NIP-50 extensions)
     const searchParts: string[] = [];
     
     if (query.trim()) {
@@ -107,15 +154,16 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       // 'all' means no media filter
     }
 
+    const initialFilter: NostrFilter = { ...streamFilter };
     if (searchParts.length > 0) {
-      baseFilter.search = searchParts.join(' ');
+      initialFilter.search = searchParts.join(' ');
     }
 
-    // 1. Fetch initial batch (uses pool, reuses existing connections)
+    // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
       try {
         const events = await nostr.query(
-          [{ ...baseFilter, limit: 40 }],
+          [{ ...initialFilter, limit: 40 }],
           { signal: ac.signal },
         );
         for (const event of events) {
@@ -127,12 +175,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       if (alive) setIsLoading(false);
     })();
 
-    // 2. Stream new events (uses pool, reuses existing connections)
+    // 2. Stream new events WITHOUT search (relays don't support streaming search)
+    // Client-side filtering is applied via useMemo at the end
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
         for await (const msg of nostr.req(
-          [{ ...baseFilter, since: now, limit: 0 }],
+          [{ ...streamFilter, since: now, limit: 0 }],
           { signal: ac.signal },
         )) {
           if (!alive) break;
@@ -155,8 +204,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
   // Apply client-side filters without restarting the stream
   const posts = useMemo(() => {
-    return allEvents.filter((event) => filterEvent(event, options));
-  }, [allEvents, options.includeReplies, options.mediaType]);
+    return allEvents.filter((event) => filterEvent(event, options, query));
+  }, [allEvents, options.includeReplies, options.mediaType, query]);
 
   return { posts, isLoading };
 }
