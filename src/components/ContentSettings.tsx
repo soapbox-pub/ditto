@@ -1,12 +1,14 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { FeedSettingsForm } from '@/components/FeedSettingsForm';
-import { MuteSettings } from '@/components/MuteSettings';
+import { useToast } from '@/hooks/useToast';
 
 export function ContentSettings() {
-  const [contentTypesOpen, setContentTypesOpen] = useState(true);
+  const [otherStuffOpen, setOtherStuffOpen] = useState(true);
+  const [feedTabsOpen, setFeedTabsOpen] = useState(false);
   const [mutesOpen, setMutesOpen] = useState(false);
 
   return (
@@ -26,26 +28,16 @@ export function ContentSettings() {
         </div>
       </div>
 
-      {/* Other Stuff Section */}
+      {/* Feed Tabs Section */}
       <div className="border-b-2 border-primary">
-        <div className="px-3 py-3">
-          <h3 className="text-base font-semibold">Other Stuff</h3>
-          <p className="text-xs text-muted-foreground mt-1">
-            Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-          </p>
-        </div>
-      </div>
-
-      {/* Content Types Section */}
-      <div className="border-b-2 border-primary">
-        <Collapsible open={contentTypesOpen} onOpenChange={setContentTypesOpen}>
+        <Collapsible open={feedTabsOpen} onOpenChange={setFeedTabsOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
               className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
             >
-              <span className="text-base font-semibold">Content Types</span>
-              {contentTypesOpen ? (
+              <span className="text-base font-semibold">Feed Tabs</span>
+              {feedTabsOpen ? (
                 <ChevronUp className="h-4 w-4 text-muted-foreground" />
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -54,6 +46,34 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
+              <FeedTabsSection />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* Other Stuff Section */}
+      <div className="border-b-2 border-primary">
+        <Collapsible open={otherStuffOpen} onOpenChange={setOtherStuffOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+            >
+              <span className="text-base font-semibold">Other Stuff</span>
+              {otherStuffOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="pb-4">
+              <p className="text-xs text-muted-foreground px-3 pb-3">
+                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+              </p>
+
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
                 <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
@@ -232,6 +252,188 @@ function FeedSettingsFormInternals() {
         <ContentTypeRow key={def.showKey} def={def} />
       ))}
     </>
+  );
+}
+
+// Feed Tabs Section Component
+function FeedTabsSection() {
+  const { toast } = useToast();
+  const [communityDomain, setCommunityDomain] = useState('');
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [communities, setCommunities] = useState<Array<{ domain: string; userCount: number }>>([]);
+
+  const handleDownloadCommunity = async () => {
+    if (!communityDomain.trim()) {
+      toast({
+        title: 'Domain required',
+        description: 'Please enter a domain name',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Clean up domain input
+    let domain = communityDomain.trim().toLowerCase();
+    // Remove protocol if present
+    domain = domain.replace(/^https?:\/\//, '');
+    // Remove trailing slash
+    domain = domain.replace(/\/$/, '');
+
+    // Check if already added
+    if (communities.some(c => c.domain === domain)) {
+      toast({
+        title: 'Already added',
+        description: 'This community is already in your list',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsDownloading(true);
+    try {
+      // Fetch the NIP-05 JSON
+      const response = await fetch(`https://${domain}/.well-known/nostr.json`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.names || typeof data.names !== 'object') {
+        throw new Error('Invalid NIP-05 JSON format');
+      }
+
+      const userCount = Object.keys(data.names).length;
+
+      // Store in localStorage
+      const newCommunity = { domain, userCount };
+      const updatedCommunities = [...communities, newCommunity];
+      setCommunities(updatedCommunities);
+      localStorage.setItem('mew:communities', JSON.stringify(updatedCommunities));
+      
+      // Store the actual JSON data for later use
+      localStorage.setItem(`mew:community:${domain}`, JSON.stringify(data));
+
+      toast({
+        title: 'Community added',
+        description: `Added ${domain} with ${userCount} users`,
+      });
+
+      setCommunityDomain('');
+    } catch (error) {
+      console.error('Failed to download community:', error);
+      toast({
+        title: 'Failed to download',
+        description: error instanceof Error ? error.message : 'Could not fetch community data',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  const handleRemoveCommunity = (domain: string) => {
+    const updatedCommunities = communities.filter(c => c.domain !== domain);
+    setCommunities(updatedCommunities);
+    localStorage.setItem('mew:communities', JSON.stringify(updatedCommunities));
+    localStorage.removeItem(`mew:community:${domain}`);
+    
+    toast({
+      title: 'Community removed',
+      description: `Removed ${domain}`,
+    });
+  };
+
+  // Load communities from localStorage on mount
+  useState(() => {
+    const stored = localStorage.getItem('mew:communities');
+    if (stored) {
+      try {
+        setCommunities(JSON.parse(stored));
+      } catch (error) {
+        console.error('Failed to load communities:', error);
+      }
+    }
+  });
+
+  return (
+    <div className="px-3 space-y-4">
+      <p className="text-xs text-muted-foreground">
+        Manage which feed tabs appear in your navigation and follow communities by domain.
+      </p>
+
+      {/* Community Management */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Users className="h-4 w-4 text-muted-foreground" />
+          <Label className="text-sm font-medium">Communities</Label>
+        </div>
+        
+        <p className="text-xs text-muted-foreground">
+          Add a community by entering its domain. We'll download the NIP-05 user list and create a feed tab for verified members.
+        </p>
+
+        <div className="flex gap-2">
+          <Input
+            placeholder="spinster.xyz"
+            value={communityDomain}
+            onChange={(e) => setCommunityDomain(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handleDownloadCommunity();
+              }
+            }}
+            className="h-9"
+            disabled={isDownloading}
+          />
+          <Button
+            onClick={handleDownloadCommunity}
+            disabled={isDownloading || !communityDomain.trim()}
+            size="sm"
+            className="h-9"
+          >
+            {isDownloading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+
+        {/* Communities List */}
+        {communities.length > 0 && (
+          <div className="space-y-2">
+            {communities.map((community) => (
+              <div
+                key={community.domain}
+                className="flex items-center justify-between py-2.5 px-3 border rounded-lg hover:bg-muted/20 transition-colors"
+              >
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{community.domain}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleRemoveCommunity(community.domain)}
+                  className="shrink-0 h-8 w-8 p-0"
+                >
+                  <X className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* TODO: Add feed tab toggles (Global, Communities, etc.) */}
+    </div>
   );
 }
 
