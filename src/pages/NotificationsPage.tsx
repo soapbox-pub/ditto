@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -205,7 +206,7 @@ function RepostNotification({ event, isNew }: { event: NostrEvent; isNew: boolea
       )}
       <NotificationHeader
         actorPubkey={event.pubkey}
-        icon={<Repeat2 className="size-4 text-green-500" />}
+        icon={<RepostIcon className="size-4 text-green-500" />}
         action="reposted your note"
       />
       {referencedEvent && (
@@ -618,7 +619,7 @@ function ActionButtons({
           className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
           title="Repost"
         >
-          <Repeat2 className="size-5" />
+          <RepostIcon className="size-5" />
           {stats?.reposts ? <span className="text-sm tabular-nums">{stats.reposts}</span> : null}
         </button>
       </RepostMenu>

@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Repeat2, Quote, Heart, Zap, X } from 'lucide-react';
+import { Quote, Heart, Zap, X } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { nip19 } from 'nostr-tools';
 
 import {
@@ -50,7 +51,7 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
   const zapCount = data?.zaps.length ?? 0;
 
   const tabConfig: { key: InteractionTab; label: string; count: number; icon: React.ReactNode }[] = [
-    { key: 'reposts', label: 'Reposts', count: repostCount, icon: <Repeat2 className="size-4" /> },
+    { key: 'reposts', label: 'Reposts', count: repostCount, icon: <RepostIcon className="size-4" /> },
     { key: 'quotes', label: 'Quotes', count: quoteCount, icon: <Quote className="size-4" /> },
     { key: 'reactions', label: 'Reactions', count: reactionCount, icon: <Heart className="size-4" /> },
     { key: 'zaps', label: 'Zaps', count: zapCount, icon: <Zap className="size-4" /> },
