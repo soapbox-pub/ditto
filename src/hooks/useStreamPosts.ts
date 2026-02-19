@@ -92,24 +92,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const extraKindsKey = extraKinds.sort().join(',');
 
   useEffect(() => {
-    console.log('[useStreamPosts] Effect running with deps:', { 
-      query, 
-      isVines, 
-      extraKindsKey, 
-      language: options.language, 
-      mediaType: options.mediaType 
-    });
-    
     const ac = new AbortController();
     let alive = true;
-    
-    // Log when abort is called
-    const originalAbort = ac.abort.bind(ac);
-    ac.abort = () => {
-      console.log('[useStreamPosts] AbortController.abort() called');
-      console.trace();
-      originalAbort();
-    };
 
     setAllEvents([]);
     setIsLoading(true);
@@ -178,19 +162,15 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
       try {
-        console.log('[useStreamPosts] Fetching initial batch with filter:', initialFilter);
         const events = await nostr.query(
           [{ ...initialFilter, limit: 40 }],
           { signal: ac.signal },
         );
-        console.log('[useStreamPosts] Received', events.length, 'initial events');
         for (const event of events) {
           addEvent(event);
         }
-      } catch (error) {
-        if (!ac.signal.aborted) {
-          console.error('[useStreamPosts] Initial query error:', error);
-        }
+      } catch {
+        // abort expected
       }
       if (alive) setIsLoading(false);
     })();
@@ -204,7 +184,6 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     (async () => {
       try {
         const now = Math.floor(Date.now() / 1000);
-        console.log('[useStreamPosts] Starting stream subscription:', { kinds, since: now });
         
         // Use relay.ditto.pub directly for streaming to avoid pool's eoseTimeout
         const dittoRelay = nostr.relay('wss://relay.ditto.pub');
@@ -213,38 +192,22 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
           [{ ...streamFilter, since: now, limit: 0 }],
           { signal: ac.signal }
         )) {
-          if (!alive) {
-            console.log('[useStreamPosts] Component unmounted, stopping stream');
-            break;
-          }
+          if (!alive) break;
           
           if (msg[0] === 'EVENT') {
-            console.log('[useStreamPosts] Received streaming event:', msg[2].id);
             addEvent(msg[2]);
-          } else if (msg[0] === 'EOSE') {
-            console.log('[useStreamPosts] Received EOSE, subscription is now active for new events');
-            // Don't break - keep listening for new events
           } else if (msg[0] === 'CLOSED') {
-            console.log('[useStreamPosts] Subscription closed by relay');
             break;
           }
         }
-        
-        console.log('[useStreamPosts] Stream loop ended');
-      } catch (error) {
-        if (!ac.signal.aborted) {
-          console.error('[useStreamPosts] Stream error:', error);
-        } else {
-          console.log('[useStreamPosts] Stream aborted (expected on unmount/filter change)');
-        }
+      } catch {
+        // abort expected
       }
     })();
 
     return () => {
-      console.log('[useStreamPosts] Cleanup: stopping stream');
       alive = false;
-      ac.abort(); // This will still abort the initial query
-      // The stream subscription will stop on its own when alive=false triggers the break
+      ac.abort();
     };
   }, [nostr, query, isVines, extraKindsKey, options.language, options.mediaType]);
 
