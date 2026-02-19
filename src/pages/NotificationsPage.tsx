@@ -21,10 +21,12 @@ import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { useNotifications } from '@/hooks/useNotifications';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { Nip05Badge } from '@/components/Nip05Badge';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -310,14 +312,16 @@ function NotificationHeader({
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(actorPubkey);
-  const npub = useMemo(() => nip19.npubEncode(actorPubkey), [actorPubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(actorPubkey, metadata), [actorPubkey, metadata]);
 
   return (
     <div className="flex items-center gap-2 text-sm mb-2">
       <span className="shrink-0">{icon}</span>
-      <Link to={`/${npub}`} className="font-bold hover:underline truncate">
-        {displayName}
-      </Link>
+      <ProfileHoverCard pubkey={actorPubkey} asChild>
+        <Link to={profileUrl} className="font-bold hover:underline truncate">
+          {displayName}
+        </Link>
+      </ProfileHoverCard>
       <span className="text-muted-foreground shrink-0">{action}</span>
     </div>
   );
@@ -333,7 +337,7 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
   const encodedId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
     [event.id, event.pubkey],
@@ -371,23 +375,27 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
     >
       {/* Author row */}
       <div className="flex items-center gap-3">
-        <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Avatar className="size-11">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-              {displayName[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Avatar className="size-11">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </ProfileHoverCard>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Link
-              to={`/${npub}`}
-              className="font-bold text-[15px] hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
+            <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <Link
+                to={profileUrl}
+                className="font-bold text-[15px] hover:underline truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {displayName}
+              </Link>
+            </ProfileHoverCard>
             {metadata?.bot && (
               <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
             )}
@@ -456,7 +464,7 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
   const nip05 = metadata?.nip05;
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
   const encodedId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
     [event.id, event.pubkey],
@@ -494,23 +502,27 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
     >
       {/* Author row */}
       <div className="flex items-center gap-3">
-        <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-          <Avatar className="size-11">
-            <AvatarImage src={metadata?.picture} alt={displayName} />
-            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-              {displayName[0]?.toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        </Link>
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+            <Avatar className="size-11">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </ProfileHoverCard>
         <div className="min-w-0">
           <div className="flex items-center gap-1.5">
-            <Link
-              to={`/${npub}`}
-              className="font-bold text-[15px] hover:underline truncate"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {displayName}
-            </Link>
+            <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <Link
+                to={profileUrl}
+                className="font-bold text-[15px] hover:underline truncate"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {displayName}
+              </Link>
+            </ProfileHoverCard>
             {metadata?.bot && (
               <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
             )}

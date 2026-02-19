@@ -103,7 +103,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         {user ? (
           <div className="flex flex-col h-full">
             {/* User profile header */}
-            <div className="px-5 pt-6 pb-4 safe-area-top">
+            <div className="px-5 pb-4" style={{ paddingTop: `calc(1.5rem + env(safe-area-inset-top, 0px))` }}>
               <Avatar className="size-10 mb-3">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
@@ -173,7 +173,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             <Separator />
 
             {/* Theme toggle */}
-            <div className="px-3 py-2 safe-area-bottom">
+            <div className="px-3 pt-2" style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` }}>
               <button
                 onClick={cycleTheme}
                 className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"

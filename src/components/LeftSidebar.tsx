@@ -18,6 +18,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useNotifications } from '@/hooks/useNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
+import { formatNip05Display } from '@/lib/nip05';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
 
@@ -190,7 +191,7 @@ export function LeftSidebar() {
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className="font-semibold text-sm truncate">{metadata?.name || 'Anonymous'}</span>
                   <span className="text-xs text-muted-foreground truncate">
-                    {metadata?.nip05 ? `@${metadata.nip05}` : ''}
+                    {metadata?.nip05 ? `@${formatNip05Display(metadata.nip05)}` : ''}
                   </span>
                 </div>
               </button>
@@ -214,7 +215,7 @@ export function LeftSidebar() {
                     <span className="font-bold text-sm truncate">{getDisplayName(currentUser)}</span>
                     {currentUser.metadata.nip05 && (
                       <span className="text-xs text-muted-foreground truncate">
-                        @{currentUser.metadata.nip05}
+                        @{formatNip05Display(currentUser.metadata.nip05)}
                       </span>
                     )}
                   </div>
@@ -243,7 +244,7 @@ export function LeftSidebar() {
                         <span className="text-sm font-medium truncate">{getDisplayName(account)}</span>
                         {account.metadata.nip05 && (
                           <span className="text-xs text-muted-foreground truncate">
-                            @{account.metadata.nip05}
+                            @{formatNip05Display(account.metadata.nip05)}
                           </span>
                         )}
                       </div>

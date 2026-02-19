@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { MewLogo } from '@/components/MewLogo';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -28,7 +29,9 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
 
       {/* Center: Mew logo */}
       <div className="flex-1 flex items-center justify-center">
-        <MewLogo size={28} />
+        <Link to="/">
+          <MewLogo size={28} />
+        </Link>
       </div>
 
         {/* Right: spacer for symmetry */}

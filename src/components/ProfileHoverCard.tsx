@@ -1,0 +1,105 @@
+import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { DomainFavicon } from '@/components/DomainFavicon';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
+import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
+import { getProfileUrl } from '@/lib/profileUrl';
+import { cn } from '@/lib/utils';
+
+interface ProfileHoverCardProps {
+  pubkey: string;
+  children: React.ReactNode;
+  /** If true, the trigger element won't be wrapped in anything extra */
+  asChild?: boolean;
+}
+
+/**
+ * Wraps any element with a hover card that shows a profile preview.
+ * Shows avatar, display name, NIP-05, and bio on hover.
+ */
+export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCardProps) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+  const nip05 = metadata?.nip05;
+  const nip05Display = nip05 ? formatNip05Display(nip05) : undefined;
+  const nip05Domain = getNip05Domain(nip05);
+
+  return (
+    <HoverCard openDelay={300} closeDelay={150}>
+      <HoverCardTrigger asChild={asChild}>
+        {children}
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="bottom"
+        align="start"
+        sideOffset={8}
+        className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Mini banner */}
+        <div className="h-16 bg-secondary relative">
+          {metadata?.banner && (
+            <img
+              src={metadata.banner}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          )}
+        </div>
+
+        {/* Profile info */}
+        <div className="px-4 pb-4">
+          {/* Avatar overlapping the banner */}
+          <div className="-mt-8 mb-2">
+            <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
+              <Avatar className="size-16 border-3 border-background">
+                <AvatarImage src={metadata?.picture} alt={displayName} />
+                <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                  {displayName[0]?.toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          </div>
+
+          {/* Name + NIP-05 */}
+          <Link
+            to={profileUrl}
+            className="font-bold text-[15px] hover:underline block truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {displayName}
+          </Link>
+
+          {nip05Display && (
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
+              <span className="truncate">@{nip05Display}</span>
+              {nip05Domain && (
+                <DomainFavicon domain={nip05Domain} size={14} className="shrink-0" />
+              )}
+            </div>
+          )}
+
+          {metadata?.bot && (
+            <span className="text-xs text-primary mt-1 inline-block" title="Bot account">Bot</span>
+          )}
+
+          {/* Bio */}
+          {metadata?.about && (
+            <p className={cn(
+              'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
+              'line-clamp-3',
+            )}>
+              {metadata.about}
+            </p>
+          )}
+        </div>
+      </HoverCardContent>
+    </HoverCard>
+  );
+}

@@ -4,10 +4,12 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { LinkPreview } from '@/components/LinkPreview';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -297,22 +299,24 @@ export function NoteContent({
 
 function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
-  const npub = nip19.npubEncode(pubkey);
   const hasRealName = !!author.data?.metadata?.name;
   const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
 
   return (
-    <Link
-      to={`/${npub}`}
-      className={cn(
-        'font-medium hover:underline',
-        hasRealName
-          ? 'text-primary'
-          : 'text-muted-foreground hover:text-foreground',
-      )}
-      onClick={(e) => e.stopPropagation()}
-    >
-      @{displayName}
-    </Link>
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      <Link
+        to={profileUrl}
+        className={cn(
+          'font-medium hover:underline',
+          hasRealName
+            ? 'text-primary'
+            : 'text-muted-foreground hover:text-foreground',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        @{displayName}
+      </Link>
+    </ProfileHoverCard>
   );
 }

@@ -40,7 +40,9 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { Nip05Badge } from '@/components/Nip05Badge';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { getProfileUrl } from '@/lib/profileUrl';
 
 
 interface PostDetailPageProps {
@@ -345,12 +347,12 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, pubkey);
-  const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
 
   return (
     <div className="flex items-center gap-2.5 pt-1">
       <span className="text-muted-foreground shrink-0 w-14 text-sm">Author</span>
-      <Link to={`/${npub}`} className="flex items-center gap-2 min-w-0 group">
+      <Link to={profileUrl} className="flex items-center gap-2 min-w-0 group">
         {author.isLoading ? (
           <>
             <Skeleton className="size-6 rounded-full shrink-0" />
@@ -368,10 +370,9 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
               {displayName}
             </span>
             {metadata?.nip05 && (
-              <>
-                <span className="truncate text-xs text-muted-foreground hidden sm:inline">@{metadata.nip05}</span>
-                <DomainFavicon domain={metadata.nip05.split('@')[1]} size={12} className="shrink-0 hidden sm:inline" />
-              </>
+              <span className="hidden sm:inline-flex">
+                <Nip05Badge nip05={metadata.nip05} className="text-xs text-muted-foreground" iconSize={12} />
+              </span>
             )}
           </>
         )}
@@ -547,7 +548,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
 
     // Kind detection — mirrors NoteCard
     const isVine = event.kind === 34236;
@@ -606,24 +607,25 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </>
           ) : (
             <>
-              <Link to={`/${npub}`}>
-                <Avatar className="size-11">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {displayName[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link to={profileUrl}>
+                  <Avatar className="size-11">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                      {displayName[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
 
               <div className="flex-1 min-w-0">
-                <Link to={`/${npub}`} className="font-bold text-[15px] hover:underline block truncate">
-                  {displayName}
-                </Link>
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link to={profileUrl} className="font-bold text-[15px] hover:underline block truncate">
+                    {displayName}
+                  </Link>
+                </ProfileHoverCard>
                 {nip05 && (
-                  <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0">
-                    <span className="truncate">@{nip05}</span>
-                    <DomainFavicon domain={nip05.split('@')[1]} size={16} className="shrink-0" />
-                  </div>
+                  <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
                 )}
               </div>
 
@@ -829,9 +831,9 @@ function ParentNote({ eventId }: { eventId: string }) {
   const author = useAuthor(event?.pubkey);
   const metadata = author.data?.metadata;
   const displayName = event ? (metadata?.name || genUserName(event.pubkey)) : '';
-  const npub = useMemo(
-    () => event ? nip19.npubEncode(event.pubkey) : '',
-    [event],
+  const profileUrl = useMemo(
+    () => event ? getProfileUrl(event.pubkey, metadata) : '',
+    [event, metadata],
   );
   const neventId = useMemo(
     () => event ? nip19.neventEncode({ id: event.id, author: event.pubkey }) : '',
@@ -880,7 +882,7 @@ function ParentNote({ eventId }: { eventId: string }) {
             <Skeleton className="size-10 rounded-full shrink-0" />
           ) : (
             <Link
-              to={`/${npub}`}
+              to={profileUrl}
               className="shrink-0"
               onClick={(e) => e.stopPropagation()}
             >
@@ -907,14 +909,13 @@ function ParentNote({ eventId }: { eventId: string }) {
             ) : (
               <>
                 <Link
-                  to={`/${npub}`}
+                  to={profileUrl}
                   className="font-bold text-[15px] hover:underline truncate"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {displayName}
                 </Link>
-                {metadata?.nip05 && <span className="truncate text-sm text-muted-foreground">@{metadata.nip05}</span>}
-                {metadata?.nip05 && <DomainFavicon domain={metadata.nip05.split('@')[1]} size={16} className="shrink-0" />}
+                {metadata?.nip05 && <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />}
                 {metadata?.nip05 && <span className="text-sm text-muted-foreground shrink-0">·</span>}
                 <span className="text-sm text-muted-foreground shrink-0">
                   {timeAgo(event.created_at)}

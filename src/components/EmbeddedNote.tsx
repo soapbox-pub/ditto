@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
@@ -89,7 +91,7 @@ function EmbeddedNoteCard({
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
-  const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
     [event.id, event.pubkey],
@@ -164,26 +166,30 @@ function EmbeddedNoteCard({
             </>
           ) : (
             <>
-              <Link
-                to={`/${npub}`}
-                className="shrink-0"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Avatar className="size-5">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link
+                  to={profileUrl}
+                  className="shrink-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Avatar className="size-5">
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                      {displayName[0]?.toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Link>
+              </ProfileHoverCard>
 
-              <Link
-                to={`/${npub}`}
-                className="text-sm font-semibold truncate hover:underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {displayName}
-              </Link>
+              <ProfileHoverCard pubkey={event.pubkey} asChild>
+                <Link
+                  to={profileUrl}
+                  className="text-sm font-semibold truncate hover:underline"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {displayName}
+                </Link>
+              </ProfileHoverCard>
             </>
           )}
 
@@ -218,22 +224,25 @@ function EmbedContentPreview({ text }: { text: string }) {
 }
 
 /** Inline @mention inside an embedded note preview. */
-function EmbedMention({ pubkey, npub }: { pubkey: string; npub: string }) {
+function EmbedMention({ pubkey }: { pubkey: string; npub: string }) {
   const author = useAuthor(pubkey);
   const hasRealName = !!author.data?.metadata?.name;
   const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
+  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
 
   return (
-    <Link
-      to={`/${npub}`}
-      className={cn(
-        'font-medium hover:underline',
-        hasRealName ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
-      )}
-      onClick={(e) => e.stopPropagation()}
-    >
-      @{displayName}
-    </Link>
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      <Link
+        to={profileUrl}
+        className={cn(
+          'font-medium hover:underline',
+          hasRealName ? 'text-primary' : 'text-muted-foreground hover:text-foreground',
+        )}
+        onClick={(e) => e.stopPropagation()}
+      >
+        @{displayName}
+      </Link>
+    </ProfileHoverCard>
   );
 }
 

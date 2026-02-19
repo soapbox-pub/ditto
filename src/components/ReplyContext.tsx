@@ -1,9 +1,10 @@
 import { Link } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 
 interface ReplyContextProps {
   pubkeys: string[];
@@ -39,18 +40,21 @@ export function ReplyContext({ pubkeys, className }: ReplyContextProps) {
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
+  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {
     return <Skeleton className="h-3.5 w-20 inline-block" />;
   }
 
   return (
-    <Link
-      to={`/${nip19.npubEncode(pubkey)}`}
-      className="text-primary hover:underline"
-      onClick={(e) => e.stopPropagation()}
-    >
-      @{name}
-    </Link>
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      <Link
+        to={profileUrl}
+        className="text-primary hover:underline"
+        onClick={(e) => e.stopPropagation()}
+      >
+        @{name}
+      </Link>
+    </ProfileHoverCard>
   );
 }
