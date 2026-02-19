@@ -444,18 +444,49 @@ export function ComposeBox({
   if (!user && compact) return null;
 
   return (
-    <div className={cn("flex gap-3 px-4 py-3", !forceExpanded && "border-b border-border")}>
-      {!hideAvatar && !compact && (
-        <Avatar className="size-12 shrink-0 mt-0.5">
-          <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-          <AvatarFallback className="bg-primary/20 text-primary text-sm">
-            {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
-          </AvatarFallback>
-        </Avatar>
+    <div className={cn("px-4 py-3", !forceExpanded && "border-b border-border")}>
+      {/* Preview toggle at top when not controlled and has previewable content */}
+      {hasPreviewableContent && controlledPreviewMode === undefined && (
+        <div className="flex items-center justify-end mb-3">
+          <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+            <button
+              onClick={() => setInternalPreviewMode(false)}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                !previewMode 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setInternalPreviewMode(true)}
+              className={cn(
+                "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                previewMode 
+                  ? "bg-background text-foreground shadow-sm" 
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
       )}
 
-      <div className="flex-1 min-w-0">
-        {!previewMode ? (
+      <div className="flex gap-3">
+        {!hideAvatar && !compact && (
+          <Avatar className="size-12 shrink-0 mt-0.5">
+            <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+            <AvatarFallback className="bg-primary/20 text-primary text-sm">
+              {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
+            </AvatarFallback>
+          </Avatar>
+        )}
+
+        <div className="flex-1 min-w-0">
+          {!previewMode ? (
           /* Edit mode - Textarea */
           <textarea
             ref={textareaRef}
@@ -617,36 +648,8 @@ export function ComposeBox({
               </Tooltip>
             </div>
 
-            {/* Center: Preview toggle (only show if not controlled by parent) */}
-            {hasPreviewableContent && controlledPreviewMode === undefined && (
-              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg mx-2">
-                <button
-                  onClick={() => setInternalPreviewMode(false)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
-                    !previewMode 
-                      ? "bg-background text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => setInternalPreviewMode(true)}
-                  className={cn(
-                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
-                    previewMode 
-                      ? "bg-background text-foreground shadow-sm" 
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Preview
-                </button>
-              </div>
-            )}
-
-            {/* Spacer when preview toggle is in modal */}
-            {hasPreviewableContent && controlledPreviewMode !== undefined && <div className="flex-1" />}
+            {/* Spacer */}
+            <div className="flex-1" />
 
             {/* Right: char count + post button */}
             <div className="flex items-center gap-3">
@@ -673,6 +676,7 @@ export function ComposeBox({
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );
