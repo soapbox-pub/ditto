@@ -111,34 +111,56 @@ function formatFullDate(timestamp: number): string {
   });
 }
 
-/** Formats a client tag URL into a human-readable client name. */
-function formatClientName(clientUrl: string | undefined): string | undefined {
-  if (!clientUrl) return undefined;
+/** Formats a client tag (URL, hostname, or plaintext name) into a human-readable client name. */
+function formatClientName(client: string | undefined): string | undefined {
+  if (!client) return undefined;
   
+  // Map known hostnames/URLs to client names
+  const clientMap: Record<string, string> = {
+    'gleasonator.dev': 'Gleasonator',
+    'ditto.pub': 'Ditto',
+    'mew.shakespeare.wtf': 'Mew',
+  };
+  
+  // Check if it's a direct match (hostname or client name)
+  if (clientMap[client]) {
+    return clientMap[client];
+  }
+  
+  // Try parsing as URL
   try {
-    const url = new URL(clientUrl);
+    const url = new URL(client);
     const hostname = url.hostname;
-    
-    // Map known hostnames to client names
-    const clientMap: Record<string, string> = {
-      'gleasonator.dev': 'Gleasonator',
-      'ditto.pub': 'Ditto',
-      'mew.shakespeare.wtf': 'Mew',
-    };
     
     // Check if hostname matches a known client
     if (clientMap[hostname]) {
       return clientMap[hostname];
     }
     
-    // For unknown clients, capitalize the hostname
+    // For unknown URLs, capitalize the hostname
     return hostname
       .split('.')[0] // Get the first part before the dot
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   } catch {
-    return undefined;
+    // Not a URL, treat as plaintext client name or hostname
+    // Check again in case it's a hostname without protocol
+    if (clientMap[client]) {
+      return clientMap[client];
+    }
+    
+    // If it contains a dot, treat as hostname
+    if (client.includes('.')) {
+      return client
+        .split('.')[0]
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+    }
+    
+    // Otherwise, return as-is (already a plaintext client name)
+    return client;
   }
 }
 
