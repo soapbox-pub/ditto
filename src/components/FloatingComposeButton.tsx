@@ -3,12 +3,14 @@ import { Pencil, UserPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import LoginDialog from '@/components/auth/LoginDialog';
+import SignupDialog from '@/components/auth/SignupDialog';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function FloatingComposeButton() {
   const { user } = useCurrentUser();
   const [composeOpen, setComposeOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [signupOpen, setSignupOpen] = useState(false);
 
   if (user) {
     return (
@@ -38,6 +40,14 @@ export function FloatingComposeButton() {
         isOpen={loginOpen}
         onClose={() => setLoginOpen(false)}
         onLogin={() => setLoginOpen(false)}
+        onSignupClick={() => {
+          setLoginOpen(false);
+          setSignupOpen(true);
+        }}
+      />
+      <SignupDialog
+        isOpen={signupOpen}
+        onClose={() => setSignupOpen(false)}
       />
     </>
   );
