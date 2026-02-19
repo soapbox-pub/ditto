@@ -173,26 +173,22 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
   const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
   
-  // Find the person being replied to
-  const replyTo = isTextNote && isReply ? (() => {
-    // First try to find a p tag that's not a mention
-    const directReply = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
-    if (directReply) return directReply;
+  // Find all people being replied to (for "Replying to @user1 and @user2")
+  const replyToPubkeys = useMemo(() => {
+    if (!isTextNote || !isReply) return [];
     
-    // If no direct reply p tag, check if there's a root or reply e tag with a pubkey
-    const rootOrReply = event.tags.find(([name, , , marker]) => 
-      name === 'e' && (marker === 'root' || marker === 'reply')
-    );
-    if (rootOrReply?.[4]) {
-      // Return a p tag format with the pubkey from the e tag
-      return ['p', rootOrReply[4]];
+    // Get all p tags that aren't marked as mentions
+    const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
+    
+    if (pTags.length > 0) {
+      // Remove duplicates and return pubkeys
+      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
     }
     
-    // Fallback: if this is a reply but all p tags are mentions, use the first p tag anyway
-    // This handles cases where clients mark all p tags as mentions
-    const firstP = event.tags.find(([name]) => name === 'p');
-    return firstP;
-  })() : undefined;
+    // Fallback: if all p tags are mentions, use all p tags anyway
+    const allPTags = event.tags.filter(([name]) => name === 'p');
+    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
+  }, [event.tags, isTextNote, isReply]);
 
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
@@ -266,8 +262,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       </div>
 
       {/* Reply context (kind 1 only) — shown above content */}
-      {isReply && replyTo?.[1] && (
-        <ReplyContext pubkey={replyTo[1]} />
+      {isReply && replyToPubkeys.length > 0 && (
+        <ReplyContext pubkeys={replyToPubkeys} />
       )}
 
       {/* Content — kind-based dispatch */}

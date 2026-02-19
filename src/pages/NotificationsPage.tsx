@@ -322,26 +322,22 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
-  // Check if this is a reply and find the person being replied to
+  // Check if this is a reply and find all people being replied to
   const isReply = event.tags.some(([name]) => name === 'e');
-  const replyTo = isReply ? (() => {
-    // First try to find a p tag that's not a mention
-    const directReply = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
-    if (directReply) return directReply;
+  const replyToPubkeys = useMemo(() => {
+    if (!isReply) return [];
     
-    // If no direct reply p tag, check if there's a root or reply e tag with a pubkey
-    const rootOrReply = event.tags.find(([name, , , marker]) => 
-      name === 'e' && (marker === 'root' || marker === 'reply')
-    );
-    if (rootOrReply?.[4]) {
-      // Return a p tag format with the pubkey from the e tag
-      return ['p', rootOrReply[4]];
+    // Get all p tags that aren't marked as mentions
+    const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
+    
+    if (pTags.length > 0) {
+      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
     }
     
-    // Fallback: if this is a reply but all p tags are mentions, use the first p tag anyway
-    const firstP = event.tags.find(([name]) => name === 'p');
-    return firstP;
-  })() : undefined;
+    // Fallback: if all p tags are mentions, use all p tags anyway
+    const allPTags = event.tags.filter(([name]) => name === 'p');
+    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
+  }, [event.tags, isReply]);
 
   const handleNavigate = useCallback(() => {
     navigate(`/${encodedId}`);
@@ -384,8 +380,8 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Reply context */}
-      {isReply && replyTo?.[1] && (
-        <ReplyContext pubkey={replyTo[1]} />
+      {isReply && replyToPubkeys.length > 0 && (
+        <ReplyContext pubkeys={replyToPubkeys} />
       )}
 
       {/* Content */}
@@ -449,9 +445,22 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
-  // Check if this is a reply
+  // Check if this is a reply and find all people being replied to
   const isReply = event.tags.some(([name]) => name === 'e');
-  const replyToPubkey = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention')?.[1];
+  const replyToPubkeys = useMemo(() => {
+    if (!isReply) return [];
+    
+    // Get all p tags that aren't marked as mentions
+    const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
+    
+    if (pTags.length > 0) {
+      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
+    }
+    
+    // Fallback: if all p tags are mentions, use all p tags anyway
+    const allPTags = event.tags.filter(([name]) => name === 'p');
+    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
+  }, [event.tags, isReply]);
 
   const handleNavigate = useCallback(() => {
     navigate(`/${encodedId}`);
@@ -494,8 +503,8 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
       </div>
 
       {/* Reply context */}
-      {isReply && replyToPubkey && (
-        <ReplyContext pubkey={replyToPubkey} />
+      {isReply && replyToPubkeys.length > 0 && (
+        <ReplyContext pubkeys={replyToPubkeys} />
       )}
 
       {/* Content */}

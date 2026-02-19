@@ -77,6 +77,19 @@ type ContentToken =
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
 
+/** Check if a string contains only emojis (and whitespace). */
+function isOnlyEmojis(text: string): boolean {
+  // Remove whitespace
+  const trimmed = text.replace(/\s/g, '');
+  if (trimmed.length === 0) return false;
+  
+  // Emoji regex - matches emoji characters including skin tone modifiers and ZWJ sequences
+  // This is a simplified version - for production you might want a more comprehensive regex
+  const emojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
+  
+  return emojiRegex.test(trimmed) && trimmed.length <= 12; // Max 12 emoji chars for enlarged display
+}
+
 /** Parses content of text note events so that URLs and hashtags are linkified. */
 export function NoteContent({
   event,
@@ -220,8 +233,11 @@ export function NoteContent({
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
   }, [event]);
 
+  // Check if content is only emojis (single text token with only emojis)
+  const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojis(tokens[0].value);
+
   return (
-    <div className={cn('whitespace-pre-wrap break-words', className)}>
+    <div className={cn('whitespace-pre-wrap break-words', isEmojiOnly && 'text-5xl leading-tight', className)}>
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':
