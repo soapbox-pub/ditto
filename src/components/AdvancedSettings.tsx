@@ -14,16 +14,11 @@ export function AdvancedSettings() {
   return (
     <div>
       {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-        <div className="w-40 shrink-0 flex items-center justify-center">
-          <Wrench className="size-20 text-muted-foreground/20" />
-        </div>
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Advanced Settings</h2>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Power user features including wallet connections and network relay management.
-          </p>
-        </div>
+      <div className="px-3 pt-2 pb-4">
+        <h2 className="text-sm font-semibold">Advanced Settings</h2>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Power user features including wallet connections and network relay management.
+        </p>
       </div>
 
       {/* Wallet Section */}
@@ -43,7 +38,7 @@ export function AdvancedSettings() {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="pb-4">
+            <div className="pb-4 pt-4">
               {!user ? (
                 <p className="text-center text-muted-foreground py-8 text-sm px-3">
                   Log in to manage your wallet connections.

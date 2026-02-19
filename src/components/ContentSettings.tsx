@@ -15,18 +15,11 @@ export function ContentSettings() {
   return (
     <div>
       {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-        <img
-          src="/feed-intro.png"
-          alt=""
-          className="w-40 shrink-0 mix-blend-difference opacity-80"
-        />
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">What You See</h2>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Customize your feed, choose what content appears, and control what you want to hide.
-          </p>
-        </div>
+      <div className="px-3 pt-2 pb-4">
+        <h2 className="text-sm font-semibold">What You See</h2>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Customize your feed, choose what content appears, and control what you want to hide.
+        </p>
       </div>
 
       {/* Feed Tabs Section */}
