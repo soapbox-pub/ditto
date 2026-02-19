@@ -40,7 +40,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
-import { Nip05Badge } from '@/components/Nip05Badge';
+import { DomainFavicon } from '@/components/DomainFavicon';
 
 
 interface PostDetailPageProps {
@@ -368,7 +368,10 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
               {displayName}
             </span>
             {metadata?.nip05 && (
-              <Nip05Badge nip05={metadata.nip05} className="text-xs text-muted-foreground hidden sm:inline-flex" iconSize={12} />
+              <>
+                <span className="truncate text-xs text-muted-foreground hidden sm:inline">@{metadata.nip05}</span>
+                <DomainFavicon domain={metadata.nip05.split('@')[1]} size={12} className="shrink-0 hidden sm:inline" />
+              </>
             )}
           </>
         )}
@@ -612,13 +615,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 </Avatar>
               </Link>
 
-              <div className="flex-1 min-w-0 overflow-hidden">
+              <div className="flex-1 min-w-0">
                 <Link to={`/${npub}`} className="font-bold text-[15px] hover:underline block truncate">
                   {displayName}
                 </Link>
                 {nip05 && (
-                  <div className="min-w-0">
-                    <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
+                  <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0">
+                    <span className="truncate">@{nip05}</span>
+                    <DomainFavicon domain={nip05.split('@')[1]} size={16} className="shrink-0" />
                   </div>
                 )}
               </div>
@@ -909,12 +913,9 @@ function ParentNote({ eventId }: { eventId: string }) {
                 >
                   {displayName}
                 </Link>
-                {metadata?.nip05 && (
-                  <>
-                    <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
-                    <span className="text-sm text-muted-foreground shrink-0">·</span>
-                  </>
-                )}
+                {metadata?.nip05 && <span className="truncate text-sm text-muted-foreground">@{metadata.nip05}</span>}
+                {metadata?.nip05 && <DomainFavicon domain={metadata.nip05.split('@')[1]} size={16} className="shrink-0" />}
+                {metadata?.nip05 && <span className="text-sm text-muted-foreground shrink-0">·</span>}
                 <span className="text-sm text-muted-foreground shrink-0">
                   {timeAgo(event.created_at)}
                 </span>
