@@ -27,6 +27,8 @@ export interface EncryptedSettings {
   feedSettings?: FeedSettings;
   /** Advanced content filters */
   contentFilters?: ContentFilter[];
+  /** Timestamp of last viewed notification (Unix timestamp in seconds) */
+  notificationsCursor?: number;
   /** Last sync timestamp */
   lastSync?: number;
 }

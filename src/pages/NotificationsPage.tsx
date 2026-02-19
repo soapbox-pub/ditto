@@ -1,9 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { Repeat2, Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -21,6 +19,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
+import { useNotifications } from '@/hooks/useNotifications';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
@@ -36,30 +35,32 @@ export function NotificationsPage() {
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
-  const { nostr } = useNostr();
+  const { notifications, newNotifications, isLoading, markAsRead } = useNotifications();
 
-  const { data: notifications, isLoading } = useQuery<NostrEvent[]>({
-    queryKey: ['notifications', user?.pubkey ?? ''],
-    queryFn: async ({ signal }) => {
-      if (!user) return [];
-      const events = await nostr.query(
-        [{ kinds: [1, 6, 7, 9735], '#p': [user.pubkey], limit: 50 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-      return events
-        .filter((e) => e.pubkey !== user.pubkey)
-        .sort((a, b) => b.created_at - a.created_at);
-    },
-    enabled: !!user,
-  });
+  // Mark notifications as read when user visits the page
+  useEffect(() => {
+    if (!user || notifications.length === 0) return;
+
+    // Mark as read after a short delay to ensure user actually sees them
+    const timer = setTimeout(() => {
+      markAsRead();
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [user, notifications.length, markAsRead]);
 
   const filteredNotifications = useMemo(() => {
-    if (!notifications) return [];
     if (activeTab === 'mentions') {
       return notifications.filter((e) => e.kind === 1);
     }
     return notifications;
   }, [notifications, activeTab]);
+
+  // Create a set of new notification IDs for quick lookup
+  const newNotificationIds = useMemo(
+    () => new Set(newNotifications.map((e) => e.id)),
+    [newNotifications]
+  );
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -102,7 +103,11 @@ export function NotificationsPage() {
         ) : filteredNotifications.length > 0 ? (
           <div className="divide-y divide-border">
             {filteredNotifications.map((event) => (
-              <NotificationItem key={event.id} event={event} />
+              <NotificationItem
+                key={event.id}
+                event={event}
+                isNew={newNotificationIds.has(event.id)}
+              />
             ))}
           </div>
         ) : (
@@ -116,16 +121,16 @@ export function NotificationsPage() {
 }
 
 /** Determines the type of notification and renders accordingly. */
-function NotificationItem({ event }: { event: NostrEvent }) {
+function NotificationItem({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
   switch (event.kind) {
     case 7:
-      return <LikeNotification event={event} />;
+      return <LikeNotification event={event} isNew={isNew} />;
     case 6:
-      return <RepostNotification event={event} />;
+      return <RepostNotification event={event} isNew={isNew} />;
     case 9735:
-      return <ZapNotification event={event} />;
+      return <ZapNotification event={event} isNew={isNew} />;
     case 1:
-      return <MentionNotification event={event} />;
+      return <MentionNotification event={event} isNew={isNew} />;
     default:
       return null;
   }
@@ -155,7 +160,7 @@ function formatSats(sats: number): string {
 // Like Notification: "{emoji} {name} reacted to your post"
 // Shows the original post being reacted to
 // ──────────────────────────────────────
-function LikeNotification({ event }: { event: NostrEvent }) {
+function LikeNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
@@ -165,7 +170,10 @@ function LikeNotification({ event }: { event: NostrEvent }) {
   const emoji = content === '+' || content === '' ? '👍' : content;
 
   return (
-    <div className="px-4 pt-3 pb-1">
+    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
+      {isNew && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+      )}
       <NotificationHeader
         actorPubkey={event.pubkey}
         icon={<span className="text-base leading-none size-4 flex items-center justify-center">{emoji}</span>}
@@ -182,12 +190,15 @@ function LikeNotification({ event }: { event: NostrEvent }) {
 // Repost Notification: "🔁 {name} reposted your note"
 // Shows the original post being reposted
 // ──────────────────────────────────────
-function RepostNotification({ event }: { event: NostrEvent }) {
+function RepostNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
   return (
-    <div className="px-4 pt-3 pb-1">
+    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
+      {isNew && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+      )}
       <NotificationHeader
         actorPubkey={event.pubkey}
         icon={<Repeat2 className="size-4 text-green-500" />}
@@ -204,7 +215,7 @@ function RepostNotification({ event }: { event: NostrEvent }) {
 // Zap Notification: "⚡ {name} zapped you"
 // Shows the original post being zapped
 // ──────────────────────────────────────
-function ZapNotification({ event }: { event: NostrEvent }) {
+function ZapNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
@@ -246,7 +257,10 @@ function ZapNotification({ event }: { event: NostrEvent }) {
   const amountLabel = zapAmount > 0 ? ` ${formatSats(zapAmount)} sats` : '';
 
   return (
-    <div className="px-4 pt-3 pb-1">
+    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
+      {isNew && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+      )}
       <NotificationHeader
         actorPubkey={senderPubkey}
         icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
@@ -263,9 +277,12 @@ function ZapNotification({ event }: { event: NostrEvent }) {
 // Mention Notification: "@ {name} mentioned you"
 // Shows the full mention post with action buttons
 // ──────────────────────────────────────
-function MentionNotification({ event }: { event: NostrEvent }) {
+function MentionNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
   return (
-    <div className="px-4 pt-3 pb-1">
+    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
+      {isNew && (
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+      )}
       <NotificationHeader
         actorPubkey={event.pubkey}
         icon={<AtSign className="size-4 text-primary" />}

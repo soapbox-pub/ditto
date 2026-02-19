@@ -15,6 +15,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useNotifications } from '@/hooks/useNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -25,19 +26,23 @@ interface NavItemProps {
   icon: React.ReactNode;
   label: string;
   active?: boolean;
+  showIndicator?: boolean;
 }
 
-function NavItem({ to, icon, label, active }: NavItemProps) {
+function NavItem({ to, icon, label, active, showIndicator }: NavItemProps) {
   return (
     <Link
       to={to}
       className={cn(
-        'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60',
+        'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
         active ? 'font-bold' : 'font-normal text-muted-foreground',
       )}
     >
       {icon}
       <span>{label}</span>
+      {showIndicator && (
+        <span className="absolute right-4 size-2 bg-primary rounded-full" />
+      )}
     </Link>
   );
 }
@@ -50,6 +55,7 @@ export function LeftSidebar() {
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
+  const { hasUnread } = useNotifications();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
@@ -138,6 +144,7 @@ export function LeftSidebar() {
             icon={item.icon}
             label={item.label}
             active={location.pathname === item.to}
+            showIndicator={item.to === '/notifications' && hasUnread}
           />
         ))}
 
