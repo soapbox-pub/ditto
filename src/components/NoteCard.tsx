@@ -216,11 +216,6 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
       )}
 
-      {/* Reply context (kind 1 only) */}
-      {isReply && replyTo?.[1] && (
-        <ReplyContext pubkey={replyTo[1]} />
-      )}
-
       {/* Header: avatar + name/handle stacked */}
       <div className="flex items-center gap-3">
         {author.isLoading ? (
@@ -268,6 +263,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           </>
         )}
       </div>
+
+      {/* Reply context (kind 1 only) — shown above content */}
+      {isReply && replyTo?.[1] && !repostedBy && (
+        <ReplyContext pubkey={replyTo[1]} />
+      )}
 
       {/* Content — kind-based dispatch */}
       {isVine ? (
@@ -513,12 +513,12 @@ function ReplyContext({ pubkey }: { pubkey: string }) {
   const name = author.data?.metadata?.name || genUserName(pubkey);
 
   return (
-    <div className="flex items-center text-sm text-muted-foreground mb-1 ml-14">
+    <div className="flex items-center text-sm text-muted-foreground mt-2 mb-1">
       <span className="mr-1">Replying to</span>
       {author.isLoading ? (
         <Skeleton className="h-3.5 w-20 inline-block" />
       ) : (
-        <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline">
+        <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
           @{name}
         </Link>
       )}
