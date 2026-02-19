@@ -10,12 +10,14 @@ interface DomainFaviconProps {
 }
 
 /**
- * Fetches the HTML of a domain and parses for favicon link tags.
+ * Fetches the HTML of a domain via CORS proxy and parses for favicon link tags.
  * Returns the discovered favicon URL or null if not found.
  */
 async function discoverFavicon(origin: string): Promise<string | null> {
   try {
-    const response = await fetch(origin, { 
+    // Use CORS proxy to fetch the HTML
+    const proxyUrl = `https://proxy.shakespeare.diy/?url=${encodeURIComponent(origin)}`;
+    const response = await fetch(proxyUrl, { 
       method: 'GET',
       headers: { 'Accept': 'text/html' }
     });
@@ -53,11 +55,12 @@ async function discoverFavicon(origin: string): Promise<string | null> {
 
 /**
  * Displays a favicon for a domain or URL.
- * Intelligently discovers favicons by parsing HTML link tags, then falls back to common paths.
+ * Strategy: Scrape HTML for favicon → try common paths → fallback to Google → hide if all fail
  */
 export function DomainFavicon({ domain, size = 16, className }: DomainFaviconProps) {
   const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
   const [fallbackIndex, setFallbackIndex] = useState(0);
+  const [triedGoogle, setTriedGoogle] = useState(false);
   const [failed, setFailed] = useState(false);
 
   // Get origin from domain
@@ -72,16 +75,21 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     }
   }, [domain]);
 
-  // Fallback URLs to try if discovery fails
-  const fallbackUrls = useMemo(() => {
+  // Direct favicon URLs to try (svg, ico, png)
+  const directUrls = useMemo(() => {
     if (!origin) return [];
-    const domain = origin.replace(/^https?:\/\//, '');
     return [
       `${origin}/favicon.svg`,
       `${origin}/favicon.ico`,
       `${origin}/favicon.png`,
-      `https://www.google.com/s2/favicons?domain=${domain}&sz=32`,
     ];
+  }, [origin]);
+
+  // Google fallback URL
+  const googleUrl = useMemo(() => {
+    if (!origin) return null;
+    const domainOnly = origin.replace(/^https?:\/\//, '');
+    return `https://www.google.com/s2/favicons?domain=${domainOnly}&sz=32`;
   }, [origin]);
 
   // Discover favicon from HTML on mount
@@ -93,13 +101,15 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
 
     let mounted = true;
 
+    // Try to discover favicon from HTML
     discoverFavicon(origin).then((url) => {
       if (mounted) {
         if (url) {
+          // Found favicon in HTML, use it
           setFaviconUrl(url);
         } else {
-          // No favicon discovered, try fallbacks
-          setFaviconUrl(fallbackUrls[0] || null);
+          // No favicon in HTML, start with first direct URL
+          setFaviconUrl(directUrls[0] || null);
         }
       }
     });
@@ -107,14 +117,19 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     return () => {
       mounted = false;
     };
-  }, [origin, fallbackUrls]);
+  }, [origin, directUrls]);
 
   const handleError = () => {
-    // If current URL failed, try next fallback
-    if (fallbackIndex < fallbackUrls.length - 1) {
+    // If we haven't tried all direct URLs yet
+    if (fallbackIndex < directUrls.length - 1) {
       setFallbackIndex(fallbackIndex + 1);
-      setFaviconUrl(fallbackUrls[fallbackIndex + 1]);
+      setFaviconUrl(directUrls[fallbackIndex + 1]);
+    } else if (!triedGoogle && googleUrl) {
+      // All direct URLs failed, try Google
+      setTriedGoogle(true);
+      setFaviconUrl(googleUrl);
     } else {
+      // Even Google failed, hide the favicon
       setFailed(true);
     }
   };
