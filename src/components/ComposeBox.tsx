@@ -132,6 +132,37 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       }
     }
 
+    // Detect raw NIP-19 identifiers (without nostr: prefix)
+    const rawNip19Matches = content.matchAll(/\b(nevent1|note1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+\b/g);
+    for (const match of rawNip19Matches) {
+      const bech32 = match[0];
+      // Skip if it's already prefixed with nostr: (already handled above)
+      const beforeIndex = match.index! - 6;
+      const before = content.substring(Math.max(0, beforeIndex), match.index);
+      if (before.endsWith('nostr:')) continue;
+      
+      try {
+        const decoded = nip19.decode(bech32);
+        if (decoded.type === 'nevent') {
+          embeds.push({ type: 'nevent', value: match[0], eventId: decoded.data.id });
+        } else if (decoded.type === 'note') {
+          embeds.push({ type: 'note', value: match[0], eventId: decoded.data });
+        } else if (decoded.type === 'naddr') {
+          embeds.push({ 
+            type: 'naddr', 
+            value: match[0], 
+            addr: { 
+              kind: decoded.data.kind, 
+              pubkey: decoded.data.pubkey, 
+              identifier: decoded.data.identifier 
+            } 
+          });
+        }
+      } catch {
+        // Invalid bech32, skip
+      }
+    }
+
     // Detect regular URLs (but not image/video URLs)
     const urlMatches = content.matchAll(/https?:\/\/[^\s]+/g);
     for (const match of urlMatches) {
