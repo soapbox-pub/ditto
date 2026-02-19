@@ -235,7 +235,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
               </Avatar>
             </Link>
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5">
                 <Link
                   to={`/${npub}`}
@@ -248,8 +248,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                   <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                {nip05 && <Nip05Badge nip05={nip05} />}
+              <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-hidden">
+                {nip05 && <span className="truncate">@{nip05}</span>}
                 {nip05 && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline">
                   {timeAgo(event.created_at)}
@@ -461,20 +461,20 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   const name = author.data?.metadata?.name || genUserName(pubkey);
 
   return (
-    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14">
-      <Repeat2 className="size-3.5 mr-1.5" />
+    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
+      <Repeat2 className="size-3.5 mr-1.5 shrink-0" />
       {author.isLoading ? (
         <Skeleton className="h-3 w-20 inline-block" />
       ) : (
         <Link
           to={`/${nip19.npubEncode(pubkey)}`}
-          className="font-medium hover:underline mr-1"
+          className="font-medium hover:underline mr-1 truncate"
           onClick={(e) => e.stopPropagation()}
         >
           {name}
         </Link>
       )}
-      <span className={author.isLoading ? 'ml-1' : ''}>reposted</span>
+      <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
     </div>
   );
 }
@@ -484,20 +484,20 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
   const name = author.data?.metadata?.name || genUserName(pubkey);
 
   return (
-    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14">
-      <ChestIcon className="size-3.5 mr-1.5" />
+    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
+      <ChestIcon className="size-3.5 mr-1.5 shrink-0" />
       {author.isLoading ? (
         <Skeleton className="h-3 w-20 inline-block" />
       ) : (
         <Link
           to={`/${nip19.npubEncode(pubkey)}`}
-          className="font-medium hover:underline mr-1"
+          className="font-medium hover:underline mr-1 truncate"
           onClick={(e) => e.stopPropagation()}
         >
           {name}
         </Link>
       )}
-      <span className={author.isLoading ? 'ml-1' : ''}>
+      <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
         {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
       </span>
     </div>
