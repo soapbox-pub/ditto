@@ -30,6 +30,19 @@ export function Feed() {
     return stored !== null ? stored === 'true' : false;
   })();
 
+  const communityLabel = (() => {
+    try {
+      const stored = localStorage.getItem('mew:community');
+      if (stored) {
+        const community = JSON.parse(stored);
+        return community.label || 'Community';
+      }
+    } catch {
+      // Fall through
+    }
+    return 'Community';
+  })();
+
   const [activeTab, setActiveTab] = useState<'follows' | 'global' | 'communities'>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
@@ -139,7 +152,7 @@ export function Feed() {
           )}
           {showCommunityFeed && (
             <TabButton
-              label="Community"
+              label={communityLabel}
               active={activeTab === 'communities'}
               onClick={() => setActiveTab('communities')}
             />

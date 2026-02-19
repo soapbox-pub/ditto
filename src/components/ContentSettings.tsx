@@ -285,7 +285,7 @@ function FeedTabsSection() {
   const { toast } = useToast();
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
-  const [community, setCommunity] = useState<{ domain: string; userCount: number } | null>(() => {
+  const [community, setCommunity] = useState<{ domain: string; userCount: number; label: string } | null>(() => {
     const stored = localStorage.getItem('mew:community');
     return stored ? JSON.parse(stored) : null;
   });
@@ -356,17 +356,27 @@ function FeedTabsSection() {
 
       const userCount = Object.keys(data.names).length;
 
+      // Extract label from domain (hostname without TLD)
+      // ditto.pub -> Ditto, spinster.xyz -> Spinster, etc.
+      const domainParts = domain.split('.');
+      const hostname = domainParts[0]; // Get first part
+      const label = hostname.charAt(0).toUpperCase() + hostname.slice(1); // Capitalize
+
       // Store in localStorage (single community only)
-      const newCommunity = { domain, userCount };
+      const newCommunity = { domain, userCount, label };
       setCommunity(newCommunity);
       localStorage.setItem('mew:community', JSON.stringify(newCommunity));
       
       // Store the actual JSON data for later use
       localStorage.setItem('mew:communityData', JSON.stringify(data));
 
+      // Auto-enable the Community feed tab
+      setShowCommunityFeed(true);
+      localStorage.setItem('mew:showCommunityFeed', 'true');
+
       toast({
         title: 'Community set',
-        description: `${domain} with ${userCount} users`,
+        description: `${label} with ${userCount} users`,
       });
 
       setCommunityDomain('');
@@ -386,6 +396,10 @@ function FeedTabsSection() {
     setCommunity(null);
     localStorage.removeItem('mew:community');
     localStorage.removeItem('mew:communityData');
+    
+    // Also disable the community feed tab
+    setShowCommunityFeed(false);
+    localStorage.setItem('mew:showCommunityFeed', 'false');
     
     toast({
       title: 'Community removed',
@@ -430,7 +444,7 @@ function FeedTabsSection() {
             <Label className="text-sm font-medium">Community Feed</Label>
             <p className="text-xs text-muted-foreground">
               {community 
-                ? `Show posts from ${community.domain}`
+                ? `Show "${community.label}" tab for ${community.domain} users`
                 : 'Set a community below to enable this feed'}
             </p>
           </div>
@@ -486,9 +500,9 @@ function FeedTabsSection() {
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Users className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="min-w-0">
-                <p className="text-sm font-medium truncate">{community.domain}</p>
-                <p className="text-xs text-muted-foreground">
-                  {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                <p className="text-sm font-medium truncate">{community.label}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {community.domain} • {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
                 </p>
               </div>
             </div>
