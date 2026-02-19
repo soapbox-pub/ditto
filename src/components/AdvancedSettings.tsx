@@ -148,7 +148,7 @@ export function AdvancedSettings() {
                   )}
                   <div className="text-xs text-muted-foreground mt-2">
                     <span className="font-medium">Default: </span>
-                    <span className="font-mono">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
+                    <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
                   </div>
                 </div>
               </div>
