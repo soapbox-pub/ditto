@@ -470,20 +470,24 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
-    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
-      <Repeat2 className="size-3.5 mr-1.5 shrink-0" />
-      {author.isLoading ? (
-        <Skeleton className="h-3 w-20 inline-block" />
-      ) : (
-        <Link
-          to={url}
-          className="font-medium hover:underline mr-1 truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {name}
-        </Link>
-      )}
-      <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
+      <div className="size-11 shrink-0 flex items-center justify-end">
+        <Repeat2 className="size-3.5" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
+      </div>
     </div>
   );
 }
@@ -494,22 +498,26 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
   const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
-    <div className="flex items-center text-xs text-muted-foreground mb-1 ml-14 min-w-0">
-      <ChestIcon className="size-3.5 mr-1.5 shrink-0" />
-      {author.isLoading ? (
-        <Skeleton className="h-3 w-20 inline-block" />
-      ) : (
-        <Link
-          to={url}
-          className="font-medium hover:underline mr-1 truncate"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {name}
-        </Link>
-      )}
-      <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
-        {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
-      </span>
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
+      <div className="size-11 shrink-0 flex items-center justify-end">
+        <ChestIcon className="size-3.5" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
+          {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
+        </span>
+      </div>
     </div>
   );
 }
