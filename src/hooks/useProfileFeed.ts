@@ -9,9 +9,13 @@ const PAGE_SIZE = 20;
 
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 
-/** Check if content contains media URLs. */
-function hasMedia(content: string): boolean {
-  return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(content);
+/** Kinds that are inherently media (video/image) content. */
+const MEDIA_KINDS = new Set([34236]); // vines
+
+/** Check if a feed item contains media (URLs in content or media-native kinds like vines). */
+function hasMedia(item: FeedItem): boolean {
+  if (MEDIA_KINDS.has(item.event.kind)) return true;
+  return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(item.event.content);
 }
 
 /** Filter feed items by the active tab. */
@@ -28,7 +32,7 @@ function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
     case 'replies':
       return items;
     case 'media':
-      return items.filter((item) => hasMedia(item.event.content));
+      return items.filter((item) => hasMedia(item));
     default:
       return items;
   }
