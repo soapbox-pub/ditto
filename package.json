@@ -13,6 +13,7 @@
   "dependencies": {
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.1.0",
+    "@capacitor/local-notifications": "^8.0.1",
     "@capacitor/status-bar": "^8.0.0",
     "@fontsource-variable/inter": "^5.2.6",
     "@getalby/sdk": "^5.1.1",
