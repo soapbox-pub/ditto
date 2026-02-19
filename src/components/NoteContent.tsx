@@ -72,6 +72,7 @@ function extractNaddrFromUrl(url: string): AddrCoords | null {
 type ContentToken =
   | { type: 'text'; value: string }
   | { type: 'link-preview'; url: string }
+  | { type: 'inline-link'; url: string }
   | { type: 'youtube-embed'; videoId: string }
   | { type: 'mention'; pubkey: string }
   | { type: 'nevent-embed'; eventId: string }
@@ -131,25 +132,53 @@ export function NoteContent({
             // The punctuation will be part of the next text token
           }
         }
-        // Skip media URLs — rendered as embedded previews by the parent
+        // Skip media URLs — rendered as embedded media by the parent.
+        // Trim trailing whitespace from the preceding text token so that
+        // the removed URL doesn't leave blank lines under pre-wrap.
         if (MEDIA_URL_REGEX.test(url)) {
+          if (result.length > 0) {
+            const prev = result[result.length - 1];
+            if (prev.type === 'text') {
+              prev.value = prev.value.replace(/\s+$/, '');
+            }
+          }
           lastIndex = index + fullMatch.length;
+          // Also strip leading whitespace that follows the skipped URL
+          const remaining = text.substring(lastIndex);
+          const leadingWs = remaining.match(/^\s+/);
+          if (leadingWs) {
+            lastIndex += leadingWs[0].length;
+          }
           continue;
         }
+
+        // Determine if this URL stands alone on its own line (not mid-sentence).
+        // A URL is "standalone" when it's only preceded/followed by whitespace
+        // (or start/end of string) on the same line.
+        const textBefore = text.substring(lastIndex, index);
+        const lastNewline = textBefore.lastIndexOf('\n');
+        const linePrefix = lastNewline === -1 ? textBefore : textBefore.substring(lastNewline + 1);
+        const afterUrl = text.substring(index + fullMatch.length);
+        const nextNewline = afterUrl.indexOf('\n');
+        const lineSuffix = nextNewline === -1 ? afterUrl : afterUrl.substring(0, nextNewline);
+        const isStandalone = linePrefix.trim() === '' && lineSuffix.trim() === '';
 
         // Check if the URL contains an naddr1 identifier → embed as Nostr event + preserve link
         const naddrFromUrl = extractNaddrFromUrl(url);
         if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
-        } else {
+        } else if (isStandalone) {
           // YouTube → playable embed
           const ytId = extractYouTubeId(url);
           if (ytId) {
             result.push({ type: 'youtube-embed', videoId: ytId });
           } else {
-            // Other non-media URL → link preview card
+            // Standalone URL → link preview card
             result.push({ type: 'link-preview', url });
           }
+        } else {
+          // Inline URL mid-sentence → plain clickable link
+          result.push({ type: 'inline-link', url });
         }
       } else if ((nostrPrefix && nostrData) || (barePrefix && bareData)) {
         // Handle both nostr:-prefixed and bare NIP-19 identifiers
@@ -200,20 +229,20 @@ export function NoteContent({
         || token.type === 'naddr-embed';
 
       if (isBlock) {
-        // Trim trailing whitespace from the preceding text token (before the block)
+        // Strip all trailing whitespace from the preceding text token.
+        // The block's own margin (my-2.5) handles spacing, so preserved
+        // newlines just add redundant blank lines under whitespace-pre-wrap.
         if (i > 0) {
           const prev = result[i - 1];
           if (prev.type === 'text') {
-            // Collapse multiple trailing newlines to max 2, trim trailing spaces
-            prev.value = prev.value.replace(/[ \t]+$/gm, '').replace(/\n{3,}$/, '\n\n');
+            prev.value = prev.value.replace(/\s+$/, '');
           }
         }
-        // After the block, collapse multiple leading newlines but preserve one if present
+        // Strip all leading whitespace from the following text token.
         if (i < result.length - 1) {
           const next = result[i + 1];
           if (next.type === 'text') {
-            // Collapse multiple leading newlines to max 2, trim leading spaces on each line
-            next.value = next.value.replace(/^[ \t]+/gm, '').replace(/^\n{3,}/, '\n\n');
+            next.value = next.value.replace(/^\s+/, '');
           }
         }
       }
@@ -246,6 +275,19 @@ export function NoteContent({
             return <span key={i}>{token.value}</span>;
           case 'link-preview':
             return <LinkPreview key={i} url={token.url} className="my-2.5" />;
+          case 'inline-link':
+            return (
+              <a
+                key={i}
+                href={token.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline break-all"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {token.url}
+              </a>
+            );
           case 'youtube-embed':
             return <YouTubeEmbed key={i} videoId={token.videoId} className="my-2.5" />;
           case 'nevent-embed':
