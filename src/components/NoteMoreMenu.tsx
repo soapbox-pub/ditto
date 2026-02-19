@@ -10,6 +10,7 @@ import {
   Flag,
   Pin,
   FileJson,
+  FileDigit,
 } from 'lucide-react';
 import {
   Dialog,
@@ -171,7 +172,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             onClick={handleCopyLink}
           />
           <MenuItem
-            icon={<ClipboardCopy className="size-5" />}
+            icon={<FileDigit className="size-5" />}
             label="Copy Event ID"
             onClick={handleCopyEventId}
           />
