@@ -1,4 +1,4 @@
-import { MapPin, Mountain, Puzzle, Package, Eye, EyeOff } from 'lucide-react';
+import { MapPin, Mountain, Brain, Package, Eye, EyeOff } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -59,7 +59,6 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
   const cacheType = getTag(event.tags, 't') ?? 'traditional';
   const hint = getTag(event.tags, 'hint');
   const images = getAllTags(event.tags, 'image');
-  const hasVerification = !!getTag(event.tags, 'verification');
   const description = event.content;
 
   const [hintRevealed, setHintRevealed] = useState(false);
@@ -77,7 +76,7 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Badges row: type, size, verified */}
+      {/* Badges row: type, size */}
       <div className="flex flex-wrap gap-1.5 mb-3">
         <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
           {TYPE_LABELS[cacheType] ?? cacheType}
@@ -86,17 +85,12 @@ export function GeocacheContent({ event }: { event: NostrEvent }) {
           <Package className="size-3" />
           {SIZE_LABELS[size] ?? size}
         </Badge>
-        {hasVerification && (
-          <Badge variant="secondary" className="text-[11px] gap-1 font-medium text-green-600 dark:text-green-400">
-            Verified
-          </Badge>
-        )}
       </div>
 
       {/* D/T ratings */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="flex items-center gap-4 mb-3">
         <div className="flex items-center gap-2">
-          <Puzzle className="size-3.5 text-muted-foreground shrink-0" />
+          <Brain className="size-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs text-muted-foreground shrink-0">D</span>
           <DifficultyPips value={difficulty} />
           <span className="text-xs font-medium tabular-nums">{difficulty}</span>
