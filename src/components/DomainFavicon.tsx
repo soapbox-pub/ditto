@@ -119,6 +119,21 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
     };
   }, [origin, directUrls]);
 
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    
+    // If this is Google's service, check if it returned the default placeholder
+    if (faviconUrl?.includes('google.com/s2/favicons')) {
+      // Google's default placeholder is exactly 16x16 gray globe
+      // Real favicons from Google are usually larger or have different aspect ratios
+      if (img.naturalWidth === 16 && img.naturalHeight === 16) {
+        // This is likely the default globe - reject it
+        setFailed(true);
+        return;
+      }
+    }
+  };
+
   const handleError = () => {
     // If we haven't tried all direct URLs yet
     if (fallbackIndex < directUrls.length - 1) {
@@ -145,6 +160,7 @@ export function DomainFavicon({ domain, size = 16, className }: DomainFaviconPro
       className={cn('shrink-0', className)}
       style={{ width: size, height: size }}
       loading="lazy"
+      onLoad={handleLoad}
       onError={handleError}
     />
   );
