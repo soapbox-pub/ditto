@@ -62,7 +62,7 @@ export function SearchPage() {
   const [language, setLanguage] = useState('global');
 
   // Hooks
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType });
+  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);

@@ -7,43 +7,22 @@ import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 interface StreamPostsOptions {
   includeReplies: boolean;
   mediaType: 'all' | 'images' | 'videos' | 'vines' | 'none';
-}
-
-/** Check if an event has imeta tags with image MIME types. */
-function hasImageImeta(event: NostrEvent): boolean {
-  return event.tags.some(
-    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('image/')),
-  );
-}
-
-/** Check if an event has imeta tags with video MIME types. */
-function hasVideoImeta(event: NostrEvent): boolean {
-  return event.tags.some(
-    (tag) => tag[0] === 'imeta' && tag.slice(1).some((part) => part.startsWith('m ') && part.split(' ')[1]?.startsWith('video/')),
-  );
+  language?: string;
 }
 
 function filterEvent(event: NostrEvent, options: StreamPostsOptions): boolean {
   const now = Math.floor(Date.now() / 1000);
   if (event.created_at > now) return false;
 
-  // Non-kind-1 events (extra kinds) pass through — media filters only apply to kind 1
+  // Non-kind-1 events (extra kinds) pass through
   if (event.kind !== 1) return true;
 
   if (!options.includeReplies) {
     if (event.tags.some(([name]) => name === 'e')) return false;
   }
 
-  if (options.mediaType !== 'all') {
-    const hasImages = hasImageImeta(event);
-    const hasVideos = hasVideoImeta(event);
-    switch (options.mediaType) {
-      case 'images': return hasImages;
-      case 'videos': return hasVideos;
-      case 'vines': return false; // kind 1 posts aren't vines
-      case 'none': return !hasImages && !hasVideos;
-    }
-  }
+  // Media and language filtering is now handled by relay-level filters
+  // using NIP-50 search extensions (media:, video:, language:)
 
   return true;
 }
@@ -102,8 +81,34 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
 
     const baseFilter: NostrFilter = { kinds };
 
+    // Build NIP-50 search query with extensions
+    const searchParts: string[] = [];
+    
     if (query.trim()) {
-      baseFilter.search = query.trim();
+      searchParts.push(query.trim());
+    }
+
+    // Add language filter (NIP-50 extension supported by Ditto)
+    if (options.language && options.language !== 'global') {
+      searchParts.push(`language:${options.language}`);
+    }
+
+    // Add media filter (NIP-50 extension supported by Ditto)
+    // Only apply to non-vines queries (kind 1)
+    if (!isVines) {
+      if (options.mediaType === 'images') {
+        searchParts.push('media:true');
+        searchParts.push('video:false');
+      } else if (options.mediaType === 'videos') {
+        searchParts.push('video:true');
+      } else if (options.mediaType === 'none') {
+        searchParts.push('media:false');
+      }
+      // 'all' means no media filter
+    }
+
+    if (searchParts.length > 0) {
+      baseFilter.search = searchParts.join(' ');
     }
 
     // 1. Fetch initial batch (uses pool, reuses existing connections)
@@ -146,7 +151,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines, extraKindsKey]);
+  }, [nostr, query, isVines, extraKindsKey, options.language, options.mediaType]);
 
   // Apply client-side filters without restarting the stream
   const posts = useMemo(() => {
