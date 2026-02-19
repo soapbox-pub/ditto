@@ -1,7 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
-import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { useAppContext } from '@/hooks/useAppContext';
 
 /** The sole relay used for trend data. */
@@ -258,41 +257,71 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
 /** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
-  const nip85Stats = useNip85EventStats(eventId);
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery({
-    queryKey: ['event-stats', eventId ?? '', nip85Stats.data],
+    queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
       if (!eventId) return EMPTY_STATS;
 
-      // Try NIP-85 stats first - if available, use smaller limits
-      const hasNip85Stats = !!nip85Stats.data;
-      const interactionLimit = hasNip85Stats ? 10 : 50;
-      const quoteLimit = hasNip85Stats ? 5 : 20;
+      // Try NIP-85 first with aggressive timeout (500ms)
+      let nip85Stats: NostrEvent[] = [];
+      if (statsPubkey) {
+        try {
+          nip85Stats = await nostr.query(
+            [{
+              kinds: [30383],
+              authors: [statsPubkey],
+              '#d': [eventId],
+              limit: 1,
+            }],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
+          );
+        } catch {
+          // NIP-85 failed or timed out, continue to manual calculation
+        }
+      }
 
+      // If we have NIP-85 stats, we can skip most of the manual queries
+      const hasNip85 = nip85Stats.length > 0;
+      
       const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
-      // Single query with two filter objects — relay handles as OR
+      // Fetch only what we need:
+      // - If we have NIP-85: just emojis, quotes, and zap amounts (small query)
+      // - If no NIP-85: full stats (larger query)
       const events = await nostr.query(
-        [
-          { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: interactionLimit },
-          { kinds: [1], '#q': [eventId], limit: quoteLimit },
-        ],
+        hasNip85
+          ? [
+              { kinds: [7, 9735], '#e': [eventId], limit: 10 }, // Just for emojis and zap amounts
+              { kinds: [1], '#q': [eventId], limit: 5 }, // Just for quote content
+            ]
+          : [
+              { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
+              { kinds: [1], '#q': [eventId], limit: 20 },
+            ],
         { signal: combined },
       );
 
       const computed = computeStats(eventId, events);
 
-      // If we have NIP-85 stats, use those counts but keep the computed emojis and quotes
-      if (nip85Stats.data) {
+      // If we have NIP-85 stats, merge with minimal computed data
+      if (hasNip85) {
+        const event = nip85Stats[0];
+        const getTagValue = (tagName: string): number => {
+          const tag = event.tags.find(([name]) => name === tagName);
+          return tag?.[1] ? parseInt(tag[1], 10) : 0;
+        };
+
         return {
-          replies: nip85Stats.data.commentCount,
-          reposts: nip85Stats.data.repostCount,
-          quotes: computed.quotes, // Keep computed quotes since we fetched them
-          reactions: nip85Stats.data.reactionCount,
-          zapAmount: computed.zapAmount, // NIP-85 doesn't include zap amounts, keep computed
-          zapCount: nip85Stats.data.zapCount,
-          reactionEmojis: computed.reactionEmojis, // Keep computed emojis
+          replies: getTagValue('comment_cnt'),
+          reposts: getTagValue('repost_cnt'),
+          quotes: computed.quotes,
+          reactions: getTagValue('reaction_cnt'),
+          zapAmount: computed.zapAmount,
+          zapCount: getTagValue('zap_cnt'),
+          reactionEmojis: computed.reactionEmojis,
         };
       }
 
@@ -400,16 +429,11 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
     queryFn: async ({ signal }) => {
       if (uniqueIds.length === 0) return new Map();
 
-      const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
-
-      // Try to fetch NIP-85 stats for all events in parallel
+      // Try NIP-85 first with aggressive timeout (500ms)
       const nip85StatsMap = new Map<string, { commentCount: number; repostCount: number; reactionCount: number; zapCount: number }>();
       
       if (statsPubkey) {
         try {
-          const nip85Timeout = AbortSignal.timeout(2000);
-          const nip85Combined = AbortSignal.any([signal, nip85Timeout]);
-          
           const nip85Events = await nostr.query(
             [{
               kinds: [30383],
@@ -417,7 +441,7 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
               '#d': uniqueIds,
               limit: uniqueIds.length,
             }],
-            { signal: nip85Combined },
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
           );
 
           for (const event of nip85Events) {
@@ -437,20 +461,24 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
             });
           }
         } catch {
-          // If NIP-85 fails, continue with manual calculation
+          // NIP-85 failed or timed out, continue to manual calculation
         }
       }
 
       const hasAnyNip85Stats = nip85StatsMap.size > 0;
-      const interactionLimit = hasAnyNip85Stats ? uniqueIds.length * 3 : uniqueIds.length * 10;
-      const quoteLimit = hasAnyNip85Stats ? uniqueIds.length * 1 : uniqueIds.length * 3;
+      const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
-      // Single query covering all event IDs — relay handles as OR
+      // Fetch only what we need based on whether we have NIP-85 stats
       const events = await nostr.query(
-        [
-          { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: interactionLimit },
-          { kinds: [1], '#q': uniqueIds, limit: quoteLimit },
-        ],
+        hasAnyNip85Stats
+          ? [
+              { kinds: [7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 3 },
+              { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 1 },
+            ]
+          : [
+              { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
+              { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
+            ],
         { signal: combined },
       );
 
