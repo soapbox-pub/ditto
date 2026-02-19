@@ -10,9 +10,11 @@ interface MainLayoutProps {
   children: React.ReactNode;
   /** Optional custom right sidebar to replace the default one */
   rightSidebar?: React.ReactNode;
+  /** Whether to show the floating compose button (default: false) */
+  showFAB?: boolean;
 }
 
-export function MainLayout({ children, rightSidebar }: MainLayoutProps) {
+export function MainLayout({ children, rightSidebar, showFAB = false }: MainLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -40,8 +42,8 @@ export function MainLayout({ children, rightSidebar }: MainLayoutProps) {
       {/* Mobile bottom nav - only on small screens */}
       <MobileBottomNav />
 
-      {/* Mobile floating compose button */}
-      <FloatingComposeButton />
+      {/* Mobile floating compose button - only on feed page */}
+      {showFAB && <FloatingComposeButton />}
 
       {/* Bottom padding spacer for mobile bottom nav */}
       <div className="h-16 sidebar:hidden" />

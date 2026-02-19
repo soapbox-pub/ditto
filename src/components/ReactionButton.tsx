@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Heart } from 'lucide-react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -28,6 +28,24 @@ export function ReactionButton({
 }: ReactionButtonProps) {
   const { user } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = useCallback(() => {
+    if (!user) return;
+    // Clear any pending close timeout
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setMenuOpen(true);
+  }, [user]);
+
+  const handleMouseLeave = useCallback(() => {
+    // Delay closing to allow user to move to the menu
+    closeTimeoutRef.current = setTimeout(() => {
+      setMenuOpen(false);
+    }, 150);
+  }, []);
 
   return (
     <Popover open={menuOpen} onOpenChange={setMenuOpen}>
@@ -44,12 +62,8 @@ export function ReactionButton({
             if (!user) return;
             setMenuOpen((prev) => !prev);
           }}
-          onMouseEnter={() => {
-            if (user) setMenuOpen(true);
-          }}
-          onMouseLeave={() => {
-            // Don't close on mouse leave - let user move to the menu
-          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
         >
           <Heart className="size-5" />
           {reactionCount > 0 && (
@@ -63,8 +77,8 @@ export function ReactionButton({
         align="start"
         onClick={(e) => e.stopPropagation()}
         onOpenAutoFocus={(e) => e.preventDefault()}
-        onMouseEnter={() => setMenuOpen(true)}
-        onMouseLeave={() => setMenuOpen(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
       >
         <QuickReactMenu
           eventId={eventId}
