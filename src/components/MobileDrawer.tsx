@@ -173,7 +173,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             <Separator />
 
             {/* Theme toggle */}
-            <div className="px-3 py-2">
+            <div className="px-3 py-2 safe-area-bottom">
               <button
                 onClick={cycleTheme}
                 className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
