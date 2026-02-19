@@ -18,6 +18,8 @@ yarn.lock
 # Editor directories and files
 .idea
 .DS_Store
+.project
+.settings/
 *.suo
 *.ntvs*
 *.njsproj
