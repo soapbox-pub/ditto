@@ -71,9 +71,20 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
-              <p className="text-xs text-muted-foreground px-3 pb-3 pt-3">
-                Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
-              </p>
+              {/* Intro section for Other Stuff */}
+              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
+                <img
+                  src="/feed-intro.png"
+                  alt=""
+                  className="w-40 shrink-0 mix-blend-difference opacity-80"
+                />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold">Other Stuff</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
+                  </p>
+                </div>
+              </div>
 
               {/* Column headers */}
               <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
