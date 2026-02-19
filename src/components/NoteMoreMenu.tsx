@@ -196,11 +196,13 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
         <Separator />
 
         <div className="py-1">
-          <MenuItem
-            icon={<BellOff className="size-5" />}
-            label="Mute Conversation"
-            onClick={handleMuteConversation}
-          />
+          {!isOwnPost && (
+            <MenuItem
+              icon={<BellOff className="size-5" />}
+              label="Mute Conversation"
+              onClick={handleMuteConversation}
+            />
+          )}
           {isOwnPost && (
             <MenuItem
               icon={<Pin className={cn("size-5", pinned && "fill-current")} />}
@@ -208,28 +210,34 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
               onClick={handleTogglePin}
             />
           )}
-          <MenuItem
-            icon={<AtSign className="size-5" />}
-            label={`Mention @${displayName}`}
-            onClick={handleMention}
-          />
+          {!isOwnPost && (
+            <MenuItem
+              icon={<AtSign className="size-5" />}
+              label={`Mention @${displayName}`}
+              onClick={handleMention}
+            />
+          )}
         </div>
 
-        <Separator />
+        {!isOwnPost && (
+          <>
+            <Separator />
 
-        <div className="py-1">
-          <MenuItem
-            icon={<VolumeX className="size-5" />}
-            label={`Mute @${displayName}`}
-            onClick={handleMuteUser}
-          />
-          <MenuItem
-            icon={<Flag className="size-5" />}
-            label={`Report @${displayName}`}
-            onClick={handleReport}
-            destructive
-          />
-        </div>
+            <div className="py-1">
+              <MenuItem
+                icon={<VolumeX className="size-5" />}
+                label={`Mute @${displayName}`}
+                onClick={handleMuteUser}
+              />
+              <MenuItem
+                icon={<Flag className="size-5" />}
+                label={`Report @${displayName}`}
+                onClick={handleReport}
+                destructive
+              />
+            </div>
+          </>
+        )}
 
         <Separator />
 
