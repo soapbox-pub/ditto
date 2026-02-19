@@ -25,8 +25,8 @@ export function Feed() {
     return stored !== null ? stored === 'true' : true;
   })();
 
-  const showCommunitiesFeed = (() => {
-    const stored = localStorage.getItem('mew:showCommunitiesFeed');
+  const showCommunityFeed = (() => {
+    const stored = localStorage.getItem('mew:showCommunityFeed');
     return stored !== null ? stored === 'true' : false;
   })();
 
@@ -137,9 +137,9 @@ export function Feed() {
               onClick={() => setActiveTab('global')}
             />
           )}
-          {showCommunitiesFeed && (
+          {showCommunityFeed && (
             <TabButton
-              label="Communities"
+              label="Community"
               active={activeTab === 'communities'}
               onClick={() => setActiveTab('communities')}
             />

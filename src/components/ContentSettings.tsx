@@ -285,14 +285,18 @@ function FeedTabsSection() {
   const { toast } = useToast();
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
-  const [communities, setCommunities] = useState<Array<{ domain: string; userCount: number }>>([]);
+  const [community, setCommunity] = useState<{ domain: string; userCount: number } | null>(() => {
+    const stored = localStorage.getItem('mew:community');
+    return stored ? JSON.parse(stored) : null;
+  });
+
   const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
     const stored = localStorage.getItem('mew:showGlobalFeed');
     return stored !== null ? stored === 'true' : true; // Default to true
   });
 
-  const [showCommunitiesFeed, setShowCommunitiesFeed] = useState(() => {
-    const stored = localStorage.getItem('mew:showCommunitiesFeed');
+  const [showCommunityFeed, setShowCommunityFeed] = useState(() => {
+    const stored = localStorage.getItem('mew:showCommunityFeed');
     return stored !== null ? stored === 'true' : false; // Default to false
   });
 
@@ -307,14 +311,14 @@ function FeedTabsSection() {
     });
   };
 
-  const handleToggleCommunitiesFeed = (checked: boolean) => {
-    setShowCommunitiesFeed(checked);
-    localStorage.setItem('mew:showCommunitiesFeed', String(checked));
+  const handleToggleCommunityFeed = (checked: boolean) => {
+    setShowCommunityFeed(checked);
+    localStorage.setItem('mew:showCommunityFeed', String(checked));
     toast({
-      title: checked ? 'Communities feed enabled' : 'Communities feed disabled',
+      title: checked ? 'Community feed enabled' : 'Community feed disabled',
       description: checked 
-        ? 'The Communities feed tab will appear in your navigation'
-        : 'The Communities feed tab will be hidden',
+        ? 'The Community feed tab will appear in your navigation'
+        : 'The Community feed tab will be hidden',
     });
   };
 
@@ -335,16 +339,6 @@ function FeedTabsSection() {
     // Remove trailing slash
     domain = domain.replace(/\/$/, '');
 
-    // Check if already added
-    if (communities.some(c => c.domain === domain)) {
-      toast({
-        title: 'Already added',
-        description: 'This community is already in your list',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsDownloading(true);
     try {
       // Fetch the NIP-05 JSON
@@ -362,18 +356,17 @@ function FeedTabsSection() {
 
       const userCount = Object.keys(data.names).length;
 
-      // Store in localStorage
+      // Store in localStorage (single community only)
       const newCommunity = { domain, userCount };
-      const updatedCommunities = [...communities, newCommunity];
-      setCommunities(updatedCommunities);
-      localStorage.setItem('mew:communities', JSON.stringify(updatedCommunities));
+      setCommunity(newCommunity);
+      localStorage.setItem('mew:community', JSON.stringify(newCommunity));
       
       // Store the actual JSON data for later use
-      localStorage.setItem(`mew:community:${domain}`, JSON.stringify(data));
+      localStorage.setItem('mew:communityData', JSON.stringify(data));
 
       toast({
-        title: 'Community added',
-        description: `Added ${domain} with ${userCount} users`,
+        title: 'Community set',
+        description: `${domain} with ${userCount} users`,
       });
 
       setCommunityDomain('');
@@ -389,29 +382,16 @@ function FeedTabsSection() {
     }
   };
 
-  const handleRemoveCommunity = (domain: string) => {
-    const updatedCommunities = communities.filter(c => c.domain !== domain);
-    setCommunities(updatedCommunities);
-    localStorage.setItem('mew:communities', JSON.stringify(updatedCommunities));
-    localStorage.removeItem(`mew:community:${domain}`);
+  const handleRemoveCommunity = () => {
+    setCommunity(null);
+    localStorage.removeItem('mew:community');
+    localStorage.removeItem('mew:communityData');
     
     toast({
       title: 'Community removed',
-      description: `Removed ${domain}`,
+      description: 'Community feed cleared',
     });
   };
-
-  // Load communities from localStorage on mount
-  useState(() => {
-    const stored = localStorage.getItem('mew:communities');
-    if (stored) {
-      try {
-        setCommunities(JSON.parse(stored));
-      } catch (error) {
-        console.error('Failed to load communities:', error);
-      }
-    }
-  });
 
   return (
     <div>
@@ -447,18 +427,18 @@ function FeedTabsSection() {
 
         <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
           <div>
-            <Label className="text-sm font-medium">Communities Feed</Label>
+            <Label className="text-sm font-medium">Community Feed</Label>
             <p className="text-xs text-muted-foreground">
-              {communities.length > 0 
-                ? `Show posts from ${communities.length} ${communities.length === 1 ? 'community' : 'communities'}`
-                : 'Add a community below to enable this feed'}
+              {community 
+                ? `Show posts from ${community.domain}`
+                : 'Set a community below to enable this feed'}
             </p>
           </div>
           <Switch
-            checked={showCommunitiesFeed}
-            onCheckedChange={handleToggleCommunitiesFeed}
+            checked={showCommunityFeed}
+            onCheckedChange={handleToggleCommunityFeed}
             className="scale-90"
-            disabled={communities.length === 0}
+            disabled={!community}
           />
         </div>
       </div>
@@ -467,67 +447,59 @@ function FeedTabsSection() {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <Users className="h-4 w-4 text-muted-foreground" />
-          <Label className="text-sm font-medium">Communities</Label>
+          <Label className="text-sm font-medium">Community</Label>
         </div>
         
         <p className="text-xs text-muted-foreground">
-          Add a community by entering its domain. We'll download the NIP-05 user list and create a feed tab for verified members.
+          Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
         </p>
 
-        <div className="flex gap-2">
-          <Input
-            placeholder="spinster.xyz"
-            value={communityDomain}
-            onChange={(e) => setCommunityDomain(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleDownloadCommunity();
-              }
-            }}
-            className="h-9"
-            disabled={isDownloading}
-          />
-          <Button
-            onClick={handleDownloadCommunity}
-            disabled={isDownloading || !communityDomain.trim()}
-            size="sm"
-            className="h-9"
-          >
-            {isDownloading ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-
-        {/* Communities List */}
-        {communities.length > 0 && (
-          <div className="space-y-2">
-            {communities.map((community) => (
-              <div
-                key={community.domain}
-                className="flex items-center justify-between py-2.5 px-3 border rounded-lg hover:bg-muted/20 transition-colors"
-              >
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <Users className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">{community.domain}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
-                    </p>
-                  </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleRemoveCommunity(community.domain)}
-                  className="shrink-0 h-8 w-8 p-0"
-                >
-                  <X className="h-4 w-4 text-destructive" />
-                </Button>
+        {!community ? (
+          <div className="flex gap-2">
+            <Input
+              placeholder="ditto.pub"
+              value={communityDomain}
+              onChange={(e) => setCommunityDomain(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  handleDownloadCommunity();
+                }
+              }}
+              className="h-9"
+              disabled={isDownloading}
+            />
+            <Button
+              onClick={handleDownloadCommunity}
+              disabled={isDownloading || !communityDomain.trim()}
+              size="sm"
+              className="h-9"
+            >
+              {isDownloading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg hover:bg-muted/20 transition-colors">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{community.domain}</p>
+                <p className="text-xs text-muted-foreground">
+                  {community.userCount} {community.userCount === 1 ? 'user' : 'users'}
+                </p>
               </div>
-            ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRemoveCommunity}
+              className="shrink-0 h-8 w-8 p-0"
+            >
+              <X className="h-4 w-4 text-destructive" />
+            </Button>
           </div>
         )}
       </div>

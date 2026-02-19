@@ -34,40 +34,24 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
   // Without this guard, the query falls through to the global branch while followList is still loading.
   const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
 
-  // Load communities from localStorage
-  const communities = (() => {
+  // Load community pubkeys from localStorage
+  const communityPubkeys = (() => {
+    if (tab !== 'communities') return [];
     try {
-      const stored = localStorage.getItem('mew:communities');
-      return stored ? JSON.parse(stored) : [];
+      const dataStr = localStorage.getItem('mew:communityData');
+      if (!dataStr) return [];
+      
+      const data = JSON.parse(dataStr);
+      if (!data.names) return [];
+      
+      return Object.values(data.names).filter((pk): pk is string => typeof pk === 'string');
     } catch {
       return [];
     }
   })();
 
-  // Build community pubkeys list from all stored NIP-05 JSONs
-  const communityPubkeys = (() => {
-    if (tab !== 'communities') return [];
-    const pubkeys = new Set<string>();
-    for (const community of communities) {
-      try {
-        const jsonStr = localStorage.getItem(`mew:community:${community.domain}`);
-        if (jsonStr) {
-          const data = JSON.parse(jsonStr);
-          if (data.names) {
-            Object.values(data.names).forEach((pk) => {
-              if (typeof pk === 'string') pubkeys.add(pk);
-            });
-          }
-        }
-      } catch {
-        // Skip invalid community data
-      }
-    }
-    return Array.from(pubkeys);
-  })();
-
   return useInfiniteQuery<FeedItem[], Error>({
-    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey, communities.length],
+    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey, communityPubkeys.length],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
