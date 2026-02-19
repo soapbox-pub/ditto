@@ -111,8 +111,8 @@ function formatFullDate(timestamp: number): string {
   });
 }
 
-/** Formats a client tag (URL, hostname, or plaintext name) into a human-readable client name. */
-function formatClientName(client: string | undefined): string | undefined {
+/** Formats a client tag (URL, hostname, or plaintext name) into display name and optional URL. */
+function formatClientInfo(client: string | undefined): { name: string; url?: string } | undefined {
   if (!client) return undefined;
   
   // Map known hostnames/URLs to client names
@@ -122,45 +122,43 @@ function formatClientName(client: string | undefined): string | undefined {
     'mew.shakespeare.wtf': 'Mew',
   };
   
-  // Check if it's a direct match (hostname or client name)
-  if (clientMap[client]) {
-    return clientMap[client];
-  }
-  
-  // Try parsing as URL
+  // Try parsing as URL first
   try {
     const url = new URL(client);
     const hostname = url.hostname;
     
     // Check if hostname matches a known client
     if (clientMap[hostname]) {
-      return clientMap[hostname];
+      return { name: clientMap[hostname], url: url.href };
     }
     
     // For unknown URLs, capitalize the hostname
-    return hostname
-      .split('.')[0] // Get the first part before the dot
+    const name = hostname
+      .split('.')[0]
       .split('-')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+    return { name, url: url.href };
   } catch {
-    // Not a URL, treat as plaintext client name or hostname
-    // Check again in case it's a hostname without protocol
+    // Not a URL, treat as hostname or plaintext client name
+    
+    // Check if it's a known hostname
     if (clientMap[client]) {
-      return clientMap[client];
+      return { name: clientMap[client], url: `https://${client}` };
     }
     
     // If it contains a dot, treat as hostname
     if (client.includes('.')) {
-      return client
+      const name = client
         .split('.')[0]
         .split('-')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
+      return { name, url: `https://${client}` };
     }
     
-    // Otherwise, return as-is (already a plaintext client name)
-    return client;
+    // Otherwise, it's a plaintext client name (no URL)
+    return { name: client };
   }
 }
 
@@ -569,10 +567,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
-  // Extract client from tags
-  const clientName = useMemo(() => {
+  // Extract client info from tags
+  const clientInfo = useMemo(() => {
     const clientTag = event.tags.find(([name]) => name === 'client');
-    return formatClientName(clientTag?.[1]);
+    return formatClientInfo(clientTag?.[1]);
   }, [event.tags]);
 
   // Check if the current user can zap this event's author
@@ -686,9 +684,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </button>
             ) : null}
             <span className="ml-auto shrink-0 flex items-center gap-1.5">
-              {clientName && (
+              {clientInfo && (
                 <>
-                  <span>{clientName}</span>
+                  {clientInfo.url ? (
+                    <a
+                      href={clientInfo.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {clientInfo.name}
+                    </a>
+                  ) : (
+                    <span>{clientInfo.name}</span>
+                  )}
                   <span>·</span>
                 </>
               )}
@@ -700,9 +710,21 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {/* Date-only row if no stats */}
         {!hasStats && (
           <div className="py-2.5 mt-3 text-sm text-muted-foreground flex items-center gap-1.5">
-            {clientName && (
+            {clientInfo && (
               <>
-                <span>{clientName}</span>
+                {clientInfo.url ? (
+                  <a
+                    href={clientInfo.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {clientInfo.name}
+                  </a>
+                ) : (
+                  <span>{clientInfo.name}</span>
+                )}
                 <span>·</span>
               </>
             )}
