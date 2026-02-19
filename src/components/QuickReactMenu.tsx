@@ -7,6 +7,7 @@ import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { cn } from '@/lib/utils';
+import type { EventStats } from '@/hooks/useTrending';
 
 interface QuickReactMenuProps {
   /** The event ID being reacted to. */
@@ -48,6 +49,22 @@ export function QuickReactMenu({
     // Track emoji usage
     trackEmojiUsage(emoji);
 
+    // Optimistically update stats cache immediately
+    const displayEmoji = (emoji === '+' || emoji === '') ? '👍' : emoji;
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', eventId], {
+        ...prevStats,
+        reactions: prevStats.reactions + 1,
+        reactionEmojis: prevStats.reactionEmojis.includes(displayEmoji)
+          ? prevStats.reactionEmojis
+          : [...prevStats.reactionEmojis, displayEmoji],
+      });
+    }
+
+    // Store user's own reaction for this event
+    queryClient.setQueryData<string>(['user-reaction', eventId], displayEmoji);
+
     // Publish kind 7 reaction
     publishEvent(
       {
@@ -62,13 +79,19 @@ export function QuickReactMenu({
       },
       {
         onSuccess: () => {
-          // Invalidate stats to refetch real counts
+          // Invalidate stats to refetch real counts (will reconcile with optimistic data)
           queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
           queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
         },
         onError: () => {
           // Revert optimistic update on failure
           setSelectedEmoji(null);
+          // Revert stats
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', eventId], prevStats);
+          }
+          // Remove user reaction
+          queryClient.removeQueries({ queryKey: ['user-reaction', eventId] });
         },
       },
     );

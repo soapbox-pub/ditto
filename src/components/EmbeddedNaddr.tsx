@@ -123,11 +123,11 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
     >
       {/* Image */}
       {image && (
-        <div className="w-full overflow-hidden border-b border-border bg-muted">
+        <div className="w-full overflow-hidden">
           <img
             src={image}
             alt=""
-            className="w-full h-auto max-h-[260px] object-cover"
+            className="w-full h-[180px] object-cover"
             loading="lazy"
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
@@ -137,7 +137,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
       )}
 
       {/* Text content */}
-      <div className="px-3.5 py-2.5 space-y-1.5">
+      <div className="px-3 py-2 space-y-1">
         {/* Author row */}
         <div className="flex items-center gap-2 min-w-0">
           {author.isLoading ? (
@@ -197,7 +197,7 @@ function EmbeddedNaddrCard({ event, className }: { event: NostrEvent; className?
 function EmbeddedNaddrSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
-      <Skeleton className="w-full h-[140px] rounded-none" />
+      <Skeleton className="w-full h-[180px] rounded-none" />
       <div className="px-3.5 py-2.5 space-y-2">
         <div className="flex items-center gap-2">
           <Skeleton className="size-5 rounded-full" />

@@ -46,11 +46,11 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
     >
       {/* OG image */}
       {data.image && (
-        <div className="w-full overflow-hidden border-b border-border bg-muted">
+        <div className="w-full overflow-hidden">
           <img
             src={data.image}
             alt=""
-            className="w-full h-auto max-h-[260px] object-cover"
+            className="w-full h-[180px] object-cover"
             loading="lazy"
             onError={(e) => {
               // Hide broken images
@@ -100,7 +100,7 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
 function LinkPreviewSkeleton({ className }: { className?: string }) {
   return (
     <div className={cn('rounded-2xl border border-border overflow-hidden', className)}>
-      <Skeleton className="w-full h-[140px] rounded-none" />
+      <Skeleton className="w-full h-[180px] rounded-none" />
       <div className="px-3.5 py-2.5 space-y-1.5">
         <Skeleton className="h-3 w-24" />
         <Skeleton className="h-4 w-3/4" />

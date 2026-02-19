@@ -4,13 +4,12 @@ import { useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Drawer, DrawerContent, DrawerTrigger } from '@/components/ui/drawer';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import type { EventStats } from '@/hooks/useTrending';
 
 interface RepostMenuProps {
   event: NostrEvent;
@@ -18,7 +17,6 @@ interface RepostMenuProps {
 }
 
 export function RepostMenu({ event, children }: RepostMenuProps) {
-  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
   const [quoteOpen, setQuoteOpen] = useState(false);
   const { user } = useCurrentUser();
@@ -30,6 +28,15 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     if (!user) {
       toast({ title: 'Please log in to repost', variant: 'destructive' });
       return;
+    }
+
+    // Optimistically update stats cache immediately
+    const prevStats = queryClient.getQueryData<EventStats>(['event-stats', event.id]);
+    if (prevStats) {
+      queryClient.setQueryData<EventStats>(['event-stats', event.id], {
+        ...prevStats,
+        reposts: prevStats.reposts + 1,
+      });
     }
 
     // Kind 6 repost
@@ -47,12 +54,16 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         onSuccess: () => {
           toast({ title: 'Reposted!' });
           setOpen(false);
-          // Invalidate stats to refetch counts
+          // Invalidate stats to refetch real counts
           queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
           queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
         },
         onError: () => {
           toast({ title: 'Failed to repost', variant: 'destructive' });
+          // Revert optimistic update
+          if (prevStats) {
+            queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
+          }
         },
       }
     );
@@ -85,42 +96,8 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         <Quote className="size-5" />
         <span>Quote post</span>
       </button>
-      {isMobile && (
-        <>
-          <div className="h-px bg-border my-1" />
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen(false);
-            }}
-            className="flex items-center justify-center w-full px-4 py-3 text-[15px] text-muted-foreground hover:bg-secondary/60 transition-colors"
-          >
-            Close
-          </button>
-        </>
-      )}
     </div>
   );
-
-  if (isMobile) {
-    return (
-      <>
-        <Drawer open={open} onOpenChange={setOpen}>
-          <DrawerTrigger asChild onClick={(e) => e.stopPropagation()}>
-            {children}
-          </DrawerTrigger>
-          <DrawerContent className="px-0 pb-2">
-            {menuContent}
-          </DrawerContent>
-        </Drawer>
-        <ReplyComposeModal 
-          quotedEvent={event}
-          open={quoteOpen}
-          onOpenChange={setQuoteOpen}
-        />
-      </>
-    );
-  }
 
   return (
     <>

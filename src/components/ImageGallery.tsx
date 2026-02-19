@@ -74,10 +74,10 @@ export function ImageGallery({
             <img
               src={url}
               alt=""
-              className={cn(
-                'w-full h-auto object-cover transition-transform duration-200 hover:scale-[1.02]',
-              )}
-              style={{ maxHeight: maxGridHeight }}
+              className="w-full object-cover transition-transform duration-200 hover:scale-[1.02]"
+              style={{
+                height: visibleImages.length === 1 ? maxGridHeight : visibleImages.length === 3 && i === 0 ? maxGridHeight : `calc(${maxGridHeight} / 2)`,
+              }}
               loading="lazy"
             />
             {/* "+N" overlay on last visible image */}

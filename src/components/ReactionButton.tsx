@@ -4,6 +4,7 @@ import { Heart } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useUserReaction } from '@/hooks/useUserReaction';
 import { cn } from '@/lib/utils';
 
 interface ReactionButtonProps {
@@ -29,6 +30,9 @@ export function ReactionButton({
   const { user } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const userReaction = useUserReaction(eventId);
+
+  const hasReacted = !!userReaction;
 
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
@@ -53,7 +57,9 @@ export function ReactionButton({
         <button
           className={cn(
             'flex items-center gap-1.5 p-2 rounded-full transition-colors',
-            'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
+            hasReacted
+              ? 'text-pink-500'
+              : 'text-muted-foreground hover:text-pink-500 hover:bg-pink-500/10',
             className,
           )}
           title="React"
@@ -65,9 +71,13 @@ export function ReactionButton({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <Heart className="size-5" />
+          {hasReacted ? (
+            <span className="size-5 flex items-center justify-center text-base leading-none">{userReaction}</span>
+          ) : (
+            <Heart className="size-5" />
+          )}
           {reactionCount > 0 && (
-            <span className="text-sm tabular-nums">{reactionCount}</span>
+            <span className={cn('text-sm tabular-nums', hasReacted && 'text-pink-500')}>{reactionCount}</span>
           )}
         </button>
       </PopoverTrigger>

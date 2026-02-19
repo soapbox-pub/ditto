@@ -142,11 +142,11 @@ function EmbeddedNoteCard({
     >
       {/* Optional image thumbnail */}
       {firstImage && (
-        <div className="w-full overflow-hidden border-b border-border bg-muted">
+        <div className="w-full overflow-hidden">
           <img
             src={firstImage}
             alt=""
-            className="w-full h-auto max-h-[200px] object-cover"
+            className="w-full h-[160px] object-cover"
             loading="lazy"
             onError={(e) => {
               (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
@@ -156,7 +156,7 @@ function EmbeddedNoteCard({
       )}
 
       {/* Note content */}
-      <div className="px-3.5 py-2.5 space-y-1.5">
+      <div className="px-3 py-2 space-y-1">
         {/* Author row */}
         <div className="flex items-center gap-2 min-w-0">
           {author.isLoading ? (
@@ -212,7 +212,7 @@ function EmbedContentPreview({ text }: { text: string }) {
   const segments = useMemo(() => parseEmbedSegments(text), [text]);
 
   return (
-    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words line-clamp-4">
+    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words line-clamp-3">
       {segments.map((seg, i) => {
         if (seg.type === 'text') {
           return <span key={i}>{seg.value}</span>;
