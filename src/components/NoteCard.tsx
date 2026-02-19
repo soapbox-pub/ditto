@@ -248,7 +248,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                   <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0">
+              <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
                 {nip05 && <span className="truncate">@{nip05}</span>}
                 {nip05 && <DomainFavicon domain={nip05.split('@')[1]} size={16} className="shrink-0" />}
                 {nip05 && <span className="shrink-0">·</span>}
