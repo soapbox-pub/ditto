@@ -7,7 +7,6 @@ export function cn(...inputs: ClassValue[]) {
 
 /**
  * Sticky header class for pages inside MainLayout.
- * On mobile, page headers scroll naturally with the content.
- * On desktop (sidebar breakpoint) they stick to the top of the viewport.
+ * Headers stick to the top of the viewport on all screen sizes.
  */
-export const STICKY_HEADER_CLASS = 'sidebar:sticky sidebar:top-0';
+export const STICKY_HEADER_CLASS = 'sticky top-0';

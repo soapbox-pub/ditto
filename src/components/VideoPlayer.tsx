@@ -143,6 +143,8 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
         className="w-full max-h-[70vh] cursor-pointer"
         playsInline
         preload="metadata"
+        {...({ 'webkit-playsinline': 'true' } as any)}
+        {...({ 'x-webkit-airplay': 'allow' } as any)}
         onClick={handleVideoClick}
         onPlay={() => { setIsPlaying(true); setHasStarted(true); }}
         onPause={() => setIsPlaying(false)}
