@@ -34,7 +34,7 @@ export function getEffectiveRelays(
 
   // Merge app relays with user relays, avoiding duplicates by normalized URL
   const seen = new Set<string>();
-  const mergedRelays = [];
+  const mergedRelays: RelayMetadata['relays'][number][] = [];
 
   for (const relay of [...APP_RELAYS.relays, ...userRelays.relays]) {
     const normalized = normalizeUrl(relay.url);
@@ -53,7 +53,7 @@ export function getEffectiveRelays(
 /** Deduplicate relays within a single list by normalized URL. */
 function deduplicateRelays(metadata: RelayMetadata): RelayMetadata {
   const seen = new Set<string>();
-  const relays = [];
+  const relays: RelayMetadata['relays'][number][] = [];
 
   for (const relay of metadata.relays) {
     const normalized = normalizeUrl(relay.url);

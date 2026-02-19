@@ -66,7 +66,7 @@ export function LeftSidebar() {
   const [composeOpen, setComposeOpen] = useState(false);
 
   /** Map route name → lucide icon (size-6 for sidebar). */
-  const ROUTE_ICONS: Record<string, React.ReactNode> = {
+  const ROUTE_ICONS: Record<string, React.ReactElement> = {
     vines: <Clapperboard className="size-6" />,
     polls: <BarChart3 className="size-6" />,
     treasures: <ChestIcon className="size-6" />,

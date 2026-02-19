@@ -28,7 +28,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Feed Tabs</span>
               {feedTabsOpen ? (
@@ -52,7 +52,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Other Stuff</span>
               {otherStuffOpen ? (
@@ -98,7 +98,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Muted Content</span>
               {mutesOpen ? (
@@ -244,7 +244,7 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
             {!hasSubKinds && def.feedKey ? (
               <Switch
                 checked={feedSettings[def.feedKey]}
-                onCheckedChange={(checked) => handleToggle(def.feedKey, checked)}
+                onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
               />
             ) : null}
           </div>

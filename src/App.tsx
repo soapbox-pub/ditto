@@ -58,6 +58,10 @@ const defaultConfig: AppConfig = {
   },
   nip85StatsPubkey: "5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea",
   nip85OnlyMode: true,
+  blossomServers: ['https://blossom.primal.net/'],
+  defaultZapComment: 'Zapped with Mew!',
+  faviconProvider: 'https://favicon.shakespeare.diy/?url={href}',
+  corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
 };
 
 export function App() {

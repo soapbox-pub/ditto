@@ -76,7 +76,6 @@ export function getMuteSummary(muteItems: MuteListItem[]): {
   words: number;
   threads: number;
   total: number;
-  hasPrivate: boolean;
 } {
   return {
     pubkeys: muteItems.filter((item) => item.type === 'pubkey').length,

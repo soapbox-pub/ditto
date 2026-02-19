@@ -113,7 +113,7 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
             {!hasSubKinds && def.feedKey ? (
               <Switch
                 checked={feedSettings[def.feedKey]}
-                onCheckedChange={(checked) => handleToggle(def.feedKey, checked)}
+                onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
               />
             ) : null}
           </div>

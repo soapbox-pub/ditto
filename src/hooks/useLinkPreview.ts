@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-
-const CORS_PROXY = 'https://proxy.shakespeare.diy/?url=';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export interface LinkPreviewData {
   url: string;
@@ -110,9 +109,9 @@ function decodeHtmlEntities(text: string): string {
 }
 
 /** Fetch and parse Open Graph data for a URL. */
-async function fetchLinkPreview(url: string, signal?: AbortSignal): Promise<LinkPreviewData | null> {
+async function fetchLinkPreview(url: string, corsProxy: string, signal?: AbortSignal): Promise<LinkPreviewData | null> {
   try {
-    const proxiedUrl = `${CORS_PROXY}${encodeURIComponent(url)}`;
+    const proxiedUrl = corsProxy.replace('{href}', encodeURIComponent(url));
     const response = await fetch(proxiedUrl, {
       signal,
       headers: {
@@ -142,9 +141,10 @@ async function fetchLinkPreview(url: string, signal?: AbortSignal): Promise<Link
 
 /** Hook to fetch link preview data for a URL. */
 export function useLinkPreview(url: string | null) {
+  const { config } = useAppContext();
   return useQuery({
-    queryKey: ['link-preview', url],
-    queryFn: ({ signal }) => fetchLinkPreview(url!, signal),
+    queryKey: ['link-preview', url, config.corsProxy],
+    queryFn: ({ signal }) => fetchLinkPreview(url!, config.corsProxy, signal),
     enabled: !!url,
     staleTime: 1000 * 60 * 60, // 1 hour
     gcTime: 1000 * 60 * 60 * 24, // 24 hours
