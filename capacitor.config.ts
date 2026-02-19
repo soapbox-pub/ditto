@@ -12,7 +12,7 @@ const config: CapacitorConfig = {
   android: {
     // Enable safe area handling for notches and navigation bars
     allowMixedContent: false,
-    backgroundColor: '#ffffff'
+    backgroundColor: '#14161f'
   }
 };
 

@@ -56,15 +56,15 @@ magick "$SOURCE_ICON" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic
 magick "$SOURCE_ICON" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 magick "$SOURCE_ICON" -resize 122x122 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
-# Update icon background color
+# Update icon background color (using dark theme background)
 BACKGROUND_COLOR_FILE="android/app/src/main/res/values/ic_launcher_background.xml"
 mkdir -p android/app/src/main/res/values
 cat > "$BACKGROUND_COLOR_FILE" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#ffffff</color>
+    <color name="ic_launcher_background">#14161f</color>
 </resources>
 EOF
 
 echo -e "\n${GREEN}✅ Android icons generated successfully!${NC}"
-echo -e "Icon background color: ${GREEN}#ffffff${NC}"
+echo -e "Icon background color: ${GREEN}#14161f${NC} (dark theme)"
