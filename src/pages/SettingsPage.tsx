@@ -38,7 +38,7 @@ export function SettingsPage() {
         </div>
 
         {/* Tab navigation */}
-        <div className="flex border-b border-border">
+        <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/95 backdrop-blur-md z-10')}>
           <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
           <SettingsTab to="/settings/content" label="Content" active={activeSection === 'content'} />
           <SettingsTab to="/settings/advanced" label="Advanced" active={activeSection === 'advanced'} />
