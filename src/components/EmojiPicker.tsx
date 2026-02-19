@@ -201,7 +201,13 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
   const categoriesToShow = search.trim() ? filteredCategories : CATEGORIES;
 
   return (
-    <div className="flex flex-col w-[320px] h-[360px]">
+    <div 
+      className="flex flex-col w-[320px] h-[360px]"
+      onWheel={(e) => {
+        // Prevent scroll from bubbling to the page
+        e.stopPropagation();
+      }}
+    >
       {/* Search */}
       <div className="px-3 pt-3 pb-2">
         <div className="relative">
