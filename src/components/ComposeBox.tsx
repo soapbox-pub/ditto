@@ -492,8 +492,9 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
               <button
                 type="button"
                 onClick={() => setPreviewMode(!previewMode)}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
+                {previewMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 {previewMode ? 'Edit' : 'Preview'}
               </button>
             )}
