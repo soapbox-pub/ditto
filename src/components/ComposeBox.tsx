@@ -34,6 +34,10 @@ interface ComposeBoxProps {
   forceExpanded?: boolean;
   /** If true, hides the avatar (useful inside modals with their own layout). */
   hideAvatar?: boolean;
+  /** Controlled preview mode (for modal usage). */
+  previewMode?: boolean;
+  /** Callback to notify parent of previewable content changes. */
+  onHasPreviewableContentChange?: (hasContent: boolean) => void;
 }
 
 /** Circular progress ring for character count. */
@@ -73,7 +77,17 @@ function CharRing({ count, max }: { count: number; max: number }) {
   );
 }
 
-export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", compact = false, replyTo, quotedEvent, forceExpanded = false, hideAvatar = false }: ComposeBoxProps) {
+export function ComposeBox({ 
+  onSuccess, 
+  placeholder = "What's on your mind?", 
+  compact = false, 
+  replyTo, 
+  quotedEvent, 
+  forceExpanded = false, 
+  hideAvatar = false,
+  previewMode: controlledPreviewMode,
+  onHasPreviewableContentChange,
+}: ComposeBoxProps) {
   const { user, metadata } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
@@ -85,11 +99,14 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [previewMode, setPreviewMode] = useState(false);
+  const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Use controlled preview mode if provided, otherwise use internal state
+  const previewMode = controlledPreviewMode !== undefined ? controlledPreviewMode : internalPreviewMode;
 
   // Auto-expand when quotedEvent is provided
   useEffect(() => {
@@ -214,6 +231,13 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const hasPreviewableContent = useMemo(() => {
     return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0;
   }, [visibleEmbeds, previewImages, previewVideos]);
+
+  // Notify parent of previewable content changes
+  useEffect(() => {
+    if (onHasPreviewableContentChange) {
+      onHasPreviewableContentChange(hasPreviewableContent);
+    }
+  }, [hasPreviewableContent, onHasPreviewableContentChange]);
 
   // Include quoted event if provided and not removed
   const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
@@ -593,11 +617,11 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
               </Tooltip>
             </div>
 
-            {/* Center: Preview toggle */}
-            {hasPreviewableContent && (
+            {/* Center: Preview toggle (only show if not controlled by parent) */}
+            {hasPreviewableContent && controlledPreviewMode === undefined && (
               <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg mx-2">
                 <button
-                  onClick={() => setPreviewMode(false)}
+                  onClick={() => setInternalPreviewMode(false)}
                   className={cn(
                     "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                     !previewMode 
@@ -608,7 +632,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                   Edit
                 </button>
                 <button
-                  onClick={() => setPreviewMode(true)}
+                  onClick={() => setInternalPreviewMode(true)}
                   className={cn(
                     "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                     previewMode 
@@ -620,6 +644,9 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                 </button>
               </div>
             )}
+
+            {/* Spacer when preview toggle is in modal */}
+            {hasPreviewableContent && controlledPreviewMode !== undefined && <div className="flex-1" />}
 
             {/* Right: char count + post button */}
             <div className="flex items-center gap-3">
