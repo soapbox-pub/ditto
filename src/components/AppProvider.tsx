@@ -48,7 +48,7 @@ const AppConfigSchema = z.object({
     (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
     { message: 'Must be empty or a valid 64-character hex pubkey' }
   ),
-  statsMode: z.enum(['nip85-only', 'manual-only', 'both']),
+  nip85OnlyMode: z.boolean(),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {

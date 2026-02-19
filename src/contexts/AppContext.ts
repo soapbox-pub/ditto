@@ -39,9 +39,6 @@ export interface FeedSettings {
   feedIncludePacks: boolean;
 }
 
-/** Stats calculation mode: NIP-85 only, manual only, or both */
-export type StatsMode = "nip85-only" | "manual-only" | "both";
-
 export interface AppConfig {
   /** Current theme */
   theme: Theme;
@@ -53,8 +50,8 @@ export interface AppConfig {
   feedSettings: FeedSettings;
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
-  /** Stats calculation mode: NIP-85 only, manual only, or both */
-  statsMode: StatsMode;
+  /** Whether to disable manual stat calculation fallback (NIP-85 only mode) */
+  nip85OnlyMode: boolean;
 }
 
 export interface AppContextType {
