@@ -1,6 +1,8 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { useNip85EventStats } from '@/hooks/useNip85Stats';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /** The sole relay used for trend data. */
 const DITTO_RELAY = 'wss://relay.ditto.pub';
@@ -256,24 +258,45 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
 /** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
+  const nip85Stats = useNip85EventStats(eventId);
 
   return useQuery({
-    queryKey: ['event-stats', eventId ?? ''],
+    queryKey: ['event-stats', eventId ?? '', nip85Stats.data],
     queryFn: async ({ signal }) => {
       if (!eventId) return EMPTY_STATS;
+
+      // Try NIP-85 stats first - if available, use smaller limits
+      const hasNip85Stats = !!nip85Stats.data;
+      const interactionLimit = hasNip85Stats ? 10 : 50;
+      const quoteLimit = hasNip85Stats ? 5 : 20;
 
       const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
 
       // Single query with two filter objects — relay handles as OR
       const events = await nostr.query(
         [
-          { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
-          { kinds: [1], '#q': [eventId], limit: 20 },
+          { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: interactionLimit },
+          { kinds: [1], '#q': [eventId], limit: quoteLimit },
         ],
         { signal: combined },
       );
 
-      return computeStats(eventId, events);
+      const computed = computeStats(eventId, events);
+
+      // If we have NIP-85 stats, use those counts but keep the computed emojis and quotes
+      if (nip85Stats.data) {
+        return {
+          replies: nip85Stats.data.commentCount,
+          reposts: nip85Stats.data.repostCount,
+          quotes: computed.quotes, // Keep computed quotes since we fetched them
+          reactions: nip85Stats.data.reactionCount,
+          zapAmount: computed.zapAmount, // NIP-85 doesn't include zap amounts, keep computed
+          zapCount: nip85Stats.data.zapCount,
+          reactionEmojis: computed.reactionEmojis, // Keep computed emojis
+        };
+      }
+
+      return computed;
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
@@ -361,10 +384,14 @@ export function useTagSparklines(tags: string[], enabled = true) {
  * round-trip instead of N.  Results are also seeded into the individual
  * `['event-stats', id]` cache entries so that `useEventStats()` calls
  * for the same IDs resolve instantly from cache.
+ * 
+ * Also queries NIP-85 stats for all events in parallel.
  */
 export function useBatchEventStats(eventIds: string[], enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   const uniqueIds = [...new Set(eventIds)].sort();
 
@@ -375,11 +402,54 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
 
       const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
+      // Try to fetch NIP-85 stats for all events in parallel
+      const nip85StatsMap = new Map<string, { commentCount: number; repostCount: number; reactionCount: number; zapCount: number }>();
+      
+      if (statsPubkey) {
+        try {
+          const nip85Timeout = AbortSignal.timeout(2000);
+          const nip85Combined = AbortSignal.any([signal, nip85Timeout]);
+          
+          const nip85Events = await nostr.query(
+            [{
+              kinds: [30383],
+              authors: [statsPubkey],
+              '#d': uniqueIds,
+              limit: uniqueIds.length,
+            }],
+            { signal: nip85Combined },
+          );
+
+          for (const event of nip85Events) {
+            const eventId = event.tags.find(([name]) => name === 'd')?.[1];
+            if (!eventId) continue;
+
+            const getTagValue = (tagName: string): number => {
+              const tag = event.tags.find(([name]) => name === tagName);
+              return tag?.[1] ? parseInt(tag[1], 10) : 0;
+            };
+
+            nip85StatsMap.set(eventId, {
+              commentCount: getTagValue('comment_cnt'),
+              repostCount: getTagValue('repost_cnt'),
+              reactionCount: getTagValue('reaction_cnt'),
+              zapCount: getTagValue('zap_cnt'),
+            });
+          }
+        } catch {
+          // If NIP-85 fails, continue with manual calculation
+        }
+      }
+
+      const hasAnyNip85Stats = nip85StatsMap.size > 0;
+      const interactionLimit = hasAnyNip85Stats ? uniqueIds.length * 3 : uniqueIds.length * 10;
+      const quoteLimit = hasAnyNip85Stats ? uniqueIds.length * 1 : uniqueIds.length * 3;
+
       // Single query covering all event IDs — relay handles as OR
       const events = await nostr.query(
         [
-          { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
-          { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
+          { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: interactionLimit },
+          { kinds: [1], '#q': uniqueIds, limit: quoteLimit },
         ],
         { signal: combined },
       );
@@ -387,7 +457,20 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
       const statsMap = new Map<string, EventStats>();
 
       for (const id of uniqueIds) {
-        const stats = computeStats(id, events);
+        const computed = computeStats(id, events);
+        const nip85 = nip85StatsMap.get(id);
+
+        // If we have NIP-85 stats for this event, merge them with computed data
+        const stats: EventStats = nip85 ? {
+          replies: nip85.commentCount,
+          reposts: nip85.repostCount,
+          quotes: computed.quotes, // Keep computed quotes
+          reactions: nip85.reactionCount,
+          zapAmount: computed.zapAmount, // NIP-85 doesn't include zap amounts
+          zapCount: nip85.zapCount,
+          reactionEmojis: computed.reactionEmojis, // Keep computed emojis
+        } : computed;
+
         statsMap.set(id, stats);
 
         // Seed individual cache
