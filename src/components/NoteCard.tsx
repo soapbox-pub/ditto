@@ -268,7 +268,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Content — kind-based dispatch */}
       {isVine ? (
         <>
-          {vineTitle && <p className="text-[15px] mt-2 leading-relaxed">{vineTitle}</p>}
+          {vineTitle && <p className="text-[15px] mt-2 leading-relaxed break-words overflow-hidden">{vineTitle}</p>}
           <VineMedia imeta={imeta} hashtags={hashtags} />
         </>
       ) : isPoll ? (
@@ -283,7 +283,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         <FollowPackContent event={event} />
       ) : (
         <>
-          <div className="mt-2">
+          <div className="mt-2 break-words overflow-hidden">
             <NoteContent event={event} className="text-[15px] leading-relaxed" />
           </div>
           <NoteMedia images={images} videos={videos} imetaMap={imetaMap} />
