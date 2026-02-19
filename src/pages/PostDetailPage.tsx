@@ -36,6 +36,7 @@ import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
+import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
@@ -343,7 +344,7 @@ function CopyableHex({ value }: { value: string }) {
 function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(pubkey);
+  const displayName = getDisplayName(metadata, pubkey);
   const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
 
   return (
@@ -541,7 +542,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(event.pubkey);
+  const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
   const npub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
 
