@@ -39,7 +39,8 @@ export function NotificationsPage() {
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
-    if (!user || notifications.length === 0) return;
+    // Only mark as read if there are actually NEW notifications
+    if (!user || newNotifications.length === 0) return;
 
     // Mark as read after a short delay to ensure user actually sees them
     const timer = setTimeout(() => {
@@ -47,7 +48,7 @@ export function NotificationsPage() {
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [user, notifications.length, markAsRead]);
+  }, [user, newNotifications.length, markAsRead]);
 
   const filteredNotifications = useMemo(() => {
     if (activeTab === 'mentions') {

@@ -26,7 +26,7 @@ export interface NotificationData {
 export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { settings, updateSettings, isLoading: settingsLoading } = useEncryptedSettings();
+  const { settings, updateSettings } = useEncryptedSettings();
 
   const { data: notifications = [], isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['notifications', user?.pubkey ?? ''],
@@ -73,7 +73,8 @@ export function useNotifications(): NotificationData {
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
     }
-  }, [user, notifications, notificationsCursor, updateSettings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.pubkey, notifications.length, notificationsCursor]);
 
   return {
     notifications,
