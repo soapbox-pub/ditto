@@ -103,6 +103,28 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
   return map;
 }
 
+/** Get the first value for a tag name. */
+function getTag(tags: string[][], name: string): string | undefined {
+  return tags.find(([n]) => n === name)?.[1];
+}
+
+/** Parse single imeta tag into structured object (for kind 34236 vines). */
+function parseImeta(tags: string[][]): { url?: string; thumbnail?: string } {
+  const imetaTag = tags.find(([name]) => name === 'imeta');
+  if (!imetaTag) return {};
+  const result: Record<string, string> = {};
+  for (let i = 1; i < imetaTag.length; i++) {
+    const part = imetaTag[i];
+    const spaceIdx = part.indexOf(' ');
+    if (spaceIdx === -1) continue;
+    const key = part.slice(0, spaceIdx);
+    const value = part.slice(spaceIdx + 1);
+    if (key === 'url') result.url = value;
+    else if (key === 'image') result.thumbnail = value;
+  }
+  return result;
+}
+
 /** Formats a timestamp into a full date string like "Feb 16, 2026, 2:53 PM". */
 function formatFullDate(timestamp: number): string {
   const date = new Date(timestamp * 1000);
@@ -543,6 +565,37 @@ function EventNotFound({
   );
 }
 
+/** Video + title + hashtags for a kind 34236 vine on the detail page. */
+function VineDetailContent({ event }: { event: NostrEvent }) {
+  const imeta = useMemo(() => parseImeta(event.tags), [event.tags]);
+  const vineTitle = getTag(event.tags, 'title');
+  const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+
+  return (
+    <div className="mt-3">
+      {vineTitle && (
+        <p className="text-[15px] leading-relaxed break-words mb-2">{vineTitle}</p>
+      )}
+      {imeta.url && (
+        <VideoPlayer src={imeta.url} poster={imeta.thumbnail} />
+      )}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {hashtags.slice(0, 8).map((tag) => (
+            <Link
+              key={tag}
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="text-sm text-primary hover:underline"
+            >
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
@@ -640,6 +693,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {/* Post content — kind-based dispatch (same as NoteCard) */}
         {isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
           <>
+            {isVine && <VineDetailContent event={event} />}
             {isPoll && <PollContent event={event} />}
             {isGeocache && <GeocacheContent event={event} />}
             {isFoundLog && <FoundLogContent event={event} />}

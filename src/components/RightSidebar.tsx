@@ -65,14 +65,23 @@ export function TrendSparkline({ data }: { data: number[] }) {
   );
 }
 
+/** Track whether the sidebar has already loaded data at least once. */
+let hasLoadedOnce = false;
+
 export function RightSidebar() {
   const isXl = useIsXl();
 
-  // Delay sidebar data loading to prioritize feed performance
-  const [sidebarEnabled, setSidebarEnabled] = useState(false);
+  // Delay sidebar data loading only on the very first mount to prioritize
+  // initial feed performance. On subsequent mounts (page navigations) skip
+  // the delay since TanStack Query will serve cached data instantly.
+  const [sidebarEnabled, setSidebarEnabled] = useState(hasLoadedOnce);
   
   useEffect(() => {
-    const timer = setTimeout(() => setSidebarEnabled(true), 3000);
+    if (hasLoadedOnce) return;
+    const timer = setTimeout(() => {
+      hasLoadedOnce = true;
+      setSidebarEnabled(true);
+    }, 3000);
     return () => clearTimeout(timer);
   }, []);
 
