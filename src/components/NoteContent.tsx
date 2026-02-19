@@ -152,22 +152,19 @@ export function NoteContent({
           continue;
         }
 
-        // Determine if this URL stands alone on its own line (not mid-sentence).
-        // A URL is "standalone" when it's only preceded/followed by whitespace
-        // (or start/end of string) on the same line.
-        const textBefore = text.substring(lastIndex, index);
-        const lastNewline = textBefore.lastIndexOf('\n');
-        const linePrefix = lastNewline === -1 ? textBefore : textBefore.substring(lastNewline + 1);
+        // Determine if this URL ends a line (not followed by more text).
+        // A URL gets a preview card when nothing meaningful follows it on
+        // the same line (i.e., it ends the line or the content).
         const afterUrl = text.substring(index + fullMatch.length);
         const nextNewline = afterUrl.indexOf('\n');
         const lineSuffix = nextNewline === -1 ? afterUrl : afterUrl.substring(0, nextNewline);
-        const isStandalone = linePrefix.trim() === '' && lineSuffix.trim() === '';
+        const isEndOfLine = lineSuffix.trim() === '';
 
         // Check if the URL contains an naddr1 identifier → embed as Nostr event + preserve link
         const naddrFromUrl = extractNaddrFromUrl(url);
         if (naddrFromUrl) {
           result.push({ type: 'naddr-embed', addr: naddrFromUrl, url });
-        } else if (isStandalone) {
+        } else if (isEndOfLine) {
           // YouTube → playable embed
           const ytId = extractYouTubeId(url);
           if (ytId) {
