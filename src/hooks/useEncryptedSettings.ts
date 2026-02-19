@@ -6,7 +6,7 @@ import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings } from '@/contexts/AppContext';
 import type { ContentFilter } from './useContentFilters';
 
-const SETTINGS_D_TAG = 'mew-settings';
+const SETTINGS_D_TAG = 'mew-metadata';
 
 /**
  * Timestamp of last local write. NostrSync should skip applying
@@ -120,7 +120,7 @@ export function useEncryptedSettings() {
         content: encrypted,
         tags: [
           ['d', SETTINGS_D_TAG],
-          ['title', 'Mew Settings'],
+          ['title', 'Mew Metadata'],
           ['client', location.hostname],
         ],
         created_at: Math.floor(Date.now() / 1000),
