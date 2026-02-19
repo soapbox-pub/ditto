@@ -31,3 +31,13 @@ yarn.lock
 .env
 .env.*
 !.env.example
+
+# Android build outputs and sensitive files
+*.aab
+resources/
+android/app/my-upload-key.keystore
+android/key.properties
+android/local.properties
+android/build/
+android/.gradle/
+android/*/build/
