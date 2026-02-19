@@ -291,6 +291,11 @@ function FeedTabsSection() {
     return stored !== null ? stored === 'true' : true; // Default to true
   });
 
+  const [showCommunitiesFeed, setShowCommunitiesFeed] = useState(() => {
+    const stored = localStorage.getItem('mew:showCommunitiesFeed');
+    return stored !== null ? stored === 'true' : false; // Default to false
+  });
+
   const handleToggleGlobalFeed = (checked: boolean) => {
     setShowGlobalFeed(checked);
     localStorage.setItem('mew:showGlobalFeed', String(checked));
@@ -299,6 +304,17 @@ function FeedTabsSection() {
       description: checked 
         ? 'The Global feed tab will appear in your navigation'
         : 'The Global feed tab will be hidden',
+    });
+  };
+
+  const handleToggleCommunitiesFeed = (checked: boolean) => {
+    setShowCommunitiesFeed(checked);
+    localStorage.setItem('mew:showCommunitiesFeed', String(checked));
+    toast({
+      title: checked ? 'Communities feed enabled' : 'Communities feed disabled',
+      description: checked 
+        ? 'The Communities feed tab will appear in your navigation'
+        : 'The Communities feed tab will be hidden',
     });
   };
 
@@ -416,7 +432,7 @@ function FeedTabsSection() {
 
       <div className="px-3 space-y-4">
         {/* Feed Tab Toggles */}
-      <div className="space-y-3">
+      <div className="space-y-2">
         <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
           <div>
             <Label className="text-sm font-medium">Global Feed</Label>
@@ -426,6 +442,23 @@ function FeedTabsSection() {
             checked={showGlobalFeed}
             onCheckedChange={handleToggleGlobalFeed}
             className="scale-90"
+          />
+        </div>
+
+        <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
+          <div>
+            <Label className="text-sm font-medium">Communities Feed</Label>
+            <p className="text-xs text-muted-foreground">
+              {communities.length > 0 
+                ? `Show posts from ${communities.length} ${communities.length === 1 ? 'community' : 'communities'}`
+                : 'Add a community below to enable this feed'}
+            </p>
+          </div>
+          <Switch
+            checked={showCommunitiesFeed}
+            onCheckedChange={handleToggleCommunitiesFeed}
+            className="scale-90"
+            disabled={communities.length === 0}
           />
         </div>
       </div>
