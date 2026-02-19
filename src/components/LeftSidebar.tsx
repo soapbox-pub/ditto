@@ -38,11 +38,13 @@ function NavItem({ to, icon, label, active, showIndicator }: NavItemProps) {
         active ? 'font-bold' : 'font-normal text-muted-foreground',
       )}
     >
-      {icon}
+      <span className="relative">
+        {icon}
+        {showIndicator && (
+          <span className="absolute top-0 right-0 size-2 bg-primary rounded-full" />
+        )}
+      </span>
       <span>{label}</span>
-      {showIndicator && (
-        <span className="absolute right-4 size-2 bg-primary rounded-full" />
-      )}
     </Link>
   );
 }
