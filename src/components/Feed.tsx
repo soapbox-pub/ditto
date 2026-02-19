@@ -3,7 +3,6 @@ import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
 import { NoteCard } from '@/components/NoteCard';
-import { ArticleCard } from '@/components/ArticleCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -196,25 +195,13 @@ export function Feed() {
           </div>
         ) : feedItems.length > 0 ? (
           <div>
-            {feedItems.map((item: FeedItem) => {
-              // Use ArticleCard for kind 30023 (long-form content)
-              if (item.event.kind === 30023) {
-                return (
-                  <div key={item.event.id} className="px-4 py-4">
-                    <ArticleCard event={item.event} />
-                  </div>
-                );
-              }
-              
-              // Use NoteCard for all other kinds
-              return (
-                <NoteCard
-                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
-                  event={item.event}
-                  repostedBy={item.repostedBy}
-                />
-              );
-            })}
+            {feedItems.map((item: FeedItem) => (
+              <NoteCard
+                key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                event={item.event}
+                repostedBy={item.repostedBy}
+              />
+            ))}
             {/* Infinite scroll trigger */}
             {hasNextPage && (
               <div ref={scrollRef} className="py-4">

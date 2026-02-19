@@ -28,15 +28,10 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
-import { ArticleDetail } from '@/components/ArticleDetail';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
-
-/** Kinds that get the article detail view (long-form content). */
-const ARTICLE_KINDS = new Set([30023]);
-
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -223,19 +218,6 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
     );
   }
 
-  // Articles (kind 30023) get the article detail view with markdown rendering
-  if (ARTICLE_KINDS.has(resolvedEvent.kind)) {
-    return (
-      <MainLayout>
-        <PostDetailShell>
-          <div className="px-4 pb-8">
-            <ArticleDetail event={resolvedEvent} />
-          </div>
-        </PostDetailShell>
-      </MainLayout>
-    );
-  }
-
   return (
     <MainLayout>
       <PostDetailShell>
@@ -287,19 +269,6 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
       <MainLayout>
         <PostDetailShell>
           <FollowPackDetailContent event={resolvedEvent} />
-        </PostDetailShell>
-      </MainLayout>
-    );
-  }
-
-  // Articles (kind 30023) get the article detail view with markdown rendering
-  if (ARTICLE_KINDS.has(resolvedEvent.kind)) {
-    return (
-      <MainLayout>
-        <PostDetailShell>
-          <div className="px-4 pb-8">
-            <ArticleDetail event={resolvedEvent} />
-          </div>
         </PostDetailShell>
       </MainLayout>
     );

@@ -25,10 +25,6 @@ export interface FeedSettings {
   showColors: boolean;
   /** Show Follow Packs (kind 39089) link in sidebar */
   showPacks: boolean;
-  /** Show Articles (kind 30023) link in sidebar */
-  showArticles: boolean;
-  /** Show Recipes (kind 30023 with zapcooking tag) link in sidebar */
-  showRecipes: boolean;
   /** Include Vines in the follows/global feed */
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
@@ -41,10 +37,6 @@ export interface FeedSettings {
   feedIncludeColors: boolean;
   /** Include Follow Packs in the follows/global feed */
   feedIncludePacks: boolean;
-  /** Include Articles in the follows/global feed */
-  feedIncludeArticles: boolean;
-  /** Include Recipes in the follows/global feed */
-  feedIncludeRecipes: boolean;
 }
 
 export interface AppConfig {
