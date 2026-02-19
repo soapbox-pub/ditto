@@ -138,7 +138,6 @@ export function ContentSettings() {
 // Import the internals from FeedSettingsForm (we'll need to export them)
 import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
-import { Switch } from '@/components/ui/switch';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -520,10 +519,7 @@ function FeedTabsSection() {
 
 // Mute settings internals (without the intro/image)
 import { Trash2, Plus, UserX, Hash, MessageSquareOff } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/useToast';
 import { useMuteList, type MuteListItem } from '@/hooks/useMuteList';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 

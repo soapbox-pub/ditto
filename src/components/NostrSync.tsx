@@ -24,6 +24,11 @@ export function NostrSync() {
   useEffect(() => {
     if (!user) return;
 
+    // Delay sync by 3 seconds to avoid competing with initial feed load for relay bandwidth
+    const timeoutId = setTimeout(() => {
+      syncRelaysFromNostr();
+    }, 3000);
+
     const syncRelaysFromNostr = async () => {
       try {
         const events = await nostr.query(
@@ -61,7 +66,7 @@ export function NostrSync() {
       }
     };
 
-    syncRelaysFromNostr();
+    return () => clearTimeout(timeoutId);
   }, [user, config.relayMetadata.updatedAt, nostr, updateConfig]);
 
   // Sync encrypted settings from Nostr on login

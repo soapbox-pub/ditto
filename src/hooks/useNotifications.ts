@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -28,6 +28,16 @@ export function useNotifications(): NotificationData {
   const { user } = useCurrentUser();
   const { settings, updateSettings } = useEncryptedSettings();
 
+  // Delay notifications query by 3 seconds to avoid competing with feed load
+  const [queryEnabled, setQueryEnabled] = useState(false);
+  
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => setQueryEnabled(true), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
   const { data: notifications = [], isLoading } = useQuery<NostrEvent[]>({
     queryKey: ['notifications', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
@@ -40,7 +50,7 @@ export function useNotifications(): NotificationData {
         .filter((e) => e.pubkey !== user.pubkey)
         .sort((a, b) => b.created_at - a.created_at);
     },
-    enabled: !!user,
+    enabled: queryEnabled && !!user,
     refetchInterval: 60_000, // Refetch every minute for new notifications
   });
 
@@ -52,7 +62,8 @@ export function useNotifications(): NotificationData {
     (event) => event.created_at > notificationsCursor
   );
 
-  const hasUnread = newNotifications.length > 0;
+  // Don't show unread badge until query has actually run
+  const hasUnread = queryEnabled && newNotifications.length > 0;
 
   // Mark all current notifications as read by updating the cursor
   const markAsRead = useCallback(async () => {

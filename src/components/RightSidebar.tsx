@@ -68,9 +68,17 @@ export function TrendSparkline({ data }: { data: number[] }) {
 export function RightSidebar() {
   const isXl = useIsXl();
 
-  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl);
-  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
-  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
+  // Delay sidebar data loading to prioritize feed performance
+  const [sidebarEnabled, setSidebarEnabled] = useState(false);
+  
+  useEffect(() => {
+    const timer = setTimeout(() => setSidebarEnabled(true), 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl && sidebarEnabled);
+  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl && sidebarEnabled);
+  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl && sidebarEnabled);
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
@@ -85,7 +93,7 @@ export function RightSidebar() {
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">View all</Link>
         </div>
 
-        {tagsLoading ? (
+        {!sidebarEnabled || tagsLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -133,7 +141,7 @@ export function RightSidebar() {
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
         </div>
 
-        {hotLoading ? (
+        {!sidebarEnabled || hotLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-1.5">
@@ -163,7 +171,7 @@ export function RightSidebar() {
           <h2 className="text-xl font-bold">New Accounts</h2>
         </div>
 
-        {accountsLoading ? (
+        {!sidebarEnabled || accountsLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">

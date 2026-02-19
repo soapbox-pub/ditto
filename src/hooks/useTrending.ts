@@ -362,7 +362,7 @@ export function useTagSparklines(tags: string[], enabled = true) {
  * `['event-stats', id]` cache entries so that `useEventStats()` calls
  * for the same IDs resolve instantly from cache.
  */
-export function useBatchEventStats(eventIds: string[]) {
+export function useBatchEventStats(eventIds: string[], enabled = true) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
 
@@ -398,7 +398,7 @@ export function useBatchEventStats(eventIds: string[]) {
     },
     staleTime: 60 * 1000,
     gcTime: 5 * 60 * 1000,
-    enabled: uniqueIds.length > 0,
+    enabled: enabled && uniqueIds.length > 0,
     placeholderData: (prev) => prev,
   });
 }

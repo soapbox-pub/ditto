@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
@@ -42,6 +43,16 @@ export function useEncryptedSettings() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
+  // Delay loading encrypted settings by 5 seconds to avoid competing with feed load
+  const [queryEnabled, setQueryEnabled] = useState(false);
+  
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => setQueryEnabled(true), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [user]);
+
   // Query the encrypted settings event
   const query = useQuery({
     queryKey: ['encryptedSettings', user?.pubkey],
@@ -60,9 +71,9 @@ export function useEncryptedSettings() {
 
       return events[0];
     },
-    enabled: !!user,
-    staleTime: Infinity, // Never refetch automatically
-    gcTime: Infinity, // Keep in cache forever
+    enabled: queryEnabled && !!user,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -89,9 +100,9 @@ export function useEncryptedSettings() {
         return null;
       }
     },
-    enabled: !!query.data && !!user,
-    staleTime: Infinity, // Never refetch automatically
-    gcTime: Infinity, // Keep in cache forever
+    enabled: queryEnabled && !!query.data && !!user,
+    staleTime: Infinity,
+    gcTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

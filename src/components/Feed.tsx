@@ -13,6 +13,7 @@ import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useBatchEventStats } from '@/hooks/useTrending';
+
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
@@ -69,10 +70,6 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  // Show skeleton when initially loading OR when switching tabs without cached data
-  const showSkeleton = isPending || (isLoading && !data);
-
-  // Auto-fetch page 2 when page 1 loads
   useEffect(() => {
     if (!isPending && hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
       fetchNextPage();
@@ -120,14 +117,23 @@ export function Feed() {
     }
     return [...keys];
   }, [feedItems]);
-  useAuthors(feedPubkeys);
+  const authorsQuery = useAuthors(feedPubkeys);
 
   // Batch-prefetch interaction stats for all visible events in a single
   // relay query instead of firing 2 queries per NoteCard.
+  // Wait for authors to load first to avoid relay contention (sequential loading).
   const feedEventIds = useMemo(() => {
     return feedItems.map((item) => item.event.id);
   }, [feedItems]);
-  useBatchEventStats(feedEventIds);
+  
+  const statsEnabled = !authorsQuery.isLoading && !authorsQuery.isFetching;
+  const statsQuery = useBatchEventStats(feedEventIds, statsEnabled);
+  
+  // Show skeleton only on initial load or when switching tabs
+  // Don't show skeleton during pagination (page 2+) to avoid jumping to top
+  const isInitialLoad = isPending || (isLoading && !data);
+  const isBatchPrefetching = authorsQuery.isFetching || statsQuery.isFetching;
+  const showSkeleton = isInitialLoad || (isBatchPrefetching && !data?.pages?.length);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
