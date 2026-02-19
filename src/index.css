@@ -193,6 +193,11 @@
   .safe-area-inset-bottom {
     bottom: env(safe-area-inset-bottom, 0px);
   }
+  
+  /* Mobile top bar height (48px) + safe area inset for sticky elements */
+  .top-mobile-bar {
+    top: calc(3rem + env(safe-area-inset-top, 0px));
+  }
 }
 
 
