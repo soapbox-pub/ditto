@@ -27,12 +27,12 @@ export function AdvancedSettings() {
       </div>
 
       {/* Wallet Section */}
-      <div className="border-b-[4px] border-primary">
+      <div>
         <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Wallet</span>
               {walletOpen ? (
@@ -59,12 +59,12 @@ export function AdvancedSettings() {
       </div>
 
       {/* Network (Relays) Section */}
-      <div className="border-b-[4px] border-primary">
+      <div>
         <Collapsible open={relaysOpen} onOpenChange={setRelaysOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Network</span>
               {relaysOpen ? (
