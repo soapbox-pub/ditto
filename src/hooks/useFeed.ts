@@ -32,7 +32,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
-  const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
+  // Allow query to run if not on follows tab, OR if follow list has loaded (even if empty).
+  const followsReady = tab !== 'follows' || (!!user && followList !== undefined);
 
   // Load community pubkeys from localStorage
   const communityPubkeys = (() => {
@@ -167,9 +168,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         }
 
         return Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-      } else if (tab === 'follows' && user && followList && followList.length > 0) {
+      } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
-        const authors = [...followList, user.pubkey];
+        // If followList is empty, just query own posts
+        const authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
         const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;
@@ -264,6 +266,5 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
     enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
-    placeholderData: (previousData) => previousData, // Keep showing previous data while refetching (avoids flicker)
   });
 }

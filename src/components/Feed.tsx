@@ -59,6 +59,7 @@ export function Feed() {
   const {
     data,
     isPending,
+    isLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
@@ -67,6 +68,9 @@ export function Feed() {
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
+
+  // Show skeleton when initially loading OR when switching tabs without cached data
+  const showSkeleton = isPending || (isLoading && !data);
 
   // Auto-fetch page 2 when page 1 loads
   useEffect(() => {
@@ -177,7 +181,7 @@ export function Feed() {
 
       {/* Pull-to-refresh + feed content */}
       <PullToRefresh onRefresh={handleRefresh}>
-        {isPending ? (
+        {showSkeleton ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 5 }).map((_, i) => (
               <NoteCardSkeleton key={i} />
