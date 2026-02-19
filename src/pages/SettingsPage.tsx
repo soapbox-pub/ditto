@@ -3,10 +3,8 @@ import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
-import { RelayListManager } from '@/components/RelayListManager';
-import { FeedSettingsForm } from '@/components/FeedSettingsForm';
-import { WalletSettings } from '@/components/WalletSettings';
-import { MuteSettings } from '@/components/MuteSettings';
+import { ContentSettings } from '@/components/ContentSettings';
+import { AdvancedSettings } from '@/components/AdvancedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
@@ -34,7 +32,7 @@ export function SettingsPage() {
                 <SettingsIcon className="size-5" />
                 <h1 className="text-xl font-bold">Settings</h1>
               </div>
-              <p className="text-sm text-muted-foreground mt-0.5">Manage your profile, feed, and preferences</p>
+              <p className="text-sm text-muted-foreground mt-0.5">Customize your profile, content, and advanced features</p>
             </div>
           </div>
         </div>
@@ -42,33 +40,19 @@ export function SettingsPage() {
         {/* Tab navigation */}
         <div className="flex border-b border-border">
           <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
-          <SettingsTab to="/settings/feed" label="Feed" active={activeSection === 'feed'} />
-          <SettingsTab to="/settings/mutes" label="Mutes" active={activeSection === 'mutes'} />
-          <SettingsTab to="/settings/relays" label="Relays" active={activeSection === 'relays'} />
-          <SettingsTab to="/settings/wallet" label="Wallet" active={activeSection === 'wallet'} />
+          <SettingsTab to="/settings/content" label="Content" active={activeSection === 'content'} />
+          <SettingsTab to="/settings/advanced" label="Advanced" active={activeSection === 'advanced'} />
         </div>
 
         <div className="p-4">
-          {activeSection === 'mutes' ? (
-            !user ? (
-              <p className="text-center text-muted-foreground py-8">Log in to manage your mute list.</p>
-            ) : (
-              <MuteSettings />
-            )
-          ) : activeSection === 'feed' ? (
-            <FeedSettingsForm />
-          ) : activeSection === 'wallet' ? (
-            !user ? (
-              <p className="text-center text-muted-foreground py-8">Log in to manage your wallet.</p>
-            ) : (
-              <WalletSettings />
-            )
+          {activeSection === 'content' ? (
+            <ContentSettings />
+          ) : activeSection === 'advanced' ? (
+            <AdvancedSettings />
           ) : !user ? (
             <p className="text-center text-muted-foreground py-8">Log in to manage settings.</p>
           ) : activeSection === 'profile' ? (
             <EditProfileForm />
-          ) : activeSection === 'relays' ? (
-            <RelayListManager />
           ) : null}
         </div>
       </main>
