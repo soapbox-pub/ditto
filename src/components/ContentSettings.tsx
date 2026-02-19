@@ -424,25 +424,26 @@ function FeedTabsSection() {
         </div>
       </div>
 
-      <div className="px-3 space-y-4">
-        {/* Feed Tab Toggles */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
-          <div>
+      {/* Feed Tab Toggles */}
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between py-3.5 px-3">
+          <div className="min-w-0">
             <Label className="text-sm font-medium">Global Feed</Label>
-            <p className="text-xs text-muted-foreground">Show posts from all users across the network</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Show posts from all users across the network</p>
           </div>
           <Switch
             checked={showGlobalFeed}
             onCheckedChange={handleToggleGlobalFeed}
-            className="scale-90"
+            className="shrink-0"
           />
         </div>
+      </div>
 
-        <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
-          <div>
+      <div className="border-b border-border">
+        <div className="flex items-center justify-between py-3.5 px-3">
+          <div className="min-w-0">
             <Label className="text-sm font-medium">Community Feed</Label>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-0.5">
               {community 
                 ? `Show "${community.label}" tab for ${community.domain} users`
                 : 'Set a community below to enable this feed'}
@@ -451,22 +452,25 @@ function FeedTabsSection() {
           <Switch
             checked={showCommunityFeed}
             onCheckedChange={handleToggleCommunityFeed}
-            className="scale-90"
+            className="shrink-0"
             disabled={!community}
           />
         </div>
       </div>
 
+      <div className="px-3 py-4 space-y-4">
+
       {/* Community Management */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Users className="h-4 w-4 text-muted-foreground" />
-          <Label className="text-sm font-medium">Community</Label>
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <Label className="text-sm font-medium">Community</Label>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
+          </p>
         </div>
-        
-        <p className="text-xs text-muted-foreground">
-          Set a community domain. We'll download the NIP-05 user list to show posts only from verified members.
-        </p>
 
         {!community ? (
           <div className="flex gap-2">
@@ -496,7 +500,7 @@ function FeedTabsSection() {
             </Button>
           </div>
         ) : (
-          <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg hover:bg-muted/20 transition-colors">
+          <div className="flex items-center justify-between py-2.5 px-3 border border-border rounded-lg hover:bg-muted/20 transition-colors">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Users className="h-4 w-4 text-muted-foreground shrink-0" />
               <div className="min-w-0">
@@ -615,73 +619,71 @@ function MuteSettingsInternals() {
     <div>
 
       {/* Add mute section */}
-      <div className="border-b border-border pb-4 mb-4">
-        <div className="px-3 space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="mute-type" className="text-xs font-medium">Type</Label>
-              <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
-                <SelectTrigger id="mute-type" className="h-9">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pubkey">
-                    <div className="flex items-center gap-2">
-                      <UserX className="h-4 w-4" />
-                      User
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="hashtag">
-                    <div className="flex items-center gap-2">
-                      <Hash className="h-4 w-4" />
-                      Hashtag
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="word">
-                    <div className="flex items-center gap-2">
-                      <MessageSquareOff className="h-4 w-4" />
-                      Word/Phrase
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="thread">
-                    <div className="flex items-center gap-2">
-                      <MessageSquareOff className="h-4 w-4" />
-                      Thread
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="mute-value" className="text-xs font-medium">
-                {MUTE_TYPE_CONFIG[newMuteType].inputLabel}
-              </Label>
-              <Input
-                id="mute-value"
-                value={newMuteValue}
-                onChange={(e) => setNewMuteValue(e.target.value)}
-                placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
-                className="h-9"
-              />
-            </div>
+      <div className="px-3 py-4 space-y-3 border-b border-border">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-2">
+            <Label htmlFor="mute-type" className="text-xs font-medium">Type</Label>
+            <Select value={newMuteType} onValueChange={(value) => setNewMuteType(value as MuteListItem['type'])}>
+              <SelectTrigger id="mute-type" className="h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pubkey">
+                  <div className="flex items-center gap-2">
+                    <UserX className="h-4 w-4" />
+                    User
+                  </div>
+                </SelectItem>
+                <SelectItem value="hashtag">
+                  <div className="flex items-center gap-2">
+                    <Hash className="h-4 w-4" />
+                    Hashtag
+                  </div>
+                </SelectItem>
+                <SelectItem value="word">
+                  <div className="flex items-center gap-2">
+                    <MessageSquareOff className="h-4 w-4" />
+                    Word/Phrase
+                  </div>
+                </SelectItem>
+                <SelectItem value="thread">
+                  <div className="flex items-center gap-2">
+                    <MessageSquareOff className="h-4 w-4" />
+                    Thread
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <Button 
-            onClick={handleAddMute} 
-            disabled={addMute.isPending} 
-            size="sm"
-            className="w-full sm:w-auto"
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Mute
-          </Button>
+          <div className="space-y-2">
+            <Label htmlFor="mute-value" className="text-xs font-medium">
+              {MUTE_TYPE_CONFIG[newMuteType].inputLabel}
+            </Label>
+            <Input
+              id="mute-value"
+              value={newMuteValue}
+              onChange={(e) => setNewMuteValue(e.target.value)}
+              placeholder={MUTE_TYPE_CONFIG[newMuteType].placeholder}
+              className="h-9"
+            />
+          </div>
         </div>
+
+        <Button 
+          onClick={handleAddMute} 
+          disabled={addMute.isPending} 
+          size="sm"
+          className="w-full sm:w-auto"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Add Mute
+        </Button>
       </div>
 
       {/* Muted items list */}
       {isLoading ? (
-        <div className="space-y-2 px-3">
+        <div className="space-y-2 px-3 py-4">
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
           <Skeleton className="h-12 w-full" />
@@ -728,7 +730,7 @@ function MuteTypeSection({
 }) {
   return (
     <div className="border-b border-border last:border-b-0">
-      <div className="flex items-center gap-3 px-3 py-3.5 bg-muted/30">
+      <div className="flex items-center gap-3 px-3 py-3.5">
         <span className="text-muted-foreground shrink-0">{config.icon}</span>
         <div className="min-w-0">
           <span className="text-sm font-medium">{config.label}</span>
@@ -742,7 +744,7 @@ function MuteTypeSection({
         {items.map((item, index) => (
           <div
             key={`${item.type}-${item.value}-${index}`}
-            className="flex items-center justify-between py-2.5 px-3 hover:bg-muted/20 transition-colors"
+            className="flex items-center justify-between py-2.5 px-3 pl-12 hover:bg-muted/20 transition-colors"
           >
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <code className="text-xs truncate font-mono bg-muted px-2 py-1 rounded">
