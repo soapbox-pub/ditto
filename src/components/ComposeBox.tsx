@@ -1,5 +1,8 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
+import { nip19 } from 'nostr-tools';
+import type { NostrEvent } from '@nostrify/nostrify';
+
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +18,6 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
-import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
 
 const MAX_CHARS = 5000;
 
@@ -218,11 +219,15 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       }
 
       // Quote tags (if quoted event and not removed)
+      // Per NIP-18, quotes should use the q tag and include the nostr: URI in content
+      let finalContent = content.trim();
       if (showQuotedEvent && quotedEvent) {
-        tags.push(['e', quotedEvent.id, '', 'mention']);
-        tags.push(['p', quotedEvent.pubkey]);
-        // Add the q tag for NIP-18 quote reposts
         tags.push(['q', quotedEvent.id]);
+        // Add the nostr: URI to the content if not already present
+        const neventUri = `nostr:${nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey })}`;
+        if (!finalContent.includes(neventUri)) {
+          finalContent = finalContent + '\n\n' + neventUri;
+        }
       }
 
       // NIP-36: content warning
@@ -236,7 +241,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
       await createEvent({
         kind: 1,
-        content: content.trim(),
+        content: finalContent,
         tags,
         created_at: Math.floor(Date.now() / 1000),
       });
