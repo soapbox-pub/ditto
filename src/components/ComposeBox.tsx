@@ -102,9 +102,35 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     if (!expanded) setExpanded(true);
   }, [expanded]);
 
-  // Detect embeds in content (nevent, note, naddr, URLs)
+  // Handle content changes - detect new identifiers and ensure newline after them
+  const handleContentChange = useCallback((newValue: string) => {
+    setContent(newValue);
+    
+    // Auto-add newline after pasted identifier
+    const nip19Regex = /\b(nostr:)?(nevent1|note1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+$/;
+    const match = newValue.match(nip19Regex);
+    
+    if (match && textareaRef.current) {
+      const matchEnd = newValue.length;
+      // Add newline after the identifier
+      const withNewline = newValue + '\n';
+      setContent(withNewline);
+      
+      requestAnimationFrame(() => {
+        textareaRef.current?.setSelectionRange(matchEnd + 1, matchEnd + 1);
+      });
+    }
+  }, []);
+
+  // Detect embeds in content (nevent, note, naddr, URLs) with their positions
   const detectedEmbeds = useMemo(() => {
-    const embeds: Array<{ type: 'nevent' | 'note' | 'naddr' | 'link'; value: string; eventId?: string; addr?: { kind: number; pubkey: string; identifier: string } }> = [];
+    const embeds: Array<{ 
+      type: 'nevent' | 'note' | 'naddr' | 'link'; 
+      value: string; 
+      index: number;
+      eventId?: string; 
+      addr?: { kind: number; pubkey: string; identifier: string } 
+    }> = [];
     
     // Detect nostr: URIs
     const nostrMatches = content.matchAll(/nostr:(nevent1|note1|naddr1)[023456789acdefghjklmnpqrstuvwxyz]+/g);
@@ -113,13 +139,14 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       try {
         const decoded = nip19.decode(bech32);
         if (decoded.type === 'nevent') {
-          embeds.push({ type: 'nevent', value: match[0], eventId: decoded.data.id });
+          embeds.push({ type: 'nevent', value: match[0], index: match.index!, eventId: decoded.data.id });
         } else if (decoded.type === 'note') {
-          embeds.push({ type: 'note', value: match[0], eventId: decoded.data });
+          embeds.push({ type: 'note', value: match[0], index: match.index!, eventId: decoded.data });
         } else if (decoded.type === 'naddr') {
           embeds.push({ 
             type: 'naddr', 
             value: match[0], 
+            index: match.index!,
             addr: { 
               kind: decoded.data.kind, 
               pubkey: decoded.data.pubkey, 
@@ -144,13 +171,14 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       try {
         const decoded = nip19.decode(bech32);
         if (decoded.type === 'nevent') {
-          embeds.push({ type: 'nevent', value: match[0], eventId: decoded.data.id });
+          embeds.push({ type: 'nevent', value: match[0], index: match.index!, eventId: decoded.data.id });
         } else if (decoded.type === 'note') {
-          embeds.push({ type: 'note', value: match[0], eventId: decoded.data });
+          embeds.push({ type: 'note', value: match[0], index: match.index!, eventId: decoded.data });
         } else if (decoded.type === 'naddr') {
           embeds.push({ 
             type: 'naddr', 
             value: match[0], 
+            index: match.index!,
             addr: { 
               kind: decoded.data.kind, 
               pubkey: decoded.data.pubkey, 
@@ -169,11 +197,12 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       const url = match[0];
       // Skip media URLs
       if (!/\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?$/i.test(url)) {
-        embeds.push({ type: 'link', value: url });
+        embeds.push({ type: 'link', value: url, index: match.index! });
       }
     }
 
-    return embeds;
+    // Sort by position in content
+    return embeds.sort((a, b) => a.index - b.index);
   }, [content]);
 
   // Filter out removed embeds
@@ -182,30 +211,17 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
-  // Compute display content with NIP-19 identifiers hidden (replaced with placeholder)
-  const displayContent = useMemo(() => {
-    let result = content;
-    // Sort embeds by position (descending) to replace from end to start
-    const embedsWithPosition: Array<{ value: string; index: number }> = [];
-    
-    // Find all embed positions
-    for (const embed of visibleEmbeds) {
-      if (embed.type === 'link') continue; // Don't hide URL links
-      const index = result.indexOf(embed.value);
-      if (index !== -1) {
-        embedsWithPosition.push({ value: embed.value, index });
-      }
-    }
-    
-    // Sort by index descending
-    embedsWithPosition.sort((a, b) => b.index - a.index);
-    
-    // Replace each embed with empty string
-    for (const { value, index } of embedsWithPosition) {
-      result = result.slice(0, index) + result.slice(index + value.length);
-    }
-    
-    return result;
+  // Split content into lines for inline embed rendering
+  const contentLines = useMemo(() => {
+    const lines = content.split('\n');
+    return lines.map((line, lineIndex) => {
+      // Check if this line contains a NIP-19 identifier
+      const embed = visibleEmbeds.find(e => 
+        e.type !== 'link' && line.includes(e.value)
+      );
+      
+      return { line, lineIndex, embed };
+    });
   }, [content, visibleEmbeds]);
 
   // Include quoted event if provided and not removed
@@ -340,19 +356,18 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       )}
 
       <div className="flex-1 min-w-0">
-        {/* Textarea wrapper with overlay for display */}
+        {/* Textarea with line-by-line rendering */}
         <div className="relative">
-          {/* Hidden textarea for actual content */}
           <textarea
             ref={textareaRef}
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(e) => handleContentChange(e.target.value)}
             onFocus={expand}
-            placeholder={placeholder}
+            placeholder={!content ? placeholder : ''}
             className={cn(
-              'w-full bg-transparent resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+              'w-full bg-transparent resize-none outline-none text-lg pt-2.5 pb-2',
               isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-              'text-transparent caret-foreground selection:bg-primary/20',
+              'opacity-0 absolute inset-0',
             )}
             rows={isExpanded ? 4 : 1}
             disabled={!user}
@@ -362,17 +377,61 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
               }
             }}
           />
-          {/* Display overlay showing content with identifiers hidden */}
+          
+          {/* Visual display with inline embeds */}
           <div 
-            className={cn(
-              'absolute inset-0 pointer-events-none whitespace-pre-wrap break-words text-lg pt-2.5 pb-2 opacity-85',
-              displayContent ? 'text-foreground' : 'text-muted-foreground',
-            )}
-            aria-hidden="true"
+            className="pointer-events-none text-lg pt-2.5 pb-2"
+            onClick={() => textareaRef.current?.focus()}
           >
-            {displayContent || placeholder}
+            {contentLines.map(({ line, lineIndex, embed }) => (
+              <div key={lineIndex}>
+                {/* Show line text (hide if it's just the identifier) */}
+                {!embed && (
+                  <div className="text-foreground opacity-85 whitespace-pre-wrap break-words min-h-[1.5em]">
+                    {line || '\u00A0'}
+                  </div>
+                )}
+                
+                {/* Show embed card instead of identifier text */}
+                {embed && (
+                  <div className="pointer-events-auto relative my-2">
+                    <button
+                      onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
+                      className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+                      title="Remove embed"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                    {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
+                      <EmbeddedNote eventId={embed.eventId} />
+                    )}
+                    {embed.type === 'naddr' && embed.addr && (
+                      <EmbeddedNaddr addr={embed.addr} />
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            
+            {!content && (
+              <div className="text-muted-foreground opacity-85">{placeholder}</div>
+            )}
           </div>
         </div>
+
+        {/* URL link previews (rendered at bottom, not inline) */}
+        {visibleEmbeds.filter(e => e.type === 'link').map((embed, i) => (
+          <div key={`link-${i}`} className="relative mt-4 mb-3">
+            <button
+              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
+              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
+              title="Remove embed"
+            >
+              <X className="size-3.5" />
+            </button>
+            <LinkPreview url={embed.value} />
+          </div>
+        ))}
 
         {/* Content warning input */}
         {cwEnabled && (
@@ -399,28 +458,6 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
             <EmbeddedNote eventId={quotedEvent.id} />
           </div>
         )}
-
-        {/* Detected embeds */}
-        {visibleEmbeds.map((embed, i) => (
-          <div key={`${embed.type}-${i}`} className="relative mt-4 mb-3">
-            <button
-              onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
-              className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-              title="Remove embed"
-            >
-              <X className="size-3.5" />
-            </button>
-            {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
-              <EmbeddedNote eventId={embed.eventId} />
-            )}
-            {embed.type === 'naddr' && embed.addr && (
-              <EmbeddedNaddr addr={embed.addr} />
-            )}
-            {embed.type === 'link' && (
-              <LinkPreview url={embed.value} />
-            )}
-          </div>
-        ))}
 
         {/* Toolbar + post button */}
         {isExpanded && (
