@@ -39,7 +39,7 @@ import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
-import { getNip05Domain, getDomainFavicon } from '@/lib/utils';
+import { Nip05Badge } from '@/components/Nip05Badge';
 
 
 interface PostDetailPageProps {
@@ -367,19 +367,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
               {displayName}
             </span>
             {metadata?.nip05 && (
-              <>
-                <span className="text-xs text-muted-foreground truncate hidden sm:inline">
-                  @{metadata.nip05}
-                </span>
-                {getNip05Domain(metadata.nip05) && (
-                  <img
-                    src={getDomainFavicon(getNip05Domain(metadata.nip05)!)}
-                    alt=""
-                    className="size-3 shrink-0 inline-block hidden sm:inline"
-                    loading="lazy"
-                  />
-                )}
-              </>
+              <Nip05Badge nip05={metadata.nip05} className="text-xs text-muted-foreground hidden sm:inline-flex" iconSize={12} />
             )}
           </>
         )}
@@ -628,19 +616,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   {displayName}
                 </Link>
                 {nip05 && (
-                  <div className="flex items-center gap-1">
-                    <span className="text-sm text-muted-foreground truncate">
-                      @{nip05}
-                    </span>
-                    {getNip05Domain(nip05) && (
-                      <img
-                        src={getDomainFavicon(getNip05Domain(nip05)!)}
-                        alt=""
-                        className="size-4 shrink-0"
-                        loading="lazy"
-                      />
-                    )}
-                  </div>
+                  <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
                 )}
               </div>
 
@@ -932,17 +908,7 @@ function ParentNote({ eventId }: { eventId: string }) {
                 </Link>
                 {metadata?.nip05 && (
                   <>
-                    <span className="text-sm text-muted-foreground truncate">
-                      @{metadata.nip05}
-                    </span>
-                    {getNip05Domain(metadata.nip05) && (
-                      <img
-                        src={getDomainFavicon(getNip05Domain(metadata.nip05)!)}
-                        alt=""
-                        className="size-4 shrink-0"
-                        loading="lazy"
-                      />
-                    )}
+                    <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
                     <span className="text-sm text-muted-foreground shrink-0">·</span>
                   </>
                 )}

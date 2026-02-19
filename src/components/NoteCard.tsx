@@ -20,7 +20,8 @@ import { useEventStats } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
-import { cn, getNip05Domain, getDomainFavicon } from '@/lib/utils';
+import { cn } from '@/lib/utils';
+import { Nip05Badge } from '@/components/Nip05Badge';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState, useRef, useEffect } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -248,19 +249,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                 )}
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                {nip05 && (
-                  <>
-                    <span className="truncate">@{nip05}</span>
-                    {getNip05Domain(nip05) && (
-                      <img
-                        src={getDomainFavicon(getNip05Domain(nip05)!)}
-                        alt=""
-                        className="size-4 shrink-0 inline-block"
-                        loading="lazy"
-                      />
-                    )}
-                  </>
-                )}
+                {nip05 && <Nip05Badge nip05={nip05} />}
                 {nip05 && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline">
                   {timeAgo(event.created_at)}
