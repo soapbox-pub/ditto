@@ -2,7 +2,6 @@ import { useState, useCallback, useMemo } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -31,7 +30,7 @@ export function QuickReactMenu({
   const queryClient = useQueryClient();
   const { trackEmojiUsage, getTopEmojis } = useEmojiUsage();
 
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [showFullPicker, setShowFullPicker] = useState(false);
   const [selectedEmoji, setSelectedEmoji] = useState<string | null>(null);
 
   // Get user's most-used emojis (or defaults)
@@ -41,7 +40,7 @@ export function QuickReactMenu({
     if (!user) return;
 
     // Close picker if it's open
-    setPickerOpen(false);
+    setShowFullPicker(false);
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
@@ -77,6 +76,19 @@ export function QuickReactMenu({
 
   if (!user) return null;
 
+  // Show full emoji picker if requested
+  if (showFullPicker) {
+    return (
+      <div
+        className={cn('bg-popover border border-border rounded-xl shadow-xl', className)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <EmojiPicker onSelect={handleEmojiSelect} />
+      </div>
+    );
+  }
+
+  // Show quick react menu
   return (
     <div
       className={cn(
@@ -100,26 +112,14 @@ export function QuickReactMenu({
         </button>
       ))}
 
-      {/* More button with full picker */}
-      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-        <PopoverTrigger asChild>
-          <button
-            className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110 active:scale-95"
-            title="More reactions"
-          >
-            <MoreHorizontal className="size-5" />
-          </button>
-        </PopoverTrigger>
-        <PopoverContent
-          className="w-auto p-0 border-border rounded-xl shadow-xl"
-          side="top"
-          align="end"
-          onClick={(e) => e.stopPropagation()}
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <EmojiPicker onSelect={handleEmojiSelect} />
-        </PopoverContent>
-      </Popover>
+      {/* More button to show full picker */}
+      <button
+        onClick={() => setShowFullPicker(true)}
+        className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110 active:scale-95"
+        title="More reactions"
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
     </div>
   );
 }
