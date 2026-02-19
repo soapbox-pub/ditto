@@ -136,7 +136,7 @@ export function ContentSettings() {
 }
 
 // Import the internals from FeedSettingsForm (we'll need to export them)
-import { Clapperboard, BarChart3, Palette, PartyPopper } from 'lucide-react';
+import { Clapperboard, BarChart3, Palette, PartyPopper, BookOpen, ChefHat } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -152,6 +152,8 @@ const ICONS: Record<string, React.ReactNode> = {
   treasures: <ChestIcon className="size-5" />,
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
+  articles: <BookOpen className="size-5" />,
+  recipes: <ChefHat className="size-5" />,
 };
 
 function KindBadge({ kind }: { kind: number }) {

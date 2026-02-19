@@ -98,6 +98,24 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'packs',
     addressable: true,
   },
+  {
+    kind: 30023,
+    showKey: 'showArticles',
+    feedKey: 'feedIncludeArticles',
+    label: 'Articles',
+    description: 'Long-form content',
+    route: 'articles',
+    addressable: true,
+  },
+  {
+    kind: 30023,
+    showKey: 'showRecipes',
+    feedKey: 'feedIncludeRecipes',
+    label: 'Recipes',
+    description: 'Cooking recipes',
+    route: 'recipes',
+    addressable: true,
+  },
 ];
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */

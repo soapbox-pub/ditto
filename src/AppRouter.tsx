@@ -1,5 +1,5 @@
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, Palette, PartyPopper } from "lucide-react";
+import { Clapperboard, BarChart3, Palette, PartyPopper, BookOpen, ChefHat } from "lucide-react";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 import Index from "./pages/Index";
@@ -12,6 +12,7 @@ import { HashtagPage } from "./pages/HashtagPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 
 import { KindFeedPage } from "./pages/KindFeedPage";
+import { ArticlesFeedPage } from "./pages/ArticlesFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,8 @@ export function AppRouter() {
         <Route path="/treasures" element={<TreasuresPage />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
+        <Route path="/articles" element={<ArticlesFeedPage title="Articles" icon={<BookOpen className="size-5" />} description="Long-form content on Nostr" />} />
+        <Route path="/recipes" element={<ArticlesFeedPage tagFilter="zapcooking" title="Recipes" icon={<ChefHat className="size-5" />} description="Cooking recipes from zap.cooking" />} />
 
         <Route path="/bookmarks" element={<BookmarksPage />} />
 
