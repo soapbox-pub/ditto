@@ -249,7 +249,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                 )}
               </div>
               <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-hidden">
-                {nip05 && <span className="truncate">@{nip05}</span>}
+                {nip05 && <Nip05Badge nip05={nip05} />}
                 {nip05 && <span className="shrink-0">·</span>}
                 <span className="shrink-0 hover:underline">
                   {timeAgo(event.created_at)}
