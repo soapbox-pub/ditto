@@ -3,6 +3,7 @@ import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-reac
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/useToast';
 
@@ -53,12 +54,12 @@ export function ContentSettings() {
       </div>
 
       {/* Other Stuff Section */}
-      <div className="border-b-2 border-primary">
+      <div>
         <Collapsible open={otherStuffOpen} onOpenChange={setOtherStuffOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-2 border-primary"
             >
               <span className="text-base font-semibold">Other Stuff</span>
               {otherStuffOpen ? (
@@ -70,7 +71,7 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
-              <p className="text-xs text-muted-foreground px-3 pb-3">
+              <p className="text-xs text-muted-foreground px-3 pb-3 pt-3">
                 Nostr isn't just text posts — people publish all kinds of things. Pick what shows up in your sidebar and feed.
               </p>
 
@@ -105,13 +106,26 @@ export function ContentSettings() {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="pb-4">
+              {/* Intro section for Muted Content */}
+              <div className="flex items-center gap-4 px-3 pt-3 pb-4">
+                <img
+                  src="/mute-intro.png"
+                  alt=""
+                  className="w-40 shrink-0 mix-blend-difference opacity-80"
+                />
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold">Content Control</h3>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Hide posts from specific users, hashtags, words, or entire threads. All mutes are encrypted and private.
+                  </p>
+                </div>
+              </div>
               <MuteSettingsInternals />
             </div>
           </CollapsibleContent>
         </Collapsible>
       </div>
 
-      {/* TODO: Communities Section */}
       {/* TODO: Sensitive Content Section */}
     </div>
   );
@@ -261,6 +275,21 @@ function FeedTabsSection() {
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [communities, setCommunities] = useState<Array<{ domain: string; userCount: number }>>([]);
+  const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
+    const stored = localStorage.getItem('mew:showGlobalFeed');
+    return stored !== null ? stored === 'true' : true; // Default to true
+  });
+
+  const handleToggleGlobalFeed = (checked: boolean) => {
+    setShowGlobalFeed(checked);
+    localStorage.setItem('mew:showGlobalFeed', String(checked));
+    toast({
+      title: checked ? 'Global feed enabled' : 'Global feed disabled',
+      description: checked 
+        ? 'The Global feed tab will appear in your navigation'
+        : 'The Global feed tab will be hidden',
+    });
+  };
 
   const handleDownloadCommunity = async () => {
     if (!communityDomain.trim()) {
@@ -363,6 +392,21 @@ function FeedTabsSection() {
         Manage which feed tabs appear in your navigation and follow communities by domain.
       </p>
 
+      {/* Feed Tab Toggles */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
+          <div>
+            <Label className="text-sm font-medium">Global Feed</Label>
+            <p className="text-xs text-muted-foreground">Show posts from all users across the network</p>
+          </div>
+          <Switch
+            checked={showGlobalFeed}
+            onCheckedChange={handleToggleGlobalFeed}
+            className="scale-90"
+          />
+        </div>
+      </div>
+
       {/* Community Management */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -432,7 +476,6 @@ function FeedTabsSection() {
         )}
       </div>
 
-      {/* TODO: Add feed tab toggles (Global, Communities, etc.) */}
     </div>
   );
 }
