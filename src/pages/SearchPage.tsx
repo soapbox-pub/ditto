@@ -11,6 +11,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
@@ -60,6 +61,7 @@ export function SearchPage() {
   const [includeReplies, setIncludeReplies] = useState(true);
   const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
   const [language, setLanguage] = useState('global');
+  const [showNostr, setShowNostr] = useState(true);
   const [showMastodon, setShowMastodon] = useState(false);
 
   // Hooks
@@ -69,17 +71,22 @@ export function SearchPage() {
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
   const { data: sortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
 
-  // Filter Mastodon posts client-side
+  // Filter by platform (Nostr/Mastodon) client-side
   const posts = useMemo(() => {
-    if (showMastodon) return allPosts;
     return allPosts.filter(event => {
-      // Check if event has a "proxy" tag with "activitypub"
       const hasActivityPubProxy = event.tags.some(
         tag => tag[0] === 'proxy' && tag.length > 2 && tag[2] === 'activitypub'
       );
-      return !hasActivityPubProxy;
+      
+      const isMastodon = hasActivityPubProxy;
+      const isNostr = !hasActivityPubProxy;
+      
+      if (isMastodon && !showMastodon) return false;
+      if (isNostr && !showNostr) return false;
+      
+      return true;
     });
-  }, [allPosts, showMastodon]);
+  }, [allPosts, showNostr, showMastodon]);
 
   return (
     <MainLayout>
@@ -178,13 +185,31 @@ export function SearchPage() {
                     </Select>
                   </div>
 
-                  {/* Show Mastodon posts */}
-                  <div className="flex items-center gap-3">
-                    <span className="font-bold text-sm">Show Mastodon posts</span>
-                    <Switch
-                      checked={showMastodon}
-                      onCheckedChange={setShowMastodon}
-                    />
+                  {/* Platform filter */}
+                  <div className="space-y-2">
+                    <span className="font-bold text-sm">Show posts from:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="platform-nostr"
+                          checked={showNostr}
+                          onCheckedChange={(checked) => setShowNostr(!!checked)}
+                        />
+                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer text-sm text-muted-foreground">
+                          Nostr
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="platform-mastodon"
+                          checked={showMastodon}
+                          onCheckedChange={(checked) => setShowMastodon(!!checked)}
+                        />
+                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer text-sm text-muted-foreground">
+                          Mastodon
+                        </Label>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
