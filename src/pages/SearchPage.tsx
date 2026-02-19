@@ -92,7 +92,7 @@ export function SearchPage() {
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Tabs — sticky at top */}
-        <div className={cn(STICKY_HEADER_CLASS, 'bg-background/95 backdrop-blur-md z-20 border-b border-border')}>
+        <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
           <div className="flex">
             <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
             <TabButton label="Trends" active={activeTab === 'trends'} onClick={() => setActiveTab('trends')} />
@@ -112,7 +112,6 @@ export function SearchPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                  autoFocus
                 />
                 <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               </div>
@@ -303,7 +302,6 @@ export function SearchPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pr-10 bg-secondary/50 border-border focus-visible:ring-1 rounded-lg"
-                  autoFocus
                 />
                 <SearchIcon className="absolute right-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
               </div>
