@@ -10,6 +10,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteContent } from '@/components/NoteContent';
+import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
@@ -39,7 +40,7 @@ export function NotificationsPage() {
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
-  const { notifications, newNotifications, isLoading, markAsRead } = useNotifications();
+  const { notifications, newNotifications, isLoading, hasFetched, markAsRead } = useNotifications();
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
@@ -82,13 +83,13 @@ export function NotificationsPage() {
               key={key}
               onClick={() => setActiveTab(key)}
               className={cn(
-                'flex-1 py-5 text-sm font-semibold transition-colors relative hover:bg-secondary/40',
+                'flex-1 py-3.5 sidebar:py-5 text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
                 activeTab === key ? 'text-foreground' : 'text-muted-foreground',
               )}
             >
               {label}
               {activeTab === key && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-[3px] bg-primary rounded-full" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
               )}
             </button>
           ))}
@@ -99,7 +100,7 @@ export function NotificationsPage() {
           <div className="py-16 text-center text-muted-foreground">
             Log in to see your notifications.
           </div>
-        ) : isLoading ? (
+        ) : isLoading || !hasFetched ? (
           <div className="divide-y divide-border">
             {Array.from({ length: 4 }).map((_, i) => (
               <NotificationSkeleton key={i} />
@@ -315,6 +316,16 @@ function NotificationHeader({
   const displayName = metadata?.name || genUserName(actorPubkey);
   const profileUrl = useMemo(() => getProfileUrl(actorPubkey, metadata), [actorPubkey, metadata]);
 
+  if (author.isLoading) {
+    return (
+      <div className="flex items-center gap-2 text-sm mb-2">
+        <span className="shrink-0">{icon}</span>
+        <Skeleton className="h-4 w-24" />
+        <span className="text-muted-foreground shrink-0">{action}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2 text-sm mb-2">
       <span className="shrink-0">{icon}</span>
@@ -376,37 +387,49 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
     >
       {/* Author row */}
       <div className="flex items-center gap-3">
-        <ProfileHoverCard pubkey={event.pubkey} asChild>
-          <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-            <Avatar className="size-11">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
-        </ProfileHoverCard>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+        {author.isLoading ? (
+          <>
+            <Skeleton className="size-11 rounded-full shrink-0" />
+            <div className="min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          </>
+        ) : (
+          <>
             <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link
-                to={profileUrl}
-                className="font-bold text-[15px] hover:underline truncate"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {displayName}
+              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Avatar className="size-11">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
               </Link>
             </ProfileHoverCard>
-            {metadata?.bot && (
-              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            {nip05 && <Nip05Badge nip05={nip05} />}
-            {nip05 && <span className="shrink-0">·</span>}
-            <span className="shrink-0">{timeAgo(event.created_at)}</span>
-          </div>
-        </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-bold text-[15px] hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {displayName}
+                  </Link>
+                </ProfileHoverCard>
+                {metadata?.bot && (
+                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                {nip05 && <Nip05Badge nip05={nip05} />}
+                {nip05 && <span className="shrink-0">·</span>}
+                <span className="shrink-0">{timeAgo(event.created_at)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Reply context */}
@@ -421,28 +444,8 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
 
       {/* Images */}
       {images.length > 0 && (
-        <div
-          className={cn(
-            'mt-3 rounded-2xl overflow-hidden border border-border',
-            images.length > 1 && 'grid grid-cols-2 gap-0.5',
-          )}
-        >
-          {images.slice(0, 4).map((url, i) => (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={url}
-                alt=""
-                className="w-full h-auto max-h-[400px] object-cover"
-                loading="lazy"
-              />
-            </a>
-          ))}
+        <div onClick={(e) => e.stopPropagation()}>
+          <ImageGallery images={images} />
         </div>
       )}
 
@@ -503,37 +506,49 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
     >
       {/* Author row */}
       <div className="flex items-center gap-3">
-        <ProfileHoverCard pubkey={event.pubkey} asChild>
-          <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-            <Avatar className="size-11">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
-        </ProfileHoverCard>
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5">
+        {author.isLoading ? (
+          <>
+            <Skeleton className="size-11 rounded-full shrink-0" />
+            <div className="min-w-0 space-y-1.5">
+              <Skeleton className="h-4 w-28" />
+              <Skeleton className="h-3 w-36" />
+            </div>
+          </>
+        ) : (
+          <>
             <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link
-                to={profileUrl}
-                className="font-bold text-[15px] hover:underline truncate"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {displayName}
+              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+                <Avatar className="size-11">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                    {displayName[0]?.toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
               </Link>
             </ProfileHoverCard>
-            {metadata?.bot && (
-              <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-            )}
-          </div>
-          <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            {nip05 && <Nip05Badge nip05={nip05} />}
-            {nip05 && <span className="shrink-0">·</span>}
-            <span className="shrink-0">{timeAgo(event.created_at)}</span>
-          </div>
-        </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <ProfileHoverCard pubkey={event.pubkey} asChild>
+                  <Link
+                    to={profileUrl}
+                    className="font-bold text-[15px] hover:underline truncate"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {displayName}
+                  </Link>
+                </ProfileHoverCard>
+                {metadata?.bot && (
+                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+                )}
+              </div>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                {nip05 && <Nip05Badge nip05={nip05} />}
+                {nip05 && <span className="shrink-0">·</span>}
+                <span className="shrink-0">{timeAgo(event.created_at)}</span>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Reply context */}
@@ -548,28 +563,8 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
 
       {/* Images */}
       {images.length > 0 && (
-        <div
-          className={cn(
-            'mt-3 rounded-2xl overflow-hidden border border-border',
-            images.length > 1 && 'grid grid-cols-2 gap-0.5',
-          )}
-        >
-          {images.slice(0, 4).map((url, i) => (
-            <a
-              key={i}
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <img
-                src={url}
-                alt=""
-                className="w-full h-auto max-h-[400px] object-cover"
-                loading="lazy"
-              />
-            </a>
-          ))}
+        <div onClick={(e) => e.stopPropagation()}>
+          <ImageGallery images={images} />
         </div>
       )}
 

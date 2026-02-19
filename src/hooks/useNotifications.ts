@@ -17,6 +17,8 @@ export interface NotificationData {
   markAsRead: () => Promise<void>;
   /** Loading state */
   isLoading: boolean;
+  /** Whether the query has completed at least once */
+  hasFetched: boolean;
 }
 
 /**
@@ -38,7 +40,7 @@ export function useNotifications(): NotificationData {
     }
   }, [user]);
 
-  const { data: notifications = [], isLoading } = useQuery<NostrEvent[]>({
+  const { data: notifications = [], isLoading, isFetched } = useQuery<NostrEvent[]>({
     queryKey: ['notifications', user?.pubkey ?? ''],
     queryFn: async ({ signal }) => {
       if (!user) return [];
@@ -101,5 +103,6 @@ export function useNotifications(): NotificationData {
     hasUnread,
     markAsRead,
     isLoading,
+    hasFetched: isFetched,
   };
 }
