@@ -1,6 +1,7 @@
 // NOTE: This file is stable and usually should not be modified.
 // It is important that all functionality in this file is preserved, and should only be modified if explicitly requested.
 
+import { useState } from 'react';
 import { ChevronDown, LogOut, UserIcon, UserPlus } from 'lucide-react';
 import {
   DropdownMenu,
@@ -19,15 +20,25 @@ interface AccountSwitcherProps {
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
   const { currentUser, otherUsers, setLogin, removeLogin } = useLoggedInAccounts();
+  const [isOpen, setIsOpen] = useState(false);
 
   if (!currentUser) return null;
+
+  const handleLogout = () => {
+    // Close the dropdown first to avoid React error #300
+    setIsOpen(false);
+    // Use setTimeout to ensure the dropdown closes before removing login
+    setTimeout(() => {
+      removeLogin(currentUser.id);
+    }, 0);
+  };
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
   }
 
   return (
-    <DropdownMenu modal={false}>
+    <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <button className='flex items-center gap-3 p-3 rounded-full hover:bg-accent transition-all w-full text-foreground'>
           <Avatar className='w-10 h-10'>
@@ -67,7 +78,7 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
           <span>Add another account</span>
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() => removeLogin(currentUser.id)}
+          onClick={handleLogout}
           className='flex items-center gap-2 cursor-pointer p-2 rounded-md text-red-500'
         >
           <LogOut className='w-4 h-4' />
