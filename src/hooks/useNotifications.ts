@@ -60,6 +60,11 @@ export function useNotifications(): NotificationData {
     // Set cursor to the timestamp of the newest notification
     const newestTimestamp = Math.max(...notifications.map((e) => e.created_at));
 
+    // Only update if the cursor would actually change
+    if (newestTimestamp <= notificationsCursor) {
+      return; // Already marked as read
+    }
+
     try {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
