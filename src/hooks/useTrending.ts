@@ -259,12 +259,25 @@ export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
-  const nip85OnlyMode = config.nip85OnlyMode;
+  const statsMode = config.statsMode;
 
   return useQuery({
     queryKey: ['event-stats', eventId ?? ''],
     queryFn: async ({ signal }) => {
       if (!eventId) return EMPTY_STATS;
+
+      // Manual-only mode: skip NIP-85 entirely
+      if (statsMode === 'manual-only') {
+        const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+        const events = await nostr.query(
+          [
+            { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
+            { kinds: [1], '#q': [eventId], limit: 20 },
+          ],
+          { signal: combined },
+        );
+        return computeStats(eventId, events);
+      }
 
       // Try NIP-85 first with aggressive timeout (500ms)
       let nip85Stats: NostrEvent[] = [];
@@ -287,7 +300,7 @@ export function useEventStats(eventId: string | undefined) {
       const hasNip85 = nip85Stats.length > 0;
 
       // If NIP-85 only mode is enabled and we don't have NIP-85 stats, return empty
-      if (nip85OnlyMode && !hasNip85) {
+      if (statsMode === 'nip85-only' && !hasNip85) {
         return EMPTY_STATS;
       }
       
@@ -426,7 +439,7 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
   const queryClient = useQueryClient();
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
-  const nip85OnlyMode = config.nip85OnlyMode;
+  const statsMode = config.statsMode;
 
   const uniqueIds = [...new Set(eventIds)].sort();
 
@@ -434,6 +447,26 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
     queryKey: ['batch-event-stats', uniqueIds.join(',')],
     queryFn: async ({ signal }) => {
       if (uniqueIds.length === 0) return new Map();
+
+      // Manual-only mode: skip NIP-85 entirely
+      if (statsMode === 'manual-only') {
+        const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
+        const events = await nostr.query(
+          [
+            { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
+            { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
+          ],
+          { signal: combined },
+        );
+
+        const statsMap = new Map<string, EventStats>();
+        for (const id of uniqueIds) {
+          const stats = computeStats(id, events);
+          statsMap.set(id, stats);
+          queryClient.setQueryData(['event-stats', id], stats);
+        }
+        return statsMap;
+      }
 
       // Try NIP-85 first with aggressive timeout (500ms)
       const nip85StatsMap = new Map<string, { commentCount: number; repostCount: number; reactionCount: number; zapCount: number }>();
@@ -474,7 +507,7 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
       const hasAnyNip85Stats = nip85StatsMap.size > 0;
 
       // If NIP-85 only mode is enabled and we have no stats, return empty map
-      if (nip85OnlyMode && !hasAnyNip85Stats) {
+      if (statsMode === 'nip85-only' && !hasAnyNip85Stats) {
         const emptyMap = new Map<string, EventStats>();
         for (const id of uniqueIds) {
           emptyMap.set(id, EMPTY_STATS);

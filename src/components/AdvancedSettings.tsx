@@ -4,12 +4,13 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { WalletSettings } from '@/components/WalletSettings';
 import { RelayListManager } from '@/components/RelayListManager';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useToast } from '@/hooks/useToast';
+import type { StatsMode } from '@/contexts/AppContext';
 
 export function AdvancedSettings() {
   const { user } = useCurrentUser();
@@ -153,28 +154,70 @@ export function AdvancedSettings() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between py-2.5 px-3 border-t border-border">
-                <div className="min-w-0">
-                  <span className="text-sm">NIP-85 Only Mode</span>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Disable manual stat calculation. Stats will only show if NIP-85 pubkey provides them.
+              <div className="py-3 px-3 border-t border-border space-y-3">
+                <div>
+                  <Label className="text-sm font-medium">Stats Calculation Mode</Label>
+                  <p className="text-xs text-muted-foreground mt-1 mb-3">
+                    Choose how engagement stats are calculated.
                   </p>
                 </div>
-                <Switch
-                  id="nip85-only-mode"
-                  checked={config.nip85OnlyMode}
-                  onCheckedChange={(checked) => {
-                    updateConfig(() => ({ nip85OnlyMode: checked }));
+                <RadioGroup
+                  value={config.statsMode}
+                  onValueChange={(value: StatsMode) => {
+                    updateConfig(() => ({ statsMode: value }));
+                    const descriptions = {
+                      'nip85-only': 'Only NIP-85 pre-computed stats will be shown.',
+                      'manual-only': 'Stats will be calculated manually from relay queries.',
+                      'both': 'NIP-85 stats with manual fallback when unavailable.',
+                    };
                     toast({
-                      title: checked ? 'NIP-85 only mode enabled' : 'NIP-85 only mode disabled',
-                      description: checked 
-                        ? 'Manual stat calculation is disabled.' 
-                        : 'Manual stat calculation will be used as fallback.',
+                      title: 'Stats mode updated',
+                      description: descriptions[value],
                     });
                   }}
-                  disabled={!statsPubkey}
-                  className="scale-90"
-                />
+                  disabled={!statsPubkey && config.statsMode !== 'manual-only'}
+                  className="gap-3"
+                >
+                  <div className="flex items-start space-x-3">
+                    <RadioGroupItem value="nip85-only" id="nip85-only" disabled={!statsPubkey} />
+                    <div className="grid gap-0.5 leading-none">
+                      <Label 
+                        htmlFor="nip85-only" 
+                        className={`text-sm font-medium cursor-pointer ${!statsPubkey ? 'opacity-50' : ''}`}
+                      >
+                        NIP-85 Only
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Show only pre-computed stats. Faster, but may be empty if NIP-85 source is unavailable.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <RadioGroupItem value="manual-only" id="manual-only" />
+                    <div className="grid gap-0.5 leading-none">
+                      <Label htmlFor="manual-only" className="text-sm font-medium cursor-pointer">
+                        Manual Only
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Always calculate stats from relay queries. Slower, but guaranteed to work.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-start space-x-3">
+                    <RadioGroupItem value="both" id="both" disabled={!statsPubkey} />
+                    <div className="grid gap-0.5 leading-none">
+                      <Label 
+                        htmlFor="both" 
+                        className={`text-sm font-medium cursor-pointer ${!statsPubkey ? 'opacity-50' : ''}`}
+                      >
+                        Both (Recommended)
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Use NIP-85 when available, fall back to manual calculation. Best balance of speed and reliability.
+                      </p>
+                    </div>
+                  </div>
+                </RadioGroup>
               </div>
             </div>
           </CollapsibleContent>
