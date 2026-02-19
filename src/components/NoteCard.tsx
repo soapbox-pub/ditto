@@ -265,7 +265,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       </div>
 
       {/* Reply context (kind 1 only) — shown above content */}
-      {isReply && replyTo?.[1] && !repostedBy && (
+      {isReply && replyTo?.[1] && (
         <ReplyContext pubkey={replyTo[1]} />
       )}
 
