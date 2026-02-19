@@ -14,6 +14,7 @@ import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
+import { DomainFavicon } from '@/components/DomainFavicon';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
@@ -21,7 +22,6 @@ import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
-import { Nip05Badge } from '@/components/Nip05Badge';
 import { nip19 } from 'nostr-tools';
 import { useMemo, useState, useRef, useEffect } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -248,10 +248,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                   <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
                 )}
               </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground overflow-hidden">
-                {nip05 && <Nip05Badge nip05={nip05} />}
+              <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0">
+                {nip05 && <span className="truncate">@{nip05}</span>}
+                {nip05 && <DomainFavicon domain={nip05.split('@')[1]} size={16} className="shrink-0" />}
                 {nip05 && <span className="shrink-0">·</span>}
-                <span className="shrink-0 hover:underline">
+                <span className="shrink-0 hover:underline whitespace-nowrap">
                   {timeAgo(event.created_at)}
                 </span>
               </div>
