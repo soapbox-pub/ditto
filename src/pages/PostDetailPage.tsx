@@ -657,7 +657,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
-          <div className="flex items-center gap-x-3 py-2 mt-2 text-xs text-muted-foreground">
+          <div className="flex items-center gap-x-3 py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground">
             {repostTotal ? (
               <button
                 onClick={() => openInteractions('reposts')}
@@ -713,7 +713,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Date-only row if no stats */}
         {!hasStats && (
-          <div className="py-2 mt-2 text-xs text-muted-foreground flex items-center gap-1.5">
+          <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
             {clientInfo && (
               <>
                 {clientInfo.url ? (
