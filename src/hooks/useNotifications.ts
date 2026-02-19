@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -54,7 +55,7 @@ export function useNotifications(): NotificationData {
   const hasUnread = newNotifications.length > 0;
 
   // Mark all current notifications as read by updating the cursor
-  const markAsRead = async () => {
+  const markAsRead = useCallback(async () => {
     if (!user || notifications.length === 0) return;
 
     // Set cursor to the timestamp of the newest notification
@@ -72,7 +73,7 @@ export function useNotifications(): NotificationData {
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
     }
-  };
+  }, [user, notifications, notificationsCursor, updateSettings]);
 
   return {
     notifications,
