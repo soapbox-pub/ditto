@@ -24,13 +24,18 @@ export function SettingsPage() {
   return (
     <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 my-4 bg-background/80 backdrop-blur-md z-10')}>
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div className="flex items-center gap-2">
-            <SettingsIcon className="size-5" />
-            <h1 className="text-xl font-bold">Settings</h1>
+        <div className={cn(STICKY_HEADER_CLASS, 'px-4 my-4 bg-background/80 backdrop-blur-md z-10')}>
+          <div className="flex items-center gap-4">
+            <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+              <ArrowLeft className="size-5" />
+            </Link>
+            <div>
+              <div className="flex items-center gap-2">
+                <SettingsIcon className="size-5" />
+                <h1 className="text-xl font-bold">Settings</h1>
+              </div>
+              <p className="text-sm text-muted-foreground mt-0.5">Manage your profile, feed, and preferences</p>
+            </div>
           </div>
         </div>
 
