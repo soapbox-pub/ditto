@@ -159,8 +159,10 @@ function LikeNotification({ event }: { event: NostrEvent }) {
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
-  // Get the actual emoji from the reaction content, default to ❤️ if empty
-  const emoji = event.content || '❤️';
+  // Get the actual emoji from the reaction content
+  // '+' or empty string defaults to 👍 (like), '-' is ignored
+  const content = event.content.trim();
+  const emoji = content === '+' || content === '' ? '👍' : content;
 
   return (
     <div className="px-4 pt-3 pb-1">
