@@ -140,7 +140,7 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
         ref={videoRef}
         src={src}
         poster={poster}
-        className="w-full max-h-[70vh] cursor-pointer"
+        className="w-full max-h-[70vh] object-cover cursor-pointer"
         playsInline
         preload="metadata"
         {...({ 'webkit-playsinline': 'true' } as any)}
