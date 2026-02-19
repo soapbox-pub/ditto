@@ -1,4 +1,5 @@
-import { Repeat2, Quote } from 'lucide-react';
+import { Quote } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { useState } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -71,7 +72,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
         }}
         className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-foreground hover:bg-secondary/60 transition-colors"
       >
-        <Repeat2 className="size-5" />
+        <RepostIcon className="size-5" />
         <span>Repost</span>
       </button>
       <button

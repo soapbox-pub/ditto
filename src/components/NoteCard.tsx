@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle, Repeat2, Zap, MoreHorizontal, Play } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Play } from 'lucide-react';
+import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
@@ -316,7 +317,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                 className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
                 title="Repost"
               >
-                <Repeat2 className="size-5" />
+                <RepostIcon className="size-5" />
                 {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
               </button>
             </RepostMenu>
@@ -470,9 +471,9 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <Repeat2 className="size-3.5" />
+        <RepostIcon className="size-4 text-green-500 translate-y-px" />
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (
@@ -498,9 +499,9 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
   const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
 
   return (
-    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-1 min-w-0">
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <ChestIcon className="size-3.5" />
+        <ChestIcon className="size-4 text-primary translate-y-px" />
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (
