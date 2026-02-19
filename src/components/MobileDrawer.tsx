@@ -103,7 +103,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         {user ? (
           <div className="flex flex-col h-full">
             {/* User profile header */}
-            <div className="px-5 pt-6 pb-4">
+            <div className="px-5 pt-6 pb-4 safe-area-top">
               <Avatar className="size-10 mb-3">
                 <AvatarImage src={metadata?.picture} alt={displayName} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">
