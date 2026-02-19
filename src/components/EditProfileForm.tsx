@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -17,7 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Upload, ChevronDown, ChevronUp } from 'lucide-react';
+import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
 import { NSchema as n, type NostrMetadata } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -26,19 +26,46 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { z } from 'zod';
+
+// Extended form schema that includes custom fields
+const formSchema = n.metadata().extend({
+  fields: z.array(z.object({
+    label: z.string(),
+    value: z.string(),
+  })).optional(),
+});
+
+type ExtendedMetadata = z.infer<typeof formSchema>;
 
 export const EditProfileForm: React.FC = () => {
   const queryClient = useQueryClient();
   const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata, event } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
 
+  // Parse existing fields from raw event content
+  const parseFields = (): Array<{ label: string; value: string }> => {
+    if (!event) return [];
+    try {
+      const parsed = JSON.parse(event.content);
+      if (Array.isArray(parsed.fields)) {
+        return parsed.fields
+          .filter((f: unknown) => Array.isArray(f) && f.length >= 2)
+          .map((f: string[]) => ({ label: f[0], value: f[1] }));
+      }
+    } catch {
+      // Invalid JSON or no fields
+    }
+    return [];
+  };
+
   // Initialize the form with default values
-  const form = useForm<NostrMetadata>({
-    resolver: zodResolver(n.metadata()),
+  const form = useForm<ExtendedMetadata>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
       about: '',
@@ -47,12 +74,19 @@ export const EditProfileForm: React.FC = () => {
       website: '',
       nip05: '',
       bot: false,
+      fields: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: 'fields',
   });
 
   // Update form values when user data is loaded
   useEffect(() => {
     if (metadata) {
+      const existingFields = parseFields();
       form.reset({
         name: metadata.name || '',
         about: metadata.about || '',
@@ -61,9 +95,11 @@ export const EditProfileForm: React.FC = () => {
         website: metadata.website || '',
         nip05: metadata.nip05 || '',
         bot: metadata.bot || false,
+        fields: existingFields,
       });
     }
-  }, [metadata, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadata, event]);
 
   // Handle file uploads for profile picture and banner
   const uploadPicture = async (file: File, field: 'picture' | 'banner') => {
@@ -85,7 +121,7 @@ export const EditProfileForm: React.FC = () => {
     }
   };
 
-  const onSubmit = async (values: NostrMetadata) => {
+  const onSubmit = async (values: ExtendedMetadata) => {
     if (!user) {
       toast({
         title: 'Error',
@@ -96,13 +132,24 @@ export const EditProfileForm: React.FC = () => {
     }
 
     try {
-      // Combine existing metadata with new values
-      const data = { ...metadata, ...values };
+      // Extract fields and other metadata
+      const { fields: customFields, ...standardMetadata } = values;
 
-      // Clean up empty values
+      // Combine existing metadata with new values
+      const data: Record<string, unknown> = { ...metadata, ...standardMetadata };
+
+      // Clean up empty values in standard metadata
       for (const key in data) {
         if (data[key] === '') {
           delete data[key];
+        }
+      }
+
+      // Add custom fields if they exist (convert to array format)
+      if (customFields && customFields.length > 0) {
+        const nonEmptyFields = customFields.filter(f => f.label.trim() && f.value.trim());
+        if (nonEmptyFields.length > 0) {
+          data.fields = nonEmptyFields.map(f => [f.label, f.value]);
         }
       }
 
@@ -260,6 +307,81 @@ export const EditProfileForm: React.FC = () => {
                   </FormItem>
                 )}
               />
+            </div>
+          </div>
+
+          {/* Custom Profile Fields */}
+          <div className="border-b border-border pb-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <FormLabel className="text-xs font-medium">Profile Fields</FormLabel>
+                  <FormDescription className="text-xs mt-1">
+                    Add custom fields like social links, Bitcoin address, or other info
+                  </FormDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => append({ label: '', value: '' })}
+                  className="h-8 text-xs"
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Field
+                </Button>
+              </div>
+
+              {fields.length > 0 && (
+                <div className="space-y-3 pt-2">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-start">
+                      <FormField
+                        control={form.control}
+                        name={`fields.${index}.label`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                placeholder="Label"
+                                {...field}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name={`fields.${index}.value`}
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormControl>
+                              <Input
+                                placeholder="Value or URL"
+                                {...field}
+                                className="h-9"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => remove(index)}
+                        className="h-9 w-9 text-destructive hover:text-destructive"
+                        title="Remove field"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
