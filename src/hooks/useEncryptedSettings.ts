@@ -121,7 +121,7 @@ export function useEncryptedSettings() {
         tags: [
           ['d', SETTINGS_D_TAG],
           ['title', 'Mew Metadata'],
-          ['client', 'Mew'],
+          ['client', location.hostname],
         ],
         created_at: Math.floor(Date.now() / 1000),
       };
