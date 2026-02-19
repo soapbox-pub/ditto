@@ -1,7 +1,6 @@
 import { nip19 } from 'nostr-tools';
 import { useNavigate } from 'react-router-dom';
 import {
-  ArrowUpDown,
   Bookmark,
   ClipboardCopy,
   ExternalLink,
@@ -10,6 +9,7 @@ import {
   VolumeX,
   Flag,
   Pin,
+  FileJson,
 } from 'lucide-react';
 import {
   Dialog,
@@ -103,8 +103,15 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
     close();
   };
 
-  const handleShowDetails = () => {
-    navigate(`/${neventId}`);
+  const handleCopyEventId = () => {
+    navigator.clipboard.writeText(event.id);
+    toast({ title: 'Event ID copied to clipboard' });
+    close();
+  };
+
+  const handleCopyEventJson = () => {
+    navigator.clipboard.writeText(JSON.stringify(event, null, 2));
+    toast({ title: 'Event JSON copied to clipboard' });
     close();
   };
 
@@ -159,14 +166,19 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
 
         <div className="py-1">
           <MenuItem
-            icon={<ArrowUpDown className="size-5" />}
-            label="Show Post Details"
-            onClick={handleShowDetails}
-          />
-          <MenuItem
             icon={<ClipboardCopy className="size-5" />}
             label="Copy Link to Post"
             onClick={handleCopyLink}
+          />
+          <MenuItem
+            icon={<ClipboardCopy className="size-5" />}
+            label="Copy Event ID"
+            onClick={handleCopyEventId}
+          />
+          <MenuItem
+            icon={<FileJson className="size-5" />}
+            label="Copy Event JSON"
+            onClick={handleCopyEventJson}
           />
           <MenuItem
             icon={<ExternalLink className="size-5" />}
