@@ -24,7 +24,7 @@ function NavTab({ to, icon, label, active, showIndicator }: NavTabProps) {
       <span className="relative">
         {icon}
         {showIndicator && (
-          <span className="absolute top-0 right-0 size-2.5 bg-primary rounded-full" />
+          <span className="absolute top-0 right-0 size-2 bg-primary rounded-full" />
         )}
       </span>
       <span className="text-[10px] font-medium">{label}</span>
