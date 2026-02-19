@@ -111,6 +111,37 @@ function formatFullDate(timestamp: number): string {
   });
 }
 
+/** Formats a client tag URL into a human-readable client name. */
+function formatClientName(clientUrl: string | undefined): string | undefined {
+  if (!clientUrl) return undefined;
+  
+  try {
+    const url = new URL(clientUrl);
+    const hostname = url.hostname;
+    
+    // Map known hostnames to client names
+    const clientMap: Record<string, string> = {
+      'gleasonator.dev': 'Gleasonator',
+      'ditto.pub': 'Ditto',
+      'mew.shakespeare.wtf': 'Mew',
+    };
+    
+    // Check if hostname matches a known client
+    if (clientMap[hostname]) {
+      return clientMap[hostname];
+    }
+    
+    // For unknown clients, capitalize the hostname
+    return hostname
+      .split('.')[0] // Get the first part before the dot
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Extracts the parent (replied-to) event ID from an event's tags following NIP-10 conventions.
  * Supports both the preferred marked-tag scheme and the deprecated positional scheme.
@@ -516,6 +547,12 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
+  // Extract client from tags
+  const clientName = useMemo(() => {
+    const clientTag = event.tags.find(([name]) => name === 'client');
+    return formatClientName(clientTag?.[1]);
+  }, [event.tags]);
+
   // Check if the current user can zap this event's author
   const canZapAuthor = user && canZap(metadata);
 
@@ -626,13 +663,27 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 Zap{stats.zapCount !== 1 ? 's' : ''}
               </button>
             ) : null}
-            <span className="ml-auto shrink-0">{formatFullDate(event.created_at)}</span>
+            <span className="ml-auto shrink-0">
+              {clientName && (
+                <>
+                  {clientName}
+                  <span className="mx-1.5">·</span>
+                </>
+              )}
+              {formatFullDate(event.created_at)}
+            </span>
           </div>
         )}
 
         {/* Date-only row if no stats */}
         {!hasStats && (
           <div className="py-2.5 mt-3 text-sm text-muted-foreground">
+            {clientName && (
+              <>
+                {clientName}
+                <span className="mx-1.5">·</span>
+              </>
+            )}
             {formatFullDate(event.created_at)}
           </div>
         )}
