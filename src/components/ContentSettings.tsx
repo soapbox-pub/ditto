@@ -398,12 +398,24 @@ function FeedTabsSection() {
   });
 
   return (
-    <div className="px-3 space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Manage which feed tabs appear in your navigation and follow communities by domain.
-      </p>
+    <div>
+      {/* Intro section for Feed Tabs */}
+      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
+        <img
+          src="/community-intro.png"
+          alt=""
+          className="w-40 shrink-0 mix-blend-difference opacity-80"
+        />
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">Feed Navigation</h3>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Manage which feed tabs appear in your navigation and follow communities by domain.
+          </p>
+        </div>
+      </div>
 
-      {/* Feed Tab Toggles */}
+      <div className="px-3 space-y-4">
+        {/* Feed Tab Toggles */}
       <div className="space-y-3">
         <div className="flex items-center justify-between py-2.5 px-3 border rounded-lg">
           <div>
@@ -486,7 +498,7 @@ function FeedTabsSection() {
           </div>
         )}
       </div>
-
+      </div>
     </div>
   );
 }
