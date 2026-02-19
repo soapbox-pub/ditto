@@ -197,6 +197,11 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
+  // Check if content has any URLs or Nostr identifiers
+  const hasPreviewableContent = useMemo(() => {
+    return visibleEmbeds.length > 0;
+  }, [visibleEmbeds]);
+
 
 
   // Include quoted event if provided and not removed
@@ -490,7 +495,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
             </div>
 
             {/* Center: Preview toggle */}
-            {content && (
+            {hasPreviewableContent && (
               <div className="flex items-center gap-2">
                 <Switch
                   id="preview-mode"
