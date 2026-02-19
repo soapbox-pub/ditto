@@ -455,7 +455,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px]">
+            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
               <div className="whitespace-pre-wrap break-words text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
@@ -595,11 +595,11 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
             {/* Center: Preview toggle */}
             {hasPreviewableContent && (
-              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg mx-2">
                 <button
                   onClick={() => setPreviewMode(false)}
                   className={cn(
-                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                     !previewMode 
                       ? "bg-background text-foreground shadow-sm" 
                       : "text-muted-foreground hover:text-foreground"
@@ -610,7 +610,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                 <button
                   onClick={() => setPreviewMode(true)}
                   className={cn(
-                    "px-3 py-1 text-xs font-medium rounded-md transition-all",
+                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
                     previewMode 
                       ? "bg-background text-foreground shadow-sm" 
                       : "text-muted-foreground hover:text-foreground"
