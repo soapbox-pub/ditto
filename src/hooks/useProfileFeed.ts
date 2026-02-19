@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 20;
@@ -13,22 +14,23 @@ function hasMedia(content: string): boolean {
   return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov)(\?[^\s]*)?/i.test(content);
 }
 
-/** Filter events by the active tab. */
-function filterByTab(events: NostrEvent[], tab: ProfileTab): NostrEvent[] {
+/** Filter feed items by the active tab. */
+function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
   switch (tab) {
     case 'posts':
-      // Show posts (kind 1 without reply markers) and reposts (kind 6)
-      return events.filter((e) => {
-        if (e.kind === 6) return true; // Always show reposts
+      // Show posts without reply markers (including reposts)
+      return items.filter((item) => {
+        const e = item.event;
+        if (item.repostedBy) return true; // Always show reposts
         if (e.kind === 1) return !e.tags.some(([n]) => n === 'e'); // Kind 1 without e tags
         return !e.tags.some(([n]) => n === 'e'); // Other kinds without e tags
       });
     case 'replies':
-      return events;
+      return items;
     case 'media':
-      return events.filter((e) => hasMedia(e.content));
+      return items.filter((item) => hasMedia(item.event.content));
     default:
-      return events;
+      return items;
   }
 }
 
@@ -44,12 +46,13 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const profileKinds = [1, 6, ...extraKinds]; // Include kind 6 reposts
   const kindsKey = profileKinds.sort().join(',');
 
-  return useInfiniteQuery<NostrEvent[], Error>({
+  return useInfiniteQuery<FeedItem[], Error>({
     queryKey: ['profile-feed', pubkey ?? '', tab, kindsKey],
     queryFn: async ({ pageParam, signal }) => {
       if (!pubkey) return [];
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const now = Math.floor(Date.now() / 1000);
 
       // Fetch more than PAGE_SIZE because client-side filtering (e.g. "posts only"
       // excludes replies, "media" excludes non-media) can discard many events.
@@ -69,13 +72,58 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
         { signal: querySignal },
       );
 
-      const sorted = events.sort((a, b) => b.created_at - a.created_at);
+      // Process events into FeedItems, unwrapping kind 6 reposts
+      const items: FeedItem[] = [];
+      const repostMissingIds: string[] = [];
+      const repostMap = new Map<string, NostrEvent>();
+
+      for (const ev of events) {
+        if (ev.created_at > now) continue;
+
+        if (ev.kind === 6) {
+          // Handle reposts
+          const embedded = parseRepostContent(ev);
+          if (embedded && embedded.created_at <= now) {
+            items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
+          } else {
+            const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
+            if (repostedId) {
+              repostMissingIds.push(repostedId);
+              repostMap.set(repostedId, ev);
+            }
+          }
+        } else {
+          // Direct post or other kinds
+          items.push({ event: ev, sortTimestamp: ev.created_at });
+        }
+      }
+
+      // Fetch any missing reposted events in a single query
+      if (repostMissingIds.length > 0) {
+        try {
+          const originals = await nostr.query(
+            [{ ids: repostMissingIds, limit: repostMissingIds.length }],
+            { signal: querySignal },
+          );
+          for (const original of originals) {
+            const repost = repostMap.get(original.id);
+            if (repost && original.created_at <= now) {
+              items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
+            }
+          }
+        } catch {
+          // timeout or abort — just skip the missing reposts
+        }
+      }
+
+      // Sort by timestamp and filter by tab
+      const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
       return filterByTab(sorted, tab);
     },
     getNextPageParam: (lastPage) => {
       if (lastPage.length === 0) return undefined;
       const oldest = lastPage[lastPage.length - 1];
-      return oldest.created_at - 1;
+      return oldest.sortTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
     enabled: !!pubkey && tab !== 'likes',

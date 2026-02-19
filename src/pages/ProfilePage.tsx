@@ -25,6 +25,7 @@ import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
+import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
 
@@ -579,12 +580,13 @@ export function ProfilePage() {
   const feedItems = useMemo(() => {
     if (!feedData?.pages) return [];
     const seen = new Set<string>();
-    const items: NostrEvent[] = [];
+    const items: FeedItem[] = [];
     for (const page of feedData.pages) {
-      for (const event of page) {
-        if (!seen.has(event.id)) {
-          seen.add(event.id);
-          items.push(event);
+      for (const item of page) {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!seen.has(key)) {
+          seen.add(key);
+          items.push(item);
         }
       }
     }
@@ -607,7 +609,11 @@ export function ProfilePage() {
     return items;
   }, [likesData?.pages]);
 
-  const streak = useMemo(() => calculateStreak(feedItems), [feedItems]);
+  const streak = useMemo(() => {
+    // Extract just the events for streak calculation
+    const events = feedItems.map(item => item.event);
+    return calculateStreak(events);
+  }, [feedItems]);
 
   // Infinite scroll sentinel
   const { ref: scrollRef, inView } = useInView({
@@ -642,7 +648,13 @@ export function ProfilePage() {
   const isOwnProfile = user?.pubkey === pubkey;
   const authorEvent = author.data?.event;
 
-  const currentEvents = activeTab === 'likes' ? likedItems : feedItems;
+  // For likes, convert NostrEvents to FeedItems
+  const likedFeedItems = useMemo(() => 
+    likedItems.map(event => ({ event, sortTimestamp: event.created_at })),
+    [likedItems]
+  );
+
+  const currentItems = activeTab === 'likes' ? likedFeedItems : feedItems;
   const currentLoading = activeTab === 'likes' ? likesPending : feedPending;
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
@@ -796,9 +808,15 @@ export function ProfilePage() {
                 </div>
               ))}
             </div>
-          ) : currentEvents.length > 0 ? (
+          ) : currentItems.length > 0 ? (
             <div>
-              {currentEvents.map((event) => <NoteCard key={event.id} event={event} />)}
+              {currentItems.map((item) => (
+                <NoteCard 
+                  key={item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id}
+                  event={item.event}
+                  repostedBy={item.repostedBy}
+                />
+              ))}
 
               {/* Infinite scroll sentinel */}
               {hasMore && (

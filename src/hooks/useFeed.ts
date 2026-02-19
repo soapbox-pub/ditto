@@ -4,6 +4,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -11,32 +12,8 @@ const PAGE_SIZE = 15;
 /** The base kinds always included in every feed query. */
 const BASE_FEED_KINDS = [1, 6];
 
-/** A feed item — either a direct post or a repost wrapping the original event. */
-export interface FeedItem {
-  /** The event to display (original note). */
-  event: NostrEvent;
-  /** If this item is a repost, the pubkey of the person who reposted it. */
-  repostedBy?: string;
-  /** Sort timestamp — uses the repost timestamp when present for correct ordering. */
-  sortTimestamp: number;
-}
-
-/**
- * Tries to parse the original event from a kind 6 repost's content.
- * Returns undefined if the content is empty or not valid JSON.
- */
-function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {
-  if (!repost.content || repost.content.trim() === '') return undefined;
-  try {
-    const parsed = JSON.parse(repost.content);
-    if (parsed && typeof parsed === 'object' && parsed.id && parsed.pubkey && parsed.kind !== undefined) {
-      return parsed as NostrEvent;
-    }
-  } catch {
-    // invalid JSON
-  }
-  return undefined;
-}
+// Re-export FeedItem for backwards compatibility
+export type { FeedItem };
 
 /** Hook to fetch the global or followed feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global') {
