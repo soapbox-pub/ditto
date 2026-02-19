@@ -100,7 +100,7 @@ export function ContentSettings() {
       </div>
 
       {/* Muted Content Section */}
-      <div className="border-b-[4px] border-primary">
+      <div>
         <Collapsible open={mutesOpen} onOpenChange={setMutesOpen}>
           <CollapsibleTrigger asChild>
             <Button 
