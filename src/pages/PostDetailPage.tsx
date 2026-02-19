@@ -739,6 +739,11 @@ function ParentNote({ eventId }: { eventId: string }) {
     [event],
   );
 
+  // Extract images and videos from parent event
+  const images = useMemo(() => event ? extractImages(event.content) : [], [event]);
+  const videos = useMemo(() => event ? extractVideos(event.content) : [], [event]);
+  const imetaMap = useMemo(() => event ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event]);
+
   if (isLoading) {
     return (
       <div className="px-4 pt-3 pb-0">
@@ -828,6 +833,20 @@ function ParentNote({ eventId }: { eventId: string }) {
           <div className="mt-1">
             <NoteContent event={event} className="text-[15px] leading-relaxed" />
           </div>
+
+          {/* Videos */}
+          {videos.map((url, i) => (
+            <div key={`v-${i}`} className="mt-3">
+              <VideoPlayer src={url} poster={imetaMap.get(url)?.thumbnail} />
+            </div>
+          ))}
+
+          {/* Images */}
+          {images.length > 0 && (
+            <div className="mt-3">
+              <ImageGallery images={images} maxGridHeight="400px" />
+            </div>
+          )}
         </div>
       </div>
     </div>
