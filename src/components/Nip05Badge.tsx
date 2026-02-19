@@ -20,23 +20,43 @@ function getNip05Domain(nip05: string | undefined): string | undefined {
 
 /**
  * Displays a NIP-05 identifier with its domain favicon.
- * Uses DuckDuckGo's favicon service which returns 404 for missing favicons.
+ * Only shows favicon if it loads successfully. Hides on any error.
  */
 export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps) {
   const [showFavicon, setShowFavicon] = useState(true);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const domain = getNip05Domain(nip05);
+
+  const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    // Check if the loaded image is tiny (likely a placeholder/default)
+    // Real favicons are usually at least 16x16
+    if (img.naturalWidth < 16 || img.naturalHeight < 16) {
+      setShowFavicon(false);
+      return;
+    }
+    setImageLoaded(true);
+  };
+
+  const handleError = () => {
+    setShowFavicon(false);
+  };
 
   return (
     <span className={cn('inline-flex items-center gap-1.5', className)}>
       <span className="truncate">@{nip05}</span>
       {domain && showFavicon && (
         <img
-          src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
+          src={`https://${domain}/favicon.ico`}
           alt=""
-          className="shrink-0 rounded-sm bg-white/5"
+          className={cn(
+            'shrink-0 rounded-sm bg-white/5',
+            !imageLoaded && 'opacity-0'
+          )}
           style={{ width: iconSize, height: iconSize }}
           loading="lazy"
-          onError={() => setShowFavicon(false)}
+          onLoad={handleLoad}
+          onError={handleError}
         />
       )}
     </span>
