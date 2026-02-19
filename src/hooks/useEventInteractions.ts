@@ -1,6 +1,7 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useNip85EventStats } from '@/hooks/useNip85Stats';
 
 export interface RepostEntry {
   pubkey: string;
@@ -32,6 +33,13 @@ export interface EventInteractions {
   quotes: QuoteEntry[];
   reactions: ReactionEntry[];
   zaps: ZapEntry[];
+  /** NIP-85 stats if available */
+  nip85Stats?: {
+    commentCount: number;
+    repostCount: number;
+    reactionCount: number;
+    zapCount: number;
+  };
 }
 
 /** Extracts the zap amount in millisatoshis from a kind 9735 zap receipt. */
@@ -117,11 +125,17 @@ function extractZapMessage(event: NostrEvent): string {
 /** Fetches interaction events (reposts, quotes, reactions, zaps) for a given event ID. */
 export function useEventInteractions(eventId: string | undefined) {
   const { nostr } = useNostr();
+  const nip85Stats = useNip85EventStats(eventId);
 
   return useQuery<EventInteractions>({
-    queryKey: ['event-interactions', eventId ?? ''],
+    queryKey: ['event-interactions', eventId ?? '', nip85Stats.data],
     queryFn: async ({ signal }) => {
       if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
+
+      // Try NIP-85 stats first - if available, use a smaller limit for actual events
+      const hasNip85Stats = !!nip85Stats.data;
+      const interactionLimit = hasNip85Stats ? 10 : 50;
+      const quoteLimit = hasNip85Stats ? 5 : 20;
 
       const timeout = AbortSignal.timeout(5000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -129,8 +143,8 @@ export function useEventInteractions(eventId: string | undefined) {
       // Single query with two filter objects — relay handles as OR
       const allEvents = await nostr.query(
         [
-          { kinds: [6, 7, 9735], '#e': [eventId], limit: 50 },
-          { kinds: [1], '#q': [eventId], limit: 20 },
+          { kinds: [6, 7, 9735], '#e': [eventId], limit: interactionLimit },
+          { kinds: [1], '#q': [eventId], limit: quoteLimit },
         ],
         { signal: combined },
       );
@@ -191,7 +205,13 @@ export function useEventInteractions(eventId: string | undefined) {
       reactions.sort((a, b) => b.createdAt - a.createdAt);
       zaps.sort((a, b) => b.amountSats - a.amountSats); // Sort zaps by amount (largest first)
 
-      return { reposts, quotes, reactions, zaps };
+      return { 
+        reposts, 
+        quotes, 
+        reactions, 
+        zaps,
+        nip85Stats: nip85Stats.data,
+      };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,

@@ -48,6 +48,8 @@ export interface AppConfig {
   useAppRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
+  /** NIP-85 stats pubkey source (hex format) */
+  nip85StatsPubkey: string;
 }
 
 export interface AppContextType {

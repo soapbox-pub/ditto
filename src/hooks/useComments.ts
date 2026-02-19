@@ -1,13 +1,41 @@
 import { NKinds, NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 
 export function useComments(root: NostrEvent | URL, limit?: number) {
   const { nostr } = useNostr();
 
+  // Determine the identifier for NIP-85 stats
+  let nip85Identifier: string | undefined;
+  let nip85Type: 'event' | 'addr' | undefined;
+  
+  if (root instanceof URL) {
+    // URLs don't have NIP-85 stats
+    nip85Identifier = undefined;
+  } else if (NKinds.addressable(root.kind)) {
+    const d = root.tags.find(([name]) => name === 'd')?.[1] ?? '';
+    nip85Identifier = `${root.kind}:${root.pubkey}:${d}`;
+    nip85Type = 'addr';
+  } else if (NKinds.replaceable(root.kind)) {
+    nip85Identifier = `${root.kind}:${root.pubkey}:`;
+    nip85Type = 'addr';
+  } else {
+    nip85Identifier = root.id;
+    nip85Type = 'event';
+  }
+
+  const nip85EventStats = useNip85EventStats(nip85Type === 'event' ? nip85Identifier : undefined);
+  const nip85AddrStats = useNip85AddrStats(nip85Type === 'addr' ? nip85Identifier : undefined);
+  const nip85Stats = nip85Type === 'event' ? nip85EventStats.data : nip85AddrStats.data;
+
   return useQuery({
-    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit],
+    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit, nip85Stats],
     queryFn: async (c) => {
+      // If we have NIP-85 comment count and no limit specified, use a smaller default limit
+      const hasNip85CommentCount = !!nip85Stats?.commentCount;
+      const effectiveLimit = limit ?? (hasNip85CommentCount ? 10 : undefined);
+
       const filter: NostrFilter = { kinds: [1111] };
 
       if (root instanceof URL) {
@@ -21,8 +49,8 @@ export function useComments(root: NostrEvent | URL, limit?: number) {
         filter['#E'] = [root.id];
       }
 
-      if (typeof limit === 'number') {
-        filter.limit = limit;
+      if (typeof effectiveLimit === 'number') {
+        filter.limit = effectiveLimit;
       }
 
       // Query for all kind 1111 comments that reference this addressable event regardless of depth
@@ -90,7 +118,8 @@ export function useComments(root: NostrEvent | URL, limit?: number) {
           });
           // Sort direct replies by creation time (oldest first for threaded display)
           return directReplies.sort((a, b) => a.created_at - b.created_at);
-        }
+        },
+        nip85Stats,
       };
     },
     enabled: !!root,

@@ -44,6 +44,7 @@ const AppConfigSchema = z.object({
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
+  nip85StatsPubkey: z.string().length(64),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {
