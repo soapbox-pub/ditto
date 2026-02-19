@@ -14,6 +14,7 @@ import { MainLayout } from '@/components/MainLayout';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
+import { DomainFavicon } from '@/components/DomainFavicon';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
@@ -288,39 +289,7 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 
 // ----- Favicon (mobile) -----
 
-function Favicon({ url }: { url: string }) {
-  const candidates = useMemo(() => {
-    try {
-      const origin = new URL(url).origin;
-      return [`${origin}/favicon.ico`, `${origin}/favicon.svg`];
-    } catch {
-      return [];
-    }
-  }, [url]);
 
-  const [index, setIndex] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  if (candidates.length === 0 || failed) return null;
-
-  const src = candidates[index];
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className="size-4 shrink-0"
-      loading="lazy"
-      onError={() => {
-        if (index < candidates.length - 1) {
-          setIndex(index + 1);
-        } else {
-          setFailed(true);
-        }
-      }}
-    />
-  );
-}
 
 // ----- Bitcoin QR Modal (mobile) -----
 
@@ -436,7 +405,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   if (isUrl) {
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <Favicon url={field.value} />
+        <DomainFavicon domain={field.value} size={16} />
         <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
         <a
           href={field.value}
