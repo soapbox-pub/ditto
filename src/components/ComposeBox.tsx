@@ -12,6 +12,7 @@ import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { LinkPreview } from '@/components/LinkPreview';
+import { NoteContent } from '@/components/NoteContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -84,7 +85,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const [cwEnabled, setCwEnabled] = useState(false);
   const [cwText, setCwText] = useState('');
   const [emojiOpen, setEmojiOpen] = useState(false);
-  const [showPreviews, setShowPreviews] = useState(true);
+  const [previewMode, setPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -200,6 +201,24 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
   const quotedEventId = quotedEvent ? nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey }) : null;
   const quotedEventKey = quotedEventId ? `nostr:${quotedEventId}` : null;
   const showQuotedEvent = quotedEvent && quotedEventKey && !removedEmbeds.has(quotedEventKey);
+
+  // Create mock event for preview
+  const mockEvent = useMemo(() => {
+    if (!user || !content) return null;
+    
+    const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
+    const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
+    
+    return {
+      id: 'preview',
+      pubkey: user.pubkey,
+      content: content.trim(),
+      created_at: Math.floor(Date.now() / 1000),
+      kind: 1,
+      tags,
+      sig: '',
+    };
+  }, [user, content]);
 
   const insertEmoji = useCallback((emoji: string) => {
     const textarea = textareaRef.current;
@@ -328,50 +347,35 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
       )}
 
       <div className="flex-1 min-w-0">
-        {/* Textarea */}
-        <textarea
-          ref={textareaRef}
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          onFocus={expand}
-          placeholder={placeholder}
-          className={cn(
-            'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
-            isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-          )}
-          rows={isExpanded ? 4 : 1}
-          disabled={!user}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-              handleSubmit();
-            }
-          }}
-        />
-
-        {/* Embed previews (shown when toggle is on) */}
-        {showPreviews && visibleEmbeds.length > 0 && (
-          <div className="space-y-3 mt-3">
-            {visibleEmbeds.map((embed, i) => (
-              <div key={`${embed.type}-${i}`} className="relative">
-                <button
-                  onClick={() => setRemovedEmbeds(prev => new Set(prev).add(embed.value))}
-                  className="absolute top-2 right-2 z-10 p-1.5 rounded-full bg-background/80 backdrop-blur-sm border border-border text-muted-foreground hover:text-foreground hover:bg-background transition-colors"
-                  title="Remove embed"
-                >
-                  <X className="size-3.5" />
-                </button>
-                {(embed.type === 'nevent' || embed.type === 'note') && embed.eventId && (
-                  <EmbeddedNote eventId={embed.eventId} />
-                )}
-                {embed.type === 'naddr' && embed.addr && (
-                  <EmbeddedNaddr addr={embed.addr} />
-                )}
-                {embed.type === 'link' && (
-                  <LinkPreview url={embed.value} />
-                )}
+        {!previewMode ? (
+          /* Edit mode - Textarea */
+          <textarea
+            ref={textareaRef}
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            onFocus={expand}
+            placeholder={placeholder}
+            className={cn(
+              'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+              isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
+            )}
+            rows={isExpanded ? 4 : 1}
+            disabled={!user}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                handleSubmit();
+              }
+            }}
+          />
+        ) : (
+          /* Preview mode - Show how post will look */
+          mockEvent && (
+            <div className="pt-2.5 pb-2 px-3 -mx-3 min-h-[100px] rounded-lg border border-border bg-secondary/20">
+              <div className="whitespace-pre-wrap break-words text-lg opacity-85">
+                <NoteContent event={mockEvent} className="text-foreground" />
               </div>
-            ))}
-          </div>
+            </div>
+          )
         )}
 
         {/* Content warning input */}
@@ -402,7 +406,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
 
         {/* Toolbar + post button */}
         {isExpanded && (
-          <div className="flex items-center justify-between mt-1">
+          <div className="flex items-center justify-between mt-3">
             {/* Left: action icons */}
             <div className="flex items-center gap-1 -ml-2">
               {/* File upload */}
@@ -481,28 +485,19 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
                 </TooltipTrigger>
                 <TooltipContent>Content warning (NIP-36)</TooltipContent>
               </Tooltip>
-
-              {/* Preview toggle */}
-              {visibleEmbeds.length > 0 && (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button
-                      type="button"
-                      onClick={() => setShowPreviews(!showPreviews)}
-                      className={cn(
-                        'p-2 rounded-full transition-colors',
-                        showPreviews
-                          ? 'text-primary bg-primary/10'
-                          : 'text-muted-foreground hover:text-primary hover:bg-primary/10',
-                      )}
-                    >
-                      {showPreviews ? <Eye className="size-[18px]" /> : <EyeOff className="size-[18px]" />}
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent>Toggle previews</TooltipContent>
-                </Tooltip>
-              )}
             </div>
+
+            {/* Center: Preview toggle */}
+            {content && (
+              <button
+                type="button"
+                onClick={() => setPreviewMode(!previewMode)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border border-border hover:bg-secondary"
+              >
+                {previewMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
+                {previewMode ? 'Edit' : 'Preview'}
+              </button>
+            )}
 
             {/* Right: char count + post button */}
             <div className="flex items-center gap-3">
