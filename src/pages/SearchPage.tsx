@@ -60,13 +60,26 @@ export function SearchPage() {
   const [includeReplies, setIncludeReplies] = useState(true);
   const [mediaType, setMediaType] = useState<'all' | 'images' | 'videos' | 'vines' | 'none'>('all');
   const [language, setLanguage] = useState('global');
+  const [showMastodon, setShowMastodon] = useState(false);
 
   // Hooks
-  const { posts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
+  const { posts: allPosts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
   const { data: sortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
+
+  // Filter Mastodon posts client-side
+  const posts = useMemo(() => {
+    if (showMastodon) return allPosts;
+    return allPosts.filter(event => {
+      // Check if event has a "proxy" tag with "activitypub"
+      const hasActivityPubProxy = event.tags.some(
+        tag => tag[0] === 'proxy' && tag.length > 2 && tag[2] === 'activitypub'
+      );
+      return !hasActivityPubProxy;
+    });
+  }, [allPosts, showMastodon]);
 
   return (
     <MainLayout>
@@ -163,6 +176,15 @@ export function SearchPage() {
                         <SelectItem value="zh">Chinese</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* Show Mastodon posts */}
+                  <div className="flex items-center gap-3">
+                    <span className="font-bold text-sm">Show Mastodon posts</span>
+                    <Switch
+                      checked={showMastodon}
+                      onCheckedChange={setShowMastodon}
+                    />
                   </div>
                 </div>
               )}
