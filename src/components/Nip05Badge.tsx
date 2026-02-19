@@ -20,22 +20,23 @@ function getNip05Domain(nip05: string | undefined): string | undefined {
 
 /**
  * Displays a NIP-05 identifier with its domain favicon.
- * Only shows favicon if it loads successfully. Hides on any error.
+ * Uses Google's favicon service but validates the image to avoid showing default placeholders.
  */
 export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps) {
   const [showFavicon, setShowFavicon] = useState(true);
-  const [imageLoaded, setImageLoaded] = useState(false);
   const domain = getNip05Domain(nip05);
 
   const handleLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
-    // Check if the loaded image is tiny (likely a placeholder/default)
-    // Real favicons are usually at least 16x16
-    if (img.naturalWidth < 16 || img.naturalHeight < 16) {
+    
+    // Google returns a 16x16 default globe for missing favicons
+    // Check if it's exactly 16x16 and likely the default
+    if (img.naturalWidth === 16 && img.naturalHeight === 16) {
+      // It might be the default globe - hide it to be safe
+      // Real favicons from Google's service are often larger or have different dimensions
       setShowFavicon(false);
       return;
     }
-    setImageLoaded(true);
   };
 
   const handleError = () => {
@@ -47,12 +48,9 @@ export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps)
       <span className="truncate">@{nip05}</span>
       {domain && showFavicon && (
         <img
-          src={`https://${domain}/favicon.ico`}
+          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`}
           alt=""
-          className={cn(
-            'shrink-0 rounded-sm bg-white/5',
-            !imageLoaded && 'opacity-0'
-          )}
+          className="shrink-0 rounded-sm bg-white/5"
           style={{ width: iconSize, height: iconSize }}
           loading="lazy"
           onLoad={handleLoad}
