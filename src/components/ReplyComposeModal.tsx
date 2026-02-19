@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -15,6 +15,7 @@ import { ComposeBox } from '@/components/ComposeBox';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
+import { cn } from '@/lib/utils';
 
 interface ReplyComposeModalProps {
   /** The event being replied to. When `null`, the modal acts as a "New post" composer. */
@@ -34,21 +35,54 @@ function extractImages(content: string): string[] {
 export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: ReplyComposeModalProps) {
   const isReply = !!event;
   const isQuote = !!quotedEvent;
+  const [previewMode, setPreviewMode] = useState(false);
+  const [hasPreviewableContent, setHasPreviewableContent] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-12">
+        <div className="flex items-center justify-between px-4 h-12 border-b border-border">
           <DialogTitle className="text-base font-semibold">
             {isReply ? 'Reply to post' : isQuote ? 'Quote post' : 'New post'}
           </DialogTitle>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
-          >
-            <X className="size-5" />
-          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Preview toggle */}
+            {hasPreviewableContent && (
+              <div className="inline-flex items-center gap-0.5 p-1 bg-muted/50 rounded-lg">
+                <button
+                  onClick={() => setPreviewMode(false)}
+                  className={cn(
+                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                    !previewMode 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => setPreviewMode(true)}
+                  className={cn(
+                    "px-3.5 py-1.5 text-xs font-medium rounded-md transition-all",
+                    previewMode 
+                      ? "bg-background text-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Preview
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={() => onOpenChange(false)}
+              className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+            >
+              <X className="size-5" />
+            </button>
+          </div>
         </div>
 
         {/* Embedded original post (reply only - quote embeds are shown in ComposeBox) */}
@@ -62,6 +96,8 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
           placeholder={isReply ? "What's on your mind?" : isQuote ? "Add a comment..." : "What's happening?"}
           forceExpanded
           hideAvatar
+          previewMode={previewMode}
+          onHasPreviewableContentChange={setHasPreviewableContent}
         />
       </DialogContent>
     </Dialog>
