@@ -11,7 +11,6 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Separator } from '@/components/ui/separator';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -70,8 +69,6 @@ export function InteractionsModal({ eventId, open, onOpenChange, initialTab = 'r
             <X className="size-5" />
           </button>
         </div>
-
-        <Separator />
 
         {/* Tab bar */}
         <div className="flex border-b border-border">
