@@ -27,7 +27,7 @@ export function AdvancedSettings() {
       </div>
 
       {/* Wallet Section */}
-      <div className="border-b-2 border-primary">
+      <div className="border-b-[4px] border-primary">
         <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>
           <CollapsibleTrigger asChild>
             <Button 
@@ -59,7 +59,7 @@ export function AdvancedSettings() {
       </div>
 
       {/* Network (Relays) Section */}
-      <div className="border-b-2 border-primary">
+      <div className="border-b-[4px] border-primary">
         <Collapsible open={relaysOpen} onOpenChange={setRelaysOpen}>
           <CollapsibleTrigger asChild>
             <Button 

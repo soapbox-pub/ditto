@@ -100,12 +100,12 @@ export function ContentSettings() {
       </div>
 
       {/* Muted Content Section */}
-      <div className="border-b-2 border-primary">
+      <div className="border-b-[4px] border-primary">
         <Collapsible open={mutesOpen} onOpenChange={setMutesOpen}>
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none"
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 rounded-none border-b-[4px] border-primary"
             >
               <span className="text-base font-semibold">Muted Content</span>
               {mutesOpen ? (
