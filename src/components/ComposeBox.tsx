@@ -370,7 +370,7 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 px-3 -mx-3 min-h-[100px] rounded-lg border border-border bg-secondary/20">
+            <div className="pt-2.5 pb-2 min-h-[100px]">
               <div className="whitespace-pre-wrap break-words text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
@@ -492,9 +492,8 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
               <button
                 type="button"
                 onClick={() => setPreviewMode(!previewMode)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border border-border hover:bg-secondary"
+                className="text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
-                {previewMode ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
                 {previewMode ? 'Edit' : 'Preview'}
               </button>
             )}
