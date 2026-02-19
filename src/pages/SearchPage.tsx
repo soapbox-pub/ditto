@@ -133,10 +133,10 @@ export function SearchPage() {
 
               {/* Filter controls */}
               {filtersOpen && (
-                <div className="px-4 pb-4 space-y-5">
+                <div className="px-4 pb-4 space-y-4">
                   {/* Including replies */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">Including replies</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-sm">Including replies</span>
                     <Switch
                       checked={includeReplies}
                       onCheckedChange={setIncludeReplies}
@@ -144,12 +144,12 @@ export function SearchPage() {
                   </div>
 
                   {/* Media type — horizontal wrap */}
-                  <div className="space-y-3">
-                    <span className="font-semibold text-sm text-foreground">With ONLY the media type:</span>
+                  <div className="space-y-2">
+                    <span className="font-medium text-sm">With ONLY the media type:</span>
                     <RadioGroup
                       value={mediaType}
                       onValueChange={(v) => setMediaType(v as typeof mediaType)}
-                      className="flex flex-wrap gap-x-4 gap-y-2.5"
+                      className="flex flex-wrap gap-x-4 gap-y-2"
                     >
                       {[
                         { value: 'all', label: 'All media' },
@@ -158,17 +158,17 @@ export function SearchPage() {
                         { value: 'vines', label: 'Vines' },
                         { value: 'none', label: 'No media' },
                       ].map(({ value, label }) => (
-                        <div key={value} className="flex items-center space-x-2">
+                        <div key={value} className="flex items-center space-x-1.5">
                           <RadioGroupItem value={value} id={`media-${value}`} />
-                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm text-foreground">{label}</Label>
+                          <Label htmlFor={`media-${value}`} className="font-normal cursor-pointer text-sm">{label}</Label>
                         </div>
                       ))}
                     </RadioGroup>
                   </div>
 
                   {/* Language — inline */}
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground whitespace-nowrap">In the language:</span>
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-sm whitespace-nowrap">In the language:</span>
                     <Select value={language} onValueChange={setLanguage}>
                       <SelectTrigger className="w-40 bg-secondary/50">
                         <SelectValue />
@@ -186,16 +186,16 @@ export function SearchPage() {
                   </div>
 
                   {/* Platform filter */}
-                  <div className="space-y-3">
-                    <span className="font-semibold text-sm text-foreground">Show posts from:</span>
-                    <div className="flex flex-wrap gap-x-4 gap-y-2.5">
+                  <div className="space-y-2">
+                    <span className="font-medium text-sm">Show posts from:</span>
+                    <div className="flex flex-wrap gap-x-4 gap-y-2">
                       <div className="flex items-center space-x-2">
                         <Checkbox
                           id="platform-nostr"
                           checked={showNostr}
                           onCheckedChange={(checked) => setShowNostr(!!checked)}
                         />
-                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer text-sm text-foreground">
+                        <Label htmlFor="platform-nostr" className="font-normal cursor-pointer text-sm">
                           Nostr
                         </Label>
                       </div>
@@ -205,7 +205,7 @@ export function SearchPage() {
                           checked={showMastodon}
                           onCheckedChange={(checked) => setShowMastodon(!!checked)}
                         />
-                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer text-sm text-foreground">
+                        <Label htmlFor="platform-mastodon" className="font-normal cursor-pointer text-sm">
                           Mastodon
                         </Label>
                       </div>
