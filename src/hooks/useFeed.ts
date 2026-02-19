@@ -57,7 +57,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
       const now = Math.floor(Date.now() / 1000);
 
       if (tab === 'communities' && communityPubkeys.length > 0) {
-        // Communities feed — posts from community members
+        // Communities feed — posts from community members with NIP-05 verification
         const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;
@@ -68,7 +68,50 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           { signal: querySignal },
         );
 
-        return events
+        // Get the community domain for verification
+        let communityDomain = '';
+        try {
+          const communityStr = localStorage.getItem('mew:community');
+          if (communityStr) {
+            const community = JSON.parse(communityStr);
+            communityDomain = community.domain;
+          }
+        } catch {
+          // Fall through - no domain verification
+        }
+
+        // Fetch kind 0 metadata for all authors to verify NIP-05
+        const authorPubkeys = [...new Set(events.map(e => e.pubkey))];
+        const metadataEvents = await nostr.query(
+          [{ kinds: [0], authors: authorPubkeys }],
+          { signal: querySignal },
+        );
+
+        // Build map of pubkey -> NIP-05 identifier
+        const nip05Map = new Map<string, string>();
+        for (const meta of metadataEvents) {
+          try {
+            const content = JSON.parse(meta.content);
+            if (content.nip05) {
+              nip05Map.set(meta.pubkey, content.nip05.toLowerCase());
+            }
+          } catch {
+            // Skip invalid metadata
+          }
+        }
+
+        // Filter events to only show users with matching NIP-05 domain
+        const filteredEvents = communityDomain 
+          ? events.filter((ev) => {
+              const nip05 = nip05Map.get(ev.pubkey);
+              if (!nip05) return false;
+              // Check if NIP-05 ends with @domain
+              const expectedSuffix = `@${communityDomain}`;
+              return nip05.endsWith(expectedSuffix);
+            })
+          : events; // Fallback if no domain found
+
+        return filteredEvents
           .filter((ev) => ev.created_at <= now)
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
