@@ -18,7 +18,19 @@ import type { FeedItem } from '@/hooks/useFeed';
 
 export function Feed() {
   const { user } = useCurrentUser();
-  const [activeTab, setActiveTab] = useState<'follows' | 'global'>(user ? 'follows' : 'global');
+  
+  // Load feed tab settings from localStorage
+  const showGlobalFeed = (() => {
+    const stored = localStorage.getItem('mew:showGlobalFeed');
+    return stored !== null ? stored === 'true' : true;
+  })();
+
+  const showCommunitiesFeed = (() => {
+    const stored = localStorage.getItem('mew:showCommunitiesFeed');
+    return stored !== null ? stored === 'true' : false;
+  })();
+
+  const [activeTab, setActiveTab] = useState<'follows' | 'global' | 'communities'>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const [signupDialogOpen, setSignupDialogOpen] = useState(false);
 
@@ -118,11 +130,20 @@ export function Feed() {
             active={activeTab === 'follows'}
             onClick={() => setActiveTab('follows')}
           />
-          <TabButton
-            label="Global"
-            active={activeTab === 'global'}
-            onClick={() => setActiveTab('global')}
-          />
+          {showGlobalFeed && (
+            <TabButton
+              label="Global"
+              active={activeTab === 'global'}
+              onClick={() => setActiveTab('global')}
+            />
+          )}
+          {showCommunitiesFeed && (
+            <TabButton
+              label="Communities"
+              active={activeTab === 'communities'}
+              onClick={() => setActiveTab('communities')}
+            />
+          )}
         </div>
       ) : (
         <div className="border-b border-border sticky top-12 sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">

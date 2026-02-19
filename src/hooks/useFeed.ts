@@ -15,8 +15,8 @@ const BASE_FEED_KINDS = [1, 6];
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
-/** Hook to fetch the global or followed feed with infinite scroll pagination. */
-export function useFeed(tab: 'follows' | 'global') {
+/** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
+export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
@@ -34,13 +34,61 @@ export function useFeed(tab: 'follows' | 'global') {
   // Without this guard, the query falls through to the global branch while followList is still loading.
   const followsReady = tab !== 'follows' || (!!user && !!followList && followList.length > 0);
 
+  // Load communities from localStorage
+  const communities = (() => {
+    try {
+      const stored = localStorage.getItem('mew:communities');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  })();
+
+  // Build community pubkeys list from all stored NIP-05 JSONs
+  const communityPubkeys = (() => {
+    if (tab !== 'communities') return [];
+    const pubkeys = new Set<string>();
+    for (const community of communities) {
+      try {
+        const jsonStr = localStorage.getItem(`mew:community:${community.domain}`);
+        if (jsonStr) {
+          const data = JSON.parse(jsonStr);
+          if (data.names) {
+            Object.values(data.names).forEach((pk) => {
+              if (typeof pk === 'string') pubkeys.add(pk);
+            });
+          }
+        }
+      } catch {
+        // Skip invalid community data
+      }
+    }
+    return Array.from(pubkeys);
+  })();
+
   return useInfiniteQuery<FeedItem[], Error>({
-    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey],
+    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey, communities.length],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
 
-      if (tab === 'follows' && user && followList && followList.length > 0) {
+      if (tab === 'communities' && communityPubkeys.length > 0) {
+        // Communities feed — posts from community members
+        const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE };
+        if (pageParam) {
+          filter.until = pageParam;
+        }
+
+        const events = await nostr.query(
+          [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+          { signal: querySignal },
+        );
+
+        return events
+          .filter((ev) => ev.created_at <= now)
+          .sort((a, b) => b.created_at - a.created_at)
+          .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
+      } else if (tab === 'follows' && user && followList && followList.length > 0) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
         const authors = [...followList, user.pubkey];
         const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
