@@ -61,8 +61,11 @@ export function useEncryptedSettings() {
       return events[0];
     },
     enabled: !!user,
-    staleTime: 30 * 60 * 1000, // 30 minutes - refetch on page load after this
-    gcTime: 60 * 60 * 1000, // 1 hour - keep in cache
+    staleTime: Infinity, // Never refetch automatically
+    gcTime: Infinity, // Keep in cache forever
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Parse settings from encrypted content
@@ -87,10 +90,11 @@ export function useEncryptedSettings() {
       }
     },
     enabled: !!query.data && !!user,
-    staleTime: 30 * 60 * 1000, // 30 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour - keep in cache
-    refetchOnWindowFocus: false, // Don't refetch on window focus to avoid spam
-    refetchOnReconnect: false, // Don't refetch on reconnect
+    staleTime: Infinity, // Never refetch automatically
+    gcTime: Infinity, // Keep in cache forever
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
   });
 
   // Update settings
@@ -136,8 +140,10 @@ export function useEncryptedSettings() {
     },
     // Update cache in-place instead of refetching, which avoids
     // NostrSync re-running and causing a re-render loop
-    onSuccess: (data) => {
+    onSuccess: (data, variables, context) => {
       queryClient.setQueryData(['parsedSettings', query.data?.id], data);
+      // Invalidate to trigger a background refetch of the event (to get the new published version)
+      queryClient.invalidateQueries({ queryKey: ['encryptedSettings', user?.pubkey] });
     },
   });
 
