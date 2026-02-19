@@ -145,31 +145,30 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const streamFilter: NostrFilter = { kinds };
 
     // Search filter for initial query (includes NIP-50 extensions)
-    // TEMPORARILY DISABLED FOR DEBUGGING
     const searchParts: string[] = [];
     
-    // if (query.trim()) {
-    //   searchParts.push(query.trim());
-    // }
+    if (query.trim()) {
+      searchParts.push(query.trim());
+    }
 
-    // // Add language filter (NIP-50 extension supported by Ditto)
-    // if (options.language && options.language !== 'global') {
-    //   searchParts.push(`language:${options.language}`);
-    // }
+    // Add language filter (NIP-50 extension supported by Ditto)
+    if (options.language && options.language !== 'global') {
+      searchParts.push(`language:${options.language}`);
+    }
 
-    // // Add media filter (NIP-50 extension supported by Ditto)
-    // // Only apply to non-vines queries (kind 1)
-    // if (!isVines) {
-    //   if (options.mediaType === 'images') {
-    //     searchParts.push('media:true');
-    //     searchParts.push('video:false');
-    //   } else if (options.mediaType === 'videos') {
-    //     searchParts.push('video:true');
-    //   } else if (options.mediaType === 'none') {
-    //     searchParts.push('media:false');
-    //   }
-    //   // 'all' means no media filter
-    // }
+    // Add media filter (NIP-50 extension supported by Ditto)
+    // Only apply to non-vines queries (kind 1)
+    if (!isVines) {
+      if (options.mediaType === 'images') {
+        searchParts.push('media:true');
+        searchParts.push('video:false');
+      } else if (options.mediaType === 'videos') {
+        searchParts.push('video:true');
+      } else if (options.mediaType === 'none') {
+        searchParts.push('media:false');
+      }
+      // 'all' means no media filter
+    }
 
     const initialFilter: NostrFilter = { ...streamFilter };
     if (searchParts.length > 0) {
@@ -179,15 +178,19 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // 1. Fetch initial batch with search filters (uses pool, reuses existing connections)
     (async () => {
       try {
+        console.log('[useStreamPosts] Fetching initial batch with filter:', initialFilter);
         const events = await nostr.query(
           [{ ...initialFilter, limit: 40 }],
           { signal: ac.signal },
         );
+        console.log('[useStreamPosts] Received', events.length, 'initial events');
         for (const event of events) {
           addEvent(event);
         }
-      } catch {
-        // abort expected
+      } catch (error) {
+        if (!ac.signal.aborted) {
+          console.error('[useStreamPosts] Initial query error:', error);
+        }
       }
       if (alive) setIsLoading(false);
     })();
