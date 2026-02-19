@@ -79,9 +79,13 @@ export function QuickReactMenu({
       },
       {
         onSuccess: () => {
-          // Invalidate stats to refetch real counts (will reconcile with optimistic data)
-          queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
-          queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+          // Delay invalidation so the relay has time to index the new event.
+          // Without this, the refetch returns stale counts and overwrites
+          // the optimistic update.
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['event-stats', eventId] });
+            queryClient.invalidateQueries({ queryKey: ['event-interactions', eventId] });
+          }, 3000);
         },
         onError: () => {
           // Revert optimistic update on failure
