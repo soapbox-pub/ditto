@@ -517,7 +517,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
   // Check if the current user can zap this event's author
-  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
+  const canZapAuthor = user && canZap(metadata);
 
   const openInteractions = (tab: InteractionTab) => {
     setInteractionsTab(tab);

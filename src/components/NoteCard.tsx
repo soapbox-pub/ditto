@@ -136,7 +136,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const [replyOpen, setReplyOpen] = useState(false);
 
   // Check if the current user can zap this event's author
-  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
+  const canZapAuthor = user && canZap(metadata);
 
   // Handler to navigate to post detail, but only if click didn't originate from a modal
   const handleCardClick = (e: React.MouseEvent) => {

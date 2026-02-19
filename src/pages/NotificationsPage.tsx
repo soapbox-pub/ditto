@@ -567,7 +567,7 @@ function ActionButtons({
   const metadata = author.data?.metadata;
 
   // Check if the current user can zap this event's author
-  const canZapAuthor = user && user.pubkey !== event.pubkey && canZap(metadata);
+  const canZapAuthor = user && canZap(metadata);
 
   return (
     <div className="flex items-center gap-5 mt-3 -ml-2 mb-1">
