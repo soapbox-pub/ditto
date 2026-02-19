@@ -13,6 +13,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { ReplyContext } from '@/components/ReplyContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
@@ -508,20 +509,4 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
   );
 }
 
-function ReplyContext({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
 
-  return (
-    <div className="flex items-center text-sm text-muted-foreground mt-2 mb-1">
-      <span className="mr-1">Replying to</span>
-      {author.isLoading ? (
-        <Skeleton className="h-3.5 w-20 inline-block" />
-      ) : (
-        <Link to={`/${nip19.npubEncode(pubkey)}`} className="text-primary hover:underline" onClick={(e) => e.stopPropagation()}>
-          @{name}
-        </Link>
-      )}
-    </div>
-  );
-}

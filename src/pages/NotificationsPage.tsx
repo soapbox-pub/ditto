@@ -16,6 +16,7 @@ import { RepostMenu } from '@/components/RepostMenu';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
+import { ReplyContext } from '@/components/ReplyContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
@@ -321,6 +322,27 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
 
+  // Check if this is a reply and find the person being replied to
+  const isReply = event.tags.some(([name]) => name === 'e');
+  const replyTo = isReply ? (() => {
+    // First try to find a p tag that's not a mention
+    const directReply = event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
+    if (directReply) return directReply;
+    
+    // If no direct reply p tag, check if there's a root or reply e tag with a pubkey
+    const rootOrReply = event.tags.find(([name, , , marker]) => 
+      name === 'e' && (marker === 'root' || marker === 'reply')
+    );
+    if (rootOrReply?.[4]) {
+      // Return a p tag format with the pubkey from the e tag
+      return ['p', rootOrReply[4]];
+    }
+    
+    // Fallback: if this is a reply but all p tags are mentions, use the first p tag anyway
+    const firstP = event.tags.find(([name]) => name === 'p');
+    return firstP;
+  })() : undefined;
+
   const handleNavigate = useCallback(() => {
     navigate(`/${encodedId}`);
   }, [navigate, encodedId]);
@@ -330,6 +352,11 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
       className="cursor-pointer"
       onClick={handleNavigate}
     >
+      {/* Reply context */}
+      {isReply && replyTo?.[1] && (
+        <ReplyContext pubkey={replyTo[1]} />
+      )}
+
       {/* Author row */}
       <div className="flex items-center gap-3">
         <Link to={`/${npub}`} className="shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -580,27 +607,6 @@ function ActionButtons({
       >
         <MoreHorizontal className="size-5" />
       </button>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────
-// Reply Context: "Replying to @{name} and @{name}"
-// ──────────────────────────────────────
-function ReplyContext({ pubkey }: { pubkey: string }) {
-  const author = useAuthor(pubkey);
-  const name = author.data?.metadata?.name || genUserName(pubkey);
-
-  return (
-    <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-1">
-      <span>Replying to</span>
-      <Link
-        to={`/${nip19.npubEncode(pubkey)}`}
-        className="text-primary hover:underline"
-        onClick={(e) => e.stopPropagation()}
-      >
-        @{name}
-      </Link>
     </div>
   );
 }
