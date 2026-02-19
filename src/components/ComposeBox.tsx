@@ -197,10 +197,10 @@ export function ComposeBox({ onSuccess, placeholder = "What's on your mind?", co
     [detectedEmbeds, removedEmbeds]
   );
 
-  // Check if content has any URLs or Nostr identifiers
+  // Check if content has any previewable content (link previews, images, or videos)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0;
-  }, [visibleEmbeds]);
+    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0;
+  }, [visibleEmbeds, previewImages, previewVideos]);
 
 
 
