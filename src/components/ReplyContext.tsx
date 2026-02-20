@@ -20,16 +20,16 @@ export function ReplyContext({ pubkeys, className }: ReplyContextProps) {
   const displayPubkeys = pubkeys.slice(0, 2);
 
   return (
-    <div className={className || 'flex items-center flex-wrap gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
-      <span>Replying to</span>
+    <div className={className || 'flex items-center flex-wrap gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Replying to</span>
       {displayPubkeys.map((pubkey, index) => (
-        <span key={pubkey} className="inline-flex items-center gap-1">
+        <span key={pubkey} className="inline-flex items-center gap-1 min-w-0">
           <ReplyAuthor pubkey={pubkey} />
-          {index < displayPubkeys.length - 1 && <span>and</span>}
+          {index < displayPubkeys.length - 1 && <span className="shrink-0">and</span>}
         </span>
       ))}
       {pubkeys.length > 2 && (
-        <span className="text-muted-foreground">
+        <span className="text-muted-foreground shrink-0">
           and {pubkeys.length - 2} other{pubkeys.length - 2 !== 1 ? 's' : ''}
         </span>
       )}
@@ -50,7 +50,7 @@ function ReplyAuthor({ pubkey }: { pubkey: string }) {
     <ProfileHoverCard pubkey={pubkey} asChild>
       <Link
         to={profileUrl}
-        className="text-primary hover:underline"
+        className="text-primary hover:underline truncate max-w-[200px] inline-block align-bottom"
         onClick={(e) => e.stopPropagation()}
       >
         @{name}
