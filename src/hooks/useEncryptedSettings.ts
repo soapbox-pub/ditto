@@ -151,7 +151,7 @@ export function useEncryptedSettings() {
     },
     // Update cache in-place instead of refetching, which avoids
     // NostrSync re-running and causing a re-render loop
-    onSuccess: (data, variables, context) => {
+    onSuccess: (data) => {
       queryClient.setQueryData(['parsedSettings', query.data?.id], data);
       // Invalidate to trigger a background refetch of the event (to get the new published version)
       queryClient.invalidateQueries({ queryKey: ['encryptedSettings', user?.pubkey] });

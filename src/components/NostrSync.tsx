@@ -92,7 +92,7 @@ export function NostrSync() {
 
     // Update local config with encrypted settings if they exist
     updateConfig((current) => {
-      const updates: any = { ...current };
+      const updates: Record<string, unknown> = { ...current };
 
       // Sync theme if available
       if (encryptedSettings.theme && encryptedSettings.theme !== current.theme) {

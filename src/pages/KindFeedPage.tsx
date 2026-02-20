@@ -5,7 +5,6 @@ import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStreamKind } from '@/hooks/useStreamKind';
-import { cn } from '@/lib/utils';
 
 interface KindFeedPageProps {
   kind: number | number[];

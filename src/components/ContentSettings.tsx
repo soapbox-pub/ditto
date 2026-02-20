@@ -704,7 +704,7 @@ function MuteSettingsInternals() {
 }
 
 function MuteTypeSection({
-  type,
+  type: _type,
   config,
   items,
   onRemove,
