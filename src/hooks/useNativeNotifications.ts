@@ -17,10 +17,11 @@ const MewNotification = registerPlugin<MewNotificationPlugin>('MewNotification')
  * Hook that manages native device notifications for the Nostr app.
  *
  * On login: passes the user's pubkey and relay URLs to the native Android
- * notification service, which polls relays every 60 seconds via AlarmManager
- * using pure Java WebSocket connections. No WebView involvement for background polling.
+ * notification service, which maintains a persistent WebSocket subscription
+ * to a Nostr relay for real-time event delivery. No WebView involvement
+ * for background notifications.
  *
- * On logout: clears the native config so polling stops.
+ * On logout: clears the native config so the relay connection is closed.
  */
 export function useNativeNotifications(): void {
   const { user } = useCurrentUser();

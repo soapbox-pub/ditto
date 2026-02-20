@@ -1,6 +1,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
+import { Capacitor } from '@capacitor/core';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
@@ -53,7 +54,10 @@ export function useNotifications(): NotificationData {
         .sort((a, b) => b.created_at - a.created_at);
     },
     enabled: queryEnabled && !!user,
-    refetchInterval: 60_000, // Refetch every minute for new notifications
+    // On native platforms, skip automatic background refetch since the native
+    // relay service maintains a persistent WebSocket subscription. The in-app
+    // feed still fetches on mount and can be manually refetched.
+    refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
     placeholderData: (prev) => prev, // Keep previous data during refetch to prevent flickering
   });
 

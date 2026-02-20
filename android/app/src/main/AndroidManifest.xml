@@ -25,13 +25,9 @@
         </activity>
 
         <service
-            android:name=".NotificationService"
+            android:name=".NotificationRelayService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
-
-        <receiver
-            android:name=".PollAlarmReceiver"
-            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -48,7 +44,6 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />

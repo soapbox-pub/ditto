@@ -2,7 +2,9 @@ package com.mew.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
@@ -13,11 +15,11 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
@@ -28,109 +30,103 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 /**
- * Pure Java Nostr relay poller. Opens WebSocket connections directly to relays,
- * queries for notification events, resolves display names, and dispatches
- * native Android notifications. No WebView involvement.
+ * Handles notification dispatch and metadata resolution for Nostr events.
+ * Caches display name metadata in SharedPreferences to avoid redundant
+ * WebSocket connections for repeat authors.
  */
 public class NostrPoller {
 
     private static final String TAG = "NostrPoller";
     private static final String PREFS_NAME = "mew_notifications";
+    private static final String META_PREFS_NAME = "mew_metadata_cache";
     private static final String KEY_LAST_SEEN = "nostr:notification-last-seen";
     private static final String CHANNEL_ID = "mew_notifications";
     private static final int MAX_NOTIFICATION_ID = 2147483646;
 
     private final Context context;
-    private final OkHttpClient httpClient;
 
     public NostrPoller(Context context) {
         this.context = context;
-        this.httpClient = new OkHttpClient.Builder()
-                .connectTimeout(8, TimeUnit.SECONDS)
-                .readTimeout(8, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.SECONDS)
-                .build();
         createNotificationChannel();
     }
 
     /**
-     * Poll relays for new notification events and dispatch native notifications.
+     * Process a single incoming event: resolve display name (from cache or
+     * network) and dispatch a native notification.
      */
-    public void poll(String userPubkey, List<String> relayUrls) {
-        if (userPubkey == null || relayUrls == null || relayUrls.isEmpty()) {
-            return;
+    public void handleEvent(JSONObject event, String userPubkey, String relayUrl, OkHttpClient httpClient) {
+        String pubkey = event.optString("pubkey");
+        if (pubkey.equals(userPubkey)) return; // Skip self-interactions
+
+        String actorPubkey = getActorPubkey(event);
+        String displayName = getCachedDisplayName(actorPubkey);
+
+        if (displayName == null) {
+            // Fetch from relay and cache
+            displayName = fetchAndCacheMetadata(actorPubkey, relayUrl, httpClient);
         }
 
-        long since = getLastSeenTimestamp();
-        if (since == 0) {
-            // First run: set to 5 minutes ago
-            since = (System.currentTimeMillis() / 1000) - 300;
-            setLastSeenTimestamp(since);
+        String action = kindToAction(event);
+        showNotification(
+                hashId(event.optString("id")),
+                "Mew",
+                displayName + " " + action
+        );
+
+        long ts = event.optLong("created_at", 0);
+        long currentLastSeen = getLastSeenTimestamp();
+        if (ts > currentLastSeen) {
+            setLastSeenTimestamp(ts);
         }
+    }
 
-        Log.d(TAG, "Polling " + relayUrls.size() + " relays since " + since);
+    /**
+     * Process a batch of events (used after EOSE to handle the initial backfill).
+     */
+    public void handleEventBatch(List<JSONObject> events, String userPubkey, String relayUrl, OkHttpClient httpClient) {
+        if (events.isEmpty()) return;
 
-        // Query up to 2 relays
-        List<JSONObject> allEvents = new ArrayList<>();
+        // Deduplicate and filter self-interactions
         Set<String> seenIds = new HashSet<>();
-        int relaysToQuery = Math.min(relayUrls.size(), 2);
-
-        for (int i = 0; i < relaysToQuery; i++) {
-            try {
-                List<JSONObject> events = queryRelay(relayUrls.get(i), userPubkey, since);
-                for (JSONObject event : events) {
-                    String id = event.optString("id");
-                    String pubkey = event.optString("pubkey");
-                    // Skip self-interactions and duplicates
-                    if (!pubkey.equals(userPubkey) && !seenIds.contains(id)) {
-                        seenIds.add(id);
-                        allEvents.add(event);
-                    }
-                }
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to query relay " + relayUrls.get(i), e);
+        List<JSONObject> filtered = new ArrayList<>();
+        for (JSONObject event : events) {
+            String id = event.optString("id");
+            String pubkey = event.optString("pubkey");
+            if (!pubkey.equals(userPubkey) && !seenIds.contains(id)) {
+                seenIds.add(id);
+                filtered.add(event);
             }
         }
 
-        if (allEvents.isEmpty()) {
-            Log.d(TAG, "No new events");
-            return;
-        }
+        if (filtered.isEmpty()) return;
 
-        Log.d(TAG, "Found " + allEvents.size() + " new events");
-
-        // Collect unique pubkeys for metadata resolution
-        Set<String> pubkeys = new HashSet<>();
-        for (JSONObject event : allEvents) {
-            pubkeys.add(getActorPubkey(event));
-        }
-
-        // Fetch metadata
-        Map<String, JSONObject> metadataMap = new HashMap<>();
-        if (!relayUrls.isEmpty()) {
-            try {
-                metadataMap = fetchMetadata(relayUrls.get(0), new ArrayList<>(pubkeys));
-            } catch (Exception e) {
-                Log.w(TAG, "Failed to fetch metadata", e);
+        // Collect unknown pubkeys for batch metadata fetch
+        Set<String> unknownPubkeys = new HashSet<>();
+        for (JSONObject event : filtered) {
+            String actorPubkey = getActorPubkey(event);
+            if (getCachedDisplayName(actorPubkey) == null) {
+                unknownPubkeys.add(actorPubkey);
             }
+        }
+
+        // Batch fetch metadata for unknown pubkeys
+        if (!unknownPubkeys.isEmpty()) {
+            fetchAndCacheMetadataBatch(new ArrayList<>(unknownPubkeys), relayUrl, httpClient);
         }
 
         // Dispatch notifications
-        long newestTs = since;
-        if (allEvents.size() > 3) {
-            // Summary notification
+        if (filtered.size() > 3) {
             showNotification(
-                    hashId(allEvents.get(0).optString("id") + "-summary"),
+                    hashId(filtered.get(0).optString("id") + "-summary"),
                     "Mew",
-                    "You have " + allEvents.size() + " new notifications"
+                    "You have " + filtered.size() + " new notifications"
             );
         } else {
-            for (JSONObject event : allEvents) {
+            for (JSONObject event : filtered) {
                 String actorPubkey = getActorPubkey(event);
-                JSONObject metadata = metadataMap.get(actorPubkey);
-                String displayName = resolveDisplayName(metadata, actorPubkey);
+                String displayName = getCachedDisplayName(actorPubkey);
+                if (displayName == null) displayName = truncatePubkey(actorPubkey);
                 String action = kindToAction(event);
-
                 showNotification(
                         hashId(event.optString("id")),
                         "Mew",
@@ -139,169 +135,122 @@ public class NostrPoller {
             }
         }
 
-        for (JSONObject event : allEvents) {
+        // Update last-seen to newest event
+        long newestTs = getLastSeenTimestamp();
+        for (JSONObject event : filtered) {
             long ts = event.optLong("created_at", 0);
             if (ts > newestTs) newestTs = ts;
         }
         setLastSeenTimestamp(newestTs);
     }
 
-    /**
-     * Query a single relay via WebSocket for notification events.
-     */
-    private List<JSONObject> queryRelay(String url, String userPubkey, long since) throws Exception {
-        List<JSONObject> events = new ArrayList<>();
-        String subId = "notif-" + Long.toHexString(System.nanoTime());
-        CountDownLatch latch = new CountDownLatch(1);
+    // --- Metadata caching ---
 
-        JSONObject filter = new JSONObject();
-        JSONArray kinds = new JSONArray();
-        kinds.put(1); kinds.put(6); kinds.put(7); kinds.put(9735);
-        filter.put("kinds", kinds);
-        JSONArray pTags = new JSONArray();
-        pTags.put(userPubkey);
-        filter.put("#p", pTags);
-        filter.put("since", since + 1);
-        filter.put("limit", 50);
-
-        JSONArray req = new JSONArray();
-        req.put("REQ");
-        req.put(subId);
-        req.put(filter);
-
-        Request request = new Request.Builder().url(url).build();
-
-        WebSocket ws = httpClient.newWebSocket(request, new WebSocketListener() {
-            @Override
-            public void onOpen(WebSocket webSocket, Response response) {
-                webSocket.send(req.toString());
-            }
-
-            @Override
-            public void onMessage(WebSocket webSocket, String text) {
-                try {
-                    JSONArray msg = new JSONArray(text);
-                    String type = msg.optString(0);
-                    if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
-                        events.add(msg.getJSONObject(2));
-                    } else if ("EOSE".equals(type) && subId.equals(msg.optString(1))) {
-                        JSONArray close = new JSONArray();
-                        close.put("CLOSE");
-                        close.put(subId);
-                        webSocket.send(close.toString());
-                        webSocket.close(1000, "done");
-                        latch.countDown();
-                    }
-                } catch (Exception e) {
-                    Log.w(TAG, "Parse error", e);
-                }
-            }
-
-            @Override
-            public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                Log.w(TAG, "WebSocket failure: " + url, t);
-                latch.countDown();
-            }
-
-            @Override
-            public void onClosed(WebSocket webSocket, int code, String reason) {
-                latch.countDown();
-            }
-        });
-
-        // Wait up to 8 seconds for response
-        if (!latch.await(8, TimeUnit.SECONDS)) {
-            ws.cancel();
-        }
-
-        return events;
+    private String getCachedDisplayName(String pubkey) {
+        SharedPreferences prefs = context.getSharedPreferences(META_PREFS_NAME, Context.MODE_PRIVATE);
+        return prefs.getString("name:" + pubkey, null);
     }
 
-    /**
-     * Fetch kind-0 metadata for a list of pubkeys.
-     */
-    private Map<String, JSONObject> fetchMetadata(String relayUrl, List<String> pubkeys)
-            throws Exception {
-        Map<String, JSONObject> result = new HashMap<>();
-        if (pubkeys.isEmpty()) return result;
+    private void cacheDisplayName(String pubkey, String displayName) {
+        SharedPreferences prefs = context.getSharedPreferences(META_PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString("name:" + pubkey, displayName).apply();
+    }
+
+    private String fetchAndCacheMetadata(String pubkey, String relayUrl, OkHttpClient httpClient) {
+        List<String> pubkeys = new ArrayList<>();
+        pubkeys.add(pubkey);
+        fetchAndCacheMetadataBatch(pubkeys, relayUrl, httpClient);
+        String cached = getCachedDisplayName(pubkey);
+        return cached != null ? cached : truncatePubkey(pubkey);
+    }
+
+    private void fetchAndCacheMetadataBatch(List<String> pubkeys, String relayUrl, OkHttpClient httpClient) {
+        if (pubkeys.isEmpty() || relayUrl == null) return;
 
         String subId = "meta-" + Long.toHexString(System.nanoTime());
         CountDownLatch latch = new CountDownLatch(1);
+        Map<String, JSONObject> results = new ConcurrentHashMap<>();
 
-        JSONObject filter = new JSONObject();
-        JSONArray kinds = new JSONArray();
-        kinds.put(0);
-        filter.put("kinds", kinds);
-        JSONArray authors = new JSONArray();
-        for (String pk : pubkeys) authors.put(pk);
-        filter.put("authors", authors);
-        filter.put("limit", pubkeys.size());
+        try {
+            JSONObject filter = new JSONObject();
+            JSONArray kinds = new JSONArray();
+            kinds.put(0);
+            filter.put("kinds", kinds);
+            JSONArray authors = new JSONArray();
+            for (String pk : pubkeys) authors.put(pk);
+            filter.put("authors", authors);
+            filter.put("limit", pubkeys.size());
 
-        JSONArray req = new JSONArray();
-        req.put("REQ");
-        req.put(subId);
-        req.put(filter);
+            JSONArray req = new JSONArray();
+            req.put("REQ");
+            req.put(subId);
+            req.put(filter);
 
-        Request request = new Request.Builder().url(relayUrl).build();
+            Request request = new Request.Builder().url(relayUrl).build();
 
-        httpClient.newWebSocket(request, new WebSocketListener() {
-            @Override
-            public void onOpen(WebSocket webSocket, Response response) {
-                webSocket.send(req.toString());
-            }
-
-            @Override
-            public void onMessage(WebSocket webSocket, String text) {
-                try {
-                    JSONArray msg = new JSONArray(text);
-                    String type = msg.optString(0);
-                    if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
-                        JSONObject event = msg.getJSONObject(2);
-                        String pubkey = event.optString("pubkey");
-                        String content = event.optString("content");
-                        if (!result.containsKey(pubkey)) {
-                            result.put(pubkey, new JSONObject(content));
-                        }
-                    } else if ("EOSE".equals(type) && subId.equals(msg.optString(1))) {
-                        webSocket.close(1000, "done");
-                        latch.countDown();
-                    }
-                } catch (Exception e) {
-                    Log.w(TAG, "Metadata parse error", e);
+            httpClient.newWebSocket(request, new WebSocketListener() {
+                @Override
+                public void onOpen(WebSocket webSocket, Response response) {
+                    webSocket.send(req.toString());
                 }
-            }
 
-            @Override
-            public void onFailure(WebSocket webSocket, Throwable t, Response response) {
-                latch.countDown();
-            }
+                @Override
+                public void onMessage(WebSocket webSocket, String text) {
+                    try {
+                        JSONArray msg = new JSONArray(text);
+                        String type = msg.optString(0);
+                        if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
+                            JSONObject event = msg.getJSONObject(2);
+                            String pk = event.optString("pubkey");
+                            String content = event.optString("content");
+                            if (!results.containsKey(pk)) {
+                                results.put(pk, new JSONObject(content));
+                            }
+                        } else if ("EOSE".equals(type) && subId.equals(msg.optString(1))) {
+                            webSocket.close(1000, "done");
+                            latch.countDown();
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "Metadata parse error", e);
+                    }
+                }
 
-            @Override
-            public void onClosed(WebSocket webSocket, int code, String reason) {
-                latch.countDown();
-            }
-        });
+                @Override
+                public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+                    latch.countDown();
+                }
 
-        latch.await(8, TimeUnit.SECONDS);
-        return result;
+                @Override
+                public void onClosed(WebSocket webSocket, int code, String reason) {
+                    latch.countDown();
+                }
+            });
+
+            latch.await(8, TimeUnit.SECONDS);
+        } catch (Exception e) {
+            Log.w(TAG, "Failed to fetch metadata", e);
+        }
+
+        // Cache all resolved names
+        for (Map.Entry<String, JSONObject> entry : results.entrySet()) {
+            String displayName = resolveDisplayName(entry.getValue(), entry.getKey());
+            cacheDisplayName(entry.getKey(), displayName);
+        }
     }
 
-    /**
-     * Get the actor pubkey from an event. For zap receipts, extract the original sender.
-     */
-    private String getActorPubkey(JSONObject event) {
+    // --- Event helpers ---
+
+    String getActorPubkey(JSONObject event) {
         int kind = event.optInt("kind");
         if (kind == 9735) {
             JSONArray tags = event.optJSONArray("tags");
             if (tags != null) {
-                // Check for uppercase P tag (zapper's pubkey)
                 for (int i = 0; i < tags.length(); i++) {
                     JSONArray tag = tags.optJSONArray(i);
                     if (tag != null && "P".equals(tag.optString(0))) {
                         return tag.optString(1);
                     }
                 }
-                // Fall back to description tag's pubkey
                 for (int i = 0; i < tags.length(); i++) {
                     JSONArray tag = tags.optJSONArray(i);
                     if (tag != null && "description".equals(tag.optString(0))) {
@@ -317,9 +266,6 @@ public class NostrPoller {
         return event.optString("pubkey");
     }
 
-    /**
-     * Map event kind to a human-readable action.
-     */
     private String kindToAction(JSONObject event) {
         int kind = event.optInt("kind");
         switch (kind) {
@@ -342,9 +288,6 @@ public class NostrPoller {
         }
     }
 
-    /**
-     * Resolve a display name from metadata. Priority: nip05 > display_name > name > truncated pubkey.
-     */
     private String resolveDisplayName(JSONObject metadata, String pubkey) {
         if (metadata != null) {
             String nip05 = metadata.optString("nip05", "");
@@ -357,7 +300,10 @@ public class NostrPoller {
             String name = metadata.optString("name", "");
             if (!name.isEmpty()) return name;
         }
-        // Truncated pubkey as fallback
+        return truncatePubkey(pubkey);
+    }
+
+    private String truncatePubkey(String pubkey) {
         if (pubkey.length() > 12) {
             return pubkey.substring(0, 8) + "...";
         }
@@ -369,22 +315,29 @@ public class NostrPoller {
                 context.getSystemService(Context.NOTIFICATION_SERVICE);
         if (manager == null) return;
 
+        Intent intent = new Intent(context, MainActivity.class);
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+                context, 0, intent,
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
                 .setSmallIcon(R.drawable.ic_stat_mew)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
 
         manager.notify(id, builder.build());
     }
 
-    private long getLastSeenTimestamp() {
+    public long getLastSeenTimestamp() {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         return prefs.getLong(KEY_LAST_SEEN, 0);
     }
 
-    private void setLastSeenTimestamp(long timestamp) {
+    public void setLastSeenTimestamp(long timestamp) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         prefs.edit().putLong(KEY_LAST_SEEN, timestamp).apply();
     }
@@ -394,7 +347,7 @@ public class NostrPoller {
         for (int i = 0; i < Math.min(id.length(), 16); i++) {
             hash = ((hash << 5) - hash) + id.charAt(i);
         }
-        return (Math.abs(hash) % MAX_NOTIFICATION_ID) + 2; // +2 to avoid 0 and 1 (used by foreground service)
+        return (Math.abs(hash) % MAX_NOTIFICATION_ID) + 2;
     }
 
     private void createNotificationChannel() {
