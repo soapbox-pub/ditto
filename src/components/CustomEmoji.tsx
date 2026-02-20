@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
@@ -42,7 +43,7 @@ interface CustomEmojiImgProps {
 /**
  * Renders a single custom emoji as an inline image.
  */
-export function CustomEmojiImg({ name, url, className = 'inline-block h-5 w-5 align-text-bottom' }: CustomEmojiImgProps) {
+export function CustomEmojiImg({ name, url, className = 'inline h-[1.2em] w-[1.2em] align-text-bottom' }: CustomEmojiImgProps) {
   return (
     <img
       src={url}
@@ -79,7 +80,7 @@ export function ReactionEmoji({ content, tags, className }: ReactionEmojiProps) 
     const url = getCustomEmojiUrl(emoji, tags);
     if (url) {
       const name = emoji.slice(1, -1);
-      return <CustomEmojiImg name={name} url={url} className={className ?? 'inline-block h-5 w-5 align-text-bottom'} />;
+      return <CustomEmojiImg name={name} url={url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-text-bottom'} />;
     }
   }
 
@@ -126,7 +127,92 @@ export function resolveReactionEmoji(event: NostrEvent): ResolvedEmoji {
  */
 export function RenderResolvedEmoji({ emoji, className }: { emoji: ResolvedEmoji; className?: string }) {
   if (emoji.url && emoji.name) {
-    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline-block h-5 w-5 align-text-bottom'} />;
+    return <CustomEmojiImg name={emoji.name} url={emoji.url} className={className ?? 'inline h-[1.2em] w-[1.2em] align-text-bottom'} />;
   }
   return <span className={className}>{emoji.content}</span>;
+}
+
+/** Regex matching `:shortcode:` patterns in text. */
+const SHORTCODE_REGEX = /:([a-zA-Z0-9_]+):/g;
+
+/**
+ * Replaces `:shortcode:` patterns in text with inline custom emoji images.
+ * 
+ * Takes a text string and an emoji map (shortcode -> URL), and returns an array
+ * of React nodes where matched shortcodes are replaced with `<CustomEmojiImg>`.
+ * If no emoji tags are present, returns the text as-is for zero overhead.
+ * 
+ * @param text - The text to emojify.
+ * @param emojiMap - Map of shortcode names (without colons) to image URLs. 
+ *                   Build with `buildEmojiMap(event.tags)`.
+ * @param imgClassName - Optional CSS class for the custom emoji images.
+ */
+export function emojify(
+  text: string,
+  emojiMap: Map<string, string>,
+  imgClassName?: string,
+): ReactNode[] {
+  if (emojiMap.size === 0) return [text];
+
+  const result: ReactNode[] = [];
+  let lastIndex = 0;
+  let match: RegExpExecArray | null;
+
+  // Reset lastIndex since the regex is global
+  SHORTCODE_REGEX.lastIndex = 0;
+
+  while ((match = SHORTCODE_REGEX.exec(text)) !== null) {
+    const [fullMatch, shortcode] = match;
+    const url = emojiMap.get(shortcode);
+
+    if (!url) continue;
+
+    // Add text before this match
+    if (match.index > lastIndex) {
+      result.push(text.substring(lastIndex, match.index));
+    }
+
+    result.push(
+      <CustomEmojiImg
+        key={`emoji-${match.index}`}
+        name={shortcode}
+        url={url}
+        className={imgClassName}
+      />,
+    );
+
+    lastIndex = match.index + fullMatch.length;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    result.push(text.substring(lastIndex));
+  }
+
+  return result.length > 0 ? result : [text];
+}
+
+interface EmojifiedTextProps {
+  /** The text to emojify. */
+  children: string;
+  /** The event tags to extract emoji definitions from. */
+  tags: string[][];
+  /** Optional CSS class for the custom emoji images. */
+  imgClassName?: string;
+}
+
+/**
+ * Renders text with NIP-30 custom emoji shortcodes replaced by inline images.
+ * 
+ * Usage:
+ * ```tsx
+ * <EmojifiedText tags={event.tags}>
+ *   {metadata.name}
+ * </EmojifiedText>
+ * ```
+ */
+export function EmojifiedText({ children, tags, imgClassName }: EmojifiedTextProps) {
+  const emojiMap = buildEmojiMap(tags);
+  if (emojiMap.size === 0) return <>{children}</>;
+  return <>{emojify(children, emojiMap, imgClassName)}</>;
 }

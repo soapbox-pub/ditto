@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DomainFavicon } from '@/components/DomainFavicon';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
@@ -73,7 +74,9 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
             className="font-bold text-[15px] hover:underline block truncate"
             onClick={(e) => e.stopPropagation()}
           >
-            {displayName}
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
           </Link>
 
           {nip05Display && (
@@ -95,7 +98,9 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
               'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
               'line-clamp-3',
             )}>
-              {metadata.about}
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
+              ) : metadata.about}
             </p>
           )}
         </div>

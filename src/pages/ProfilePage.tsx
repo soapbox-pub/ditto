@@ -28,6 +28,7 @@ import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
 import { canZap } from '@/lib/canZap';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -219,7 +220,11 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <div className="font-bold text-sm truncate">{displayName}</div>
+            <div className="font-bold text-sm truncate">
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+              ) : displayName}
+            </div>
             {metadata?.nip05 && (
               <div className="text-xs text-muted-foreground truncate">@{formatNip05Display(metadata.nip05)}</div>
             )}
@@ -845,7 +850,11 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold">{displayName}</h2>
+          <h2 className="text-xl font-bold">
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </h2>
           {metadata?.nip05 && (
             <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
           )}
@@ -877,7 +886,11 @@ export function ProfilePage() {
           </div>
 
           {metadata?.about && (
-            <p className="mt-3 text-sm whitespace-pre-wrap">{metadata.about}</p>
+            <p className="mt-3 text-sm whitespace-pre-wrap">
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
+              ) : metadata.about}
+            </p>
           )}
 
           {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
