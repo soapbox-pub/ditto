@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
-import type { Theme, FeedSettings } from '@/contexts/AppContext';
+import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ContentFilter } from './useContentFilters';
 
 const SETTINGS_D_TAG = 'mew-metadata';
@@ -28,6 +28,8 @@ export interface EncryptedSettings {
   feedSettings?: FeedSettings;
   /** Advanced content filters */
   contentFilters?: ContentFilter[];
+  /** How to handle NIP-36 content-warning events */
+  contentWarningPolicy?: ContentWarningPolicy;
   /** Timestamp of last viewed notification (Unix timestamp in seconds) */
   notificationsCursor?: number;
   /** Last sync timestamp */

@@ -11,6 +11,7 @@ import { genUserName } from '@/lib/genUserName';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
+import { useAppContext } from '@/hooks/useAppContext';
 
 /** Bech32 charset used by NIP-19 identifiers. */
 const B32 = '023456789acdefghjklmnpqrstuvwxyz';
@@ -88,8 +89,10 @@ function EmbeddedNoteCard({
   event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
   className?: string;
 }) {
+  const { config } = useAppContext();
   const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
+
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
   const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
@@ -120,6 +123,15 @@ function EmbeddedNoteCard({
     return match?.[0] ?? null;
   }, [event.content]);
 
+  // NIP-36 content-warning check
+  const cwTag = event.tags.find(([name]) => name === 'content-warning');
+  const hasCW = !!cwTag;
+
+  // If policy is "hide", don't render the embedded note at all
+  if (hasCW && config.contentWarningPolicy === 'hide') {
+    return null;
+  }
+
   return (
     <div
       className={cn(
@@ -141,8 +153,8 @@ function EmbeddedNoteCard({
         }
       }}
     >
-      {/* Optional image thumbnail */}
-      {firstImage && (
+      {/* Optional image thumbnail — skip when content-warning is blurred */}
+      {firstImage && !(hasCW && config.contentWarningPolicy === 'blur') && (
         <div className="w-full overflow-hidden">
           <img
             src={firstImage}
@@ -201,10 +213,14 @@ function EmbeddedNoteCard({
           </span>
         </div>
 
-        {/* Text preview with inline mentions */}
-        {truncatedContent && (
+        {/* Content warning notice or text preview */}
+        {hasCW && config.contentWarningPolicy === 'blur' ? (
+          <p className="text-xs text-muted-foreground italic">
+            Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
+          </p>
+        ) : truncatedContent ? (
           <EmbedContentPreview text={truncatedContent} />
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -34,6 +34,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
+import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
+import { useAppContext } from '@/hooks/useAppContext';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -131,8 +133,10 @@ function encodeEventId(event: NostrEvent): string {
 
 export function NoteCard({ event, className, repostedBy, compact }: NoteCardProps) {
   const navigate = useNavigate();
+  const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
+
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
@@ -201,6 +205,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
+
+  // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
+  if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
+    return null;
+  }
 
   return (
     <article
@@ -277,30 +286,32 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         <ReplyContext pubkeys={replyToPubkeys} />
       )}
 
-      {/* Content — kind-based dispatch */}
-      {isVine ? (
-        <>
-          {vineTitle && <p className="text-[15px] mt-2 leading-relaxed break-words overflow-hidden">{vineTitle}</p>}
-          <VineMedia imeta={imeta} hashtags={hashtags} />
-        </>
-      ) : isPoll ? (
-        <PollContent event={event} />
-      ) : isGeocache ? (
-        <GeocacheContent event={event} />
-      ) : isFoundLog ? (
-        <FoundLogContent event={event} />
-      ) : isColor ? (
-        <ColorMomentContent event={event} />
-      ) : isFollowPack ? (
-        <FollowPackContent event={event} />
-      ) : (
-        <>
-          <div className="mt-2 break-words overflow-hidden">
-            <NoteContent event={event} className="text-[15px] leading-relaxed" />
-          </div>
-          <NoteMedia images={images} videos={videos} imetaMap={imetaMap} />
-        </>
-      )}
+      {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
+      <ContentWarningGuard event={event}>
+        {isVine ? (
+          <>
+            {vineTitle && <p className="text-[15px] mt-2 leading-relaxed break-words overflow-hidden">{vineTitle}</p>}
+            <VineMedia imeta={imeta} hashtags={hashtags} />
+          </>
+        ) : isPoll ? (
+          <PollContent event={event} />
+        ) : isGeocache ? (
+          <GeocacheContent event={event} />
+        ) : isFoundLog ? (
+          <FoundLogContent event={event} />
+        ) : isColor ? (
+          <ColorMomentContent event={event} />
+        ) : isFollowPack ? (
+          <FollowPackContent event={event} />
+        ) : (
+          <>
+            <div className="mt-2 break-words overflow-hidden">
+              <NoteContent event={event} className="text-[15px] leading-relaxed" />
+            </div>
+            <NoteMedia images={images} videos={videos} imetaMap={imetaMap} />
+          </>
+        )}
+      </ContentWarningGuard>
 
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (
