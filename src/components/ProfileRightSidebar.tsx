@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { Check, Copy, QrCode, ExternalLink, Bitcoin } from 'lucide-react';
+import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,6 +12,8 @@ import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
+import { useAppContext } from '@/hooks/useAppContext';
+import { getContentWarning } from '@/components/ContentWarningGuard';
 
 interface ProfileField {
   label: string;
@@ -30,6 +32,8 @@ interface MediaItem {
   /** For addressable events — needed to build naddr links. */
   kind?: number;
   dTag?: string;
+  /** True if the source event has a NIP-36 content-warning tag. */
+  hasContentWarning: boolean;
 }
 
 /** Extracts image URLs from content. */
@@ -56,13 +60,13 @@ function extractImetaUrl(event: NostrEvent): string | undefined {
 }
 
 /** Hook to query media from a user's posts, returning URL + event ID pairs. */
-function useProfileMedia(pubkey: string, extraKinds: number[]) {
+function useProfileMedia(pubkey: string, extraKinds: number[], cwPolicy: string) {
   const { nostr } = useNostr();
   const kinds = [1, ...extraKinds];
   const kindsKey = kinds.sort().join(',');
 
   return useQuery<MediaItem[]>({
-    queryKey: ['profile-media', pubkey, kindsKey],
+    queryKey: ['profile-media', pubkey, kindsKey, cwPolicy],
     queryFn: async ({ signal }) => {
       const events = await nostr.query(
         [{ kinds, authors: [pubkey], limit: 50 }],
@@ -73,13 +77,18 @@ function useProfileMedia(pubkey: string, extraKinds: number[]) {
       const seen = new Set<string>();
 
       for (const event of events) {
+        const hasCW = getContentWarning(event) !== undefined;
+
+        // Skip CW events entirely when policy is "hide"
+        if (hasCW && cwPolicy === 'hide') continue;
+
         // For media-native kinds (vines etc.), extract from imeta tags
         if (event.kind !== 1) {
           const imetaUrl = extractImetaUrl(event);
           if (imetaUrl && !seen.has(imetaUrl)) {
             seen.add(imetaUrl);
             const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-            items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag });
+            items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
           }
           continue;
         }
@@ -90,7 +99,7 @@ function useProfileMedia(pubkey: string, extraKinds: number[]) {
         for (const url of [...images, ...videos]) {
           if (!seen.has(url)) {
             seen.add(url);
-            items.push({ url, eventId: event.id, authorPubkey: event.pubkey });
+            items.push({ url, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
           }
         }
       }
@@ -284,9 +293,10 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
 }
 
 export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps) {
+  const { config } = useAppContext();
   const { feedSettings } = useFeedSettings();
   const extraKinds = getEnabledFeedKinds(feedSettings);
-  const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey, extraKinds);
+  const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey, extraKinds, config.contentWarningPolicy);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
@@ -302,6 +312,22 @@ export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps
         ) : media && media.length > 0 ? (
           <div className="grid grid-cols-3 gap-0.5">
             {media.map((item, i) => {
+              // CW + blur: show a blurred placeholder instead of loading media
+              if (item.hasContentWarning && config.contentWarningPolicy === 'blur') {
+                return (
+                  <Link
+                    key={i}
+                    to={eventLink(item)}
+                    className="aspect-square rounded-lg overflow-hidden block relative"
+                  >
+                    <div className="w-full h-full bg-muted/60 blur-lg" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <ShieldAlert className="size-5 text-muted-foreground" />
+                    </div>
+                  </Link>
+                );
+              }
+
               const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(item.url);
               return (
                 <Link
