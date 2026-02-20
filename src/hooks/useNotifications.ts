@@ -28,7 +28,7 @@ export interface NotificationData {
 export function useNotifications(): NotificationData {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const { settings, updateSettings, isLoading: settingsLoading } = useEncryptedSettings();
+  const { settings, updateSettings } = useEncryptedSettings();
 
   // Delay notifications query by 3 seconds to avoid competing with feed load
   const [queryEnabled, setQueryEnabled] = useState(false);

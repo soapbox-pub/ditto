@@ -1,5 +1,5 @@
 import { nip19 } from 'nostr-tools';
-import { useNavigate } from 'react-router-dom';
+
 import {
   Bookmark,
   ClipboardCopy,
@@ -60,7 +60,6 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
 }
 
 export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
-  const navigate = useNavigate();
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);

@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Paperclip, Smile, AlertTriangle, X, Loader2, Eye, EyeOff } from 'lucide-react';
+import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -10,8 +10,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
-import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
-import { LinkPreview } from '@/components/LinkPreview';
+
 import { NoteContent } from '@/components/NoteContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';

@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrFilter } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
 
 import { useCurrentUser } from './useCurrentUser';

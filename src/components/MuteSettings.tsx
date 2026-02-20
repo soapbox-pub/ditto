@@ -212,7 +212,7 @@ export function MuteSettings() {
 }
 
 function MuteTypeSection({
-  type,
+  type: _type,
   config,
   items,
   onRemove,

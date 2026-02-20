@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useEncryptedSettings } from './useEncryptedSettings';
 import { useCurrentUser } from './useCurrentUser';
 
@@ -96,7 +97,7 @@ export function useContentFilters() {
   };
 
   // Apply filters to a Nostr event
-  const shouldFilterEvent = (event: any): boolean => {
+  const shouldFilterEvent = (event: NostrEvent): boolean => {
     const enabledFilters = filters.filter((f) => f.enabled);
     if (enabledFilters.length === 0) return false;
 
@@ -106,7 +107,7 @@ export function useContentFilters() {
   };
 
   // Check if an event matches a specific rule
-  const matchesRule = (event: any, rule: FilterRule): boolean => {
+  const matchesRule = (event: NostrEvent, rule: FilterRule): boolean => {
     const { type, field, operator, value, caseSensitive = false } = rule;
 
     const compareValue = (a: string, b: string) => {
@@ -141,10 +142,11 @@ export function useContentFilters() {
       case 'content-regex':
         return compareValue(event.content || '', value);
 
-      case 'tag':
+      case 'tag': {
         if (!field) return false;
         const tagValue = event.tags.find((tag: string[]) => tag[0] === field)?.[1];
         return tagValue ? compareValue(tagValue, value) : false;
+      }
 
       case 'author-metadata':
         // This would require fetching author metadata - can be extended

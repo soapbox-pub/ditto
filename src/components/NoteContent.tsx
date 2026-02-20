@@ -111,8 +111,10 @@ export function NoteContent({
     let hadMatches = false;
 
     while ((match = regex.exec(text)) !== null) {
-      let [fullMatch, url, nostrPrefix, nostrData, barePrefix, bareData, hashtag] = match;
-      let index = match.index;
+      let [fullMatch, url] = match;
+      const hashtag = match[6];
+      const { 2: nostrPrefix, 3: nostrData, 4: barePrefix, 5: bareData } = match;
+      const index = match.index;
       hadMatches = true;
 
       // Add text before this match
@@ -125,7 +127,7 @@ export function NoteContent({
         // This handles cases like "(https://example.com)" or "Check this: https://example.com."
         const trailingPunctMatch = url.match(/^(.*?)([.,;:!?)\]]+)$/);
         if (trailingPunctMatch) {
-          const [, urlWithoutPunct, punctuation] = trailingPunctMatch;
+          const [, urlWithoutPunct] = trailingPunctMatch;
           // Only strip the punctuation if the URL without it is still valid
           if (urlWithoutPunct && urlWithoutPunct.length > 10) {
             url = urlWithoutPunct;

@@ -1,4 +1,3 @@
-import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -71,13 +70,6 @@ export function DomainFeedPage() {
   });
 
   const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain, config.corsProxy);
-
-  // Fetch label from domain
-  const domainLabel = useMemo(() => {
-    if (!domain) return '';
-    const parts = domain.split('.');
-    return parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-  }, [domain]);
 
   const { data: events, isLoading: eventsLoading } = useQuery<NostrEvent[]>({
     queryKey: ['domain-feed', domain, pubkeys?.length ?? 0, kindsKey],
