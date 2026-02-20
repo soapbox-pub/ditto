@@ -4,6 +4,7 @@ import { Search } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
@@ -284,7 +285,9 @@ function ProfileItem({
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-semibold text-sm truncate">{displayName}</span>
+          <span className="font-semibold text-sm truncate">
+            <EmojifiedText tags={profile.event.tags}>{displayName}</EmojifiedText>
+          </span>
           {metadata.bot && (
             <span className="text-xs text-primary" title="Bot account">🤖</span>
           )}

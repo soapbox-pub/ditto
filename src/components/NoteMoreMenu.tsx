@@ -21,6 +21,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { NoteContent } from '@/components/NoteContent';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -151,7 +152,11 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             </Avatar>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-1.5 text-sm">
-                <span className="font-bold truncate">{displayName}</span>
+                <span className="font-bold truncate">
+                  {author.data?.event ? (
+                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
+                </span>
                 <span className="text-muted-foreground shrink-0">·</span>
                 <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
               </div>

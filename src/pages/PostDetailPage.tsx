@@ -391,7 +391,9 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
               </AvatarFallback>
             </Avatar>
             <span className="text-xs font-medium group-hover:underline truncate">
-              {displayName}
+              {author.data?.event ? (
+                <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+              ) : displayName}
             </span>
             {metadata?.nip05 && (
               <span className="hidden sm:inline-flex">
@@ -973,7 +975,9 @@ function ParentNote({ eventId }: { eventId: string }) {
                   className="font-bold text-[15px] hover:underline truncate"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {displayName}
+                  {author.data?.event ? (
+                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
                 </Link>
                 {metadata?.nip05 && <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />}
                 {metadata?.nip05 && <span className="text-sm text-muted-foreground shrink-0">·</span>}
