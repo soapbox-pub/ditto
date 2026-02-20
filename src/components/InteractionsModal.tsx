@@ -12,7 +12,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CustomEmojiImg, isCustomEmoji } from '@/components/CustomEmoji';
+import { CustomEmojiImg, isCustomEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -251,7 +251,11 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold text-sm truncate">{displayName}</span>
+          <span className="font-bold text-sm truncate">
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </span>
           {metadata?.nip05 && (
             <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
           )}
@@ -284,7 +288,11 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold text-sm truncate">{displayName}</span>
+          <span className="font-bold text-sm truncate">
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </span>
           {metadata?.nip05 && (
             <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
           )}

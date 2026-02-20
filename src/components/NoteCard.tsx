@@ -17,6 +17,7 @@ import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
@@ -250,7 +251,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
                     className="font-bold text-[15px] hover:underline truncate"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {displayName}
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
                   </Link>
                 </ProfileHoverCard>
                 {metadata?.bot && (
@@ -484,7 +487,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
             className="font-medium hover:underline mr-1 truncate"
             onClick={(e) => e.stopPropagation()}
           >
-            {name}
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
           </Link>
         )}
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
@@ -512,7 +515,7 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
             className="font-medium hover:underline mr-1 truncate"
             onClick={(e) => e.stopPropagation()}
           >
-            {name}
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
           </Link>
         )}
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>

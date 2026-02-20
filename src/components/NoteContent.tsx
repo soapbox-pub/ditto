@@ -10,6 +10,7 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -261,6 +262,9 @@ export function NoteContent({
     return result.filter((t) => !(t.type === 'text' && t.value === ''));
   }, [event]);
 
+  // Build emoji map for NIP-30 custom emoji rendering
+  const emojiMap = useMemo(() => buildEmojiMap(event.tags), [event.tags]);
+
   // Check if content is only emojis (single text token with only emojis)
   const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojis(tokens[0].value);
 
@@ -269,7 +273,7 @@ export function NoteContent({
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{token.value}</span>;
+            return <span key={i}>{emojify(token.value, emojiMap)}</span>;
           case 'link-preview':
             return <LinkPreview key={i} url={token.url} className="my-2.5" />;
           case 'inline-link':
@@ -354,7 +358,9 @@ function NostrMention({ pubkey }: { pubkey: string }) {
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        @{displayName}
+        @{author.data?.event ? (
+          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+        ) : displayName}
       </Link>
     </ProfileHoverCard>
   );

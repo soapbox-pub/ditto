@@ -23,7 +23,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
-import { RenderResolvedEmoji } from '@/components/CustomEmoji';
+import { RenderResolvedEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
@@ -676,7 +676,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <div className="flex-1 min-w-0">
                 <ProfileHoverCard pubkey={event.pubkey} asChild>
                   <Link to={profileUrl} className="font-bold text-[15px] hover:underline block truncate">
-                    {displayName}
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
                   </Link>
                 </ProfileHoverCard>
                 {nip05 && (

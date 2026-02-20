@@ -29,7 +29,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { ReactionEmoji } from '@/components/CustomEmoji';
+import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -331,7 +331,9 @@ function NotificationHeader({
       <span className="shrink-0">{icon}</span>
       <ProfileHoverCard pubkey={actorPubkey} asChild>
         <Link to={profileUrl} className="font-bold hover:underline truncate">
-          {displayName}
+          {author.data?.event ? (
+            <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+          ) : displayName}
         </Link>
       </ProfileHoverCard>
       <span className="text-muted-foreground shrink-0">{action}</span>
@@ -415,7 +417,9 @@ function ReferencedPostCard({ event }: { event: NostrEvent }) {
                     className="font-bold text-[15px] hover:underline truncate"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {displayName}
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
                   </Link>
                 </ProfileHoverCard>
                 {metadata?.bot && (
@@ -534,7 +538,9 @@ function FullNoteCard({ event }: { event: NostrEvent }) {
                     className="font-bold text-[15px] hover:underline truncate"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {displayName}
+                    {author.data?.event ? (
+                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                    ) : displayName}
                   </Link>
                 </ProfileHoverCard>
                 {metadata?.bot && (
