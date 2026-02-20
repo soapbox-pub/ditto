@@ -5,6 +5,7 @@ import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
+import { cn } from '@/lib/utils';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -12,9 +13,13 @@ interface MainLayoutProps {
   rightSidebar?: React.ReactNode;
   /** Whether to show the floating compose button (default: false) */
   showFAB?: boolean;
+  /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
+  noBottomSpacer?: boolean;
+  /** Additional classes for the wrapper div (e.g. to override min-h-screen) */
+  wrapperClassName?: string;
 }
 
-export function MainLayout({ children, rightSidebar, showFAB = false }: MainLayoutProps) {
+export function MainLayout({ children, rightSidebar, showFAB = false, noBottomSpacer = false, wrapperClassName }: MainLayoutProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -26,7 +31,7 @@ export function MainLayout({ children, rightSidebar, showFAB = false }: MainLayo
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
 
       {/* Main layout - three column on desktop */}
-      <div className="flex justify-center min-h-screen mx-auto max-w-[1200px]">
+      <div className={cn("flex justify-center min-h-screen mx-auto max-w-[1200px]", wrapperClassName)}>
         {/* Desktop left sidebar - hidden below sidebar breakpoint */}
         <div className="hidden sidebar:block">
           <LeftSidebar />
@@ -46,7 +51,7 @@ export function MainLayout({ children, rightSidebar, showFAB = false }: MainLayo
       {showFAB && <FloatingComposeButton />}
 
       {/* Bottom padding spacer for mobile bottom nav */}
-      <div className="h-16 sidebar:hidden" />
+      {!noBottomSpacer && <div className="h-16 sidebar:hidden" />}
     </>
   );
 }

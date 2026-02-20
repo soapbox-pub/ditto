@@ -9,7 +9,6 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -119,9 +118,9 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
   };
 
   return (
-    <div className={cn('flex flex-col', className)}>
+    <div className={cn('flex flex-col overflow-hidden', className)}>
       {/* Chat header */}
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <MessageCircle className="size-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Live Chat</span>
         <span className="text-xs text-muted-foreground ml-auto tabular-nums">
@@ -129,41 +128,39 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
         </span>
       </div>
 
-      {/* Messages area */}
-      <ScrollArea className="flex-1 min-h-0">
-        <div
-          ref={scrollRef}
-          className="p-3 space-y-1 overflow-y-auto h-full"
-          onScroll={handleScroll}
-        >
-          {isLoading ? (
-            <div className="space-y-3 p-2">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="flex items-start gap-2">
-                  <Skeleton className="size-6 rounded-full shrink-0" />
-                  <div className="space-y-1 flex-1">
-                    <Skeleton className="h-3 w-20" />
-                    <Skeleton className="h-3 w-3/4" />
-                  </div>
+      {/* Messages area — scrollable, takes remaining space */}
+      <div
+        ref={scrollRef}
+        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1"
+        onScroll={handleScroll}
+      >
+        {isLoading ? (
+          <div className="space-y-3 p-2">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="flex items-start gap-2">
+                <Skeleton className="size-6 rounded-full shrink-0" />
+                <div className="space-y-1 flex-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-3 w-3/4" />
                 </div>
-              ))}
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <MessageCircle className="size-8 text-muted-foreground/40 mb-2" />
-              <p className="text-sm text-muted-foreground">No messages yet</p>
-              <p className="text-xs text-muted-foreground/60 mt-1">Be the first to say something!</p>
-            </div>
-          ) : (
-            messages.map((msg) => (
-              <ChatMessage key={msg.id} event={msg} />
-            ))
-          )}
-        </div>
-      </ScrollArea>
+              </div>
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <MessageCircle className="size-8 text-muted-foreground/40 mb-2" />
+            <p className="text-sm text-muted-foreground">No messages yet</p>
+            <p className="text-xs text-muted-foreground/60 mt-1">Be the first to say something!</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <ChatMessage key={msg.id} event={msg} />
+          ))
+        )}
+      </div>
 
       {/* Input area */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 shrink-0">
         {user ? (
           <div className="flex gap-2">
             <Input

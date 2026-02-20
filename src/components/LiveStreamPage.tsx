@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -99,15 +99,40 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
 
   useSeoMeta({ title: `${title} - Mew` });
 
+  // Lock body scroll on mobile to prevent page scrolling past the viewport-locked layout
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 899px)');
+    const apply = (matches: boolean) => {
+      document.body.style.overflow = matches ? 'hidden' : '';
+    };
+    apply(mq.matches);
+    const handler = (e: MediaQueryListEvent) => apply(e.matches);
+    mq.addEventListener('change', handler);
+    return () => {
+      mq.removeEventListener('change', handler);
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   const chatSidebar = (
     <aside className="hidden xl:flex xl:flex-col xl:w-[340px] xl:shrink-0 border-l border-border h-screen sticky top-0">
       <LiveStreamChat aTag={aTag} className="h-full" />
     </aside>
   );
 
-  /** Description block — always visible on desktop, expandable on mobile. */
-  const descriptionBlock = hasDescription ? (
+  const hasDetails = !!(summary || hashtags.length > 0 || participants.length > 0);
+  const hasExpandable = hasDescription || hasDetails;
+
+  /** Details block — always visible on desktop, expandable on mobile.
+   *  On mobile this also includes the author row.
+   */
+  const detailsBlock = (
     <div className="space-y-4">
+      {/* Author — mobile only (desktop shows it above) */}
+      <div className="xl:hidden">
+        <StreamAuthorRow event={event} participants={participants} />
+      </div>
+
       {/* Summary */}
       {summary && (
         <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
@@ -142,13 +167,13 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
       )}
     </div>
-  ) : null;
+  );
 
   return (
-    <MainLayout rightSidebar={chatSidebar}>
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <MainLayout rightSidebar={chatSidebar} noBottomSpacer>
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
         {/* Header */}
-        <div className="sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
+        <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
           <button
             onClick={() => navigate(-1)}
             className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
@@ -164,7 +189,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Video Player */}
-        <div className="px-4">
+        <div className="px-4 shrink-0">
           {playUrl ? (
             <LiveStreamPlayer
               src={playUrl}
@@ -184,36 +209,38 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         </div>
 
         {/* Stream compact info — always visible */}
-        <div className="px-4 mt-4 space-y-3">
-          {/* Title */}
-          <h2 className="text-lg font-bold leading-snug">{title}</h2>
-
-          {/* Meta row */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
-            {currentParticipants && (
-              <span className="flex items-center gap-1">
-                <Users className="size-3.5" />
-                {currentParticipants} watching
-              </span>
-            )}
-            {starts && (
-              <span className="flex items-center gap-1">
-                <Clock className="size-3.5" />
-                {formatDateTime(parseInt(starts))}
-              </span>
-            )}
+        <div className="px-4 mt-4 space-y-3 shrink-0">
+          {/* Title row with zap button on the right */}
+          <div className="flex items-start gap-3">
+            <div className="flex-1 min-w-0 space-y-2">
+              <h2 className="text-lg font-bold leading-snug">{title}</h2>
+              {/* Meta row */}
+              <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+                {currentParticipants && (
+                  <span className="flex items-center gap-1">
+                    <Users className="size-3.5" />
+                    {currentParticipants} watching
+                  </span>
+                )}
+                {starts && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="size-3.5" />
+                    {formatDateTime(parseInt(starts))}
+                  </span>
+                )}
+              </div>
+            </div>
+            {/* Zap button — right-aligned */}
+            {user && <ZapButton event={event} />}
           </div>
 
-          {/* Author / Host */}
-          <StreamAuthorRow event={event} participants={participants} />
+          {/* Author / Host — desktop only (on mobile it's inside the expandable details) */}
+          <div className="hidden xl:block">
+            <StreamAuthorRow event={event} participants={participants} />
+          </div>
 
-          {/* Zap button */}
-          {user && (
-            <ZapButton event={event} />
-          )}
-
-          {/* Mobile: expandable description toggle */}
-          {hasDescription && (
+          {/* Mobile: expandable details toggle */}
+          {hasExpandable && (
             <button
               onClick={() => setDescExpanded((v) => !v)}
               className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors xl:hidden"
@@ -223,26 +250,26 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
             </button>
           )}
 
-          {/* Mobile: collapsible description */}
+          {/* Mobile: collapsible details */}
           {descExpanded && (
             <div className="xl:hidden">
-              {descriptionBlock}
+              {detailsBlock}
             </div>
           )}
 
-          {/* Desktop: always show description */}
+          {/* Desktop: always show details */}
           <div className="hidden xl:block">
-            {descriptionBlock}
+            {detailsBlock}
           </div>
         </div>
 
-        {/* Mobile chat — directly below stream info */}
-        <div className="xl:hidden mt-4 border-t border-border" style={{ height: 'calc(100vh - 120px)' }}>
+        {/* Mobile chat — fills remaining viewport, scrollbox sits above bottom nav */}
+        <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0">
           <LiveStreamChat aTag={aTag} className="h-full" />
         </div>
 
-        {/* Bottom spacer */}
-        <div className="h-8" />
+        {/* Bottom spacer (desktop only) */}
+        <div className="hidden xl:block h-8" />
       </main>
     </MainLayout>
   );
@@ -323,9 +350,8 @@ function ZapButton({ event }: { event: NostrEvent }) {
 
   return (
     <ZapDialog target={event}>
-      <Button variant="outline" size="sm" className="gap-1.5">
+      <Button variant="outline" size="icon" className="shrink-0 size-9 rounded-full text-amber-500 hover:text-amber-400 hover:bg-amber-500/10">
         <Zap className="size-4" />
-        Zap the stream
       </Button>
     </ZapDialog>
   );
