@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -242,7 +243,11 @@ function HotPostCard({ event }: { event: NostrEvent }) {
             {displayName[0]?.toUpperCase()}
           </AvatarFallback>
         </Avatar>
-        <span className="text-xs font-semibold truncate">{displayName}</span>
+        <span className="text-xs font-semibold truncate">
+          {author.data?.event ? (
+            <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+          ) : displayName}
+        </span>
         <span className="text-xs text-muted-foreground shrink-0">· {timeAgo(event.created_at)}</span>
       </div>
       <p className="text-[13px] text-muted-foreground leading-snug line-clamp-2">{snippet}</p>
@@ -250,7 +255,7 @@ function HotPostCard({ event }: { event: NostrEvent }) {
   );
 }
 
-function LatestAccountCard({ event }: { event: { pubkey: string; content: string } }) {
+function LatestAccountCard({ event }: { event: NostrEvent }) {
   let metadata: { name?: string; nip05?: string; picture?: string } = {};
   try {
     metadata = n.json().pipe(n.metadata()).parse(event.content);
@@ -274,7 +279,7 @@ function LatestAccountCard({ event }: { event: { pubkey: string; content: string
 
       <div className="flex-1 min-w-0">
         <Link to={`/${npub}`} className="font-bold text-sm hover:underline truncate block">
-          {displayName}
+          <EmojifiedText tags={event.tags}>{displayName}</EmojifiedText>
         </Link>
         {metadata.nip05 && (
           <span className="text-xs text-muted-foreground truncate block">

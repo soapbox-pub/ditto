@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
@@ -396,10 +397,11 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   );
 }
 
-function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<string, unknown> } }) {
+function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } } }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
   const displayName = metadata?.name || genUserName(profile.pubkey);
+  const tags = profile.event?.tags ?? [];
 
   return (
     <Link
@@ -414,14 +416,18 @@ function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<
       </Avatar>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <p className="font-bold text-[15px] truncate">{displayName}</p>
+          <p className="font-bold text-[15px] truncate">
+            <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
+          </p>
           {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
         </div>
         {metadata?.nip05 && (
           <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
         )}
         {metadata?.about && (
-          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">{metadata.about}</p>
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+            <EmojifiedText tags={tags}>{metadata.about}</EmojifiedText>
+          </p>
         )}
       </div>
     </Link>

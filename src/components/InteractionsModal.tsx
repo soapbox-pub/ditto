@@ -331,7 +331,11 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
-          <span className="font-bold text-sm truncate">{displayName}</span>
+          <span className="font-bold text-sm truncate">
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </span>
           {metadata?.nip05 && (
             <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
           )}

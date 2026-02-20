@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -187,7 +188,9 @@ function EmbeddedNoteCard({
                   className="text-sm font-semibold truncate hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
-                  {displayName}
+                  {author.data?.event ? (
+                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+                  ) : displayName}
                 </Link>
               </ProfileHoverCard>
             </>
@@ -240,7 +243,9 @@ function EmbedMention({ pubkey }: { pubkey: string; npub: string }) {
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        @{displayName}
+        @{author.data?.event ? (
+          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+        ) : displayName}
       </Link>
     </ProfileHoverCard>
   );

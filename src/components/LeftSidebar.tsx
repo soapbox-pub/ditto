@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { MewLogo } from '@/components/MewLogo';
+import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
 import SignupDialog from '@/components/auth/SignupDialog';
@@ -54,7 +55,7 @@ function NavItem({ to, icon, label, active, showIndicator }: NavItemProps) {
 export function LeftSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata, event: currentUserEvent } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
@@ -192,7 +193,11 @@ export function LeftSidebar() {
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex flex-col min-w-0 flex-1">
-                  <span className="font-semibold text-sm truncate">{metadata?.name || 'Anonymous'}</span>
+                  <span className="font-semibold text-sm truncate">
+                    {currentUserEvent && metadata?.name ? (
+                      <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
+                    ) : (metadata?.name || 'Anonymous')}
+                  </span>
                   <span className="text-xs text-muted-foreground truncate">
                     {metadata?.nip05 ? `@${formatNip05Display(metadata.nip05)}` : ''}
                   </span>
@@ -215,7 +220,11 @@ export function LeftSidebar() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
-                    <span className="font-bold text-sm truncate">{getDisplayName(currentUser)}</span>
+                    <span className="font-bold text-sm truncate">
+                      {currentUser.event ? (
+                        <EmojifiedText tags={currentUser.event.tags}>{getDisplayName(currentUser)}</EmojifiedText>
+                      ) : getDisplayName(currentUser)}
+                    </span>
                     {currentUser.metadata.nip05 && (
                       <span className="text-xs text-muted-foreground truncate">
                         @{formatNip05Display(currentUser.metadata.nip05)}
@@ -244,7 +253,11 @@ export function LeftSidebar() {
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex flex-col min-w-0">
-                        <span className="text-sm font-medium truncate">{getDisplayName(account)}</span>
+                        <span className="text-sm font-medium truncate">
+                          {account.event ? (
+                            <EmojifiedText tags={account.event.tags}>{getDisplayName(account)}</EmojifiedText>
+                          ) : getDisplayName(account)}
+                        </span>
                         {account.metadata.nip05 && (
                           <span className="text-xs text-muted-foreground truncate">
                             @{formatNip05Display(account.metadata.nip05)}
