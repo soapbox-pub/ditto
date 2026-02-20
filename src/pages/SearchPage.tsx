@@ -1,7 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
 import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages } from 'lucide-react';
 import { useState, useMemo, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +16,7 @@ import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
 import { genUserName } from '@/lib/genUserName';
+import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
@@ -28,6 +29,7 @@ export function SearchPage() {
     description: 'Search Nostr',
   });
 
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = searchParams.get('q') ?? '';
   const initialTab = searchParams.get('tab') as TabType | null;
@@ -36,6 +38,14 @@ export function SearchPage() {
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [trendSort, setTrendSort] = useState<SortMode>('hot');
+
+  // If the search query is a Nostr identifier, redirect immediately
+  useEffect(() => {
+    const path = getNostrIdentifierPath(searchQuery);
+    if (path) {
+      navigate(path, { replace: true });
+    }
+  }, [searchQuery, navigate]);
 
   // Sync search query and tab to URL params
   useEffect(() => {

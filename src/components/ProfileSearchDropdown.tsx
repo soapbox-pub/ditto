@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
+import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { cn } from '@/lib/utils';
 
@@ -73,10 +74,19 @@ export function ProfileSearchDropdown({
   }, [navigate, onSelect]);
 
   const handleTextSearch = useCallback(() => {
-    if (!enableTextSearch || !query.trim()) return;
+    if (!query.trim()) return;
     setOpen(false);
     setQuery('');
     inputRef.current?.blur();
+
+    // If the input is a Nostr identifier (NIP-19 or NIP-05), navigate directly
+    const identifierPath = getNostrIdentifierPath(query);
+    if (identifierPath) {
+      navigate(identifierPath);
+      return;
+    }
+
+    if (!enableTextSearch) return;
     navigate(`/search?q=${encodeURIComponent(query.trim())}`);
   }, [enableTextSearch, query, navigate]);
 
