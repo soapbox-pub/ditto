@@ -23,6 +23,7 @@ import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { InteractionsModal, type InteractionTab } from '@/components/InteractionsModal';
 import { ZapDialog } from '@/components/ZapDialog';
+import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { PollContent } from '@/components/PollContent';
 import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
@@ -731,7 +732,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               >
                 <span className="font-bold text-foreground">{stats.reactions}</span>{' '}
                 {stats.reactionEmojis && stats.reactionEmojis.length > 0
-                  ? stats.reactionEmojis.slice(0, 3).join('')
+                  ? stats.reactionEmojis.slice(0, 3).map((emoji, i) => (
+                      <RenderResolvedEmoji key={i} emoji={emoji} className="inline-block h-5 w-5 align-text-bottom" />
+                    ))
                   : `Like${stats.reactions !== 1 ? 's' : ''}`}
               </button>
             ) : null}

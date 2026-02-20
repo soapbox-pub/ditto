@@ -12,6 +12,7 @@ import {
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CustomEmojiImg, isCustomEmoji } from '@/components/CustomEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -172,21 +173,32 @@ function ReactionsTab({ reactions }: { reactions: ReactionEntry[] }) {
 
   return (
     <div>
-      {grouped.map(([emoji, entries]) => (
-        <div key={emoji}>
-          {/* Emoji group header */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-secondary/30 sticky top-0 z-[1]">
-            <span className="text-lg">{emoji}</span>
-            <span className="text-xs text-muted-foreground font-medium">{entries.length}</span>
+      {grouped.map(([emoji, entries]) => {
+        // Check if this is a custom emoji — use the URL from the first entry
+        const firstEntry = entries[0];
+        const customUrl = firstEntry?.emojiUrl;
+        const customName = isCustomEmoji(emoji) ? emoji.slice(1, -1) : undefined;
+
+        return (
+          <div key={emoji}>
+            {/* Emoji group header */}
+            <div className="flex items-center gap-2 px-4 py-2 bg-secondary/30 sticky top-0 z-[1]">
+              {customUrl && customName ? (
+                <CustomEmojiImg name={customName} url={customUrl} className="inline-block h-6 w-6" />
+              ) : (
+                <span className="text-lg">{emoji}</span>
+              )}
+              <span className="text-xs text-muted-foreground font-medium">{entries.length}</span>
+            </div>
+            {/* Users who reacted with this emoji */}
+            <div className="divide-y divide-border">
+              {entries.map((entry, i) => (
+                <UserRow key={`${entry.pubkey}-${i}`} pubkey={entry.pubkey} subtitle={timeAgo(entry.createdAt)} />
+              ))}
+            </div>
           </div>
-          {/* Users who reacted with this emoji */}
-          <div className="divide-y divide-border">
-            {entries.map((entry, i) => (
-              <UserRow key={`${entry.pubkey}-${i}`} pubkey={entry.pubkey} subtitle={timeAgo(entry.createdAt)} />
-            ))}
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

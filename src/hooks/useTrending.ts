@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
+import { type ResolvedEmoji, isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
 
 /** The sole relay used for trend data. */
 const DITTO_RELAY = 'wss://relay.ditto.pub';
@@ -199,7 +200,7 @@ export interface EventStats {
   reactions: number;
   zapAmount: number;
   zapCount: number;
-  reactionEmojis: string[];
+  reactionEmojis: ResolvedEmoji[];
 }
 
 const EMPTY_STATS: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] };
@@ -212,7 +213,7 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
   let reactions = 0;
   let zapAmount = 0;
   let zapCount = 0;
-  const reactionEmojiSet = new Set<string>();
+  const reactionEmojiMap = new Map<string, ResolvedEmoji>();
 
   for (const e of events) {
     // Check if this event references our target via e-tag or q-tag
@@ -232,11 +233,21 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
       case 6: reposts++; break;
       case 7: {
         reactions++;
-        const emoji = e.content.trim();
-        if (emoji === '+' || emoji === '') {
-          reactionEmojiSet.add('👍');
-        } else if (emoji !== '-') {
-          reactionEmojiSet.add(emoji);
+        const rawEmoji = e.content.trim();
+        if (rawEmoji === '+' || rawEmoji === '') {
+          if (!reactionEmojiMap.has('👍')) {
+            reactionEmojiMap.set('👍', { content: '👍' });
+          }
+        } else if (rawEmoji !== '-') {
+          if (!reactionEmojiMap.has(rawEmoji)) {
+            if (isCustomEmoji(rawEmoji)) {
+              const url = getCustomEmojiUrl(rawEmoji, e.tags);
+              const name = rawEmoji.slice(1, -1);
+              reactionEmojiMap.set(rawEmoji, url ? { content: rawEmoji, url, name } : { content: rawEmoji });
+            } else {
+              reactionEmojiMap.set(rawEmoji, { content: rawEmoji });
+            }
+          }
         }
         break;
       }
@@ -251,7 +262,7 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
     }
   }
 
-  return { replies, reposts, quotes, reactions, zapAmount, zapCount, reactionEmojis: Array.from(reactionEmojiSet) };
+  return { replies, reposts, quotes, reactions, zapAmount, zapCount, reactionEmojis: Array.from(reactionEmojiMap.values()) };
 }
 
 /** Counts engagement (replies, reposts, quotes, reactions, zaps) for a given event. */

@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
+import { isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
 
 export interface RepostEntry {
   pubkey: string;
@@ -11,6 +12,8 @@ export interface RepostEntry {
 export interface ReactionEntry {
   pubkey: string;
   emoji: string;
+  /** For NIP-30 custom emojis, the image URL. */
+  emojiUrl?: string;
   createdAt: number;
 }
 
@@ -166,10 +169,13 @@ export function useEventInteractions(eventId: string | undefined) {
             });
             break;
           case 7: {
-            const emoji = e.content.trim();
+            const rawEmoji = e.content.trim();
+            const emoji = (rawEmoji === '+' || rawEmoji === '') ? '👍' : rawEmoji;
+            const emojiUrl = isCustomEmoji(emoji) ? getCustomEmojiUrl(emoji, e.tags) : undefined;
             reactions.push({
               pubkey: e.pubkey,
-              emoji: (emoji === '+' || emoji === '') ? '👍' : emoji,
+              emoji,
+              emojiUrl,
               createdAt: e.created_at,
             });
             break;

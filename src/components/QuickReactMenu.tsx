@@ -8,6 +8,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEmojiUsage } from '@/hooks/useEmojiUsage';
 import { cn } from '@/lib/utils';
 import type { EventStats } from '@/hooks/useTrending';
+import type { ResolvedEmoji } from '@/components/CustomEmoji';
 
 interface QuickReactMenuProps {
   /** The event ID being reacted to. */
@@ -51,19 +52,20 @@ export function QuickReactMenu({
 
     // Optimistically update stats cache immediately
     const displayEmoji = (emoji === '+' || emoji === '') ? '👍' : emoji;
+    const resolvedEmoji: ResolvedEmoji = { content: displayEmoji };
     const prevStats = queryClient.getQueryData<EventStats>(['event-stats', eventId]);
     if (prevStats) {
       queryClient.setQueryData<EventStats>(['event-stats', eventId], {
         ...prevStats,
         reactions: prevStats.reactions + 1,
-        reactionEmojis: prevStats.reactionEmojis.includes(displayEmoji)
+        reactionEmojis: prevStats.reactionEmojis.some((e) => e.content === displayEmoji)
           ? prevStats.reactionEmojis
-          : [...prevStats.reactionEmojis, displayEmoji],
+          : [...prevStats.reactionEmojis, resolvedEmoji],
       });
     }
 
     // Store user's own reaction for this event
-    queryClient.setQueryData<string>(['user-reaction', eventId], displayEmoji);
+    queryClient.setQueryData<ResolvedEmoji>(['user-reaction', eventId], resolvedEmoji);
 
     // Publish kind 7 reaction
     publishEvent(
