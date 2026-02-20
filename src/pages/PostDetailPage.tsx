@@ -30,10 +30,14 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
+import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 
 /** Kinds that get the full follow-pack detail view. */
 const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
+
+/** Kind 30311 = NIP-53 Live Activities. */
+const LIVE_STREAM_KIND = 30311;
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -299,6 +303,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
         </PostDetailShell>
       </MainLayout>
     );
+  }
+
+  // Live streams (NIP-53) get their own immersive layout with player + chat
+  if (resolvedEvent.kind === LIVE_STREAM_KIND) {
+    return <LiveStreamPage event={resolvedEvent} />;
   }
 
   return (

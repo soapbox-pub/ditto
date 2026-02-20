@@ -98,6 +98,15 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'packs',
     addressable: true,
   },
+  {
+    kind: 30311,
+    showKey: 'showStreams',
+    feedKey: 'feedIncludeStreams',
+    label: 'Streams',
+    description: 'Live streaming events',
+    route: 'streams',
+    addressable: true,
+  },
 ];
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */

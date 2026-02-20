@@ -25,6 +25,8 @@ export interface FeedSettings {
   showColors: boolean;
   /** Show Follow Packs (kind 39089) link in sidebar */
   showPacks: boolean;
+  /** Show Streams (kind 30311) link in sidebar */
+  showStreams: boolean;
   /** Include Vines in the follows/global feed */
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
@@ -37,6 +39,8 @@ export interface FeedSettings {
   feedIncludeColors: boolean;
   /** Include Follow Packs in the follows/global feed */
   feedIncludePacks: boolean;
+  /** Include Streams in the follows/global feed */
+  feedIncludeStreams: boolean;
 }
 
 export interface AppConfig {

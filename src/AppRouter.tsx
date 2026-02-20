@@ -13,6 +13,7 @@ import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 
 import { KindFeedPage } from "./pages/KindFeedPage";
+import { StreamsFeedPage } from "./pages/StreamsFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import NotFound from "./pages/NotFound";
 
@@ -34,6 +35,7 @@ export function AppRouter() {
         <Route path="/treasures" element={<TreasuresPage />} />
         <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
+        <Route path="/streams" element={<StreamsFeedPage />} />
 
         <Route path="/bookmarks" element={<BookmarksPage />} />
 
