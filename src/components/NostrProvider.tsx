@@ -44,6 +44,11 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
 
+        // Search queries must go to search relays
+        if (filters.some((f) => "search" in f)) {
+          return new Map([["wss://relay.ditto.pub/", filters]]);
+        }
+
         // Route to all read relays
         const readRelays = effectiveRelays.current.relays
           .filter(r => r.read)
