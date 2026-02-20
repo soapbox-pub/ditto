@@ -81,9 +81,9 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
   }
 
   return (
-    <div className={cn('relative mt-2', className)}>
-      {/* Grey blur filler — mimics a content area so the card doesn't look empty */}
-      <div className="rounded-xl bg-muted/40 overflow-hidden">
+    <div className={cn('relative mt-2 rounded-xl overflow-hidden', className)}>
+      {/* Blurred filler — contained within the rounded box */}
+      <div className="bg-muted/40 blur-lg select-none" aria-hidden>
         <div className="px-4 pt-4 pb-2 space-y-2.5">
           <div className="h-3.5 w-full rounded bg-muted/60" />
           <div className="h-3.5 w-4/5 rounded bg-muted/60" />
@@ -112,7 +112,7 @@ export function ContentWarningGuard({ event, children, className }: ContentWarni
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 mt-0.5 bg-background/80 backdrop-blur-sm"
+          className="gap-1.5 mt-0.5 rounded-full px-5 bg-background/80 backdrop-blur-sm"
           onClick={(e) => {
             e.stopPropagation();
             setRevealed(true);
