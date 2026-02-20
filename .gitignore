@@ -7,7 +7,6 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-
 node_modules
 dist
 dist-ssr
@@ -44,3 +43,5 @@ android/build/
 android/.gradle/
 android/*/build/
 android/app/src/main/res/mipmap-*/ic_launcher*.png
+android/app/src/main/res/mipmap-hdpi/*
+android/downloads/
