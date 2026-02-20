@@ -112,6 +112,11 @@ export function NostrSync() {
         };
       }
 
+      // Sync contentWarningPolicy if available
+      if (encryptedSettings.contentWarningPolicy && encryptedSettings.contentWarningPolicy !== current.contentWarningPolicy) {
+        updates.contentWarningPolicy = encryptedSettings.contentWarningPolicy;
+      }
+
       return updates;
     });
   }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten]);

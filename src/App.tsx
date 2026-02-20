@@ -64,6 +64,7 @@ const defaultConfig: AppConfig = {
   defaultZapComment: 'Zapped with Mew!',
   faviconProvider: 'https://favicon.shakespeare.diy/?url={href}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
+  contentWarningPolicy: 'blur',
 };
 
 export function App() {

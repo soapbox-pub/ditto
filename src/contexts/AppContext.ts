@@ -2,6 +2,17 @@ import { createContext } from "react";
 
 export type Theme = "dark" | "light" | "black" | "pink";
 
+/**
+ * How to handle events with a NIP-36 content-warning tag.
+ * - "blur": Show a warning overlay; media is not loaded until the user reveals.
+ * - "hide": Remove the event from view entirely.
+ * - "show": Ignore the content-warning tag and display normally.
+ */
+export type ContentWarningPolicy = "blur" | "hide" | "show";
+
+/** How to handle events with a NIP-36 content-warning tag. */
+export type NsfwPolicy = "blur" | "hide" | "show";
+
 export interface RelayMetadata {
   /** List of relays with read/write permissions */
   relays: { url: string; read: boolean; write: boolean }[];
@@ -64,6 +75,8 @@ export interface AppConfig {
   faviconProvider: string;
   /** CORS proxy URI template. Use {href} as placeholder for the target URL (URL-encoded). */
   corsProxy: string;
+  /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
+  contentWarningPolicy: ContentWarningPolicy;
 }
 
 export interface AppContextType {

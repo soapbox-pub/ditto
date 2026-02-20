@@ -11,6 +11,7 @@ export function ContentSettings() {
   const [otherStuffOpen, setOtherStuffOpen] = useState(true);
   const [feedTabsOpen, setFeedTabsOpen] = useState(false);
   const [mutesOpen, setMutesOpen] = useState(false);
+  const [sensitiveOpen, setSensitiveOpen] = useState(false);
 
   return (
     <div>
@@ -130,7 +131,29 @@ export function ContentSettings() {
         </Collapsible>
       </div>
 
-      {/* TODO: Sensitive Content Section */}
+      {/* Sensitive Content Section */}
+      <div>
+        <Collapsible open={sensitiveOpen} onOpenChange={setSensitiveOpen}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+            >
+              <span className="text-base font-semibold">Sensitive Content</span>
+              {sensitiveOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="pb-4">
+              <SensitiveContentSection />
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
     </div>
   );
 }
@@ -512,6 +535,85 @@ function FeedTabsSection() {
           </div>
         )}
       </div>
+      </div>
+    </div>
+  );
+}
+
+// Sensitive content settings section
+import { useAppContext } from '@/hooks/useAppContext';
+import type { ContentWarningPolicy } from '@/contexts/AppContext';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { ShieldAlert } from 'lucide-react';
+
+const CW_POLICY_OPTIONS: { value: ContentWarningPolicy; label: string; description: string }[] = [
+  {
+    value: 'blur',
+    label: 'Blur until revealed',
+    description: 'Content is hidden behind a warning. Media is not loaded until you choose to view it.',
+  },
+  {
+    value: 'hide',
+    label: 'Hide completely',
+    description: 'Posts with content warnings are removed from your feed entirely.',
+  },
+  {
+    value: 'show',
+    label: 'Always show',
+    description: 'Ignore content warnings and display everything normally.',
+  },
+];
+
+function SensitiveContentSection() {
+  const { config, updateConfig } = useAppContext();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const handlePolicyChange = async (value: string) => {
+    const policy = value as ContentWarningPolicy;
+    updateConfig((current) => ({ ...current, contentWarningPolicy: policy }));
+    if (user) {
+      await updateSettings.mutateAsync({ contentWarningPolicy: policy });
+    }
+  };
+
+  return (
+    <div>
+      {/* Intro */}
+      <div className="flex items-center gap-4 px-3 pt-3 pb-4">
+        <div className="w-40 shrink-0 flex items-center justify-center">
+          <ShieldAlert className="size-16 text-muted-foreground/40" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">Content Warnings</h3>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content. Choose how you want to handle them.
+          </p>
+        </div>
+      </div>
+
+      {/* Policy radio group */}
+      <div className="px-3 pb-2">
+        <RadioGroup
+          value={config.contentWarningPolicy}
+          onValueChange={handlePolicyChange}
+          className="gap-0"
+        >
+          {CW_POLICY_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className="flex items-start gap-3 py-3.5 px-1 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors rounded-sm"
+            >
+              <RadioGroupItem value={option.value} className="mt-0.5 shrink-0" />
+              <div className="min-w-0">
+                <span className="text-sm font-medium">{option.label}</span>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                  {option.description}
+                </p>
+              </div>
+            </label>
+          ))}
+        </RadioGroup>
       </div>
     </div>
   );

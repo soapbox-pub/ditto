@@ -49,6 +49,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { getProfileUrl } from '@/lib/profileUrl';
+import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 
 
 interface PostDetailPageProps {
@@ -704,27 +705,29 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           )}
         </div>
 
-        {/* Post content — kind-based dispatch (same as NoteCard) */}
-        {isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
-          <>
-            {isVine && <VineDetailContent event={event} />}
-            {isPoll && <PollContent event={event} />}
-            {isGeocache && <GeocacheContent event={event} />}
-            {isFoundLog && <FoundLogContent event={event} />}
-            {isColor && <ColorMomentContent event={event} />}
-            {isFollowPack && <FollowPackContent event={event} />}
-          </>
-        ) : (
-          <>
-            <div className="mt-3">
-              <NoteContent event={event} className="text-[15px] leading-relaxed" />
-            </div>
-            {videos.map((url, i) => (
-              <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
-            ))}
-            <ImageGallery images={images} maxGridHeight="500px" />
-          </>
-        )}
+        {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
+        <ContentWarningGuard event={event}>
+          {isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
+            <>
+              {isVine && <VineDetailContent event={event} />}
+              {isPoll && <PollContent event={event} />}
+              {isGeocache && <GeocacheContent event={event} />}
+              {isFoundLog && <FoundLogContent event={event} />}
+              {isColor && <ColorMomentContent event={event} />}
+              {isFollowPack && <FollowPackContent event={event} />}
+            </>
+          ) : (
+            <>
+              <div className="mt-3">
+                <NoteContent event={event} className="text-[15px] leading-relaxed" />
+              </div>
+              {videos.map((url, i) => (
+                <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
+              ))}
+              <ImageGallery images={images} maxGridHeight="500px" />
+            </>
+          )}
+        </ContentWarningGuard>
 
         {/* Stats row: "2 Reposts 1 👍" left, "Feb 16, 2026, 6:44 PM" right — Ditto style */}
         {hasStats && (
@@ -997,24 +1000,26 @@ function ParentNote({ eventId }: { eventId: string }) {
             )}
           </div>
 
-          {/* Note text */}
-          <div className="mt-1">
-            <NoteContent event={event} className="text-[15px] leading-relaxed" />
-          </div>
-
-          {/* Videos */}
-          {videos.map((url, i) => (
-            <div key={`v-${i}`} className="mt-3">
-              <VideoPlayer src={url} poster={imetaMap.get(url)?.thumbnail} />
+          {/* Note text + media, guarded by NIP-36 content-warning */}
+          <ContentWarningGuard event={event}>
+            <div className="mt-1">
+              <NoteContent event={event} className="text-[15px] leading-relaxed" />
             </div>
-          ))}
 
-          {/* Images */}
-          {images.length > 0 && (
-            <div className="mt-3">
-              <ImageGallery images={images} maxGridHeight="400px" />
-            </div>
-          )}
+            {/* Videos */}
+            {videos.map((url, i) => (
+              <div key={`v-${i}`} className="mt-3">
+                <VideoPlayer src={url} poster={imetaMap.get(url)?.thumbnail} />
+              </div>
+            ))}
+
+            {/* Images */}
+            {images.length > 0 && (
+              <div className="mt-3">
+                <ImageGallery images={images} maxGridHeight="400px" />
+              </div>
+            )}
+          </ContentWarningGuard>
         </div>
       </div>
     </div>

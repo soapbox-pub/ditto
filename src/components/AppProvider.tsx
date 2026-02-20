@@ -55,6 +55,7 @@ const AppConfigSchema = z.object({
   defaultZapComment: z.string(),
   faviconProvider: z.string(),
   corsProxy: z.string(),
+  contentWarningPolicy: z.enum(['blur', 'hide', 'show']),
 }) satisfies z.ZodType<AppConfig>;
 
 export function AppProvider(props: AppProviderProps) {
