@@ -587,34 +587,32 @@ function SensitiveContentSection() {
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">Content Warnings</h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content. Choose how you want to handle them.
+            Some posts are tagged with content warnings (NIP-36) by their authors. This can include NSFW material, spoilers, or other sensitive content.
           </p>
         </div>
       </div>
 
-      {/* Policy radio group */}
-      <div className="px-3 pb-2">
-        <RadioGroup
-          value={config.contentWarningPolicy}
-          onValueChange={handlePolicyChange}
-          className="gap-0"
-        >
-          {CW_POLICY_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className="flex items-start gap-3 py-3.5 px-1 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors rounded-sm"
-            >
-              <RadioGroupItem value={option.value} className="mt-0.5 shrink-0" />
-              <div className="min-w-0">
-                <span className="text-sm font-medium">{option.label}</span>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  {option.description}
-                </p>
-              </div>
-            </label>
-          ))}
-        </RadioGroup>
-      </div>
+      {/* Policy options — consistent row style with other settings */}
+      <RadioGroup
+        value={config.contentWarningPolicy}
+        onValueChange={handlePolicyChange}
+        className="gap-0"
+      >
+        {CW_POLICY_OPTIONS.map((option) => (
+          <label
+            key={option.value}
+            className="flex items-center justify-between py-3.5 px-3 border-b border-border last:border-b-0 cursor-pointer hover:bg-muted/20 transition-colors"
+          >
+            <div className="min-w-0">
+              <span className="text-sm font-medium">{option.label}</span>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {option.description}
+              </p>
+            </div>
+            <RadioGroupItem value={option.value} className="shrink-0" />
+          </label>
+        ))}
+      </RadioGroup>
     </div>
   );
 }
