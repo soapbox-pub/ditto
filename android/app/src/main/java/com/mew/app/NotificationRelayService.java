@@ -5,10 +5,8 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
 import android.net.Network;
@@ -91,6 +89,10 @@ public class NotificationRelayService extends Service {
         super.onCreate();
         createNotificationChannel();
 
+        // Post the foreground notification immediately to avoid ANR on Android 12+.
+        // The system requires startForeground() within 5 seconds of startForegroundService().
+        startForeground(NOTIFICATION_ID, buildForegroundNotification());
+
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.SECONDS) // No read timeout for persistent connection
@@ -113,7 +115,6 @@ public class NotificationRelayService extends Service {
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        startForeground(NOTIFICATION_ID, buildForegroundNotification());
         connectIfConfigured();
         return START_STICKY;
     }
