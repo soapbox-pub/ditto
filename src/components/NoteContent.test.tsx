@@ -12,7 +12,7 @@ describe('NoteContent', () => {
       created_at: Math.floor(Date.now() / 1000),
       kind: 1,
       tags: [],
-      content: 'Check out this link: https://example.com',
+      content: 'Check out this link: https://example.com for more info',
       sig: 'test-sig',
     };
 
@@ -39,7 +39,7 @@ describe('NoteContent', () => {
         ['k', '30040'],
         ['p', 'pubkey'],
       ],
-      content: 'I think the log events should be different kind numbers instead of having a `log-type` tag. That way you can use normal Nostr filters to filter the log types. Also, the `note` type should just b a kind 1111: https://nostrbook.dev/kinds/1111',
+      content: 'I think the log events should be different kind numbers instead of having a `log-type` tag. That way you can use normal Nostr filters to filter the log types. Also, the `note` type should just be a kind 1111: https://nostrbook.dev/kinds/1111 as specified in the spec.',
       sig: 'test-sig',
     };
 
@@ -124,9 +124,9 @@ describe('NoteContent', () => {
     const mention = screen.getByRole('link');
     expect(mention).toBeInTheDocument();
     
-    // Should have muted styling for generated names (gray instead of blue)
-    expect(mention).toHaveClass('text-gray-500');
-    expect(mention).not.toHaveClass('text-blue-500');
+    // Should have muted styling for generated names (muted-foreground instead of primary)
+    expect(mention).toHaveClass('text-muted-foreground');
+    expect(mention).not.toHaveClass('text-primary');
     
     // The text should start with @ and contain a generated name (not a truncated npub)
     const linkText = mention.textContent;
