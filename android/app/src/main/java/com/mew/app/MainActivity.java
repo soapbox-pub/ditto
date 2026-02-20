@@ -15,8 +15,8 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
-        // Start the foreground service (schedules AlarmManager polling)
-        Intent serviceIntent = new Intent(this, NotificationService.class);
+        // Start the persistent relay connection service
+        Intent serviceIntent = new Intent(this, NotificationRelayService.class);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(serviceIntent);
         } else {
