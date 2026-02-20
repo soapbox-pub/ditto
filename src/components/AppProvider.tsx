@@ -30,12 +30,14 @@ const FeedSettingsSchema = z.object({
   showTreasureFoundLogs: z.boolean(),
   showColors: z.boolean(),
   showPacks: z.boolean(),
+  showStreams: z.boolean(),
   feedIncludeVines: z.boolean(),
   feedIncludePolls: z.boolean(),
   feedIncludeTreasureGeocaches: z.boolean(),
   feedIncludeTreasureFoundLogs: z.boolean(),
   feedIncludeColors: z.boolean(),
   feedIncludePacks: z.boolean(),
+  feedIncludeStreams: z.boolean(),
 }) satisfies z.ZodType<FeedSettings>;
 
 // Zod schema for AppConfig validation

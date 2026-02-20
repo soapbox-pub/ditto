@@ -1,0 +1,362 @@
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import type { NostrEvent } from '@nostrify/nostrify';
+import { useSeoMeta } from '@unhead/react';
+
+import { MainLayout } from '@/components/MainLayout';
+import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
+import { LiveStreamChat } from '@/components/LiveStreamChat';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ZapDialog } from '@/components/ZapDialog';
+import { Button } from '@/components/ui/button';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import { Nip05Badge } from '@/components/Nip05Badge';
+import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { getDisplayName } from '@/lib/getDisplayName';
+import { getProfileUrl } from '@/lib/profileUrl';
+import { canZap } from '@/lib/canZap';
+import { cn } from '@/lib/utils';
+
+/** Extract the first value of a tag by name. */
+function getTag(tags: string[][], name: string): string | undefined {
+  return tags.find(([n]) => n === name)?.[1];
+}
+
+/** Parse participant entries from p tags. */
+interface Participant {
+  pubkey: string;
+  relay?: string;
+  role?: string;
+}
+
+function parseParticipants(tags: string[][]): Participant[] {
+  return tags
+    .filter(([name]) => name === 'p')
+    .map(([, pubkey, relay, role]) => ({ pubkey, relay, role }));
+}
+
+/** Status badge colors and labels. */
+function getStatusConfig(status: string | undefined) {
+  switch (status) {
+    case 'live':
+      return { label: 'LIVE', className: 'bg-red-600 hover:bg-red-600 text-white border-red-600 animate-pulse' };
+    case 'ended':
+      return { label: 'ENDED', className: 'bg-muted text-muted-foreground border-border' };
+    case 'planned':
+      return { label: 'PLANNED', className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
+    default:
+      return { label: status?.toUpperCase() || 'UNKNOWN', className: 'bg-muted text-muted-foreground border-border' };
+  }
+}
+
+/** Format a unix timestamp to a readable date/time. */
+function formatDateTime(timestamp: number): string {
+  const date = new Date(timestamp * 1000);
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+interface LiveStreamPageProps {
+  event: NostrEvent;
+}
+
+export function LiveStreamPage({ event }: LiveStreamPageProps) {
+  const navigate = useNavigate();
+  const { user } = useCurrentUser();
+  const [descExpanded, setDescExpanded] = useState(false);
+
+  const title = getTag(event.tags, 'title') || 'Untitled Stream';
+  const summary = getTag(event.tags, 'summary');
+  const streamUrl = getTag(event.tags, 'streaming');
+  const recordingUrl = getTag(event.tags, 'recording');
+  const imageUrl = getTag(event.tags, 'image');
+  const status = getTag(event.tags, 'status');
+  const currentParticipants = getTag(event.tags, 'current_participants');
+  const starts = getTag(event.tags, 'starts');
+  const hashtags = event.tags.filter(([n]) => n === 't').map(([, v]) => v);
+  const participants = useMemo(() => parseParticipants(event.tags), [event.tags]);
+
+  const statusConfig = getStatusConfig(status);
+  const hasDescription = !!(summary || hashtags.length > 0 || participants.length > 0);
+
+  // Build the a-tag for live chat: 30311:<pubkey>:<d-tag>
+  const dTag = getTag(event.tags, 'd') || '';
+  const aTag = `30311:${event.pubkey}:${dTag}`;
+
+  // The URL to play: prefer streaming for live, recording for ended
+  const playUrl = status === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
+
+  useSeoMeta({ title: `${title} - Mew` });
+
+  const chatSidebar = (
+    <aside className="hidden xl:flex xl:flex-col xl:w-[340px] xl:shrink-0 border-l border-border h-screen sticky top-0">
+      <LiveStreamChat aTag={aTag} className="h-full" />
+    </aside>
+  );
+
+  /** Description block — always visible on desktop, expandable on mobile. */
+  const descriptionBlock = hasDescription ? (
+    <div className="space-y-4">
+      {/* Summary */}
+      {summary && (
+        <p className="text-sm text-muted-foreground leading-relaxed">{summary}</p>
+      )}
+
+      {/* Hashtags */}
+      {hashtags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {hashtags.map((tag) => (
+            <Link
+              key={tag}
+              to={`/t/${encodeURIComponent(tag)}`}
+              className="text-sm text-primary hover:underline"
+            >
+              #{tag}
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* Participants list */}
+      {participants.length > 0 && (
+        <div className="space-y-2 pt-2 border-t border-border">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            Participants
+          </h3>
+          <div className="space-y-2">
+            {participants.map((p) => (
+              <ParticipantRow key={p.pubkey} pubkey={p.pubkey} role={p.role} />
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <MainLayout rightSidebar={chatSidebar}>
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+        {/* Header */}
+        <div className="sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="size-5" />
+          </button>
+          <h1 className="text-xl font-bold truncate">Live Stream</h1>
+          <Badge variant="outline" className={cn('ml-auto shrink-0', statusConfig.className)}>
+            {status === 'live' && <Radio className="size-3 mr-1" />}
+            {statusConfig.label}
+          </Badge>
+        </div>
+
+        {/* Video Player */}
+        <div className="px-4">
+          {playUrl ? (
+            <LiveStreamPlayer
+              src={playUrl}
+              poster={imageUrl}
+              className="w-full"
+            />
+          ) : (
+            <div className="aspect-video rounded-2xl bg-muted flex items-center justify-center border border-border">
+              <div className="text-center space-y-2">
+                <Radio className="size-8 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  {status === 'planned' ? 'Stream has not started yet' : 'No stream URL available'}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Stream compact info — always visible */}
+        <div className="px-4 mt-4 space-y-3">
+          {/* Title */}
+          <h2 className="text-lg font-bold leading-snug">{title}</h2>
+
+          {/* Meta row */}
+          <div className="flex items-center gap-3 text-sm text-muted-foreground flex-wrap">
+            {currentParticipants && (
+              <span className="flex items-center gap-1">
+                <Users className="size-3.5" />
+                {currentParticipants} watching
+              </span>
+            )}
+            {starts && (
+              <span className="flex items-center gap-1">
+                <Clock className="size-3.5" />
+                {formatDateTime(parseInt(starts))}
+              </span>
+            )}
+          </div>
+
+          {/* Author / Host */}
+          <StreamAuthorRow event={event} participants={participants} />
+
+          {/* Zap button */}
+          {user && (
+            <ZapButton event={event} />
+          )}
+
+          {/* Mobile: expandable description toggle */}
+          {hasDescription && (
+            <button
+              onClick={() => setDescExpanded((v) => !v)}
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors xl:hidden"
+            >
+              {descExpanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
+              {descExpanded ? 'Hide details' : 'Show details'}
+            </button>
+          )}
+
+          {/* Mobile: collapsible description */}
+          {descExpanded && (
+            <div className="xl:hidden">
+              {descriptionBlock}
+            </div>
+          )}
+
+          {/* Desktop: always show description */}
+          <div className="hidden xl:block">
+            {descriptionBlock}
+          </div>
+        </div>
+
+        {/* Mobile chat — directly below stream info */}
+        <div className="xl:hidden mt-4 border-t border-border" style={{ height: 'calc(100vh - 120px)' }}>
+          <LiveStreamChat aTag={aTag} className="h-full" />
+        </div>
+
+        {/* Bottom spacer */}
+        <div className="h-8" />
+      </main>
+    </MainLayout>
+  );
+}
+
+function StreamAuthorRow({ event, participants }: { event: NostrEvent; participants: Participant[] }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, event.pubkey);
+  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+
+  // Find the host from participants or default to the event author
+  const host = participants.find((p) => p.role?.toLowerCase() === 'host');
+  const hostPubkey = host?.pubkey || event.pubkey;
+
+  const hostAuthor = useAuthor(hostPubkey);
+  const hostMetadata = hostAuthor.data?.metadata;
+  const hostName = getDisplayName(hostMetadata, hostPubkey);
+  const hostProfileUrl = useMemo(() => getProfileUrl(hostPubkey, hostMetadata), [hostPubkey, hostMetadata]);
+
+  // Use the host if different from the event author
+  const showPubkey = hostPubkey;
+  const showName = hostPubkey === event.pubkey ? displayName : hostName;
+  const showMetadata = hostPubkey === event.pubkey ? metadata : hostMetadata;
+  const showProfileUrl = hostPubkey === event.pubkey ? profileUrl : hostProfileUrl;
+  const showAuthor = hostPubkey === event.pubkey ? author : hostAuthor;
+
+  if (showAuthor.isLoading) {
+    return (
+      <div className="flex items-center gap-3">
+        <Skeleton className="size-10 rounded-full shrink-0" />
+        <div className="space-y-1">
+          <Skeleton className="h-4 w-28" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <ProfileHoverCard pubkey={showPubkey} asChild>
+        <Link to={showProfileUrl}>
+          <Avatar className="size-10">
+            <AvatarImage src={showMetadata?.picture} alt={showName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-sm">
+              {showName[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
+      </ProfileHoverCard>
+      <div className="min-w-0">
+        <ProfileHoverCard pubkey={showPubkey} asChild>
+          <Link to={showProfileUrl} className="font-semibold text-sm hover:underline block truncate">
+            {showAuthor.data?.event ? (
+              <EmojifiedText tags={showAuthor.data.event.tags}>{showName}</EmojifiedText>
+            ) : showName}
+          </Link>
+        </ProfileHoverCard>
+        <div className="flex items-center gap-1.5">
+          {showMetadata?.nip05 && (
+            <Nip05Badge nip05={showMetadata.nip05} className="text-xs text-muted-foreground" iconSize={12} />
+          )}
+          {host && (
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Host</Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ZapButton({ event }: { event: NostrEvent }) {
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+
+  if (!canZap(metadata)) return null;
+
+  return (
+    <ZapDialog target={event}>
+      <Button variant="outline" size="sm" className="gap-1.5">
+        <Zap className="size-4" />
+        Zap the stream
+      </Button>
+    </ZapDialog>
+  );
+}
+
+function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = getDisplayName(metadata, pubkey);
+  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+
+  return (
+    <div className="flex items-center gap-2.5">
+      <Link to={profileUrl} className="shrink-0">
+        <Avatar className="size-7">
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+            {displayName[0]?.toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </Link>
+      <Link to={profileUrl} className="text-sm font-medium hover:underline truncate">
+        {author.data?.event ? (
+          <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+        ) : displayName}
+      </Link>
+      {role && (
+        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 shrink-0 ml-auto">
+          {role}
+        </Badge>
+      )}
+    </div>
+  );
+}
