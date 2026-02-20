@@ -29,6 +29,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
+import { ReactionEmoji } from '@/components/CustomEmoji';
 
 type NotificationTab = 'all' | 'mentions';
 
@@ -170,11 +171,6 @@ function LikeNotification({ event, isNew }: { event: NostrEvent; isNew: boolean 
   const referencedEventId = getReferencedEventId(event);
   const { data: referencedEvent } = useEvent(referencedEventId);
 
-  // Get the actual emoji from the reaction content
-  // '+' or empty string defaults to 👍 (like), '-' is ignored
-  const content = event.content.trim();
-  const emoji = content === '+' || content === '' ? '👍' : content;
-
   return (
     <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
       {isNew && (
@@ -182,7 +178,11 @@ function LikeNotification({ event, isNew }: { event: NostrEvent; isNew: boolean 
       )}
       <NotificationHeader
         actorPubkey={event.pubkey}
-        icon={<span className="text-base leading-none size-4 flex items-center justify-center">{emoji}</span>}
+        icon={
+          <span className="text-base leading-none size-4 flex items-center justify-center">
+            <ReactionEmoji content={event.content.trim()} tags={event.tags} className="inline-block h-4 w-4" />
+          </span>
+        }
         action="reacted to your post"
       />
       {referencedEvent && (

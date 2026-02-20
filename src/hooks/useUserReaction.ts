@@ -1,26 +1,27 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { type ResolvedEmoji, resolveReactionEmoji } from '@/components/CustomEmoji';
 
 /**
- * Returns the current user's reaction emoji for a given event, if any.
+ * Returns the current user's reaction for a given event, if any.
  * 
  * Checks the optimistic cache first (set by QuickReactMenu on react),
  * then falls back to querying the relay for the user's kind 7 events.
  * 
- * Returns undefined while loading, null if no reaction, or the emoji string.
+ * Returns undefined while loading, null if no reaction, or a ResolvedEmoji.
  */
-export function useUserReaction(eventId: string | undefined): string | null | undefined {
+export function useUserReaction(eventId: string | undefined): ResolvedEmoji | null | undefined {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
 
   // Check optimistic cache first
-  const optimistic = queryClient.getQueryData<string>(['user-reaction', eventId ?? '']);
+  const optimistic = queryClient.getQueryData<ResolvedEmoji>(['user-reaction', eventId ?? '']);
 
   const { data } = useQuery({
     queryKey: ['user-reaction', eventId ?? ''],
-    queryFn: async ({ signal }) => {
+    queryFn: async ({ signal }): Promise<ResolvedEmoji | null> => {
       if (!eventId || !user) return null;
 
       const events = await nostr.query(
@@ -36,9 +37,9 @@ export function useUserReaction(eventId: string | undefined): string | null | un
       if (events.length === 0) return null;
 
       const content = events[0].content.trim();
-      if (content === '+' || content === '') return '👍';
       if (content === '-') return null;
-      return content;
+
+      return resolveReactionEmoji(events[0]);
     },
     enabled: !!eventId && !!user && !optimistic,
     staleTime: 5 * 60 * 1000,

@@ -3,6 +3,7 @@ import { Heart } from 'lucide-react';
 
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { QuickReactMenu } from '@/components/QuickReactMenu';
+import { RenderResolvedEmoji } from '@/components/CustomEmoji';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useUserReaction } from '@/hooks/useUserReaction';
 import { cn } from '@/lib/utils';
@@ -71,8 +72,10 @@ export function ReactionButton({
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          {hasReacted ? (
-            <span className="size-5 flex items-center justify-center text-base leading-none">{userReaction}</span>
+          {hasReacted && userReaction ? (
+            <span className="size-5 flex items-center justify-center text-base leading-none">
+              <RenderResolvedEmoji emoji={userReaction} className="inline-block h-5 w-5" />
+            </span>
           ) : (
             <Heart className="size-5" />
           )}
