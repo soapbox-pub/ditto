@@ -6,6 +6,11 @@ import { nip19 } from 'nostr-tools';
 const NIP19_PREFIXES = ['npub1', 'nprofile1', 'note1', 'nevent1', 'naddr1'];
 
 /**
+ * Matches a 64-character lowercase hex string (a raw Nostr event ID or pubkey).
+ */
+const HEX_64_RE = /^[0-9a-f]{64}$/;
+
+/**
  * Checks whether a string looks like a NIP-05 identifier (user@domain.com)
  * or a bare domain (e.g. fiatjaf.com). Strips a leading `@` if present.
  */
@@ -44,6 +49,11 @@ export function getNostrIdentifierPath(input: string): string | null {
     } catch {
       // Not a valid NIP-19 — fall through
     }
+  }
+
+  // Try raw 64-char hex (event ID or pubkey) — route handles it directly
+  if (HEX_64_RE.test(value)) {
+    return `/${value}`;
   }
 
   // Try NIP-05
