@@ -11,7 +11,6 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/components/InitialSyncGate';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useBatchEventStats } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 
@@ -105,14 +104,6 @@ export function Feed() {
     }) || [];
   }, [data?.pages, muteItems]);
 
-  // Batch-prefetch interaction stats for all visible events in a single
-  // relay query instead of firing 2 queries per NoteCard.
-  const feedEventIds = useMemo(() => {
-    return feedItems.map((item) => item.event.id);
-  }, [feedItems]);
-  
-  useBatchEventStats(feedEventIds, feedEventIds.length > 0);
-  
   // Show skeleton only on initial load (author profiles are pre-cached
   // by useFeed, so no separate gate needed).
   const showSkeleton = isPending || (isLoading && !data);
