@@ -15,6 +15,19 @@ export interface SubKindDef {
   addressable: boolean;
 }
 
+/** Section labels for grouping extra kinds in settings UI. */
+export type ExtraKindSection = 'media' | 'social' | 'whimsy';
+
+/** Display labels for each section. */
+export const SECTION_LABELS: Record<ExtraKindSection, string> = {
+  media: 'Media',
+  social: 'Social',
+  whimsy: 'Whimsy',
+};
+
+/** Ordered list of sections for consistent rendering. */
+export const SECTION_ORDER: ExtraKindSection[] = ['media', 'social', 'whimsy'];
+
 /** Metadata for an extra (non-kind-1) content type. */
 export interface ExtraKindDef {
   kind: number;
@@ -32,6 +45,8 @@ export interface ExtraKindDef {
   addressable: boolean;
   /** Optional sub-kinds that break this entry into granular options. */
   subKinds?: SubKindDef[];
+  /** Section grouping for the settings UI. */
+  section: ExtraKindSection;
 }
 
 /** All supported extra content kinds. */
@@ -44,6 +59,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Short-form videos',
     route: 'vines',
     addressable: true,
+    section: 'media',
   },
   {
     kind: 1068,
@@ -53,6 +69,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Community polls and votes',
     route: 'polls',
     addressable: false,
+    section: 'social',
   },
   {
     kind: 37516,
@@ -61,6 +78,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Geocaches & found logs',
     route: 'treasures',
     addressable: true,
+    section: 'whimsy',
     subKinds: [
       {
         kind: 37516,
@@ -88,6 +106,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Color moment palettes',
     route: 'colors',
     addressable: false,
+    section: 'whimsy',
   },
   {
     kind: 39089,
@@ -97,6 +116,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Curated follow recommendations',
     route: 'packs',
     addressable: true,
+    section: 'social',
   },
   {
     kind: 30311,
@@ -106,6 +126,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     description: 'Live streaming events',
     route: 'streams',
     addressable: true,
+    section: 'media',
   },
 ];
 
