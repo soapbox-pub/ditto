@@ -17,6 +17,8 @@ interface QuickReactMenuProps {
   eventPubkey: string;
   /** The kind number of the event being reacted to. */
   eventKind: number;
+  /** Called after an emoji is selected so the parent can close the popover. */
+  onClose?: () => void;
   /** Optional extra class names. */
   className?: string;
 }
@@ -25,6 +27,7 @@ export function QuickReactMenu({
   eventId,
   eventPubkey,
   eventKind,
+  onClose,
   className,
 }: QuickReactMenuProps) {
   const { user } = useCurrentUser();
@@ -41,8 +44,9 @@ export function QuickReactMenu({
   const handleEmojiSelect = useCallback((emoji: string) => {
     if (!user) return;
 
-    // Close picker if it's open
-    setShowFullPicker(false);
+    // Close the entire popover (don't reset showFullPicker first — that
+    // causes the quick-select to flash before the popover unmounts).
+    onClose?.();
 
     // Set selected emoji for optimistic update
     setSelectedEmoji(emoji);
@@ -101,11 +105,10 @@ export function QuickReactMenu({
         },
       },
     );
-  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient, trackEmojiUsage]);
+  }, [user, eventId, eventPubkey, eventKind, publishEvent, queryClient, trackEmojiUsage, onClose]);
 
   if (!user) return null;
 
-  // Show full emoji picker if requested
   if (showFullPicker) {
     return (
       <div
@@ -117,7 +120,6 @@ export function QuickReactMenu({
     );
   }
 
-  // Show quick react menu
   return (
     <div
       className={cn(
