@@ -1,8 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Sparkles, Swords, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, Sparkles, Swords } from 'lucide-react';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -78,8 +79,29 @@ const ARCHETYPE_LABELS: Record<string, string> = {
   aristocrats: 'Aristocrats',
 };
 
-/** Max cards to show in the preview before collapsing. */
-const PREVIEW_CARD_COUNT = 8;
+/** Render a single card row. */
+function CardRow({ card }: { card: CardEntry }) {
+  return (
+    <div className="flex items-center justify-between px-3 py-1 text-[13px] hover:bg-secondary/30 transition-colors">
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-muted-foreground tabular-nums text-xs w-5 text-right shrink-0">
+          {card.quantity}x
+        </span>
+        <span className={cn('truncate', card.foil && 'bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent')}>
+          {card.name}
+        </span>
+        {card.foil && (
+          <Sparkles className="size-3 text-primary shrink-0" />
+        )}
+      </div>
+      {card.setId && (
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">
+          {card.setId}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function MagicDeckContent({ event }: { event: NostrEvent }) {
   const title = getTag(event.tags, 'title');
@@ -87,8 +109,6 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
   const commanders = getAllTagValues(event.tags, 'C');
   const companion = getTag(event.tags, 'S');
   const tTags = getAllTagValues(event.tags, 't');
-
-  const [expanded, setExpanded] = useState(false);
 
   // Parse main deck and sideboard
   const mainDeck = useMemo(() => {
@@ -116,10 +136,6 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
   const totalCards = useMemo(() => mainDeck.reduce((sum, c) => sum + c.quantity, 0), [mainDeck]);
   const totalSideboard = useMemo(() => sideboard.reduce((sum, c) => sum + c.quantity, 0), [sideboard]);
 
-  const isCommander = formatTags.includes('commander') || formatTags.includes('cedh');
-  const displayCards = expanded ? mainDeck : mainDeck.slice(0, PREVIEW_CARD_COUNT);
-  const hasMore = mainDeck.length > PREVIEW_CARD_COUNT;
-
   return (
     <div className="mt-2">
       {/* Banner image */}
@@ -145,53 +161,12 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Format + archetype badges */}
-      {(formatTags.length > 0 || archetypeTags.length > 0 || otherTags.length > 0) && (
-        <div className="flex flex-wrap gap-1.5 mb-3">
-          {formatTags.map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Badge variant="secondary" className="text-[11px] gap-1 font-medium hover:bg-secondary/80 transition-colors">
-                <Swords className="size-3" />
-                {FORMAT_LABELS[tag] ?? tag}
-              </Badge>
-            </Link>
-          ))}
-          {archetypeTags.map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Badge variant="outline" className="text-[11px] font-medium hover:bg-secondary/80 transition-colors">
-                {ARCHETYPE_LABELS[tag] ?? tag}
-              </Badge>
-            </Link>
-          ))}
-          {otherTags.map((tag) => (
-            <Link
-              key={tag}
-              to={`/t/${encodeURIComponent(tag)}`}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Badge variant="outline" className="text-[11px] font-medium hover:bg-secondary/80 transition-colors">
-                {tag}
-              </Badge>
-            </Link>
-          ))}
-        </div>
-      )}
-
       {/* Commander(s) */}
       {commanders.length > 0 && (
         <div className="flex items-center gap-2 mb-2">
           <Shield className="size-3.5 text-muted-foreground shrink-0" />
           <span className="text-xs text-muted-foreground">
-            {isCommander ? 'Commander' : 'Commander'}
-            {commanders.length > 1 ? 's' : ''}:
+            Commander{commanders.length > 1 ? 's' : ''}:
           </span>
           <span className="text-xs font-medium">
             {commanders.join(' & ')}
@@ -208,8 +183,42 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         </div>
       )}
 
-      {/* Card count summary */}
-      <div className="flex items-center gap-3 mb-2">
+      {/* Format badges + card count + sideboard — all on one line */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-2">
+        {formatTags.map((tag) => (
+          <Link
+            key={tag}
+            to={`/t/${encodeURIComponent(tag)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Badge variant="secondary" className="text-[11px] gap-1 font-medium hover:bg-secondary/80 transition-colors">
+              <Swords className="size-3" />
+              {FORMAT_LABELS[tag] ?? tag}
+            </Badge>
+          </Link>
+        ))}
+        {archetypeTags.map((tag) => (
+          <Link
+            key={tag}
+            to={`/t/${encodeURIComponent(tag)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Badge variant="outline" className="text-[11px] font-medium hover:bg-secondary/80 transition-colors">
+              {ARCHETYPE_LABELS[tag] ?? tag}
+            </Badge>
+          </Link>
+        ))}
+        {otherTags.map((tag) => (
+          <Link
+            key={tag}
+            to={`/t/${encodeURIComponent(tag)}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Badge variant="outline" className="text-[11px] font-medium hover:bg-secondary/80 transition-colors">
+              {tag}
+            </Badge>
+          </Link>
+        ))}
         <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
           <CardsIcon className="size-3" />
           {totalCards} cards
@@ -221,91 +230,30 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         )}
       </div>
 
-      {/* Card list */}
+      {/* Card list — scrollable box */}
       {mainDeck.length > 0 && (
-        <div className="rounded-xl border border-border overflow-hidden">
-          <div className="divide-y divide-border/50">
-            {displayCards.map((card, i) => (
-              <div
-                key={`${card.name}-${i}`}
-                className="flex items-center justify-between px-3 py-1.5 text-sm hover:bg-secondary/30 transition-colors"
-              >
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-muted-foreground tabular-nums text-xs w-5 text-right shrink-0">
-                    {card.quantity}x
-                  </span>
-                  <span className={cn('truncate', card.foil && 'bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent')}>
-                    {card.name}
-                  </span>
-                  {card.foil && (
-                    <Sparkles className="size-3 text-primary shrink-0" />
-                  )}
-                </div>
-                {card.setId && (
-                  <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">
-                    {card.setId}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
+        <div className="rounded-xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <ScrollArea className="max-h-[240px]">
+            <div>
+              {mainDeck.map((card, i) => (
+                <CardRow key={`${card.name}-${i}`} card={card} />
+              ))}
 
-          {/* Expand/collapse */}
-          {hasMore && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setExpanded(!expanded);
-              }}
-              className="flex items-center justify-center gap-1 w-full py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors border-t border-border/50"
-            >
-              {expanded ? (
+              {/* Sideboard inline */}
+              {sideboard.length > 0 && (
                 <>
-                  <ChevronUp className="size-3.5" />
-                  Show less
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="size-3.5" />
-                  {mainDeck.length - PREVIEW_CARD_COUNT} more cards
+                  <div className="px-3 py-1.5 bg-secondary/40 border-y border-border/50">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Sideboard
+                    </span>
+                  </div>
+                  {sideboard.map((card, i) => (
+                    <CardRow key={`sb-${card.name}-${i}`} card={card} />
+                  ))}
                 </>
               )}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Sideboard (only in expanded view) */}
-      {expanded && sideboard.length > 0 && (
-        <div className="mt-2">
-          <span className="text-xs font-medium text-muted-foreground mb-1 block">Sideboard</span>
-          <div className="rounded-xl border border-border overflow-hidden">
-            <div className="divide-y divide-border/50">
-              {sideboard.map((card, i) => (
-                <div
-                  key={`sb-${card.name}-${i}`}
-                  className="flex items-center justify-between px-3 py-1.5 text-sm hover:bg-secondary/30 transition-colors"
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="text-muted-foreground tabular-nums text-xs w-5 text-right shrink-0">
-                      {card.quantity}x
-                    </span>
-                    <span className={cn('truncate', card.foil && 'bg-gradient-to-r from-foreground via-primary to-foreground bg-clip-text text-transparent')}>
-                      {card.name}
-                    </span>
-                    {card.foil && (
-                      <Sparkles className="size-3 text-primary shrink-0" />
-                    )}
-                  </div>
-                  {card.setId && (
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-wider shrink-0 ml-2">
-                      {card.setId}
-                    </span>
-                  )}
-                </div>
-              ))}
             </div>
-          </div>
+          </ScrollArea>
         </div>
       )}
     </div>
