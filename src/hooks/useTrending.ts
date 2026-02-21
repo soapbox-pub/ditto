@@ -1,6 +1,5 @@
-import { useEffect, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { type ResolvedEmoji, isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
@@ -193,7 +192,7 @@ function parseBolt11Amount(bolt11: string): number {
   }
 }
 
-/** The stats shape returned by useEventStats and useBatchEventStats. */
+/** The stats shape returned by useEventStats. */
 export interface EventStats {
   replies: number;
   reposts: number;
@@ -423,151 +422,4 @@ export function useTagSparklines(tags: string[], enabled = true) {
   });
 }
 
-/**
- * Prefetches event stats in batch for a list of event IDs and seeds the
- * individual `['event-stats', id]` caches used by `useEventStats`.
- *
- * This is an effect-based prefetcher — it does NOT return query data.
- * NoteCard components consume stats via `useEventStats(event.id)` which
- * reads from the seeded cache.  This design avoids the previous bug where
- * a monolithic `useQuery` key that included all event IDs would change on
- * every pagination, creating a fresh query that raced against a 500ms
- * NIP-85 timeout and overwrote good cached stats with empty zeros.
- *
- * Only event IDs that are NOT already cached are fetched, so adding new
- * pages of events never disturbs previously-loaded stats.
- */
-export function useBatchEventStats(eventIds: string[], enabled = true) {
-  const { nostr } = useNostr();
-  const queryClient = useQueryClient();
-  const { config } = useAppContext();
-  const statsPubkey = config.nip85StatsPubkey;
-  const nip85OnlyMode = config.nip85OnlyMode;
 
-  // Track which IDs we've already started fetching so we don't re-fire
-  const fetchedRef = useRef(new Set<string>());
-
-  // Stabilize the dependency: Feed re-renders produce new array references
-  // for the same set of IDs.  Without this, the effect cleanup would abort
-  // in-flight fetches on every Feed re-render (author loading, pagination
-  // state changes, etc.), preventing stats from ever being seeded and
-  // flooding the WebSocket with rapid REQ/CLOSE cycles that disrupt other
-  // queries sharing the same relay connection (e.g. trending).
-  const idsKey = useMemo(() => [...new Set(eventIds)].sort().join(','), [eventIds]);
-
-  useEffect(() => {
-    if (!enabled || !idsKey) return;
-
-    const allIds = idsKey.split(',');
-
-    // Only fetch IDs that aren't already cached or in-flight
-    const uncachedIds = allIds.filter((id) => {
-      if (fetchedRef.current.has(id)) return false;
-      const cached = queryClient.getQueryData<EventStats>(['event-stats', id]);
-      return !cached;
-    });
-
-    if (uncachedIds.length === 0) return;
-
-    // Mark as in-flight immediately to prevent duplicate fetches
-    for (const id of uncachedIds) {
-      fetchedRef.current.add(id);
-    }
-
-    const controller = new AbortController();
-
-    (async () => {
-      const { signal } = controller;
-
-      // Try NIP-85 first with aggressive timeout
-      const nip85StatsMap = new Map<string, { commentCount: number; repostCount: number; reactionCount: number; zapCount: number }>();
-
-      if (statsPubkey) {
-        try {
-          const nip85Events = await nostr.query(
-            [{
-              kinds: [30383],
-              authors: [statsPubkey],
-              '#d': uncachedIds,
-              limit: uncachedIds.length,
-            }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
-          );
-
-          for (const event of nip85Events) {
-            const eventId = event.tags.find(([name]) => name === 'd')?.[1];
-            if (!eventId) continue;
-
-            const getTagValue = (tagName: string): number => {
-              const tag = event.tags.find(([name]) => name === tagName);
-              return tag?.[1] ? parseInt(tag[1], 10) : 0;
-            };
-
-            nip85StatsMap.set(eventId, {
-              commentCount: getTagValue('comment_cnt'),
-              repostCount: getTagValue('repost_cnt'),
-              reactionCount: getTagValue('reaction_cnt'),
-              zapCount: getTagValue('zap_cnt'),
-            });
-          }
-        } catch {
-          // NIP-85 failed or timed out — continue gracefully
-        }
-      }
-
-      const hasAnyNip85Stats = nip85StatsMap.size > 0;
-
-      // If NIP-85 only mode and no NIP-85 stats came back, seed empty stats
-      // only for IDs that still have no cached data (never overwrite good data).
-      if (nip85OnlyMode && !hasAnyNip85Stats) {
-        for (const id of uncachedIds) {
-          if (!queryClient.getQueryData<EventStats>(['event-stats', id])) {
-            queryClient.setQueryData(['event-stats', id], EMPTY_STATS);
-          }
-        }
-        return;
-      }
-
-      // Fetch interaction events from relays
-      try {
-        const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
-
-        const events = await nostr.query(
-          hasAnyNip85Stats
-            ? [
-                { kinds: [7, 9735], '#e': uncachedIds, limit: uncachedIds.length * 3 },
-                { kinds: [1], '#q': uncachedIds, limit: uncachedIds.length * 1 },
-              ]
-            : [
-                { kinds: [1, 6, 7, 9735], '#e': uncachedIds, limit: uncachedIds.length * 10 },
-                { kinds: [1], '#q': uncachedIds, limit: uncachedIds.length * 3 },
-              ],
-          { signal: combined },
-        );
-
-        for (const id of uncachedIds) {
-          const computed = computeStats(id, events);
-          const nip85 = nip85StatsMap.get(id);
-
-          const stats: EventStats = nip85 ? {
-            replies: nip85.commentCount,
-            reposts: nip85.repostCount,
-            quotes: computed.quotes,
-            reactions: nip85.reactionCount,
-            zapAmount: computed.zapAmount,
-            zapCount: nip85.zapCount,
-            reactionEmojis: computed.reactionEmojis,
-          } : computed;
-
-          queryClient.setQueryData(['event-stats', id], stats);
-        }
-      } catch {
-        // Query failed or was aborted — leave any existing cache intact.
-        // IDs remain in fetchedRef so we don't retry immediately, but
-        // individual useEventStats queries will fill them in on mount.
-      }
-    })();
-
-    return () => controller.abort();
-  }, [idsKey, enabled, nostr, queryClient, statsPubkey, nip85OnlyMode]);
-}
