@@ -45,6 +45,7 @@ interface InitialSyncGateProps {
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { phase, markComplete } = useInitialSync();
+  const [preloadApp, setPreloadApp] = useState(false);
 
   // Logged-out or sync already done -> show app
   if (phase === 'idle' || phase === 'complete') {
@@ -56,8 +57,13 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
     return <SyncScreen phase={phase} />;
   }
 
-  // Not found -> show setup questionnaire
-  return <SetupQuestionnaire onComplete={markComplete} />;
+  // Not found -> show setup questionnaire (with app rendered behind if preloading)
+  return (
+    <>
+      {preloadApp && <div className="invisible">{children}</div>}
+      <SetupQuestionnaire onComplete={markComplete} onPreload={() => setPreloadApp(true)} />
+    </>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +170,7 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
 type Step = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
 const STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
 
-function SetupQuestionnaire({ onComplete }: { onComplete: () => void }) {
+function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void; onPreload: () => void }) {
   const { nostr } = useNostr();
   const { updateConfig } = useAppContext();
   const { user } = useCurrentUser();
@@ -330,7 +336,10 @@ function SetupQuestionnaire({ onComplete }: { onComplete: () => void }) {
 
           {step === 'follows' && hasFollows === false && (
             <FollowsStep
-              onNext={() => goTo('outro')}
+              onNext={(didFollow) => {
+                if (didFollow) onPreload();
+                goTo('outro');
+              }}
               onBack={() => goTo('safety')}
             />
           )}
@@ -599,7 +608,7 @@ function parsePackEvent(event: NostrEvent) {
   return { title, description, image, pubkeys };
 }
 
-function FollowsStep({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function FollowsStep({ onNext, onBack }: { onNext: (didFollow: boolean) => void; onBack: () => void }) {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent } = useNostrPublish();
@@ -716,7 +725,7 @@ function FollowsStep({ onNext, onBack }: { onNext: () => void; onBack: () => voi
           Back
         </Button>
         <Button
-          onClick={onNext}
+          onClick={() => onNext(followedPacks.size > 0)}
           className="flex-1 rounded-full h-11 gap-1.5"
         >
           {followedPacks.size > 0 ? 'Continue' : 'Skip for now'}
