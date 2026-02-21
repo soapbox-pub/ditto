@@ -46,6 +46,8 @@ const FeedSettingsSchema = z.object({
   feedIncludeColors: z.boolean().optional(),
   feedIncludePacks: z.boolean().optional(),
   feedIncludeStreams: z.boolean().optional(),
+  showDecks: z.boolean().optional(),
+  feedIncludeDecks: z.boolean().optional(),
 }).passthrough();
 
 // Zod schema for AppConfig validation

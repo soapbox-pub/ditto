@@ -15,6 +15,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
+import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
@@ -180,8 +181,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const isColor = event.kind === 3367;
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
   const isArticle = event.kind === 30023;
+  const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isStream;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream;
 
   // Kind 1 specific
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
@@ -315,6 +317,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           <FollowPackContent event={event} />
         ) : isArticle ? (
           <ArticleContent event={event} preview className="mt-2" />
+        ) : isMagicDeck ? (
+          <MagicDeckContent event={event} />
         ) : isStream ? (
           <StreamContent event={event} />
         ) : (
