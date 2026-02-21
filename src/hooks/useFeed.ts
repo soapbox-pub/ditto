@@ -133,6 +133,15 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         return [...pubkeys];
       }
 
+      /** Seed the `['event', id]` query cache with events we already have in hand. */
+      function cacheEvents(items: FeedItem[]): void {
+        for (const { event } of items) {
+          if (!queryClient.getQueryData(['event', event.id])) {
+            queryClient.setQueryData(['event', event.id], event);
+          }
+        }
+      }
+
       /**
        * Fetch kind 0 metadata for the given pubkeys and seed each into the
        * individual `['author', pubkey]` query cache so that subsequent
@@ -286,8 +295,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Cache kind 0 for any remaining authors and mentioned pubkeys
-        // not already covered by the NIP-05 metadata fetch above.
+        // Seed event and author caches so downstream hooks resolve instantly.
+        cacheEvents(dedupedItems);
         await fetchAndCacheAuthors(collectPubkeys(dedupedItems));
 
         return { items: dedupedItems, oldestQueryTimestamp };
@@ -368,7 +377,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Fetch and cache kind 0 profiles for all authors and mentioned pubkeys
+        // Seed event and author caches so downstream hooks resolve instantly.
+        cacheEvents(dedupedItems);
         await fetchAndCacheAuthors(collectPubkeys(dedupedItems));
 
         return { items: dedupedItems, oldestQueryTimestamp };
@@ -397,7 +407,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
 
-        // Fetch and cache kind 0 profiles for all authors and mentioned pubkeys
+        // Seed event and author caches so downstream hooks resolve instantly.
+        cacheEvents(items);
         await fetchAndCacheAuthors(collectPubkeys(items));
 
         return { items, oldestQueryTimestamp };
