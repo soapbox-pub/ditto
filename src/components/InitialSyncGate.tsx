@@ -337,6 +337,9 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     const feedSettings = {
       showVines: selectedContent.has('vines'),
       showPolls: selectedContent.has('polls'),
+      feedIncludePosts: true,
+      feedIncludeReposts: true,
+      feedIncludeArticles: false,
       showTreasures: selectedContent.has('treasures'),
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,

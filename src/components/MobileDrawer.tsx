@@ -63,10 +63,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   /** Enabled extra-kind nav items, derived from feed settings. */
   const extraKindItems = useMemo(() => {
     return EXTRA_KINDS
-      .filter((def) => feedSettings[def.showKey])
+      .filter((def) => def.showKey && def.route && feedSettings[def.showKey])
       .map((def) => ({
-        to: `/${def.route}`,
-        icon: ROUTE_ICONS[def.route] ?? <Palette className="size-5" />,
+        to: `/${def.route!}`,
+        icon: ROUTE_ICONS[def.route!] ?? <Palette className="size-5" />,
         label: def.label,
       }));
   }, [feedSettings]);

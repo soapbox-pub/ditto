@@ -16,41 +16,72 @@ export interface SubKindDef {
 }
 
 /** Section labels for grouping extra kinds in settings UI. */
-export type ExtraKindSection = 'media' | 'social' | 'whimsy';
+export type ExtraKindSection = 'feed' | 'media' | 'social' | 'whimsy';
 
 /** Display labels for each section. */
 export const SECTION_LABELS: Record<ExtraKindSection, string> = {
+  feed: 'Feed',
   media: 'Media',
   social: 'Social',
   whimsy: 'Whimsy',
 };
 
-/** Ordered list of sections for consistent rendering. */
+/** Ordered list of sections for the "Other Stuff" settings UI. */
 export const SECTION_ORDER: ExtraKindSection[] = ['media', 'social', 'whimsy'];
 
 /** Metadata for an extra (non-kind-1) content type. */
 export interface ExtraKindDef {
   kind: number;
-  /** Key in FeedSettings that controls sidebar visibility. */
-  showKey: keyof FeedSettings;
+  /** Key in FeedSettings that controls sidebar visibility (omit for feed-only items). */
+  showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds (only for entries without subKinds). */
   feedKey?: keyof FeedSettings;
   /** Human-readable label. */
   label: string;
   /** Short description. */
   description: string;
-  /** Route path (without leading slash). */
-  route: string;
+  /** Route path (without leading slash). Omit for feed-only items with no dedicated page. */
+  route?: string;
   /** Whether this kind is addressable (30000-39999). */
   addressable: boolean;
   /** Optional sub-kinds that break this entry into granular options. */
   subKinds?: SubKindDef[];
   /** Section grouping for the settings UI. */
   section: ExtraKindSection;
+  /** If true, this entry only has a feed toggle (no sidebar toggle). */
+  feedOnly?: boolean;
 }
 
-/** All supported extra content kinds, ordered by section (media → social → whimsy). */
+/** All supported extra content kinds, ordered by section (feed → media → social → whimsy). */
 export const EXTRA_KINDS: ExtraKindDef[] = [
+  // Feed (core content types — feed toggle only, no sidebar page)
+  {
+    kind: 1,
+    feedKey: 'feedIncludePosts',
+    label: 'Posts',
+    description: 'Short text notes',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
+    kind: 6,
+    feedKey: 'feedIncludeReposts',
+    label: 'Reposts',
+    description: 'Shared posts from others',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
+    kind: 30023,
+    feedKey: 'feedIncludeArticles',
+    label: 'Articles',
+    description: 'Long-form blog posts',
+    addressable: true,
+    section: 'feed',
+    feedOnly: true,
+  },
   // Media
   {
     kind: 34236,
@@ -132,6 +163,9 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     ],
   },
 ];
+
+/** Feed-only entries (Posts, Reposts, Articles) rendered separately from "Other Stuff". */
+export const FEED_KINDS: ExtraKindDef[] = EXTRA_KINDS.filter((def) => def.section === 'feed');
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */
 export function getEnabledFeedKinds(feedSettings: FeedSettings): number[] {

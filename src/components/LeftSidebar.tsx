@@ -88,9 +88,9 @@ export function LeftSidebar() {
 
     items.push({ to: '/search', icon: <Search className="size-6" />, label: 'Search' });
 
-    // Add enabled extra-kind links from the shared config
+    // Add enabled extra-kind links from the shared config (skip feed-only items)
     for (const def of EXTRA_KINDS) {
-      if (feedSettings[def.showKey]) {
+      if (def.showKey && def.route && feedSettings[def.showKey]) {
         items.push({
           to: `/${def.route}`,
           icon: ROUTE_ICONS[def.route] ?? <Palette className="size-6" />,

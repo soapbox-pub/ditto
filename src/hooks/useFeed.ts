@@ -9,9 +9,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
 
-/** The base kinds always included in every feed query. */
-const BASE_FEED_KINDS = [1, 6];
-
 // Re-export FeedItem for backwards compatibility
 export type { FeedItem };
 
@@ -71,12 +68,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
 
-  // Build the full kinds list: base kinds + user-selected extra kinds.
-  const extraKinds = getEnabledFeedKinds(feedSettings);
-  const allKinds = [...BASE_FEED_KINDS, ...extraKinds];
+  // Build the full kinds list from user settings (posts, reposts, articles, + extras).
+  const allKinds = getEnabledFeedKinds(feedSettings);
 
-  // Stable key for the extra kinds so queries re-run when settings change.
-  const extraKindsKey = extraKinds.sort().join(',');
+  // Stable key so queries re-run when settings change.
+  const kindsKey = [...allKinds].sort().join(',');
 
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
@@ -101,12 +97,12 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
   return useInfiniteQuery<FeedPage, Error>({
     // NOTE: followList is intentionally excluded from the query key
-    // (see earlier comment). extraKindsKey IS included so the feed
+    // (see earlier comment). kindsKey IS included so the feed
     // refetches when the user changes feed kind settings. This is stable
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', extraKindsKey, communityPubkeys.length],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, communityPubkeys.length],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
@@ -184,7 +180,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           if (ev.kind === 6) {
             // Handle reposts
             const embedded = parseRepostContent(ev);
-            if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
+            if (embedded && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
             } else {
               const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
@@ -208,7 +204,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
-              if (repost && original.kind === 1 && original.created_at <= now) {
+              if (repost && original.created_at <= now) {
                 items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
               }
             }
@@ -262,7 +258,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           if (ev.kind === 6) {
             // Handle reposts
             const embedded = parseRepostContent(ev);
-            if (embedded && embedded.kind === 1 && embedded.created_at <= now) {
+            if (embedded && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
             } else {
               const repostedId = ev.tags.find(([name]) => name === 'e')?.[1];
@@ -286,7 +282,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
-              if (repost && original.kind === 1 && original.created_at <= now) {
+              if (repost && original.created_at <= now) {
                 items.push({ event: original, repostedBy: repost.pubkey, sortTimestamp: repost.created_at });
               }
             }
@@ -310,8 +306,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         
         return { items: dedupedItems, oldestQueryTimestamp };
       } else {
-        // Global feed — kind 1 notes + user-selected extra kinds
-        const globalKinds = [1, ...extraKinds];
+        // Global feed — all enabled kinds except reposts (too noisy without author filter)
+        const globalKinds = allKinds.filter((k) => k !== 6);
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;

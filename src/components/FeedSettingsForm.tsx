@@ -1,4 +1,4 @@
-import { Clapperboard, BarChart3, Palette, PartyPopper, Radio } from 'lucide-react';
+import { Clapperboard, BarChart3, Palette, PartyPopper, Radio, MessageSquare, Repeat2, FileText } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Switch } from '@/components/ui/switch';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
@@ -8,7 +8,7 @@ import { EXTRA_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 import { cn } from '@/lib/utils';
 
-/** Map route name → lucide icon. */
+/** Map route name or kind → lucide icon. */
 const ICONS: Record<string, React.ReactNode> = {
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
@@ -16,6 +16,10 @@ const ICONS: Record<string, React.ReactNode> = {
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
+  // Feed-only items (keyed by kind number)
+  '1': <MessageSquare className="size-5" />,
+  '6': <Repeat2 className="size-5" />,
+  '30023': <FileText className="size-5" />,
 };
 
 function KindBadge({ kind }: { kind: number }) {
@@ -77,8 +81,9 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
-  const icon = ICONS[def.route] ?? <Palette className="size-5" />;
+  const icon = ICONS[def.route ?? String(def.kind)] ?? <Palette className="size-5" />;
   const hasSubKinds = !!def.subKinds;
+  const isFeedOnly = !!def.feedOnly;
 
   const handleToggle = async (key: string, value: boolean) => {
     // Update local settings immediately
@@ -104,29 +109,49 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <div className="w-[52px] flex justify-center">
-            <Switch
-              checked={feedSettings[def.showKey]}
-              onCheckedChange={(checked) => handleToggle(def.showKey, checked)}
-            />
-          </div>
-          <div className="w-[52px] flex justify-center">
-            {!hasSubKinds && def.feedKey ? (
-              <Switch
-                checked={feedSettings[def.feedKey]}
-                onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
-              />
-            ) : null}
-          </div>
+          {isFeedOnly ? (
+            /* Feed-only items: single centered toggle spanning both columns */
+            <>
+              <div className="w-[52px]" />
+              <div className="w-[52px] flex justify-center">
+                {def.feedKey ? (
+                  <Switch
+                    checked={feedSettings[def.feedKey]}
+                    onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
+                  />
+                ) : null}
+              </div>
+            </>
+          ) : (
+            /* Regular items: sidebar + feed toggles */
+            <>
+              <div className="w-[52px] flex justify-center">
+                {def.showKey ? (
+                  <Switch
+                    checked={feedSettings[def.showKey]}
+                    onCheckedChange={(checked) => handleToggle(def.showKey!, checked)}
+                  />
+                ) : null}
+              </div>
+              <div className="w-[52px] flex justify-center">
+                {!hasSubKinds && def.feedKey ? (
+                  <Switch
+                    checked={feedSettings[def.feedKey]}
+                    onCheckedChange={(checked) => handleToggle(def.feedKey!, checked)}
+                  />
+                ) : null}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
       {/* Sub-kind toggles */}
-      {hasSubKinds && def.subKinds!.map((sub) => (
+      {hasSubKinds && def.showKey && def.subKinds!.map((sub) => (
         <SubKindRow
           key={sub.showKey}
           sub={sub}
-          parentEnabled={feedSettings[def.showKey]}
+          parentEnabled={feedSettings[def.showKey!]}
         />
       ))}
     </div>
@@ -169,7 +194,7 @@ export function FeedSettingsForm() {
               </span>
             </div>
             {sectionKinds.map((def) => (
-              <ContentTypeRow key={def.showKey} def={def} />
+              <ContentTypeRow key={def.feedKey ?? def.showKey ?? String(def.kind)} def={def} />
             ))}
           </div>
         );

@@ -27,6 +27,9 @@ const RelayMetadataSchema = z.object({
 // .passthrough() preserves extra keys from newer encrypted settings.
 // Missing fields get filled in by the defaultConfig merge in line below.
 const FeedSettingsSchema = z.object({
+  feedIncludePosts: z.boolean().optional(),
+  feedIncludeReposts: z.boolean().optional(),
+  feedIncludeArticles: z.boolean().optional(),
   showVines: z.boolean().optional(),
   showPolls: z.boolean().optional(),
   showTreasures: z.boolean().optional(),
