@@ -22,6 +22,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
 
@@ -105,7 +106,7 @@ export function LeftSidebar() {
     // Only show Profile and Bookmarks when logged in
     if (user) {
       items.push(
-        { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
+        { to: getProfileUrl(user.pubkey, metadata), icon: <User className="size-6" />, label: 'Profile' },
         { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
       );
     }
@@ -114,7 +115,7 @@ export function LeftSidebar() {
       { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
     );
     return items;
-  }, [feedSettings, user]);
+  }, [feedSettings, user, metadata]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
@@ -220,7 +221,11 @@ export function LeftSidebar() {
               className="w-[260px] p-0 rounded-2xl shadow-xl border border-border overflow-hidden"
             >
               {/* Current user card */}
-              <div className="p-4 border-b border-border">
+              <Link
+                to={getProfileUrl(currentUser.pubkey, currentUser.metadata)}
+                onClick={() => setAccountPopoverOpen(false)}
+                className="block p-4 border-b border-border hover:bg-secondary/60 transition-colors"
+              >
                 <div className="flex items-center gap-3">
                   <Avatar className="size-11 shrink-0">
                     <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
@@ -241,7 +246,7 @@ export function LeftSidebar() {
                     )}
                   </div>
                 </div>
-              </div>
+              </Link>
 
               {/* Other accounts */}
               {otherUsers.length > 0 && (

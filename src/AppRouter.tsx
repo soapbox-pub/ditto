@@ -1,8 +1,10 @@
 import { lazy } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Clapperboard, BarChart3, Palette, PartyPopper, FileText } from "lucide-react";
 import { CardsIcon } from "./components/icons/CardsIcon";
 import { ScrollToTop } from "./components/ScrollToTop";
+import { useCurrentUser } from "./hooks/useCurrentUser";
+import { getProfileUrl } from "./lib/profileUrl";
 
 // Eager: critical path (home page + 404)
 import Index from "./pages/Index";
@@ -10,7 +12,13 @@ import NotFound from "./pages/NotFound";
 
 // Lazy: loaded on demand when the user navigates to these routes
 const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
-const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })));
+
+/** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
+function ProfileRedirect() {
+  const { user, metadata } = useCurrentUser();
+  if (!user) return <Navigate to="/" replace />;
+  return <Navigate to={getProfileUrl(user.pubkey, metadata)} replace />;
+}
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
 const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
@@ -29,7 +37,7 @@ export function AppRouter() {
         <Route path="/" element={<Index />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/search" element={<SearchPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/profile" element={<ProfileRedirect />} />
         <Route path="/t/:tag" element={<HashtagPage />} />
         <Route path="/timeline/:domain" element={<DomainFeedPage />} />
         <Route path="/settings" element={<SettingsPage />} />

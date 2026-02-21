@@ -13,6 +13,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
+import { getProfileUrl } from '@/lib/profileUrl';
 import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
 
@@ -143,7 +144,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               )}
 
               <DrawerMenuItem
-                to="/profile"
+                to={user ? getProfileUrl(user.pubkey, metadata) : '/profile'}
                 icon={<User className="size-5" />}
                 label="Profile"
                 onClick={handleClose}

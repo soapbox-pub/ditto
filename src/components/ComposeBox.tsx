@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -19,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
+import { getProfileUrl } from '@/lib/profileUrl';
 
 const MAX_CHARS = 5000;
 
@@ -542,13 +544,15 @@ export function ComposeBox({
       )}
 
       <div className="flex gap-3">
-        {!hideAvatar && (
-          <Avatar className="size-12 shrink-0 mt-0.5">
-            <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-            <AvatarFallback className="bg-primary/20 text-primary text-sm">
-              {user ? (metadata?.name?.[0] || '?').toUpperCase() : '?'}
-            </AvatarFallback>
-          </Avatar>
+        {!hideAvatar && user && (
+          <Link to={getProfileUrl(user.pubkey, metadata)} className="shrink-0">
+            <Avatar className="size-12 shrink-0 mt-0.5">
+              <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+              <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                {(metadata?.name?.[0] || '?').toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
         )}
 
         <div className="flex-1 min-w-0">
