@@ -620,6 +620,10 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+      <div className="flex justify-center">
+        <MewLogo size={80} />
+      </div>
+
       <div className="space-y-2">
         <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
         <p className="text-sm text-muted-foreground">
