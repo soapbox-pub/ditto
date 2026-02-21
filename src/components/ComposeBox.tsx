@@ -236,10 +236,15 @@ export function ComposeBox({
     return content.match(urlRegex) || [];
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, or videos)
+  // Detect nostr:npub/nprofile mentions in content
+  const hasMentions = useMemo(() => {
+    return /nostr:(npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/.test(content);
+  }, [content]);
+
+  // Check if content has any previewable content (link previews, images, videos, or mentions)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0;
-  }, [visibleEmbeds, previewImages, previewVideos]);
+    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0 || hasMentions;
+  }, [visibleEmbeds, previewImages, previewVideos, hasMentions]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -622,8 +627,8 @@ export function ComposeBox({
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
-              <div className="whitespace-pre-wrap break-words text-lg opacity-85">
+            <div className="pt-2.5 pb-2 min-h-[100px]">
+              <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
               {/* Render images */}

@@ -27,12 +27,8 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
     return <LinkPreviewSkeleton className={className} />;
   }
 
-  if (!data) {
-    return null;
-  }
-
-  const domain = data.provider_name || displayDomain(url);
-  const image = data.thumbnail_url;
+  const domain = data?.provider_name || displayDomain(url);
+  const image = data?.thumbnail_url;
 
   return (
     <a
@@ -72,14 +68,14 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
         </div>
 
         {/* Title */}
-        {data.title && (
+        {data?.title && (
           <p className="text-sm font-semibold leading-snug line-clamp-2">
             {data.title}
           </p>
         )}
 
         {/* Author */}
-        {data.author_name && (
+        {data?.author_name && (
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
             {data.author_name}
           </p>
