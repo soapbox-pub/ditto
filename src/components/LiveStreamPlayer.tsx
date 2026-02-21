@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
-import Hls from 'hls.js';
+import type Hls from 'hls.js';
 import { Play, Pause, Volume2, VolumeX, Expand, Minimize } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -24,12 +24,12 @@ export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerPro
   const [hasError, setHasError] = useState(false);
   const [autoplayBlocked, setAutoplayBlocked] = useState(false);
 
-  // Set up HLS
+  // Set up HLS — dynamically imports hls.js (1.3MB) only when needed
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !src) return;
 
-    // If browser natively supports HLS (Safari)
+    // If browser natively supports HLS (Safari), no library needed
     if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src;
       video.play().catch(() => {
@@ -38,9 +38,17 @@ export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerPro
       return;
     }
 
-    // Use hls.js for other browsers
-    if (Hls.isSupported()) {
-      const hls = new Hls({
+    let destroyed = false;
+
+    import('hls.js').then(({ default: HlsLib }) => {
+      if (destroyed) return;
+
+      if (!HlsLib.isSupported()) {
+        setHasError(true);
+        return;
+      }
+
+      const hls = new HlsLib({
         enableWorker: true,
         lowLatencyMode: true,
         backBufferLength: 30,
@@ -50,19 +58,19 @@ export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerPro
       hls.loadSource(src);
       hls.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      hls.on(HlsLib.Events.MANIFEST_PARSED, () => {
         video.play().catch(() => {
           setAutoplayBlocked(true);
         });
       });
 
-      hls.on(Hls.Events.ERROR, (_event, data) => {
+      hls.on(HlsLib.Events.ERROR, (_event, data) => {
         if (data.fatal) {
           switch (data.type) {
-            case Hls.ErrorTypes.NETWORK_ERROR:
+            case HlsLib.ErrorTypes.NETWORK_ERROR:
               hls.startLoad();
               break;
-            case Hls.ErrorTypes.MEDIA_ERROR:
+            case HlsLib.ErrorTypes.MEDIA_ERROR:
               hls.recoverMediaError();
               break;
             default:
@@ -72,14 +80,17 @@ export function LiveStreamPlayer({ src, poster, className }: LiveStreamPlayerPro
           }
         }
       });
+    }).catch(() => {
+      if (!destroyed) setHasError(true);
+    });
 
-      return () => {
-        hls.destroy();
+    return () => {
+      destroyed = true;
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
         hlsRef.current = null;
-      };
-    } else {
-      setHasError(true);
-    }
+      }
+    };
   }, [src]);
 
   // Track playback & buffering state

@@ -100,7 +100,13 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
   })();
 
   return useInfiniteQuery<FeedPage, Error>({
-    queryKey: ['feed', tab, user?.pubkey ?? '', followList?.length ?? 0, extraKindsKey, communityPubkeys.length],
+    // NOTE: followList is intentionally excluded from the query key
+    // (see earlier comment). extraKindsKey IS included so the feed
+    // refetches when the user changes feed kind settings. This is stable
+    // on page load because feedSettings is read from localStorage
+    // synchronously — the encrypted settings sync at ~5s only calls
+    // updateConfig if values actually differ (NostrSync changed guard).
+    queryKey: ['feed', tab, user?.pubkey ?? '', extraKindsKey, communityPubkeys.length],
     queryFn: async ({ pageParam, signal }) => {
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);

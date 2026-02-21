@@ -70,11 +70,13 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
+  // Auto-fetch page 2 as soon as page 1 data arrives (even while authors/stats
+  // are still loading) for smoother scrolling when the user starts reading.
   useEffect(() => {
-    if (!isPending && hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
+    if (hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
       fetchNextPage();
     }
-  }, [isPending, hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
 
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
@@ -121,19 +123,18 @@ export function Feed() {
 
   // Batch-prefetch interaction stats for all visible events in a single
   // relay query instead of firing 2 queries per NoteCard.
-  // Wait for authors to load first to avoid relay contention (sequential loading).
+  // Runs in parallel with author prefetching — no sequential gate needed.
   const feedEventIds = useMemo(() => {
     return feedItems.map((item) => item.event.id);
   }, [feedItems]);
   
-  const statsEnabled = !authorsQuery.isLoading && !authorsQuery.isFetching;
-  const statsQuery = useBatchEventStats(feedEventIds, statsEnabled);
+  useBatchEventStats(feedEventIds, feedEventIds.length > 0);
   
-  // Show skeleton only on initial load or when switching tabs
-  // Don't show skeleton during pagination (page 2+) to avoid jumping to top
+  // Show skeleton only on initial load or while author profiles are loading
+  // (names/avatars are essential context). Stats can fade in after — they're
+  // not needed to start reading the feed.
   const isInitialLoad = isPending || (isLoading && !data);
-  const isBatchPrefetching = authorsQuery.isFetching || statsQuery.isFetching;
-  const showSkeleton = isInitialLoad || (isBatchPrefetching && !data?.pages?.length);
+  const showSkeleton = isInitialLoad || (authorsQuery.isFetching && !data?.pages?.length);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
@@ -257,7 +258,6 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
 function NoteCardSkeleton() {
   return (
     <div className="px-4 py-3 border-b border-border">
-      {/* Header: avatar + stacked name/handle — matches NoteCard layout */}
       <div className="flex items-center gap-3">
         <Skeleton className="size-11 rounded-full shrink-0" />
         <div className="min-w-0 space-y-1.5">
@@ -265,12 +265,10 @@ function NoteCardSkeleton() {
           <Skeleton className="h-3 w-36" />
         </div>
       </div>
-      {/* Content */}
       <div className="mt-2 space-y-1.5">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-4/5" />
       </div>
-      {/* Actions */}
       <div className="flex items-center gap-6 mt-3 -ml-2">
         <Skeleton className="h-4 w-8" />
         <Skeleton className="h-4 w-8" />
@@ -280,3 +278,4 @@ function NoteCardSkeleton() {
     </div>
   );
 }
+

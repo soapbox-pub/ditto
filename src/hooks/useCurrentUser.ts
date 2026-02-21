@@ -38,6 +38,11 @@ export function useCurrentUser() {
   }, [logins, loginToUser]);
 
   const user = users[0] as NUser | undefined;
+
+  // The current user's kind 0 profile is served from useAuthor, which
+  // resolves instantly from the localStorage author cache (seeded by
+  // useAuthors on previous visits). The network refetch happens in the
+  // background — no immediate relay query needed for our own profile.
   const author = useAuthor(user?.pubkey);
 
   return {
