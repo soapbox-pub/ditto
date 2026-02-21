@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Sparkles, Swords, Image, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Shield, Sparkles, Swords, Palette, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -453,7 +453,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
               onClick={() => setVisualView(!visualView)}
               className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              {visualView ? <List className="size-3.5" /> : <Image className="size-3.5" />}
+              {visualView ? <List className="size-3.5" /> : <Palette className="size-3.5" />}
               {visualView ? 'List' : 'Visual'}
             </button>
           </div>
