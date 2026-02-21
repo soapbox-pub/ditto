@@ -4,7 +4,7 @@ import { Switch } from '@/components/ui/switch';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { EXTRA_KINDS, SECTION_ORDER, SECTION_LABELS } from '@/lib/extraKinds';
 import type { ExtraKindDef, SubKindDef } from '@/lib/extraKinds';
 import { cn } from '@/lib/utils';
 
@@ -157,10 +157,23 @@ export function FeedSettingsForm() {
         <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
       </div>
 
-      {/* Content type rows */}
-      {EXTRA_KINDS.map((def) => (
-        <ContentTypeRow key={def.showKey} def={def} />
-      ))}
+      {/* Content type rows grouped by section */}
+      {SECTION_ORDER.map((section) => {
+        const sectionKinds = EXTRA_KINDS.filter((def) => def.section === section);
+        if (sectionKinds.length === 0) return null;
+        return (
+          <div key={section}>
+            <div className="px-3 pt-4 pb-2">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {SECTION_LABELS[section]}
+              </span>
+            </div>
+            {sectionKinds.map((def) => (
+              <ContentTypeRow key={def.showKey} def={def} />
+            ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
