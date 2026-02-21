@@ -19,8 +19,8 @@ interface NoteContentProps {
   className?: string;
 }
 
-/** Regex to detect media file URLs (images, video, audio, etc.) that are rendered as embeds. */
-const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?/i;
+/** Regex to detect media file URLs (images, video, audio, webxdc, etc.) that are rendered as embeds. */
+const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?/i;
 
 /** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
 function extractYouTubeId(url: string): string | null {

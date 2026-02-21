@@ -32,6 +32,7 @@ import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
+import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 
 /** Kinds that get the full follow-pack detail view. */
@@ -90,6 +91,9 @@ function extractVideos(content: string): string[] {
 interface ImetaEntry {
   url: string;
   thumbnail?: string;
+  mime?: string;
+  /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
+  webxdc?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. */
@@ -107,7 +111,7 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
       entry[key] = value;
     }
     if (entry.url) {
-      map.set(entry.url, { url: entry.url, thumbnail: entry.image });
+      map.set(entry.url, { url: entry.url, thumbnail: entry.image, mime: entry.m, webxdc: entry.webxdc });
     }
   }
   return map;
@@ -641,6 +645,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
+
+  // Extract webxdc attachments from imeta tags
+  const webxdcApps = useMemo(() => {
+    if (!isTextNote) return [];
+    return Array.from(imetaMap.values()).filter(
+      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+    );
+  }, [imetaMap, isTextNote]);
+
   const { data: stats } = useEventStats(event.id);
   const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
   const replies = useMemo(() => {
@@ -743,6 +756,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
               ))}
               <ImageGallery images={images} maxGridHeight="500px" />
+              {webxdcApps.map((app) => (
+                <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} />
+              ))}
             </>
           )}
         </ContentWarningGuard>
@@ -932,10 +948,15 @@ function ParentNote({ eventId }: { eventId: string }) {
     [event],
   );
 
-  // Extract images and videos from parent event
+  // Extract images, videos, and webxdc apps from parent event
   const images = useMemo(() => event ? extractImages(event.content) : [], [event]);
   const videos = useMemo(() => event ? extractVideos(event.content) : [], [event]);
   const imetaMap = useMemo(() => event ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event]);
+  const webxdcApps = useMemo(() => {
+    return Array.from(imetaMap.values()).filter(
+      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+    );
+  }, [imetaMap]);
 
   if (isLoading) {
     return (
@@ -1037,6 +1058,11 @@ function ParentNote({ eventId }: { eventId: string }) {
                 <ImageGallery images={images} maxGridHeight="400px" />
               </div>
             )}
+
+            {/* Webxdc apps */}
+            {webxdcApps.map((app) => (
+              <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} />
+            ))}
           </ContentWarningGuard>
         </div>
       </div>

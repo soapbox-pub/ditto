@@ -14,6 +14,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
+import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
@@ -76,6 +77,8 @@ interface ImetaEntry {
   url: string;
   thumbnail?: string;
   mime?: string;
+  /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
+  webxdc?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. Works for any event kind. */
@@ -97,6 +100,7 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
         url: entry.url,
         thumbnail: entry.image,
         mime: entry.m,
+        webxdc: entry.webxdc,
       });
     }
   }
@@ -184,6 +188,14 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
+
+  // Extract webxdc attachments from imeta tags
+  const webxdcApps = useMemo(() => {
+    if (!isTextNote) return [];
+    return Array.from(imetaMap.values()).filter(
+      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+    );
+  }, [imetaMap, isTextNote]);
   const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
   
   // Find all people being replied to (for "Replying to @user1 and @user2")
@@ -312,7 +324,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
             <div className="mt-2 break-words overflow-hidden">
               <NoteContent event={event} className="text-[15px] leading-relaxed" />
             </div>
-            <NoteMedia images={images} videos={videos} imetaMap={imetaMap} />
+            <NoteMedia images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
           </>
         )}
       </ContentWarningGuard>
@@ -376,9 +388,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   );
 }
 
-/** Media content for kind 1 text notes — renders images and videos. */
-function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: string[]; imetaMap: Map<string, ImetaEntry> }) {
-  if (images.length === 0 && videos.length === 0) return null;
+/** Media content for kind 1 text notes — renders images, videos, and webxdc apps. */
+function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: string[]; videos: string[]; imetaMap: Map<string, ImetaEntry>; webxdcApps?: ImetaEntry[] }) {
+  if (images.length === 0 && videos.length === 0 && webxdcApps.length === 0) return null;
 
   return (
     <>
@@ -389,6 +401,11 @@ function NoteMedia({ images, videos, imetaMap }: { images: string[]; videos: str
 
       {/* Images */}
       <ImageGallery images={images} maxGridHeight="400px" />
+
+      {/* Webxdc apps */}
+      {webxdcApps.map((app) => (
+        <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} />
+      ))}
     </>
   );
 }
