@@ -99,9 +99,15 @@ export function LeftSidebar() {
       }
     }
 
+    // Only show Profile and Bookmarks when logged in
+    if (user) {
+      items.push(
+        { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
+        { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
+      );
+    }
+
     items.push(
-      { to: '/profile', icon: <User className="size-6" />, label: 'Profile' },
-      { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
       { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
     );
     return items;
