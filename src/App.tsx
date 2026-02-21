@@ -43,6 +43,9 @@ const defaultConfig: AppConfig = {
     updatedAt: 0,
   },
   feedSettings: {
+    feedIncludePosts: true,
+    feedIncludeReposts: true,
+    feedIncludeArticles: false,
     showVines: true,
     showPolls: false,
     showTreasures: false,

@@ -46,8 +46,7 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
 
-  const extraKinds = getEnabledFeedKinds(feedSettings);
-  const profileKinds = [1, 6, ...extraKinds]; // Include kind 6 reposts
+  const profileKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = profileKinds.sort().join(',');
 
   return useInfiniteQuery<FeedItem[], Error>({

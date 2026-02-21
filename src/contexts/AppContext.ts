@@ -22,6 +22,12 @@ export interface RelayMetadata {
 
 /** Which "Other Stuff" content types to show in the sidebar nav and include in feeds. */
 export interface FeedSettings {
+  /** Include text posts (kind 1) in the feed */
+  feedIncludePosts: boolean;
+  /** Include reposts (kind 6) in the feed */
+  feedIncludeReposts: boolean;
+  /** Include long-form articles (kind 30023) in the feed */
+  feedIncludeArticles: boolean;
   /** Show Vines (kind 34236) link in sidebar */
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */

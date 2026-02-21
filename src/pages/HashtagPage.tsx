@@ -16,9 +16,8 @@ export function HashtagPage() {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
 
-  const extraKinds = getEnabledFeedKinds(feedSettings);
-  const kinds = [1, ...extraKinds];
-  const kindsKey = kinds.sort().join(',');
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => k !== 6);
+  const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
     title: `#${tag} | Mew`,

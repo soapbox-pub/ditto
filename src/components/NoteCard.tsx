@@ -176,7 +176,8 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const isTreasure = isGeocache || isFoundLog;
   const isColor = event.kind === 3367;
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack;
+  const isArticle = event.kind === 30023;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle;
 
   // Kind 1 specific
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
@@ -205,6 +206,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
+
+  // Kind 30023 specific
+  const articleTitle = isArticle ? getTag(event.tags, 'title') : undefined;
+  const articleSummary = isArticle ? getTag(event.tags, 'summary') : undefined;
+  const articleImage = isArticle ? getTag(event.tags, 'image') : undefined;
 
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
@@ -303,6 +309,25 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           <ColorMomentContent event={event} />
         ) : isFollowPack ? (
           <FollowPackContent event={event} />
+        ) : isArticle ? (
+          <div className="mt-2 space-y-2">
+            {articleTitle && (
+              <h3 className="text-base font-bold leading-snug">{articleTitle}</h3>
+            )}
+            {articleImage && (
+              <img
+                src={articleImage}
+                alt={articleTitle ?? 'Article image'}
+                className="w-full rounded-lg object-cover max-h-64"
+              />
+            )}
+            {articleSummary ? (
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{articleSummary}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{event.content.slice(0, 280)}{event.content.length > 280 ? '...' : ''}</p>
+            )}
+            <span className="inline-block text-xs font-medium text-primary">Read article</span>
+          </div>
         ) : (
           <>
             <div className="mt-2 break-words overflow-hidden">

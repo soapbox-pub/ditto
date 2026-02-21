@@ -88,8 +88,8 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   // Vines filter changes the kind queried, so it must restart the stream
   const isVines = options.mediaType === 'vines';
 
-  const extraKinds = getEnabledFeedKinds(feedSettings);
-  const extraKindsKey = extraKinds.sort().join(',');
+  const enabledKinds = getEnabledFeedKinds(feedSettings);
+  const kindsKey = [...enabledKinds].sort().join(',');
 
   useEffect(() => {
     const ac = new AbortController();
@@ -120,10 +120,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       setAllEvents(Array.from(eventMap.values()).sort((a, b) => b.created_at - a.created_at));
     }
 
-    // Build the kinds list: either vines-only or kind 1 + enabled extras
+    // Build the kinds list: either vines-only or user-selected feed kinds (minus reposts)
     const kinds: number[] = isVines
       ? [34236]
-      : [1, ...extraKinds];
+      : enabledKinds.filter((k) => k !== 6);
 
     // Base filter for streaming (kinds only - no search)
     const streamFilter: NostrFilter = { kinds };
@@ -209,7 +209,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
       alive = false;
       ac.abort();
     };
-  }, [nostr, query, isVines, extraKindsKey, options.language, options.mediaType]);
+  }, [nostr, query, isVines, kindsKey, options.language, options.mediaType]);
 
   // Apply client-side filters without restarting the stream
   const posts = useMemo(() => {
