@@ -101,6 +101,8 @@ export function ComposeBox({
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
+  /** Maps .xdc URLs to their generated webxdc UUIDs. */
+  const [webxdcUuids, setWebxdcUuids] = useState<Map<string, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -288,6 +290,13 @@ export function ComposeBox({
       // Store the full NIP-94 tags for later use in imeta
       setUploadedFileTags((prev) => [...prev, ...tags]);
       setContent((prev) => (prev ? prev + '\n' + url : url));
+
+      // For .xdc files, generate a webxdc UUID for stateful coordination
+      if (file.name.endsWith('.xdc')) {
+        const uuid = crypto.randomUUID();
+        setWebxdcUuids((prev) => new Map(prev).set(url, uuid));
+      }
+
       expand();
     } catch {
       toast({ title: 'Upload failed', description: 'Could not upload file.', variant: 'destructive' });
@@ -367,7 +376,7 @@ export function ComposeBox({
       }
 
       // NIP-92: Add imeta tags for media URLs in content
-      const mediaUrlMatches = finalContent.matchAll(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|avi|mkv|flv)(\?[^\s]*)?/gi);
+      const mediaUrlMatches = finalContent.matchAll(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|avi|mkv|flv|xdc)(\?[^\s]*)?/gi);
       const processedUrls = new Set<string>();
       
       for (const match of mediaUrlMatches) {
@@ -375,6 +384,9 @@ export function ComposeBox({
         if (processedUrls.has(url)) continue;
         processedUrls.add(url);
         
+        const ext = match[1].toLowerCase();
+        const isWebxdc = ext === 'xdc';
+
         // Check if this URL was uploaded (has full metadata)
         const uploadedTag = uploadedFileTags.find(tag => tag[0] === 'url' && tag[1] === url);
         
@@ -387,12 +399,24 @@ export function ComposeBox({
               return urlTag && uploadedFileTags.indexOf(tag) >= uploadedFileTags.indexOf(urlTag);
             })
             .map(tag => `${tag[0]} ${tag[1]}`);
-          
-          tags.push(['imeta', ...imetaFields]);
+
+          // Override the MIME type for .xdc files and add webxdc UUID
+          if (isWebxdc) {
+            // Remove any existing 'm' field and replace with webxdc MIME
+            const filtered = imetaFields.filter(f => !f.startsWith('m '));
+            filtered.push('m application/vnd.webxdc+zip');
+            const uuid = webxdcUuids.get(url);
+            if (uuid) {
+              filtered.push(`webxdc ${uuid}`);
+            }
+            tags.push(['imeta', ...filtered]);
+          } else {
+            tags.push(['imeta', ...imetaFields]);
+          }
         } else {
           // Fallback: basic imeta tag with URL and inferred mime type
-          const ext = match[1].toLowerCase();
-          const mimeType = ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
+          const mimeType = isWebxdc ? 'application/vnd.webxdc+zip'
+            : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
             : ext === 'png' ? 'image/png'
             : ext === 'gif' ? 'image/gif'
             : ext === 'webp' ? 'image/webp'
@@ -405,7 +429,14 @@ export function ComposeBox({
             : ext === 'flv' ? 'video/x-flv'
             : 'application/octet-stream';
           
-          tags.push(['imeta', `url ${url}`, `m ${mimeType}`]);
+          const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
+          if (isWebxdc) {
+            const uuid = webxdcUuids.get(url);
+            if (uuid) {
+              imetaTag.push(`webxdc ${uuid}`);
+            }
+          }
+          tags.push(imetaTag);
         }
       }
 
@@ -422,6 +453,7 @@ export function ComposeBox({
       setExpanded(false);
       setRemovedEmbeds(new Set());
       setUploadedFileTags([]);
+      setWebxdcUuids(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
@@ -587,7 +619,7 @@ export function ComposeBox({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*,video/*,audio/*"
+                accept="image/*,video/*,audio/*,.xdc"
                 className="hidden"
                 onChange={(e) => {
                   const file = e.target.files?.[0];
