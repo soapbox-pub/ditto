@@ -130,13 +130,18 @@ export function useEventInteractions(eventId: string | undefined) {
   const { nostr } = useNostr();
   const nip85Stats = useNip85EventStats(eventId);
 
+  // Use a stable boolean in the query key instead of the full nip85Stats.data
+  // object. The object reference changes on every NIP-85 refetch (30s staleTime)
+  // even when the values are identical, which caused the query key to change and
+  // triggered a fresh fetch with a brief flash of undefined data.
+  const hasNip85Stats = !!nip85Stats.data;
+
   return useQuery<EventInteractions>({
-    queryKey: ['event-interactions', eventId ?? '', nip85Stats.data],
+    queryKey: ['event-interactions', eventId ?? '', hasNip85Stats],
     queryFn: async ({ signal }) => {
       if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
 
-      // Try NIP-85 stats first - if available, use a smaller limit for actual events
-      const hasNip85Stats = !!nip85Stats.data;
+      // If NIP-85 stats are available, use a smaller limit for actual events
       const interactionLimit = hasNip85Stats ? 10 : 50;
       const quoteLimit = hasNip85Stats ? 5 : 20;
 
