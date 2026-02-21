@@ -57,7 +57,7 @@ export function TestApp({ children }: TestAppProps) {
     nip85OnlyMode: false,
     blossomServers: ['https://blossom.primal.net/'],
     defaultZapComment: 'Zapped with Mew!',
-    faviconProvider: 'https://favicon.shakespeare.diy/?url={href}',
+    faviconUrl: 'https://favicon.shakespeare.diy/?url={href}',
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
     contentWarningPolicy: 'blur',
   };

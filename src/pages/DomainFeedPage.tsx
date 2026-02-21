@@ -5,7 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { NoteCard } from '@/components/NoteCard';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -104,7 +104,7 @@ export function DomainFeedPage() {
             <ArrowLeft className="size-5" />
           </button>
           <div className="flex items-center gap-2 min-w-0">
-            <DomainFavicon domain={domain ?? ''} size={20} />
+            <ExternalFavicon url={domain ? `https://${domain}` : undefined} size={20} />
             <div className="min-w-0">
               <h1 className="text-lg font-bold truncate leading-tight">{domain}</h1>
               {pubkeys && pubkeys.length > 0 && (

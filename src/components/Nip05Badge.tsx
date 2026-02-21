@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { getNip05Domain, getNip05User } from '@/lib/nip05';
 
 interface Nip05BadgeProps {
@@ -54,7 +54,7 @@ export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps)
           onClick={(e) => e.stopPropagation()}
           title={`View ${domain} feed`}
         >
-          <DomainFavicon domain={domain} size={iconSize} className="shrink-0" />
+          <ExternalFavicon url={`https://${domain}`} size={iconSize} className="shrink-0" />
         </Link>
       )}
     </span>

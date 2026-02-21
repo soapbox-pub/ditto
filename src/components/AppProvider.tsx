@@ -63,7 +63,7 @@ const AppConfigSchema = z.object({
   nip85OnlyMode: z.boolean(),
   blossomServers: z.array(z.url()),
   defaultZapComment: z.string(),
-  faviconProvider: z.string(),
+  faviconUrl: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: z.enum(['blur', 'hide', 'show']),
 });

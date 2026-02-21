@@ -22,7 +22,7 @@ export function AdvancedSettings() {
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [newBlossomUrl, setNewBlossomUrl] = useState('');
   const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
-  const [faviconProvider, setFaviconProvider] = useState(config.faviconProvider);
+  const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
 
   const handleAddBlossomServer = () => {
@@ -352,25 +352,25 @@ export function AdvancedSettings() {
                 </div>
               </div>
 
-              {/* Favicon Provider */}
+              {/* Favicon URL */}
               <div>
-                <Label htmlFor="favicon-provider" className="text-sm font-medium">
-                  Favicon Provider
+                <Label htmlFor="favicon-url" className="text-sm font-medium">
+                  Favicon URL
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  URI template for fetching site favicons. Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the page URL.
+                  URI template for fetching site favicons. Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{href}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
                 </p>
                 <Input
-                  id="favicon-provider"
-                  value={faviconProvider}
+                  id="favicon-url"
+                  value={faviconUrl}
                   onChange={(e) => {
-                    setFaviconProvider(e.target.value);
+                    setFaviconUrl(e.target.value);
                   }}
                   onBlur={() => {
-                    const trimmed = faviconProvider.trim();
-                    if (trimmed && trimmed !== config.faviconProvider) {
-                      updateConfig(() => ({ faviconProvider: trimmed }));
-                      toast({ title: 'Favicon provider updated' });
+                    const trimmed = faviconUrl.trim();
+                    if (trimmed && trimmed !== config.faviconUrl) {
+                      updateConfig(() => ({ faviconUrl: trimmed }));
+                      toast({ title: 'Favicon URL updated' });
                     }
                   }}
                   placeholder="https://favicon.shakespeare.diy/?url={href}"

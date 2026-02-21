@@ -75,6 +75,7 @@
     "rehype-sanitize": "^6.0.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
+    "uri-templates": "^0.2.0",
     "vaul": "^0.9.3",
     "zod": "^4.3.6"
   },

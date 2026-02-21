@@ -83,8 +83,8 @@ export interface AppConfig {
   blossomServers: string[];
   /** Default comment attached to zaps */
   defaultZapComment: string;
-  /** Favicon provider URI template. Use {href} as placeholder for the page URL. */
-  faviconProvider: string;
+  /** Favicon URI template. Supports RFC 6570 variables: {href}, {origin}, {hostname}, etc. */
+  faviconUrl: string;
   /** CORS proxy URI template. Use {href} as placeholder for the target URL (URL-encoded). */
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */

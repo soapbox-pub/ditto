@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,6 +6,7 @@ import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useToast } from '@/hooks/useToast';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
@@ -117,41 +118,6 @@ function eventLink(item: MediaItem): string {
     return `/${nip19.naddrEncode({ kind: item.kind, pubkey: item.authorPubkey, identifier: item.dTag })}`;
   }
   return `/${nip19.neventEncode({ id: item.eventId, author: item.authorPubkey })}`;
-}
-
-/** Try multiple favicon paths: /favicon.ico, then /favicon.svg. */
-function Favicon({ url }: { url: string }) {
-  const candidates = useMemo(() => {
-    try {
-      const origin = new URL(url).origin;
-      return [`${origin}/favicon.ico`, `${origin}/favicon.svg`];
-    } catch {
-      return [];
-    }
-  }, [url]);
-
-  const [index, setIndex] = useState(0);
-  const [failed, setFailed] = useState(false);
-
-  if (candidates.length === 0 || failed) return null;
-
-  const src = candidates[index];
-
-  return (
-    <img
-      src={src}
-      alt=""
-      className="size-4 shrink-0"
-      loading="lazy"
-      onError={() => {
-        if (index < candidates.length - 1) {
-          setIndex(index + 1);
-        } else {
-          setFailed(true);
-        }
-      }}
-    />
-  );
 }
 
 /** Bitcoin QR code modal */
@@ -282,7 +248,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
           rel="noopener noreferrer"
           className="flex items-center gap-1.5 text-sm text-primary hover:underline truncate mt-0.5"
         >
-          <Favicon url={field.value} />
+          <ExternalFavicon url={field.value} size={16} className="shrink-0" />
           <span className="truncate">{field.value.replace(/^https?:\/\//, '')}</span>
         </a>
       ) : (
