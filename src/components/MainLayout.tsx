@@ -1,25 +1,17 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
+import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 
-interface MainLayoutProps {
-  children: React.ReactNode;
-  /** Optional custom right sidebar to replace the default one */
-  rightSidebar?: React.ReactNode;
-  /** Whether to show the floating compose button (default: false) */
-  showFAB?: boolean;
-  /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
-  noBottomSpacer?: boolean;
-  /** Additional classes for the wrapper div (e.g. to override min-h-screen) */
-  wrapperClassName?: string;
-}
-
-export function MainLayout({ children, rightSidebar, showFAB = false, noBottomSpacer = false, wrapperClassName }: MainLayoutProps) {
+/** Inner component that reads layout options from the context store. */
+function MainLayoutInner() {
+  const { rightSidebar, showFAB = false, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -37,8 +29,8 @@ export function MainLayout({ children, rightSidebar, showFAB = false, noBottomSp
           <LeftSidebar />
         </div>
 
-        {/* Main content area */}
-        {children}
+        {/* Main content area - swapped by the router */}
+        <Outlet />
 
         {/* Desktop right sidebar - handled internally with hidden lg:block */}
         {rightSidebar ?? <RightSidebar />}
@@ -53,5 +45,20 @@ export function MainLayout({ children, rightSidebar, showFAB = false, noBottomSp
       {/* Bottom padding spacer for mobile bottom nav */}
       {!noBottomSpacer && <div className="h-16 sidebar:hidden" />}
     </>
+  );
+}
+
+/**
+ * Persistent layout shell rendered once by the router.
+ * Provides a LayoutStore so child pages can configure layout options
+ * (e.g. showFAB, custom right sidebar) via the `useLayoutOptions` hook.
+ */
+export function MainLayout() {
+  const store = useMemo(() => new LayoutStore(), []);
+
+  return (
+    <LayoutStoreContext.Provider value={store}>
+      <MainLayoutInner />
+    </LayoutStoreContext.Provider>
   );
 }

@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Bookmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBookmarks } from '@/hooks/useBookmarks';
@@ -19,7 +18,6 @@ export function BookmarksPage() {
   const { events, isLoading, isLoadingEvents, bookmarkedIds } = useBookmarks();
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Sticky header */}
         <div className={cn('sidebar:sticky sidebar:top-0', 'flex items-center gap-4 px-4 mt-4 mb-5 bg-background/80 backdrop-blur-md z-10')}>
@@ -72,7 +70,6 @@ export function BookmarksPage() {
           </div>
         )}
       </main>
-    </MainLayout>
   );
 }
 

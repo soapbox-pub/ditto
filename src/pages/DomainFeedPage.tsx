@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { DomainFavicon } from '@/components/DomainFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -95,7 +94,6 @@ export function DomainFeedPage() {
   const isLoading = pubkeysLoading || eventsLoading;
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
           <button
@@ -150,6 +148,5 @@ export function DomainFeedPage() {
           </div>
         )}
       </main>
-    </MainLayout>
   );
 }

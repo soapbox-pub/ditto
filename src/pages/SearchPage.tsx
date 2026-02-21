@@ -2,7 +2,6 @@ import { useSeoMeta } from '@unhead/react';
 import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
@@ -133,7 +132,6 @@ export function SearchPage() {
   }, [allPosts, showNostr, showMastodon]);
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Tabs — sticky at top */}
         <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
@@ -375,7 +373,6 @@ export function SearchPage() {
           </>
         )}
       </main>
-    </MainLayout>
   );
 }
 

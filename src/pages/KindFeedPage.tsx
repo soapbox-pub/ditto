@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStreamKind } from '@/hooks/useStreamKind';
@@ -22,7 +21,6 @@ export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPagePr
   const { events, isLoading } = useStreamKind(kind);
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Header */}
         <div className="flex items-center gap-4 px-4 mt-4 mb-5">
@@ -56,7 +54,6 @@ export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPagePr
           </div>
         )}
       </main>
-    </MainLayout>
   );
 }
 

@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { EditProfileForm } from '@/components/EditProfileForm';
 import { ContentSettings } from '@/components/ContentSettings';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
@@ -20,7 +19,6 @@ export function SettingsPage() {
   const activeSection = section || (user ? 'profile' : 'content');
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         <div className="px-4 pt-4 pb-3">
           <div className="flex items-center gap-4">
@@ -54,7 +52,6 @@ export function SettingsPage() {
           ) : null}
         </div>
       </main>
-    </MainLayout>
   );
 }
 

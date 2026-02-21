@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { MainLayout } from '@/components/MainLayout';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -747,53 +747,46 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar pubkey={pubkey} fields={fields} /> } : {});
+
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
     if (isNip05Param && nip05Loading) {
       return (
-        <MainLayout>
-          <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-            <div className="h-36 md:h-48 bg-secondary animate-pulse" />
-            <div className="px-4 pb-4">
-              <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
-                <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
-              </div>
-              <Skeleton className="h-6 w-40 mt-2" />
-              <Skeleton className="h-4 w-56 mt-2" />
+        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+          <div className="h-36 md:h-48 bg-secondary animate-pulse" />
+          <div className="px-4 pb-4">
+            <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+              <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
             </div>
-          </main>
-        </MainLayout>
+            <Skeleton className="h-6 w-40 mt-2" />
+            <Skeleton className="h-4 w-56 mt-2" />
+          </div>
+        </main>
       );
     }
     // If NIP-05 resolved to null (not found), show error
     if (isNip05Param && !nip05Loading) {
       return (
-        <MainLayout>
-          <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-            <div className="p-8 text-center text-muted-foreground">
-              <p>User not found: {npub}</p>
-              <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
-            </div>
-          </main>
-        </MainLayout>
+        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+          <div className="p-8 text-center text-muted-foreground">
+            <p>User not found: {npub}</p>
+            <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
+          </div>
+        </main>
       );
     }
     return (
-      <MainLayout>
-        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-          <div className="p-8 text-center text-muted-foreground">
-            <p>Please log in to view your profile.</p>
-          </div>
-        </main>
-      </MainLayout>
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+        <div className="p-8 text-center text-muted-foreground">
+          <p>Please log in to view your profile.</p>
+        </div>
+      </main>
     );
   }
 
   return (
-    <MainLayout
-      rightSidebar={<ProfileRightSidebar pubkey={pubkey} fields={fields} />}
-    >
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
           {metadata?.banner && (
@@ -1014,6 +1007,5 @@ export function ProfilePage() {
           />
         )}
       </main>
-    </MainLayout>
   );
 }

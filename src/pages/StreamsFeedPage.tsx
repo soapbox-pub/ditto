@@ -5,7 +5,6 @@ import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 
-import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -57,7 +56,6 @@ export function StreamsFeedPage() {
   }, [events]);
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Header */}
         <div className="flex items-center gap-4 px-4 mt-4 mb-5">
@@ -98,7 +96,6 @@ export function StreamsFeedPage() {
           </div>
         )}
       </main>
-    </MainLayout>
   );
 }
 

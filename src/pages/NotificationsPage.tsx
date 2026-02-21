@@ -8,7 +8,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { MainLayout } from '@/components/MainLayout';
 import { NoteContent } from '@/components/NoteContent';
 import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
@@ -83,7 +82,6 @@ export function NotificationsPage() {
   ];
 
   return (
-    <MainLayout>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Tab bar */}
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
@@ -131,7 +129,6 @@ export function NotificationsPage() {
           </div>
         )}
       </main>
-    </MainLayout>
   );
 }
 
