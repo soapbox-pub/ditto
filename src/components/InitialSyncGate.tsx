@@ -7,7 +7,8 @@ import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, Eye, EyeOff, Shield, Clapperboard, BarChart3, MapPin, Palette, Users, Radio, type LucideIcon } from 'lucide-react';
+import { Check, ChevronRight, Eye, EyeOff, Shield, Clapperboard, BarChart3, Palette, Users, Radio, type LucideIcon } from 'lucide-react';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 
 interface InitialSyncGateProps {
   children: ReactNode;
@@ -112,7 +113,7 @@ interface ContentKind {
   key: string;
   label: string;
   description: string;
-  icon: LucideIcon;
+  icon: LucideIcon | React.ComponentType<{ className?: string }>;
   sidebarKey: string;
   feedKey: string;
 }
@@ -120,7 +121,7 @@ interface ContentKind {
 const CONTENT_KINDS: ContentKind[] = [
   { key: 'vines', label: 'Vines', description: 'Short video clips', icon: Clapperboard, sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
   { key: 'polls', label: 'Polls', description: 'Community polls', icon: BarChart3, sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
-  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: MapPin, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
+  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
   { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
   { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
   { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: Radio, sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
