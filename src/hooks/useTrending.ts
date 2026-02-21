@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -423,14 +424,18 @@ export function useTagSparklines(tags: string[], enabled = true) {
 }
 
 /**
- * Batch-fetch interaction stats for multiple event IDs in a single relay query.
+ * Prefetches event stats in batch for a list of event IDs and seeds the
+ * individual `['event-stats', id]` caches used by `useEventStats`.
  *
- * Much more efficient than calling `useEventStats` once per event — one
- * round-trip instead of N.  Results are also seeded into the individual
- * `['event-stats', id]` cache entries so that `useEventStats()` calls
- * for the same IDs resolve instantly from cache.
- * 
- * Also queries NIP-85 stats for all events in parallel.
+ * This is an effect-based prefetcher — it does NOT return query data.
+ * NoteCard components consume stats via `useEventStats(event.id)` which
+ * reads from the seeded cache.  This design avoids the previous bug where
+ * a monolithic `useQuery` key that included all event IDs would change on
+ * every pagination, creating a fresh query that raced against a 500ms
+ * NIP-85 timeout and overwrote good cached stats with empty zeros.
+ *
+ * Only event IDs that are NOT already cached are fetched, so adding new
+ * pages of events never disturbs previously-loaded stats.
  */
 export function useBatchEventStats(eventIds: string[], enabled = true) {
   const { nostr } = useNostr();
@@ -439,24 +444,52 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
   const statsPubkey = config.nip85StatsPubkey;
   const nip85OnlyMode = config.nip85OnlyMode;
 
-  const uniqueIds = [...new Set(eventIds)].sort();
+  // Track which IDs we've already started fetching so we don't re-fire
+  const fetchedRef = useRef(new Set<string>());
 
-  return useQuery<Map<string, EventStats>>({
-    queryKey: ['batch-event-stats', uniqueIds.join(',')],
-    queryFn: async ({ signal }) => {
-      if (uniqueIds.length === 0) return new Map();
+  // Stabilize the dependency: Feed re-renders produce new array references
+  // for the same set of IDs.  Without this, the effect cleanup would abort
+  // in-flight fetches on every Feed re-render (author loading, pagination
+  // state changes, etc.), preventing stats from ever being seeded and
+  // flooding the WebSocket with rapid REQ/CLOSE cycles that disrupt other
+  // queries sharing the same relay connection (e.g. trending).
+  const idsKey = useMemo(() => [...new Set(eventIds)].sort().join(','), [eventIds]);
 
-      // Try NIP-85 first with aggressive timeout (500ms)
+  useEffect(() => {
+    if (!enabled || !idsKey) return;
+
+    const allIds = idsKey.split(',');
+
+    // Only fetch IDs that aren't already cached or in-flight
+    const uncachedIds = allIds.filter((id) => {
+      if (fetchedRef.current.has(id)) return false;
+      const cached = queryClient.getQueryData<EventStats>(['event-stats', id]);
+      return !cached;
+    });
+
+    if (uncachedIds.length === 0) return;
+
+    // Mark as in-flight immediately to prevent duplicate fetches
+    for (const id of uncachedIds) {
+      fetchedRef.current.add(id);
+    }
+
+    const controller = new AbortController();
+
+    (async () => {
+      const { signal } = controller;
+
+      // Try NIP-85 first with aggressive timeout
       const nip85StatsMap = new Map<string, { commentCount: number; repostCount: number; reactionCount: number; zapCount: number }>();
-      
+
       if (statsPubkey) {
         try {
           const nip85Events = await nostr.query(
             [{
               kinds: [30383],
               authors: [statsPubkey],
-              '#d': uniqueIds,
-              limit: uniqueIds.length,
+              '#d': uncachedIds,
+              limit: uncachedIds.length,
             }],
             { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
           );
@@ -478,77 +511,63 @@ export function useBatchEventStats(eventIds: string[], enabled = true) {
             });
           }
         } catch {
-          // NIP-85 failed or timed out
+          // NIP-85 failed or timed out — continue gracefully
         }
       }
 
       const hasAnyNip85Stats = nip85StatsMap.size > 0;
 
-      // If NIP-85 only mode is enabled and we have no stats, return empty map
+      // If NIP-85 only mode and no NIP-85 stats came back, seed empty stats
+      // only for IDs that still have no cached data (never overwrite good data).
       if (nip85OnlyMode && !hasAnyNip85Stats) {
-        const emptyMap = new Map<string, EventStats>();
-        for (const id of uniqueIds) {
-          emptyMap.set(id, EMPTY_STATS);
-          queryClient.setQueryData(['event-stats', id], EMPTY_STATS);
+        for (const id of uncachedIds) {
+          if (!queryClient.getQueryData<EventStats>(['event-stats', id])) {
+            queryClient.setQueryData(['event-stats', id], EMPTY_STATS);
+          }
         }
-        return emptyMap;
+        return;
       }
 
-      const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
+      // Fetch interaction events from relays
+      try {
+        const combined = AbortSignal.any([signal, AbortSignal.timeout(6000)]);
 
-      // Fetch only what we need based on whether we have NIP-85 stats
-      const events = await nostr.query(
-        hasAnyNip85Stats
-          ? [
-              { kinds: [7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 3 },
-              { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 1 },
-            ]
-          : [
-              { kinds: [1, 6, 7, 9735], '#e': uniqueIds, limit: uniqueIds.length * 10 },
-              { kinds: [1], '#q': uniqueIds, limit: uniqueIds.length * 3 },
-            ],
-        { signal: combined },
-      );
+        const events = await nostr.query(
+          hasAnyNip85Stats
+            ? [
+                { kinds: [7, 9735], '#e': uncachedIds, limit: uncachedIds.length * 3 },
+                { kinds: [1], '#q': uncachedIds, limit: uncachedIds.length * 1 },
+              ]
+            : [
+                { kinds: [1, 6, 7, 9735], '#e': uncachedIds, limit: uncachedIds.length * 10 },
+                { kinds: [1], '#q': uncachedIds, limit: uncachedIds.length * 3 },
+              ],
+          { signal: combined },
+        );
 
-      const statsMap = new Map<string, EventStats>();
+        for (const id of uncachedIds) {
+          const computed = computeStats(id, events);
+          const nip85 = nip85StatsMap.get(id);
 
-      for (const id of uniqueIds) {
-        const computed = computeStats(id, events);
-        const nip85 = nip85StatsMap.get(id);
+          const stats: EventStats = nip85 ? {
+            replies: nip85.commentCount,
+            reposts: nip85.repostCount,
+            quotes: computed.quotes,
+            reactions: nip85.reactionCount,
+            zapAmount: computed.zapAmount,
+            zapCount: nip85.zapCount,
+            reactionEmojis: computed.reactionEmojis,
+          } : computed;
 
-        // If we have NIP-85 stats for this event, merge them with computed data
-        const stats: EventStats = nip85 ? {
-          replies: nip85.commentCount,
-          reposts: nip85.repostCount,
-          quotes: computed.quotes, // Keep computed quotes
-          reactions: nip85.reactionCount,
-          zapAmount: computed.zapAmount, // NIP-85 doesn't include zap amounts
-          zapCount: nip85.zapCount,
-          reactionEmojis: computed.reactionEmojis, // Keep computed emojis
-        } : computed;
-
-        statsMap.set(id, stats);
-
-        // Seed individual cache
-        queryClient.setQueryData(['event-stats', id], stats);
-      }
-
-      return statsMap;
-    },
-    staleTime: 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    enabled: enabled && uniqueIds.length > 0,
-    placeholderData: () => {
-      // When pagination adds new events, pull cached stats from individual queries
-      // to prevent stats from disappearing while the new batch query is loading
-      const placeholderMap = new Map<string, EventStats>();
-      for (const id of uniqueIds) {
-        const cached = queryClient.getQueryData<EventStats>(['event-stats', id]);
-        if (cached) {
-          placeholderMap.set(id, cached);
+          queryClient.setQueryData(['event-stats', id], stats);
         }
+      } catch {
+        // Query failed or was aborted — leave any existing cache intact.
+        // IDs remain in fetchedRef so we don't retry immediately, but
+        // individual useEventStats queries will fill them in on mount.
       }
-      return placeholderMap.size > 0 ? placeholderMap : undefined;
-    },
-  });
+    })();
+
+    return () => controller.abort();
+  }, [idsKey, enabled, nostr, queryClient, statsPubkey, nip85OnlyMode]);
 }
