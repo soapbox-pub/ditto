@@ -10,7 +10,7 @@ import { MewLogo } from '@/components/MewLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
-import SignupDialog from '@/components/auth/SignupDialog';
+import { useOnboarding } from '@/components/InitialSyncGate';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
@@ -62,7 +62,7 @@ export function LeftSidebar() {
   const { feedSettings } = useFeedSettings();
   const { hasUnread } = useNotifications();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
+  const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
 
@@ -113,7 +113,6 @@ export function LeftSidebar() {
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
-    setSignupDialogOpen(false);
   };
 
   const handleLogout = async () => {
@@ -338,11 +337,7 @@ export function LeftSidebar() {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={handleLogin}
-        onSignupClick={() => setSignupDialogOpen(true)}
-      />
-      <SignupDialog
-        isOpen={signupDialogOpen}
-        onClose={() => setSignupDialogOpen(false)}
+        onSignupClick={startSignup}
       />
     </aside>
   );
