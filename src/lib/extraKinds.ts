@@ -137,6 +137,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'whimsy',
   },
   {
+    kind: 37381,
+    showKey: 'showDecks',
+    feedKey: 'feedIncludeDecks',
+    label: 'Magic Decks',
+    description: 'Magic: The Gathering deck lists',
+    route: 'decks',
+    addressable: true,
+    section: 'whimsy',
+  },
+  {
     kind: 37516,
     showKey: 'showTreasures',
     label: 'Treasures',

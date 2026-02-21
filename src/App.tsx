@@ -62,6 +62,8 @@ const defaultConfig: AppConfig = {
     feedIncludeColors: false,
     feedIncludePacks: false,
     feedIncludeStreams: false,
+    showDecks: false,
+    feedIncludeDecks: false,
   },
   nip85StatsPubkey: "5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea",
   nip85OnlyMode: true,

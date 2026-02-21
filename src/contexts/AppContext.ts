@@ -60,6 +60,10 @@ export interface FeedSettings {
   feedIncludePacks: boolean;
   /** Include Streams in the follows/global feed */
   feedIncludeStreams: boolean;
+  /** Show Magic Decks (kind 37381) link in sidebar */
+  showDecks: boolean;
+  /** Include Magic Decks in the follows/global feed */
+  feedIncludeDecks: boolean;
 }
 
 export interface AppConfig {
