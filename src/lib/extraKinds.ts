@@ -49,8 +49,9 @@ export interface ExtraKindDef {
   section: ExtraKindSection;
 }
 
-/** All supported extra content kinds. */
+/** All supported extra content kinds, ordered by section (media → social → whimsy). */
 export const EXTRA_KINDS: ExtraKindDef[] = [
+  // Media
   {
     kind: 34236,
     showKey: 'showVines',
@@ -62,6 +63,17 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'media',
   },
   {
+    kind: 30311,
+    showKey: 'showStreams',
+    feedKey: 'feedIncludeStreams',
+    label: 'Streams',
+    description: 'Live streaming events',
+    route: 'streams',
+    addressable: true,
+    section: 'media',
+  },
+  // Social
+  {
     kind: 1068,
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',
@@ -70,6 +82,27 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'polls',
     addressable: false,
     section: 'social',
+  },
+  {
+    kind: 39089,
+    showKey: 'showPacks',
+    feedKey: 'feedIncludePacks',
+    label: 'Follow Packs',
+    description: 'Curated follow recommendations',
+    route: 'packs',
+    addressable: true,
+    section: 'social',
+  },
+  // Whimsy
+  {
+    kind: 3367,
+    showKey: 'showColors',
+    feedKey: 'feedIncludeColors',
+    label: 'Colors',
+    description: 'Color moment palettes',
+    route: 'colors',
+    addressable: false,
+    section: 'whimsy',
   },
   {
     kind: 37516,
@@ -97,36 +130,6 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
         addressable: false,
       },
     ],
-  },
-  {
-    kind: 3367,
-    showKey: 'showColors',
-    feedKey: 'feedIncludeColors',
-    label: 'Colors',
-    description: 'Color moment palettes',
-    route: 'colors',
-    addressable: false,
-    section: 'whimsy',
-  },
-  {
-    kind: 39089,
-    showKey: 'showPacks',
-    feedKey: 'feedIncludePacks',
-    label: 'Follow Packs',
-    description: 'Curated follow recommendations',
-    route: 'packs',
-    addressable: true,
-    section: 'social',
-  },
-  {
-    kind: 30311,
-    showKey: 'showStreams',
-    feedKey: 'feedIncludeStreams',
-    label: 'Streams',
-    description: 'Live streaming events',
-    route: 'streams',
-    addressable: true,
-    section: 'media',
   },
 ];
 
