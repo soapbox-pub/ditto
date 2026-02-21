@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
@@ -103,7 +103,7 @@ export function SearchPage() {
 
   // Hooks
   const { posts: allPosts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
-  const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
+  const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
   const { data: rawSortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
@@ -360,7 +360,7 @@ export function SearchPage() {
                 ) : profiles && profiles.length > 0 ? (
                   <div className="divide-y divide-border">
                     {profiles.map((profile) => (
-                      <AccountItem key={profile.pubkey} profile={profile} />
+                      <AccountItem key={profile.pubkey} profile={profile} isFollowed={followedPubkeys.has(profile.pubkey)} />
                     ))}
                   </div>
                 ) : (
@@ -427,7 +427,7 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   );
 }
 
-function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } } }) {
+function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metadata: Record<string, unknown>; event?: { tags: string[][] } }; isFollowed: boolean }) {
   const npub = useMemo(() => nip19.npubEncode(profile.pubkey), [profile.pubkey]);
   const metadata = profile.metadata as { name?: string; nip05?: string; picture?: string; about?: string; bot?: boolean };
   const displayName = metadata?.name || genUserName(profile.pubkey);
@@ -438,12 +438,22 @@ function AccountItem({ profile }: { profile: { pubkey: string; metadata: Record<
       to={`/${npub}`}
       className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
     >
-      <Avatar className="size-11 shrink-0">
-        <AvatarImage src={metadata?.picture} alt={displayName} />
-        <AvatarFallback className="bg-primary/20 text-primary text-sm">
-          {displayName[0]?.toUpperCase() || '?'}
-        </AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="size-11">
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+        {isFollowed && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
+            title="Following"
+          >
+            <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
+          </span>
+        )}
+      </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <p className="font-bold text-[15px] truncate">

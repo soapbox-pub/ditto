@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { MentionAutocomplete } from '@/components/MentionAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -235,10 +236,15 @@ export function ComposeBox({
     return content.match(urlRegex) || [];
   }, [content]);
 
-  // Check if content has any previewable content (link previews, images, or videos)
+  // Detect nostr:npub/nprofile mentions in content
+  const hasMentions = useMemo(() => {
+    return /nostr:(npub1|nprofile1)[023456789acdefghjklmnpqrstuvwxyz]+/.test(content);
+  }, [content]);
+
+  // Check if content has any previewable content (link previews, images, videos, or mentions)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0;
-  }, [visibleEmbeds, previewImages, previewVideos]);
+    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0 || hasMentions;
+  }, [visibleEmbeds, previewImages, previewVideos, hasMentions]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -288,6 +294,19 @@ export function ComposeBox({
     }
     expand();
   }, [content, expand]);
+
+  const handleInsertMention = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
+    const newContent = content.slice(0, start) + replacement + content.slice(end);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.focus();
+        const pos = start + replacement.length;
+        textarea.setSelectionRange(pos, pos);
+      }
+    });
+  }, [content]);
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
@@ -367,6 +386,25 @@ export function ComposeBox({
       const hashtags = content.match(/#\w+/g)?.map((t) => t.slice(1)) || [];
       const tags: string[][] = hashtags.map((t) => ['t', t.toLowerCase()]);
 
+      // NIP-27 mention p tags — extract nostr:npub1... from content
+      const mentionMatches = content.matchAll(/nostr:(npub1[023456789acdefghjklmnpqrstuvwxyz]+)/g);
+      const mentionedPubkeys = new Set<string>();
+      for (const match of mentionMatches) {
+        try {
+          const decoded = nip19.decode(match[1]);
+          if (decoded.type === 'npub') {
+            mentionedPubkeys.add(decoded.data);
+          }
+        } catch {
+          // Invalid bech32, skip
+        }
+      }
+      // Don't include ourselves
+      mentionedPubkeys.delete(user.pubkey);
+      for (const pk of mentionedPubkeys) {
+        tags.push(['p', pk]);
+      }
+
       // NIP-10 reply tags
       if (replyTo) {
         // Determine root of the thread
@@ -381,13 +419,15 @@ export function ComposeBox({
         }
 
         // Add p tags: original author + all existing p tags from the parent
+        // Skip pubkeys already added by mention detection above
         const pPubkeys = new Set<string>();
         pPubkeys.add(replyTo.pubkey);
         for (const tag of replyTo.tags) {
           if (tag[0] === 'p' && tag[1]) pPubkeys.add(tag[1]);
         }
-        // Don't include ourselves
+        // Don't include ourselves or already-mentioned pubkeys
         if (user.pubkey) pPubkeys.delete(user.pubkey);
+        for (const pk of mentionedPubkeys) pPubkeys.delete(pk);
         for (const pk of pPubkeys) {
           tags.push(['p', pk]);
         }
@@ -558,30 +598,37 @@ export function ComposeBox({
         <div className="flex-1 min-w-0">
           {!previewMode ? (
           /* Edit mode - Textarea */
-          <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            onFocus={expand}
-            onPaste={handlePaste}
-            placeholder={placeholder}
-            className={cn(
-              'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
-              isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
-            )}
-            rows={isExpanded ? 4 : 1}
-            disabled={!user}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                handleSubmit();
-              }
-            }}
-          />
+          <div className="relative">
+            <textarea
+              ref={textareaRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              onFocus={expand}
+              onPaste={handlePaste}
+              placeholder={placeholder}
+              className={cn(
+                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+                isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
+              )}
+              rows={isExpanded ? 4 : 1}
+              disabled={!user}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  handleSubmit();
+                }
+              }}
+            />
+            <MentionAutocomplete
+              textareaRef={textareaRef}
+              content={content}
+              onInsertMention={handleInsertMention}
+            />
+          </div>
         ) : (
           /* Preview mode - Show how post will look */
           mockEvent && (
-            <div className="pt-2.5 pb-2 min-h-[100px] overflow-hidden">
-              <div className="whitespace-pre-wrap break-words text-lg opacity-85">
+            <div className="pt-2.5 pb-2 min-h-[100px]">
+              <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
               {/* Render images */}
