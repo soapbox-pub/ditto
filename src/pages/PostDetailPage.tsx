@@ -1,6 +1,6 @@
 import { useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight, Trash2 } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -43,7 +43,6 @@ import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -224,7 +223,6 @@ function getParentEventId(event: NostrEvent): string | undefined {
 
 export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPageProps) {
   const { data: event, isLoading, isError } = useEvent(eventId, relays, authorHint);
-  const { isDeleted } = useDeletedEvents();
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
@@ -251,28 +249,6 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
             context={{ type: 'event', eventId, relays, authorHint }}
             onEventFound={setRetryEvent}
           />
-        </PostDetailShell>
-      </MainLayout>
-    );
-  }
-
-  if (isDeleted(resolvedEvent.id)) {
-    return (
-      <MainLayout>
-        <PostDetailShell>
-          <div className="px-4 py-12">
-            <div className="max-w-sm mx-auto flex flex-col items-center text-center gap-3">
-              <div className="flex items-center justify-center size-10 rounded-full bg-muted">
-                <Trash2 className="size-5 text-muted-foreground" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-foreground">Post Deleted</p>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  This post has been deleted by its author.
-                </p>
-              </div>
-            </div>
-          </div>
         </PostDetailShell>
       </MainLayout>
     );
@@ -646,7 +622,6 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
-  const { isDeleted } = useDeletedEvents();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -669,13 +644,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const { data: stats } = useEventStats(event.id);
   const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
   const replies = useMemo(() => {
-    if (!rawReplies) return rawReplies;
-    return rawReplies.filter((r) => {
-      if (muteItems.length > 0 && isEventMuted(r, muteItems)) return false;
-      if (isDeleted(r.id)) return false;
-      return true;
-    });
-  }, [rawReplies, muteItems, isDeleted]);
+    if (!rawReplies || muteItems.length === 0) return rawReplies;
+    return rawReplies.filter((r) => !isEventMuted(r, muteItems));
+  }, [rawReplies, muteItems]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);

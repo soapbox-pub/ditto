@@ -14,7 +14,6 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useBatchEventStats } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 
 import { cn } from '@/lib/utils';
@@ -23,7 +22,6 @@ import type { FeedItem } from '@/hooks/useFeed';
 export function Feed() {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
-  const { isDeleted } = useDeletedEvents();
   
   // Load feed tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -104,11 +102,9 @@ export function Feed() {
       seen.add(key);
       // Filter out muted events
       if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
-      // Filter out deleted events
-      if (isDeleted(item.event.id)) return false;
       return true;
     }) || [];
-  }, [data?.pages, muteItems, isDeleted]);
+  }, [data?.pages, muteItems]);
 
   // Batch-prefetch all author profiles in a single relay query instead of
   // firing N individual useAuthor() calls from each NoteCard.  The results

@@ -23,7 +23,6 @@ import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { getProfileUrl } from '@/lib/profileUrl';
@@ -46,7 +45,6 @@ export function NotificationsPage() {
   const { user } = useCurrentUser();
   const { notifications, newNotifications, isLoading, hasFetched, markAsRead } = useNotifications();
   const { muteItems } = useMuteList();
-  const { isDeleted } = useDeletedEvents();
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
@@ -67,13 +65,11 @@ export function NotificationsPage() {
     if (muteItems.length > 0) {
       filtered = filtered.filter((e) => !isEventMuted(e, muteItems));
     }
-    // Filter out deleted events
-    filtered = filtered.filter((e) => !isDeleted(e.id));
     if (activeTab === 'mentions') {
       filtered = filtered.filter((e) => e.kind === 1);
     }
     return filtered;
-  }, [notifications, activeTab, muteItems, isDeleted]);
+  }, [notifications, activeTab, muteItems]);
 
   // Create a set of new notification IDs for quick lookup
   const newNotificationIds = useMemo(
