@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -9,7 +10,9 @@ import { DomainFavicon } from '@/components/DomainFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -68,6 +71,7 @@ export function DomainFeedPage() {
     description: domain ? `Posts from users on ${domain}` : 'Domain feed',
   });
 
+  const { muteItems } = useMuteList();
   const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain, config.corsProxy);
 
   const { data: events, isLoading: eventsLoading } = useQuery<NostrEvent[]>({
@@ -82,6 +86,11 @@ export function DomainFeedPage() {
     },
     enabled: !!pubkeys && pubkeys.length > 0,
   });
+
+  const filteredEvents = useMemo(() => {
+    if (!events || muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
 
   const isLoading = pubkeysLoading || eventsLoading;
 
@@ -129,8 +138,8 @@ export function DomainFeedPage() {
               </div>
             ))}
           </div>
-        ) : events && events.length > 0 ? (
-          events.map((event) => <NoteCard key={event.id} event={event} />)
+        ) : filteredEvents && filteredEvents.length > 0 ? (
+          filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
         ) : pubkeys && pubkeys.length === 0 ? (
           <div className="py-16 text-center text-muted-foreground">
             No users found on {domain}.

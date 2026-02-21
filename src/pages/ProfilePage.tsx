@@ -22,6 +22,8 @@ import { useToast } from '@/hooks/useToast';
 import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
@@ -89,6 +91,8 @@ interface ProfileMoreMenuProps {
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+  const { addMute, removeMute, isMuted } = useMuteList();
+  const userMuted = isMuted('pubkey', pubkey);
 
   const close = () => onOpenChange(false);
 
@@ -111,7 +115,16 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMor
   };
 
   const handleMuteUser = () => {
-    toast({ title: 'Mute user is not yet implemented' });
+    const muteItem = { type: 'pubkey' as const, value: pubkey };
+    const mutation = userMuted ? removeMute : addMute;
+    mutation.mutate(muteItem, {
+      onSuccess: () => {
+        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
+      },
+      onError: () => {
+        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
+      },
+    });
     close();
   };
 
@@ -148,7 +161,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMor
         <div className="py-1">
           <MenuRow
             icon={<VolumeX className="size-5" />}
-            label={`Mute @${displayName}`}
+            label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
             onClick={handleMuteUser}
           />
           <MenuRow
@@ -555,6 +568,7 @@ export function ProfilePage() {
   const npub = params.npub ?? params.nip19;
   const { user } = useCurrentUser();
   const { toast } = useToast();
+  const { muteItems } = useMuteList();
 
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
@@ -662,7 +676,7 @@ export function ProfilePage() {
     }
   };
 
-  // Flatten feed pages and deduplicate
+  // Flatten feed pages, deduplicate, and filter muted content
   const feedItems = useMemo(() => {
     if (!feedData?.pages) return [];
     const seen = new Set<string>();
@@ -672,12 +686,13 @@ export function ProfilePage() {
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
           seen.add(key);
+          if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) continue;
           items.push(item);
         }
       }
     }
     return items;
-  }, [feedData?.pages]);
+  }, [feedData?.pages, muteItems]);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {

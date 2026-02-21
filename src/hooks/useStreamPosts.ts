@@ -1,7 +1,9 @@
 import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo } from 'react';
 import { useFeedSettings } from './useFeedSettings';
+import { useMuteList } from './useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 
 interface StreamPostsOptions {
@@ -82,6 +84,7 @@ function filterEvent(event: NostrEvent, options: StreamPostsOptions, searchQuery
 export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
+  const { muteItems } = useMuteList();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -211,10 +214,13 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     };
   }, [nostr, query, isVines, kindsKey, options.language, options.mediaType]);
 
-  // Apply client-side filters without restarting the stream
+  // Apply client-side filters (including mute filtering) without restarting the stream
   const posts = useMemo(() => {
-    return allEvents.filter((event) => filterEvent(event, options, query));
-  }, [allEvents, options.includeReplies, options.mediaType, query]);
+    return allEvents.filter((event) => {
+      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      return filterEvent(event, options, query);
+    });
+  }, [allEvents, options.includeReplies, options.mediaType, query, muteItems]);
 
   return { posts, isLoading };
 }

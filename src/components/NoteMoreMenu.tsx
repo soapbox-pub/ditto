@@ -26,6 +26,7 @@ import { useBookmarks } from '@/hooks/useBookmarks';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useMuteList } from '@/hooks/useMuteList';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
@@ -70,6 +71,8 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
+  const { addMute, removeMute, isMuted } = useMuteList();
+  const userMuted = isMuted('pubkey', event.pubkey);
 
   const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
 
@@ -117,7 +120,20 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   };
 
   const handleMuteConversation = () => {
-    toast({ title: 'Mute conversation is not yet implemented' });
+    // Mute the root event of the thread, or this event if it's the root
+    const rootTag = event.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
+    const threadId = rootTag?.[1] ?? event.id;
+    addMute.mutate(
+      { type: 'thread', value: threadId },
+      {
+        onSuccess: () => {
+          toast({ title: 'Conversation muted' });
+        },
+        onError: () => {
+          toast({ title: 'Failed to mute conversation', variant: 'destructive' });
+        },
+      },
+    );
     close();
   };
 
@@ -127,7 +143,16 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   };
 
   const handleMuteUser = () => {
-    toast({ title: 'Mute user is not yet implemented' });
+    const muteItem = { type: 'pubkey' as const, value: event.pubkey };
+    const mutation = userMuted ? removeMute : addMute;
+    mutation.mutate(muteItem, {
+      onSuccess: () => {
+        toast({ title: userMuted ? `Unmuted @${displayName}` : `Muted @${displayName}` });
+      },
+      onError: () => {
+        toast({ title: userMuted ? 'Failed to unmute user' : 'Failed to mute user', variant: 'destructive' });
+      },
+    });
     close();
   };
 
@@ -230,7 +255,7 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
             <div className="py-1">
               <MenuItem
                 icon={<VolumeX className="size-5" />}
-                label={`Mute @${displayName}`}
+                label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
                 onClick={handleMuteUser}
               />
               <MenuItem

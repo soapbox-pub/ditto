@@ -22,6 +22,8 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
 import { useEventStats } from '@/hooks/useTrending';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { canZap } from '@/lib/canZap';
@@ -42,6 +44,7 @@ export function NotificationsPage() {
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
   const { notifications, newNotifications, isLoading, hasFetched, markAsRead } = useNotifications();
+  const { muteItems } = useMuteList();
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
@@ -57,11 +60,16 @@ export function NotificationsPage() {
   }, [user, newNotifications.length, markAsRead]);
 
   const filteredNotifications = useMemo(() => {
-    if (activeTab === 'mentions') {
-      return notifications.filter((e) => e.kind === 1);
+    let filtered = notifications;
+    // Filter out notifications from muted users/content
+    if (muteItems.length > 0) {
+      filtered = filtered.filter((e) => !isEventMuted(e, muteItems));
     }
-    return notifications;
-  }, [notifications, activeTab]);
+    if (activeTab === 'mentions') {
+      filtered = filtered.filter((e) => e.kind === 1);
+    }
+    return filtered;
+  }, [notifications, activeTab, muteItems]);
 
   // Create a set of new notification IDs for quick lookup
   const newNotificationIds = useMemo(

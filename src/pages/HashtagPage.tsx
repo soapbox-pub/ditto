@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
@@ -7,7 +8,9 @@ import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
@@ -15,6 +18,7 @@ export function HashtagPage() {
   const { tag } = useParams<{ tag: string }>();
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
+  const { muteItems } = useMuteList();
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => k !== 6);
   const kindsKey = [...kinds].sort().join(',');
@@ -36,6 +40,11 @@ export function HashtagPage() {
     },
     enabled: !!tag,
   });
+
+  const filteredEvents = useMemo(() => {
+    if (!events || muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
 
   return (
     <MainLayout>
@@ -62,8 +71,8 @@ export function HashtagPage() {
               </div>
             ))}
           </div>
-        ) : events && events.length > 0 ? (
-          events.map((event) => <NoteCard key={event.id} event={event} />)
+        ) : filteredEvents && filteredEvents.length > 0 ? (
+          filteredEvents.map((event) => <NoteCard key={event.id} event={event} />)
         ) : (
           <div className="py-16 text-center text-muted-foreground">
             No posts found with #{tag}.

@@ -5,6 +5,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
@@ -87,8 +89,14 @@ export function RightSidebar() {
   }, []);
 
   const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl && sidebarEnabled);
-  const { data: hotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl && sidebarEnabled);
+  const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl && sidebarEnabled);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl && sidebarEnabled);
+  const { muteItems } = useMuteList();
+
+  const hotPosts = useMemo(() => {
+    if (!rawHotPosts || muteItems.length === 0) return rawHotPosts;
+    return rawHotPosts.filter((e) => !isEventMuted(e, muteItems));
+  }, [rawHotPosts, muteItems]);
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
