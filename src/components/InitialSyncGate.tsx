@@ -7,7 +7,7 @@ import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { cn } from '@/lib/utils';
-import { Check, ChevronRight, Eye, EyeOff, Shield } from 'lucide-react';
+import { Check, ChevronRight, Eye, EyeOff, Shield, Clapperboard, BarChart3, MapPin, Palette, Users, Radio, type LucideIcon } from 'lucide-react';
 
 interface InitialSyncGateProps {
   children: ReactNode;
@@ -112,18 +112,18 @@ interface ContentKind {
   key: string;
   label: string;
   description: string;
-  icon: string;
+  icon: LucideIcon;
   sidebarKey: string;
   feedKey: string;
 }
 
 const CONTENT_KINDS: ContentKind[] = [
-  { key: 'vines', label: 'Vines', description: 'Short video clips', icon: '🎬', sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
-  { key: 'polls', label: 'Polls', description: 'Community polls', icon: '📊', sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
-  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: '🗺️', sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
-  { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: '🎨', sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
-  { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: '👥', sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
-  { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: '📡', sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
+  { key: 'vines', label: 'Vines', description: 'Short video clips', icon: Clapperboard, sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
+  { key: 'polls', label: 'Polls', description: 'Community polls', icon: BarChart3, sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
+  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: MapPin, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
+  { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
+  { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
+  { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: Radio, sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
 ];
 
 const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
@@ -143,7 +143,7 @@ function SetupQuestionnaire({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState<Step>('welcome');
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dark');
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
-    new Set(['vines', 'packs', 'streams']),
+    new Set(['vines', 'streams']),
   );
   const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
@@ -401,7 +401,12 @@ function ContentStep({
                   : 'ring-1 ring-border hover:bg-muted/50',
               )}
             >
-              <span className="text-2xl flex-shrink-0">{kind.icon}</span>
+              <div className={cn(
+                'w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0',
+                isSelected ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground',
+              )}>
+                <kind.icon className="w-5 h-5" />
+              </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">{kind.label}</p>
                 <p className="text-xs text-muted-foreground">{kind.description}</p>
