@@ -90,7 +90,7 @@ export function AdvancedSettings() {
             <CollapsibleTrigger asChild>
               <Button 
                 variant="ghost" 
-                className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
                 <span className="text-base font-semibold">Wallet</span>
                 {walletOpen ? (
@@ -98,6 +98,7 @@ export function AdvancedSettings() {
                 ) : (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -118,7 +119,7 @@ export function AdvancedSettings() {
             <CollapsibleTrigger asChild>
               <Button 
                 variant="ghost" 
-                className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
               >
                 <span className="text-base font-semibold">Network</span>
                 {relaysOpen ? (
@@ -126,6 +127,7 @@ export function AdvancedSettings() {
                 ) : (
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
               </Button>
             </CollapsibleTrigger>
             <CollapsibleContent>
@@ -232,7 +234,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Stats Source</span>
               {statsOpen ? (
@@ -240,6 +242,7 @@ export function AdvancedSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -307,7 +310,7 @@ export function AdvancedSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">System</span>
               {servicesOpen ? (
@@ -315,6 +318,7 @@ export function AdvancedSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
