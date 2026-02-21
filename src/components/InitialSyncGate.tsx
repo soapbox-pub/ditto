@@ -886,9 +886,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
           You're all set
         </h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Thanks for taking the time to set things up. Mew is built for people
-          who value real connection over noise. We hope it becomes a place
-          you genuinely enjoy coming back to.
+          Your cozy corner of the internet awaits.
         </p>
       </div>
 
