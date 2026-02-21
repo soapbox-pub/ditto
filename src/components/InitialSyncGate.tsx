@@ -16,6 +16,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useUploadFile } from '@/hooks/useUploadFile';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuthors } from '@/hooks/useAuthors';
 import { genUserName } from '@/lib/genUserName';
 import { toast } from '@/hooks/useToast';
@@ -36,8 +37,17 @@ import {
   Heart,
   Download,
   Upload,
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
   type LucideIcon,
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 
 // ---------------------------------------------------------------------------
@@ -73,6 +83,7 @@ interface InitialSyncGateProps {
  * - Also provides `useOnboarding().startSignup()` for triggering signup from anywhere.
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
+  const { user } = useCurrentUser();
   const { phase, markComplete } = useInitialSync();
   const [preloadApp, setPreloadApp] = useState(false);
   const [signupActive, setSignupActive] = useState(false);
@@ -86,7 +97,7 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
 
   const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
 
-  // Signup flow takes priority over everything
+  // Signup flow takes priority (doesn't require a logged-in user yet)
   if (signupActive) {
     return (
       <OnboardingContext.Provider value={contextValue}>
@@ -96,6 +107,15 @@ export function InitialSyncGate({ children }: InitialSyncGateProps) {
           onPreload={() => setPreloadApp(true)}
           isSignup
         />
+      </OnboardingContext.Provider>
+    );
+  }
+
+  // Don't show sync/onboarding when logged out — just show the app
+  if (!user) {
+    return (
+      <OnboardingContext.Provider value={contextValue}>
+        {children}
       </OnboardingContext.Provider>
     );
   }
@@ -570,13 +590,19 @@ function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => vo
 
 function ProfileStep({ onNext }: { onNext: () => void }) {
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const avatarFileInputRef = useRef<HTMLInputElement>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement>(null);
+  const [moreOpen, setMoreOpen] = useState(false);
 
-  const [profileData, setProfileData] = useState({ name: '', about: '', picture: '' });
+  const [profileData, setProfileData] = useState({
+    name: '', about: '', picture: '', banner: '', website: '',
+    fields: [] as Array<{ label: string; value: string }>,
+  });
 
-  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>, field: 'picture' | 'banner') => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
@@ -586,49 +612,74 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
       return;
     }
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: 'File too large', description: 'Avatar must be smaller than 5MB.', variant: 'destructive' });
+      toast({ title: 'File too large', description: 'Image must be smaller than 5MB.', variant: 'destructive' });
       return;
     }
 
     try {
       const tags = await uploadFile(file);
       const url = tags[0]?.[1];
-      if (url) setProfileData((prev) => ({ ...prev, picture: url }));
+      if (url) setProfileData((prev) => ({ ...prev, [field]: url }));
     } catch {
-      toast({ title: 'Upload failed', description: 'Failed to upload avatar.', variant: 'destructive' });
+      toast({ title: 'Upload failed', description: 'Failed to upload image.', variant: 'destructive' });
     }
   }, [uploadFile]);
 
   const handlePublishProfile = useCallback(async () => {
     if (!user) return;
 
-    const metadata: Record<string, string> = {};
+    const metadata: Record<string, unknown> = {};
     if (profileData.name) metadata.name = profileData.name;
     if (profileData.about) metadata.about = profileData.about;
     if (profileData.picture) metadata.picture = profileData.picture;
+    if (profileData.banner) metadata.banner = profileData.banner;
+    if (profileData.website) metadata.website = profileData.website;
+    const validFields = profileData.fields.filter((f) => f.label.trim() && f.value.trim());
+    if (validFields.length > 0) metadata.fields = validFields.map((f) => [f.label, f.value]);
 
     if (Object.keys(metadata).length > 0) {
       try {
         await publishEvent({ kind: 0, content: JSON.stringify(metadata) });
+        // Update local caches so the profile is visible immediately
+        queryClient.invalidateQueries({ queryKey: ['logins'] });
+        queryClient.invalidateQueries({ queryKey: ['author', user.pubkey] });
       } catch {
         toast({ title: 'Profile failed', description: 'Your account was created but profile setup failed. You can update it later.', variant: 'destructive' });
       }
     }
 
     onNext();
-  }, [user, profileData, publishEvent, onNext]);
+  }, [user, profileData, publishEvent, queryClient, onNext]);
+
+  const addField = useCallback(() => {
+    setProfileData((prev) => ({ ...prev, fields: [...prev.fields, { label: '', value: '' }] }));
+  }, []);
+
+  const removeField = useCallback((index: number) => {
+    setProfileData((prev) => ({ ...prev, fields: prev.fields.filter((_, i) => i !== index) }));
+  }, []);
+
+  const updateField = useCallback((index: number, key: 'label' | 'value', val: string) => {
+    setProfileData((prev) => ({
+      ...prev,
+      fields: prev.fields.map((f, i) => i === index ? { ...f, [key]: val } : f),
+    }));
+  }, []);
 
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
-      <div className="flex justify-center">
-        <MewLogo size={80} />
-      </div>
-
-      <div className="space-y-2">
-        <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
-        <p className="text-sm text-muted-foreground">
-          Tell people a bit about yourself. You can always change this later.
-        </p>
+      <div className="flex items-center gap-4">
+        <img
+          src="/profile-intro.png"
+          alt=""
+          className="w-40 shrink-0 mix-blend-difference opacity-80"
+        />
+        <div className="space-y-2">
+          <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
+          <p className="text-sm text-muted-foreground">
+            Tell people a bit about yourself. You can always change this later.
+          </p>
+        </div>
       </div>
 
       <div className={cn('space-y-4', isPublishing && 'opacity-50 pointer-events-none')}>
@@ -672,7 +723,7 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
               accept="image/*"
               className="hidden"
               ref={avatarFileInputRef}
-              onChange={handleAvatarUpload}
+              onChange={(e) => handleImageUpload(e, 'picture')}
             />
             <Button
               type="button"
@@ -689,6 +740,130 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
             </Button>
           </div>
         </div>
+
+        {/* More details */}
+        <Collapsible open={moreOpen} onOpenChange={setMoreOpen}>
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mx-auto"
+            >
+              More details
+              {moreOpen ? (
+                <ChevronUp className="w-3.5 h-3.5" />
+              ) : (
+                <ChevronDown className="w-3.5 h-3.5" />
+              )}
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="space-y-4 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Add a banner image, website, and custom profile fields. These help others learn more about you and are visible on your profile page.
+            </p>
+
+            <div className="space-y-1.5">
+              <label htmlFor="onboard-banner" className="text-sm font-medium">Banner</label>
+              <div className="flex gap-2">
+                <Input
+                  id="onboard-banner"
+                  value={profileData.banner}
+                  onChange={(e) => setProfileData((prev) => ({ ...prev, banner: e.target.value }))}
+                  placeholder="https://example.com/banner.jpg"
+                  className="flex-1"
+                  disabled={isPublishing}
+                />
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  ref={bannerFileInputRef}
+                  onChange={(e) => handleImageUpload(e, 'banner')}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={() => bannerFileInputRef.current?.click()}
+                  disabled={isUploading || isPublishing}
+                >
+                  {isUploading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Upload className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              {profileData.banner && (
+                <div className="h-20 w-full rounded-lg overflow-hidden border">
+                  <img src={profileData.banner} alt="Banner preview" className="h-full w-full object-cover" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="onboard-website" className="text-sm font-medium">Website</label>
+              <Input
+                id="onboard-website"
+                value={profileData.website}
+                onChange={(e) => setProfileData((prev) => ({ ...prev, website: e.target.value }))}
+                placeholder="https://yourwebsite.com"
+                disabled={isPublishing}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium">Profile Fields</label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addField}
+                  className="h-7 text-xs gap-1"
+                  disabled={isPublishing}
+                >
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Custom label/value pairs like social links, Bitcoin address, or anything else.
+              </p>
+              {profileData.fields.length > 0 && (
+                <div className="space-y-2 pt-1">
+                  {profileData.fields.map((field, index) => (
+                    <div key={index} className="grid grid-cols-[1fr,2fr,auto] gap-2 items-center">
+                      <Input
+                        value={field.label}
+                        onChange={(e) => updateField(index, 'label', e.target.value)}
+                        placeholder="Label"
+                        className="h-8 text-sm"
+                        disabled={isPublishing}
+                      />
+                      <Input
+                        value={field.value}
+                        onChange={(e) => updateField(index, 'value', e.target.value)}
+                        placeholder="Value or URL"
+                        className="h-8 text-sm"
+                        disabled={isPublishing}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => removeField(index)}
+                        className="h-8 w-8 text-destructive hover:text-destructive"
+                        disabled={isPublishing}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
 
       <div className="flex gap-3">

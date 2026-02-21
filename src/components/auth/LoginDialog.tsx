@@ -450,6 +450,19 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
         </div>
 
         <div className='px-6 pb-6 space-y-4 overflow-y-auto'>
+          {onSignupClick && (
+            <p className="text-center text-sm text-muted-foreground">
+              New here?{' '}
+              <button
+                type="button"
+                onClick={() => { onClose(); onSignupClick(); }}
+                className="text-primary hover:underline font-medium"
+              >
+                Create account
+              </button>
+            </p>
+          )}
+
           {/* Extension Login Button - shown if extension is available */}
           {hasExtension && (
             <div className="space-y-3">
@@ -467,19 +480,6 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
                 {isLoading ? 'Logging in...' : 'Log in with Extension'}
               </Button>
             </div>
-          )}
-
-          {onSignupClick && (
-            <p className="text-center text-sm text-muted-foreground">
-              New here?{' '}
-              <button
-                type="button"
-                onClick={() => { onClose(); onSignupClick(); }}
-                className="text-primary hover:underline font-medium"
-              >
-                Create account
-              </button>
-            </p>
           )}
 
           {/* Tabs - wrapped in collapsible if extension is available, otherwise shown directly */}
