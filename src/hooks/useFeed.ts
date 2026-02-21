@@ -109,6 +109,20 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
 
+      /** Collect all unique pubkeys from a set of feed items: event authors + p-tag mentions. */
+      function collectPubkeys(items: FeedItem[]): string[] {
+        const pubkeys = new Set<string>();
+        for (const { event } of items) {
+          pubkeys.add(event.pubkey);
+          for (const tag of event.tags) {
+            if (tag[0] === 'p' && tag[1]) {
+              pubkeys.add(tag[1]);
+            }
+          }
+        }
+        return [...pubkeys];
+      }
+
       /**
        * Fetch kind 0 metadata for the given pubkeys and seed each into the
        * individual `['author', pubkey]` query cache so that subsequent
@@ -262,10 +276,9 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Cache kind 0 for any remaining authors (e.g. reposted event authors)
+        // Cache kind 0 for any remaining authors and mentioned pubkeys
         // not already covered by the NIP-05 metadata fetch above.
-        const allItemPubkeys = [...new Set(dedupedItems.map((i) => i.event.pubkey))];
-        await fetchAndCacheAuthors(allItemPubkeys);
+        await fetchAndCacheAuthors(collectPubkeys(dedupedItems));
 
         return { items: dedupedItems, oldestQueryTimestamp };
       } else if (tab === 'follows' && user && followList !== undefined) {
@@ -345,9 +358,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Fetch and cache kind 0 profiles for all authors in this page
-        const allItemPubkeys = [...new Set(dedupedItems.map((i) => i.event.pubkey))];
-        await fetchAndCacheAuthors(allItemPubkeys);
+        // Fetch and cache kind 0 profiles for all authors and mentioned pubkeys
+        await fetchAndCacheAuthors(collectPubkeys(dedupedItems));
 
         return { items: dedupedItems, oldestQueryTimestamp };
       } else {
@@ -375,9 +387,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
 
-        // Fetch and cache kind 0 profiles for all authors in this page
-        const allItemPubkeys = [...new Set(items.map((i) => i.event.pubkey))];
-        await fetchAndCacheAuthors(allItemPubkeys);
+        // Fetch and cache kind 0 profiles for all authors and mentioned pubkeys
+        await fetchAndCacheAuthors(collectPubkeys(items));
 
         return { items, oldestQueryTimestamp };
       }
