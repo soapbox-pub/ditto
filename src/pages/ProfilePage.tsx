@@ -14,7 +14,7 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -426,7 +426,7 @@ function ProfileFieldInline({ field }: { field: { label: string; value: string }
   if (isUrl) {
     return (
       <div className="flex items-center gap-1.5 min-w-0">
-        <DomainFavicon domain={field.value} size={16} />
+        <ExternalFavicon url={field.value} size={16} className="shrink-0" />
         <span className="text-sm text-muted-foreground shrink-0">{field.label}</span>
         <a
           href={field.value}

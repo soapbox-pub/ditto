@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { DomainFavicon } from '@/components/DomainFavicon';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
@@ -83,7 +83,7 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
             <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
               <span className="truncate">@{nip05Display}</span>
               {nip05Domain && (
-                <DomainFavicon domain={nip05Domain} size={14} className="shrink-0" />
+                <ExternalFavicon url={`https://${nip05Domain}`} size={14} className="shrink-0" />
               )}
             </div>
           )}
