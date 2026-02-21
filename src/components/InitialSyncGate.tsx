@@ -886,7 +886,8 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
           You're all set
         </h2>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Your cozy corner of the internet awaits.
+          That's it! Go find something wonderful, share something weird,
+          and make yourself at home.
         </p>
       </div>
 
