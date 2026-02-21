@@ -101,6 +101,8 @@ export function ComposeBox({
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
   const [uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
+  /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
+  const [uploadedFileGroups, setUploadedFileGroups] = useState<Map<string, string[][]>>(new Map());
   /** Maps .xdc URLs to their generated webxdc UUIDs. */
   const [webxdcUuids, setWebxdcUuids] = useState<Map<string, string>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -285,14 +287,25 @@ export function ComposeBox({
   const handleFileUpload = useCallback(async (file: File) => {
     try {
       const tags = await uploadFile(file);
-      const [[, url]] = tags;
-      
+      let [[, url]] = tags;
+
+      // Blossom returns hash-based URLs that may lack the original file extension.
+      // Append the extension so downstream media-URL detection and imeta generation work.
+      const isXdc = file.name.endsWith('.xdc');
+      if (isXdc && !url.endsWith('.xdc')) {
+        url = url + '.xdc';
+        // Update the url tag in the NIP-94 tags to match
+        const urlTag = tags.find(t => t[0] === 'url');
+        if (urlTag) urlTag[1] = url;
+      }
+
       // Store the full NIP-94 tags for later use in imeta
       setUploadedFileTags((prev) => [...prev, ...tags]);
+      setUploadedFileGroups((prev) => new Map(prev).set(url, tags));
       setContent((prev) => (prev ? prev + '\n' + url : url));
 
       // For .xdc files, generate a webxdc UUID for stateful coordination
-      if (file.name.endsWith('.xdc')) {
+      if (isXdc) {
         const uuid = crypto.randomUUID();
         setWebxdcUuids((prev) => new Map(prev).set(url, uuid));
       }
@@ -387,28 +400,18 @@ export function ComposeBox({
         const ext = match[1].toLowerCase();
         const isWebxdc = ext === 'xdc';
 
-        // Check if this URL was uploaded (has full metadata)
-        const uploadedTag = uploadedFileTags.find(tag => tag[0] === 'url' && tag[1] === url);
+        // Build imeta from grouped upload tags if available, otherwise infer
+        const fileTags = uploadedFileGroups.get(url);
         
-        if (uploadedTag) {
-          // Use the full NIP-94 metadata from the upload
-          const imetaFields = uploadedFileTags
-            .filter(tag => {
-              // Get all tags for this URL
-              const urlTag = uploadedFileTags.find(t => t[0] === 'url' && t[1] === url);
-              return urlTag && uploadedFileTags.indexOf(tag) >= uploadedFileTags.indexOf(urlTag);
-            })
-            .map(tag => `${tag[0]} ${tag[1]}`);
+        if (fileTags) {
+          const imetaFields = fileTags.map(tag => `${tag[0]} ${tag[1]}`);
 
-          // Override the MIME type for .xdc files and add webxdc UUID
           if (isWebxdc) {
-            // Remove any existing 'm' field and replace with webxdc MIME
+            // Override MIME type for .xdc files and add webxdc UUID
             const filtered = imetaFields.filter(f => !f.startsWith('m '));
             filtered.push('m application/vnd.webxdc+zip');
             const uuid = webxdcUuids.get(url);
-            if (uuid) {
-              filtered.push(`webxdc ${uuid}`);
-            }
+            if (uuid) filtered.push(`webxdc ${uuid}`);
             tags.push(['imeta', ...filtered]);
           } else {
             tags.push(['imeta', ...imetaFields]);
@@ -432,13 +435,13 @@ export function ComposeBox({
           const imetaTag = ['imeta', `url ${url}`, `m ${mimeType}`];
           if (isWebxdc) {
             const uuid = webxdcUuids.get(url);
-            if (uuid) {
-              imetaTag.push(`webxdc ${uuid}`);
-            }
+            if (uuid) imetaTag.push(`webxdc ${uuid}`);
           }
           tags.push(imetaTag);
         }
       }
+
+
 
       await createEvent({
         kind: 1,
@@ -453,6 +456,7 @@ export function ComposeBox({
       setExpanded(false);
       setRemovedEmbeds(new Set());
       setUploadedFileTags([]);
+      setUploadedFileGroups(new Map());
       setWebxdcUuids(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
