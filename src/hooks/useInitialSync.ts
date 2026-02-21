@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNostr } from '@nostrify/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
+import type { EncryptedSettings } from './useEncryptedSettings';
 
 export type SyncPhase =
   | 'idle'         // No user logged in
@@ -17,7 +19,8 @@ const SYNC_TIMEOUT_MS = 8000;
  *
  * - While logged out: phase = 'idle'
  * - On login: phase = 'syncing' (fetch relay list + encrypted settings)
- * - If settings found: phase = 'found' -> auto-transitions to 'complete'
+ * - If settings found: decrypt, apply to config, seed query cache, then
+ *   phase = 'found' -> auto-transitions to 'complete'
  * - If no settings found: phase = 'not-found' (show questionnaire)
  * - After questionnaire: markComplete() -> phase = 'complete'
  *
@@ -28,6 +31,7 @@ export function useInitialSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
+  const queryClient = useQueryClient();
   const [phase, setPhase] = useState<SyncPhase>('idle');
   const syncAttempted = useRef(false);
 
@@ -114,9 +118,45 @@ export function useInitialSync() {
           }
         }
 
-        // Check if encrypted settings exist (we don't decrypt here, NostrSync handles that)
-        if (settingsEvents.length > 0 && settingsEvents[0].content) {
-          foundSettings = true;
+        // Decrypt and apply encrypted settings if found
+        if (settingsEvents.length > 0 && settingsEvents[0].content && user.signer.nip44) {
+          const settingsEvent = settingsEvents[0];
+
+          try {
+            const decrypted = await user.signer.nip44.decrypt(user.pubkey, settingsEvent.content);
+            const parsed = JSON.parse(decrypted) as EncryptedSettings;
+
+            // Apply decrypted settings to local config (same logic as NostrSync)
+            updateConfig((current) => {
+              const updates = { ...current };
+
+              if (parsed.theme) {
+                updates.theme = parsed.theme;
+              }
+              if (parsed.useAppRelays !== undefined) {
+                updates.useAppRelays = parsed.useAppRelays;
+              }
+              if (parsed.feedSettings) {
+                updates.feedSettings = { ...current.feedSettings, ...parsed.feedSettings };
+              }
+              if (parsed.contentWarningPolicy) {
+                updates.contentWarningPolicy = parsed.contentWarningPolicy;
+              }
+
+              return updates;
+            });
+
+            // Seed the TanStack query cache so useEncryptedSettings doesn't
+            // re-fetch the same data and NostrSync sees it immediately.
+            queryClient.setQueryData(['encryptedSettings', user.pubkey], settingsEvent);
+            queryClient.setQueryData(['parsedSettings', settingsEvent.id], parsed);
+
+            foundSettings = true;
+          } catch (error) {
+            console.error('Failed to decrypt settings during initial sync:', error);
+            // Still count the event as found — NostrSync will retry decryption later
+            foundSettings = true;
+          }
         }
       } catch (error) {
         // On timeout or error, treat as not found so the user can still proceed
@@ -147,7 +187,7 @@ export function useInitialSync() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [user, nostr, config.relayMetadata.updatedAt, updateConfig, isCompletedThisSession, markSessionComplete]);
+  }, [user, nostr, config.relayMetadata.updatedAt, updateConfig, queryClient, isCompletedThisSession, markSessionComplete]);
 
   const markComplete = useCallback(() => {
     markSessionComplete();
