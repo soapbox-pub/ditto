@@ -1,9 +1,11 @@
-import { type ReactNode, useState, useCallback, useMemo, useEffect } from 'react';
-import { nip19 } from 'nostr-tools';
+import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef, createContext, useContext } from 'react';
+import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { MewLogo } from '@/components/MewLogo';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Theme, type ContentWarningPolicy } from '@/contexts/AppContext';
@@ -12,8 +14,11 @@ import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
+import { useLoginActions } from '@/hooks/useLoginActions';
+import { useUploadFile } from '@/hooks/useUploadFile';
 import { useAuthors } from '@/hooks/useAuthors';
 import { genUserName } from '@/lib/genUserName';
+import { toast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import {
   Check,
@@ -29,9 +34,32 @@ import {
   UserPlus,
   Loader2,
   Heart,
+  Download,
+  Upload,
   type LucideIcon,
 } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+
+// ---------------------------------------------------------------------------
+// Onboarding context — lets any component trigger the signup onboarding
+// ---------------------------------------------------------------------------
+
+interface OnboardingContextValue {
+  startSignup: () => void;
+}
+
+const OnboardingContext = createContext<OnboardingContextValue>({
+  startSignup: () => {},
+});
+
+/** Call `startSignup()` from anywhere to open the full-screen signup onboarding. */
+export function useOnboarding() {
+  return useContext(OnboardingContext);
+}
+
+// ---------------------------------------------------------------------------
+// InitialSyncGate
+// ---------------------------------------------------------------------------
 
 interface InitialSyncGateProps {
   children: ReactNode;
@@ -42,27 +70,62 @@ interface InitialSyncGateProps {
  * - Logged-out users pass straight through.
  * - Logged-in users see a sync spinner, then either proceed (settings found)
  *   or walk through a brief questionnaire (fresh account / new device with no settings).
+ * - Also provides `useOnboarding().startSignup()` for triggering signup from anywhere.
  */
 export function InitialSyncGate({ children }: InitialSyncGateProps) {
   const { phase, markComplete } = useInitialSync();
   const [preloadApp, setPreloadApp] = useState(false);
+  const [signupActive, setSignupActive] = useState(false);
 
-  // Logged-out or sync already done -> show app
-  if (phase === 'idle' || phase === 'complete') {
-    return <>{children}</>;
+  const startSignup = useCallback(() => setSignupActive(true), []);
+
+  const handleSignupComplete = useCallback(() => {
+    setSignupActive(false);
+    markComplete();
+  }, [markComplete]);
+
+  const contextValue = useMemo(() => ({ startSignup }), [startSignup]);
+
+  // Signup flow takes priority over everything
+  if (signupActive) {
+    return (
+      <OnboardingContext.Provider value={contextValue}>
+        {preloadApp && <div className="invisible">{children}</div>}
+        <SetupQuestionnaire
+          onComplete={handleSignupComplete}
+          onPreload={() => setPreloadApp(true)}
+          isSignup
+        />
+      </OnboardingContext.Provider>
+    );
   }
 
-  // Syncing or found -> show sync screen
+  // Normal logged-in sync flow
   if (phase === 'syncing' || phase === 'found') {
-    return <SyncScreen phase={phase} />;
+    return (
+      <OnboardingContext.Provider value={contextValue}>
+        <SyncScreen phase={phase} />
+      </OnboardingContext.Provider>
+    );
   }
 
-  // Not found -> show setup questionnaire (with app rendered behind if preloading)
+  if (phase === 'not-found') {
+    return (
+      <OnboardingContext.Provider value={contextValue}>
+        {preloadApp && <div className="invisible">{children}</div>}
+        <SetupQuestionnaire
+          onComplete={markComplete}
+          onPreload={() => setPreloadApp(true)}
+        />
+      </OnboardingContext.Provider>
+    );
+  }
+
+  // idle or complete -> show app
   return (
-    <>
-      {preloadApp && <div className="invisible">{children}</div>}
-      <SetupQuestionnaire onComplete={markComplete} onPreload={() => setPreloadApp(true)} />
-    </>
+    <OnboardingContext.Provider value={contextValue}>
+      {children}
+    </OnboardingContext.Provider>
   );
 }
 
@@ -83,12 +146,8 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
         {/* Spinner */}
         <div className="flex flex-col items-center gap-4">
           <div className="relative w-10 h-10">
-            <div
-              className="absolute inset-0 rounded-full border-[2.5px] border-primary/20"
-            />
-            <div
-              className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin"
-            />
+            <div className="absolute inset-0 rounded-full border-[2.5px] border-primary/20" />
+            <div className="absolute inset-0 rounded-full border-[2.5px] border-transparent border-t-primary animate-spin" />
           </div>
 
           <div className="space-y-1.5">
@@ -103,7 +162,6 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
           </div>
         </div>
 
-        {/* Subtle progress dots */}
         {phase === 'syncing' && (
           <div className="flex gap-1.5">
             {[0, 1, 2].map((i) => (
@@ -167,42 +225,57 @@ const SUGGESTED_PACKS: { kind: number; pubkey: string; identifier: string }[] = 
   { kind: 39089, pubkey: '932614571afcbad4d17a191ee281e39eebbb41b93fac8fd87829622aeb112f4d', identifier: 'k4p5w0n22suf' },
 ];
 
-type Step = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
-const STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
+// Steps for signup (includes keygen + profile) vs. settings-only (existing login)
+type SignupStep = 'keygen' | 'download' | 'profile';
+type SettingsStep = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
+type Step = SignupStep | SettingsStep;
 
-function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void; onPreload: () => void }) {
+const SIGNUP_STEPS: Step[] = ['keygen', 'download', 'profile', 'welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
+const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
+
+function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
+  onComplete: () => void;
+  onPreload: () => void;
+  isSignup?: boolean;
+}) {
   const { nostr } = useNostr();
   const { updateConfig } = useAppContext();
   const { user } = useCurrentUser();
   const { updateSettings } = useEncryptedSettings();
+  const login = useLoginActions();
 
-  const [step, setStep] = useState<Step>('welcome');
+  const steps = isSignup ? SIGNUP_STEPS : SETTINGS_STEPS;
+
+  const [step, setStep] = useState<Step>(steps[0]);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dark');
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
     new Set(['vines', 'streams']),
   );
   const [selectedCW, setSelectedCW] = useState<ContentWarningPolicy>('blur');
   const [isSaving, setIsSaving] = useState(false);
-  const [hasFollows, setHasFollows] = useState<boolean | null>(null); // null = unknown
+  const [hasFollows, setHasFollows] = useState<boolean | null>(null);
 
-  const stepIndex = STEPS.indexOf(step);
-  const progress = ((stepIndex) / (STEPS.length - 1)) * 100;
+  // Signup-specific state
+  const [nsec, setNsec] = useState('');
+
+  const stepIndex = steps.indexOf(step);
+  const progress = ((stepIndex) / (steps.length - 1)) * 100;
 
   const goTo = useCallback((target: Step) => setStep(target), []);
 
   const next = useCallback(() => {
-    const i = STEPS.indexOf(step);
-    if (i < STEPS.length - 1) {
-      setStep(STEPS[i + 1]);
+    const i = steps.indexOf(step);
+    if (i < steps.length - 1) {
+      setStep(steps[i + 1]);
     }
-  }, [step]);
+  }, [step, steps]);
 
   const back = useCallback(() => {
-    const i = STEPS.indexOf(step);
+    const i = steps.indexOf(step);
     if (i > 0) {
-      setStep(STEPS[i - 1]);
+      setStep(steps[i - 1]);
     }
-  }, [step]);
+  }, [step, steps]);
 
   const toggleContent = useCallback((key: string) => {
     setSelectedContent((prev) => {
@@ -216,11 +289,51 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
     });
   }, []);
 
+  // Keygen handler
+  const handleGenerate = useCallback(() => {
+    const sk = generateSecretKey();
+    const encoded = nip19.nsecEncode(sk);
+    setNsec(encoded);
+    next();
+  }, [next]);
+
+  // Download + login handler
+  const handleDownloadAndLogin = useCallback(() => {
+    try {
+      const decoded = nip19.decode(nsec);
+      if (decoded.type !== 'nsec') throw new Error('Invalid nsec');
+
+      const pubkey = getPublicKey(decoded.data);
+      const npub = nip19.npubEncode(pubkey);
+      const filename = `nostr-${location.hostname.replaceAll(/\./g, '-')}-${npub.slice(5, 9)}.nsec.txt`;
+
+      const blob = new Blob([nsec], { type: 'text/plain; charset=utf-8' });
+      const url = globalThis.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      globalThis.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      // Log in with the new key
+      login.nsec(nsec);
+      next();
+    } catch {
+      toast({
+        title: 'Download failed',
+        description: 'Could not download the key file. Please copy it manually.',
+        variant: 'destructive',
+      });
+    }
+  }, [nsec, login, next]);
+
   // Save settings and transition to the follows step (or outro if they have follows)
   const handleSaveAndContinue = useCallback(async () => {
     setIsSaving(true);
 
-    // Build feed settings from selections
     const feedSettings = {
       showVines: selectedContent.has('vines'),
       showPolls: selectedContent.has('polls'),
@@ -239,7 +352,6 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
       feedIncludeStreams: selectedContent.has('streams'),
     };
 
-    // Apply settings locally
     updateConfig((current) => ({
       ...current,
       theme: selectedTheme,
@@ -247,7 +359,6 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
       contentWarningPolicy: selectedCW,
     }));
 
-    // Try to persist to encrypted settings (best-effort)
     if (user?.signer.nip44) {
       try {
         await updateSettings.mutateAsync({
@@ -273,7 +384,6 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
           userHasFollows = pTags.length > 0;
         }
       } catch {
-        // On error, skip the follows step
         userHasFollows = true;
       }
     }
@@ -282,7 +392,6 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
     setIsSaving(false);
 
     if (userHasFollows) {
-      // Skip follows, go straight to outro
       goTo('outro');
     } else {
       goTo('follows');
@@ -302,8 +411,22 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
       {/* Content area */}
       <div className="flex-1 flex items-center justify-center overflow-y-auto">
         <div className="w-full max-w-md px-6 py-12">
+          {/* Signup steps */}
+          {step === 'keygen' && (
+            <KeygenStep onGenerate={handleGenerate} />
+          )}
+
+          {step === 'download' && (
+            <DownloadStep nsec={nsec} onDownload={handleDownloadAndLogin} />
+          )}
+
+          {step === 'profile' && (
+            <ProfileStep onNext={next} />
+          )}
+
+          {/* Settings steps */}
           {step === 'welcome' && (
-            <WelcomeStep onNext={next} />
+            <WelcomeStep onNext={next} isSignup={isSignup} />
           )}
 
           {step === 'theme' && (
@@ -354,20 +477,257 @@ function SetupQuestionnaire({ onComplete, onPreload }: { onComplete: () => void;
 }
 
 // ---------------------------------------------------------------------------
-// Individual steps
+// Signup steps: Keygen, Download, Profile
 // ---------------------------------------------------------------------------
 
-function WelcomeStep({ onNext }: { onNext: () => void }) {
+function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <MewLogo size={80} />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
-          Welcome to Mew
+          Create your account
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          Let's personalize your experience. This only takes a moment and you can always change these later in Settings.
+          Your identity on Nostr is a cryptographic key pair. We'll generate one for you now.
+        </p>
+      </div>
+
+      <Button
+        size="lg"
+        className="w-full max-w-xs gap-2 rounded-full h-12"
+        onClick={onGenerate}
+      >
+        Generate my keys
+        <ChevronRight className="w-4 h-4" />
+      </Button>
+    </div>
+  );
+}
+
+function DownloadStep({ nsec, onDownload }: { nsec: string; onDownload: () => void }) {
+  const [showKey, setShowKey] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight">Save your secret key</h2>
+        <p className="text-sm text-muted-foreground">
+          This is your only way to access your account. Download it and keep it somewhere safe.
+        </p>
+      </div>
+
+      <div className="relative">
+        <Input
+          type={showKey ? 'text' : 'password'}
+          value={nsec}
+          readOnly
+          className="pr-10 font-mono text-sm"
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+          onClick={() => setShowKey(!showKey)}
+        >
+          {showKey ? (
+            <EyeOff className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <Eye className="h-4 w-4 text-muted-foreground" />
+          )}
+        </Button>
+      </div>
+
+      <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+        <p className="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">
+          Important
+        </p>
+        <p className="text-xs text-amber-900 dark:text-amber-300">
+          This key is your only means of accessing your account. If you lose it, there is no way to recover it. Download it now to continue.
+        </p>
+      </div>
+
+      <Button
+        size="lg"
+        className="w-full gap-2 rounded-full h-12"
+        onClick={onDownload}
+      >
+        <Download className="w-4 h-4" />
+        Download and continue
+      </Button>
+    </div>
+  );
+}
+
+function ProfileStep({ onNext }: { onNext: () => void }) {
+  const { user } = useCurrentUser();
+  const { mutateAsync: publishEvent, isPending: isPublishing } = useNostrPublish();
+  const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
+  const avatarFileInputRef = useRef<HTMLInputElement>(null);
+
+  const [profileData, setProfileData] = useState({ name: '', about: '', picture: '' });
+
+  const handleAvatarUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid file type', description: 'Please select an image file.', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: 'File too large', description: 'Avatar must be smaller than 5MB.', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      const tags = await uploadFile(file);
+      const url = tags[0]?.[1];
+      if (url) setProfileData((prev) => ({ ...prev, picture: url }));
+    } catch {
+      toast({ title: 'Upload failed', description: 'Failed to upload avatar.', variant: 'destructive' });
+    }
+  }, [uploadFile]);
+
+  const handlePublishProfile = useCallback(async () => {
+    if (!user) return;
+
+    const metadata: Record<string, string> = {};
+    if (profileData.name) metadata.name = profileData.name;
+    if (profileData.about) metadata.about = profileData.about;
+    if (profileData.picture) metadata.picture = profileData.picture;
+
+    if (Object.keys(metadata).length > 0) {
+      try {
+        await publishEvent({ kind: 0, content: JSON.stringify(metadata) });
+      } catch {
+        toast({ title: 'Profile failed', description: 'Your account was created but profile setup failed. You can update it later.', variant: 'destructive' });
+      }
+    }
+
+    onNext();
+  }, [user, profileData, publishEvent, onNext]);
+
+  return (
+    <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
+      <div className="space-y-2">
+        <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
+        <p className="text-sm text-muted-foreground">
+          Tell people a bit about yourself. You can always change this later.
+        </p>
+      </div>
+
+      <div className={cn('space-y-4', isPublishing && 'opacity-50 pointer-events-none')}>
+        <div className="space-y-1.5">
+          <label htmlFor="onboard-name" className="text-sm font-medium">Display Name</label>
+          <Input
+            id="onboard-name"
+            value={profileData.name}
+            onChange={(e) => setProfileData((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="Your name"
+            disabled={isPublishing}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="onboard-about" className="text-sm font-medium">Bio</label>
+          <Textarea
+            id="onboard-about"
+            value={profileData.about}
+            onChange={(e) => setProfileData((prev) => ({ ...prev, about: e.target.value }))}
+            placeholder="Tell others about yourself..."
+            className="resize-none"
+            rows={3}
+            disabled={isPublishing}
+          />
+        </div>
+
+        <div className="space-y-1.5">
+          <label htmlFor="onboard-avatar" className="text-sm font-medium">Avatar</label>
+          <div className="flex gap-2">
+            <Input
+              id="onboard-avatar"
+              value={profileData.picture}
+              onChange={(e) => setProfileData((prev) => ({ ...prev, picture: e.target.value }))}
+              placeholder="https://example.com/avatar.jpg"
+              className="flex-1"
+              disabled={isPublishing}
+            />
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              ref={avatarFileInputRef}
+              onChange={handleAvatarUpload}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => avatarFileInputRef.current?.click()}
+              disabled={isUploading || isPublishing}
+            >
+              {isUploading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Upload className="w-4 h-4" />
+              )}
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="flex gap-3">
+        <Button
+          variant="ghost"
+          onClick={onNext}
+          className="flex-1 rounded-full h-11"
+          disabled={isPublishing}
+        >
+          Skip
+        </Button>
+        <Button
+          onClick={handlePublishProfile}
+          className="flex-1 rounded-full h-11 gap-1.5"
+          disabled={isPublishing || isUploading}
+        >
+          {isPublishing ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            <>
+              Continue
+              <ChevronRight className="w-4 h-4" />
+            </>
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Settings steps
+// ---------------------------------------------------------------------------
+
+function WelcomeStep({ onNext, isSignup = false }: { onNext: () => void; isSignup?: boolean }) {
+  return (
+    <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <MewLogo size={80} />
+
+      <div className="space-y-3">
+        <h1 className="text-2xl font-bold tracking-tight">
+          {isSignup ? 'Now, let\'s personalize' : 'Welcome to Mew'}
+        </h1>
+        <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
+          {isSignup
+            ? 'A few quick preferences to make Mew feel like yours. You can always change these later in Settings.'
+            : 'Let\'s personalize your experience. This only takes a moment and you can always change these later in Settings.'}
         </p>
       </div>
 
@@ -376,7 +736,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onNext}
       >
-        Get started
+        {isSignup ? 'Continue' : 'Get started'}
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
@@ -754,8 +1114,6 @@ function PackCard({
   const previewPubkeys = useMemo(() => pubkeys.slice(0, 6), [pubkeys]);
   const { data: membersMap } = useAuthors(previewPubkeys);
 
-  const authorNpub = useMemo(() => nip19.npubEncode(event.pubkey), [event.pubkey]);
-
   return (
     <div className="rounded-xl ring-1 ring-border overflow-hidden">
       <div className="p-4 space-y-3">
@@ -823,13 +1181,13 @@ function PackCard({
       </div>
 
       {/* Author attribution */}
-      <AuthorAttribution pubkey={event.pubkey} npub={authorNpub} />
+      <AuthorAttribution pubkey={event.pubkey} />
     </div>
   );
 }
 
 /** Small author attribution bar at the bottom of a pack card. */
-function AuthorAttribution({ pubkey, npub: _npub }: { pubkey: string; npub: string }) {
+function AuthorAttribution({ pubkey }: { pubkey: string }) {
   const { data: authorData } = useAuthors([pubkey]);
   const metadata: NostrMetadata | undefined = authorData?.get(pubkey)?.metadata;
   const name = metadata?.name || genUserName(pubkey);

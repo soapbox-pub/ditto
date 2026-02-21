@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
-import SignupDialog from '@/components/auth/SignupDialog';
+import { useOnboarding } from '@/components/InitialSyncGate';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
@@ -46,7 +46,7 @@ export function Feed() {
 
   const [activeTab, setActiveTab] = useState<'follows' | 'global' | 'communities'>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
-  const [signupDialogOpen, setSignupDialogOpen] = useState(false);
+  const { startSignup } = useOnboarding();
 
   // Switch to follows tab when user logs in
   useEffect(() => {
@@ -138,7 +138,6 @@ export function Feed() {
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
-    setSignupDialogOpen(false);
   };
 
   return (
@@ -228,11 +227,7 @@ export function Feed() {
         isOpen={loginDialogOpen}
         onClose={() => setLoginDialogOpen(false)}
         onLogin={handleLogin}
-        onSignupClick={() => setSignupDialogOpen(true)}
-      />
-      <SignupDialog
-        isOpen={signupDialogOpen}
-        onClose={() => setSignupDialogOpen(false)}
+        onSignupClick={startSignup}
       />
     </main>
   );
