@@ -30,7 +30,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Feed Tabs</span>
               {feedTabsOpen ? (
@@ -38,6 +38,7 @@ export function ContentSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -54,7 +55,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Notes</span>
               {notesOpen ? (
@@ -62,6 +63,7 @@ export function ContentSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -90,7 +92,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Other Stuff</span>
               {otherStuffOpen ? (
@@ -98,6 +100,7 @@ export function ContentSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -136,7 +139,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Muted Content</span>
               {mutesOpen ? (
@@ -144,6 +147,7 @@ export function ContentSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -174,7 +178,7 @@ export function ContentSettings() {
           <CollapsibleTrigger asChild>
             <Button 
               variant="ghost" 
-              className="w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none border-b-[4px] border-primary"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
             >
               <span className="text-base font-semibold">Sensitive Content</span>
               {sensitiveOpen ? (
@@ -182,6 +186,7 @@ export function ContentSettings() {
               ) : (
                 <ChevronDown className="h-4 w-4 text-muted-foreground" />
               )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
