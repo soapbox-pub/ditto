@@ -1,9 +1,10 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Layers } from 'lucide-react';
+import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
@@ -24,7 +25,7 @@ const ROUTE_ICONS: Record<string, React.ReactNode> = {
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
   articles: <FileText className="size-5" />,
-  decks: <Layers className="size-5" />,
+  decks: <CardsIcon className="size-5" />,
 };
 
 

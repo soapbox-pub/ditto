@@ -218,6 +218,14 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
     return null;
   }
 
+  // Hide magic decks tagged t:unlisted and geocaches tagged t:hidden
+  if (isMagicDeck && event.tags.some(([n, v]) => n === 't' && v === 'unlisted')) {
+    return null;
+  }
+  if (isGeocache && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) {
+    return null;
+  }
+
   return (
     <article
       className={cn(
