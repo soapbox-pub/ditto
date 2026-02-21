@@ -187,6 +187,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         if (eventIds.length === 0) return;
 
+        const emptyStats: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] };
+
+        // Build a map of eventId → stats from the NIP-85 response
+        const statsMap = new Map<string, EventStats>();
+
         try {
           const nip85Events = await nostr.query(
             [{
@@ -207,7 +212,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
             const eventId = event.tags.find(([name]) => name === 'd')?.[1];
             if (!eventId) continue;
 
-            const stats: EventStats = {
+            statsMap.set(eventId, {
               replies: getTagValue(event, 'comment_cnt'),
               reposts: getTagValue(event, 'repost_cnt'),
               quotes: 0,
@@ -215,12 +220,15 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
               zapAmount: 0,
               zapCount: getTagValue(event, 'zap_cnt'),
               reactionEmojis: [],
-            };
-
-            queryClient.setQueryData(['event-stats', eventId], stats);
+            });
           }
         } catch {
-          // NIP-85 failed or timed out — non-critical, useEventStats will lazy-load
+          // NIP-85 failed or timed out — still seed zeros below
+        }
+
+        // Seed cache for every event ID — use fetched stats or zeros
+        for (const id of eventIds) {
+          queryClient.setQueryData(['event-stats', id], statsMap.get(id) ?? emptyStats);
         }
       }
 
