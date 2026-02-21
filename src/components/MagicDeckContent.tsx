@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Sparkles, Swords } from 'lucide-react';
+import { Shield, Sparkles, Swords, Image, List } from 'lucide-react';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -41,6 +41,18 @@ function parseCardTag(tag: string[]): CardEntry | null {
   };
 }
 
+/**
+ * Build a Scryfall image URL for a card.
+ * Uses set/collector_number when available for exact printing,
+ * otherwise falls back to exact name lookup.
+ */
+function scryfallImageUrl(card: CardEntry, version: 'small' | 'normal' = 'small'): string {
+  if (card.setId && card.artId) {
+    return `https://api.scryfall.com/cards/${encodeURIComponent(card.setId.toLowerCase())}/${encodeURIComponent(card.artId)}?format=image&version=${version}`;
+  }
+  return `https://api.scryfall.com/cards/named?exact=${encodeURIComponent(card.name)}&format=image&version=${version}`;
+}
+
 /** Format labels for MTG formats. */
 const FORMAT_LABELS: Record<string, string> = {
   standard: 'Standard',
@@ -79,7 +91,7 @@ const ARCHETYPE_LABELS: Record<string, string> = {
   aristocrats: 'Aristocrats',
 };
 
-/** Render a single card row. */
+/** Render a single card row in list view. */
 function CardRow({ card }: { card: CardEntry }) {
   return (
     <div className="flex items-center justify-between px-3 py-1 text-[13px] hover:bg-secondary/30 transition-colors">
@@ -103,12 +115,83 @@ function CardRow({ card }: { card: CardEntry }) {
   );
 }
 
+/** Render a card as a visual image tile. */
+function CardTile({ card }: { card: CardEntry }) {
+  const [failed, setFailed] = useState(false);
+
+  if (failed) {
+    // Fallback: show a placeholder with the card name
+    return (
+      <div className="relative aspect-[5/7] rounded-lg bg-secondary/60 border border-border flex items-center justify-center p-1">
+        <span className="text-[9px] text-center text-muted-foreground leading-tight line-clamp-3">
+          {card.name}
+        </span>
+        {card.quantity > 1 && <QuantityBadge quantity={card.quantity} />}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative aspect-[5/7] rounded-lg overflow-hidden group">
+      <img
+        src={scryfallImageUrl(card, 'normal')}
+        alt={card.name}
+        className="w-full h-full object-cover transition-transform group-hover:scale-105"
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
+      {card.foil && (
+        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/10 to-transparent pointer-events-none" />
+      )}
+      {card.quantity > 1 && <QuantityBadge quantity={card.quantity} />}
+    </div>
+  );
+}
+
+function QuantityBadge({ quantity }: { quantity: number }) {
+  return (
+    <span className="absolute top-1 right-1 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none backdrop-blur-sm">
+      x{quantity}
+    </span>
+  );
+}
+
+/** Visual spoiler grid of card images. */
+function CardGrid({ cards, sideboard }: { cards: CardEntry[]; sideboard: CardEntry[] }) {
+  return (
+    <ScrollArea className="max-h-[400px]">
+      <div className="p-2">
+        <div className="grid grid-cols-4 gap-1.5">
+          {cards.map((card, i) => (
+            <CardTile key={`${card.name}-${i}`} card={card} />
+          ))}
+        </div>
+        {sideboard.length > 0 && (
+          <>
+            <div className="px-1 py-2 mt-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Sideboard
+              </span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {sideboard.map((card, i) => (
+                <CardTile key={`sb-${card.name}-${i}`} card={card} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </ScrollArea>
+  );
+}
+
 export function MagicDeckContent({ event }: { event: NostrEvent }) {
   const title = getTag(event.tags, 'title');
   const banner = getTag(event.tags, 'banner');
   const commanders = getAllTagValues(event.tags, 'C');
   const companion = getTag(event.tags, 'S');
   const tTags = getAllTagValues(event.tags, 't');
+  const [visualView, setVisualView] = useState(false);
 
   // Parse main deck and sideboard
   const mainDeck = useMemo(() => {
@@ -230,30 +313,48 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
         )}
       </div>
 
-      {/* Card list — scrollable box */}
+      {/* Card list / visual spoiler */}
       {mainDeck.length > 0 && (
         <div className="rounded-xl border border-border overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <ScrollArea className="max-h-[240px]">
-            <div>
-              {mainDeck.map((card, i) => (
-                <CardRow key={`${card.name}-${i}`} card={card} />
-              ))}
+          {/* View toggle header */}
+          <div className="flex items-center justify-between px-3 py-1.5 bg-secondary/30 border-b border-border/50">
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {visualView ? 'Visual Spoiler' : 'Decklist'}
+            </span>
+            <button
+              onClick={() => setVisualView(!visualView)}
+              className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {visualView ? <List className="size-3.5" /> : <Image className="size-3.5" />}
+              {visualView ? 'List' : 'Visual'}
+            </button>
+          </div>
 
-              {/* Sideboard inline */}
-              {sideboard.length > 0 && (
-                <>
-                  <div className="px-3 py-1.5 bg-secondary/40 border-y border-border/50">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      Sideboard
-                    </span>
-                  </div>
-                  {sideboard.map((card, i) => (
-                    <CardRow key={`sb-${card.name}-${i}`} card={card} />
-                  ))}
-                </>
-              )}
-            </div>
-          </ScrollArea>
+          {visualView ? (
+            <CardGrid cards={mainDeck} sideboard={sideboard} />
+          ) : (
+            <ScrollArea className="max-h-[240px]">
+              <div>
+                {mainDeck.map((card, i) => (
+                  <CardRow key={`${card.name}-${i}`} card={card} />
+                ))}
+
+                {/* Sideboard inline */}
+                {sideboard.length > 0 && (
+                  <>
+                    <div className="px-3 py-1.5 bg-secondary/40 border-y border-border/50">
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        Sideboard
+                      </span>
+                    </div>
+                    {sideboard.map((card, i) => (
+                      <CardRow key={`sb-${card.name}-${i}`} card={card} />
+                    ))}
+                  </>
+                )}
+              </div>
+            </ScrollArea>
+          )}
         </div>
       )}
     </div>
