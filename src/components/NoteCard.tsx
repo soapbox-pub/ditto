@@ -18,6 +18,7 @@ import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ReplyContext } from '@/components/ReplyContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -242,6 +243,11 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Treasure header — "<chest> <name> hid/found a treasure" */}
       {isTreasure && (
         <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
+      )}
+
+      {/* Deck header — "<cards> <name> shared a deck" */}
+      {isMagicDeck && !repostedBy && (
+        <DeckHeader pubkey={event.pubkey} />
       )}
 
       {/* Stream header — "<radio> <name> is streaming / streamed" */}
@@ -677,6 +683,34 @@ function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
           {isLive ? 'is streaming' : 'streamed'}
         </span>
+      </div>
+    </div>
+  );
+}
+
+function DeckHeader({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <CardsIcon className="size-4 text-primary translate-y-px" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>shared a deck</span>
       </div>
     </div>
   );
