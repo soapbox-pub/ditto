@@ -13,6 +13,7 @@ import { GeocacheContent } from '@/components/GeocacheContent';
 import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
+import { ArticleContent } from '@/components/ArticleContent';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { ReplyContext } from '@/components/ReplyContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
@@ -207,11 +208,6 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
 
-  // Kind 30023 specific
-  const articleTitle = isArticle ? getTag(event.tags, 'title') : undefined;
-  const articleSummary = isArticle ? getTag(event.tags, 'summary') : undefined;
-  const articleImage = isArticle ? getTag(event.tags, 'image') : undefined;
-
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
     return null;
@@ -310,24 +306,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
         ) : isFollowPack ? (
           <FollowPackContent event={event} />
         ) : isArticle ? (
-          <div className="mt-2 space-y-2">
-            {articleTitle && (
-              <h3 className="text-base font-bold leading-snug">{articleTitle}</h3>
-            )}
-            {articleImage && (
-              <img
-                src={articleImage}
-                alt={articleTitle ?? 'Article image'}
-                className="w-full rounded-lg object-cover max-h-64"
-              />
-            )}
-            {articleSummary ? (
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{articleSummary}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground leading-relaxed line-clamp-3">{event.content.slice(0, 280)}{event.content.length > 280 ? '...' : ''}</p>
-            )}
-            <span className="inline-block text-xs font-medium text-primary">Read article</span>
-          </div>
+          <ArticleContent event={event} preview className="mt-2" />
         ) : (
           <>
             <div className="mt-2 break-words overflow-hidden">
