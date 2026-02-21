@@ -850,7 +850,7 @@ export function ProfilePage() {
             </div>
           </div>
 
-          <h2 className="text-xl font-bold">
+          <h2 className="text-xl font-bold truncate">
             {author.data?.event ? (
               <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
             ) : displayName}
