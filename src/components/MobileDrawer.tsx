@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper, Radio } from 'lucide-react';
+import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Cat, Sun, Moon, Heart, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -23,6 +23,7 @@ const ROUTE_ICONS: Record<string, React.ReactNode> = {
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
+  articles: <FileText className="size-5" />,
 };
 
 

@@ -340,6 +340,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludePosts: true,
       feedIncludeReposts: true,
       feedIncludeArticles: false,
+      showArticles: false,
       showTreasures: selectedContent.has('treasures'),
       showTreasureGeocaches: true,
       showTreasureFoundLogs: true,

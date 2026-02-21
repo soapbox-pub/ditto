@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -74,6 +74,7 @@ export function LeftSidebar() {
     colors: <Palette className="size-6" />,
     packs: <PartyPopper className="size-6" />,
     streams: <Radio className="size-6" />,
+    articles: <FileText className="size-6" />,
   };
 
   const navItems = useMemo(() => {

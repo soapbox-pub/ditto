@@ -28,6 +28,8 @@ export interface FeedSettings {
   feedIncludeReposts: boolean;
   /** Include long-form articles (kind 30023) in the feed */
   feedIncludeArticles: boolean;
+  /** Show Articles (kind 30023) link in sidebar */
+  showArticles: boolean;
   /** Show Vines (kind 34236) link in sidebar */
   showVines: boolean;
   /** Show Polls (kind 1068) link in sidebar */
