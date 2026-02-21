@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages } from 'lucide-react';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
 import { NoteCard } from '@/components/NoteCard';
@@ -24,6 +24,12 @@ import { nip19 } from 'nostr-tools';
 
 type TabType = 'posts' | 'trends' | 'accounts';
 
+const VALID_TABS: TabType[] = ['posts', 'trends', 'accounts'];
+
+function parseTab(value: string | null): TabType {
+  return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
+}
+
 export function SearchPage() {
   useSeoMeta({
     title: 'Search | Mew',
@@ -32,13 +38,52 @@ export function SearchPage() {
 
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = searchParams.get('q') ?? '';
-  const initialTab = searchParams.get('tab') as TabType | null;
 
-  const [activeTab, setActiveTab] = useState<TabType>(initialTab === 'trends' || initialTab === 'accounts' ? initialTab : 'posts');
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  // Derive tab directly from URL — single source of truth (no separate state)
+  const activeTab = parseTab(searchParams.get('tab'));
+
+  // Local input state for the search field (avoids trimming while typing)
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(true);
   const [trendSort, setTrendSort] = useState<SortMode>('hot');
+
+  // Update tab in URL without a feedback loop
+  const setActiveTab = useCallback((tab: TabType) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (tab === 'posts') {
+        next.delete('tab');
+      } else {
+        next.set('tab', tab);
+      }
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+
+  // Sync search query state → URL (only when the trimmed value actually differs)
+  useEffect(() => {
+    const currentQ = searchParams.get('q') ?? '';
+    const trimmed = searchQuery.trim();
+    if (trimmed !== currentQ) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (trimmed) {
+          next.set('q', trimmed);
+        } else {
+          next.delete('q');
+        }
+        return next;
+      }, { replace: true });
+    }
+  }, [searchQuery, searchParams, setSearchParams]);
+
+  // Sync URL → search query state (e.g., sidebar search or browser navigation)
+  useEffect(() => {
+    const q = searchParams.get('q') ?? '';
+    if (q !== searchQuery.trim()) {
+      setSearchQuery(q);
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // If the search query is a Nostr identifier, redirect immediately
   useEffect(() => {
@@ -47,26 +92,6 @@ export function SearchPage() {
       navigate(path, { replace: true });
     }
   }, [searchQuery, navigate]);
-
-  // Sync search query and tab to URL params
-  useEffect(() => {
-    const params: Record<string, string> = {};
-    if (searchQuery.trim()) params.q = searchQuery.trim();
-    if (activeTab !== 'posts') params.tab = activeTab;
-    setSearchParams(params, { replace: true });
-  }, [searchQuery, activeTab, setSearchParams]);
-
-  // Update search query when URL params change externally (e.g., from sidebar search)
-  useEffect(() => {
-    const q = searchParams.get('q') ?? '';
-    if (q && q !== searchQuery) {
-      setSearchQuery(q);
-    }
-    const tab = searchParams.get('tab') as TabType | null;
-    if (tab && tab !== activeTab) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
 
   // Search filters
   const [includeReplies, setIncludeReplies] = useState(true);
