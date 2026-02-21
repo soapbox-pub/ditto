@@ -24,33 +24,38 @@ const SYNC_TIMEOUT_MS = 8000;
  * - If no settings found: phase = 'not-found' (show questionnaire)
  * - After questionnaire: markComplete() -> phase = 'complete'
  *
- * Uses a sessionStorage flag so the sync screen only shows once per
- * browser session (not on every page refresh while logged in).
+ * Uses a localStorage flag so the sync screen only shows once per user
+ * (not on every page refresh or new session while logged in).
  */
+function isSyncDone(pubkey: string): boolean {
+  try {
+    return localStorage.getItem(`mew:sync-done:${pubkey}`) === '1';
+  } catch {
+    return false;
+  }
+}
+
 export function useInitialSync() {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const queryClient = useQueryClient();
-  const [phase, setPhase] = useState<SyncPhase>('idle');
+
+  // Compute initial phase synchronously so we never flash sync/onboarding
+  // for users who already completed it or who are logged out.
+  const [phase, setPhase] = useState<SyncPhase>(() => {
+    if (!user) return 'idle';
+    if (isSyncDone(user.pubkey)) return 'complete';
+    return 'idle';
+  });
   const syncAttempted = useRef(false);
 
-  // Check if sync was already completed this session
-  const isCompletedThisSession = useCallback(() => {
-    if (!user) return false;
-    try {
-      return sessionStorage.getItem(`mew:sync-done:${user.pubkey}`) === '1';
-    } catch {
-      return false;
-    }
-  }, [user]);
-
-  const markSessionComplete = useCallback(() => {
+  const markSyncComplete = useCallback(() => {
     if (!user) return;
     try {
-      sessionStorage.setItem(`mew:sync-done:${user.pubkey}`, '1');
+      localStorage.setItem(`mew:sync-done:${user.pubkey}`, '1');
     } catch {
-      // sessionStorage may not be available
+      // localStorage may not be available
     }
   }, [user]);
 
@@ -62,8 +67,8 @@ export function useInitialSync() {
       return;
     }
 
-    // Skip sync if already completed this session
-    if (isCompletedThisSession()) {
+    // Skip sync if already completed for this user
+    if (isSyncDone(user.pubkey)) {
       setPhase('complete');
       return;
     }
@@ -173,7 +178,7 @@ export function useInitialSync() {
         setPhase('found');
         // Auto-complete after a brief moment so user sees the success state
         setTimeout(() => {
-          markSessionComplete();
+          markSyncComplete();
           setPhase('complete');
         }, 1200);
       } else {
@@ -187,12 +192,12 @@ export function useInitialSync() {
       clearTimeout(timeout);
       controller.abort();
     };
-  }, [user, nostr, config.relayMetadata.updatedAt, updateConfig, queryClient, isCompletedThisSession, markSessionComplete]);
+  }, [user, nostr, config.relayMetadata.updatedAt, updateConfig, queryClient, markSyncComplete]);
 
   const markComplete = useCallback(() => {
-    markSessionComplete();
+    markSyncComplete();
     setPhase('complete');
-  }, [markSessionComplete]);
+  }, [markSyncComplete]);
 
   return { phase, markComplete };
 }
