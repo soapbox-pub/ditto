@@ -69,8 +69,7 @@ const defaultConfig: AppConfig = {
   nip85OnlyMode: true,
   blossomServers: ['https://blossom.primal.net/'],
   defaultZapComment: 'Zapped with Mew!',
-  faviconUrl: 'https://link-worker.gleasonator.workers.dev/favicon/ghostr.org', // Switch default when DNS updates
-  // faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
+  faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
   contentWarningPolicy: 'blur',
 };
