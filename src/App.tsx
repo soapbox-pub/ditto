@@ -8,6 +8,7 @@ import { Suspense, useEffect } from 'react';
 import NostrProvider from '@/components/NostrProvider';
 import { NostrSync } from '@/components/NostrSync';
 import { NativeNotifications } from '@/components/NativeNotifications';
+import { InitialSyncGate } from '@/components/InitialSyncGate';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { NostrLoginProvider } from '@nostrify/react/login';
@@ -91,9 +92,11 @@ export function App() {
               <NWCProvider>
                 <TooltipProvider>
                   <Toaster />
-                  <Suspense>
-                    <AppRouter />
-                  </Suspense>
+                  <InitialSyncGate>
+                    <Suspense>
+                      <AppRouter />
+                    </Suspense>
+                  </InitialSyncGate>
                 </TooltipProvider>
               </NWCProvider>
             </NostrProvider>
