@@ -9,7 +9,6 @@ import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -20,7 +19,6 @@ export function HashtagPage() {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
-  const { isDeleted } = useDeletedEvents();
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => k !== 6);
   const kindsKey = [...kinds].sort().join(',');
@@ -44,13 +42,9 @@ export function HashtagPage() {
   });
 
   const filteredEvents = useMemo(() => {
-    if (!events) return events;
-    return events.filter((e) => {
-      if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
-      if (isDeleted(e.id)) return false;
-      return true;
-    });
-  }, [events, muteItems, isDeleted]);
+    if (!events || muteItems.length === 0) return events;
+    return events.filter((e) => !isEventMuted(e, muteItems));
+  }, [events, muteItems]);
 
   return (
     <MainLayout>

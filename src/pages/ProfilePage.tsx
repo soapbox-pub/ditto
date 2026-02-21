@@ -23,7 +23,6 @@ import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
-import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
@@ -570,7 +569,6 @@ export function ProfilePage() {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const { muteItems } = useMuteList();
-  const { isDeleted } = useDeletedEvents();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -688,13 +686,12 @@ export function ProfilePage() {
         if (!seen.has(key)) {
           seen.add(key);
           if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) continue;
-          if (isDeleted(item.event.id)) continue;
           items.push(item);
         }
       }
     }
     return items;
-  }, [feedData?.pages, muteItems, isDeleted]);
+  }, [feedData?.pages, muteItems]);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
