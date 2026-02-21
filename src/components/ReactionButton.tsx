@@ -31,12 +31,14 @@ export function ReactionButton({
   const { user } = useCurrentUser();
   const [menuOpen, setMenuOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const justClosedRef = useRef(false);
   const userReaction = useUserReaction(eventId);
 
   const hasReacted = !!userReaction;
 
   const handleMouseEnter = useCallback(() => {
     if (!user) return;
+    if (justClosedRef.current) return;
     // Clear any pending close timeout
     if (closeTimeoutRef.current) {
       clearTimeout(closeTimeoutRef.current);
@@ -53,7 +55,10 @@ export function ReactionButton({
   }, []);
 
   return (
-    <Popover open={menuOpen} onOpenChange={setMenuOpen}>
+    <Popover open={menuOpen} onOpenChange={(open) => {
+      if (open && justClosedRef.current) return;
+      setMenuOpen(open);
+    }}>
       <PopoverTrigger asChild>
         <button
           className={cn(
@@ -67,6 +72,7 @@ export function ReactionButton({
           onClick={(e) => {
             e.stopPropagation();
             if (!user) return;
+            if (justClosedRef.current) return;
             setMenuOpen((prev) => !prev);
           }}
           onMouseEnter={handleMouseEnter}
@@ -97,6 +103,13 @@ export function ReactionButton({
           eventId={eventId}
           eventPubkey={eventPubkey}
           eventKind={eventKind}
+          onClose={() => {
+            justClosedRef.current = true;
+            setMenuOpen(false);
+            setTimeout(() => {
+              justClosedRef.current = false;
+            }, 300);
+          }}
         />
       </PopoverContent>
     </Popover>
