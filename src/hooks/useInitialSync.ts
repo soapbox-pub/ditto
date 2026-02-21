@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import type { EncryptedSettings } from './useEncryptedSettings';
-import type { MuteListItem } from './useMuteList';
+import { parseMuteTags, setCachedMuteItems } from './useMuteList';
 
 export type SyncPhase =
   | 'idle'         // No user logged in
@@ -175,25 +175,15 @@ export function useInitialSync() {
           // Seed the raw event into the muteList query cache
           queryClient.setQueryData(['muteList', user.pubkey], muteEvent);
 
-          // Decrypt and seed the parsed mute items
+          // Decrypt and seed the parsed mute items + localStorage
           if (muteEvent.content && user.signer.nip44) {
             try {
               const decrypted = await user.signer.nip44.decrypt(user.pubkey, muteEvent.content);
               const tags = JSON.parse(decrypted) as string[][];
-              const items: MuteListItem[] = [];
-
-              for (const tag of tags) {
-                const [tagName, value] = tag;
-                if (!value) continue;
-                switch (tagName) {
-                  case 'p': items.push({ type: 'pubkey', value }); break;
-                  case 't': items.push({ type: 'hashtag', value }); break;
-                  case 'word': items.push({ type: 'word', value }); break;
-                  case 'e': items.push({ type: 'thread', value }); break;
-                }
-              }
+              const items = parseMuteTags(tags);
 
               queryClient.setQueryData(['muteItems', muteEvent.id], items);
+              setCachedMuteItems(user.pubkey, items);
             } catch (error) {
               console.error('Failed to decrypt mute list during initial sync:', error);
             }

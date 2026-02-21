@@ -11,6 +11,47 @@ export interface MuteListItem {
   value: string;
 }
 
+/** localStorage key for cached mute list items. */
+const MUTE_CACHE_KEY = 'mew:muteListCache';
+
+/** Read cached mute items from localStorage for a given user. */
+function getCachedMuteItems(pubkey: string): MuteListItem[] | undefined {
+  try {
+    const raw = localStorage.getItem(MUTE_CACHE_KEY);
+    if (!raw) return undefined;
+    const cached = JSON.parse(raw);
+    if (cached.pubkey !== pubkey || !Array.isArray(cached.items)) return undefined;
+    return cached.items;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Persist decrypted mute items to localStorage. */
+export function setCachedMuteItems(pubkey: string, items: MuteListItem[]): void {
+  try {
+    localStorage.setItem(MUTE_CACHE_KEY, JSON.stringify({ pubkey, items }));
+  } catch {
+    // Storage full or unavailable — non-critical
+  }
+}
+
+/** Parse decrypted mute list tags into structured items. */
+export function parseMuteTags(tags: string[][]): MuteListItem[] {
+  const items: MuteListItem[] = [];
+  for (const tag of tags) {
+    const [tagName, value] = tag;
+    if (!value) continue;
+    switch (tagName) {
+      case 'p': items.push({ type: 'pubkey', value }); break;
+      case 't': items.push({ type: 'hashtag', value }); break;
+      case 'word': items.push({ type: 'word', value }); break;
+      case 'e': items.push({ type: 'thread', value }); break;
+    }
+  }
+  return items;
+}
+
 /**
  * Hook to manage NIP-51 mute lists (kind 10000)
  * All mute items are encrypted for privacy
@@ -20,6 +61,9 @@ export function useMuteList() {
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
+
+  // Placeholder from localStorage so mutes apply immediately on page load
+  const cachedItems = user ? getCachedMuteItems(user.pubkey) : undefined;
 
   // Query the current mute list
   const query = useQuery({
@@ -53,38 +97,22 @@ export function useMuteList() {
         return [];
       }
 
-      const items: MuteListItem[] = [];
-
       try {
         const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
         const tags = JSON.parse(decrypted) as string[][];
+        const items = parseMuteTags(tags);
 
-        for (const tag of tags) {
-          const [tagName, value] = tag;
-          if (!value) continue;
+        // Persist to localStorage for next page load
+        setCachedMuteItems(user.pubkey, items);
 
-          switch (tagName) {
-            case 'p':
-              items.push({ type: 'pubkey', value });
-              break;
-            case 't':
-              items.push({ type: 'hashtag', value });
-              break;
-            case 'word':
-              items.push({ type: 'word', value });
-              break;
-            case 'e':
-              items.push({ type: 'thread', value });
-              break;
-          }
-        }
+        return items;
       } catch (error) {
         console.error('Failed to decrypt mute items:', error);
+        return [];
       }
-
-      return items;
     },
     enabled: !!query.data && !!user,
+    placeholderData: cachedItems,
   });
 
   // Add item to mute list
@@ -104,6 +132,9 @@ export function useMuteList() {
       const currentItems = muteItems.data || [];
       const newItems = [...currentItems, { ...item, value: normalizedValue }];
 
+      // Update localStorage immediately so it survives page refresh
+      setCachedMuteItems(user.pubkey, newItems);
+
       await updateMuteList(newItems);
     },
     onSuccess: () => {
@@ -120,6 +151,9 @@ export function useMuteList() {
       const newItems = currentItems.filter(
         (i) => !(i.type === item.type && i.value === item.value)
       );
+
+      // Update localStorage immediately so it survives page refresh
+      setCachedMuteItems(user.pubkey, newItems);
 
       await updateMuteList(newItems);
     },
