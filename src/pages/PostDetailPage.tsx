@@ -53,6 +53,7 @@ import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
+import { MutedContentGuard } from '@/components/MutedContentGuard';
 
 
 interface PostDetailPageProps {
@@ -256,7 +257,9 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
   return (
     <MainLayout>
       <PostDetailShell>
-        <PostDetailContent event={resolvedEvent} />
+        <MutedContentGuard event={resolvedEvent}>
+          <PostDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
       </PostDetailShell>
     </MainLayout>
   );
@@ -303,7 +306,9 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
     return (
       <MainLayout>
         <PostDetailShell>
-          <FollowPackDetailContent event={resolvedEvent} />
+          <MutedContentGuard event={resolvedEvent}>
+            <FollowPackDetailContent event={resolvedEvent} />
+          </MutedContentGuard>
         </PostDetailShell>
       </MainLayout>
     );
@@ -317,7 +322,9 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   return (
     <MainLayout>
       <PostDetailShell>
-        <PostDetailContent event={resolvedEvent} />
+        <MutedContentGuard event={resolvedEvent}>
+          <PostDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
       </PostDetailShell>
     </MainLayout>
   );
