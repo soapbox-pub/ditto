@@ -103,7 +103,7 @@ export function ComposeBox({
   const [emojiOpen, setEmojiOpen] = useState(false);
   const [internalPreviewMode, setInternalPreviewMode] = useState(false);
   const [removedEmbeds, setRemovedEmbeds] = useState<Set<string>>(new Set());
-  const [uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
+  const [_uploadedFileTags, setUploadedFileTags] = useState<string[][]>([]);
   /** Maps uploaded file URLs to their NIP-94 tags (grouped per upload). */
   const [uploadedFileGroups, setUploadedFileGroups] = useState<Map<string, string[][]>>(new Map());
   /** Maps .xdc URLs to their generated webxdc UUIDs. */

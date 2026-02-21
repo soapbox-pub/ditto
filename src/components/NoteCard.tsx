@@ -569,7 +569,6 @@ function StreamContent({ event }: { event: NostrEvent }) {
       <div className="rounded-xl overflow-hidden border border-border">
         {isLive ? (
           // Inline live player — clicks on the player are intercepted so they don't navigate away
-          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
           <div className="relative" onClick={(e) => e.stopPropagation()}>
             <LiveStreamPlayer src={streamingUrl} poster={imageUrl} />
             {/* Status + viewer overlay on top of the player */}
