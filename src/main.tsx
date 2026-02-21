@@ -15,9 +15,9 @@ createRoot(document.getElementById("root")!).render(
   </ErrorBoundary>
 );
 
-// Remove the HTML preloader after React has painted.
-// requestAnimationFrame ensures the first React frame is on screen
-// before we remove the preloader, preventing any flash.
+// Remove the HTML preloader after React has painted and clear the
+// inline body background so CSS variables control the theme from here.
 requestAnimationFrame(() => {
   document.getElementById('preloader')?.remove();
+  document.body.removeAttribute('style');
 });
