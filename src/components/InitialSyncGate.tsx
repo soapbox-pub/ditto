@@ -374,6 +374,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeColors: selectedContent.has('colors'),
       feedIncludePacks: selectedContent.has('packs'),
       feedIncludeStreams: selectedContent.has('streams'),
+      showDecks: selectedContent.has('decks'),
+      feedIncludeDecks: selectedContent.has('decks'),
     };
 
     updateConfig((current) => ({
