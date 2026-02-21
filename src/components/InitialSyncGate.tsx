@@ -432,7 +432,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
           {step === 'theme' && (
             <ThemeStep
               selected={selectedTheme}
-              onSelect={setSelectedTheme}
+              onSelect={(t) => {
+                setSelectedTheme(t);
+                updateConfig((c) => ({ ...c, theme: t }));
+              }}
               onNext={next}
               onBack={back}
             />
