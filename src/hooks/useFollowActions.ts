@@ -39,10 +39,39 @@ export interface FollowListData {
   pubkeys: string[];
 }
 
+/** localStorage key for cached follow list pubkeys. */
+const FOLLOW_CACHE_KEY = 'mew:followListCache';
+
+/** Read cached follow pubkeys from localStorage for a given user. */
+function getCachedFollowList(pubkey: string): FollowListData | undefined {
+  try {
+    const raw = localStorage.getItem(FOLLOW_CACHE_KEY);
+    if (!raw) return undefined;
+    const cached = JSON.parse(raw);
+    // Only use cache if it belongs to the same user
+    if (cached.pubkey !== pubkey || !Array.isArray(cached.pubkeys)) return undefined;
+    return { event: null, pubkeys: cached.pubkeys };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Persist follow pubkeys to localStorage. */
+function setCachedFollowList(pubkey: string, pubkeys: string[]): void {
+  try {
+    localStorage.setItem(FOLLOW_CACHE_KEY, JSON.stringify({ pubkey, pubkeys }));
+  } catch {
+    // Storage full or unavailable — non-critical
+  }
+}
+
 /**
  * Cached hook to read the logged-in user's follow list.
  * Use this for **display only** (e.g. checking "is this person followed?").
  * For mutations, `useFollowActions` fetches fresh data before writing.
+ *
+ * Uses localStorage as a placeholder so the feed query can fire immediately
+ * on returning visits without waiting for the relay round-trip.
  */
 export function useFollowList() {
   const { nostr } = useNostr();
@@ -60,10 +89,13 @@ export function useFollowList() {
       const pubkeys = event.tags
         .filter(([name]) => name === 'p')
         .map(([, pk]) => pk);
+      // Persist to localStorage for next visit
+      setCachedFollowList(user.pubkey, pubkeys);
       return { event, pubkeys };
     },
     enabled: !!user,
     staleTime: 5 * 60 * 1000,
+    placeholderData: user ? getCachedFollowList(user.pubkey) : undefined,
   });
 }
 

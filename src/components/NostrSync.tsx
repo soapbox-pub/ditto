@@ -90,34 +90,42 @@ export function NostrSync() {
     console.log('Syncing encrypted settings from Nostr', remoteSync);
     lastSyncedTimestamp.current = remoteSync;
 
-    // Update local config with encrypted settings if they exist
+    // Only call updateConfig if something actually changed to avoid
+    // unnecessary re-renders of the entire app tree.
     updateConfig((current) => {
-      const updates: Record<string, unknown> = { ...current };
+      let changed = false;
+      const updates = { ...current };
 
-      // Sync theme if available
       if (encryptedSettings.theme && encryptedSettings.theme !== current.theme) {
         updates.theme = encryptedSettings.theme;
+        changed = true;
       }
 
-      // Sync useAppRelays if available
       if (encryptedSettings.useAppRelays !== undefined && encryptedSettings.useAppRelays !== current.useAppRelays) {
         updates.useAppRelays = encryptedSettings.useAppRelays;
+        changed = true;
       }
 
-      // Sync feedSettings if available
       if (encryptedSettings.feedSettings) {
-        updates.feedSettings = {
-          ...current.feedSettings,
-          ...encryptedSettings.feedSettings,
-        };
+        const currentFeed = current.feedSettings;
+        const remoteFeed = encryptedSettings.feedSettings;
+        // Check if any feed setting actually differs
+        const feedChanged = Object.keys(remoteFeed).some(
+          (key) => remoteFeed[key as keyof typeof remoteFeed] !== currentFeed?.[key as keyof typeof currentFeed]
+        );
+        if (feedChanged) {
+          updates.feedSettings = { ...currentFeed, ...remoteFeed };
+          changed = true;
+        }
       }
 
-      // Sync contentWarningPolicy if available
       if (encryptedSettings.contentWarningPolicy && encryptedSettings.contentWarningPolicy !== current.contentWarningPolicy) {
         updates.contentWarningPolicy = encryptedSettings.contentWarningPolicy;
+        changed = true;
       }
 
-      return updates;
+      // Return the same reference if nothing changed to prevent re-render
+      return changed ? updates : current;
     });
   }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten]);
 

@@ -27,6 +27,8 @@ export function useLocalStorage<T>(
   const setValue = (value: T | ((prev: T) => T)) => {
     try {
       const valueToStore = value instanceof Function ? value(state) : value;
+      // Skip if the updater returned the same reference (nothing changed)
+      if (valueToStore === state) return;
       setState(valueToStore);
       localStorage.setItem(key, serialize(valueToStore));
     } catch (error) {

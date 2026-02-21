@@ -14,3 +14,10 @@ createRoot(document.getElementById("root")!).render(
     <App />
   </ErrorBoundary>
 );
+
+// Remove the HTML preloader after React has painted.
+// requestAnimationFrame ensures the first React frame is on screen
+// before we remove the preloader, preventing any flash.
+requestAnimationFrame(() => {
+  document.getElementById('preloader')?.remove();
+});

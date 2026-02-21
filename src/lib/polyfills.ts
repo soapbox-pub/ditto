@@ -1,15 +1,3 @@
-import Buffer from 'buffer';
-
-/**
- * Polyfill for Buffer in browser environment
- *
- * Many Node.js libraries like isomorphic-git and bitcoinjs-lib expect Buffer to be globally available.
- * This polyfill makes the buffer package's Buffer available globally.
- */
-if (!globalThis.Buffer) {
-  globalThis.Buffer = Buffer.Buffer;
-}
-
 /**
  * Polyfill for AbortSignal.any()
  * 

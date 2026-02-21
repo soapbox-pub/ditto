@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
-import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays } from '@/lib/appRelays';
 
@@ -13,27 +12,23 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   const { children } = props;
   const { config } = useAppContext();
 
-  const queryClient = useQueryClient();
-
   // Create NPool instance only once
   const pool = useRef<NPool | undefined>(undefined);
 
   // Use refs so the pool always has the latest data
   const effectiveRelays = useRef(getEffectiveRelays(config.relayMetadata, config.useAppRelays));
 
-  // Update effective relays ref and invalidate all queries when relays change,
-  // since any cached query may have been fetched from a different set of relays.
+  // Update effective relays ref when config changes. The NPool reads from
+  // this ref, so new queries automatically use the updated relay set.
+  //
+  // We intentionally do NOT invalidate existing queries here. When relays
+  // are added (e.g. NIP-65 sync merging user relays with app defaults),
+  // existing cached data is still valid — we'll just query more relays on
+  // the next natural refetch. Blanket invalidation caused a disruptive
+  // full-feed rerender ~3s after page load when NostrSync synced relays.
   useEffect(() => {
-    const prev = effectiveRelays.current;
     effectiveRelays.current = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-
-    // Only invalidate if the relay URLs actually changed
-    const prevUrls = prev.relays.map(r => r.url).sort().join(',');
-    const nextUrls = effectiveRelays.current.relays.map(r => r.url).sort().join(',');
-    if (prevUrls !== nextUrls) {
-      queryClient.invalidateQueries();
-    }
-  }, [config.relayMetadata, config.useAppRelays, queryClient]);
+  }, [config.relayMetadata, config.useAppRelays]);
 
   // Initialize NPool only once
   if (!pool.current) {
@@ -71,9 +66,9 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
         return [...allRelays];
       },
       // Resolve queries quickly once any relay sends EOSE, instead of
-      // waiting for every relay to finish. This is the single biggest
-      // latency win — Agora uses the same 500 ms timeout.
-      eoseTimeout: 500,
+      // waiting for every relay to finish. 600ms balances showing
+      // content fast with giving relays enough time to respond.
+      eoseTimeout: 600,
     });
   }
 

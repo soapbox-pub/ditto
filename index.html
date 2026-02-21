@@ -27,8 +27,17 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg">
     <link rel="apple-touch-icon" href="/logo.svg">
     <link rel="manifest" href="/manifest.webmanifest">
+    <style>@keyframes mew-spin{to{transform:rotate(360deg)}}</style>
   </head>
-  <body>
+  <body style="margin:0;background:hsl(228 20% 10%)">
+    <!-- Pre-React loading screen. Lives OUTSIDE #root so React doesn't
+         touch it. Removed by main.tsx once the app has mounted. -->
+    <div id="preloader" style="position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:hsl(228 20% 10%)">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:24px">
+        <img src="/logo.png" alt="" width="48" height="48">
+        <div style="width:24px;height:24px;border:2.5px solid hsl(258 70% 60% / 0.25);border-top-color:hsl(258 70% 60%);border-radius:50%;animation:mew-spin .7s linear infinite"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

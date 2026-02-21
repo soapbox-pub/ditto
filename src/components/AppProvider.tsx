@@ -1,7 +1,7 @@
 import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata, type FeedSettings } from '@/contexts/AppContext';
+import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -21,24 +21,28 @@ const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 }) satisfies z.ZodType<RelayMetadata>;
 
-// Zod schema for FeedSettings validation
+// Zod schema for FeedSettings validation.
+// All fields use .optional() so localStorage data with missing keys
+// (from older encrypted settings) doesn't reject the whole object.
+// .passthrough() preserves extra keys from newer encrypted settings.
+// Missing fields get filled in by the defaultConfig merge in line below.
 const FeedSettingsSchema = z.object({
-  showVines: z.boolean(),
-  showPolls: z.boolean(),
-  showTreasures: z.boolean(),
-  showTreasureGeocaches: z.boolean(),
-  showTreasureFoundLogs: z.boolean(),
-  showColors: z.boolean(),
-  showPacks: z.boolean(),
-  showStreams: z.boolean(),
-  feedIncludeVines: z.boolean(),
-  feedIncludePolls: z.boolean(),
-  feedIncludeTreasureGeocaches: z.boolean(),
-  feedIncludeTreasureFoundLogs: z.boolean(),
-  feedIncludeColors: z.boolean(),
-  feedIncludePacks: z.boolean(),
-  feedIncludeStreams: z.boolean(),
-}) satisfies z.ZodType<FeedSettings>;
+  showVines: z.boolean().optional(),
+  showPolls: z.boolean().optional(),
+  showTreasures: z.boolean().optional(),
+  showTreasureGeocaches: z.boolean().optional(),
+  showTreasureFoundLogs: z.boolean().optional(),
+  showColors: z.boolean().optional(),
+  showPacks: z.boolean().optional(),
+  showStreams: z.boolean().optional(),
+  feedIncludeVines: z.boolean().optional(),
+  feedIncludePolls: z.boolean().optional(),
+  feedIncludeTreasureGeocaches: z.boolean().optional(),
+  feedIncludeTreasureFoundLogs: z.boolean().optional(),
+  feedIncludeColors: z.boolean().optional(),
+  feedIncludePacks: z.boolean().optional(),
+  feedIncludeStreams: z.boolean().optional(),
+}).passthrough();
 
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
@@ -56,7 +60,7 @@ const AppConfigSchema = z.object({
   faviconProvider: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: z.enum(['blur', 'hide', 'show']),
-}) satisfies z.ZodType<AppConfig>;
+});
 
 export function AppProvider(props: AppProviderProps) {
   const {
@@ -65,7 +69,10 @@ export function AppProvider(props: AppProviderProps) {
     defaultConfig,
   } = props;
 
-  // App configuration state with localStorage persistence
+  // App configuration state with localStorage persistence.
+  // The deserializer uses safeParse per top-level field so that a single
+  // invalid/incomplete field (e.g. feedSettings missing a new key) doesn't
+  // nuke the entire config back to defaults. Valid fields are preserved.
   const [rawConfig, setConfig] = useLocalStorage<Partial<AppConfig>>(
     storageKey,
     {},
@@ -73,7 +80,20 @@ export function AppProvider(props: AppProviderProps) {
       serialize: JSON.stringify,
       deserialize: (value: string) => {
         const parsed = JSON.parse(value);
-        return AppConfigSchema.partial().parse(parsed);
+        if (typeof parsed !== 'object' || parsed === null) return {};
+
+        const result: Partial<AppConfig> = {};
+        // Validate each top-level field individually
+        for (const key of Object.keys(parsed)) {
+          const fieldSchema = AppConfigSchema.shape[key as keyof typeof AppConfigSchema.shape];
+          if (fieldSchema) {
+            const fieldResult = fieldSchema.safeParse(parsed[key]);
+            if (fieldResult.success) {
+              (result as Record<string, unknown>)[key] = fieldResult.data;
+            }
+          }
+        }
+        return result;
       }
     }
   );

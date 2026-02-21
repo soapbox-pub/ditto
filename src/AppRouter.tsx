@@ -1,21 +1,24 @@
+import { lazy } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Clapperboard, BarChart3, Palette, PartyPopper } from "lucide-react";
 import { ScrollToTop } from "./components/ScrollToTop";
 
+// Eager: critical path (home page + 404)
 import Index from "./pages/Index";
-import { NIP19Page } from "./pages/NIP19Page";
-import { ProfilePage } from "./pages/ProfilePage";
-import { NotificationsPage } from "./pages/NotificationsPage";
-import { SearchPage } from "./pages/SearchPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { HashtagPage } from "./pages/HashtagPage";
-import { DomainFeedPage } from "./pages/DomainFeedPage";
-import { BookmarksPage } from "./pages/BookmarksPage";
-
-import { KindFeedPage } from "./pages/KindFeedPage";
-import { StreamsFeedPage } from "./pages/StreamsFeedPage";
-import { TreasuresPage } from "./pages/TreasuresPage";
 import NotFound from "./pages/NotFound";
+
+// Lazy: loaded on demand when the user navigates to these routes
+const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m.NIP19Page })));
+const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })));
+const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
+const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
+const SettingsPage = lazy(() => import("./pages/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const HashtagPage = lazy(() => import("./pages/HashtagPage").then(m => ({ default: m.HashtagPage })));
+const DomainFeedPage = lazy(() => import("./pages/DomainFeedPage").then(m => ({ default: m.DomainFeedPage })));
+const BookmarksPage = lazy(() => import("./pages/BookmarksPage").then(m => ({ default: m.BookmarksPage })));
+const KindFeedPage = lazy(() => import("./pages/KindFeedPage").then(m => ({ default: m.KindFeedPage })));
+const StreamsFeedPage = lazy(() => import("./pages/StreamsFeedPage").then(m => ({ default: m.StreamsFeedPage })));
+const TreasuresPage = lazy(() => import("./pages/TreasuresPage").then(m => ({ default: m.TreasuresPage })));
 
 export function AppRouter() {
   return (
