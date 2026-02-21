@@ -1,7 +1,8 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
@@ -15,7 +16,10 @@ import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { MagicDeckContent } from '@/components/MagicDeckContent';
+import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { ReplyContext } from '@/components/ReplyContext';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
@@ -185,7 +189,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const isColor = event.kind === 3367;
   const isFollowPack = event.kind === 39089 || event.kind === 30000;
   const isArticle = event.kind === 30023;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle;
+  const isMagicDeck = event.kind === 37381;
+  const isStream = event.kind === 30311;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream;
 
   // Kind 1 specific
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
@@ -228,6 +234,14 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
     return null;
   }
 
+  // Hide magic decks tagged t:unlisted and geocaches tagged t:hidden
+  if (isMagicDeck && event.tags.some(([n, v]) => n === 't' && v === 'unlisted')) {
+    return null;
+  }
+  if (isGeocache && event.tags.some(([n, v]) => n === 't' && v === 'hidden')) {
+    return null;
+  }
+
   return (
     <article
       className={cn(
@@ -244,6 +258,16 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
       {/* Treasure header — "<chest> <name> hid/found a treasure" */}
       {isTreasure && (
         <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
+      )}
+
+      {/* Deck header — "<cards> <name> shared a deck" */}
+      {isMagicDeck && !repostedBy && (
+        <DeckHeader pubkey={event.pubkey} />
+      )}
+
+      {/* Stream header — "<radio> <name> is streaming / streamed" */}
+      {isStream && (
+        <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
       )}
 
       {/* Header: avatar + name/handle stacked */}
@@ -322,6 +346,10 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           <FollowPackContent event={event} />
         ) : isArticle ? (
           <ArticleContent event={event} preview className="mt-2" />
+        ) : isMagicDeck ? (
+          <MagicDeckContent event={event} />
+        ) : isStream ? (
+          <StreamContent event={event} />
         ) : (
           <>
             <div className="mt-2 break-words overflow-hidden">
@@ -503,6 +531,125 @@ function VineMedia({ imeta, hashtags }: { imeta?: { url?: string; thumbnail?: st
   );
 }
 
+/** Stream status badge config. */
+function getStreamStatusConfig(status: string | undefined) {
+  switch (status) {
+    case 'live':
+      return { label: 'LIVE', className: 'bg-red-600 hover:bg-red-600 text-white border-red-600' };
+    case 'ended':
+      return { label: 'ENDED', className: 'bg-muted text-muted-foreground border-border' };
+    case 'planned':
+      return { label: 'PLANNED', className: 'bg-blue-600/90 hover:bg-blue-600/90 text-white border-blue-600' };
+    default:
+      return { label: status?.toUpperCase() || 'UNKNOWN', className: 'bg-muted text-muted-foreground border-border' };
+  }
+}
+
+/** Inline content for kind 30311 live stream events. */
+function StreamContent({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const title = getTag(event.tags, 'title') || 'Untitled Stream';
+  const summary = getTag(event.tags, 'summary');
+  const imageUrl = getTag(event.tags, 'image');
+  const streamingUrl = getTag(event.tags, 'streaming');
+  const status = getTag(event.tags, 'status');
+  const currentParticipants = getTag(event.tags, 'current_participants');
+  const statusConfig = getStreamStatusConfig(status);
+
+  const isLive = status === 'live' && !!streamingUrl;
+
+  const encodedId = useMemo(() => {
+    const dTag = getTag(event.tags, 'd') || '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Stream player / thumbnail */}
+      <div className="rounded-xl overflow-hidden border border-border">
+        {isLive ? (
+          // Inline live player — clicks on the player are intercepted so they don't navigate away
+          // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <LiveStreamPlayer src={streamingUrl} poster={imageUrl} />
+            {/* Status + viewer overlay on top of the player */}
+            <div className="absolute top-2 left-2 z-10 flex items-center gap-2 pointer-events-none">
+              <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
+                <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />
+                {statusConfig.label}
+              </Badge>
+              {currentParticipants && (
+                <span className="flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                  <Users className="size-3" />
+                  {currentParticipants}
+                </span>
+              )}
+            </div>
+          </div>
+        ) : imageUrl ? (
+          <div className="relative w-full aspect-video overflow-hidden bg-muted">
+            <img
+              src={imageUrl}
+              alt=""
+              className="w-full h-full object-cover"
+              loading="lazy"
+              onError={(e) => {
+                (e.currentTarget.parentElement as HTMLElement).style.display = 'none';
+              }}
+            />
+            <div className="absolute top-2 left-2">
+              <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
+                {statusConfig.label}
+              </Badge>
+            </div>
+            {currentParticipants && (
+              <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 text-white text-xs px-2 py-0.5 rounded">
+                <Users className="size-3" />
+                {currentParticipants}
+              </div>
+            )}
+          </div>
+        ) : (
+          // No image, no live stream — show a minimal placeholder with status
+          <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/40">
+            <Radio className="size-4 text-primary shrink-0" />
+            <Badge variant="outline" className={cn('text-[10px]', statusConfig.className)}>
+              {status === 'live' && <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />}
+              {statusConfig.label}
+            </Badge>
+            {currentParticipants && (
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                <Users className="size-3" />
+                {currentParticipants}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Title + summary — clickable to open stream details */}
+      <button
+        type="button"
+        className="flex items-start gap-2 text-left w-full group"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/${encodedId}`);
+        }}
+      >
+        <Radio className="size-4 text-primary shrink-0 mt-0.5" />
+        <div className="min-w-0 flex-1">
+          <h3 className="font-semibold text-sm leading-snug line-clamp-2 group-hover:underline">
+            {title}
+          </h3>
+          {summary && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{summary}</p>
+          )}
+        </div>
+      </button>
+    </div>
+  );
+}
+
 function RepostHeader({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
@@ -526,6 +673,64 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
           </Link>
         )}
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>reposted</span>
+      </div>
+    </div>
+  );
+}
+
+function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <Radio className={cn("size-4 translate-y-px", isLive ? "text-primary" : "text-muted-foreground")} />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
+          {isLive ? 'is streaming' : 'streamed'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function DeckHeader({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <CardsIcon className="size-4 text-primary translate-y-px" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>shared a deck</span>
       </div>
     </div>
   );

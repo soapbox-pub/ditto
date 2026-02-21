@@ -570,7 +570,6 @@ export function ProfilePage() {
   const { toast } = useToast();
   const { muteItems } = useMuteList();
 
-
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);

@@ -203,6 +203,7 @@ export function ContentSettings() {
 // Import the internals from FeedSettingsForm (we'll need to export them)
 import { Clapperboard, BarChart3, Palette, PartyPopper, Radio, MessageSquare, Repeat2, FileText } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -219,6 +220,7 @@ const ICONS: Record<string, React.ReactNode> = {
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
   articles: <FileText className="size-5" />,
+  decks: <CardsIcon className="size-5" />,
   // Feed-only items (keyed by kind number)
   '1': <MessageSquare className="size-5" />,
   '6': <Repeat2 className="size-5" />,

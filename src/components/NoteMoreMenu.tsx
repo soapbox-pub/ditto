@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { nip19 } from 'nostr-tools';
 
 import {
@@ -11,12 +12,23 @@ import {
   Pin,
   FileJson,
   FileDigit,
+  Trash2,
 } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -27,6 +39,7 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { toast } from '@/hooks/useToast';
@@ -73,6 +86,8 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const displayName = metadata?.name || genUserName(event.pubkey);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', event.pubkey);
+  const { mutate: deleteEvent, isPending: isDeleting } = useDeleteEvent();
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const neventId = nip19.neventEncode({ id: event.id, author: event.pubkey });
 
@@ -161,6 +176,21 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
     close();
   };
 
+  const handleDelete = () => {
+    deleteEvent(
+      { eventId: event.id, eventKind: event.kind },
+      {
+        onSuccess: () => {
+          toast({ title: 'Post deleted' });
+          close();
+        },
+        onError: () => {
+          toast({ title: 'Failed to delete post', variant: 'destructive' });
+        },
+      },
+    );
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md p-0 gap-0 rounded-2xl overflow-hidden [&>button]:hidden">
@@ -239,6 +269,14 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
               onClick={handleTogglePin}
             />
           )}
+          {isOwnPost && (
+            <MenuItem
+              icon={<Trash2 className="size-5" />}
+              label="Delete post"
+              onClick={() => setDeleteConfirmOpen(true)}
+              destructive
+            />
+          )}
           {!isOwnPost && (
             <MenuItem
               icon={<AtSign className="size-5" />}
@@ -280,6 +318,27 @@ export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will request deletion from relays. Some relays may still keep a copy of the original event. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
