@@ -4,15 +4,15 @@ import { unzipSync } from 'fflate';
 export interface WebxdcMeta {
   /** App name from manifest.toml, or undefined if missing. */
   name?: string;
-  /** Icon as a data-URI (image/png or image/jpeg), or undefined if missing. */
-  iconDataUri?: string;
+  /** Icon as a File ready for upload, or undefined if missing. */
+  iconFile?: File;
 }
 
 /**
  * Extract the name and icon from a `.xdc` (ZIP) file.
  *
  * - Reads `manifest.toml` for the `name` field.
- * - Reads `icon.png` or `icon.jpg` and converts to a data-URI.
+ * - Reads `icon.png` or `icon.jpg` and returns it as a `File`.
  */
 export async function extractWebxdcMeta(file: File): Promise<WebxdcMeta> {
   const buf = await file.arrayBuffer();
@@ -35,15 +35,12 @@ export async function extractWebxdcMeta(file: File): Promise<WebxdcMeta> {
   const iconPng = unzipped['icon.png'];
   const iconJpg = unzipped['icon.jpg'];
   const iconBytes = iconPng ?? iconJpg;
-  const iconMime = iconPng ? 'image/png' : 'image/jpeg';
 
   if (iconBytes && iconBytes.length > 0) {
-    // Convert to base64 data URI
-    let binary = '';
-    for (let i = 0; i < iconBytes.length; i++) {
-      binary += String.fromCharCode(iconBytes[i]);
-    }
-    meta.iconDataUri = `data:${iconMime};base64,${btoa(binary)}`;
+    const isPng = !!iconPng;
+    const mime = isPng ? 'image/png' : 'image/jpeg';
+    const ext = isPng ? '.png' : '.jpg';
+    meta.iconFile = new File([iconBytes], `icon${ext}`, { type: mime });
   }
 
   return meta;

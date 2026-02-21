@@ -318,13 +318,9 @@ export function ComposeBox({
           const metaEntry: { name?: string; iconUrl?: string } = { name: meta.name };
 
           // Upload the icon to Blossom if present
-          if (meta.iconDataUri) {
+          if (meta.iconFile) {
             try {
-              const res = await fetch(meta.iconDataUri);
-              const blob = await res.blob();
-              const ext = meta.iconDataUri.includes('image/png') ? '.png' : '.jpg';
-              const iconFile = new File([blob], `icon${ext}`, { type: blob.type });
-              const iconTags = await uploadFile(iconFile);
+              const iconTags = await uploadFile(meta.iconFile);
               const [[, iconUrl]] = iconTags;
               metaEntry.iconUrl = iconUrl;
             } catch {
