@@ -109,14 +109,24 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
 
-      /** Collect all unique pubkeys from a set of feed items: event authors + p-tag mentions. */
+      const HEX64 = /^[0-9a-f]{64}$/;
+
+      /** Collect all unique pubkeys from a set of feed items: authors, p-tag mentions, and pubkeys from e/q tags. */
       function collectPubkeys(items: FeedItem[]): string[] {
         const pubkeys = new Set<string>();
         for (const { event } of items) {
           pubkeys.add(event.pubkey);
           for (const tag of event.tags) {
-            if (tag[0] === 'p' && tag[1]) {
-              pubkeys.add(tag[1]);
+            let pk: string | undefined;
+            if (tag[0] === 'p') {
+              pk = tag[1];
+            } else if (tag[0] === 'q') {
+              pk = tag[3];
+            } else if (tag[0] === 'e') {
+              pk = tag[4];
+            }
+            if (pk && HEX64.test(pk)) {
+              pubkeys.add(pk);
             }
           }
         }
