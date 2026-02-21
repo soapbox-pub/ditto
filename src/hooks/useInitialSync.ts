@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import type { EncryptedSettings } from './useEncryptedSettings';
+import type { MuteListItem } from './useMuteList';
 
 export type SyncPhase =
   | 'idle'         // No user logged in
@@ -86,14 +87,18 @@ export function useInitialSync() {
       let foundSettings = false;
 
       try {
-        // Fetch relay list and encrypted settings in parallel
-        const [relayEvents, settingsEvents] = await Promise.all([
+        // Fetch relay list, encrypted settings, and mute list in parallel
+        const [relayEvents, settingsEvents, muteEvents] = await Promise.all([
           nostr.query(
             [{ kinds: [10002], authors: [user.pubkey], limit: 1 }],
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(
             [{ kinds: [30078], authors: [user.pubkey], '#d': ['mew-metadata'], limit: 1 }],
+            { signal: controller.signal },
+          ).catch(() => []),
+          nostr.query(
+            [{ kinds: [10000], authors: [user.pubkey], limit: 1 }],
             { signal: controller.signal },
           ).catch(() => []),
         ]);
@@ -162,6 +167,39 @@ export function useInitialSync() {
             // Still count the event as found — NostrSync will retry decryption later
             foundSettings = true;
           }
+        }
+        // Seed mute list cache if found
+        if (muteEvents.length > 0) {
+          const muteEvent = muteEvents[0];
+
+          // Seed the raw event into the muteList query cache
+          queryClient.setQueryData(['muteList', user.pubkey], muteEvent);
+
+          // Decrypt and seed the parsed mute items
+          if (muteEvent.content && user.signer.nip44) {
+            try {
+              const decrypted = await user.signer.nip44.decrypt(user.pubkey, muteEvent.content);
+              const tags = JSON.parse(decrypted) as string[][];
+              const items: MuteListItem[] = [];
+
+              for (const tag of tags) {
+                const [tagName, value] = tag;
+                if (!value) continue;
+                switch (tagName) {
+                  case 'p': items.push({ type: 'pubkey', value }); break;
+                  case 't': items.push({ type: 'hashtag', value }); break;
+                  case 'word': items.push({ type: 'word', value }); break;
+                  case 'e': items.push({ type: 'thread', value }); break;
+                }
+              }
+
+              queryClient.setQueryData(['muteItems', muteEvent.id], items);
+            } catch (error) {
+              console.error('Failed to decrypt mute list during initial sync:', error);
+            }
+          }
+
+          foundSettings = true;
         }
       } catch (error) {
         // On timeout or error, treat as not found so the user can still proceed
