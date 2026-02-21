@@ -1,8 +1,9 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
+import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -63,6 +64,7 @@ function filterOutOfSyncEvents(events: NostrEvent[]): NostrEvent[] {
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
 export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   const { user } = useCurrentUser();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
@@ -103,9 +105,35 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
     queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, communityPubkeys.length],
-    queryFn: async ({ pageParam, signal }) => {
-      const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+    queryFn: async ({ pageParam }) => {
+      const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
+
+      /**
+       * Fetch kind 0 metadata for the given pubkeys and seed each into the
+       * individual `['author', pubkey]` query cache so that subsequent
+       * `useAuthor()` calls resolve instantly without extra relay queries.
+       * Pubkeys that are already cached are skipped.
+       */
+      async function fetchAndCacheAuthors(pubkeys: string[]): Promise<void> {
+        const uncached = pubkeys.filter(
+          (pk) => !queryClient.getQueryData(['author', pk]),
+        );
+        if (uncached.length === 0) return;
+        try {
+          const metaEvents = await nostr.query(
+            [{ kinds: [0], authors: uncached, limit: uncached.length }],
+            { signal },
+          );
+          for (const meta of metaEvents) {
+            if (!queryClient.getQueryData(['author', meta.pubkey])) {
+              queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
+            }
+          }
+        } catch {
+          // Timeout or abort — non-critical, author profiles will lazy-load
+        }
+      }
 
       if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
@@ -116,7 +144,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const rawEvents = await nostr.query(
           [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-          { signal: querySignal },
+          { signal },
         );
 
         // Filter out events from out-of-sync relays before processing
@@ -138,8 +166,16 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         const authorPubkeys = [...new Set(events.map(e => e.pubkey))];
         const metadataEvents = await nostr.query(
           [{ kinds: [0], authors: authorPubkeys }],
-          { signal: querySignal },
+          { signal },
         );
+
+        // Seed the author query cache from the metadata we already fetched
+        // so that fetchAndCacheAuthors below won't re-fetch these pubkeys.
+        for (const meta of metadataEvents) {
+          if (!queryClient.getQueryData(['author', meta.pubkey])) {
+            queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
+          }
+        }
 
         // Build map of pubkey -> NIP-05 identifier
         const nip05Map = new Map<string, string>();
@@ -200,7 +236,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           try {
             const originals = await nostr.query(
               [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal: querySignal },
+              { signal },
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
@@ -225,7 +261,12 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         }
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-        
+
+        // Cache kind 0 for any remaining authors (e.g. reposted event authors)
+        // not already covered by the NIP-05 metadata fetch above.
+        const allItemPubkeys = [...new Set(dedupedItems.map((i) => i.event.pubkey))];
+        await fetchAndCacheAuthors(allItemPubkeys);
+
         return { items: dedupedItems, oldestQueryTimestamp };
       } else if (tab === 'follows' && user && followList !== undefined) {
         // Follows feed — posts, reposts, and extra kinds from people you follow
@@ -238,7 +279,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const rawEvents = await nostr.query(
           [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
-          { signal: querySignal },
+          { signal },
         );
 
         // Filter out events from out-of-sync relays before processing
@@ -278,7 +319,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           try {
             const originals = await nostr.query(
               [{ ids: repostMissingIds, limit: repostMissingIds.length }],
-              { signal: querySignal },
+              { signal },
             );
             for (const original of originals) {
               const repost = repostMap.get(original.id);
@@ -303,7 +344,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         }
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-        
+
+        // Fetch and cache kind 0 profiles for all authors in this page
+        const allItemPubkeys = [...new Set(dedupedItems.map((i) => i.event.pubkey))];
+        await fetchAndCacheAuthors(allItemPubkeys);
+
         return { items: dedupedItems, oldestQueryTimestamp };
       } else {
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
@@ -315,7 +360,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const rawEvents = await nostr.query(
           [filter as { kinds: number[]; limit: number; until?: number }],
-          { signal: querySignal },
+          { signal },
         );
 
         // Filter out events from out-of-sync relays before processing
@@ -329,6 +374,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         const items = validEvents
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
+
+        // Fetch and cache kind 0 profiles for all authors in this page
+        const allItemPubkeys = [...new Set(items.map((i) => i.event.pubkey))];
+        await fetchAndCacheAuthors(allItemPubkeys);
 
         return { items, oldestQueryTimestamp };
       }
