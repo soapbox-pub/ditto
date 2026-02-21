@@ -112,32 +112,38 @@ function StarLayout({ colors }: { colors: string[] }) {
 
 function CheckerboardLayout({ colors }: { colors: string[] }) {
   const n = colors.length;
-  // Build an SVG pattern: n×n grid where each cell uses (row+col)%n
-  const cellSize = 1;
-  const svgSize = n * cellSize;
+  const height = 180;
+  // Target ~6 rows so squares are large and legible
+  const rows = n * Math.max(2, 4 - n);
+  const cellSize = height / rows;
+  // Enough columns to cover any container width (overflow is clipped)
+  const cols = Math.ceil(600 / cellSize);
 
-  let rects = '';
-  for (let row = 0; row < n; row++) {
-    for (let col = 0; col < n; col++) {
+  const cells: { color: string; key: string }[] = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
       const colorIndex = (row + col) % n;
-      rects += `<rect x="${col * cellSize}" y="${row * cellSize}" width="${cellSize}" height="${cellSize}" fill="${colors[colorIndex]}"/>`;
+      cells.push({ color: colors[colorIndex], key: `${row}-${col}` });
     }
   }
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${svgSize}" height="${svgSize}" shape-rendering="crispEdges">${rects}</svg>`;
-  const encoded = encodeURIComponent(svg);
 
   return (
     <div
       className="w-full rounded-2xl overflow-hidden"
-      style={{
-        height: 180,
-        backgroundImage: `url("data:image/svg+xml,${encoded}")`,
-        backgroundSize: '50% 50%',
-        backgroundRepeat: 'repeat',
-        imageRendering: 'pixelated',
-      }}
-    />
+      style={{ height }}
+    >
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+          gridTemplateRows: `repeat(${rows}, ${cellSize}px)`,
+        }}
+      >
+        {cells.map(({ color, key }) => (
+          <div key={key} style={{ backgroundColor: color }} />
+        ))}
+      </div>
+    </div>
   );
 }
 
