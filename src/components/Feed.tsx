@@ -11,7 +11,6 @@ import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/components/InitialSyncGate';
 import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useAuthors } from '@/hooks/useAuthors';
 import { useBatchEventStats } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -73,8 +72,8 @@ export function Feed() {
     await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
   }, [queryClient, activeTab]);
 
-  // Auto-fetch page 2 as soon as page 1 data arrives (even while authors/stats
-  // are still loading) for smoother scrolling when the user starts reading.
+  // Auto-fetch page 2 as soon as page 1 data arrives for smoother scrolling
+  // when the user starts reading.
   useEffect(() => {
     if (hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
       fetchNextPage();
@@ -106,40 +105,17 @@ export function Feed() {
     }) || [];
   }, [data?.pages, muteItems]);
 
-  // Batch-prefetch all author profiles in a single relay query instead of
-  // firing N individual useAuthor() calls from each NoteCard.  The results
-  // are seeded into the ['author', pubkey] cache so NoteCard's own
-  // useAuthor() resolves instantly from cache.
-  const feedPubkeys = useMemo(() => {
-    const keys = new Set<string>();
-    for (const item of feedItems) {
-      keys.add(item.event.pubkey);
-      if (item.repostedBy) keys.add(item.repostedBy);
-      
-      // For text notes, also prefetch the "replying to" pubkey if it exists
-      if (item.event.kind === 1) {
-        const replyTo = item.event.tags.find(([name, , , marker]) => name === 'p' && marker !== 'mention');
-        if (replyTo?.[1]) keys.add(replyTo[1]);
-      }
-    }
-    return [...keys];
-  }, [feedItems]);
-  const authorsQuery = useAuthors(feedPubkeys);
-
   // Batch-prefetch interaction stats for all visible events in a single
   // relay query instead of firing 2 queries per NoteCard.
-  // Runs in parallel with author prefetching — no sequential gate needed.
   const feedEventIds = useMemo(() => {
     return feedItems.map((item) => item.event.id);
   }, [feedItems]);
   
   useBatchEventStats(feedEventIds, feedEventIds.length > 0);
   
-  // Show skeleton only on initial load or while author profiles are loading
-  // (names/avatars are essential context). Stats can fade in after — they're
-  // not needed to start reading the feed.
-  const isInitialLoad = isPending || (isLoading && !data);
-  const showSkeleton = isInitialLoad || (authorsQuery.isFetching && !data?.pages?.length);
+  // Show skeleton only on initial load (author profiles are pre-cached
+  // by useFeed, so no separate gate needed).
+  const showSkeleton = isPending || (isLoading && !data);
 
   const handleLogin = () => {
     setLoginDialogOpen(false);
