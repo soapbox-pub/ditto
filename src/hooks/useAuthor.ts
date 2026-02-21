@@ -2,8 +2,6 @@ import { type NostrEvent, type NostrMetadata, NSchema as n } from '@nostrify/nos
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef } from 'react';
-import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays } from '@/lib/appRelays';
 
 /** Parse a kind-0 event into metadata + event, or return just the event on parse failure. */
 export function parseAuthorEvent(event: NostrEvent): { event: NostrEvent; metadata?: NostrMetadata } {
@@ -51,12 +49,7 @@ function getCachedAuthor(pubkey: string): { event: NostrEvent; metadata?: NostrM
 
 export function useAuthor(pubkey: string | undefined) {
   const { nostr } = useNostr();
-  const { config } = useAppContext();
   const queryClient = useQueryClient();
-
-  // Get the effective relays (same ones used by the pool)
-  const effectiveRelays = getEffectiveRelays(config.relayMetadata, config.useAppRelays);
-  const readRelayUrls = effectiveRelays.relays.filter(r => r.read).map(r => r.url);
 
   // Seed the query cache from localStorage once per pubkey. Using a ref
   // ensures we only read localStorage on first mount (or when pubkey changes),
@@ -84,51 +77,24 @@ export function useAuthor(pubkey: string | undefined) {
 
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
-    queryFn: async ({ signal }) => {
+    queryFn: async () => {
       if (!pubkey) {
         return {};
       }
 
-      const combinedSignal = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+      const signal = AbortSignal.timeout(1000);
 
       // Fast path: use the pool (races all relays, returns quickly via EOSE timeout)
       const [event] = await nostr.query(
         [{ kinds: [0], authors: [pubkey!], limit: 1 }],
-        { signal: combinedSignal },
+        { signal },
       );
 
-      if (event) {
-        return parseAuthorEvent(event);
+      if (!event) {
+        throw new Error('No event found');
       }
 
-      // Slow path: pool returned empty (EOSE timeout may have cut off slower relays).
-      // Query each relay individually (same relays as pool, but with more time).
-      if (readRelayUrls.length === 0) {
-        return {};
-      }
-
-      return new Promise<{ event?: NostrEvent; metadata?: NostrMetadata }>((resolve) => {
-        let settled = false;
-        let pending = readRelayUrls.length;
-
-        for (const url of readRelayUrls) {
-          nostr.relay(url).query(
-            [{ kinds: [0], authors: [pubkey!], limit: 1 }],
-            { signal: combinedSignal },
-          ).then((events) => {
-            if (settled) return;
-            if (events.length > 0) {
-              settled = true;
-              resolve(parseAuthorEvent(events[0]));
-            } else if (--pending === 0) {
-              resolve({});
-            }
-          }).catch(() => {
-            if (settled) return;
-            if (--pending === 0) resolve({});
-          });
-        }
-      });
+      return parseAuthorEvent(event);
     },
     enabled: !!pubkey,
     staleTime: 5 * 60 * 1000,
