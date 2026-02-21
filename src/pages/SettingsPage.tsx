@@ -17,7 +17,7 @@ export function SettingsPage() {
     description: 'Manage your Mew settings',
   });
 
-  const activeSection = section || 'profile';
+  const activeSection = section || (user ? 'profile' : 'content');
 
   return (
     <MainLayout>
@@ -39,7 +39,7 @@ export function SettingsPage() {
 
         {/* Tab navigation */}
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
-          <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />
+          {user && <SettingsTab to="/settings/profile" label="Profile" active={activeSection === 'profile'} />}
           <SettingsTab to="/settings/content" label="Content" active={activeSection === 'content'} />
           <SettingsTab to="/settings/advanced" label="Advanced" active={activeSection === 'advanced'} />
         </div>
@@ -49,9 +49,7 @@ export function SettingsPage() {
             <ContentSettings />
           ) : activeSection === 'advanced' ? (
             <AdvancedSettings />
-          ) : !user ? (
-            <p className="text-center text-muted-foreground py-8">Log in to manage settings.</p>
-          ) : activeSection === 'profile' ? (
+          ) : user && activeSection === 'profile' ? (
             <EditProfileForm />
           ) : null}
         </div>
