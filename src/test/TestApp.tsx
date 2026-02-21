@@ -34,6 +34,7 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludePosts: true,
       feedIncludeReposts: true,
       feedIncludeArticles: false,
+      showArticles: false,
       showVines: true,
       showPolls: false,
       showTreasures: false,

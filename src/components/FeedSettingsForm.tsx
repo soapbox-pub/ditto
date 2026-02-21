@@ -16,10 +16,10 @@ const ICONS: Record<string, React.ReactNode> = {
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
+  articles: <FileText className="size-5" />,
   // Feed-only items (keyed by kind number)
   '1': <MessageSquare className="size-5" />,
   '6': <Repeat2 className="size-5" />,
-  '30023': <FileText className="size-5" />,
 };
 
 function KindBadge({ kind }: { kind: number }) {

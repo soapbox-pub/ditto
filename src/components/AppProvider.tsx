@@ -30,6 +30,7 @@ const FeedSettingsSchema = z.object({
   feedIncludePosts: z.boolean().optional(),
   feedIncludeReposts: z.boolean().optional(),
   feedIncludeArticles: z.boolean().optional(),
+  showArticles: z.boolean().optional(),
   showVines: z.boolean().optional(),
   showPolls: z.boolean().optional(),
   showTreasures: z.boolean().optional(),

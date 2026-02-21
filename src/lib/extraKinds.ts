@@ -73,15 +73,6 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     section: 'feed',
     feedOnly: true,
   },
-  {
-    kind: 30023,
-    feedKey: 'feedIncludeArticles',
-    label: 'Articles',
-    description: 'Long-form blog posts',
-    addressable: true,
-    section: 'feed',
-    feedOnly: true,
-  },
   // Media
   {
     kind: 34236,
@@ -100,6 +91,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     label: 'Streams',
     description: 'Live streaming events',
     route: 'streams',
+    addressable: true,
+    section: 'media',
+  },
+  {
+    kind: 30023,
+    showKey: 'showArticles',
+    feedKey: 'feedIncludeArticles',
+    label: 'Articles',
+    description: 'Long-form blog posts',
+    route: 'articles',
     addressable: true,
     section: 'media',
   },
@@ -164,7 +165,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
 ];
 
-/** Feed-only entries (Posts, Reposts, Articles) rendered separately from "Other Stuff". */
+/** Feed-only entries (Posts, Reposts) rendered in the "Notes" section. */
 export const FEED_KINDS: ExtraKindDef[] = EXTRA_KINDS.filter((def) => def.section === 'feed');
 
 /** Return the kind numbers the user has opted to include in mixed feeds. */
