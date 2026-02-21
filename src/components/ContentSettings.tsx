@@ -71,6 +71,13 @@ export function ContentSettings() {
                   Core content types that appear in your feed.
                 </p>
               </div>
+
+              {/* Column headers */}
+              <div className="flex items-center justify-end gap-2 px-3 pb-2 border-b border-border">
+                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Sidebar</span>
+                <span className="text-[11px] font-medium text-muted-foreground w-[52px] text-center">Feed</span>
+              </div>
+
               <NotesFeedSettings />
             </div>
           </CollapsibleContent>
