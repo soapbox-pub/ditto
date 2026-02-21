@@ -30,6 +30,7 @@ import { FoundLogContent } from '@/components/FoundLogContent';
 import { ColorMomentContent } from '@/components/ColorMomentContent';
 import { FollowPackContent } from '@/components/FollowPackContent';
 import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
+import { ArticleContent } from '@/components/ArticleContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 
@@ -624,7 +625,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isFoundLog = event.kind === 7516;
     const isColor = event.kind === 3367;
     const isFollowPack = event.kind === 39089 || event.kind === 30000;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack;
+    const isArticle = event.kind === 30023;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle;
 
   const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -707,7 +709,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
         {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
         <ContentWarningGuard event={event}>
-          {isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
+          {isArticle ? (
+            <ArticleContent event={event} className="mt-3" />
+          ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
               {isPoll && <PollContent event={event} />}
