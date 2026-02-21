@@ -207,11 +207,11 @@ interface ContentKind {
 
 const CONTENT_KINDS: ContentKind[] = [
   { key: 'vines', label: 'Vines', description: 'Short video clips', icon: Clapperboard, sidebarKey: 'showVines', feedKey: 'feedIncludeVines' },
-  { key: 'polls', label: 'Polls', description: 'Community polls', icon: BarChart3, sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
-  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
-  { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
-  { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
   { key: 'streams', label: 'Streams', description: 'Live broadcasts', icon: Radio, sidebarKey: 'showStreams', feedKey: 'feedIncludeStreams' },
+  { key: 'polls', label: 'Polls', description: 'Community polls', icon: BarChart3, sidebarKey: 'showPolls', feedKey: 'feedIncludePolls' },
+  { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
+  { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
+  { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
 ];
 
 const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
