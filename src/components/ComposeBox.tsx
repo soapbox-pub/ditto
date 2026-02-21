@@ -437,8 +437,8 @@ export function ComposeBox({
             const uuid = webxdcUuids.get(url);
             if (uuid) filtered.push(`webxdc ${uuid}`);
             const meta = webxdcMetas.get(url);
-            if (meta?.name) filtered.push(`webxdc_name ${meta.name}`);
-            if (meta?.iconUrl) filtered.push(`webxdc_icon ${meta.iconUrl}`);
+            if (meta?.name) filtered.push(`summary ${meta.name}`);
+            if (meta?.iconUrl) filtered.push(`image ${meta.iconUrl}`);
             tags.push(['imeta', ...filtered]);
           } else {
             tags.push(['imeta', ...imetaFields]);
@@ -464,8 +464,8 @@ export function ComposeBox({
             const uuid = webxdcUuids.get(url);
             if (uuid) imetaTag.push(`webxdc ${uuid}`);
             const meta = webxdcMetas.get(url);
-            if (meta?.name) imetaTag.push(`webxdc_name ${meta.name}`);
-            if (meta?.iconUrl) imetaTag.push(`webxdc_icon ${meta.iconUrl}`);
+            if (meta?.name) imetaTag.push(`summary ${meta.name}`);
+            if (meta?.iconUrl) imetaTag.push(`image ${meta.iconUrl}`);
           }
           tags.push(imetaTag);
         }

@@ -77,12 +77,10 @@ interface ImetaEntry {
   url: string;
   thumbnail?: string;
   mime?: string;
+  /** Summary text (used as webxdc app name for webxdc attachments). */
+  summary?: string;
   /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
   webxdc?: string;
-  /** Webxdc app name from manifest.toml. */
-  webxdc_name?: string;
-  /** Webxdc app icon URL. */
-  webxdc_icon?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. Works for any event kind. */
@@ -104,9 +102,8 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
         url: entry.url,
         thumbnail: entry.image,
         mime: entry.m,
+        summary: entry.summary,
         webxdc: entry.webxdc,
-        webxdc_name: entry.webxdc_name,
-        webxdc_icon: entry.webxdc_icon,
       });
     }
   }
@@ -410,7 +407,7 @@ function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: stri
 
       {/* Webxdc apps */}
       {webxdcApps.map((app) => (
-        <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.webxdc_name} icon={app.webxdc_icon} />
+        <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />
       ))}
     </>
   );
