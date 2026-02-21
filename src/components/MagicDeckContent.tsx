@@ -200,7 +200,7 @@ function CardLightbox({ cards, currentIndex, onClose, onNext, onPrev }: {
   const handleTouchStart = (e: React.TouchEvent) => { setTouchStart(e.touches[0].clientX); setIsDragging(true); };
   const handleTouchMove = (e: React.TouchEvent) => { if (touchStart !== null) setTouchDelta(e.touches[0].clientX - touchStart); };
   const handleTouchEnd = () => {
-    if (Math.abs(touchDelta) > 60 && hasMultiple) { touchDelta > 0 ? onPrev() : onNext(); }
+    if (Math.abs(touchDelta) > 60 && hasMultiple) { if (touchDelta > 0) { onPrev(); } else { onNext(); } }
     setTouchStart(null); setTouchDelta(0); setIsDragging(false);
   };
 
