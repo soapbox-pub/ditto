@@ -1,6 +1,7 @@
 import { lazy } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, Palette, PartyPopper, FileText, Layers } from "lucide-react";
+import { Clapperboard, BarChart3, Palette, PartyPopper, FileText } from "lucide-react";
+import { CardsIcon } from "./components/icons/CardsIcon";
 import { ScrollToTop } from "./components/ScrollToTop";
 
 // Eager: critical path (home page + 404)
@@ -40,7 +41,7 @@ export function AppRouter() {
         <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
         <Route path="/streams" element={<StreamsFeedPage />} />
         <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
-        <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<Layers className="size-5" />} />} />
+        <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
 
         <Route path="/bookmarks" element={<BookmarksPage />} />
 

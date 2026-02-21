@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Layers, Shield, Sparkles, Swords, ChevronDown, ChevronUp } from 'lucide-react';
+import { Shield, Sparkles, Swords, ChevronDown, ChevronUp } from 'lucide-react';
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -139,7 +140,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
       {/* Title */}
       {title && (
         <div className="flex items-start gap-2 mb-2">
-          <Layers className="size-4 text-primary mt-0.5 shrink-0" />
+          <CardsIcon className="size-4 text-primary mt-0.5 shrink-0" />
           <span className="text-[15px] font-semibold leading-snug">{title}</span>
         </div>
       )}
@@ -210,7 +211,7 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
       {/* Card count summary */}
       <div className="flex items-center gap-3 mb-2">
         <Badge variant="secondary" className="text-[11px] gap-1 font-medium">
-          <Layers className="size-3" />
+          <CardsIcon className="size-3" />
           {totalCards} cards
         </Badge>
         {totalSideboard > 0 && (
