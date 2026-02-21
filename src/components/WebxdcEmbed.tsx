@@ -82,7 +82,6 @@ function WebxdcIframe({ id, url, uuid }: { id: string; url: string; uuid?: strin
       webxdc={webxdc}
       className="w-full border-0"
       style={{ height: '400px' }}
-      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
     />
   );
 }
