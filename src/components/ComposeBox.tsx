@@ -18,6 +18,7 @@ import { useUploadFile } from '@/hooks/useUploadFile';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
+import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 
 const MAX_CHARS = 5000;
 
@@ -105,6 +106,8 @@ export function ComposeBox({
   const [uploadedFileGroups, setUploadedFileGroups] = useState<Map<string, string[][]>>(new Map());
   /** Maps .xdc URLs to their generated webxdc UUIDs. */
   const [webxdcUuids, setWebxdcUuids] = useState<Map<string, string>>(new Map());
+  /** Maps .xdc URLs to extracted metadata (name + icon URL). */
+  const [webxdcMetas, setWebxdcMetas] = useState<Map<string, { name?: string; iconUrl?: string }>>(new Map());
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -304,10 +307,35 @@ export function ComposeBox({
       setUploadedFileGroups((prev) => new Map(prev).set(url, tags));
       setContent((prev) => (prev ? prev + '\n' + url : url));
 
-      // For .xdc files, generate a webxdc UUID for stateful coordination
+      // For .xdc files, generate a UUID and extract manifest metadata
       if (isXdc) {
         const uuid = crypto.randomUUID();
         setWebxdcUuids((prev) => new Map(prev).set(url, uuid));
+
+        // Extract name and icon from the .xdc archive
+        try {
+          const meta = await extractWebxdcMeta(file);
+          const metaEntry: { name?: string; iconUrl?: string } = { name: meta.name };
+
+          // Upload the icon to Blossom if present
+          if (meta.iconDataUri) {
+            try {
+              const res = await fetch(meta.iconDataUri);
+              const blob = await res.blob();
+              const ext = meta.iconDataUri.includes('image/png') ? '.png' : '.jpg';
+              const iconFile = new File([blob], `icon${ext}`, { type: blob.type });
+              const iconTags = await uploadFile(iconFile);
+              const [[, iconUrl]] = iconTags;
+              metaEntry.iconUrl = iconUrl;
+            } catch {
+              // Icon upload failed — continue without it
+            }
+          }
+
+          setWebxdcMetas((prev) => new Map(prev).set(url, metaEntry));
+        } catch {
+          // Metadata extraction failed — continue without it
+        }
       }
 
       expand();
@@ -407,11 +435,14 @@ export function ComposeBox({
           const imetaFields = fileTags.map(tag => `${tag[0]} ${tag[1]}`);
 
           if (isWebxdc) {
-            // Override MIME type for .xdc files and add webxdc UUID
+            // Override MIME type for .xdc files and add webxdc UUID + metadata
             const filtered = imetaFields.filter(f => !f.startsWith('m '));
             filtered.push('m application/vnd.webxdc+zip');
             const uuid = webxdcUuids.get(url);
             if (uuid) filtered.push(`webxdc ${uuid}`);
+            const meta = webxdcMetas.get(url);
+            if (meta?.name) filtered.push(`webxdc_name ${meta.name}`);
+            if (meta?.iconUrl) filtered.push(`webxdc_icon ${meta.iconUrl}`);
             tags.push(['imeta', ...filtered]);
           } else {
             tags.push(['imeta', ...imetaFields]);
@@ -436,6 +467,9 @@ export function ComposeBox({
           if (isWebxdc) {
             const uuid = webxdcUuids.get(url);
             if (uuid) imetaTag.push(`webxdc ${uuid}`);
+            const meta = webxdcMetas.get(url);
+            if (meta?.name) imetaTag.push(`webxdc_name ${meta.name}`);
+            if (meta?.iconUrl) imetaTag.push(`webxdc_icon ${meta.iconUrl}`);
           }
           tags.push(imetaTag);
         }
@@ -458,6 +492,7 @@ export function ComposeBox({
       setUploadedFileTags([]);
       setUploadedFileGroups(new Map());
       setWebxdcUuids(new Map());
+      setWebxdcMetas(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
         queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });

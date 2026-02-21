@@ -94,6 +94,10 @@ interface ImetaEntry {
   mime?: string;
   /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
   webxdc?: string;
+  /** Webxdc app name from manifest.toml. */
+  webxdc_name?: string;
+  /** Webxdc app icon URL. */
+  webxdc_icon?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. */
@@ -111,7 +115,7 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
       entry[key] = value;
     }
     if (entry.url) {
-      map.set(entry.url, { url: entry.url, thumbnail: entry.image, mime: entry.m, webxdc: entry.webxdc });
+      map.set(entry.url, { url: entry.url, thumbnail: entry.image, mime: entry.m, webxdc: entry.webxdc, webxdc_name: entry.webxdc_name, webxdc_icon: entry.webxdc_icon });
     }
   }
   return map;
@@ -757,7 +761,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               ))}
               <ImageGallery images={images} maxGridHeight="500px" />
               {webxdcApps.map((app) => (
-                <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} />
+                <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.webxdc_name} icon={app.webxdc_icon} />
               ))}
             </>
           )}
@@ -1061,7 +1065,7 @@ function ParentNote({ eventId }: { eventId: string }) {
 
             {/* Webxdc apps */}
             {webxdcApps.map((app) => (
-              <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} />
+              <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.webxdc_name} icon={app.webxdc_icon} />
             ))}
           </ContentWarningGuard>
         </div>

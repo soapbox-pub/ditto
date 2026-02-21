@@ -5,11 +5,15 @@ import { Webxdc } from '@/components/Webxdc';
 import { useWebxdc } from '@/hooks/useWebxdc';
 import { cn } from '@/lib/utils';
 
-interface WebxdcEmbedProps {
+export interface WebxdcEmbedProps {
   /** URL to the .xdc file. */
   url: string;
   /** UUID for stateful webxdc coordination. If absent, the app is stateless. */
   uuid?: string;
+  /** App name from manifest.toml. */
+  name?: string;
+  /** App icon URL. */
+  icon?: string;
   className?: string;
 }
 
@@ -17,7 +21,7 @@ interface WebxdcEmbedProps {
  * Renders a webxdc app embedded in the feed. Shows a launch button initially,
  * then loads the sandboxed iframe when the user clicks to interact.
  */
-export function WebxdcEmbed({ url, uuid, className }: WebxdcEmbedProps) {
+export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedProps) {
   const [launched, setLaunched] = useState(false);
 
   // Derive a stable iframe ID from the UUID or URL
@@ -32,19 +36,19 @@ export function WebxdcEmbed({ url, uuid, className }: WebxdcEmbedProps) {
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-col items-center justify-center gap-4 py-10 px-6">
-          <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
-            <Blocks className="size-7 text-primary" />
-          </div>
-          <div className="text-center space-y-1">
-            <p className="text-sm font-medium">Webxdc App</p>
-            <p className="text-xs text-muted-foreground max-w-xs truncate">{url.split('/').pop()}</p>
-            {uuid && (
-              <p className="text-xs text-muted-foreground">
-                Stateful &middot; shared session
-              </p>
-            )}
-          </div>
+        <div className="flex flex-col items-center justify-center gap-4 py-8 px-6">
+          {icon ? (
+            <img
+              src={icon}
+              alt={name ?? 'Webxdc App'}
+              className="size-14 rounded-2xl object-cover"
+            />
+          ) : (
+            <div className="flex items-center justify-center size-14 rounded-2xl bg-primary/10">
+              <Blocks className="size-7 text-primary" />
+            </div>
+          )}
+          <p className="text-sm font-medium">{name ?? 'Webxdc App'}</p>
           <Button
             size="sm"
             onClick={() => setLaunched(true)}
