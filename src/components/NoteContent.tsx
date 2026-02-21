@@ -17,6 +17,8 @@ import type { AddrCoords } from '@/hooks/useEvent';
 interface NoteContentProps {
   event: NostrEvent;
   className?: string;
+  /** When true, renders URLs as inline links instead of link preview cards / embeds. */
+  disableEmbeds?: boolean;
 }
 
 /** Regex to detect media file URLs (images, video, audio, webxdc, etc.) that are rendered as embeds. */
@@ -98,6 +100,7 @@ function isOnlyEmojis(text: string): boolean {
 export function NoteContent({
   event,
   className,
+  disableEmbeds = false,
 }: NoteContentProps) {
   const tokens = useMemo(() => {
     const text = event.content;
@@ -277,6 +280,20 @@ export function NoteContent({
           case 'text':
             return <span key={i}>{emojify(token.value, emojiMap)}</span>;
           case 'link-preview':
+            if (disableEmbeds) {
+              return (
+                <a
+                  key={i}
+                  href={token.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {token.url}
+                </a>
+              );
+            }
             return <LinkPreview key={i} url={token.url} className="my-2.5" />;
           case 'inline-link':
             return (
