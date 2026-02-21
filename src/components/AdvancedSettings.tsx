@@ -373,12 +373,12 @@ export function AdvancedSettings() {
                       toast({ title: 'Favicon URL updated' });
                     }
                   }}
-                  placeholder="https://favicon.shakespeare.diy/?url={href}"
+                  placeholder="https://fetch.ditto.pub/favicon/{hostname}"
                   className="font-mono text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
-                  <span className="font-mono break-all">https://favicon.shakespeare.diy/?url={'{href}'}</span>
+                  <span className="font-mono break-all">https://fetch.ditto.pub/favicon/{'{hostname}'}</span>
                 </div>
               </div>
 
