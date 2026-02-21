@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search } from 'lucide-react';
+import { Search, UserRoundCheck } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -37,7 +37,7 @@ export function ProfileSearchDropdown({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
-  const { data: profiles, isFetching } = useSearchProfiles(query);
+  const { data: profiles, isFetching, followedPubkeys } = useSearchProfiles(query);
 
   // Show dropdown when we have results, or when text search is enabled and there's a query
   useEffect(() => {
@@ -192,6 +192,7 @@ export function ProfileSearchDropdown({
                 key={profile.pubkey}
                 profile={profile}
                 isSelected={index === selectedIndex}
+                isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={() => handleSelect(profile)}
               />
             ))}
@@ -226,6 +227,7 @@ export function ProfileSearchDropdown({
                 key={profile.pubkey}
                 profile={profile}
                 isSelected={index === selectedIndex}
+                isFollowed={followedPubkeys.has(profile.pubkey)}
                 onClick={() => handleSelect(profile)}
               />
             ))}
@@ -248,10 +250,12 @@ export function ProfileSearchDropdown({
 function ProfileItem({
   profile,
   isSelected,
+  isFollowed,
   onClick,
 }: {
   profile: SearchProfile;
   isSelected: boolean;
+  isFollowed: boolean;
   onClick: () => void;
 }) {
   const { metadata, pubkey } = profile;
@@ -276,12 +280,22 @@ function ProfileItem({
       onClick={onClick}
       onMouseDown={(e) => e.preventDefault()} // Prevent input blur
     >
-      <Avatar className="size-10 shrink-0">
-        <AvatarImage src={metadata.picture} alt={displayName} />
-        <AvatarFallback className="bg-primary/20 text-primary text-sm">
-          {displayName[0]?.toUpperCase() || '?'}
-        </AvatarFallback>
-      </Avatar>
+      <div className="relative shrink-0">
+        <Avatar className="size-10">
+          <AvatarImage src={metadata.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+        {isFollowed && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 size-4 rounded-full bg-primary flex items-center justify-center ring-2 ring-popover"
+            title="Following"
+          >
+            <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
+          </span>
+        )}
+      </div>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
