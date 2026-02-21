@@ -64,6 +64,7 @@ const AppConfigSchema = z.object({
   blossomServers: z.array(z.url()),
   defaultZapComment: z.string(),
   faviconUrl: z.string(),
+  linkPreviewUrl: z.string(),
   corsProxy: z.string(),
   contentWarningPolicy: z.enum(['blur', 'hide', 'show']),
 });

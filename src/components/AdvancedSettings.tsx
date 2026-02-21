@@ -23,6 +23,7 @@ export function AdvancedSettings() {
   const [newBlossomUrl, setNewBlossomUrl] = useState('');
   const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
+  const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
 
   const handleAddBlossomServer = () => {
@@ -382,13 +383,43 @@ export function AdvancedSettings() {
                 </div>
               </div>
 
+              {/* Link Preview URL */}
+              <div>
+                <Label htmlFor="link-preview-url" className="text-sm font-medium">
+                  Link Preview URL
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1 mb-2">
+                  URI template for fetching link previews (returns OEmbed JSON). Supports RFC 6570 variables: <code className="bg-muted px-1 rounded">{'{url}'}</code>, <code className="bg-muted px-1 rounded">{'{hostname}'}</code>, <code className="bg-muted px-1 rounded">{'{origin}'}</code>, etc.
+                </p>
+                <Input
+                  id="link-preview-url"
+                  value={linkPreviewUrl}
+                  onChange={(e) => {
+                    setLinkPreviewUrl(e.target.value);
+                  }}
+                  onBlur={() => {
+                    const trimmed = linkPreviewUrl.trim();
+                    if (trimmed && trimmed !== config.linkPreviewUrl) {
+                      updateConfig(() => ({ linkPreviewUrl: trimmed }));
+                      toast({ title: 'Link preview URL updated' });
+                    }
+                  }}
+                  placeholder="https://fetch.ditto.pub/link/{url}"
+                  className="font-mono text-sm"
+                />
+                <div className="text-xs text-muted-foreground mt-2">
+                  <span className="font-medium">Default: </span>
+                  <span className="font-mono break-all">https://fetch.ditto.pub/link/{'{url}'}</span>
+                </div>
+              </div>
+
               {/* CORS Proxy */}
               <div>
                 <Label htmlFor="cors-proxy" className="text-sm font-medium">
                   CORS Proxy
                 </Label>
                 <p className="text-xs text-muted-foreground mt-1 mb-2">
-                  Proxy for cross-origin requests (link previews, NIP-05 fallback). Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the target URL.
+                  Proxy for cross-origin requests (NIP-05 fallback). Use <code className="bg-muted px-1 rounded">{'{href}'}</code> as a placeholder for the target URL.
                 </p>
                 <Input
                   id="cors-proxy"
