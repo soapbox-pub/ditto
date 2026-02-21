@@ -1,0 +1,92 @@
+import { createContext, useContext, useEffect, useRef, useSyncExternalStore } from 'react';
+
+/** Options that pages can set to configure the persistent MainLayout. */
+export interface LayoutOptions {
+  /** Optional custom right sidebar to replace the default one */
+  rightSidebar?: React.ReactNode;
+  /** Whether to show the floating compose button (default: false) */
+  showFAB?: boolean;
+  /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
+  noBottomSpacer?: boolean;
+  /** Additional classes for the wrapper div */
+  wrapperClassName?: string;
+}
+
+type Listener = () => void;
+
+const EMPTY: LayoutOptions = {};
+
+/**
+ * A mutable store that holds the current layout options.
+ * Pages call `setOptions` to update, and MainLayout subscribes via useSyncExternalStore.
+ */
+export class LayoutStore {
+  private options: LayoutOptions = EMPTY;
+  private listeners = new Set<Listener>();
+
+  getSnapshot = (): LayoutOptions => this.options;
+
+  subscribe = (listener: Listener): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  setOptions = (next: LayoutOptions): void => {
+    if (this.options === next) return;
+    this.options = next;
+    this.listeners.forEach((l) => l());
+  };
+
+  reset = (): void => {
+    if (this.options === EMPTY) return;
+    this.options = EMPTY;
+    this.listeners.forEach((l) => l());
+  };
+}
+
+export const LayoutStoreContext = createContext<LayoutStore | null>(null);
+
+function useLayoutStore(): LayoutStore {
+  const store = useContext(LayoutStoreContext);
+  if (!store) throw new Error('useLayoutOptions must be used within LayoutStoreContext');
+  return store;
+}
+
+/**
+ * Hook for pages to declare their layout options.
+ * Call this at the top of a page component to configure the surrounding MainLayout.
+ *
+ * Sets options synchronously during render so the layout never shows stale values.
+ * Resets to defaults on unmount so options don't leak to the next page.
+ */
+export function useLayoutOptions(options: LayoutOptions): void {
+  const store = useLayoutStore();
+  const prev = useRef<LayoutOptions | null>(null);
+
+  // Set options synchronously during render (before commit) so the layout
+  // picks them up in the same paint as the new page.
+  const changed =
+    prev.current === null ||
+    prev.current.showFAB !== options.showFAB ||
+    prev.current.noBottomSpacer !== options.noBottomSpacer ||
+    prev.current.wrapperClassName !== options.wrapperClassName ||
+    prev.current.rightSidebar !== options.rightSidebar;
+
+  if (changed) {
+    prev.current = options;
+    store.setOptions(options);
+  }
+
+  // Clean up on unmount — reset to defaults so the next page starts fresh.
+  useEffect(() => {
+    return () => {
+      store.reset();
+    };
+  }, [store]);
+}
+
+/** Hook for MainLayout to read the current layout options reactively. */
+export function useLayoutSnapshot(): LayoutOptions {
+  const store = useLayoutStore();
+  return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+}

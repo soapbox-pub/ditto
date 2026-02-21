@@ -4,7 +4,7 @@ import { ArrowLeft, Users, Radio, Zap, Clock, ChevronDown, ChevronUp } from 'luc
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 
-import { MainLayout } from '@/components/MainLayout';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -123,6 +123,8 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   const hasDetails = !!(summary || hashtags.length > 0 || participants.length > 0);
   const hasExpandable = hasDescription || hasDetails;
 
+  useLayoutOptions({ rightSidebar: chatSidebar, noBottomSpacer: true });
+
   /** Details block — always visible on desktop, expandable on mobile.
    *  On mobile this also includes the author row.
    */
@@ -170,7 +172,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   );
 
   return (
-    <MainLayout rightSidebar={chatSidebar} noBottomSpacer>
+    <>
       <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
         {/* Header */}
         <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
@@ -271,7 +273,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
         {/* Bottom spacer (desktop only) */}
         <div className="hidden xl:block h-8" />
       </main>
-    </MainLayout>
+    </>
   );
 }
 

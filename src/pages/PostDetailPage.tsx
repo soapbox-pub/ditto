@@ -7,7 +7,6 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useSeoMeta } from '@unhead/react';
 
-import { MainLayout } from '@/components/MainLayout';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -238,11 +237,9 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
 
   if (isLoading) {
     return (
-      <MainLayout>
-        <PostDetailShell>
-          <PostDetailSkeleton />
-        </PostDetailShell>
-      </MainLayout>
+      <PostDetailShell>
+        <PostDetailSkeleton />
+      </PostDetailShell>
     );
   }
 
@@ -250,25 +247,21 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
 
   if (isError || !resolvedEvent) {
     return (
-      <MainLayout>
-        <PostDetailShell>
-          <EventNotFound
-            context={{ type: 'event', eventId, relays, authorHint }}
-            onEventFound={setRetryEvent}
-          />
-        </PostDetailShell>
-      </MainLayout>
+      <PostDetailShell>
+        <EventNotFound
+          context={{ type: 'event', eventId, relays, authorHint }}
+          onEventFound={setRetryEvent}
+        />
+      </PostDetailShell>
     );
   }
 
   return (
-    <MainLayout>
-      <PostDetailShell>
-        <MutedContentGuard event={resolvedEvent}>
-          <PostDetailContent event={resolvedEvent} />
-        </MutedContentGuard>
-      </PostDetailShell>
-    </MainLayout>
+    <PostDetailShell>
+      <MutedContentGuard event={resolvedEvent}>
+        <PostDetailContent event={resolvedEvent} />
+      </MutedContentGuard>
+    </PostDetailShell>
   );
 }
 
@@ -287,37 +280,31 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   if (isLoading) {
     return (
-      <MainLayout>
-        <PostDetailShell>
-          <PostDetailSkeleton />
-        </PostDetailShell>
-      </MainLayout>
+      <PostDetailShell>
+        <PostDetailSkeleton />
+      </PostDetailShell>
     );
   }
 
   if (isError || !resolvedEvent) {
     return (
-      <MainLayout>
-        <PostDetailShell>
-          <EventNotFound
-            context={{ type: 'addr', addr, relays }}
-            onEventFound={setRetryEvent}
-          />
-        </PostDetailShell>
-      </MainLayout>
+      <PostDetailShell>
+        <EventNotFound
+          context={{ type: 'addr', addr, relays }}
+          onEventFound={setRetryEvent}
+        />
+      </PostDetailShell>
     );
   }
 
   // Follow packs get their own full detail view with member list + Follow All
   if (FOLLOW_PACK_KINDS.has(resolvedEvent.kind)) {
     return (
-      <MainLayout>
-        <PostDetailShell>
-          <MutedContentGuard event={resolvedEvent}>
-            <FollowPackDetailContent event={resolvedEvent} />
-          </MutedContentGuard>
-        </PostDetailShell>
-      </MainLayout>
+      <PostDetailShell>
+        <MutedContentGuard event={resolvedEvent}>
+          <FollowPackDetailContent event={resolvedEvent} />
+        </MutedContentGuard>
+      </PostDetailShell>
     );
   }
 
@@ -327,13 +314,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   }
 
   return (
-    <MainLayout>
-      <PostDetailShell>
-        <MutedContentGuard event={resolvedEvent}>
-          <PostDetailContent event={resolvedEvent} />
-        </MutedContentGuard>
-      </PostDetailShell>
-    </MainLayout>
+    <PostDetailShell>
+      <MutedContentGuard event={resolvedEvent}>
+        <PostDetailContent event={resolvedEvent} />
+      </MutedContentGuard>
+    </PostDetailShell>
   );
 }
 

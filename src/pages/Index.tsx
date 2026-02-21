@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
-import { MainLayout } from '@/components/MainLayout';
 import { Feed } from '@/components/Feed';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 const Index = () => {
   useSeoMeta({
@@ -8,11 +8,9 @@ const Index = () => {
     description: 'A Nostr client for the social web.',
   });
 
-  return (
-    <MainLayout showFAB>
-      <Feed />
-    </MainLayout>
-  );
+  useLayoutOptions({ showFAB: true });
+
+  return <Feed />;
 };
 
 export default Index;
