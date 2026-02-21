@@ -6,6 +6,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useTrendingTags, useLatestAccounts, useSortedPosts, useTagSparklines } from '@/hooks/useTrending';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
@@ -92,11 +93,16 @@ export function RightSidebar() {
   const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl && sidebarEnabled);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl && sidebarEnabled);
   const { muteItems } = useMuteList();
+  const { isDeleted } = useDeletedEvents();
 
   const hotPosts = useMemo(() => {
-    if (!rawHotPosts || muteItems.length === 0) return rawHotPosts;
-    return rawHotPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawHotPosts, muteItems]);
+    if (!rawHotPosts) return rawHotPosts;
+    return rawHotPosts.filter((e) => {
+      if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
+      if (isDeleted(e.id)) return false;
+      return true;
+    });
+  }, [rawHotPosts, muteItems, isDeleted]);
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);

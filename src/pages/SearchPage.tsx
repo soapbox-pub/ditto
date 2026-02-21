@@ -17,6 +17,7 @@ import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
+import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
@@ -109,11 +110,16 @@ export function SearchPage() {
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
   const { data: rawSortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
   const { muteItems } = useMuteList();
+  const { isDeleted } = useDeletedEvents();
 
   const sortedPosts = useMemo(() => {
-    if (!rawSortedPosts || muteItems.length === 0) return rawSortedPosts;
-    return rawSortedPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawSortedPosts, muteItems]);
+    if (!rawSortedPosts) return rawSortedPosts;
+    return rawSortedPosts.filter((e) => {
+      if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
+      if (isDeleted(e.id)) return false;
+      return true;
+    });
+  }, [rawSortedPosts, muteItems, isDeleted]);
 
   // Filter by platform (Nostr/Mastodon) client-side
   const posts = useMemo(() => {

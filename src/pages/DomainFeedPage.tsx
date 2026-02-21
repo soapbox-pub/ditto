@@ -12,6 +12,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { useDeletedEvents } from '@/hooks/useDeleteEvent';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -72,6 +73,7 @@ export function DomainFeedPage() {
   });
 
   const { muteItems } = useMuteList();
+  const { isDeleted } = useDeletedEvents();
   const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain, config.corsProxy);
 
   const { data: events, isLoading: eventsLoading } = useQuery<NostrEvent[]>({
@@ -88,9 +90,13 @@ export function DomainFeedPage() {
   });
 
   const filteredEvents = useMemo(() => {
-    if (!events || muteItems.length === 0) return events;
-    return events.filter((e) => !isEventMuted(e, muteItems));
-  }, [events, muteItems]);
+    if (!events) return events;
+    return events.filter((e) => {
+      if (muteItems.length > 0 && isEventMuted(e, muteItems)) return false;
+      if (isDeleted(e.id)) return false;
+      return true;
+    });
+  }, [events, muteItems, isDeleted]);
 
   const isLoading = pubkeysLoading || eventsLoading;
 

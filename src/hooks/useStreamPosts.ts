@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useState, useEffect, useMemo } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
+import { useDeletedEvents } from './useDeleteEvent';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
@@ -85,6 +86,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
   const { muteItems } = useMuteList();
+  const { isDeleted } = useDeletedEvents();
   const [allEvents, setAllEvents] = useState<NostrEvent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -218,9 +220,10 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
   const posts = useMemo(() => {
     return allEvents.filter((event) => {
       if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      if (isDeleted(event.id)) return false;
       return filterEvent(event, options, query);
     });
-  }, [allEvents, options.includeReplies, options.mediaType, query, muteItems]);
+  }, [allEvents, options.includeReplies, options.mediaType, query, muteItems, isDeleted]);
 
   return { posts, isLoading };
 }
