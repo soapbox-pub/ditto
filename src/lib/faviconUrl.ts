@@ -1,21 +1,19 @@
 import UriTemplate from 'uri-templates';
 
-export interface FaviconUrlOpts {
+export interface TemplateUrlOpts {
   template: string;
   url: string | URL;
 }
 
 /**
- * Generate a favicon URL from a template and input URL
- * @param opts - Options object
- * @param opts.template - URL template with placeholders like {hostname}, {origin}, etc.
- * @param opts.url - The URL to extract parts from
- * @returns The hydrated favicon URL
+ * Fill a URI template with parts of the given URL.
+ * Supports RFC 6570 variables: {url}, {href}, {origin}, {hostname}, etc.
  */
-export function faviconUrl(opts: FaviconUrlOpts): string {
+export function templateUrl(opts: TemplateUrlOpts): string {
   const u = new URL(opts.url);
 
   return UriTemplate(opts.template).fill({
+    url: u.href,
     href: u.href,
     origin: u.origin,
     protocol: u.protocol,
@@ -28,4 +26,15 @@ export function faviconUrl(opts: FaviconUrlOpts): string {
     hash: u.hash,
     search: u.search,
   });
+}
+
+/** @deprecated Use `templateUrl` instead. */
+export type FaviconUrlOpts = TemplateUrlOpts;
+
+/**
+ * Generate a favicon URL from a template and input URL.
+ * @deprecated Use `templateUrl` instead.
+ */
+export function faviconUrl(opts: FaviconUrlOpts): string {
+  return templateUrl(opts);
 }

@@ -85,6 +85,8 @@ export interface AppConfig {
   defaultZapComment: string;
   /** Favicon URI template. Supports RFC 6570 variables: {href}, {origin}, {hostname}, etc. */
   faviconUrl: string;
+  /** Link preview URI template. Supports RFC 6570 variables: {url}, {href}, {origin}, {hostname}, etc. Returns OEmbed JSON. */
+  linkPreviewUrl: string;
   /** CORS proxy URI template. Use {href} as placeholder for the target URL (URL-encoded). */
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */

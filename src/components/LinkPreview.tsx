@@ -1,5 +1,6 @@
 import { ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { cn } from '@/lib/utils';
 
@@ -8,7 +9,7 @@ interface LinkPreviewProps {
   className?: string;
 }
 
-/** Extracts the display domain from a URL (e.g. "www.example.com" → "example.com"). */
+/** Extracts the display domain from a URL (e.g. "www.example.com" -> "example.com"). */
 function displayDomain(url: string): string {
   try {
     const hostname = new URL(url).hostname;
@@ -18,7 +19,7 @@ function displayDomain(url: string): string {
   }
 }
 
-/** Rich link preview card showing OG image, title, description, and domain. */
+/** Rich link preview card rendered from OEmbed data. */
 export function LinkPreview({ url, className }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
 
@@ -30,7 +31,8 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
     return null;
   }
 
-  const domain = data.siteName || displayDomain(url);
+  const domain = data.provider_name || displayDomain(url);
+  const image = data.thumbnail_url;
 
   return (
     <a
@@ -44,11 +46,11 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
       )}
       onClick={(e) => e.stopPropagation()}
     >
-      {/* OG image */}
-      {data.image && (
+      {/* Thumbnail image */}
+      {image && (
         <div className="w-full overflow-hidden">
           <img
-            src={data.image}
+            src={image}
             alt=""
             className="w-full h-[180px] object-cover"
             loading="lazy"
@@ -64,17 +66,7 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
       <div className="px-3.5 py-2.5 space-y-0.5">
         {/* Domain + favicon */}
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          {data.favicon && (
-            <img
-              src={data.favicon}
-              alt=""
-              className="size-3.5 rounded-sm"
-              loading="lazy"
-              onError={(e) => {
-                (e.currentTarget as HTMLElement).style.display = 'none';
-              }}
-            />
-          )}
+          <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
           <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
         </div>
@@ -86,10 +78,10 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
           </p>
         )}
 
-        {/* Description */}
-        {data.description && (
+        {/* Author */}
+        {data.author_name && (
           <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2">
-            {data.description}
+            {data.author_name}
           </p>
         )}
       </div>

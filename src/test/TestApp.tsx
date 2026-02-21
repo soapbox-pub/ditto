@@ -58,6 +58,7 @@ export function TestApp({ children }: TestAppProps) {
     blossomServers: ['https://blossom.primal.net/'],
     defaultZapComment: 'Zapped with Mew!',
     faviconUrl: 'https://fetch.ditto.pub/favicon/{hostname}',
+    linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
     corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
     contentWarningPolicy: 'blur',
   };
