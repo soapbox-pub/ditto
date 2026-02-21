@@ -13,12 +13,15 @@ import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthors } from '@/hooks/useAuthors';
 import { useBatchEventStats } from '@/hooks/useTrending';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 
 import { cn } from '@/lib/utils';
 import type { FeedItem } from '@/hooks/useFeed';
 
 export function Feed() {
   const { user } = useCurrentUser();
+  const { muteItems } = useMuteList();
   
   // Load feed tab settings from localStorage
   const showGlobalFeed = (() => {
@@ -90,16 +93,18 @@ export function Feed() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten all items and deduplicate
+  // Flatten all items, deduplicate, and filter out muted content
   const feedItems = useMemo(() => {
     const seen = new Set<string>();
     return data?.pages.flatMap(page => page.items).filter(item => {
       const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
       if (!key || seen.has(key)) return false;
       seen.add(key);
+      // Filter out muted events
+      if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
       return true;
     }) || [];
-  }, [data?.pages]);
+  }, [data?.pages, muteItems]);
 
   // Batch-prefetch all author profiles in a single relay query instead of
   // firing N individual useAuthor() calls from each NoteCard.  The results

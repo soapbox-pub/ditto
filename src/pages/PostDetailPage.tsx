@@ -42,6 +42,8 @@ const LIVE_STREAM_KIND = 30311;
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
@@ -612,6 +614,7 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
 
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
+  const { muteItems } = useMuteList();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
@@ -632,7 +635,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
   const { data: stats } = useEventStats(event.id);
-  const { data: replies, isLoading: repliesLoading } = useReplies(event.id);
+  const { data: rawReplies, isLoading: repliesLoading } = useReplies(event.id);
+  const replies = useMemo(() => {
+    if (!rawReplies || muteItems.length === 0) return rawReplies;
+    return rawReplies.filter((r) => !isEventMuted(r, muteItems));
+  }, [rawReplies, muteItems]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);

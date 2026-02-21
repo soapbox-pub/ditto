@@ -16,6 +16,8 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
 import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
+import { useMuteList } from '@/hooks/useMuteList';
+import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -105,7 +107,13 @@ export function SearchPage() {
   const { data: profiles, isLoading: profilesLoading } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
-  const { data: sortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
+  const { data: rawSortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
+  const { muteItems } = useMuteList();
+
+  const sortedPosts = useMemo(() => {
+    if (!rawSortedPosts || muteItems.length === 0) return rawSortedPosts;
+    return rawSortedPosts.filter((e) => !isEventMuted(e, muteItems));
+  }, [rawSortedPosts, muteItems]);
 
   // Filter by platform (Nostr/Mastodon) client-side
   const posts = useMemo(() => {
