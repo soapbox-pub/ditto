@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { Suspense, useState, useMemo } from 'react';
 import { Outlet } from 'react-router-dom';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
@@ -6,8 +6,59 @@ import { MobileTopBar } from '@/components/MobileTopBar';
 import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
+import { Skeleton } from '@/components/ui/skeleton';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
+
+/** Skeleton shown in the content area while a lazy page chunk is loading. */
+function PageSkeleton() {
+  return (
+    <>
+      {/* Main column skeleton */}
+      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+        {/* Header skeleton */}
+        <div className="flex items-center gap-4 px-4 mt-4 mb-5">
+          <Skeleton className="h-6 w-32" />
+        </div>
+        {/* Content skeletons */}
+        <div className="space-y-4 px-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="space-y-3 py-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-full" />
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-28" />
+                  <Skeleton className="h-3 w-20" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-4/5" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </main>
+      {/* Right sidebar skeleton */}
+      <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen pt-5 pb-3 px-5">
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <Skeleton className="h-6 w-24" />
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex justify-between items-center">
+                <div className="space-y-1.5">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+                <Skeleton className="h-8 w-12" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </aside>
+    </>
+  );
+}
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
@@ -29,11 +80,11 @@ function MainLayoutInner() {
           <LeftSidebar />
         </div>
 
-        {/* Main content area - swapped by the router */}
-        <Outlet />
-
-        {/* Desktop right sidebar - handled internally with hidden lg:block */}
-        {rightSidebar ?? <RightSidebar />}
+        {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
+        <Suspense fallback={<PageSkeleton />}>
+          <Outlet />
+          {rightSidebar ?? <RightSidebar />}
+        </Suspense>
       </div>
 
       {/* Mobile bottom nav - only on small screens */}

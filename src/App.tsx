@@ -4,7 +4,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createHead, UnheadProvider } from '@unhead/react/client';
 import { InferSeoMetaPlugin } from '@unhead/addons';
-import { Suspense, useEffect } from 'react';
+import { useEffect } from 'react';
 import NostrProvider from '@/components/NostrProvider';
 import { NostrSync } from '@/components/NostrSync';
 import { NativeNotifications } from '@/components/NativeNotifications';
@@ -99,9 +99,7 @@ export function App() {
                 <TooltipProvider>
                   <Toaster />
                   <InitialSyncGate>
-                    <Suspense>
-                      <AppRouter />
-                    </Suspense>
+                    <AppRouter />
                   </InitialSyncGate>
                 </TooltipProvider>
               </NWCProvider>
