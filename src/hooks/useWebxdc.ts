@@ -83,6 +83,20 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     }
   }, [updates]);
 
+  // Track whether a realtime channel is currently active
+  const realtimeActiveRef = useRef(false);
+  const realtimeAbortRef = useRef<AbortController | null>(null);
+
+  // Clean up realtime subscription on unmount
+  useEffect(() => {
+    return () => {
+      if (realtimeAbortRef.current) {
+        realtimeAbortRef.current.abort();
+        realtimeActiveRef.current = false;
+      }
+    };
+  }, []);
+
   const selfAddr = user ? nip19.npubEncode(user.pubkey) : '';
   const selfName = metadata?.display_name || metadata?.name || (user ? nip19.npubEncode(user.pubkey).slice(0, 12) : '');
 
@@ -139,13 +153,77 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   }, []);
 
   const joinRealtimeChannel = useCallback((): RealtimeListener => {
-    // Realtime channels are not supported over Nostr relays
-    return {
-      setListener: () => {},
-      send: () => {},
-      leave: () => {},
+    if (realtimeActiveRef.current) {
+      throw new Error('Already joined a realtime channel. Call leave() first.');
+    }
+
+    realtimeActiveRef.current = true;
+    const abortController = new AbortController();
+    realtimeAbortRef.current = abortController;
+
+    let realtimeListener: ((data: Uint8Array) => void) | null = null;
+
+    // Subscribe to ephemeral kind 20932 events for this UUID
+    const startSubscription = async () => {
+      try {
+        for await (const msg of nostr.req(
+          [{ kinds: [20932], '#i': [uuid], since: Math.floor(Date.now() / 1000) }],
+          { signal: abortController.signal },
+        )) {
+          if (msg[0] === 'EVENT') {
+            const event = msg[2];
+            // Don't echo back our own events
+            if (user && event.pubkey === user.pubkey) continue;
+            if (!realtimeListener) continue;
+
+            try {
+              const binary = Uint8Array.from(atob(event.content), (c) => c.charCodeAt(0));
+              realtimeListener(binary);
+            } catch {
+              // Ignore malformed content
+            }
+          } else if (msg[0] === 'CLOSED') {
+            break;
+          }
+        }
+      } catch {
+        // Subscription ended (abort or error)
+      }
     };
-  }, []);
+
+    startSubscription();
+
+    return {
+      setListener(listener: (data: Uint8Array) => void) {
+        realtimeListener = listener;
+      },
+      send(data: Uint8Array) {
+        if (!realtimeActiveRef.current) return;
+        if (data.length > 128_000) {
+          throw new Error('Realtime payload exceeds 128,000 byte limit');
+        }
+
+        // Base64-encode the Uint8Array
+        let binary = '';
+        for (let i = 0; i < data.length; i++) {
+          binary += String.fromCharCode(data[i]);
+        }
+        const base64 = btoa(binary);
+
+        publishEvent({
+          kind: 20932,
+          content: base64,
+          tags: [['i', uuid]],
+          created_at: Math.floor(Date.now() / 1000),
+        });
+      },
+      leave() {
+        realtimeActiveRef.current = false;
+        abortController.abort();
+        realtimeAbortRef.current = null;
+      },
+    };
+  }, [uuid, nostr, user, publishEvent]);
 
   return useMemo((): WebxdcAPI<unknown> => ({
     selfAddr,
