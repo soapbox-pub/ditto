@@ -769,7 +769,7 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar pubkey={pubkey} fields={fields} events={feedEvents} eventsLoading={feedPending} /> } : {});
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} events={feedEvents} eventsLoading={feedPending} /> } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
