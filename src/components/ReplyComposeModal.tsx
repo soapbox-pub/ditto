@@ -40,7 +40,7 @@ export function ReplyComposeModal({ event, quotedEvent, open, onOpenChange }: Re
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-hidden [&>button]:hidden">
+      <DialogContent className="max-w-[520px] rounded-2xl p-0 gap-0 border-border overflow-visible [&>button]:hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-12">
           <DialogTitle className="text-base font-semibold">
