@@ -67,20 +67,4 @@ export function useNativeNotifications(): void {
     });
   }, [user, config.relayMetadata, config.useAppRelays]);
 
-  // Listen for notification taps to navigate into the app
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
-
-    const listener = LocalNotifications.addListener(
-      'localNotificationActionPerformed',
-      (_notification) => {
-        window.location.hash = '';
-        window.location.pathname = '/notifications';
-      },
-    );
-
-    return () => {
-      listener.then((l) => l.remove());
-    };
-  }, []);
 }
