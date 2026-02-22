@@ -43,7 +43,7 @@ A webxdc MAY also be published as a kind `1063` (NIP-94) file metadata event:
 }
 ```
 
-## Kind `4079`: State Update
+## Kind `4932`: State Update
 
 A regular event carrying a state update, mapping to the webxdc [`sendUpdate()`](https://webxdc.org/docs/spec/sendUpdate.html) API. Updates are ordered by `created_at` and assigned serial numbers by the client.
 
@@ -63,7 +63,7 @@ JSON-serialized payload from `sendUpdate()`.
 
 ```json
 {
-  "kind": 4079,
+  "kind": 4932,
   "content": "{\"move\":\"e2e4\",\"player\":\"white\"}",
   "tags": [
     ["i", "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"],
@@ -73,7 +73,7 @@ JSON-serialized payload from `sendUpdate()`.
 }
 ```
 
-## Kind `21567`: Realtime Data (Ephemeral)
+## Kind `20932`: Realtime Data (Ephemeral)
 
 An ephemeral event carrying realtime data, mapping to the webxdc [`joinRealtimeChannel`](https://webxdc.org/docs/spec/joinRealtimeChannel.html) API. Relays forward these to active subscribers but do not store them.
 
@@ -87,7 +87,7 @@ Base64-encoded `Uint8Array` payload (max 128,000 bytes raw).
 
 ```json
 {
-  "kind": 21567,
+  "kind": 20932,
   "content": "SGVsbG8gZnJvbSBucHViMWFiYy4uLg==",
   "tags": [
     ["i", "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d"]
@@ -99,9 +99,9 @@ Base64-encoded `Uint8Array` payload (max 128,000 bytes raw).
 
 1. A user uploads a `.xdc` file (e.g. to Blossom) and publishes an event with the URL in content and an `imeta` tag. The `imeta` SHOULD include a `webxdc` property.
 2. A client detects the `imeta` tag, downloads the `.xdc`, extracts it, and runs `index.html` in a sandboxed iframe or webview.
-3. `sendUpdate()` publishes a kind `4079` event with the `webxdc` identifier in an `i` tag.
-4. The client subscribes to kind `4079` events with `#i` matching the identifier and delivers them via `setUpdateListener()`.
-5. `joinRealtimeChannel()` subscribes to kind `21567` events with `#i` matching the identifier. `send()` publishes ephemeral kind `21567` events. `leave()` closes the subscription.
+3. `sendUpdate()` publishes a kind `4932` event with the `webxdc` identifier in an `i` tag.
+4. The client subscribes to kind `4932` events with `#i` matching the identifier and delivers them via `setUpdateListener()`.
+5. `joinRealtimeChannel()` subscribes to kind `20932` events with `#i` matching the identifier. `send()` publishes ephemeral kind `20932` events. `leave()` closes the subscription.
 6. `selfAddr` and `selfName` MAY map to the user's npub and display name, or any other values.
 
 ## Security Considerations
