@@ -16,8 +16,16 @@ export function useReplies(eventId: string | undefined) {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
+      // Deduplicate events (multiple relays may return the same event)
+      const seen = new Set<string>();
+      const unique = events.filter((e) => {
+        if (seen.has(e.id)) return false;
+        seen.add(e.id);
+        return true;
+      });
+
       // Sort oldest first for threaded conversation view
-      return events.sort((a, b) => a.created_at - b.created_at);
+      return unique.sort((a, b) => a.created_at - b.created_at);
     },
     enabled: !!eventId,
     staleTime: 30 * 1000,
