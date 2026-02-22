@@ -23,6 +23,9 @@ export default defineConfig(() => ({
       DEBUG_PRINT_LIMIT: '0', // Suppress DOM output that exceeds AI context windows
     },
   },
+  build: {
+    target: 'esnext',
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
