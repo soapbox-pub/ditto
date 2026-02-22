@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
@@ -35,6 +35,7 @@ import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -574,6 +575,7 @@ export function ProfilePage() {
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const { muteItems } = useMuteList();
+  const queryClient = useQueryClient();
 
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -817,7 +819,26 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} /> } : {});
+  const handleRefresh = useCallback(async () => {
+    if (!pubkey) return;
+    await queryClient.invalidateQueries({
+      predicate: (query) => {
+        const key = query.queryKey;
+        if (!Array.isArray(key)) return false;
+        const tag = key[0] as string;
+        return (
+          (tag === 'author' && key[1] === pubkey) ||
+          (tag === 'profile-supplementary' && key[1] === pubkey) ||
+          (tag === 'profile-feed' && key[1] === pubkey) ||
+          (tag === 'profile-media' && key[1] === pubkey) ||
+          (tag === 'profile-likes-infinite' && key[1] === pubkey) ||
+          (tag === 'profile-pinned-events' && key[1] === pubkey)
+        );
+      },
+    });
+  }, [queryClient, pubkey]);
+
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />, showFAB: true } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
@@ -857,6 +878,7 @@ export function ProfilePage() {
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
           {author.isLoading ? (
@@ -1112,6 +1134,7 @@ export function ProfilePage() {
             onClose={() => setLightboxImage(null)}
           />
         )}
+      </PullToRefresh>
       </main>
   );
 }
