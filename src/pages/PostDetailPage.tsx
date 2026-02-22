@@ -326,7 +326,7 @@ function PostDetailShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
       {/* Header — matches Ditto: ← Post Details */}
-      <div className="sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-5 bg-background/80 backdrop-blur-md">
+      <div className="flex items-center gap-4 px-4 mt-4 mb-5">
         <button
           onClick={() => navigate(-1)}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
