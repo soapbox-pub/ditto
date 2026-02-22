@@ -1,0 +1,596 @@
+import type { NostrEvent, NostrFilter } from '@nostrify/types';
+import type { NPool } from '@nostrify/nostrify';
+
+/** Maximum number of items per batch to avoid hitting relay filter limits. */
+const MAX_BATCH_SIZE = 50;
+
+/**
+ * Pending request waiting for a batched query result.
+ * Each caller gets its own resolve/reject and optional abort signal.
+ */
+interface PendingRequest<V> {
+  key: string;
+  resolve: (value: V) => void;
+  reject: (error: unknown) => void;
+  signal?: AbortSignal;
+}
+
+/**
+ * A batch collector that accumulates requests during the current microtask
+ * and then fires a single combined query.
+ */
+class BatchCollector<V> {
+  private pending: PendingRequest<V>[] = [];
+  private scheduled = false;
+
+  constructor(
+    private executeBatch: (keys: string[], signal: AbortSignal) => Promise<Map<string, V>>,
+  ) {}
+
+  /** Enqueue a request. Returns a promise that resolves when the batch completes. */
+  request(key: string, signal?: AbortSignal): Promise<V> {
+    return new Promise<V>((resolve, reject) => {
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+
+      this.pending.push({ key, resolve, reject, signal });
+
+      if (!this.scheduled) {
+        this.scheduled = true;
+        queueMicrotask(() => this.flush());
+      }
+    });
+  }
+
+  /** Drain the pending queue and execute the batch. */
+  private async flush(): Promise<void> {
+    const batch = this.pending;
+    this.pending = [];
+    this.scheduled = false;
+
+    if (batch.length === 0) return;
+
+    const live = batch.filter((req) => !req.signal?.aborted);
+    const aborted = batch.filter((req) => req.signal?.aborted);
+
+    for (const req of aborted) {
+      req.reject(req.signal!.reason);
+    }
+
+    if (live.length === 0) return;
+
+    // Deduplicate keys.
+    const uniqueKeys: string[] = [];
+    const seen = new Set<string>();
+    for (const req of live) {
+      if (!seen.has(req.key)) {
+        seen.add(req.key);
+        uniqueKeys.push(req.key);
+      }
+    }
+
+    // Combined abort: only abort when ALL callers have aborted.
+    const controller = new AbortController();
+    const liveSignals = live.map((r) => r.signal).filter(Boolean) as AbortSignal[];
+    if (liveSignals.length > 0 && liveSignals.length === live.length) {
+      const checkAllAborted = () => {
+        if (liveSignals.every((s) => s.aborted)) {
+          controller.abort(liveSignals[0].reason);
+        }
+      };
+      for (const sig of liveSignals) {
+        sig.addEventListener('abort', checkAllAborted, { once: true });
+      }
+    }
+
+    try {
+      // Chunk to respect relay limits.
+      const allResults = new Map<string, V>();
+      const chunks: string[][] = [];
+      for (let i = 0; i < uniqueKeys.length; i += MAX_BATCH_SIZE) {
+        chunks.push(uniqueKeys.slice(i, i + MAX_BATCH_SIZE));
+      }
+
+      await Promise.all(
+        chunks.map(async (chunk) => {
+          const results = await this.executeBatch(chunk, controller.signal);
+          for (const [key, value] of results) {
+            allResults.set(key, value);
+          }
+        }),
+      );
+
+      for (const req of live) {
+        if (req.signal?.aborted) {
+          req.reject(req.signal.reason);
+        } else {
+          req.resolve(allResults.get(req.key) as V);
+        }
+      }
+    } catch (error) {
+      for (const req of live) {
+        req.reject(error);
+      }
+    }
+  }
+}
+
+// --- Filter pattern detection ---
+
+/** A filter that only fetches events by ID: `{ ids: [x], limit?: n }` */
+function isIdsOnlyFilter(filter: NostrFilter): filter is { ids: string[]; limit?: number } {
+  const keys = Object.keys(filter);
+  return keys.every((k) => k === 'ids' || k === 'limit') && Array.isArray(filter.ids) && filter.ids.length === 1;
+}
+
+/** A filter that fetches a single replaceable event by author: `{ kinds: [k], authors: [a], limit?: n }` */
+function isProfileFilter(filter: NostrFilter): boolean {
+  const keys = Object.keys(filter);
+  return (
+    keys.every((k) => k === 'kinds' || k === 'authors' || k === 'limit') &&
+    filter.kinds?.length === 1 &&
+    filter.kinds[0] === 0 &&
+    filter.authors?.length === 1
+  );
+}
+
+/** A filter for kind:7 reactions by a single author to a single event. */
+function isReactionFilter(filter: NostrFilter): boolean {
+  const keys = Object.keys(filter);
+  return (
+    keys.every((k) => k === 'kinds' || k === 'authors' || k === '#e' || k === 'limit') &&
+    filter.kinds?.length === 1 &&
+    filter.kinds[0] === 7 &&
+    filter.authors?.length === 1 &&
+    (filter as Record<string, unknown>)['#e'] !== undefined &&
+    (Array.isArray((filter as Record<string, unknown>)['#e']) && ((filter as Record<string, unknown>)['#e'] as string[]).length === 1)
+  );
+}
+
+/**
+ * A filter that queries by a single `#e` tag with kinds and limit.
+ * e.g. `{ kinds: [7, 9735], '#e': [eventId], limit: 10 }`
+ * Must NOT have `authors` (that's the reaction pattern).
+ */
+function isETagFilter(filter: NostrFilter): boolean {
+  const keys = Object.keys(filter);
+  return (
+    keys.every((k) => k === 'kinds' || k === '#e' || k === 'limit') &&
+    Array.isArray(filter.kinds) &&
+    filter.kinds.length > 0 &&
+    !filter.authors &&
+    (filter as Record<string, unknown>)['#e'] !== undefined &&
+    Array.isArray((filter as Record<string, unknown>)['#e']) &&
+    ((filter as Record<string, unknown>)['#e'] as string[]).length === 1
+  );
+}
+
+/**
+ * Extract the single `#e` value from a filter known to have one.
+ */
+function getETagValue(filter: NostrFilter): string {
+  return ((filter as Record<string, unknown>)['#e'] as string[])[0];
+}
+
+/**
+ * Check if a multi-filter array can be batched: every filter must be an
+ * e-tag or q-tag filter referencing the same single event ID.
+ * e.g. [{ kinds: [7, 9735], '#e': [id], limit: 10 }, { kinds: [1], '#q': [id], limit: 5 }]
+ */
+function isMultiFilterETagBatchable(filters: NostrFilter[]): string | null {
+  if (filters.length < 2) return null;
+  let commonId: string | null = null;
+
+  for (const filter of filters) {
+    const keys = Object.keys(filter);
+    // Each filter must only have kinds + (#e or #q) + optional limit
+    const isEFilter = keys.every((k) => k === 'kinds' || k === '#e' || k === 'limit') &&
+      (filter as Record<string, unknown>)['#e'] !== undefined &&
+      Array.isArray((filter as Record<string, unknown>)['#e']) &&
+      ((filter as Record<string, unknown>)['#e'] as string[]).length === 1;
+
+    const isQFilter = keys.every((k) => k === 'kinds' || k === '#q' || k === 'limit') &&
+      (filter as Record<string, unknown>)['#q'] !== undefined &&
+      Array.isArray((filter as Record<string, unknown>)['#q']) &&
+      ((filter as Record<string, unknown>)['#q'] as string[]).length === 1;
+
+    if (!isEFilter && !isQFilter) return null;
+
+    const id = isEFilter
+      ? ((filter as Record<string, unknown>)['#e'] as string[])[0]
+      : ((filter as Record<string, unknown>)['#q'] as string[])[0];
+
+    if (commonId === null) {
+      commonId = id;
+    } else if (id !== commonId) {
+      return null; // Different IDs, can't batch
+    }
+  }
+
+  return commonId;
+}
+
+/** A filter for addressable events by d-tag: `{ kinds: [k], authors: [a], '#d': [d], limit?: n }` */
+function isDTagFilter(filter: NostrFilter): boolean {
+  const keys = Object.keys(filter);
+  return (
+    keys.every((k) => k === 'kinds' || k === 'authors' || k === '#d' || k === 'limit') &&
+    filter.kinds?.length === 1 &&
+    filter.authors?.length === 1 &&
+    (filter as Record<string, unknown>)['#d'] !== undefined &&
+    (Array.isArray((filter as Record<string, unknown>)['#d']) && ((filter as Record<string, unknown>)['#d'] as string[]).length === 1)
+  );
+}
+
+/**
+ * Transparent batching proxy for NPool.
+ *
+ * Wraps an NPool and intercepts `.query()` calls. When a query uses a
+ * recognizable single-item filter pattern (fetch by ID, profile by pubkey,
+ * reaction check, d-tag lookup), the request is held for a microtask.
+ * If more queries with the same pattern arrive in the same frame, they're
+ * combined into one REQ.
+ *
+ * All other methods (`.event()`, `.req()`, `.relay()`, `.group()`, `.close()`)
+ * pass through directly to the underlying pool.
+ *
+ * Client code doesn't need to know batching exists — it calls
+ * `nostr.query([{ kinds: [0], authors: [pk], limit: 1 }])` as usual.
+ */
+export class NostrBatcher {
+  private profileCollector: BatchCollector<NostrEvent | undefined>;
+  private eventCollector: BatchCollector<NostrEvent | undefined>;
+  /** Keyed by userPubkey so each user's reactions batch separately. */
+  private reactionCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
+  /** Keyed by `${kind}:${author}` for d-tag batching. */
+  private dTagCollectors = new Map<string, BatchCollector<NostrEvent | undefined>>();
+  /** Keyed by sorted kinds string for #e-tag batching. Returns arrays. */
+  private eTagCollectors = new Map<string, BatchCollector<NostrEvent[]>>();
+  /** Keyed by serialized filter shapes for multi-filter #e/#q batching. */
+  private multiFilterCollectors = new Map<string, BatchCollector<NostrEvent[]>>();
+
+  constructor(private pool: NPool) {
+    this.profileCollector = new BatchCollector((pubkeys, signal) =>
+      this.executeProfileBatch(pubkeys, signal),
+    );
+    this.eventCollector = new BatchCollector((ids, signal) =>
+      this.executeEventBatch(ids, signal),
+    );
+  }
+
+  /**
+   * Proxy for `pool.query()`. Detects batchable filter patterns and
+   * combines them; everything else passes through directly.
+   */
+  async query(
+    filters: NostrFilter[],
+    opts?: { signal?: AbortSignal },
+  ): Promise<NostrEvent[]> {
+    // Only batch single-filter queries with recognized patterns.
+    if (filters.length === 1) {
+      const filter = filters[0];
+
+      // { ids: [singleId] }
+      if (isIdsOnlyFilter(filter)) {
+        const event = await this.eventCollector.request(filter.ids[0], opts?.signal);
+        return event ? [event] : [];
+      }
+
+      // { kinds: [0], authors: [singlePubkey] }
+      if (isProfileFilter(filter)) {
+        const event = await this.profileCollector.request(filter.authors![0], opts?.signal);
+        return event ? [event] : [];
+      }
+
+      // { kinds: [7], authors: [user], '#e': [eventId] }
+      if (isReactionFilter(filter)) {
+        const userPubkey = filter.authors![0];
+        const eventId = ((filter as Record<string, unknown>)['#e'] as string[])[0];
+        let collector = this.reactionCollectors.get(userPubkey);
+        if (!collector) {
+          collector = new BatchCollector((eventIds, signal) =>
+            this.executeReactionBatch(userPubkey, eventIds, signal),
+          );
+          this.reactionCollectors.set(userPubkey, collector);
+        }
+        const event = await collector.request(eventId, opts?.signal);
+        return event ? [event] : [];
+      }
+
+      // { kinds: [...], '#e': [eventId] } (no authors — not a reaction check)
+      if (isETagFilter(filter)) {
+        const eventId = getETagValue(filter);
+        const kindsKey = [...filter.kinds!].sort().join(',');
+        const limit = filter.limit ?? 50;
+        const collectorKey = `${kindsKey}:${limit}`;
+        let collector = this.eTagCollectors.get(collectorKey);
+        if (!collector) {
+          collector = new BatchCollector((eventIds, signal) =>
+            this.executeETagBatch(filter.kinds!, eventIds, limit, signal),
+          );
+          this.eTagCollectors.set(collectorKey, collector);
+        }
+        return collector.request(eventId, opts?.signal);
+      }
+
+      // { kinds: [k], authors: [a], '#d': [d] }
+      if (isDTagFilter(filter)) {
+        const kind = filter.kinds![0];
+        const author = filter.authors![0];
+        const dTag = ((filter as Record<string, unknown>)['#d'] as string[])[0];
+        const collectorKey = `${kind}:${author}`;
+        let collector = this.dTagCollectors.get(collectorKey);
+        if (!collector) {
+          collector = new BatchCollector((dTags, signal) =>
+            this.executeDTagBatch(kind, author, dTags, signal),
+          );
+          this.dTagCollectors.set(collectorKey, collector);
+        }
+        const event = await collector.request(dTag, opts?.signal);
+        return event ? [event] : [];
+      }
+    }
+
+    // Multi-filter: check if all filters reference the same #e/#q event ID
+    const multiFilterEventId = isMultiFilterETagBatchable(filters);
+    if (multiFilterEventId !== null) {
+      // Serialize the filter "shape" (kinds, tag names, limits) to get a collector key.
+      // Different useEventStats calls with the same hasNip85 value produce identical shapes.
+      const shapeKey = filters.map((f) => {
+        const keys = Object.keys(f).sort();
+        return keys.map((k) => k === '#e' || k === '#q' ? k : `${k}:${JSON.stringify((f as Record<string, unknown>)[k])}`).join('|');
+      }).join(';;');
+
+      let collector = this.multiFilterCollectors.get(shapeKey);
+      if (!collector) {
+        collector = new BatchCollector((eventIds, signal) =>
+          this.executeMultiFilterBatch(filters, eventIds, signal),
+        );
+        this.multiFilterCollectors.set(shapeKey, collector);
+      }
+      return collector.request(multiFilterEventId, opts?.signal);
+    }
+
+    // Not batchable — pass through directly.
+    return this.pool.query(filters, opts);
+  }
+
+  // --- Pass-through methods ---
+
+  event(event: NostrEvent, opts?: { signal?: AbortSignal }): Promise<void> {
+    return this.pool.event(event, opts);
+  }
+
+  req(
+    filters: NostrFilter[],
+    opts?: { signal?: AbortSignal },
+  ): AsyncIterable<import('@nostrify/types').NostrRelayEVENT | import('@nostrify/types').NostrRelayEOSE | import('@nostrify/types').NostrRelayCLOSED> {
+    return this.pool.req(filters, opts);
+  }
+
+  relay(url: string) {
+    return this.pool.relay(url);
+  }
+
+  group(urls: string[]) {
+    return this.pool.group(urls);
+  }
+
+  close(): Promise<void> {
+    return this.pool.close();
+  }
+
+  // --- Batch executors ---
+
+  private async executeProfileBatch(
+    pubkeys: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent | undefined>> {
+    const results = new Map<string, NostrEvent | undefined>();
+    try {
+      const events = await this.pool.query(
+        [{ kinds: [0], authors: pubkeys, limit: pubkeys.length }],
+        { signal },
+      );
+      const byPubkey = new Map<string, NostrEvent>();
+      for (const event of events) {
+        if (!byPubkey.has(event.pubkey)) {
+          byPubkey.set(event.pubkey, event);
+        }
+      }
+      for (const pubkey of pubkeys) {
+        results.set(pubkey, byPubkey.get(pubkey));
+      }
+    } catch {
+      for (const pubkey of pubkeys) {
+        results.set(pubkey, undefined);
+      }
+    }
+    return results;
+  }
+
+  private async executeEventBatch(
+    ids: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent | undefined>> {
+    const results = new Map<string, NostrEvent | undefined>();
+    try {
+      const events = await this.pool.query(
+        [{ ids, limit: ids.length }],
+        { signal },
+      );
+      const byId = new Map<string, NostrEvent>();
+      for (const event of events) {
+        byId.set(event.id, event);
+      }
+      for (const id of ids) {
+        results.set(id, byId.get(id));
+      }
+    } catch {
+      for (const id of ids) {
+        results.set(id, undefined);
+      }
+    }
+    return results;
+  }
+
+  private async executeReactionBatch(
+    userPubkey: string,
+    eventIds: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent | undefined>> {
+    const results = new Map<string, NostrEvent | undefined>();
+    try {
+      const events = await this.pool.query(
+        [{ kinds: [7], authors: [userPubkey], '#e': eventIds, limit: eventIds.length }],
+        { signal },
+      );
+      const reactionMap = new Map<string, NostrEvent>();
+      for (const event of events) {
+        const eTag = event.tags.find(([name]) => name === 'e')?.[1];
+        if (!eTag) continue;
+        const existing = reactionMap.get(eTag);
+        if (!existing || event.created_at > existing.created_at) {
+          reactionMap.set(eTag, event);
+        }
+      }
+      for (const eventId of eventIds) {
+        results.set(eventId, reactionMap.get(eventId));
+      }
+    } catch {
+      for (const eventId of eventIds) {
+        results.set(eventId, undefined);
+      }
+    }
+    return results;
+  }
+
+  private async executeDTagBatch(
+    kind: number,
+    author: string,
+    dTags: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent | undefined>> {
+    const results = new Map<string, NostrEvent | undefined>();
+    try {
+      const events = await this.pool.query(
+        [{ kinds: [kind], authors: [author], '#d': dTags, limit: dTags.length }],
+        { signal },
+      );
+      const byDTag = new Map<string, NostrEvent>();
+      for (const event of events) {
+        const d = event.tags.find(([name]) => name === 'd')?.[1];
+        if (!d) continue;
+        const existing = byDTag.get(d);
+        if (!existing || event.created_at > existing.created_at) {
+          byDTag.set(d, event);
+        }
+      }
+      for (const dTag of dTags) {
+        results.set(dTag, byDTag.get(dTag));
+      }
+    } catch {
+      for (const dTag of dTags) {
+        results.set(dTag, undefined);
+      }
+    }
+    return results;
+  }
+
+  private async executeETagBatch(
+    kinds: number[],
+    eventIds: string[],
+    perEventLimit: number,
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent[]>> {
+    const results = new Map<string, NostrEvent[]>();
+    try {
+      const events = await this.pool.query(
+        [{ kinds, '#e': eventIds, limit: eventIds.length * perEventLimit }],
+        { signal },
+      );
+
+      // Group results by which event ID they reference via e-tag.
+      const byEventId = new Map<string, NostrEvent[]>();
+      const eventIdSet = new Set(eventIds);
+      for (const event of events) {
+        for (const tag of event.tags) {
+          if (tag[0] === 'e' && eventIdSet.has(tag[1])) {
+            const existing = byEventId.get(tag[1]) ?? [];
+            existing.push(event);
+            byEventId.set(tag[1], existing);
+          }
+        }
+      }
+
+      for (const eventId of eventIds) {
+        results.set(eventId, byEventId.get(eventId) ?? []);
+      }
+    } catch {
+      for (const eventId of eventIds) {
+        results.set(eventId, []);
+      }
+    }
+    return results;
+  }
+
+  private async executeMultiFilterBatch(
+    templateFilters: NostrFilter[],
+    eventIds: string[],
+    signal: AbortSignal,
+  ): Promise<Map<string, NostrEvent[]>> {
+    const results = new Map<string, NostrEvent[]>();
+    try {
+      // Build combined filters by replacing single #e/#q values with the full batch.
+      const batchedFilters: NostrFilter[] = templateFilters.map((f) => {
+        const clone = { ...f };
+        const rec = clone as Record<string, unknown>;
+        if (rec['#e'] !== undefined) {
+          rec['#e'] = eventIds;
+          // Scale up limit proportionally
+          if (clone.limit) {
+            clone.limit = clone.limit * eventIds.length;
+          }
+        }
+        if (rec['#q'] !== undefined) {
+          rec['#q'] = eventIds;
+          if (clone.limit) {
+            clone.limit = clone.limit * eventIds.length;
+          }
+        }
+        return clone;
+      });
+
+      const events = await this.pool.query(batchedFilters, { signal });
+
+      // Group results by which event ID they reference via e-tag or q-tag.
+      const byEventId = new Map<string, NostrEvent[]>();
+      const eventIdSet = new Set(eventIds);
+
+      for (const event of events) {
+        const matchedIds = new Set<string>();
+        for (const tag of event.tags) {
+          if ((tag[0] === 'e' || tag[0] === 'q') && eventIdSet.has(tag[1])) {
+            matchedIds.add(tag[1]);
+          }
+        }
+        for (const id of matchedIds) {
+          const existing = byEventId.get(id) ?? [];
+          existing.push(event);
+          byEventId.set(id, existing);
+        }
+      }
+
+      for (const eventId of eventIds) {
+        results.set(eventId, byEventId.get(eventId) ?? []);
+      }
+    } catch {
+      for (const eventId of eventIds) {
+        results.set(eventId, []);
+      }
+    }
+    return results;
+  }
+}

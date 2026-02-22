@@ -1,13 +1,11 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useCurrentUser } from './useCurrentUser';
-import { useAppContext } from './useAppContext';
 import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { parseRepostContent, type FeedItem } from '@/lib/feedUtils';
-import type { EventStats } from '@/hooks/useTrending';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -68,7 +66,6 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
-  const { config } = useAppContext();
   const { data: followData } = useFollowList();
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
@@ -112,123 +109,12 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
 
-      const HEX64 = /^[0-9a-f]{64}$/;
-
-      /** Collect all unique pubkeys from a set of feed items: authors, p-tag mentions, and pubkeys from e/q tags. */
-      function collectPubkeys(items: FeedItem[]): string[] {
-        const pubkeys = new Set<string>();
-        for (const { event } of items) {
-          pubkeys.add(event.pubkey);
-          for (const tag of event.tags) {
-            let pk: string | undefined;
-            if (tag[0] === 'p') {
-              pk = tag[1];
-            } else if (tag[0] === 'q') {
-              pk = tag[3];
-            } else if (tag[0] === 'e') {
-              pk = tag[4];
-            }
-            if (pk && HEX64.test(pk)) {
-              pubkeys.add(pk);
-            }
-          }
-        }
-        return [...pubkeys];
-      }
-
       /** Seed the `['event', id]` query cache with events we already have in hand. */
       function cacheEvents(items: FeedItem[]): void {
         for (const { event } of items) {
           if (!queryClient.getQueryData(['event', event.id])) {
             queryClient.setQueryData(['event', event.id], event);
           }
-        }
-      }
-
-      /**
-       * Fetch kind 0 metadata for the given pubkeys and seed each into the
-       * individual `['author', pubkey]` query cache so that subsequent
-       * `useAuthor()` calls resolve instantly without extra relay queries.
-       * Pubkeys that are already cached are skipped.
-       */
-      async function fetchAndCacheAuthors(pubkeys: string[]): Promise<void> {
-        const uncached = pubkeys.filter(
-          (pk) => !queryClient.getQueryData(['author', pk]),
-        );
-        if (uncached.length === 0) return;
-        try {
-          const metaEvents = await nostr.query(
-            [{ kinds: [0], authors: uncached, limit: uncached.length }],
-            { signal },
-          );
-          for (const meta of metaEvents) {
-            if (!queryClient.getQueryData(['author', meta.pubkey])) {
-              queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
-            }
-          }
-        } catch {
-          // Timeout or abort — non-critical, author profiles will lazy-load
-        }
-      }
-
-      /**
-       * Fetch NIP-85 kind 30383 stats for all event IDs and seed each into
-       * the individual `['event-stats', id]` query cache so that downstream
-       * `useEventStats()` calls resolve instantly. Only fetches stats for
-       * IDs not already cached.
-       */
-      async function fetchAndCacheEventStats(items: FeedItem[]): Promise<void> {
-        const statsPubkey = config.nip85StatsPubkey;
-        if (!statsPubkey) return;
-
-        const eventIds = items
-          .map((item) => item.event.id)
-          .filter((id) => !queryClient.getQueryData(['event-stats', id]));
-
-        if (eventIds.length === 0) return;
-
-        const emptyStats: EventStats = { replies: 0, reposts: 0, quotes: 0, reactions: 0, zapAmount: 0, zapCount: 0, reactionEmojis: [] };
-
-        // Build a map of eventId → stats from the NIP-85 response
-        const statsMap = new Map<string, EventStats>();
-
-        try {
-          const nip85Events = await nostr.query(
-            [{
-              kinds: [30383],
-              authors: [statsPubkey],
-              '#d': eventIds,
-              limit: eventIds.length,
-            }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
-          );
-
-          const getTagValue = (event: NostrEvent, tagName: string): number => {
-            const tag = event.tags.find(([name]) => name === tagName);
-            return tag?.[1] ? parseInt(tag[1], 10) : 0;
-          };
-
-          for (const event of nip85Events) {
-            const eventId = event.tags.find(([name]) => name === 'd')?.[1];
-            if (!eventId) continue;
-
-            statsMap.set(eventId, {
-              replies: getTagValue(event, 'comment_cnt'),
-              reposts: getTagValue(event, 'repost_cnt'),
-              quotes: 0,
-              reactions: getTagValue(event, 'reaction_cnt'),
-              zapAmount: 0,
-              zapCount: getTagValue(event, 'zap_cnt'),
-              reactionEmojis: [],
-            });
-          }
-        } catch {
-          // NIP-85 failed or timed out — still seed zeros below
-        }
-
-        // Seed cache for every event ID — use fetched stats or zeros
-        for (const id of eventIds) {
-          queryClient.setQueryData(['event-stats', id], statsMap.get(id) ?? emptyStats);
         }
       }
 
@@ -267,7 +153,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
         );
 
         // Seed the author query cache from the metadata we already fetched
-        // so that fetchAndCacheAuthors below won't re-fetch these pubkeys.
+        // for NIP-05 verification, so downstream useAuthor() calls are instant.
         for (const meta of metadataEvents) {
           if (!queryClient.getQueryData(['author', meta.pubkey])) {
             queryClient.setQueryData(['author', meta.pubkey], parseAuthorEvent(meta));
@@ -359,12 +245,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Seed event, author, and stats caches so downstream hooks resolve instantly.
+        // Seed event cache so embedded note previews resolve instantly.
+        // Authors, stats, and reactions are batched automatically by NostrBatcher
+        // when NoteCard components mount.
         cacheEvents(dedupedItems);
-        await Promise.all([
-          fetchAndCacheAuthors(collectPubkeys(dedupedItems)),
-          fetchAndCacheEventStats(dedupedItems),
-        ]);
 
         return { items: dedupedItems, oldestQueryTimestamp };
       } else if (tab === 'follows' && user && followList !== undefined) {
@@ -444,12 +328,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
 
         const dedupedItems = Array.from(seen.values()).sort((a, b) => b.sortTimestamp - a.sortTimestamp);
 
-        // Seed event, author, and stats caches so downstream hooks resolve instantly.
+        // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(dedupedItems);
-        await Promise.all([
-          fetchAndCacheAuthors(collectPubkeys(dedupedItems)),
-          fetchAndCacheEventStats(dedupedItems),
-        ]);
 
         return { items: dedupedItems, oldestQueryTimestamp };
       } else {
@@ -477,12 +357,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
           .sort((a, b) => b.created_at - a.created_at)
           .map((ev) => ({ event: ev, sortTimestamp: ev.created_at }));
 
-        // Seed event, author, and stats caches so downstream hooks resolve instantly.
+        // Seed event cache so embedded note previews resolve instantly.
         cacheEvents(items);
-        await Promise.all([
-          fetchAndCacheAuthors(collectPubkeys(items)),
-          fetchAndCacheEventStats(items),
-        ]);
 
         return { items, oldestQueryTimestamp };
       }

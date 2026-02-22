@@ -29,8 +29,12 @@ export function useComments(root: NostrEvent | URL, limit?: number) {
   const nip85AddrStats = useNip85AddrStats(nip85Type === 'addr' ? nip85Identifier : undefined);
   const nip85Stats = nip85Type === 'event' ? nip85EventStats.data : nip85AddrStats.data;
 
+  // Use a stable boolean in the queryKey instead of the full nip85Stats object.
+  // This prevents re-queries when the stats object reference changes but values are identical.
+  const hasNip85Stats = !!nip85Stats;
+
   return useQuery({
-    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit, nip85Stats],
+    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit, hasNip85Stats],
     queryFn: async (c) => {
       // If we have NIP-85 comment count and no limit specified, use a smaller default limit
       const hasNip85CommentCount = !!nip85Stats?.commentCount;

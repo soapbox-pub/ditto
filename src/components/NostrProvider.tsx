@@ -3,6 +3,7 @@ import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays } from '@/lib/appRelays';
+import { NostrBatcher } from '@/lib/NostrBatcher';
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -72,6 +73,15 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     });
   }
 
+  // Wrap the pool in a batching proxy. The proxy intercepts `.query()`
+  // calls to automatically combine batchable filter patterns (profiles,
+  // events by ID, reactions, d-tag lookups) into single REQs.
+  // All other methods pass through directly to the underlying pool.
+  const batcher = useRef<NostrBatcher | undefined>(undefined);
+  if (!batcher.current && pool.current) {
+    batcher.current = new NostrBatcher(pool.current);
+  }
+
   // Cleanup: Close all relay connections when the provider unmounts
   useEffect(() => {
     return () => {
@@ -81,8 +91,12 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
     };
   }, []);
 
+  // Provide the batcher as the `nostr` object. It has the same interface
+  // as NPool, so hooks using `useNostr()` get transparent batching.
+  // The `as unknown as NPool` cast is safe because NostrBatcher exposes
+  // all the same methods hooks use: query, event, req, relay, group, close.
   return (
-    <NostrContext.Provider value={{ nostr: pool.current }}>
+    <NostrContext.Provider value={{ nostr: (batcher.current ?? pool.current) as unknown as NPool }}>
       {children}
     </NostrContext.Provider>
   );

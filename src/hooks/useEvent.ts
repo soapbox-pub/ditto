@@ -52,18 +52,18 @@ export function useEvent(eventId: string | undefined, relays?: string[], authorH
 
   return useQuery<NostrEvent | null>({
     queryKey: ['event', eventId ?? ''],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!eventId) return null;
       const filter: NostrFilter[] = [{ ids: [eventId], limit: 1 }];
 
-      // 1. Query the user's configured relays first
-      const events = await nostr.query(filter, { signal: AbortSignal.timeout(1000) });
+      // 1. Query the user's configured relays first (batched automatically)
+      const events = await nostr.query(filter, { signal });
       if (events.length > 0) return events[0];
 
       // 2. If not found and we have relay hints, try those relays directly
       if (relays && relays.length > 0) {
         try {
-          const hintSignal = AbortSignal.timeout(1000);
+          const hintSignal = AbortSignal.any([signal, AbortSignal.timeout(1000)]);
           const hintEvents = await nostr.group(relays).query(filter, { signal: hintSignal });
           if (hintEvents.length > 0) return hintEvents[0];
         } catch {
