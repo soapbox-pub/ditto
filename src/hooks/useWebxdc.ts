@@ -8,10 +8,10 @@ import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 
 /**
- * Creates a `Webxdc` API instance backed by Nostr kind 4079 state update events.
+ * Creates a `Webxdc` API instance backed by Nostr kind 4932 state update events.
  *
- * - `sendUpdate()` publishes a kind 4079 event with an `i` tag referencing the UUID.
- * - `setUpdateListener()` / `getAllUpdates()` query kind 4079 events with `#i` = UUID,
+ * - `sendUpdate()` publishes a kind 4932 event with an `i` tag referencing the UUID.
+ * - `setUpdateListener()` / `getAllUpdates()` query kind 4932 events with `#i` = UUID,
  *   ordered by `created_at`, and assign serial numbers.
  *
  * @param uuid - The webxdc session UUID from the `webxdc` property in the imeta tag.
@@ -26,12 +26,12 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const listenerRef = useRef<((update: ReceivedStatusUpdate<unknown>) => void) | null>(null);
   const lastSerialRef = useRef(0);
 
-  // Query all existing kind 4079 events for this UUID
+  // Query all existing kind 4932 events for this UUID
   const { data: stateEvents } = useQuery({
     queryKey: ['webxdc-updates', uuid],
     queryFn: async () => {
       const events = await nostr.query([{
-        kinds: [4079],
+        kinds: [4932],
         '#i': [uuid],
         limit: 500,
       }]);
@@ -96,7 +96,7 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     if (update.summary) tags.push(['summary', update.summary]);
 
     publishEvent({
-      kind: 4079,
+      kind: 4932,
       content: JSON.stringify(update.payload),
       tags,
       created_at: Math.floor(Date.now() / 1000),
