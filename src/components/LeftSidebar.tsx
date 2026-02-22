@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -32,12 +32,14 @@ interface NavItemProps {
   label: string;
   active?: boolean;
   showIndicator?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-function NavItem({ to, icon, label, active, showIndicator }: NavItemProps) {
+function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemProps) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={cn(
         'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
         active ? 'font-bold' : 'font-normal text-muted-foreground',
@@ -67,6 +69,14 @@ export function LeftSidebar() {
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
   const [composeOpen, setComposeOpen] = useState(false);
+
+  /** When already on the target route, scroll to top instead of navigating. */
+  const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
+    if (location.pathname === to) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.pathname]);
 
   /** Map route name → lucide icon (size-6 for sidebar). */
   const ROUTE_ICONS: Record<string, React.ReactElement> = {
@@ -143,7 +153,7 @@ export function LeftSidebar() {
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
       {/* Logo */}
-      <Link to="/" className="px-3 mb-1">
+      <Link to="/" className="px-3 mb-1" onClick={scrollToTopIfCurrent('/')}>
         <MewLogo size={48} />
       </Link>
 
@@ -166,6 +176,7 @@ export function LeftSidebar() {
             label={item.label}
             active={location.pathname === item.to}
             showIndicator={item.to === '/notifications' && hasUnread}
+            onClick={item.to === '/' ? scrollToTopIfCurrent('/') : undefined}
           />
         ))}
 

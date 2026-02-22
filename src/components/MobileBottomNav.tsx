@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -10,12 +11,14 @@ interface NavTabProps {
   label: string;
   active: boolean;
   showIndicator?: boolean;
+  onClick?: (e: React.MouseEvent) => void;
 }
 
-function NavTab({ to, icon, label, active, showIndicator }: NavTabProps) {
+function NavTab({ to, icon, label, active, showIndicator, onClick }: NavTabProps) {
   return (
     <Link
       to={to}
+      onClick={onClick}
       className={cn(
         'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
         active ? 'text-foreground' : 'text-muted-foreground',
@@ -37,6 +40,13 @@ export function MobileBottomNav() {
   const { user } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
 
+  const handleHomeClick = useCallback((e: React.MouseEvent) => {
+    if (location.pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.pathname]);
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
       <NavTab
@@ -44,6 +54,7 @@ export function MobileBottomNav() {
         icon={<Home className="size-5" />}
         label="Home"
         active={location.pathname === '/'}
+        onClick={handleHomeClick}
       />
       {user && (
         <NavTab
