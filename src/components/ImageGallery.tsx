@@ -135,9 +135,9 @@ function GridImage({
       {/* Skeleton placeholder — matches the image dimensions */}
       {!loaded && (
         <Skeleton
-          className="absolute inset-0 w-full rounded-none"
+          className="absolute inset-0 w-full h-full rounded-none"
           style={{
-            height: isSingle ? '200px' : heightStyle,
+            minHeight: isSingle ? '200px' : heightStyle,
           }}
         />
       )}
@@ -152,6 +152,7 @@ function GridImage({
         style={{
           height: heightStyle,
           maxHeight: isSingle ? '85dvh' : undefined,
+          minHeight: isSingle ? '200px' : undefined,
         }}
         loading="lazy"
         onLoad={() => setLoaded(true)}
