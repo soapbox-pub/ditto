@@ -6,6 +6,7 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
@@ -271,7 +272,13 @@ public class NostrPoller {
         switch (kind) {
             case 7: return "reacted to your post";
             case 6: return "reposted your note";
-            case 9735: return "zapped you";
+            case 9735: {
+                long sats = getZapAmount(event);
+                if (sats > 0) {
+                    return "zapped you " + formatSats(sats) + " sats";
+                }
+                return "zapped you";
+            }
             case 1: {
                 JSONArray tags = event.optJSONArray("tags");
                 if (tags != null) {
@@ -286,6 +293,67 @@ public class NostrPoller {
             }
             default: return "mentioned you";
         }
+    }
+
+    /**
+     * Extract zap amount in sats from a kind 9735 zap receipt event.
+     * Checks the "amount" tag first (millisats), then falls back to
+     * parsing the "description" tag's zap request JSON for an amount tag.
+     * Returns 0 if no amount can be determined.
+     */
+    private long getZapAmount(JSONObject event) {
+        JSONArray tags = event.optJSONArray("tags");
+        if (tags == null) return 0;
+
+        // Check for direct "amount" tag (value in millisats)
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && "amount".equals(tag.optString(0))) {
+                try {
+                    long msats = Long.parseLong(tag.optString(1));
+                    if (msats > 0) return msats / 1000;
+                } catch (NumberFormatException ignored) {}
+            }
+        }
+
+        // Fall back to "description" tag (zap request JSON) -> amount tag
+        for (int i = 0; i < tags.length(); i++) {
+            JSONArray tag = tags.optJSONArray(i);
+            if (tag != null && "description".equals(tag.optString(0))) {
+                try {
+                    JSONObject zapReq = new JSONObject(tag.optString(1));
+                    JSONArray reqTags = zapReq.optJSONArray("tags");
+                    if (reqTags != null) {
+                        for (int j = 0; j < reqTags.length(); j++) {
+                            JSONArray reqTag = reqTags.optJSONArray(j);
+                            if (reqTag != null && "amount".equals(reqTag.optString(0))) {
+                                long msats = Long.parseLong(reqTag.optString(1));
+                                if (msats > 0) return msats / 1000;
+                            }
+                        }
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Format sats for compact display.
+     * e.g., 500 -> "500", 1500 -> "1.5K", 1000000 -> "1M"
+     */
+    private String formatSats(long sats) {
+        if (sats >= 1_000_000) {
+            double val = sats / 1_000_000.0;
+            if (val == Math.floor(val)) return String.format("%d", (long) val) + "M";
+            return String.format("%.1f", val).replaceAll("\\.0$", "") + "M";
+        } else if (sats >= 1_000) {
+            double val = sats / 1_000.0;
+            if (val == Math.floor(val)) return String.format("%d", (long) val) + "K";
+            return String.format("%.1f", val).replaceAll("\\.0$", "") + "K";
+        }
+        return String.valueOf(sats);
     }
 
     private String resolveDisplayName(JSONObject metadata, String pubkey) {
@@ -316,8 +384,10 @@ public class NostrPoller {
         if (manager == null) return;
 
         Intent intent = new Intent(context, MainActivity.class);
+        intent.setData(Uri.parse("https://mew.app/notifications"));
+        intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
-                context, 0, intent,
+                context, id, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 

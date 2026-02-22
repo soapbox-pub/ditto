@@ -1,6 +1,7 @@
 package com.mew.app;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 
@@ -21,6 +22,37 @@ public class MainActivity extends BridgeActivity {
             startForegroundService(serviceIntent);
         } else {
             startService(serviceIntent);
+        }
+
+        // Handle notification tap deep link
+        handleNotificationIntent(getIntent());
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        super.onNewIntent(intent);
+        // Handle notification tap when the activity is already running (singleTask)
+        handleNotificationIntent(intent);
+    }
+
+    /**
+     * If the intent has a data URI from a notification tap, navigate the
+     * WebView to the corresponding path (e.g., /notifications).
+     */
+    private void handleNotificationIntent(Intent intent) {
+        if (intent == null) return;
+        Uri data = intent.getData();
+        if (data != null && "mew.app".equals(data.getHost())) {
+            String path = data.getPath();
+            if (path != null && !path.isEmpty()) {
+                // Wait for WebView to be ready, then navigate
+                getBridge().getWebView().post(() -> {
+                    getBridge().getWebView().evaluateJavascript(
+                        "window.location.pathname = '" + path.replace("'", "\\'") + "';",
+                        null
+                    );
+                });
+            }
         }
     }
 }
