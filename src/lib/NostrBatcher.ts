@@ -337,7 +337,7 @@ export class NostrBatcher {
     const multiFilterEventId = isMultiFilterETagBatchable(filters);
     if (multiFilterEventId !== null) {
       // Serialize the filter "shape" (kinds, tag names, limits) to get a collector key.
-      // Different useEventStats calls with the same hasNip85 value produce identical shapes.
+      // Multi-filter queries with the same shape are batched together.
       const shapeKey = filters.map((f) => {
         const keys = Object.keys(f).sort();
         return keys.map((k) => k === '#e' || k === '#q' ? k : `${k}:${JSON.stringify((f as Record<string, unknown>)[k])}`).join('|');
