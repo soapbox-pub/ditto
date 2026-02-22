@@ -2,7 +2,7 @@
 
 ## Abstract
 
-This NIP defines a protocol for sharing and running [webxdc](https://webxdc.org/) mini apps over Nostr. Webxdc apps are sandboxed HTML5 applications distributed as `.xdc` (ZIP) files that communicate via shared state updates. Rather than introducing dedicated event kinds for apps or sessions, webxdc files are attached to regular Nostr events using `imeta` tags (NIP-92), and state synchronization is coordinated through a UUID.
+This NIP defines a protocol for sharing and running [webxdc](https://webxdc.org/) mini apps over Nostr. Webxdc apps are sandboxed HTML5 applications distributed as `.xdc` (ZIP) files that communicate via shared state updates. Rather than introducing dedicated event kinds for apps or sessions, webxdc files are attached to regular Nostr events using `imeta` tags (NIP-92), and state synchronization is coordinated through a unique identifier. This spec covers public webxdc communication only. Private communication may be addressed in a future update.
 
 ## Motivation
 
