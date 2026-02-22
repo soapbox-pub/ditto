@@ -30,7 +30,7 @@ export function useAuthor(pubkey: string | undefined) {
       );
 
       if (!event) {
-        throw new Error('No event found');
+        return {};
       }
 
       return parseAuthorEvent(event);
