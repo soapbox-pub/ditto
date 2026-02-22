@@ -1,4 +1,8 @@
-# Nostr Webxdc
+NIP-DC
+======
+
+Nostr Webxdc
+------------
 
 `draft` `optional`
 
