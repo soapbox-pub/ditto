@@ -82,7 +82,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       },
       // Resolve queries quickly once any relay sends EOSE, instead of
       // waiting for every relay to finish.
-      eoseTimeout: 1,
+      eoseTimeout: 100,
     });
   }
 
