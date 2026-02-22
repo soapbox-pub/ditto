@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
@@ -688,6 +688,39 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   const parentEventId = useMemo(() => isTextNote ? getParentEventId(event) : undefined, [event, isTextNote]);
 
+  // Keep the focused post pinned to top while ancestor content loads above it.
+  // A ResizeObserver on the ancestor container re-scrolls on every layout shift
+  // (image loads, skeleton→content swaps) for the first few seconds.
+  const focusedPostRef = useRef<HTMLElement>(null);
+  const ancestorRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!parentEventId || !focusedPostRef.current) return;
+
+    const post = focusedPostRef.current;
+    post.scrollIntoView({ block: 'start' });
+
+    // Brief highlight pulse so the user can locate the focused post
+    post.style.transition = 'background-color 0.3s ease';
+    post.style.backgroundColor = 'hsl(var(--primary) / 0.06)';
+    const pulseTimer = setTimeout(() => {
+      post.style.backgroundColor = '';
+      // Clean up inline styles after transition completes
+      setTimeout(() => { post.style.transition = ''; }, 300);
+    }, 1500);
+
+    const ancestor = ancestorRef.current;
+    if (!ancestor) return () => clearTimeout(pulseTimer);
+
+    const observer = new ResizeObserver(() => {
+      post.scrollIntoView({ block: 'start' });
+    });
+    observer.observe(ancestor);
+
+    // Stop observing after a few seconds — ancestors should be settled by then
+    const timer = setTimeout(() => observer.disconnect(), 5000);
+    return () => { observer.disconnect(); clearTimeout(timer); clearTimeout(pulseTimer); };
+  }, [parentEventId]);
+
   // Extract client info from tags
   const clientInfo = useMemo(() => {
     const clientTag = event.tags.find(([name]) => name === 'client');
@@ -708,10 +741,14 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   return (
     <div>
       {/* Ancestor thread chain if this is a reply */}
-      {parentEventId && <AncestorThread eventId={parentEventId} />}
+      {parentEventId && (
+        <div ref={ancestorRef}>
+          <AncestorThread eventId={parentEventId} />
+        </div>
+      )}
 
       {/* Main post — expanded Ditto-style view */}
-      <article className="px-4 pt-3 pb-0">
+      <article ref={focusedPostRef} className="px-4 pt-3 pb-0">
         {/* Author row */}
         <div className="flex items-center gap-3">
           {author.isLoading ? (
