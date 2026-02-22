@@ -1,9 +1,30 @@
 import { useNostr } from '@nostrify/react';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
+import { type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
+import { parseAuthorEvent } from './useAuthor';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { parseRepostContent, type FeedItem } from '@/lib/feedUtils';
+import { filterOutOfSyncEvents, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
+
+/** Profile metadata extracted from the first page query. */
+export interface ProfileMeta {
+  metadata?: NostrMetadata;
+  metadataEvent?: NostrEvent;
+  following: string[];
+  followingEvent?: NostrEvent;
+  pinnedIds: string[];
+  pinnedListEvent?: NostrEvent;
+}
+
+/** Extended FeedItem with pagination metadata. */
+interface ProfileFeedPage {
+  items: FeedItem[];
+  /** The oldest timestamp from the raw relay query (before filtering) for pagination. */
+  oldestQueryTimestamp: number;
+  /** Profile metadata — only present on the first page. */
+  profileMeta?: ProfileMeta;
+}
 
 const PAGE_SIZE = 20;
 
@@ -44,45 +65,115 @@ function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
  */
 export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const { nostr } = useNostr();
+  const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
 
   const profileKinds = getEnabledFeedKinds(feedSettings);
   const kindsKey = [...profileKinds].sort().join(',');
 
-  return useInfiniteQuery<FeedItem[], Error>({
+  return useInfiniteQuery<ProfileFeedPage, Error>({
     queryKey: ['profile-feed', pubkey ?? '', tab, kindsKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!pubkey) return [];
+      if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000) };
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
+      const isFirstPage = !pageParam;
+
+      /** Seed the `['event', id]` query cache with events we already have in hand. */
+      function cacheEvents(items: FeedItem[]): void {
+        for (const { event } of items) {
+          if (!queryClient.getQueryData(['event', event.id])) {
+            queryClient.setQueryData(['event', event.id], event);
+          }
+        }
+      }
 
       // Fetch more than PAGE_SIZE because client-side filtering (e.g. "posts only"
       // excludes replies, "media" excludes non-media) can discard many events.
       const fetchLimit = tab === 'replies' ? PAGE_SIZE : PAGE_SIZE * 3;
 
-      const filter: Record<string, unknown> = {
+      const feedFilter: Record<string, unknown> = {
         kinds: profileKinds,
         authors: [pubkey],
         limit: fetchLimit,
       };
       if (pageParam) {
-        filter.until = pageParam;
+        feedFilter.until = pageParam;
       }
 
-      const events = await nostr.query(
-        [filter as { kinds: number[]; authors: string[]; limit: number; until?: number }],
+      const filters: Record<string, unknown>[] = [feedFilter];
+      if (isFirstPage) {
+        filters.push({ kinds: [0, 3, 10001], authors: [pubkey], limit: 3 });
+      }
+
+      const allEvents = await nostr.query(
+        filters as { kinds: number[]; authors: string[]; limit: number; until?: number }[],
         { signal: querySignal },
       );
+
+      // Separate profile metadata events from feed events
+      const metaKinds = new Set([0, 3, 10001]);
+      const rawFeedEvents = allEvents.filter((e) => !metaKinds.has(e.kind));
+
+      // Extract and cache profile metadata on first page
+      let profileMeta: ProfileMeta | undefined;
+      if (isFirstPage) {
+        const kind0 = allEvents.find((e) => e.kind === 0);
+        const kind3 = allEvents.find((e) => e.kind === 3);
+        const kind10001 = allEvents.find((e) => e.kind === 10001);
+
+        if (kind0) {
+          queryClient.setQueryData(['author', pubkey], parseAuthorEvent(kind0));
+        }
+
+        let metadata: NostrMetadata | undefined;
+        if (kind0) {
+          try {
+            metadata = n.json().pipe(n.metadata()).parse(kind0.content);
+          } catch {
+            // invalid metadata
+          }
+        }
+
+        const following = kind3
+          ? kind3.tags.filter(([name]) => name === 'p').map(([, pk]) => pk)
+          : [];
+
+        const pinnedIds = kind10001
+          ? kind10001.tags.filter(([name]) => name === 'e').map(([, id]) => id)
+          : [];
+
+        profileMeta = {
+          metadata,
+          metadataEvent: kind0,
+          following,
+          followingEvent: kind3,
+          pinnedIds,
+          pinnedListEvent: kind10001,
+        };
+
+        // Seed a stable cache key so profile metadata survives tab switches
+        queryClient.setQueryData(['profile-meta', pubkey], profileMeta);
+      }
+
+      // Filter out events from out-of-sync relays before processing
+      const events = filterOutOfSyncEvents(rawFeedEvents);
+
+      // Track oldest timestamp from the raw query (before tab filtering/dedup) for pagination.
+      // Using this instead of the last processed item's timestamp prevents skipping events
+      // when tab filtering discards many results.
+      const validEvents = events.filter((ev) => ev.created_at <= now);
+      const oldestQueryTimestamp = validEvents.length > 0
+        ? Math.min(...validEvents.map((ev) => ev.created_at))
+        : now;
 
       // Process events into FeedItems, unwrapping kind 6 reposts
       const items: FeedItem[] = [];
       const repostMissingIds: string[] = [];
       const repostMap = new Map<string, NostrEvent>();
 
-      for (const ev of events) {
-        if (ev.created_at > now) continue;
-
+      for (const ev of validEvents) {
         if (ev.kind === 6) {
           // Handle reposts
           const embedded = parseRepostContent(ev);
@@ -121,12 +212,18 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
 
       // Sort by timestamp and filter by tab
       const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-      return filterByTab(sorted, tab);
+      const tabFiltered = filterByTab(sorted, tab);
+
+      // Seed event cache so post detail views resolve instantly
+      cacheEvents(tabFiltered);
+
+      return { items: tabFiltered, oldestQueryTimestamp, profileMeta };
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.length === 0) return undefined;
-      const oldest = lastPage[lastPage.length - 1];
-      return oldest.sortTimestamp - 1;
+      if (lastPage.items.length === 0) return undefined;
+      // Use the oldest timestamp from the raw relay query (before tab filtering/dedup) minus 1.
+      // This ensures we don't skip events when tab filtering reduces the page size.
+      return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
     enabled: !!pubkey && tab !== 'likes',

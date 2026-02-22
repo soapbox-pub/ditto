@@ -34,7 +34,11 @@ export function useProfileData(pubkey: string | undefined) {
       }
 
       const events = await nostr.query(
-        [{ kinds: [0, 3, 10001], authors: [pubkey], limit: 3 }],
+        [
+          { kinds: [0], authors: [pubkey], limit: 1 },
+          { kinds: [3], authors: [pubkey], limit: 1 },
+          { kinds: [10001], authors: [pubkey], limit: 1 },
+        ],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
