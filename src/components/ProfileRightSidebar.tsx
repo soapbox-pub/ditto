@@ -18,7 +18,6 @@ interface ProfileField {
 }
 
 interface ProfileRightSidebarProps {
-  pubkey: string;
   fields?: ProfileField[];
   /** Events from the profile feed — media is extracted client-side instead of a separate query. */
   events?: NostrEvent[];
@@ -242,7 +241,7 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
-export function ProfileRightSidebar({ pubkey, fields, events, eventsLoading }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, events, eventsLoading }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(events ?? [], config.contentWarningPolicy),
