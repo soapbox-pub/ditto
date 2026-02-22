@@ -123,7 +123,7 @@ An ephemeral event that carries realtime data between peers interacting with the
 
 ## Protocol Flow
 
-1. **Attach App**: A user uploads their `.xdc` file to a Blossom server and publishes an event (e.g. kind `1`) with the file URL in content and an `imeta` tag with MIME type `application/vnd.webxdc+zip`. If the app is stateful, the `imeta` includes a `webxdc` property with a new UUID.
+1. **Attach App**: A user uploads their `.xdc` file to a hosting service (e.g. Blossom) and publishes an event (e.g. kind `1`) with the public file URL in content and an `imeta` tag with MIME type `application/vnd.webxdc+zip`. The `imeta` SHOULD include a `webxdc` property with a randomly generated unique string.
 2. **Run App**: A client seeing the event detects the webxdc `imeta` tag, downloads the `.xdc` file, extracts it, and runs `index.html` in a sandboxed iframe.
 3. **Send Updates**: When the app calls `sendUpdate()`, the client publishes a kind `4079` event with an `i` tag containing the UUID.
 4. **Receive Updates**: The client subscribes to kind `4079` events with `#i` matching the UUID and delivers them to the app via `setUpdateListener()`.
