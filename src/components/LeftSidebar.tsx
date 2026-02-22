@@ -18,7 +18,7 @@ import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
@@ -62,7 +62,7 @@ export function LeftSidebar() {
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
-  const { hasUnread } = useNotifications();
+  const hasUnread = useHasUnreadNotifications();
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
