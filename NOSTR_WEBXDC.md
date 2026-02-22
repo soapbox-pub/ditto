@@ -129,7 +129,7 @@ An ephemeral event that carries realtime data between peers interacting with the
 4. **Receive Updates**: The client subscribes to kind `4079` events with `#i` matching the UUID and delivers them to the app via `setUpdateListener()`.
 5. **Realtime Channel**: When the app calls `joinRealtimeChannel()`, the client subscribes to kind `21567` events with `#i` matching the UUID. Calls to `realtimeChannel.send()` publish ephemeral kind `21567` events; incoming events are decoded and delivered via `realtimeChannel.setListener()`. Calling `realtimeChannel.leave()` closes the subscription.
 6. **Discovery**: To find the original `.xdc` file for a given UUID, clients query for events containing an `imeta` tag with the matching `webxdc` property.
-7. **Identity**: `selfAddr` maps to the user's Nostr pubkey (npub). `selfName` maps to the user's kind 0 display name.
+7. **Identity**: `selfAddr` and `selfName` MAY map to the user's Nostr pubkey (npub) and kind 0 display name respectively, or any other values chosen by the client.
 
 ## Security Considerations
 
