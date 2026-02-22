@@ -1,6 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji, isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
@@ -315,16 +315,19 @@ export function useEventStats(eventId: string | undefined) {
   });
 }
 
-/** Number of time buckets for sparkline charts. */
-const SPARKLINE_BUCKETS = 10;
-/** Time window for sparkline data (24 hours in seconds). */
-const SPARKLINE_WINDOW = 24 * 60 * 60;
+/** Number of days of history for sparkline charts. */
+const SPARKLINE_DAYS = 7;
+/** One day in seconds. */
+const DAY_SECONDS = 24 * 60 * 60;
 
 /**
- * Batch-fetches sparkline data for multiple hashtags in a single relay query.
- * Returns a map of tag → number[] where each number is the post count in that time bucket.
+ * Fetches sparkline data for multiple hashtags from kind 1985 label events
+ * published by relay.ditto.pub. Returns a map of tag → number[] where each
+ * number is the `uses` count for that day (7 days of history).
  *
- * Divides the last 24 hours into 10 buckets and counts kind-1 posts per bucket per tag.
+ * Kind 1985 is a regular event (not replaceable), so multiple may exist per day.
+ * We query 1 per day using since/until boundaries to get the latest snapshot.
+ * Each label event's `t` tags contain pre-computed stats: `['t', hashtag, _, accounts, uses]`.
  */
 export function useTagSparklines(tags: string[], enabled = true) {
   const { nostr } = useNostr();
@@ -336,47 +339,54 @@ export function useTagSparklines(tags: string[], enabled = true) {
     queryFn: async ({ signal }) => {
       if (sortedTags.length === 0) return new Map();
 
+      const ditto = nostr.relay(DITTO_RELAY);
       const now = Math.floor(Date.now() / 1000);
-      const since = now - SPARKLINE_WINDOW;
 
-      // Single query for all tags — relay returns posts matching any of them
-      const filters: NostrFilter[] = [{
-        kinds: [1],
-        '#t': sortedTags,
-        since,
-        limit: sortedTags.length * 50,
-      }];
+      // Generate day boundaries (oldest first)
+      const days: { since: number; until: number }[] = [];
+      for (let i = SPARKLINE_DAYS - 1; i >= 0; i--) {
+        const dayStart = now - ((i + 1) * DAY_SECONDS);
+        const dayEnd = now - (i * DAY_SECONDS);
+        days.push({ since: dayStart, until: dayEnd });
+      }
 
-      const events = await nostr.query(
-        filters,
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
+      // Fetch 1 label event per day (7 queries, each to a single relay)
+      const labelEvents = await Promise.all(
+        days.map(({ since, until }) =>
+          ditto.query(
+            [{
+              kinds: [1985],
+              '#L': ['pub.ditto.trends'],
+              '#l': ['#t'],
+              since,
+              until,
+              limit: 1,
+            }],
+            { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+          ).then((events) => events[0] ?? null),
+        ),
       );
-
-      const bucketSize = SPARKLINE_WINDOW / SPARKLINE_BUCKETS;
 
       // Initialise empty buckets for every tag
       const sparkMap = new Map<string, number[]>();
       for (const tag of sortedTags) {
-        sparkMap.set(tag, new Array(SPARKLINE_BUCKETS).fill(0));
+        sparkMap.set(tag, new Array(SPARKLINE_DAYS).fill(0));
       }
 
-      // Distribute events into buckets
-      for (const event of events) {
-        const bucketIndex = Math.min(
-          SPARKLINE_BUCKETS - 1,
-          Math.floor((event.created_at - since) / bucketSize),
-        );
-        if (bucketIndex < 0) continue;
+      // Extract `uses` for each tag from each day's label event
+      for (let i = 0; i < labelEvents.length; i++) {
+        const event = labelEvents[i];
+        if (!event) continue;
 
-        // An event can have multiple t-tags; count it for each matching tag
-        const eventTags = event.tags
-          .filter(([name]) => name === 't')
-          .map(([, val]) => val.toLowerCase());
-
-        for (const et of eventTags) {
-          const buckets = sparkMap.get(et);
-          if (buckets) {
-            buckets[bucketIndex]++;
+        for (const tag of sortedTags) {
+          const tTag = event.tags.find(([name, value]) => name === 't' && value?.toLowerCase() === tag);
+          if (tTag) {
+            // Tag format: ['t', hashtag, _, accounts, uses]
+            const uses = parseInt(tTag[4] || '0', 10);
+            const buckets = sparkMap.get(tag);
+            if (buckets) {
+              buckets[i] = uses;
+            }
           }
         }
       }
