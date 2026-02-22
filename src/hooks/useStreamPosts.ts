@@ -5,6 +5,7 @@ import { useMuteList } from './useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
+import { DITTO_RELAY } from '@/lib/appRelays';
 
 interface StreamPostsOptions {
   includeReplies: boolean;
@@ -189,7 +190,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
         const now = Math.floor(Date.now() / 1000);
         
         // Use relay.ditto.pub directly for streaming to avoid pool's eoseTimeout
-        const dittoRelay = nostr.relay('wss://relay.ditto.pub');
+        const dittoRelay = nostr.relay(DITTO_RELAY);
         
         for await (const msg of dittoRelay.req(
           [{ ...streamFilter, since: now, limit: 0 }],

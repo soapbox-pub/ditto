@@ -4,6 +4,7 @@ import { NLogin, useNostrLogin } from '@nostrify/react/login';
 import { generateSecretKey, getPublicKey } from 'nostr-tools';
 import { nip19 } from 'nostr-tools';
 import { useAppContext } from '@/hooks/useAppContext';
+import { DITTO_RELAY } from '@/lib/appRelays';
 
 // NOTE: This file should not be edited except for adding new login methods.
 
@@ -154,7 +155,7 @@ export function useLoginActions() {
         .filter((r) => r.write)
         .map((r) => r.url);
       // Fall back to a sensible default if no write relays are configured
-      return relays.length > 0 ? relays : ['wss://relay.damus.io'];
+      return relays.length > 0 ? relays : [DITTO_RELAY];
     },
     // Log out the current user
     async logout(): Promise<void> {

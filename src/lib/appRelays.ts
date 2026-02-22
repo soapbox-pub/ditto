@@ -1,5 +1,8 @@
 import type { RelayMetadata } from '@/contexts/AppContext';
 
+/** Relay used for NIP-50 search, trending, and streaming queries. */
+export const DITTO_RELAY = 'wss://relay.ditto.pub/';
+
 /** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
 function normalizeUrl(url: string): string {
   return url.toLowerCase().replace(/\/+$/, '');
@@ -11,10 +14,10 @@ function normalizeUrl(url: string): string {
  */
 export const APP_RELAYS: RelayMetadata = {
   relays: [
-    { url: 'wss://relay.ditto.pub', read: true, write: true },
-    { url: 'wss://relay.primal.net', read: true, write: true },
-    { url: 'wss://relay.damus.io', read: true, write: true },
-    { url: 'wss://nos.lol', read: true, write: true },
+    { url: 'wss://relay.ditto.pub/', read: true, write: true },
+    { url: 'wss://relay.primal.net/', read: true, write: true },
+    { url: 'wss://relay.damus.io/', read: true, write: true },
+    { url: 'wss://nos.lol/', read: true, write: true },
   ],
   updatedAt: 0,
 };
