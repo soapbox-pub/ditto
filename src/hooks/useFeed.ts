@@ -337,5 +337,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     enabled: followsReady,
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
+    gcTime: 30 * 60 * 1000, // 30 min — don't GC feed data while the app is open
+    placeholderData: (prev) => prev, // keep showing previous data during refetches
   });
 }
