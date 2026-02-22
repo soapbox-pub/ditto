@@ -105,15 +105,21 @@ export function ImageGallery({
   );
 }
 
-interface LightboxProps {
+export interface LightboxProps {
   images: string[];
   currentIndex: number;
   onClose: () => void;
   onNext: () => void;
   onPrev: () => void;
+  /** Custom content rendered on the left side of the top bar (replaces default counter). */
+  topBarLeft?: React.ReactNode;
+  /** Whether to show the download button (default true). */
+  showDownload?: boolean;
+  /** Max number of images before dot indicators are hidden on mobile (default 10). */
+  maxDotIndicators?: number;
 }
 
-function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxProps) {
+export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBarLeft, showDownload = true, maxDotIndicators = 10 }: LightboxProps) {
   const [isLoaded, setIsLoaded] = useState(false);
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [touchDelta, setTouchDelta] = useState(0);
@@ -210,23 +216,29 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
 
       {/* Top bar */}
       <div data-gallery-topbar className="absolute left-0 right-0 z-10 flex items-center justify-between px-4 py-3 safe-area-inset-top">
-        {/* Counter */}
-        {hasMultiple && (
-          <span className="text-white/80 text-sm font-medium tabular-nums">
-            {currentIndex + 1} / {images.length}
-          </span>
+        {/* Left side: custom content or default counter */}
+        {topBarLeft !== undefined ? topBarLeft : (
+          <>
+            {hasMultiple && (
+              <span className="text-white/80 text-sm font-medium tabular-nums">
+                {currentIndex + 1} / {images.length}
+              </span>
+            )}
+            {!hasMultiple && <span />}
+          </>
         )}
-        {!hasMultiple && <span />}
 
         {/* Actions */}
         <div className="flex items-center gap-1">
-          <button
-            onClick={handleDownload}
-            className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-            title="Open original"
-          >
-            <Download className="size-5" />
-          </button>
+          {showDownload && (
+            <button
+              onClick={handleDownload}
+              className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+              title="Open original"
+            >
+              <Download className="size-5" />
+            </button>
+          )}
           <button
             onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
             className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
@@ -288,7 +300,7 @@ function Lightbox({ images, currentIndex, onClose, onNext, onPrev }: LightboxPro
       </div>
 
       {/* Dot indicators (mobile) */}
-      {hasMultiple && images.length <= 10 && (
+      {hasMultiple && images.length <= maxDotIndicators && (
         <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 sm:hidden">
           {images.map((_, i) => (
             <div
