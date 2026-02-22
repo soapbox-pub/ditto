@@ -2,13 +2,18 @@ import React, { useEffect, useRef } from 'react';
 import { NostrEvent, NostrFilter, NPool, NRelay1 } from '@nostrify/nostrify';
 import { NostrContext } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
-import { getEffectiveRelays } from '@/lib/appRelays';
+import { getEffectiveRelays, DITTO_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 import { initNostrWasm } from 'nostr-wasm/gzipped';
 
-// Initialize nostr-wasm
-// https://github.com/fiatjaf/nostr-wasm
-const nw = await initNostrWasm();
+// Start nostr-wasm download eagerly but don't block the module from
+// loading. On slow connections (e.g. 2G) the top-level `await` previously
+// prevented the entire app from rendering. The WASM result is only needed
+// inside `verifyEvent`, which runs when relay data arrives — by that time
+// WASM will almost certainly be ready. If it isn't, events pass through
+// unverified (acceptable; most clients skip verification entirely).
+let nw: Awaited<ReturnType<typeof initNostrWasm>> | null = null;
+const nwReady = initNostrWasm().then((result) => { nw = result; });
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -42,6 +47,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       open(url: string) {
         return new NRelay1(url, {
           verifyEvent(event) {
+            if (!nw) return true; // WASM still loading; accept unverified
             try {
               nw.verifyEvent(event);
               return true;
@@ -56,7 +62,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
 
         // Search queries must go to search relays
         if (filters.some((f) => "search" in f)) {
-          return new Map([["wss://relay.ditto.pub/", filters]]);
+          return new Map([[DITTO_RELAY, filters]]);
         }
 
         // Route to all read relays

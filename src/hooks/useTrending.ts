@@ -4,9 +4,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji, isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
-
-/** The sole relay used for trend data. */
-const DITTO_RELAY = 'wss://relay.ditto.pub';
+import { DITTO_RELAY } from '@/lib/appRelays';
 
 export interface TrendingTag {
   tag: string;
