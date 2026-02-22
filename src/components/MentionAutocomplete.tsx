@@ -92,23 +92,25 @@ export function MentionAutocomplete({
     isOpen ? mentionQuery : '',
   );
 
-  // Detect @mention query at cursor
-  const detectMention = useCallback(() => {
+  // Detect @mention query at cursor.
+  // Accepts explicit text/cursor values so callers don't have to rely on
+  // the DOM textarea state (which can be stale in React effects).
+  const detectMention = useCallback((text?: string, cursorPos?: number) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const cursor = textarea.selectionStart;
-    const text = textarea.value;
+    const cursor = cursorPos ?? textarea.selectionStart;
+    const value = text ?? textarea.value;
 
     // Walk back from cursor to find an unescaped @ that starts a mention
     let atPos = -1;
     for (let i = cursor - 1; i >= 0; i--) {
-      const ch = text[i];
+      const ch = value[i];
       // Stop at whitespace or newline — no match
       if (ch === ' ' || ch === '\n' || ch === '\t') break;
       if (ch === '@') {
         // Must be at start of text or preceded by whitespace
-        if (i === 0 || /\s/.test(text[i - 1])) {
+        if (i === 0 || /\s/.test(value[i - 1])) {
           atPos = i;
         }
         break;
@@ -122,7 +124,7 @@ export function MentionAutocomplete({
       return;
     }
 
-    const query = text.slice(atPos + 1, cursor);
+    const query = value.slice(atPos + 1, cursor);
 
     // Don't show for empty query or very long queries
     if (query.length === 0 || query.length > 50) {
@@ -148,12 +150,18 @@ export function MentionAutocomplete({
     });
   }, [textareaRef]);
 
-  // Listen for input/cursor changes
+  // Listen for input/cursor changes on the textarea element.
+  // Re-attaches whenever the underlying DOM element changes (e.g. after
+  // preview mode toggles remount the textarea).
   useEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const handleInput = () => detectMention();
+    const handleInput = () => {
+      // Read directly from the DOM — the browser has already updated
+      // value and selectionStart before firing the input event.
+      detectMention(textarea.value, textarea.selectionStart);
+    };
     const handleClick = () => detectMention();
     const handleKeyUp = (e: KeyboardEvent) => {
       if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) {
@@ -170,12 +178,18 @@ export function MentionAutocomplete({
       textarea.removeEventListener('click', handleClick);
       textarea.removeEventListener('keyup', handleKeyUp);
     };
-  }, [textareaRef, detectMention]);
+  // content in deps so we re-attach if textarea element is remounted
+  // (e.g. preview mode toggle destroys and recreates the textarea)
+  }, [textareaRef, detectMention, content]);
 
-  // Re-detect when content changes externally (e.g. emoji insertion)
+  // Re-detect when content changes (covers external mutations like emoji
+  // insertion that don't fire native input events). Pass the content prop
+  // directly so we don't depend on the DOM textarea value being in sync.
   useEffect(() => {
-    detectMention();
-  }, [content, detectMention]);
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    detectMention(content, textarea.selectionStart);
+  }, [content, detectMention, textareaRef]);
 
   // Handle keyboard navigation within the dropdown
   useEffect(() => {
