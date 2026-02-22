@@ -649,6 +649,35 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     if (!rawReplies || muteItems.length === 0) return rawReplies;
     return rawReplies.filter((r) => !isEventMuted(r, muteItems));
   }, [rawReplies, muteItems]);
+
+  // Build a reply tree: direct replies to this event at the top level,
+  // with nested children for replies-to-replies.
+  const replyTree = useMemo(() => {
+    if (!replies || replies.length === 0) return [];
+
+    // Index all replies by ID
+    const byId = new Map<string, NostrEvent>();
+    for (const r of replies) byId.set(r.id, r);
+
+    // Map of parentId -> children
+    const childrenMap = new Map<string, NostrEvent[]>();
+    const directReplies: NostrEvent[] = [];
+
+    for (const r of replies) {
+      const parentId = getParentEventId(r);
+      if (!parentId || parentId === event.id) {
+        // Direct reply to the focused event
+        directReplies.push(r);
+      } else {
+        // Reply to another reply in this thread
+        const siblings = childrenMap.get(parentId) || [];
+        siblings.push(r);
+        childrenMap.set(parentId, siblings);
+      }
+    }
+
+    return { directReplies, childrenMap };
+  }, [replies, event.id]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
   const [interactionsOpen, setInteractionsOpen] = useState(false);
@@ -675,8 +704,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
   return (
     <div>
-      {/* Parent event if this is a reply */}
-      {parentEventId && <ParentNote eventId={parentEventId} />}
+      {/* Ancestor thread chain if this is a reply */}
+      {parentEventId && <AncestorThread eventId={parentEventId} />}
 
       {/* Main post — expanded Ditto-style view */}
       <article className="px-4 pt-3 pb-0">
@@ -901,7 +930,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         />
       </article>
 
-      {/* Replies */}
+      {/* Replies — threaded tree */}
       <div>
         {repliesLoading ? (
           <div className="divide-y divide-border">
@@ -909,8 +938,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ReplyCardSkeleton key={i} />
             ))}
           </div>
-        ) : replies && replies.length > 0 ? (
-          replies.map((reply) => (
+        ) : replyTree && 'directReplies' in replyTree && replyTree.directReplies.length > 0 ? (
+          flattenReplyTree(replyTree.directReplies, replyTree.childrenMap).map((reply) => (
             <NoteCard key={reply.id} event={reply} />
           ))
         ) : (
@@ -923,31 +952,19 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   );
 }
 
-/** Renders the parent event that this reply is responding to. */
-function ParentNote({ eventId }: { eventId: string }) {
-  const navigate = useNavigate();
+/**
+ * Renders the full ancestor chain above the focused event.
+ * Recursively fetches parent -> grandparent -> ... -> root, then renders
+ * them top-down with thread connector lines.
+ */
+function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: number }) {
   const { data: event, isLoading } = useEvent(eventId);
-  const author = useAuthor(event?.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = event ? (metadata?.name || genUserName(event.pubkey)) : '';
-  const profileUrl = useMemo(
-    () => event ? getProfileUrl(event.pubkey, metadata) : '',
-    [event, metadata],
-  );
-  const neventId = useMemo(
-    () => event ? nip19.neventEncode({ id: event.id, author: event.pubkey }) : '',
-    [event],
-  );
 
-  // Extract images, videos, and webxdc apps from parent event
-  const images = useMemo(() => event ? extractImages(event.content) : [], [event]);
-  const videos = useMemo(() => event ? extractVideos(event.content) : [], [event]);
-  const imetaMap = useMemo(() => event ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event]);
-  const webxdcApps = useMemo(() => {
-    return Array.from(imetaMap.values()).filter(
-      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
-    );
-  }, [imetaMap]);
+  // Determine this ancestor's own parent
+  const parentId = useMemo(() => event ? getParentEventId(event) : undefined, [event]);
+
+  // Cap recursion to avoid runaway chains
+  const MAX_DEPTH = 20;
 
   if (isLoading) {
     return (
@@ -973,6 +990,42 @@ function ParentNote({ eventId }: { eventId: string }) {
   }
 
   if (!event) return null;
+
+  return (
+    <>
+      {/* Render this event's parent first (if any), so ancestors appear top-down */}
+      {parentId && depth < MAX_DEPTH && (
+        <AncestorThread eventId={parentId} depth={depth + 1} />
+      )}
+      <AncestorNote event={event} />
+    </>
+  );
+}
+
+/** Renders a single ancestor note with avatar + thread connector line. */
+function AncestorNote({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const author = useAuthor(event.pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name || genUserName(event.pubkey);
+  const profileUrl = useMemo(
+    () => getProfileUrl(event.pubkey, metadata),
+    [event.pubkey, metadata],
+  );
+  const neventId = useMemo(
+    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
+    [event],
+  );
+
+  // Extract images, videos, and webxdc apps from parent event
+  const images = useMemo(() => extractImages(event.content), [event]);
+  const videos = useMemo(() => extractVideos(event.content), [event]);
+  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event]);
+  const webxdcApps = useMemo(() => {
+    return Array.from(imetaMap.values()).filter(
+      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
+    );
+  }, [imetaMap]);
 
   return (
     <div
@@ -1059,6 +1112,27 @@ function ParentNote({ eventId }: { eventId: string }) {
       </div>
     </div>
   );
+}
+
+/**
+ * Flattens a reply tree into a depth-first ordered list.
+ * Sub-replies appear directly after their parent, giving natural
+ * conversation flow without any visual nesting.
+ */
+function flattenReplyTree(
+  roots: NostrEvent[],
+  childrenMap: Map<string, NostrEvent[]>,
+): NostrEvent[] {
+  const result: NostrEvent[] = [];
+  function walk(events: NostrEvent[]) {
+    for (const ev of events) {
+      result.push(ev);
+      const children = childrenMap.get(ev.id);
+      if (children) walk(children);
+    }
+  }
+  walk(roots);
+  return result;
 }
 
 function PostDetailSkeleton() {
