@@ -81,6 +81,8 @@ A regular event that carries a state update from one participant to all others i
 | `document` | Document name being edited                        |
 | `summary`  | Short summary text (e.g. "8 votes")               |
 
+These optional tags correspond to the fields in the webxdc [`sendUpdate()`](https://webxdc.org/docs/spec/sendUpdate.html) API.
+
 **Content:** JSON-serialized payload from `sendUpdate()`.
 
 ```json
