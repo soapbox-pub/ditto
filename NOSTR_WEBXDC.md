@@ -132,9 +132,5 @@ An ephemeral event that carries realtime data between peers interacting with the
 
 ## Security Considerations
 
-- Webxdc apps MUST be run in sandboxed iframes with no network access (matching the webxdc spec).
-- The iframe sandbox attribute should use: `allow-scripts allow-popups allow-popups-to-escape-sandbox`.
-- All communication between the iframe and parent happens via `postMessage`.
-- The CSP for the iframe should block all network access (`connect-src 'none'`).
-- State updates should be filtered by the `i` tag matching the UUID to prevent cross-instance contamination.
+- Webxdc apps MUST be sandboxed with no network access, as required by the [webxdc spec](https://webxdc.org/docs/spec/messenger.html).
 - Clients SHOULD verify the `.xdc` file hash (`x` property) against the downloaded file before running it.
