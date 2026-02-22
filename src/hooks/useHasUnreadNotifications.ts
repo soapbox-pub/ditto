@@ -1,4 +1,3 @@
-import { useState, useEffect } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -18,16 +17,6 @@ export function useHasUnreadNotifications(): boolean {
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { settings } = useEncryptedSettings();
-
-  // Delay query by 3 seconds to avoid competing with feed load (same as useNotifications)
-  const [queryEnabled, setQueryEnabled] = useState(false);
-
-  useEffect(() => {
-    if (user) {
-      const timer = setTimeout(() => setQueryEnabled(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [user]);
 
   // Only use cursor if settings have actually loaded, otherwise null
   const notificationsCursor = settings !== undefined && settings !== null
@@ -52,7 +41,7 @@ export function useHasUnreadNotifications(): boolean {
       // Check that the returned event isn't from the user themselves
       return events.some((e) => e.pubkey !== user.pubkey);
     },
-    enabled: queryEnabled && !!user && notificationsCursor !== null,
+    enabled: !!user && notificationsCursor !== null,
     refetchInterval: Capacitor.isNativePlatform() ? false : 60_000,
     placeholderData: (prev) => prev,
   });

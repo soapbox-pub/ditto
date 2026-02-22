@@ -1,7 +1,8 @@
-import { useMemo, useState, useCallback, useEffect } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, Sparkles, Swords, Palette, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Shield, Sparkles, Swords, Palette, List } from 'lucide-react';
 import { CardsIcon } from '@/components/icons/CardsIcon';
+import { Lightbox } from '@/components/ImageGallery';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -160,146 +161,19 @@ function QuantityBadge({ quantity }: { quantity: number }) {
   );
 }
 
-/** Full-screen card lightbox with prev/next navigation. */
-function CardLightbox({ cards, currentIndex, onClose, onNext, onPrev }: {
-  cards: CardEntry[];
-  currentIndex: number;
-  onClose: () => void;
-  onNext: () => void;
-  onPrev: () => void;
-}) {
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchDelta, setTouchDelta] = useState(0);
-  const [isDragging, setIsDragging] = useState(false);
-
-  const card = cards[currentIndex];
-  const hasMultiple = cards.length > 1;
-  const imageUrl = scryfallImageUrl(card, 'large');
-
-  useEffect(() => { setIsLoaded(false); }, [currentIndex]);
-
-  // Keyboard navigation
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      else if (e.key === 'ArrowRight' && hasMultiple) onNext();
-      else if (e.key === 'ArrowLeft' && hasMultiple) onPrev();
-    };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
-  }, [onClose, onNext, onPrev, hasMultiple]);
-
-  // Lock body scroll
-  useEffect(() => {
-    const original = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = original; };
-  }, []);
-
-  const handleTouchStart = (e: React.TouchEvent) => { setTouchStart(e.touches[0].clientX); setIsDragging(true); };
-  const handleTouchMove = (e: React.TouchEvent) => { if (touchStart !== null) setTouchDelta(e.touches[0].clientX - touchStart); };
-  const handleTouchEnd = () => {
-    if (Math.abs(touchDelta) > 60 && hasMultiple) { if (touchDelta > 0) { onPrev(); } else { onNext(); } }
-    setTouchStart(null); setTouchDelta(0); setIsDragging(false);
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'IMG' || target.closest('button') || target.closest('[data-gallery-topbar]')) return;
-    e.stopPropagation(); e.preventDefault(); onClose();
-  };
-
+/** Top bar content for the card lightbox showing card name and foil indicator. */
+function CardLightboxTopBar({ card, index, total }: { card: CardEntry; index: number; total: number }) {
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center animate-in fade-in duration-200"
-      onClick={handleBackdropClick}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div className="absolute inset-0 bg-black/90 backdrop-blur-md" />
-
-      {/* Top bar */}
-      <div data-gallery-topbar className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-3">
-          {hasMultiple && (
-            <span className="text-white/80 text-sm font-medium tabular-nums">
-              {currentIndex + 1} / {cards.length}
-            </span>
-          )}
-          <span className="text-white text-sm font-medium truncate max-w-[200px]">
-            {card.name}
-          </span>
-          {card.foil && <Sparkles className="size-3.5 text-amber-400 shrink-0" />}
-        </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); e.preventDefault(); onClose(); }}
-          className="p-2.5 rounded-full text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          title="Close (Esc)"
-        >
-          <X className="size-5" />
-        </button>
-      </div>
-
-      {/* Prev/Next buttons */}
-      {hasMultiple && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
-          className="absolute left-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
-        >
-          <ChevronLeft className="size-6" />
-        </button>
+    <div className="flex items-center gap-3">
+      {total > 1 && (
+        <span className="text-white/80 text-sm font-medium tabular-nums">
+          {index + 1} / {total}
+        </span>
       )}
-      {hasMultiple && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
-          className="absolute right-3 top-1/2 -translate-y-1/2 z-10 p-2 rounded-full bg-black/40 text-white/80 hover:text-white hover:bg-black/60 backdrop-blur-sm transition-all hidden sm:flex"
-        >
-          <ChevronRight className="size-6" />
-        </button>
-      )}
-
-      {/* Card image */}
-      <div
-        className="relative z-[1] flex items-center justify-center w-full h-full px-4 py-16 sm:px-16"
-        style={{
-          transform: isDragging ? `translateX(${touchDelta}px)` : undefined,
-          transition: isDragging ? 'none' : 'transform 0.2s ease-out',
-        }}
-      >
-        {!isLoaded && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="size-8 border-2 border-white/20 border-t-white/80 rounded-full animate-spin" />
-          </div>
-        )}
-        <img
-          key={imageUrl}
-          src={imageUrl}
-          alt={card.name}
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-xl select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
-          )}
-          onLoad={() => setIsLoaded(true)}
-          draggable={false}
-        />
-      </div>
-
-      {/* Dot indicators (mobile, small decks) */}
-      {hasMultiple && cards.length <= 20 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 sm:hidden">
-          {cards.map((_, i) => (
-            <div
-              key={i}
-              className={cn(
-                'rounded-full transition-all duration-200',
-                i === currentIndex ? 'size-2 bg-white' : 'size-1.5 bg-white/40',
-              )}
-            />
-          ))}
-        </div>
-      )}
+      <span className="text-white text-sm font-medium truncate max-w-[200px]">
+        {card.name}
+      </span>
+      {card.foil && <Sparkles className="size-3.5 text-amber-400 shrink-0" />}
     </div>
   );
 }
@@ -516,12 +390,21 @@ export function MagicDeckContent({ event }: { event: NostrEvent }) {
 
       {/* Card lightbox */}
       {lightboxIndex !== null && allCards.length > 0 && (
-        <CardLightbox
-          cards={allCards}
+        <Lightbox
+          images={allCards.map((c) => scryfallImageUrl(c, 'large'))}
           currentIndex={lightboxIndex}
           onClose={closeLightbox}
           onNext={goNext}
           onPrev={goPrev}
+          showDownload={false}
+          maxDotIndicators={20}
+          topBarLeft={
+            <CardLightboxTopBar
+              card={allCards[lightboxIndex]}
+              index={lightboxIndex}
+              total={allCards.length}
+            />
+          }
         />
       )}
     </div>
