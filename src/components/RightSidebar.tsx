@@ -68,29 +68,12 @@ export function TrendSparkline({ data }: { data: number[] }) {
   );
 }
 
-/** Track whether the sidebar has already loaded data at least once. */
-let hasLoadedOnce = false;
-
 export function RightSidebar() {
   const isXl = useIsXl();
 
-  // Delay sidebar data loading only on the very first mount to prioritize
-  // initial feed performance. On subsequent mounts (page navigations) skip
-  // the delay since TanStack Query will serve cached data instantly.
-  const [sidebarEnabled, setSidebarEnabled] = useState(hasLoadedOnce);
-  
-  useEffect(() => {
-    if (hasLoadedOnce) return;
-    const timer = setTimeout(() => {
-      hasLoadedOnce = true;
-      setSidebarEnabled(true);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl && sidebarEnabled);
-  const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl && sidebarEnabled);
-  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl && sidebarEnabled);
+  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl);
+  const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
+  const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
   const { muteItems } = useMuteList();
 
   const hotPosts = useMemo(() => {
@@ -111,7 +94,7 @@ export function RightSidebar() {
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">View all</Link>
         </div>
 
-        {!sidebarEnabled || tagsLoading ? (
+        {tagsLoading ? (
           <div className="space-y-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="flex justify-between items-center">
@@ -159,7 +142,7 @@ export function RightSidebar() {
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
         </div>
 
-        {!sidebarEnabled || hotLoading ? (
+        {hotLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="space-y-1.5">
@@ -189,7 +172,7 @@ export function RightSidebar() {
           <h2 className="text-xl font-bold">New Accounts</h2>
         </div>
 
-        {!sidebarEnabled || accountsLoading ? (
+        {accountsLoading ? (
           <div className="space-y-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div key={i} className="flex items-center gap-3">
