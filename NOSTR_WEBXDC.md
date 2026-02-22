@@ -124,7 +124,7 @@ An ephemeral event that carries realtime data between peers interacting with the
 ## Protocol Flow
 
 1. **Attach App**: A user uploads their `.xdc` file to a hosting service (e.g. Blossom) and publishes an event (e.g. kind `1`) with the public file URL in content and an `imeta` tag with MIME type `application/vnd.webxdc+zip`. The `imeta` SHOULD include a `webxdc` property with a randomly generated unique string.
-2. **Run App**: A client seeing the event detects the webxdc `imeta` tag, downloads the `.xdc` file, extracts it, and runs `index.html` in a sandboxed iframe.
+2. **Run App**: A client seeing the event detects the webxdc `imeta` tag, downloads the `.xdc` file, extracts it, and runs `index.html` in a sandboxed iframe or webview.
 3. **Send Updates**: When the app calls `sendUpdate()`, the client publishes a kind `4079` event with an `i` tag containing the UUID.
 4. **Receive Updates**: The client subscribes to kind `4079` events with `#i` matching the UUID and delivers them to the app via `setUpdateListener()`.
 5. **Realtime Channel**: When the app calls `joinRealtimeChannel()`, the client subscribes to kind `21567` events with `#i` matching the UUID. Calls to `realtimeChannel.send()` publish ephemeral kind `21567` events; incoming events are decoded and delivered via `realtimeChannel.setListener()`. Calling `realtimeChannel.leave()` closes the subscription.
