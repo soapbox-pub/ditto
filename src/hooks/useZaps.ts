@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -8,26 +8,24 @@ import type { NWCConnection } from '@/hooks/useNWC';
 import { nip57 } from 'nostr-tools';
 import type { Event } from 'nostr-tools';
 import type { WebLNProvider } from '@webbtc/webln-types';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { useQueryClient } from '@tanstack/react-query';
 
+/**
+ * Hook for sending zaps to an event author.
+ * Stats (zap count, total sats) come from NIP-85 via useEventStats — this hook
+ * only handles the payment flow.
+ */
 export function useZaps(
-  target: Event | Event[],
+  target: Event,
   webln: WebLNProvider | null,
   _nwcConnection: NWCConnection | null,
   onZapSuccess?: () => void
 ) {
-  const { nostr } = useNostr();
   const { toast } = useToast();
   const { user } = useCurrentUser();
   const { config } = useAppContext();
   const queryClient = useQueryClient();
-
-  // Handle the case where an empty array is passed (from ZapButton when external data is provided)
-  const actualTarget = Array.isArray(target) ? (target.length > 0 ? target[0] : null) : target;
-
-  const author = useAuthor(actualTarget?.pubkey);
+  const author = useAuthor(target?.pubkey);
   const { sendPayment, getActiveConnection } = useNWC();
   const [isZapping, setIsZapping] = useState(false);
   const [invoice, setInvoice] = useState<string | null>(null);
@@ -39,96 +37,6 @@ export function useZaps(
       setInvoice(null);
     };
   }, []);
-
-  const { data: zapEvents, ...query } = useQuery<NostrEvent[], Error>({
-    queryKey: ['zaps', actualTarget?.id],
-    staleTime: 30000, // 30 seconds
-    refetchInterval: (query) => {
-      // Only refetch if the query is currently being observed (component is mounted)
-      return query.getObserversCount() > 0 ? 60000 : false;
-    },
-    queryFn: async (c) => {
-      if (!actualTarget) return [];
-
-      const signal = AbortSignal.any([c.signal, AbortSignal.timeout(5000)]);
-
-      // Query for zap receipts for this specific event
-      if (actualTarget.kind >= 30000 && actualTarget.kind < 40000) {
-        // Addressable event
-        const identifier = actualTarget.tags.find((t) => t[0] === 'd')?.[1] || '';
-        const events = await nostr.query([{
-          kinds: [9735],
-          '#a': [`${actualTarget.kind}:${actualTarget.pubkey}:${identifier}`],
-        }], { signal });
-        return events;
-      } else {
-        // Regular event
-        const events = await nostr.query([{
-          kinds: [9735],
-          '#e': [actualTarget.id],
-        }], { signal });
-        return events;
-      }
-    },
-    enabled: !!actualTarget?.id,
-  });
-
-  // Process zap events into simple counts and totals
-  const { zapCount, totalSats, zaps } = useMemo(() => {
-    if (!zapEvents || !Array.isArray(zapEvents) || !actualTarget) {
-      return { zapCount: 0, totalSats: 0, zaps: [] };
-    }
-
-    let count = 0;
-    let sats = 0;
-
-    zapEvents.forEach(zap => {
-      count++;
-
-      // Try multiple methods to extract the amount:
-
-      // Method 1: amount tag (from zap request, sometimes copied to receipt)
-      const amountTag = zap.tags.find(([name]) => name === 'amount')?.[1];
-      if (amountTag) {
-        const millisats = parseInt(amountTag);
-        sats += Math.floor(millisats / 1000);
-        return;
-      }
-
-      // Method 2: Extract from bolt11 invoice
-      const bolt11Tag = zap.tags.find(([name]) => name === 'bolt11')?.[1];
-      if (bolt11Tag) {
-        try {
-          const invoiceSats = nip57.getSatoshisAmountFromBolt11(bolt11Tag);
-          sats += invoiceSats;
-          return;
-        } catch (error) {
-          console.warn('Failed to parse bolt11 amount:', error);
-        }
-      }
-
-      // Method 3: Parse from description (zap request JSON)
-      const descriptionTag = zap.tags.find(([name]) => name === 'description')?.[1];
-      if (descriptionTag) {
-        try {
-          const zapRequest = JSON.parse(descriptionTag);
-          const requestAmountTag = zapRequest.tags?.find(([name]: string[]) => name === 'amount')?.[1];
-          if (requestAmountTag) {
-            const millisats = parseInt(requestAmountTag);
-            sats += Math.floor(millisats / 1000);
-            return;
-          }
-        } catch (error) {
-          console.warn('Failed to parse description JSON:', error);
-        }
-      }
-
-      console.warn('Could not extract amount from zap receipt:', zap.id);
-    });
-
-
-    return { zapCount: count, totalSats: sats, zaps: zapEvents };
-  }, [zapEvents, actualTarget]);
 
   const zap = async (amount: number, comment: string) => {
     if (amount <= 0) {
@@ -148,7 +56,7 @@ export function useZaps(
       return;
     }
 
-    if (!actualTarget) {
+    if (!target) {
       toast({
         title: 'Event not found',
         description: 'Could not find the event to zap.',
@@ -195,14 +103,14 @@ export function useZaps(
       // Create zap request - use appropriate event format based on kind
       // For addressable events (30000-39999), pass the object to get 'a' tag
       // For all other events, pass the ID string to get 'e' tag
-      const event = (actualTarget.kind >= 30000 && actualTarget.kind < 40000)
-        ? actualTarget
-        : actualTarget.id;
+      const event = (target.kind >= 30000 && target.kind < 40000)
+        ? target
+        : target.id;
 
       const zapAmount = amount * 1000; // convert to millisats
 
       const zapRequest = nip57.makeZapRequest({
-        profile: actualTarget.pubkey,
+        profile: target.pubkey,
         event: event,
         amount: zapAmount,
         relays: config.relayMetadata.relays.map(r => r.url),
@@ -337,10 +245,6 @@ export function useZaps(
   }, []);
 
   return {
-    zaps,
-    zapCount,
-    totalSats,
-    ...query,
     zap,
     isZapping,
     invoice,
