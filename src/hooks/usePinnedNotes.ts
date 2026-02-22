@@ -6,7 +6,8 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
  * Hook to manage NIP-51 pinned notes (kind 10001).
- * Can query any user's pins, but only the logged-in user can pin/unpin.
+ * Queries the pin list for the given pubkey and provides toggle mutations.
+ * Only the logged-in user can pin/unpin.
  */
 export function usePinnedNotes(pubkey?: string) {
   const { nostr } = useNostr();
@@ -36,25 +37,6 @@ export function usePinnedNotes(pubkey?: string) {
   const pinnedIds: string[] = (pinnedListQuery.data?.tags ?? [])
     .filter(([name]) => name === 'e')
     .map(([, id]) => id);
-
-  // Query the actual pinned events
-  const pinnedEventsQuery = useQuery({
-    queryKey: ['pinned-events', pinnedIds],
-    queryFn: async ({ signal }) => {
-      if (pinnedIds.length === 0) return [];
-      const events = await nostr.query(
-        [{ ids: pinnedIds, limit: pinnedIds.length }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
-      // Sort to match pin order
-      return events.sort((a, b) => {
-        const aIdx = pinnedIds.indexOf(a.id);
-        const bIdx = pinnedIds.indexOf(b.id);
-        return aIdx - bIdx;
-      });
-    },
-    enabled: pinnedIds.length > 0,
-  });
 
   /** Check if an event is pinned. */
   function isPinned(eventId: string): boolean {
@@ -88,7 +70,7 @@ export function usePinnedNotes(pubkey?: string) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pinned-notes', user?.pubkey] });
-      queryClient.invalidateQueries({ queryKey: ['pinned-events'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-pinned-events'] });
     },
   });
 
@@ -97,12 +79,8 @@ export function usePinnedNotes(pubkey?: string) {
     pinnedList: pinnedListQuery.data,
     /** Array of pinned event IDs. */
     pinnedIds,
-    /** The actual pinned NostrEvents, in pin order. */
-    events: pinnedEventsQuery.data ?? [],
     /** Whether the pinned list is loading. */
     isLoading: pinnedListQuery.isLoading,
-    /** Whether the pinned events are loading. */
-    isLoadingEvents: pinnedEventsQuery.isLoading,
     /** Check if a specific event ID is pinned. */
     isPinned,
     /** Toggle a pin on/off. */

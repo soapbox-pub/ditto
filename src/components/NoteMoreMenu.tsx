@@ -75,6 +75,11 @@ function MenuItem({ icon, label, onClick, destructive }: MenuItemProps) {
 }
 
 export function NoteMoreMenu({ event, open, onOpenChange }: NoteMoreMenuProps) {
+  if (!open) return null;
+  return <NoteMoreMenuContent event={event} open={open} onOpenChange={onOpenChange} />;
+}
+
+function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
   const { user } = useCurrentUser();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const bookmarked = isBookmarked(event.id);

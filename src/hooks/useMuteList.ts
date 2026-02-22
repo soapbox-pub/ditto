@@ -83,6 +83,7 @@ export function useMuteList() {
       return events[0];
     },
     enabled: !!user,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Parse mute list into structured items

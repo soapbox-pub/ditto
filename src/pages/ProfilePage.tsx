@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
@@ -26,8 +26,9 @@ import { usePinnedNotes } from '@/hooks/usePinnedNotes';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
-import type { ProfileTab, ProfileMeta } from '@/hooks/useProfileFeed';
+import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
+import type { ProfileTab } from '@/hooks/useProfileFeed';
+import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
@@ -611,24 +612,25 @@ export function ProfilePage() {
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
   // Infinite-scroll profile feed (posts/replies/media).
-  // The first page also fetches profile metadata (kinds 0, 3, 10001) in the same
-  // relay round-trip, so there's no separate useProfileData query.
+  // The first page piggybacks kind 0, seeding the author cache so the
+  // profile header renders from the same relay round-trip as the feed.
   const {
     data: feedData,
     isPending: feedPending,
     fetchNextPage: fetchNextFeedPage,
     hasNextPage: hasNextFeedPage,
     isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey, activeTab);
+  } = useProfileFeed(pubkey);
 
-  // Profile metadata comes from the first page of feed data.
-  // Fall back to the seeded cache so metadata survives tab switches.
-  const queryClient = useQueryClient();
-  const profileMeta = feedData?.pages[0]?.profileMeta
-    ?? queryClient.getQueryData<ProfileMeta>(['profile-meta', pubkey]);
-  const metadata = profileMeta?.metadata;
-  const metadataEvent = profileMeta?.metadataEvent;
+  // Kind 0 — resolved from the author cache (seeded by the feed query above).
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const metadataEvent = author.data?.event;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
+
+  // Kind 3 + 10001 — fetched separately so the large contact list
+  // doesn't block the profile header or feed from rendering.
+  const { data: supplementary } = useProfileSupplementary(pubkey);
 
   // Parse profile fields from the raw kind 0 event content, prepending website if present
   const fields = useMemo(() => {
@@ -659,17 +661,17 @@ export function ProfilePage() {
   // Safe follow/unfollow actions (fetches fresh data from multiple relays before mutating)
   const { follow, unfollow, isPending: followPending } = useFollowActions();
 
-  // Profile's following list (derived from first-page profile metadata)
+  // Profile's following list (derived from supplementary query)
   const profileFollowing = useMemo(() => {
-    const pubkeys = profileMeta?.following ?? [];
+    const pubkeys = supplementary?.following ?? [];
     return { pubkeys, count: pubkeys.length };
-  }, [profileMeta?.following]);
+  }, [supplementary?.following]);
 
   const isOwnProfile = user?.pubkey === pubkey;
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
-  const pinnedIds = useMemo(() => profileMeta?.pinnedIds ?? [], [profileMeta?.pinnedIds]);
+  const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
-  const { data: pinnedEvents = [] } = useQuery({
+  const { data: pinnedEvents = [], isLoading: pinnedEventsLoading } = useQuery({
     queryKey: ['profile-pinned-events', pubkey, pinnedIds],
     queryFn: async ({ signal }) => {
       const events = await nostr.query(
@@ -716,8 +718,8 @@ export function ProfilePage() {
         }
       }
     }
-    return items;
-  }, [feedData?.pages, muteItems]);
+    return activeTab === 'likes' ? items : filterByTab(items, activeTab);
+  }, [feedData?.pages, muteItems, activeTab]);
 
   // Extract raw events for the media sidebar, excluding reposts (other users' content)
   const feedEvents = useMemo(
@@ -742,10 +744,15 @@ export function ProfilePage() {
   }, [likesData?.pages]);
 
   const streak = useMemo(() => {
-    // Extract just the events for streak calculation
-    const events = feedItems.map(item => item.event);
+    if (!feedData?.pages) return 0;
+    const events: NostrEvent[] = [];
+    for (const page of feedData.pages) {
+      for (const item of page.items) {
+        events.push(item.event);
+      }
+    }
     return calculateStreak(events);
-  }, [feedItems]);
+  }, [feedData?.pages]);
 
   // Infinite scroll sentinel
   const { ref: scrollRef, inView } = useInView({
@@ -820,124 +827,142 @@ export function ProfilePage() {
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
-          {metadata?.banner && (
+          {author.isLoading ? (
+            <Skeleton className="w-full h-full rounded-none" />
+          ) : metadata?.banner ? (
             <img
               src={metadata.banner}
               alt=""
               className="w-full h-full object-cover cursor-pointer"
               onClick={() => setLightboxImage(metadata.banner!)}
             />
-          )}
+          ) : null}
         </div>
 
         {/* Profile info */}
         <div className="px-4 pb-4">
-          <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
-            <button
-              className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
-              onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
-              disabled={!metadata?.picture}
-            >
-              <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
-                  {displayName[0].toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-            <div className="flex items-center gap-2 mt-14 md:mt-20">
-              {/* More menu */}
-              {!isOwnProfile && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="rounded-full size-10"
-                  onClick={() => setMoreMenuOpen(true)}
-                  title="More options"
-                >
-                  <MoreHorizontal className="size-5" />
-                </Button>
-              )}
-              {/* Zap button */}
-              {!isOwnProfile && authorEvent && canZap(metadata) && (
-                <ZapDialog target={authorEvent}>
-                  <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
-                    <Zap className="size-5" />
-                  </Button>
-                </ZapDialog>
-              )}
-              {isOwnProfile ? (
-                <Link to="/settings/profile">
-                  <Button variant="outline" className="rounded-full font-bold">
-                    Edit profile
-                  </Button>
-                </Link>
-              ) : (
-                <Button
-                  className={cn(
-                    'rounded-full font-bold',
-                    isFollowing && 'bg-transparent border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50',
-                  )}
-                  variant={isFollowing ? 'outline' : 'default'}
-                  onClick={handleToggleFollow}
-                  disabled={followPending || !user}
-                >
-                  {followPending ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <h2 className="text-xl font-bold truncate">
-            {metadataEvent ? (
-              <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
-            ) : displayName}
-          </h2>
-          {metadata?.nip05 && (
-            <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
-          )}
-
-          {/* Following count + Streak indicator */}
-          <div className="flex items-center gap-4 mt-2">
-            {profileFollowing && profileFollowing.count > 0 && (
-              <button
-                className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                onClick={() => setFollowingModalOpen(true)}
-                title={`${profileFollowing.count} following`}
-              >
-                <Users className="size-4 text-primary" />
-                <span className="text-sm font-bold tabular-nums text-primary">{profileFollowing.count}</span>
-                <span className="text-sm text-muted-foreground">following</span>
-              </button>
-            )}
-            {streak > 1 && (
-              <div
-                className="flex items-center gap-1 text-primary"
-                title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
-              >
-                <Flame className="size-4 fill-primary" />
-                <span className="text-sm font-bold tabular-nums">
-                  {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
-                </span>
+          {author.isLoading ? (
+            <>
+              <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+                <Skeleton className="size-24 md:size-32 rounded-full border-4 border-background" />
               </div>
-            )}
-          </div>
+              <div className="space-y-2">
+                <Skeleton className="h-6 w-40" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-full mt-2" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
+                <button
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full"
+                  onClick={() => metadata?.picture && setLightboxImage(metadata.picture)}
+                  disabled={!metadata?.picture}
+                >
+                  <Avatar className={cn('size-24 md:size-32 border-4 border-background', metadata?.picture && 'cursor-pointer')}>
+                    <AvatarImage src={metadata?.picture} alt={displayName} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-2xl md:text-3xl">
+                      {displayName[0].toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </button>
+                <div className="flex items-center gap-2 mt-14 md:mt-20">
+                  {/* More menu */}
+                  {!isOwnProfile && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="rounded-full size-10"
+                      onClick={() => setMoreMenuOpen(true)}
+                      title="More options"
+                    >
+                      <MoreHorizontal className="size-5" />
+                    </Button>
+                  )}
+                  {/* Zap button */}
+                  {!isOwnProfile && authorEvent && canZap(metadata) && (
+                    <ZapDialog target={authorEvent}>
+                      <Button variant="outline" size="icon" className="rounded-full size-10" title="Zap this user">
+                        <Zap className="size-5" />
+                      </Button>
+                    </ZapDialog>
+                  )}
+                  {isOwnProfile ? (
+                    <Link to="/settings/profile">
+                      <Button variant="outline" className="rounded-full font-bold">
+                        Edit profile
+                      </Button>
+                    </Link>
+                  ) : (
+                    <Button
+                      className={cn(
+                        'rounded-full font-bold',
+                        isFollowing && 'bg-transparent border border-border text-foreground hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50',
+                      )}
+                      variant={isFollowing ? 'outline' : 'default'}
+                      onClick={handleToggleFollow}
+                      disabled={followPending || !user}
+                    >
+                      {followPending ? '...' : isFollowing ? 'Unfollow' : 'Follow'}
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-          {metadata?.about && (
-            <p className="mt-3 text-sm whitespace-pre-wrap">
-              {metadataEvent ? (
-                <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
-              ) : metadata.about}
-            </p>
-          )}
+              <h2 className="text-xl font-bold truncate">
+                {metadataEvent ? (
+                  <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
+                ) : displayName}
+              </h2>
+              {metadata?.nip05 && (
+                <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
+              )}
 
-          {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
-          {fields.length > 0 && (
-            <div className="mt-4 space-y-3 xl:hidden">
-              {fields.map((field, i) => (
-                <ProfileFieldInline key={i} field={field} />
-              ))}
-            </div>
+              {/* Following count + Streak indicator */}
+              <div className="flex items-center gap-4 mt-2">
+                {profileFollowing && profileFollowing.count > 0 && (
+                  <button
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+                    onClick={() => setFollowingModalOpen(true)}
+                    title={`${profileFollowing.count} following`}
+                  >
+                    <Users className="size-4 text-primary" />
+                    <span className="text-sm font-bold tabular-nums text-primary">{profileFollowing.count}</span>
+                    <span className="text-sm text-muted-foreground">following</span>
+                  </button>
+                )}
+                {streak > 1 && (
+                  <div
+                    className="flex items-center gap-1 text-primary"
+                    title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
+                  >
+                    <Flame className="size-4 fill-primary" />
+                    <span className="text-sm font-bold tabular-nums">
+                      {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {metadata?.about && (
+                <p className="mt-3 text-sm whitespace-pre-wrap">
+                  {metadataEvent ? (
+                    <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
+                  ) : metadata.about}
+                </p>
+              )}
+
+              {/* Profile fields shown inline on mobile (sidebar is hidden below xl) */}
+              {fields.length > 0 && (
+                <div className="mt-4 space-y-3 xl:hidden">
+                  {fields.map((field, i) => (
+                    <ProfileFieldInline key={i} field={field} />
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -950,17 +975,35 @@ export function ProfilePage() {
         </div>
 
         {/* Pinned posts (only on Posts tab) */}
-        {activeTab === 'posts' && pinnedEvents.length > 0 && (
+        {activeTab === 'posts' && pinnedIds.length > 0 && (
           <div>
-            {pinnedEvents.map((event) => (
-              <div key={`pinned-${event.id}`} className="relative">
-                <PinnedLabel
-                  isOwn={isOwnProfile}
-                  onUnpin={() => togglePin.mutate(event.id)}
-                />
-                <NoteCard event={event} />
-              </div>
-            ))}
+            {pinnedEventsLoading ? (
+              pinnedIds.map((id) => (
+                <div key={`pinned-skeleton-${id}`} className="relative">
+                  <PinnedLabel isOwn={isOwnProfile} onUnpin={() => {}} />
+                  <div className="px-4 py-3 border-b border-border">
+                    <div className="flex gap-3">
+                      <Skeleton className="size-11 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-4 w-full" />
+                        <Skeleton className="h-4 w-3/4" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              pinnedEvents.map((event) => (
+                <div key={`pinned-${event.id}`} className="relative">
+                  <PinnedLabel
+                    isOwn={isOwnProfile}
+                    onUnpin={() => togglePin.mutate(event.id)}
+                  />
+                  <NoteCard event={event} />
+                </div>
+              ))
+            )}
           </div>
         )}
 
