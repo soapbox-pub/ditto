@@ -19,12 +19,10 @@ interface ProfileField {
 
 interface ProfileRightSidebarProps {
   fields?: ProfileField[];
-  /** Events from the profile feed — media is extracted client-side instead of a separate query. */
-  events?: NostrEvent[];
-  /** Whether the feed events are still loading. */
-  eventsLoading?: boolean;
-  /** Whether all feed pages have been loaded (no more pages to fetch). */
-  eventsComplete?: boolean;
+  /** Media events fetched via a dedicated search query (video:true image:true). */
+  mediaEvents?: NostrEvent[];
+  /** Whether the media events are still loading. */
+  mediaLoading?: boolean;
 }
 
 interface MediaItem {
@@ -243,13 +241,13 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
-export function ProfileRightSidebar({ fields, events, eventsLoading, eventsComplete }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLoadingProp }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
-    () => extractMedia(events ?? [], config.contentWarningPolicy),
-    [events, config.contentWarningPolicy],
+    () => extractMedia(mediaEvents ?? [], config.contentWarningPolicy),
+    [mediaEvents, config.contentWarningPolicy],
   );
-  const mediaLoading = (eventsLoading ?? false) || (media.length === 0 && !eventsComplete);
+  const mediaLoading = mediaLoadingProp ?? false;
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
@@ -258,7 +256,7 @@ export function ProfileRightSidebar({ fields, events, eventsLoading, eventsCompl
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
           <div className="grid grid-cols-3 gap-0.5">
-            {Array.from({ length: 6 }).map((_, i) => (
+            {Array.from({ length: 9 }).map((_, i) => (
               <Skeleton key={i} className="aspect-square rounded-lg" />
             ))}
           </div>
