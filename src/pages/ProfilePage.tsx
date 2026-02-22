@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
+import { useNostr } from '@nostrify/react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
@@ -20,12 +22,12 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
-import { useProfileData } from '@/hooks/useProfileData';
+
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite } from '@/hooks/useProfileFeed';
-import type { ProfileTab } from '@/hooks/useProfileFeed';
+import type { ProfileTab, ProfileMeta } from '@/hooks/useProfileFeed';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display } from '@/lib/nip05';
@@ -566,6 +568,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 export function ProfilePage() {
   const params = useParams();
   const npub = params.npub ?? params.nip19;
+  const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const { toast } = useToast();
   const { muteItems } = useMuteList();
@@ -607,16 +610,29 @@ export function ProfilePage() {
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
-  // Consolidated profile data: kinds [0, 3, 10001] in a single query
-  const profileData = useProfileData(pubkey);
-  const metadata = profileData.data?.metadata;
-  const metadataEvent = profileData.data?.metadataEvent;
+  // Infinite-scroll profile feed (posts/replies/media).
+  // The first page also fetches profile metadata (kinds 0, 3, 10001) in the same
+  // relay round-trip, so there's no separate useProfileData query.
+  const {
+    data: feedData,
+    isPending: feedPending,
+    fetchNextPage: fetchNextFeedPage,
+    hasNextPage: hasNextFeedPage,
+    isFetchingNextPage: isFetchingNextFeedPage,
+  } = useProfileFeed(pubkey, activeTab);
+
+  // Profile metadata comes from the first page of feed data.
+  // Fall back to the seeded cache so metadata survives tab switches.
+  const queryClient = useQueryClient();
+  const profileMeta = feedData?.pages[0]?.profileMeta
+    ?? queryClient.getQueryData<ProfileMeta>(['profile-meta', pubkey]);
+  const metadata = profileMeta?.metadata;
+  const metadataEvent = profileMeta?.metadataEvent;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
   // Parse profile fields from the raw kind 0 event content, prepending website if present
   const fields = useMemo(() => {
     const parsed = metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
-    // Prepend the website field from metadata if it exists
     if (metadata?.website) {
       return [{ label: 'Website', value: metadata.website }, ...parsed];
     }
@@ -627,15 +643,6 @@ export function ProfilePage() {
     title: `${displayName} | Mew`,
     description: metadata?.about || 'Nostr profile',
   });
-
-  // Infinite-scroll profile feed (posts/replies/media)
-  const {
-    data: feedData,
-    isPending: feedPending,
-    fetchNextPage: fetchNextFeedPage,
-    hasNextPage: hasNextFeedPage,
-    isFetchingNextPage: isFetchingNextFeedPage,
-  } = useProfileFeed(pubkey, activeTab);
 
   // Infinite-scroll likes
   const {
@@ -652,16 +659,28 @@ export function ProfilePage() {
   // Safe follow/unfollow actions (fetches fresh data from multiple relays before mutating)
   const { follow, unfollow, isPending: followPending } = useFollowActions();
 
-  // Profile's following list (derived from consolidated profile data)
+  // Profile's following list (derived from first-page profile metadata)
   const profileFollowing = useMemo(() => {
-    const pubkeys = profileData.data?.following ?? [];
+    const pubkeys = profileMeta?.following ?? [];
     return { pubkeys, count: pubkeys.length };
-  }, [profileData.data?.following]);
+  }, [profileMeta?.following]);
 
-  // Pinned notes — pin list is seeded by useProfileData, so this won't fire a duplicate query.
-  // We keep usePinnedNotes for its togglePin mutation.
-  const { togglePin } = usePinnedNotes(pubkey);
-  const pinnedIds = useMemo(() => profileData.data?.pinnedIds ?? [], [profileData.data?.pinnedIds]);
+  const isOwnProfile = user?.pubkey === pubkey;
+  const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
+  const pinnedIds = useMemo(() => profileMeta?.pinnedIds ?? [], [profileMeta?.pinnedIds]);
+
+  const { data: pinnedEvents = [] } = useQuery({
+    queryKey: ['profile-pinned-events', pubkey, pinnedIds],
+    queryFn: async ({ signal }) => {
+      const events = await nostr.query(
+        [{ ids: pinnedIds, limit: pinnedIds.length }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
+      );
+      return events.sort((a, b) => pinnedIds.indexOf(a.id) - pinnedIds.indexOf(b.id));
+    },
+    enabled: pinnedIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
   const isFollowing = useMemo(() => {
     if (!pubkey || !followData?.pubkeys) return false;
     return followData.pubkeys.includes(pubkey);
@@ -688,7 +707,7 @@ export function ProfilePage() {
     const seen = new Set<string>();
     const items: FeedItem[] = [];
     for (const page of feedData.pages) {
-      for (const item of page) {
+      for (const item of page.items) {
         const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
         if (!seen.has(key)) {
           seen.add(key);
@@ -705,15 +724,6 @@ export function ProfilePage() {
     () => feedItems.filter((item) => !item.repostedBy).map((item) => item.event),
     [feedItems],
   );
-
-  // Resolve pinned events from feed data (avoids a separate query)
-  const pinnedEvents = useMemo(() => {
-    if (pinnedIds.length === 0) return [];
-    const eventMap = new Map(feedEvents.map((e) => [e.id, e]));
-    return pinnedIds
-      .map((id) => eventMap.get(id))
-      .filter((e): e is NostrEvent => !!e);
-  }, [pinnedIds, feedEvents]);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -755,7 +765,6 @@ export function ProfilePage() {
     }
   }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
 
-  const isOwnProfile = user?.pubkey === pubkey;
   const authorEvent = metadataEvent;
 
   // For likes, convert NostrEvents to FeedItems
@@ -769,7 +778,7 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} events={feedEvents} eventsLoading={feedPending} /> } : {});
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} events={feedEvents} eventsLoading={feedPending} eventsComplete={!hasNextFeedPage && !isFetchingNextFeedPage} /> } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state

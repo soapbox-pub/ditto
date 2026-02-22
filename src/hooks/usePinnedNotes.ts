@@ -14,7 +14,10 @@ export function usePinnedNotes(pubkey?: string) {
   const queryClient = useQueryClient();
   const { mutateAsync: publishEvent } = useNostrPublish();
 
-  // Query the pinned notes list (kind 10001 — replaceable event)
+  // Query the pinned notes list (kind 10001 — replaceable event).
+  // On the profile page, useProfileData seeds this cache key, so the staleTime
+  // prevents an immediate refetch that could overwrite seeded data with a
+  // failed/empty relay response.
   const pinnedListQuery = useQuery({
     queryKey: ['pinned-notes', pubkey],
     queryFn: async ({ signal }) => {
@@ -26,6 +29,7 @@ export function usePinnedNotes(pubkey?: string) {
       return events[0] ?? null;
     },
     enabled: !!pubkey,
+    staleTime: 5 * 60 * 1000,
   });
 
   // Extract pinned event IDs from e tags

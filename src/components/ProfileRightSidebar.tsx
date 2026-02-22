@@ -23,6 +23,8 @@ interface ProfileRightSidebarProps {
   events?: NostrEvent[];
   /** Whether the feed events are still loading. */
   eventsLoading?: boolean;
+  /** Whether all feed pages have been loaded (no more pages to fetch). */
+  eventsComplete?: boolean;
 }
 
 interface MediaItem {
@@ -241,13 +243,13 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
-export function ProfileRightSidebar({ fields, events, eventsLoading }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ fields, events, eventsLoading, eventsComplete }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
   const media = useMemo(
     () => extractMedia(events ?? [], config.contentWarningPolicy),
     [events, config.contentWarningPolicy],
   );
-  const mediaLoading = eventsLoading ?? false;
+  const mediaLoading = (eventsLoading ?? false) || (media.length === 0 && !eventsComplete);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
