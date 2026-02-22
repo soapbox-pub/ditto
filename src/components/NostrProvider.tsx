@@ -6,14 +6,9 @@ import { getEffectiveRelays, DITTO_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
 import { initNostrWasm } from 'nostr-wasm/gzipped';
 
-// Start nostr-wasm download eagerly but don't block the module from
-// loading. On slow connections (e.g. 2G) the top-level `await` previously
-// prevented the entire app from rendering. The WASM result is only needed
-// inside `verifyEvent`, which runs when relay data arrives — by that time
-// WASM will almost certainly be ready. If it isn't, events pass through
-// unverified (acceptable; most clients skip verification entirely).
-let nw: Awaited<ReturnType<typeof initNostrWasm>> | null = null;
-const nwReady = initNostrWasm().then((result) => { nw = result; });
+// Initialize nostr-wasm
+// https://github.com/nickkuk/nostr-wasm
+const nw = await initNostrWasm();
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -47,7 +42,6 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
       open(url: string) {
         return new NRelay1(url, {
           verifyEvent(event) {
-            if (!nw) return true; // WASM still loading; accept unverified
             try {
               nw.verifyEvent(event);
               return true;

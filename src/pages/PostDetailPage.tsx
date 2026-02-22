@@ -2,7 +2,6 @@ import { useMemo, useState, useCallback, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCircle, Copy, Check, ChevronRight } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useSeoMeta } from '@unhead/react';
@@ -49,7 +48,6 @@ import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 
 import { canZap } from '@/lib/canZap';
-import { timeAgo } from '@/lib/timeAgo';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { getProfileUrl } from '@/lib/profileUrl';
