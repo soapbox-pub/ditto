@@ -76,7 +76,8 @@ export function ImageGallery({
               alt=""
               className="w-full object-cover transition-transform duration-200 hover:scale-[1.02]"
               style={{
-                height: visibleImages.length === 1 ? maxGridHeight : visibleImages.length === 3 && i === 0 ? maxGridHeight : `calc(${maxGridHeight} / 2)`,
+                height: visibleImages.length === 1 ? 'auto' : visibleImages.length === 3 && i === 0 ? maxGridHeight : `calc(${maxGridHeight} / 2)`,
+                maxHeight: visibleImages.length === 1 ? '85dvh' : undefined,
               }}
               loading="lazy"
             />
