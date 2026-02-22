@@ -1,15 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useToast } from '@/hooks/useToast';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import QRCode from 'qrcode';
@@ -24,6 +20,10 @@ interface ProfileField {
 interface ProfileRightSidebarProps {
   pubkey: string;
   fields?: ProfileField[];
+  /** Events from the profile feed — media is extracted client-side instead of a separate query. */
+  events?: NostrEvent[];
+  /** Whether the feed events are still loading. */
+  eventsLoading?: boolean;
 }
 
 interface MediaItem {
@@ -60,56 +60,40 @@ function extractImetaUrl(event: NostrEvent): string | undefined {
   return undefined;
 }
 
-/** Hook to query media from a user's posts, returning URL + event ID pairs. */
-function useProfileMedia(pubkey: string, extraKinds: number[], cwPolicy: string) {
-  const { nostr } = useNostr();
-  const kinds = [1, ...extraKinds];
-  const kindsKey = kinds.sort().join(',');
+/** Extract media items from an array of events (pure function, no query). */
+function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
+  const items: MediaItem[] = [];
+  const seen = new Set<string>();
 
-  return useQuery<MediaItem[]>({
-    queryKey: ['profile-media', pubkey, kindsKey, cwPolicy],
-    queryFn: async ({ signal }) => {
-      const events = await nostr.query(
-        [{ kinds, authors: [pubkey], limit: 50 }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-      );
+  for (const event of events) {
+    const hasCW = getContentWarning(event) !== undefined;
 
-      const items: MediaItem[] = [];
-      const seen = new Set<string>();
+    // Skip CW events entirely when policy is "hide"
+    if (hasCW && cwPolicy === 'hide') continue;
 
-      for (const event of events) {
-        const hasCW = getContentWarning(event) !== undefined;
-
-        // Skip CW events entirely when policy is "hide"
-        if (hasCW && cwPolicy === 'hide') continue;
-
-        // For media-native kinds (vines etc.), extract from imeta tags
-        if (event.kind !== 1) {
-          const imetaUrl = extractImetaUrl(event);
-          if (imetaUrl && !seen.has(imetaUrl)) {
-            seen.add(imetaUrl);
-            const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-            items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
-          }
-          continue;
-        }
-
-        // For kind 1, extract from content
-        const images = extractImageUrls(event.content);
-        const videos = extractVideoUrls(event.content);
-        for (const url of [...images, ...videos]) {
-          if (!seen.has(url)) {
-            seen.add(url);
-            items.push({ url, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
-          }
-        }
+    // For media-native kinds (vines etc.), extract from imeta tags
+    if (event.kind !== 1) {
+      const imetaUrl = extractImetaUrl(event);
+      if (imetaUrl && !seen.has(imetaUrl)) {
+        seen.add(imetaUrl);
+        const dTag = event.tags.find(([n]) => n === 'd')?.[1];
+        items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
+      continue;
+    }
 
-      return items.slice(0, 9);
-    },
-    enabled: !!pubkey,
-    staleTime: 5 * 60 * 1000,
-  });
+    // For kind 1, extract from content
+    const images = extractImageUrls(event.content);
+    const videos = extractVideoUrls(event.content);
+    for (const url of [...images, ...videos]) {
+      if (!seen.has(url)) {
+        seen.add(url);
+        items.push({ url, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+      }
+    }
+  }
+
+  return items.slice(0, 9);
 }
 
 /** Build a nevent/naddr link for navigating to an event. */
@@ -258,11 +242,13 @@ function ProfileFieldRow({ field }: { field: ProfileField }) {
   );
 }
 
-export function ProfileRightSidebar({ pubkey, fields }: ProfileRightSidebarProps) {
+export function ProfileRightSidebar({ pubkey, fields, events, eventsLoading }: ProfileRightSidebarProps) {
   const { config } = useAppContext();
-  const { feedSettings } = useFeedSettings();
-  const extraKinds = getEnabledFeedKinds(feedSettings);
-  const { data: media, isLoading: mediaLoading } = useProfileMedia(pubkey, extraKinds, config.contentWarningPolicy);
+  const media = useMemo(
+    () => extractMedia(events ?? [], config.contentWarningPolicy),
+    [events, config.contentWarningPolicy],
+  );
+  const mediaLoading = eventsLoading ?? false;
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
