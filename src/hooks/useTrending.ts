@@ -2,6 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
+import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji, isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
 
 /** The sole relay used for trend data. */
@@ -269,49 +270,23 @@ function computeStats(eventId: string, events: NostrEvent[]): EventStats {
 export function useEventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
   const { config } = useAppContext();
-  const statsPubkey = config.nip85StatsPubkey;
   const nip85OnlyMode = config.nip85OnlyMode;
+  const nip85 = useNip85EventStats(eventId);
 
   return useQuery({
-    queryKey: ['event-stats', eventId ?? ''],
+    queryKey: ['event-stats', eventId ?? '', !!nip85.data],
     queryFn: async ({ signal }) => {
       if (!eventId) return EMPTY_STATS;
 
-      // Try NIP-85 first with aggressive timeout (500ms)
-      let nip85Stats: NostrEvent[] = [];
-      if (statsPubkey) {
-        try {
-          nip85Stats = await nostr.query(
-            [{
-              kinds: [30383],
-              authors: [statsPubkey],
-              '#d': [eventId],
-              limit: 1,
-            }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(500)]) },
-          );
-        } catch {
-          // NIP-85 failed or timed out
-        }
-      }
-
-      const hasNip85 = nip85Stats.length > 0;
-
       // If we have NIP-85 stats, use them directly — no second query needed.
-      if (hasNip85) {
-        const event = nip85Stats[0];
-        const getTagValue = (tagName: string): number => {
-          const tag = event.tags.find(([name]) => name === tagName);
-          return tag?.[1] ? parseInt(tag[1], 10) : 0;
-        };
-
+      if (nip85.data) {
         return {
-          replies: getTagValue('comment_cnt'),
-          reposts: getTagValue('repost_cnt'),
-          quotes: getTagValue('quote_cnt'),
-          reactions: getTagValue('reaction_cnt'),
-          zapAmount: getTagValue('zap_amount'),
-          zapCount: getTagValue('zap_cnt'),
+          replies: nip85.data.commentCount,
+          reposts: nip85.data.repostCount,
+          quotes: 0,
+          reactions: nip85.data.reactionCount,
+          zapAmount: 0,
+          zapCount: nip85.data.zapCount,
           reactionEmojis: [],
         };
       }
@@ -334,7 +309,7 @@ export function useEventStats(eventId: string | undefined) {
 
       return computeStats(eventId, events);
     },
-    enabled: !!eventId,
+    enabled: !!eventId && !nip85.isLoading,
     staleTime: 60 * 1000,
     placeholderData: (prev) => prev,
   });
