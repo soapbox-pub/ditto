@@ -108,3 +108,4 @@ Base64-encoded `Uint8Array` payload (max 128,000 bytes raw).
 
 - Webxdc apps MUST be sandboxed with no network access, per the [webxdc spec](https://webxdc.org/docs/spec/messenger.html).
 - Clients SHOULD verify the `.xdc` file hash (`x` tag) before running it.
+- All communication in this spec is public. Webxdc apps designed for private chats or small groups may not work as expected.
