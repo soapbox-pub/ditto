@@ -229,7 +229,7 @@ export function NoteContent({
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
       const isBlock = token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
-        || token.type === 'naddr-embed';
+        || (token.type === 'naddr-embed' && !token.url);
 
       if (isBlock) {
         // Strip all trailing whitespace from the preceding text token.
