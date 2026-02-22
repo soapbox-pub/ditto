@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useCallback } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { MewLogo } from '@/components/MewLogo';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -9,6 +10,14 @@ interface MobileTopBarProps {
 
 export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
   const { user, metadata } = useCurrentUser();
+  const location = useLocation();
+
+  const handleLogoClick = useCallback((e: React.MouseEvent) => {
+    if (location.pathname === '/') {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [location.pathname]);
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top">
@@ -29,7 +38,7 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
 
       {/* Center: Mew logo */}
       <div className="flex-1 flex items-center justify-center">
-        <Link to="/">
+        <Link to="/" onClick={handleLogoClick}>
           <MewLogo size={28} />
         </Link>
       </div>
