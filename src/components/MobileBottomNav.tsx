@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Bell, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface NavTabProps {
@@ -35,7 +35,7 @@ function NavTab({ to, icon, label, active, showIndicator }: NavTabProps) {
 export function MobileBottomNav() {
   const location = useLocation();
   const { user } = useCurrentUser();
-  const { hasUnread } = useNotifications();
+  const hasUnread = useHasUnreadNotifications();
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">

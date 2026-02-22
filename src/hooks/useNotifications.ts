@@ -46,7 +46,7 @@ export function useNotifications(): NotificationData {
     queryFn: async ({ signal }) => {
       if (!user) return [];
       const events = await nostr.query(
-        [{ kinds: [1, 6, 7, 9735], '#p': [user.pubkey], limit: 50 }],
+        [{ kinds: [1, 6, 7, 9735], '#p': [user.pubkey], limit: 15 }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
       return events
