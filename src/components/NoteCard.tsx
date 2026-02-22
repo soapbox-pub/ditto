@@ -50,6 +50,8 @@ interface NoteCardProps {
   repostedBy?: string;
   /** If true, hide action buttons (used for embeds). */
   compact?: boolean;
+  /** If true, render in threaded ancestor style: connector line below avatar, no actions, no bottom border. */
+  threaded?: boolean;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -143,7 +145,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className, repostedBy, compact }: NoteCardProps) {
+export function NoteCard({ event, className, repostedBy, compact, threaded }: NoteCardProps) {
   const navigate = useNavigate();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
@@ -242,86 +244,9 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
     return null;
   }
 
-  return (
-    <article
-      className={cn(
-        'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer',
-        className,
-      )}
-      onClick={handleCardClick}
-    >
-      {/* Repost header */}
-      {repostedBy && (
-        <RepostHeader pubkey={repostedBy} />
-      )}
-
-      {/* Treasure header — "<chest> <name> hid/found a treasure" */}
-      {isTreasure && (
-        <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
-      )}
-
-      {/* Deck header — "<cards> <name> shared a deck" */}
-      {isMagicDeck && !repostedBy && (
-        <DeckHeader pubkey={event.pubkey} />
-      )}
-
-      {/* Stream header — "<radio> <name> is streaming / streamed" */}
-      {isStream && (
-        <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
-      )}
-
-      {/* Header: avatar + name/handle stacked */}
-      <div className="flex items-center gap-3">
-        {author.isLoading ? (
-          <>
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="min-w-0 space-y-1.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-36" />
-            </div>
-          </>
-        ) : (
-          <>
-            <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Avatar className="size-11">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            </ProfileHoverCard>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="font-bold text-[15px] hover:underline truncate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {author.data?.event ? (
-                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                    ) : displayName}
-                  </Link>
-                </ProfileHoverCard>
-                {metadata?.bot && (
-                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
-                {nip05 && <Nip05Badge nip05={nip05} />}
-                {nip05 && <span className="shrink-0">·</span>}
-                <span className="shrink-0 hover:underline whitespace-nowrap">
-                  {timeAgo(event.created_at)}
-                </span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
+  // Shared content block used in both normal and threaded layouts
+  const contentBlock = (
+    <>
       {/* Reply context (kind 1 only) — shown above content */}
       {isReply && replyToPubkeys.length > 0 && (
         <ReplyContext pubkeys={replyToPubkeys} />
@@ -359,6 +284,119 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
           </>
         )}
       </ContentWarningGuard>
+    </>
+  );
+
+  // Shared author info block
+  const authorInfo = author.isLoading ? (
+    <div className="min-w-0 space-y-1.5">
+      <Skeleton className="h-4 w-28" />
+      <Skeleton className="h-3 w-36" />
+    </div>
+  ) : (
+    <div className="min-w-0 flex-1">
+      <div className="flex items-center gap-1.5">
+        <ProfileHoverCard pubkey={event.pubkey} asChild>
+          <Link
+            to={profileUrl}
+            className="font-bold text-[15px] hover:underline truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            ) : displayName}
+          </Link>
+        </ProfileHoverCard>
+        {metadata?.bot && (
+          <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
+        )}
+      </div>
+      <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+        {nip05 && <Nip05Badge nip05={nip05} />}
+        {nip05 && <span className="shrink-0">·</span>}
+        <span className="shrink-0 hover:underline whitespace-nowrap">
+          {timeAgo(event.created_at)}
+        </span>
+      </div>
+    </div>
+  );
+
+  // Shared avatar element
+  const avatarElement = author.isLoading ? (
+    <Skeleton className={cn(threaded ? 'size-10' : 'size-11', 'rounded-full shrink-0')} />
+  ) : (
+    <ProfileHoverCard pubkey={event.pubkey} asChild>
+      <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
+        <Avatar className={threaded ? 'size-10' : 'size-11'}>
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase()}
+          </AvatarFallback>
+        </Avatar>
+      </Link>
+    </ProfileHoverCard>
+  );
+
+  // ── Threaded ancestor layout: avatar-column with connector line + content ──
+  if (threaded) {
+    return (
+      <article
+        className={cn(
+          'px-4 pt-3 pb-0 hover:bg-secondary/30 transition-colors cursor-pointer',
+          className,
+        )}
+        onClick={handleCardClick}
+      >
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            {avatarElement}
+            <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
+          </div>
+          <div className="flex-1 min-w-0 pb-4">
+            {authorInfo}
+            {contentBlock}
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── Normal layout ──
+  return (
+    <article
+      className={cn(
+        'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer',
+        className,
+      )}
+      onClick={handleCardClick}
+    >
+      {/* Repost header */}
+      {repostedBy && (
+        <RepostHeader pubkey={repostedBy} />
+      )}
+
+      {/* Treasure header — "<chest> <name> hid/found a treasure" */}
+      {isTreasure && (
+        <TreasureHeader pubkey={event.pubkey} variant={isGeocache ? 'hid' : 'found'} />
+      )}
+
+      {/* Deck header — "<cards> <name> shared a deck" */}
+      {isMagicDeck && !repostedBy && (
+        <DeckHeader pubkey={event.pubkey} />
+      )}
+
+      {/* Stream header — "<radio> <name> is streaming / streamed" */}
+      {isStream && (
+        <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
+      )}
+
+      {/* Header: avatar + name/handle stacked */}
+      <div className="flex items-center gap-3">
+        {avatarElement}
+        {authorInfo}
+      </div>
+
+      {contentBlock}
 
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (

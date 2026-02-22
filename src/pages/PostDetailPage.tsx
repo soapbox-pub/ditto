@@ -47,7 +47,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { genUserName } from '@/lib/genUserName';
+
 import { canZap } from '@/lib/canZap';
 import { timeAgo } from '@/lib/timeAgo';
 import { Nip05Badge } from '@/components/Nip05Badge';
@@ -1000,120 +1000,8 @@ function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: numbe
       {parentId && depth < MAX_DEPTH && (
         <AncestorThread eventId={parentId} depth={depth + 1} />
       )}
-      <AncestorNote event={event} />
+      <NoteCard event={event} threaded />
     </>
-  );
-}
-
-/** Renders a single ancestor note with avatar + thread connector line. */
-function AncestorNote({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const profileUrl = useMemo(
-    () => getProfileUrl(event.pubkey, metadata),
-    [event.pubkey, metadata],
-  );
-  const neventId = useMemo(
-    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
-    [event],
-  );
-
-  // Extract images, videos, and webxdc apps from parent event
-  const images = useMemo(() => extractImages(event.content), [event]);
-  const videos = useMemo(() => extractVideos(event.content), [event]);
-  const imetaMap = useMemo(() => parseImetaMap(event.tags), [event]);
-  const webxdcApps = useMemo(() => {
-    return Array.from(imetaMap.values()).filter(
-      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
-    );
-  }, [imetaMap]);
-
-  return (
-    <div
-      className="px-4 pt-3 pb-0 cursor-pointer hover:bg-secondary/30 transition-colors"
-      onClick={() => navigate(`/${neventId}`)}
-    >
-      <div className="flex gap-3">
-        {/* Avatar + thread connector line */}
-        <div className="flex flex-col items-center">
-          {author.isLoading ? (
-            <Skeleton className="size-10 rounded-full shrink-0" />
-          ) : (
-            <Link
-              to={profileUrl}
-              className="shrink-0"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Avatar className="size-10">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          )}
-          <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0 pb-4">
-          {/* Author row */}
-          <div className="flex items-center gap-1.5 min-w-0">
-            {author.isLoading ? (
-              <>
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-3 w-16" />
-              </>
-            ) : (
-              <>
-                <Link
-                  to={profileUrl}
-                  className="font-bold text-[15px] hover:underline truncate"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {author.data?.event ? (
-                    <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                  ) : displayName}
-                </Link>
-                {metadata?.nip05 && <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />}
-                {metadata?.nip05 && <span className="text-sm text-muted-foreground shrink-0">·</span>}
-                <span className="text-sm text-muted-foreground shrink-0">
-                  {timeAgo(event.created_at)}
-                </span>
-              </>
-            )}
-          </div>
-
-          {/* Note text + media, guarded by NIP-36 content-warning */}
-          <ContentWarningGuard event={event}>
-            <div className="mt-1">
-              <NoteContent event={event} className="text-[15px] leading-relaxed" />
-            </div>
-
-            {/* Videos */}
-            {videos.map((url, i) => (
-              <div key={`v-${i}`} className="mt-3">
-                <VideoPlayer src={url} poster={imetaMap.get(url)?.thumbnail} />
-              </div>
-            ))}
-
-            {/* Images */}
-            {images.length > 0 && (
-              <div className="mt-3">
-                <ImageGallery images={images} maxGridHeight="400px" />
-              </div>
-            )}
-
-            {/* Webxdc apps */}
-            {webxdcApps.map((app) => (
-              <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />
-            ))}
-          </ContentWarningGuard>
-        </div>
-      </div>
-    </div>
   );
 }
 
