@@ -28,6 +28,7 @@ import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { useProfileFeed, useProfileLikes as useProfileLikesInfinite, filterByTab } from '@/hooks/useProfileFeed';
 import type { ProfileTab } from '@/hooks/useProfileFeed';
+import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
@@ -646,6 +647,15 @@ export function ProfilePage() {
     description: metadata?.about || 'Nostr profile',
   });
 
+  // Profile media — dedicated search query via relay.ditto.pub (video:true image:true)
+  const {
+    data: mediaData,
+    isPending: mediaPending,
+    fetchNextPage: fetchNextMediaPage,
+    hasNextPage: hasNextMediaPage,
+    isFetchingNextPage: isFetchingNextMediaPage,
+  } = useProfileMedia(pubkey);
+
   // Infinite-scroll likes
   const {
     data: likesData,
@@ -703,7 +713,9 @@ export function ProfilePage() {
     }
   };
 
-  // Flatten feed pages, deduplicate, and filter muted content
+  // Flatten feed pages, deduplicate, and filter muted content.
+  // Tab filtering is applied downstream in `currentItems` so the base
+  // list stays stable across tab switches and doesn't momentarily empty.
   const feedItems = useMemo(() => {
     if (!feedData?.pages) return [];
     const seen = new Set<string>();
@@ -718,14 +730,24 @@ export function ProfilePage() {
         }
       }
     }
-    return activeTab === 'likes' ? items : filterByTab(items, activeTab);
-  }, [feedData?.pages, muteItems, activeTab]);
+    return items;
+  }, [feedData?.pages, muteItems]);
 
-  // Extract raw events for the media sidebar, excluding reposts (other users' content)
-  const feedEvents = useMemo(
-    () => feedItems.filter((item) => !item.repostedBy).map((item) => item.event),
-    [feedItems],
-  );
+  // Flatten media pages for the sidebar and media tab
+  const mediaEvents = useMemo(() => {
+    if (!mediaData?.pages) return [];
+    const seen = new Set<string>();
+    const events: NostrEvent[] = [];
+    for (const page of mediaData.pages) {
+      for (const event of page.events) {
+        if (!seen.has(event.id)) {
+          seen.add(event.id);
+          events.push(event);
+        }
+      }
+    }
+    return events;
+  }, [mediaData?.pages]);
 
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
@@ -765,12 +787,16 @@ export function ProfilePage() {
       if (hasNextLikesPage && !isFetchingNextLikesPage) {
         fetchNextLikesPage();
       }
+    } else if (activeTab === 'media') {
+      if (hasNextMediaPage && !isFetchingNextMediaPage) {
+        fetchNextMediaPage();
+      }
     } else {
       if (hasNextFeedPage && !isFetchingNextFeedPage) {
         fetchNextFeedPage();
       }
     }
-  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
+  }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage, hasNextMediaPage, isFetchingNextMediaPage, fetchNextMediaPage]);
 
   const authorEvent = metadataEvent;
 
@@ -780,12 +806,18 @@ export function ProfilePage() {
     [likedItems]
   );
 
-  const currentItems = activeTab === 'likes' ? likedFeedItems : feedItems;
-  const currentLoading = activeTab === 'likes' ? likesPending : feedPending;
-  const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
-  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
+  // For media, convert media events to FeedItems
+  const mediaFeedItems: FeedItem[] = useMemo(() =>
+    mediaEvents.map(event => ({ event, sortTimestamp: event.created_at })),
+    [mediaEvents]
+  );
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} events={feedEvents} eventsLoading={feedPending} eventsComplete={!hasNextFeedPage && !isFetchingNextFeedPage} /> } : {});
+  const currentItems = activeTab === 'likes' ? likedFeedItems : activeTab === 'media' ? mediaFeedItems : filterByTab(feedItems, activeTab);
+  const currentLoading = activeTab === 'likes' ? likesPending : activeTab === 'media' ? mediaPending : feedPending;
+  const hasMore = activeTab === 'likes' ? hasNextLikesPage : activeTab === 'media' ? hasNextMediaPage : hasNextFeedPage;
+  const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : activeTab === 'media' ? isFetchingNextMediaPage : isFetchingNextFeedPage;
+
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} /> } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
