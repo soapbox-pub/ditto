@@ -1,32 +1,21 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
-import { type NostrMetadata, NSchema as n } from '@nostrify/nostrify';
-import { parseAuthorEvent } from './useAuthor';
 import { useFeedSettings } from './useFeedSettings';
+import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { filterOutOfSyncEvents, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
-
-/** Profile metadata extracted from the first page query. */
-export interface ProfileMeta {
-  metadata?: NostrMetadata;
-  metadataEvent?: NostrEvent;
-  following: string[];
-  followingEvent?: NostrEvent;
-  pinnedIds: string[];
-  pinnedListEvent?: NostrEvent;
-}
 
 /** Extended FeedItem with pagination metadata. */
 interface ProfileFeedPage {
   items: FeedItem[];
   /** The oldest timestamp from the raw relay query (before filtering) for pagination. */
   oldestQueryTimestamp: number;
-  /** Profile metadata — only present on the first page. */
-  profileMeta?: ProfileMeta;
+  /** Number of raw events returned by the relay (before tab filtering). */
+  rawCount: number;
 }
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 15;
 
 export type ProfileTab = 'posts' | 'replies' | 'media' | 'likes';
 
@@ -40,7 +29,7 @@ function hasMedia(item: FeedItem): boolean {
 }
 
 /** Filter feed items by the active tab. */
-function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
+export function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
   switch (tab) {
     case 'posts':
       // Show posts without reply markers (including reposts)
@@ -63,7 +52,7 @@ function filterByTab(items: FeedItem[], tab: ProfileTab): FeedItem[] {
  * Infinite-scroll hook for profile posts/replies/media.
  * Fetches paginated events for a given pubkey and tab.
  */
-export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
+export function useProfileFeed(pubkey: string | undefined) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { feedSettings } = useFeedSettings();
@@ -72,13 +61,12 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const kindsKey = [...profileKinds].sort().join(',');
 
   return useInfiniteQuery<ProfileFeedPage, Error>({
-    queryKey: ['profile-feed', pubkey ?? '', tab, kindsKey],
+    queryKey: ['profile-feed', pubkey ?? '', kindsKey],
     queryFn: async ({ pageParam, signal }) => {
-      if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000) };
+      if (!pubkey) return { items: [], oldestQueryTimestamp: Math.floor(Date.now() / 1000), rawCount: 0 };
 
       const querySignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
       const now = Math.floor(Date.now() / 1000);
-      const isFirstPage = !pageParam;
 
       /** Seed the `['event', id]` query cache with events we already have in hand. */
       function cacheEvents(items: FeedItem[]): void {
@@ -89,9 +77,7 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
         }
       }
 
-      // Fetch more than PAGE_SIZE because client-side filtering (e.g. "posts only"
-      // excludes replies, "media" excludes non-media) can discard many events.
-      const fetchLimit = tab === 'replies' ? PAGE_SIZE : PAGE_SIZE * 3;
+      const fetchLimit = PAGE_SIZE;
 
       const feedFilter: Record<string, unknown> = {
         kinds: profileKinds,
@@ -102,9 +88,12 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
         feedFilter.until = pageParam;
       }
 
+      // On the first page, piggyback kind 0 so the profile header can render
+      // from the same relay round-trip. Kind 0 is small and fast.
       const filters: Record<string, unknown>[] = [feedFilter];
+      const isFirstPage = !pageParam;
       if (isFirstPage) {
-        filters.push({ kinds: [0, 3, 10001], authors: [pubkey], limit: 3 });
+        filters.push({ kinds: [0], authors: [pubkey], limit: 1 });
       }
 
       const allEvents = await nostr.query(
@@ -112,50 +101,17 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
         { signal: querySignal },
       );
 
-      // Separate profile metadata events from feed events
-      const metaKinds = new Set([0, 3, 10001]);
-      const rawFeedEvents = allEvents.filter((e) => !metaKinds.has(e.kind));
-
-      // Extract and cache profile metadata on first page
-      let profileMeta: ProfileMeta | undefined;
+      // Seed the author cache from kind 0 so the profile header renders instantly
       if (isFirstPage) {
         const kind0 = allEvents.find((e) => e.kind === 0);
-        const kind3 = allEvents.find((e) => e.kind === 3);
-        const kind10001 = allEvents.find((e) => e.kind === 10001);
-
         if (kind0) {
           queryClient.setQueryData(['author', pubkey], parseAuthorEvent(kind0));
         }
-
-        let metadata: NostrMetadata | undefined;
-        if (kind0) {
-          try {
-            metadata = n.json().pipe(n.metadata()).parse(kind0.content);
-          } catch {
-            // invalid metadata
-          }
-        }
-
-        const following = kind3
-          ? kind3.tags.filter(([name]) => name === 'p').map(([, pk]) => pk)
-          : [];
-
-        const pinnedIds = kind10001
-          ? kind10001.tags.filter(([name]) => name === 'e').map(([, id]) => id)
-          : [];
-
-        profileMeta = {
-          metadata,
-          metadataEvent: kind0,
-          following,
-          followingEvent: kind3,
-          pinnedIds,
-          pinnedListEvent: kind10001,
-        };
-
-        // Seed a stable cache key so profile metadata survives tab switches
-        queryClient.setQueryData(['profile-meta', pubkey], profileMeta);
       }
+
+      const rawFeedEvents = isFirstPage
+        ? allEvents.filter((e) => e.kind !== 0)
+        : allEvents;
 
       // Filter out events from out-of-sync relays before processing
       const events = filterOutOfSyncEvents(rawFeedEvents);
@@ -210,23 +166,23 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
         }
       }
 
-      // Sort by timestamp and filter by tab
+      // Sort by timestamp
       const sorted = items.sort((a, b) => b.sortTimestamp - a.sortTimestamp);
-      const tabFiltered = filterByTab(sorted, tab);
 
       // Seed event cache so post detail views resolve instantly
-      cacheEvents(tabFiltered);
+      cacheEvents(sorted);
 
-      return { items: tabFiltered, oldestQueryTimestamp, profileMeta };
+      return { items: sorted, oldestQueryTimestamp, rawCount: validEvents.length };
     },
     getNextPageParam: (lastPage) => {
-      if (lastPage.items.length === 0) return undefined;
-      // Use the oldest timestamp from the raw relay query (before tab filtering/dedup) minus 1.
-      // This ensures we don't skip events when tab filtering reduces the page size.
+      // Use rawCount (pre-filter) to decide if there are more events on the relay.
+      // Tab filtering may discard all items from a page, but that doesn't mean
+      // the relay is exhausted.
+      if (lastPage.rawCount === 0) return undefined;
       return lastPage.oldestQueryTimestamp - 1;
     },
     initialPageParam: undefined as number | undefined,
-    enabled: !!pubkey && tab !== 'likes',
+    enabled: !!pubkey,
     staleTime: 30 * 1000,
   });
 }
