@@ -650,14 +650,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return rawReplies.filter((r) => !isEventMuted(r, muteItems));
   }, [rawReplies, muteItems]);
 
-  // Build a reply tree: direct replies to this event at the top level,
-  // with nested children for replies-to-replies.
-  const replyTree = useMemo(() => {
+  // Organize replies into "conversation groups":
+  // - Direct replies to this event are the top-level items
+  // - If a direct reply starts a linear chain (each node has exactly 1 child),
+  //   group the chain together so it renders connected
+  // - If a reply has multiple children (branching), it stays standalone
+  const replyGroups = useMemo(() => {
     if (!replies || replies.length === 0) return [];
-
-    // Index all replies by ID
-    const byId = new Map<string, NostrEvent>();
-    for (const r of replies) byId.set(r.id, r);
 
     // Map of parentId -> children
     const childrenMap = new Map<string, NostrEvent[]>();
@@ -666,17 +665,40 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     for (const r of replies) {
       const parentId = getParentEventId(r);
       if (!parentId || parentId === event.id) {
-        // Direct reply to the focused event
         directReplies.push(r);
       } else {
-        // Reply to another reply in this thread
         const siblings = childrenMap.get(parentId) || [];
         siblings.push(r);
         childrenMap.set(parentId, siblings);
       }
     }
 
-    return { directReplies, childrenMap };
+    // For each direct reply, follow the linear chain as far as it goes
+    // A chain continues as long as the current node has exactly 1 child
+    type ReplyGroup = { chain: NostrEvent[]; branches: NostrEvent[] };
+    const groups: ReplyGroup[] = [];
+
+    for (const root of directReplies) {
+      const chain: NostrEvent[] = [root];
+      let current = root;
+
+      // Walk down single-child paths
+      while (true) {
+        const kids = childrenMap.get(current.id);
+        if (kids && kids.length === 1) {
+          chain.push(kids[0]);
+          current = kids[0];
+        } else {
+          break;
+        }
+      }
+
+      // Whatever children the last node in the chain has (0 or 2+) are branches
+      const lastKids = childrenMap.get(current.id) || [];
+      groups.push({ chain, branches: lastKids });
+    }
+
+    return groups;
   }, [replies, event.id]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -930,7 +952,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         />
       </article>
 
-      {/* Replies — threaded tree */}
+      {/* Replies — linear chains rendered connected, branches rendered flat */}
       <div>
         {repliesLoading ? (
           <div className="divide-y divide-border">
@@ -938,9 +960,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               <ReplyCardSkeleton key={i} />
             ))}
           </div>
-        ) : replyTree && 'directReplies' in replyTree && replyTree.directReplies.length > 0 ? (
-          flattenReplyTree(replyTree.directReplies, replyTree.childrenMap).map((reply) => (
-            <NoteCard key={reply.id} event={reply} />
+        ) : replyGroups.length > 0 ? (
+          replyGroups.map((group) => (
+            <ReplyChainGroup key={group.chain[0].id} chain={group.chain} branches={group.branches} />
           ))
         ) : (
           <div className="py-12 text-center text-muted-foreground text-sm">
@@ -1115,24 +1137,38 @@ function AncestorNote({ event }: { event: NostrEvent }) {
 }
 
 /**
- * Flattens a reply tree into a depth-first ordered list.
- * Sub-replies appear directly after their parent, giving natural
- * conversation flow without any visual nesting.
+ * Renders a conversation group: a linear chain of replies shown connected
+ * (avatar + connector line), followed by any branching replies as flat NoteCards.
+ *
+ * - Single-reply chain (no continuation): renders as a normal NoteCard
+ * - Multi-reply chain: all but the last get the connected treatment (like ancestors),
+ *   the last one gets a full NoteCard so it has action buttons
+ * - Branches off the end of the chain: rendered as standalone NoteCards below
  */
-function flattenReplyTree(
-  roots: NostrEvent[],
-  childrenMap: Map<string, NostrEvent[]>,
-): NostrEvent[] {
-  const result: NostrEvent[] = [];
-  function walk(events: NostrEvent[]) {
-    for (const ev of events) {
-      result.push(ev);
-      const children = childrenMap.get(ev.id);
-      if (children) walk(children);
-    }
+function ReplyChainGroup({ chain, branches }: { chain: NostrEvent[]; branches: NostrEvent[] }) {
+  if (chain.length === 1 && branches.length === 0) {
+    // Single reply, no continuation — just a normal card
+    return <NoteCard event={chain[0]} />;
   }
-  walk(roots);
-  return result;
+
+  // Chain of 2+: show the leading items connected, last item as a full card
+  const connected = chain.length > 1 ? chain.slice(0, -1) : [];
+  const lastInChain = chain[chain.length - 1];
+
+  return (
+    <div className="border-b border-border">
+      {/* Connected chain items — compact, with connector lines */}
+      {connected.map((ev) => (
+        <AncestorNote key={ev.id} event={ev} />
+      ))}
+      {/* Last item in chain — full NoteCard with actions */}
+      <NoteCard event={lastInChain} className="border-b-0" />
+      {/* Branching replies — flat NoteCards */}
+      {branches.map((ev) => (
+        <NoteCard key={ev.id} event={ev} className="border-b-0 last:border-b-0" />
+      ))}
+    </div>
+  );
 }
 
 function PostDetailSkeleton() {
