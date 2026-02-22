@@ -614,7 +614,7 @@ export function ComposeBox({
               onPaste={handlePaste}
               placeholder={placeholder}
               className={cn(
-                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85',
+                'w-full bg-transparent text-foreground placeholder:text-muted-foreground resize-none outline-none text-lg pt-2.5 pb-2 opacity-85 break-all',
                 isExpanded ? 'min-h-[100px]' : 'min-h-[44px]',
               )}
               rows={isExpanded ? 4 : 1}
