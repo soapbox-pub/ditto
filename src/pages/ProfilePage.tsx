@@ -19,8 +19,8 @@ import { Nip05Badge } from '@/components/Nip05Badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
-import { useProfileFollowing } from '@/hooks/useProfileFollowing';
 import { usePinnedNotes } from '@/hooks/usePinnedNotes';
+import { useProfileData } from '@/hooks/useProfileData';
 import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -607,19 +607,21 @@ export function ProfilePage() {
     return user?.pubkey;
   }, [npub, user, isNip05Param, nip05Pubkey]);
 
-  const author = useAuthor(pubkey);
-  const metadata = author.data?.metadata;
+  // Consolidated profile data: kinds [0, 3, 10001] in a single query
+  const profileData = useProfileData(pubkey);
+  const metadata = profileData.data?.metadata;
+  const metadataEvent = profileData.data?.metadataEvent;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 
   // Parse profile fields from the raw kind 0 event content, prepending website if present
   const fields = useMemo(() => {
-    const parsed = author.data?.event?.content ? parseProfileFields(author.data.event.content) : [];
+    const parsed = metadataEvent?.content ? parseProfileFields(metadataEvent.content) : [];
     // Prepend the website field from metadata if it exists
     if (metadata?.website) {
       return [{ label: 'Website', value: metadata.website }, ...parsed];
     }
     return parsed;
-  }, [author.data?.event?.content, metadata?.website]);
+  }, [metadataEvent?.content, metadata?.website]);
 
   useSeoMeta({
     title: `${displayName} | Mew`,
@@ -650,11 +652,16 @@ export function ProfilePage() {
   // Safe follow/unfollow actions (fetches fresh data from multiple relays before mutating)
   const { follow, unfollow, isPending: followPending } = useFollowActions();
 
-  // Profile's following list (for the viewed profile)
-  const { data: profileFollowing } = useProfileFollowing(pubkey);
+  // Profile's following list (derived from consolidated profile data)
+  const profileFollowing = useMemo(() => {
+    const pubkeys = profileData.data?.following ?? [];
+    return { pubkeys, count: pubkeys.length };
+  }, [profileData.data?.following]);
 
-  // Pinned notes for this profile
-  const { events: pinnedEvents, togglePin } = usePinnedNotes(pubkey);
+  // Pinned notes — pin list is seeded by useProfileData, so this won't fire a duplicate query.
+  // We keep usePinnedNotes for its togglePin mutation.
+  const { togglePin } = usePinnedNotes(pubkey);
+  const pinnedIds = useMemo(() => profileData.data?.pinnedIds ?? [], [profileData.data?.pinnedIds]);
   const isFollowing = useMemo(() => {
     if (!pubkey || !followData?.pubkeys) return false;
     return followData.pubkeys.includes(pubkey);
@@ -699,6 +706,15 @@ export function ProfilePage() {
     [feedItems],
   );
 
+  // Resolve pinned events from feed data (avoids a separate query)
+  const pinnedEvents = useMemo(() => {
+    if (pinnedIds.length === 0) return [];
+    const eventMap = new Map(feedEvents.map((e) => [e.id, e]));
+    return pinnedIds
+      .map((id) => eventMap.get(id))
+      .filter((e): e is NostrEvent => !!e);
+  }, [pinnedIds, feedEvents]);
+
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
     if (!likesData?.pages) return [];
@@ -740,7 +756,7 @@ export function ProfilePage() {
   }, [inView, activeTab, hasNextFeedPage, isFetchingNextFeedPage, fetchNextFeedPage, hasNextLikesPage, isFetchingNextLikesPage, fetchNextLikesPage]);
 
   const isOwnProfile = user?.pubkey === pubkey;
-  const authorEvent = author.data?.event;
+  const authorEvent = metadataEvent;
 
   // For likes, convert NostrEvents to FeedItems
   const likedFeedItems: FeedItem[] = useMemo(() => 
@@ -864,8 +880,8 @@ export function ProfilePage() {
           </div>
 
           <h2 className="text-xl font-bold truncate">
-            {author.data?.event ? (
-              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+            {metadataEvent ? (
+              <EmojifiedText tags={metadataEvent.tags}>{displayName}</EmojifiedText>
             ) : displayName}
           </h2>
           {metadata?.nip05 && (
@@ -900,8 +916,8 @@ export function ProfilePage() {
 
           {metadata?.about && (
             <p className="mt-3 text-sm whitespace-pre-wrap">
-              {author.data?.event ? (
-                <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
+              {metadataEvent ? (
+                <EmojifiedText tags={metadataEvent.tags}>{metadata.about}</EmojifiedText>
               ) : metadata.about}
             </p>
           )}
