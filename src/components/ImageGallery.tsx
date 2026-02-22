@@ -1,6 +1,7 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ImageGalleryProps {
   images: string[];
@@ -62,32 +63,15 @@ export function ImageGallery({
         )}
       >
         {visibleImages.map((url, i) => (
-          <button
+          <GridImage
             key={i}
-            type="button"
-            className={cn(
-              'relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-              visibleImages.length === 3 && i === 0 && 'row-span-2',
-            )}
-            onClick={(e) => openLightbox(i, e)}
-          >
-            <img
-              src={url}
-              alt=""
-              className="w-full object-cover transition-transform duration-200 hover:scale-[1.02]"
-              style={{
-                height: visibleImages.length === 1 ? 'auto' : visibleImages.length === 3 && i === 0 ? maxGridHeight : `calc(${maxGridHeight} / 2)`,
-                maxHeight: visibleImages.length === 1 ? '85dvh' : undefined,
-              }}
-              loading="lazy"
-            />
-            {/* "+N" overlay on last visible image */}
-            {overflow > 0 && i === visibleImages.length - 1 && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
-                <span className="text-white text-2xl font-bold">+{overflow}</span>
-              </div>
-            )}
-          </button>
+            url={url}
+            index={i}
+            visibleCount={visibleImages.length}
+            maxGridHeight={maxGridHeight}
+            overflow={i === visibleImages.length - 1 ? overflow : 0}
+            onOpen={(e) => openLightbox(i, e)}
+          />
         ))}
       </div>
 
@@ -102,6 +86,83 @@ export function ImageGallery({
         />
       )}
     </>
+  );
+}
+
+/** Single image tile with a skeleton shown until the image loads. */
+function GridImage({
+  url,
+  index,
+  visibleCount,
+  maxGridHeight,
+  overflow,
+  onOpen,
+}: {
+  url: string;
+  index: number;
+  visibleCount: number;
+  maxGridHeight: string;
+  overflow: number;
+  onOpen: (e: React.MouseEvent) => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // If the image is already cached by the browser, onLoad may have
+  // fired before the ref was attached. Check on mount.
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, []);
+
+  const isSingle = visibleCount === 1;
+  const heightStyle = isSingle
+    ? 'auto'
+    : visibleCount === 3 && index === 0
+      ? maxGridHeight
+      : `calc(${maxGridHeight} / 2)`;
+
+  return (
+    <button
+      type="button"
+      className={cn(
+        'relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+        visibleCount === 3 && index === 0 && 'row-span-2',
+      )}
+      onClick={onOpen}
+    >
+      {/* Skeleton placeholder — matches the image dimensions */}
+      {!loaded && (
+        <Skeleton
+          className="absolute inset-0 w-full rounded-none"
+          style={{
+            height: isSingle ? '200px' : heightStyle,
+          }}
+        />
+      )}
+      <img
+        ref={imgRef}
+        src={url}
+        alt=""
+        className={cn(
+          'w-full object-cover transition-all duration-300 hover:scale-[1.02]',
+          loaded ? 'opacity-100' : 'opacity-0',
+        )}
+        style={{
+          height: heightStyle,
+          maxHeight: isSingle ? '85dvh' : undefined,
+        }}
+        loading="lazy"
+        onLoad={() => setLoaded(true)}
+      />
+      {/* "+N" overlay on last visible image */}
+      {overflow > 0 && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[2px]">
+          <span className="text-white text-2xl font-bold">+{overflow}</span>
+        </div>
+      )}
+    </button>
   );
 }
 
