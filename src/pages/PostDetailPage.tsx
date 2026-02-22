@@ -639,7 +639,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
   const webxdcApps = useMemo(() => {
     if (!isTextNote) return [];
     return Array.from(imetaMap.values()).filter(
-      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
     );
   }, [imetaMap, isTextNote]);
 
@@ -945,7 +945,7 @@ function ParentNote({ eventId }: { eventId: string }) {
   const imetaMap = useMemo(() => event ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event]);
   const webxdcApps = useMemo(() => {
     return Array.from(imetaMap.values()).filter(
-      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
     );
   }, [imetaMap]);
 

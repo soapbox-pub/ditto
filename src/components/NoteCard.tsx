@@ -202,7 +202,7 @@ export function NoteCard({ event, className, repostedBy, compact }: NoteCardProp
   const webxdcApps = useMemo(() => {
     if (!isTextNote) return [];
     return Array.from(imetaMap.values()).filter(
-      (entry) => entry.mime === 'application/vnd.webxdc+zip',
+      (entry) => entry.mime === 'application/x-webxdc' || entry.mime === 'application/vnd.webxdc+zip',
     );
   }, [imetaMap, isTextNote]);
   const isReply = isTextNote && event.tags.some(([name]) => name === 'e');
