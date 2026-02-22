@@ -47,7 +47,7 @@ export function useProfileFeed(pubkey: string | undefined, tab: ProfileTab) {
   const { feedSettings } = useFeedSettings();
 
   const profileKinds = getEnabledFeedKinds(feedSettings);
-  const kindsKey = profileKinds.sort().join(',');
+  const kindsKey = [...profileKinds].sort().join(',');
 
   return useInfiniteQuery<FeedItem[], Error>({
     queryKey: ['profile-feed', pubkey ?? '', tab, kindsKey],

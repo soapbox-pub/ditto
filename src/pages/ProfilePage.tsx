@@ -693,6 +693,12 @@ export function ProfilePage() {
     return items;
   }, [feedData?.pages, muteItems]);
 
+  // Extract raw events for the media sidebar, excluding reposts (other users' content)
+  const feedEvents = useMemo(
+    () => feedItems.filter((item) => !item.repostedBy).map((item) => item.event),
+    [feedItems],
+  );
+
   // Flatten likes pages and deduplicate
   const likedItems = useMemo(() => {
     if (!likesData?.pages) return [];
@@ -747,7 +753,7 @@ export function ProfilePage() {
   const hasMore = activeTab === 'likes' ? hasNextLikesPage : hasNextFeedPage;
   const isFetchingMore = activeTab === 'likes' ? isFetchingNextLikesPage : isFetchingNextFeedPage;
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar pubkey={pubkey} fields={fields} /> } : {});
+  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar pubkey={pubkey} fields={fields} events={feedEvents} eventsLoading={feedPending} /> } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
