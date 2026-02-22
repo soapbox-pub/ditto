@@ -297,32 +297,7 @@ export function useEventStats(eventId: string | undefined) {
 
       const hasNip85 = nip85Stats.length > 0;
 
-      // If NIP-85 only mode is enabled and we don't have NIP-85 stats, return empty
-      if (nip85OnlyMode && !hasNip85) {
-        return EMPTY_STATS;
-      }
-      
-      const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
-
-      // Fetch only what we need:
-      // - If we have NIP-85: just emojis, quotes, and zap amounts (small query)
-      // - If no NIP-85: full stats (larger query)
-      const events = await nostr.query(
-        hasNip85
-          ? [
-              { kinds: [7, 9735], '#e': [eventId], limit: 10 }, // Just for emojis and zap amounts
-              { kinds: [1], '#q': [eventId], limit: 5 }, // Just for quote content
-            ]
-          : [
-              { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
-              { kinds: [1], '#q': [eventId], limit: 20 },
-            ],
-        { signal: combined },
-      );
-
-      const computed = computeStats(eventId, events);
-
-      // If we have NIP-85 stats, merge with minimal computed data
+      // If we have NIP-85 stats, use them directly — no second query needed.
       if (hasNip85) {
         const event = nip85Stats[0];
         const getTagValue = (tagName: string): number => {
@@ -333,15 +308,31 @@ export function useEventStats(eventId: string | undefined) {
         return {
           replies: getTagValue('comment_cnt'),
           reposts: getTagValue('repost_cnt'),
-          quotes: computed.quotes,
+          quotes: getTagValue('quote_cnt'),
           reactions: getTagValue('reaction_cnt'),
-          zapAmount: computed.zapAmount,
+          zapAmount: getTagValue('zap_amount'),
           zapCount: getTagValue('zap_cnt'),
-          reactionEmojis: computed.reactionEmojis,
+          reactionEmojis: [],
         };
       }
 
-      return computed;
+      // If NIP-85 only mode is enabled and we don't have NIP-85 stats, return empty
+      if (nip85OnlyMode) {
+        return EMPTY_STATS;
+      }
+
+      // No NIP-85 stats available — fall back to fetching interaction events directly
+      const combined = AbortSignal.any([signal, AbortSignal.timeout(5000)]);
+
+      const events = await nostr.query(
+        [
+          { kinds: [1, 6, 7, 9735], '#e': [eventId], limit: 50 },
+          { kinds: [1], '#q': [eventId], limit: 20 },
+        ],
+        { signal: combined },
+      );
+
+      return computeStats(eventId, events);
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
