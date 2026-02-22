@@ -1,34 +1,21 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
-import { Zap, AtSign, MessageCircle, MoreHorizontal } from 'lucide-react';
+import { Zap, AtSign, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
-import { Link, useNavigate } from 'react-router-dom';
-import { nip19 } from 'nostr-tools';
-import type { NostrEvent } from '@nostrify/nostrify';
+import { Link } from 'react-router-dom';
 
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { NoteContent } from '@/components/NoteContent';
-import { ImageGallery } from '@/components/ImageGallery';
-import { ReactionButton } from '@/components/ReactionButton';
-import { RepostMenu } from '@/components/RepostMenu';
-import { NoteMoreMenu } from '@/components/NoteMoreMenu';
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
-import { ZapDialog } from '@/components/ZapDialog';
-import { ReplyContext } from '@/components/ReplyContext';
+import { NoteCard } from '@/components/NoteCard';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useEvent } from '@/hooks/useEvent';
-import { useEventStats } from '@/hooks/useTrending';
-import { useNotifications } from '@/hooks/useNotifications';
+import { useNotifications, type NotificationItem } from '@/hooks/useNotifications';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
 import { getProfileUrl } from '@/lib/profileUrl';
-import { canZap } from '@/lib/canZap';
-import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
-import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 
@@ -42,39 +29,59 @@ export function NotificationsPage() {
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
-  const { notifications, newNotifications, isLoading, hasFetched, markAsRead } = useNotifications();
+  const {
+    items,
+    newNotificationIds,
+    isLoading,
+    hasFetched,
+    markAsRead,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useNotifications();
   const { muteItems } = useMuteList();
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
-    // Only mark as read if there are actually NEW notifications
-    if (!user || newNotifications.length === 0) return;
+    if (!user || newNotificationIds.size === 0) return;
 
-    // Mark as read after a short delay to ensure user actually sees them
     const timer = setTimeout(() => {
       markAsRead();
     }, 1000);
 
     return () => clearTimeout(timer);
-  }, [user, newNotifications.length, markAsRead]);
+  }, [user, newNotificationIds.size, markAsRead]);
 
-  const filteredNotifications = useMemo(() => {
-    let filtered = notifications;
+  // Intersection observer for infinite scroll
+  const { ref: scrollRef, inView } = useInView({
+    threshold: 0,
+    rootMargin: '400px',
+  });
+
+  useEffect(() => {
+    if (inView && hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
+  useEffect(() => {
+    if (hasNextPage && !isFetchingNextPage && items.length > 0 && items.length <= 20) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, items.length, fetchNextPage]);
+
+  const filteredItems = useMemo(() => {
+    let filtered = items;
     // Filter out notifications from muted users/content
     if (muteItems.length > 0) {
-      filtered = filtered.filter((e) => !isEventMuted(e, muteItems));
+      filtered = filtered.filter((item) => !isEventMuted(item.event, muteItems));
     }
     if (activeTab === 'mentions') {
-      filtered = filtered.filter((e) => e.kind === 1);
+      filtered = filtered.filter((item) => item.event.kind === 1);
     }
     return filtered;
-  }, [notifications, activeTab, muteItems]);
-
-  // Create a set of new notification IDs for quick lookup
-  const newNotificationIds = useMemo(
-    () => new Set(newNotifications.map((e) => e.id)),
-    [newNotifications]
-  );
+  }, [items, activeTab, muteItems]);
 
   const tabs: { key: NotificationTab; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -82,83 +89,79 @@ export function NotificationsPage() {
   ];
 
   return (
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-        {/* Tab bar */}
-        <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          {tabs.map(({ key, label }) => (
-            <button
-              key={key}
-              onClick={() => setActiveTab(key)}
-              className={cn(
-                'flex-1 py-3.5 sidebar:py-5 text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
-                activeTab === key ? 'text-foreground' : 'text-muted-foreground',
-              )}
-            >
-              {label}
-              {activeTab === key && (
-                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
-              )}
-            </button>
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      {/* Tab bar */}
+      <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
+        {tabs.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => setActiveTab(key)}
+            className={cn(
+              'flex-1 py-3.5 sidebar:py-5 text-sm font-medium sidebar:font-semibold transition-colors relative hover:bg-secondary/40',
+              activeTab === key ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            {label}
+            {activeTab === key && (
+              <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 sidebar:h-[3px] bg-primary rounded-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      {!user ? (
+        <div className="py-16 text-center text-muted-foreground">
+          Log in to see your notifications.
+        </div>
+      ) : isLoading || !hasFetched ? (
+        <div className="divide-y divide-border">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <NotificationSkeleton key={i} />
           ))}
         </div>
-
-        {/* Content */}
-        {!user ? (
-          <div className="py-16 text-center text-muted-foreground">
-            Log in to see your notifications.
-          </div>
-        ) : isLoading || !hasFetched ? (
-          <div className="divide-y divide-border">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <NotificationSkeleton key={i} />
-            ))}
-          </div>
-        ) : filteredNotifications.length > 0 ? (
-          <div className="divide-y divide-border">
-            {filteredNotifications.map((event) => (
-              <NotificationItem
-                key={event.id}
-                event={event}
-                isNew={newNotificationIds.has(event.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="py-16 text-center text-muted-foreground">
-            No notifications yet.
-          </div>
-        )}
-      </main>
+      ) : filteredItems.length > 0 ? (
+        <div>
+          {filteredItems.map((item) => (
+            <NotificationItemView
+              key={item.event.id}
+              item={item}
+              isNew={newNotificationIds.has(item.event.id)}
+            />
+          ))}
+          {hasNextPage && (
+            <div ref={scrollRef} className="py-4">
+              {isFetchingNextPage && (
+                <div className="flex justify-center">
+                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="py-16 text-center text-muted-foreground">
+          No notifications yet.
+        </div>
+      )}
+    </main>
   );
 }
 
 /** Determines the type of notification and renders accordingly. */
-function NotificationItem({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
-  switch (event.kind) {
+function NotificationItemView({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  switch (item.event.kind) {
     case 7:
-      return <LikeNotification event={event} isNew={isNew} />;
+      return <LikeNotification item={item} isNew={isNew} />;
     case 6:
-      return <RepostNotification event={event} isNew={isNew} />;
+      return <RepostNotification item={item} isNew={isNew} />;
     case 9735:
-      return <ZapNotification event={event} isNew={isNew} />;
+      return <ZapNotification item={item} isNew={isNew} />;
     case 1:
-      return <MentionNotification event={event} isNew={isNew} />;
+      return <MentionNotification item={item} isNew={isNew} />;
     default:
       return null;
   }
-}
-
-/** Gets the referenced event ID from an event's tags. */
-function getReferencedEventId(event: NostrEvent): string | undefined {
-  // Try 'e' tag first
-  const eTag = event.tags.find(([name]) => name === 'e');
-  return eTag?.[1];
-}
-
-/** Extracts image URLs from note content. */
-function extractImages(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -168,67 +171,80 @@ function formatSats(sats: number): string {
   return sats.toString();
 }
 
-// ──────────────────────────────────────
-// Like Notification: "{emoji} {name} reacted to your post"
-// Shows the original post being reacted to
-// ──────────────────────────────────────
-function LikeNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
-  const referencedEventId = getReferencedEventId(event);
-  const { data: referencedEvent } = useEvent(referencedEventId);
-
+/** Wrapper that adds the new-notification indicator. */
+function NotificationWrapper({ isNew, children }: { isNew: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
+    <div className={cn('relative', isNew && 'bg-primary/5')}>
       {isNew && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
+        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary z-10" />
       )}
-      <NotificationHeader
-        actorPubkey={event.pubkey}
-        icon={
-          <span className="text-base leading-none size-4 flex items-center justify-center">
-            <ReactionEmoji content={event.content.trim()} tags={event.tags} className="inline-block h-4 w-4" />
-          </span>
-        }
-        action="reacted to your post"
-      />
-      {referencedEvent && (
-        <ReferencedPostCard event={referencedEvent} />
-      )}
+      {children}
     </div>
   );
 }
 
-// ──────────────────────────────────────
-// Repost Notification: "🔁 {name} reposted your note"
-// Shows the original post being reposted
-// ──────────────────────────────────────
-function RepostNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
-  const referencedEventId = getReferencedEventId(event);
-  const { data: referencedEvent } = useEvent(referencedEventId);
+/**
+ * Renders the referenced event as a NoteCard.
+ * Uses the pre-fetched event from the notification item, falling back to useEvent.
+ */
+function ReferencedNoteCard({ item }: { item: NotificationItem }) {
+  const referencedEventId = item.event.tags.find(([name]) => name === 'e')?.[1];
+  // Fall back to useEvent if the batch fetch didn't find it
+  const { data: fetchedEvent } = useEvent(
+    item.referencedEvent ? undefined : referencedEventId,
+  );
+  const event = item.referencedEvent ?? fetchedEvent;
 
+  if (!event) return null;
+
+  return <NoteCard event={event} className="border-0" />;
+}
+
+// ──────────────────────────────────────
+// Like Notification
+// ──────────────────────────────────────
+function LikeNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   return (
-    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
-      {isNew && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-      )}
-      <NotificationHeader
-        actorPubkey={event.pubkey}
-        icon={<RepostIcon className="size-4 text-green-500" />}
-        action="reposted your note"
-      />
-      {referencedEvent && (
-        <ReferencedPostCard event={referencedEvent} />
-      )}
-    </div>
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={
+            <span className="text-base leading-none size-4 flex items-center justify-center">
+              <ReactionEmoji content={item.event.content.trim()} tags={item.event.tags} className="inline-block h-4 w-4" />
+            </span>
+          }
+          action="reacted to your post"
+        />
+      </div>
+      <ReferencedNoteCard item={item} />
+    </NotificationWrapper>
   );
 }
 
 // ──────────────────────────────────────
-// Zap Notification: "⚡ {name} zapped you"
-// Shows the original post being zapped
+// Repost Notification
 // ──────────────────────────────────────
-function ZapNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
-  const referencedEventId = getReferencedEventId(event);
-  const { data: referencedEvent } = useEvent(referencedEventId);
+function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  return (
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<RepostIcon className="size-4 text-green-500" />}
+          action="reposted your note"
+        />
+      </div>
+      <ReferencedNoteCard item={item} />
+    </NotificationWrapper>
+  );
+}
+
+// ──────────────────────────────────────
+// Zap Notification
+// ──────────────────────────────────────
+function ZapNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
+  const { event } = item;
 
   // Extract zap amount
   const zapAmount = useMemo(() => {
@@ -268,39 +284,34 @@ function ZapNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }
   const amountLabel = zapAmount > 0 ? ` ${formatSats(zapAmount)} sats` : '';
 
   return (
-    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
-      {isNew && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-      )}
-      <NotificationHeader
-        actorPubkey={senderPubkey}
-        icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
-        action={`zapped you${amountLabel}`}
-      />
-      {referencedEvent && (
-        <ReferencedPostCard event={referencedEvent} />
-      )}
-    </div>
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={senderPubkey}
+          icon={<Zap className="size-4 text-amber-500 fill-amber-500" />}
+          action={`zapped you${amountLabel}`}
+        />
+      </div>
+      <ReferencedNoteCard item={item} />
+    </NotificationWrapper>
   );
 }
 
 // ──────────────────────────────────────
-// Mention Notification: "@ {name} mentioned you"
-// Shows the full mention post with action buttons
+// Mention Notification
 // ──────────────────────────────────────
-function MentionNotification({ event, isNew }: { event: NostrEvent; isNew: boolean }) {
+function MentionNotification({ item, isNew }: { item: NotificationItem; isNew: boolean }) {
   return (
-    <div className={cn('px-4 pt-3 pb-1 relative', isNew && 'bg-primary/5')}>
-      {isNew && (
-        <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary" />
-      )}
-      <NotificationHeader
-        actorPubkey={event.pubkey}
-        icon={<AtSign className="size-4 text-primary" />}
-        action="mentioned you"
-      />
-      <FullNoteCard event={event} />
-    </div>
+    <NotificationWrapper isNew={isNew}>
+      <div className="px-4 pt-3">
+        <NotificationHeader
+          actorPubkey={item.event.pubkey}
+          icon={<AtSign className="size-4 text-primary" />}
+          action="mentioned you"
+        />
+      </div>
+      <NoteCard event={item.event} className="border-0" />
+    </NotificationWrapper>
   );
 }
 
@@ -342,320 +353,6 @@ function NotificationHeader({
         </Link>
       </ProfileHoverCard>
       <span className="text-muted-foreground shrink-0">{action}</span>
-    </div>
-  );
-}
-
-// ──────────────────────────────────────
-// Referenced Post Card: the original post that was liked/reposted/zapped
-// Rendered as a full post view similar to NoteCard
-// ──────────────────────────────────────
-function ReferencedPostCard({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const nip05 = metadata?.nip05;
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
-  const encodedId = useMemo(
-    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
-    [event.id, event.pubkey],
-  );
-  const images = useMemo(() => extractImages(event.content), [event.content]);
-  const { data: stats } = useEventStats(event.id);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [replyOpen, setReplyOpen] = useState(false);
-
-  // Check if this is a reply and find all people being replied to
-  const isReply = event.tags.some(([name]) => name === 'e');
-  const replyToPubkeys = useMemo(() => {
-    if (!isReply) return [];
-    
-    // Get all p tags that aren't marked as mentions
-    const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
-    
-    if (pTags.length > 0) {
-      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
-    }
-    
-    // Fallback: if all p tags are mentions, use all p tags anyway
-    const allPTags = event.tags.filter(([name]) => name === 'p');
-    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
-  }, [event.tags, isReply]);
-
-  const handleNavigate = useCallback(() => {
-    navigate(`/${encodedId}`);
-  }, [navigate, encodedId]);
-
-  return (
-    <div
-      className="cursor-pointer"
-      onClick={handleNavigate}
-    >
-      {/* Author row */}
-      <div className="flex items-center gap-3">
-        {author.isLoading ? (
-          <>
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="min-w-0 space-y-1.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-36" />
-            </div>
-          </>
-        ) : (
-          <>
-            <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Avatar className="size-11">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            </ProfileHoverCard>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="font-bold text-[15px] hover:underline truncate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {author.data?.event ? (
-                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                    ) : displayName}
-                  </Link>
-                </ProfileHoverCard>
-                {metadata?.bot && (
-                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                {nip05 && <Nip05Badge nip05={nip05} />}
-                {nip05 && <span className="shrink-0">·</span>}
-                <span className="shrink-0">{timeAgo(event.created_at)}</span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Reply context */}
-      {isReply && replyToPubkeys.length > 0 && (
-        <ReplyContext pubkeys={replyToPubkeys} />
-      )}
-
-      {/* Content */}
-      <div className="mt-2">
-        <NoteContent event={event} className="text-[15px] leading-relaxed" />
-      </div>
-
-      {/* Images */}
-      {images.length > 0 && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ImageGallery images={images} />
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <ActionButtons event={event} stats={stats} onReply={() => setReplyOpen(true)} onMore={() => setMoreMenuOpen(true)} />
-
-      <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-      <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-    </div>
-  );
-}
-
-// ──────────────────────────────────────
-// Full Note Card: for mention notifications
-// Renders the full post with avatar, content, and action buttons
-// ──────────────────────────────────────
-function FullNoteCard({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-  const displayName = metadata?.name || genUserName(event.pubkey);
-  const nip05 = metadata?.nip05;
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
-  const encodedId = useMemo(
-    () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
-    [event.id, event.pubkey],
-  );
-  const images = useMemo(() => extractImages(event.content), [event.content]);
-  const { data: stats } = useEventStats(event.id);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
-  const [replyOpen, setReplyOpen] = useState(false);
-
-  // Check if this is a reply and find all people being replied to
-  const isReply = event.tags.some(([name]) => name === 'e');
-  const replyToPubkeys = useMemo(() => {
-    if (!isReply) return [];
-    
-    // Get all p tags that aren't marked as mentions
-    const pTags = event.tags.filter(([name, , , marker]) => name === 'p' && marker !== 'mention');
-    
-    if (pTags.length > 0) {
-      return [...new Set(pTags.map(([, pubkey]) => pubkey))];
-    }
-    
-    // Fallback: if all p tags are mentions, use all p tags anyway
-    const allPTags = event.tags.filter(([name]) => name === 'p');
-    return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
-  }, [event.tags, isReply]);
-
-  const handleNavigate = useCallback(() => {
-    navigate(`/${encodedId}`);
-  }, [navigate, encodedId]);
-
-  return (
-    <div
-      className="cursor-pointer"
-      onClick={handleNavigate}
-    >
-      {/* Author row */}
-      <div className="flex items-center gap-3">
-        {author.isLoading ? (
-          <>
-            <Skeleton className="size-11 rounded-full shrink-0" />
-            <div className="min-w-0 space-y-1.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-3 w-36" />
-            </div>
-          </>
-        ) : (
-          <>
-            <ProfileHoverCard pubkey={event.pubkey} asChild>
-              <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-                <Avatar className="size-11">
-                  <AvatarImage src={metadata?.picture} alt={displayName} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {displayName[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-              </Link>
-            </ProfileHoverCard>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <ProfileHoverCard pubkey={event.pubkey} asChild>
-                  <Link
-                    to={profileUrl}
-                    className="font-bold text-[15px] hover:underline truncate"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {author.data?.event ? (
-                      <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-                    ) : displayName}
-                  </Link>
-                </ProfileHoverCard>
-                {metadata?.bot && (
-                  <span className="text-xs text-primary shrink-0" title="Bot account">🤖</span>
-                )}
-              </div>
-              <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                {nip05 && <Nip05Badge nip05={nip05} />}
-                {nip05 && <span className="shrink-0">·</span>}
-                <span className="shrink-0">{timeAgo(event.created_at)}</span>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Reply context */}
-      {isReply && replyToPubkeys.length > 0 && (
-        <ReplyContext pubkeys={replyToPubkeys} />
-      )}
-
-      {/* Content */}
-      <div className="mt-2">
-        <NoteContent event={event} className="text-[15px] leading-relaxed" />
-      </div>
-
-      {/* Images */}
-      {images.length > 0 && (
-        <div onClick={(e) => e.stopPropagation()}>
-          <ImageGallery images={images} />
-        </div>
-      )}
-
-      {/* Action buttons */}
-      <ActionButtons event={event} stats={stats} onReply={() => setReplyOpen(true)} onMore={() => setMoreMenuOpen(true)} />
-
-      <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-      <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-    </div>
-  );
-}
-
-// ──────────────────────────────────────
-// Action Buttons Row: reply, repost, react, zap, more
-// ──────────────────────────────────────
-function ActionButtons({
-  event,
-  stats,
-  onReply,
-  onMore,
-}: {
-  event: NostrEvent;
-  stats?: { replies?: number; reposts?: number; reactions?: number; zapAmount?: number } | null;
-  onReply: () => void;
-  onMore: () => void;
-}) {
-  const { user } = useCurrentUser();
-  const author = useAuthor(event.pubkey);
-  const metadata = author.data?.metadata;
-
-  // Check if the current user can zap this event's author
-  const canZapAuthor = user && canZap(metadata);
-
-  return (
-    <div className="flex items-center gap-5 mt-3 -ml-2 mb-1">
-      <button
-        className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-        title="Reply"
-        onClick={(e) => { e.stopPropagation(); onReply(); }}
-      >
-        <MessageCircle className="size-5" />
-        {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
-      </button>
-
-      <RepostMenu event={event}>
-        <button
-          className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-          title="Repost"
-        >
-          <RepostIcon className="size-5" />
-          {stats?.reposts ? <span className="text-sm tabular-nums">{stats.reposts}</span> : null}
-        </button>
-      </RepostMenu>
-
-      <ReactionButton
-        eventId={event.id}
-        eventPubkey={event.pubkey}
-        eventKind={event.kind}
-        reactionCount={stats?.reactions}
-      />
-
-      {canZapAuthor && (
-        <ZapDialog target={event}>
-          <button
-            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-            title="Zap"
-          >
-            <Zap className="size-5" />
-            {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-          </button>
-        </ZapDialog>
-      )}
-
-      <button
-        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-        title="More"
-        onClick={(e) => { e.stopPropagation(); onMore(); }}
-      >
-        <MoreHorizontal className="size-5" />
-      </button>
     </div>
   );
 }

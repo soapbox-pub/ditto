@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useQueryClient } from '@tanstack/react-query';
 import { ComposeBox } from '@/components/ComposeBox';
@@ -13,15 +13,28 @@ import { useFeed } from '@/hooks/useFeed';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
-
 import { cn } from '@/lib/utils';
-import type { FeedItem } from '@/hooks/useFeed';
+import type { FeedItem } from '@/lib/feedUtils';
 
-export function Feed() {
+type FeedTab = 'follows' | 'global' | 'communities';
+
+interface FeedProps {
+  /** Override the kinds list instead of using feed settings. */
+  kinds?: number[];
+  /** Header element rendered above the tabs (e.g. back-arrow + title). */
+  header?: React.ReactNode;
+  /** Hide the compose box (used on kind-specific pages). */
+  hideCompose?: boolean;
+  /** Message shown when the feed is empty. */
+  emptyMessage?: string;
+}
+
+export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
-  
-  // Load feed tab settings from localStorage
+  const queryClient = useQueryClient();
+
+  // Tab settings from localStorage
   const showGlobalFeed = (() => {
     const stored = localStorage.getItem('mew:showGlobalFeed');
     return stored !== null ? stored === 'true' : true;
@@ -45,7 +58,7 @@ export function Feed() {
     return 'Community';
   })();
 
-  const [activeTab, setActiveTab] = useState<'follows' | 'global' | 'communities'>(user ? 'follows' : 'global');
+  const [activeTab, setActiveTab] = useState<FeedTab>(user ? 'follows' : 'global');
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
@@ -56,7 +69,12 @@ export function Feed() {
     }
   }, [user]);
 
-  const queryClient = useQueryClient();
+  const feedQuery = useFeed(activeTab, kinds ? { kinds } : undefined);
+  const queryKey = useMemo(() => ['feed', activeTab], [activeTab]);
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey });
+  }, [queryClient, queryKey]);
 
   const {
     data,
@@ -65,14 +83,9 @@ export function Feed() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useFeed(activeTab);
+  } = feedQuery;
 
-  const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ['feed', activeTab] });
-  }, [queryClient, activeTab]);
-
-  // Auto-fetch page 2 as soon as page 1 data arrives for smoother scrolling
-  // when the user starts reading.
+  // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
   useEffect(() => {
     if (hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
       fetchNextPage();
@@ -82,7 +95,7 @@ export function Feed() {
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
     threshold: 0,
-    rootMargin: '400px', // Trigger 400px before the element comes into view
+    rootMargin: '400px',
   });
 
   useEffect(() => {
@@ -91,73 +104,51 @@ export function Feed() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten all items, deduplicate, and filter out muted content
+  // Flatten, deduplicate, and filter muted content
   const feedItems = useMemo(() => {
     const seen = new Set<string>();
     return data?.pages.flatMap(page => page.items).filter(item => {
       const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
       if (!key || seen.has(key)) return false;
       seen.add(key);
-      // Filter out muted events
       if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
       return true;
     }) || [];
   }, [data?.pages, muteItems]);
 
-  // Show skeleton only on initial load (author profiles are pre-cached
-  // by useFeed, so no separate gate needed).
   const showSkeleton = isPending || (isLoading && !data);
-
-  const handleLogin = () => {
-    setLoginDialogOpen(false);
-  };
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
-      {/* Compose area */}
-      <ComposeBox compact />
+      {!hideCompose && <ComposeBox compact />}
 
-      {/* Tabs (logged in) or CTA (logged out) */}
+      {header}
+
+      {/* Tabs (logged in) or CTA (logged out, main feed only) */}
       {user ? (
         <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
-          <TabButton
-            label="Follows"
-            active={activeTab === 'follows'}
-            onClick={() => setActiveTab('follows')}
-          />
+          <TabButton label="Follows" active={activeTab === 'follows'} onClick={() => setActiveTab('follows')} />
           {showCommunityFeed && (
-            <TabButton
-              label={communityLabel}
-              active={activeTab === 'communities'}
-              onClick={() => setActiveTab('communities')}
-            />
+            <TabButton label={communityLabel} active={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
           )}
           {showGlobalFeed && (
-            <TabButton
-              label="Global"
-              active={activeTab === 'global'}
-              onClick={() => setActiveTab('global')}
-            />
+            <TabButton label="Global" active={activeTab === 'global'} onClick={() => setActiveTab('global')} />
           )}
         </div>
-      ) : (
+      ) : !kinds && (
         <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
               Follow accounts you care about on Mew
             </p>
-            <Button
-              onClick={() => setLoginDialogOpen(true)}
-              className="rounded-full"
-              size="sm"
-            >
+            <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
               Join
             </Button>
           </div>
         </div>
       )}
 
-      {/* Pull-to-refresh + feed content */}
+      {/* Feed content */}
       <PullToRefresh onRefresh={handleRefresh}>
         {showSkeleton ? (
           <div className="divide-y divide-border">
@@ -174,7 +165,6 @@ export function Feed() {
                 repostedBy={item.repostedBy}
               />
             ))}
-            {/* Infinite scroll trigger */}
             {hasNextPage && (
               <div ref={scrollRef} className="py-4">
                 {isFetchingNextPage && (
@@ -188,19 +178,21 @@ export function Feed() {
         ) : (
           <div className="py-16 px-8 text-center">
             <p className="text-muted-foreground text-lg">
-              No posts yet. Follow some people or switch to the Global tab to discover content.
+              {emptyMessage ?? 'No posts yet. Follow some people or switch to the Global tab to discover content.'}
             </p>
           </div>
         )}
       </PullToRefresh>
 
-      {/* Login/Signup dialogs */}
-      <LoginDialog
-        isOpen={loginDialogOpen}
-        onClose={() => setLoginDialogOpen(false)}
-        onLogin={handleLogin}
-        onSignupClick={startSignup}
-      />
+      {/* Login/Signup dialogs (only needed on main feed) */}
+      {!kinds && (
+        <LoginDialog
+          isOpen={loginDialogOpen}
+          onClose={() => setLoginDialogOpen(false)}
+          onLogin={() => setLoginDialogOpen(false)}
+          onSignupClick={startSignup}
+        />
+      )}
     </main>
   );
 }
@@ -245,4 +237,3 @@ function NoteCardSkeleton() {
     </div>
   );
 }
-
