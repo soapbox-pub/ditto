@@ -1,7 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
-import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { filterOutOfSyncEvents, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -88,30 +87,12 @@ export function useProfileFeed(pubkey: string | undefined) {
         feedFilter.until = pageParam;
       }
 
-      // On the first page, piggyback kind 0 so the profile header can render
-      // from the same relay round-trip. Kind 0 is small and fast.
-      const filters: Record<string, unknown>[] = [feedFilter];
-      const isFirstPage = !pageParam;
-      if (isFirstPage) {
-        filters.push({ kinds: [0], authors: [pubkey], limit: 1 });
-      }
-
       const allEvents = await nostr.query(
-        filters as { kinds: number[]; authors: string[]; limit: number; until?: number }[],
+        [feedFilter] as { kinds: number[]; authors: string[]; limit: number; until?: number }[],
         { signal: querySignal },
       );
 
-      // Seed the author cache from kind 0 so the profile header renders instantly
-      if (isFirstPage) {
-        const kind0 = allEvents.find((e) => e.kind === 0);
-        if (kind0) {
-          queryClient.setQueryData(['author', pubkey], parseAuthorEvent(kind0));
-        }
-      }
-
-      const rawFeedEvents = isFirstPage
-        ? allEvents.filter((e) => e.kind !== 0)
-        : allEvents;
+      const rawFeedEvents = allEvents;
 
       // Filter out events from out-of-sync relays before processing
       const events = filterOutOfSyncEvents(rawFeedEvents);
