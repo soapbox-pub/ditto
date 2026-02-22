@@ -9,6 +9,9 @@ import { type ResolvedEmoji, resolveReactionEmoji } from '@/components/CustomEmo
  * Checks the optimistic cache first (set by QuickReactMenu on react),
  * then falls back to querying the relay for the user's kind 7 events.
  * 
+ * Reactions are batched automatically: 20 NoteCards mounting in the same
+ * frame produce a single REQ with all 20 event IDs instead of 20 separate REQs.
+ * 
  * Returns undefined while loading, null if no reaction, or a ResolvedEmoji.
  */
 export function useUserReaction(eventId: string | undefined): ResolvedEmoji | null | undefined {
@@ -31,7 +34,7 @@ export function useUserReaction(eventId: string | undefined): ResolvedEmoji | nu
           '#e': [eventId],
           limit: 1,
         }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
+        { signal },
       );
 
       if (events.length === 0) return null;

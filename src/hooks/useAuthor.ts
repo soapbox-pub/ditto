@@ -17,15 +17,13 @@ export function useAuthor(pubkey: string | undefined) {
 
   return useQuery<{ event?: NostrEvent; metadata?: NostrMetadata }>({
     queryKey: ['author', pubkey ?? ''],
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
       if (!pubkey) {
         return {};
       }
 
-      const signal = AbortSignal.timeout(1000);
-
       const [event] = await nostr.query(
-        [{ kinds: [0], authors: [pubkey!], limit: 1 }],
+        [{ kinds: [0], authors: [pubkey], limit: 1 }],
         { signal },
       );
 

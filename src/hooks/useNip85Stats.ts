@@ -17,6 +17,10 @@ export interface Nip85UserStats {
 /**
  * Fetches NIP-85 event stats (kind 30383) from the configured stats pubkey.
  * Returns undefined if no stats are available.
+ *
+ * Stats lookups are batched automatically: 20 NoteCards mounting in the same
+ * frame produce a single REQ with `#d: [id1, ..., id20]` instead of 20
+ * separate REQs, thanks to the NostrBatcher proxy.
  */
 export function useNip85EventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
@@ -28,20 +32,10 @@ export function useNip85EventStats(eventId: string | undefined) {
     queryFn: async ({ signal }) => {
       if (!eventId || !statsPubkey) return undefined;
 
-      const timeout = AbortSignal.timeout(2000);
-      const combined = AbortSignal.any([signal, timeout]);
-
       try {
         const events = await nostr.query(
-          [
-            {
-              kinds: [30383],
-              authors: [statsPubkey],
-              '#d': [eventId],
-              limit: 1,
-            },
-          ],
-          { signal: combined },
+          [{ kinds: [30383], authors: [statsPubkey], '#d': [eventId], limit: 1 }],
+          { signal },
         );
 
         if (events.length === 0) return undefined;
@@ -63,8 +57,8 @@ export function useNip85EventStats(eventId: string | undefined) {
       }
     },
     enabled: !!eventId && !!statsPubkey,
-    staleTime: 30 * 1000, // 30 seconds
-    retry: false, // Don't retry on failure, fall back to manual calculation
+    staleTime: 30 * 1000,
+    retry: false,
   });
 }
 
