@@ -20,8 +20,13 @@ interface FeedPage {
   oldestQueryTimestamp: number;
 }
 
+interface UseFeedOptions {
+  /** Override the kinds list instead of using feed settings. Used by kind-specific pages. */
+  kinds?: number[];
+}
+
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
-export function useFeed(tab: 'follows' | 'global' | 'communities') {
+export function useFeed(tab: 'follows' | 'global' | 'communities', options?: UseFeedOptions) {
   const { nostr } = useNostr();
   const queryClient = useQueryClient();
   const { user } = useCurrentUser();
@@ -29,8 +34,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities') {
   const followList = followData?.pubkeys;
   const { feedSettings } = useFeedSettings();
 
-  // Build the full kinds list from user settings (posts, reposts, articles, + extras).
-  const allKinds = getEnabledFeedKinds(feedSettings);
+  // Build the full kinds list from user settings, or use the override.
+  const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
 
   // Stable key so queries re-run when settings change.
   const kindsKey = [...allKinds].sort().join(',');
