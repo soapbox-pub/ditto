@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { nip19 } from 'nostr-tools';
 import { UserRoundCheck } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -136,12 +137,14 @@ export function MentionAutocomplete({
     setIsOpen(true);
     setSelectedIndex(0);
 
-    // Position the dropdown below the @ character
+    // Position the dropdown below the @ character in viewport coordinates
+    // so it can be portaled to document.body and escape overflow-hidden parents (e.g. modals)
     const coords = getCaretCoordinates(textarea, atPos);
     const lineHeight = parseFloat(window.getComputedStyle(textarea).lineHeight) || 20;
+    const textareaRect = textarea.getBoundingClientRect();
     setDropdownPos({
-      top: coords.top + lineHeight + 4,
-      left: Math.max(0, Math.min(coords.left, textarea.offsetWidth - 280)),
+      top: textareaRect.top + coords.top + lineHeight + 4,
+      left: Math.max(8, Math.min(textareaRect.left + coords.left, window.innerWidth - 288)),
     });
   }, [textareaRef]);
 
@@ -237,10 +240,10 @@ export function MentionAutocomplete({
     return null;
   }
 
-  return (
+  return createPortal(
     <div
       ref={dropdownRef}
-      className="absolute z-50 w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
+      className="fixed z-[100] w-[280px] rounded-xl border border-border bg-popover shadow-lg overflow-hidden animate-in fade-in-0 zoom-in-95 slide-in-from-top-2 duration-150"
       style={{ top: dropdownPos.top, left: dropdownPos.left }}
     >
       <div ref={listRef} className="max-h-[240px] overflow-y-auto py-1">
@@ -254,7 +257,8 @@ export function MentionAutocomplete({
           />
         ))}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
