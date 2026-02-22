@@ -310,12 +310,19 @@ export function ComposeBox({
 
   const handleFileUpload = useCallback(async (file: File) => {
     try {
-      const tags = await uploadFile(file);
+      // .xdc files are ZIP archives; browsers don't know their MIME type so file.type is ''.
+      // Blossom servers may reject uploads with an empty Content-Type, so we re-wrap the file
+      // with the correct MIME type before uploading.
+      const isXdc = file.name.endsWith('.xdc');
+      const uploadableFile = isXdc && !file.type
+        ? new File([file], file.name, { type: 'application/x-webxdc' })
+        : file;
+
+      const tags = await uploadFile(uploadableFile);
       let [[, url]] = tags;
 
       // Blossom returns hash-based URLs that may lack the original file extension.
       // Append the extension so downstream media-URL detection and imeta generation work.
-      const isXdc = file.name.endsWith('.xdc');
       if (isXdc && !url.endsWith('.xdc')) {
         url = url + '.xdc';
         // Update the url tag in the NIP-94 tags to match
@@ -475,7 +482,7 @@ export function ComposeBox({
           if (isWebxdc) {
             // Override MIME type for .xdc files and add webxdc UUID + metadata
             const filtered = imetaFields.filter(f => !f.startsWith('m '));
-            filtered.push('m application/vnd.webxdc+zip');
+            filtered.push('m application/x-webxdc');
             const uuid = webxdcUuids.get(url);
             if (uuid) filtered.push(`webxdc ${uuid}`);
             const meta = webxdcMetas.get(url);
@@ -487,7 +494,7 @@ export function ComposeBox({
           }
         } else {
           // Fallback: basic imeta tag with URL and inferred mime type
-          const mimeType = isWebxdc ? 'application/vnd.webxdc+zip'
+          const mimeType = isWebxdc ? 'application/x-webxdc'
             : ext === 'jpg' || ext === 'jpeg' ? 'image/jpeg'
             : ext === 'png' ? 'image/png'
             : ext === 'gif' ? 'image/gif'
