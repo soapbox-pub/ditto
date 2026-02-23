@@ -28,14 +28,8 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [iframeKey, setIframeKey] = useState(0);
   const [showGamepad, setShowGamepad] = useState(false);
-  const [webxdcHandle, setWebxdcHandle] = useState<WebxdcHandle | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-
-  // Callback ref: when the Webxdc component mounts, store the handle in state
-  // so GameControls re-renders with a non-null handle.
-  const webxdcHandleCallback = useCallback((handle: WebxdcHandle | null) => {
-    setWebxdcHandle(handle);
-  }, []);
+  const webxdcHandleRef = useRef<WebxdcHandle>(null);
 
   // Derive a stable iframe ID from the UUID or URL
   const iframeId = uuid ?? url.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
@@ -56,10 +50,10 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
 
   const toggleGamepad = useCallback(() => {
     setShowGamepad((prev) => {
-      if (!prev) webxdcHandle?.focus();
+      if (!prev) webxdcHandleRef.current?.focus();
       return !prev;
     });
-  }, [webxdcHandle]);
+  }, []);
 
   if (!launched) {
     return (
@@ -208,7 +202,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
       <div className={cn(isFullscreen ? 'flex-1 relative' : 'relative')}>
         <WebxdcIframe
           key={iframeKey}
-          ref={webxdcHandleCallback}
+          ref={webxdcHandleRef}
           id={iframeId}
           url={url}
           uuid={uuid}
@@ -222,7 +216,7 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
           'border-t border-border bg-background/80 backdrop-blur-sm',
           isFullscreen ? '' : 'rounded-b-2xl',
         )}>
-          <GameControls webxdcHandle={webxdcHandle} />
+          <GameControls webxdcHandle={webxdcHandleRef.current} />
         </div>
       )}
     </div>
@@ -247,6 +241,7 @@ const WebxdcIframe = forwardRef<WebxdcHandle, {
       id={id}
       xdc={url}
       webxdc={webxdc}
+      allow="autoplay; fullscreen; gamepad"
       className="w-full border-0"
       style={{ height: isFullscreen ? '100%' : '400px' }}
     />
