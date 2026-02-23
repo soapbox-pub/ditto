@@ -60,40 +60,36 @@ fi
 VERSION_CODE=$(date +%Y%m%d)
 VERSION_NAME=$(date +%Y.%m.%d)
 
-echo -e "${BLUE}Step 1/8:${NC} Syncing version to build.gradle..."
+echo -e "${BLUE}Step 1/7:${NC} Syncing version to build.gradle..."
 echo -e "  versionCode: ${GREEN}${VERSION_CODE}${NC}"
 echo -e "  versionName: ${GREEN}${VERSION_NAME}${NC}"
 sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
 sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" android/app/build.gradle
 
-echo -e "\n${BLUE}Step 2/8:${NC} Building web assets..."
+echo -e "\n${BLUE}Step 2/7:${NC} Building web assets..."
 npm run build
 
-echo -e "\n${BLUE}Step 3/8:${NC} Generating Android icons..."
+echo -e "\n${BLUE}Step 3/7:${NC} Generating Android icons..."
 bash scripts/generate-icons.sh
 
-echo -e "\n${BLUE}Step 4/8:${NC} Syncing to Capacitor..."
+echo -e "\n${BLUE}Step 4/7:${NC} Syncing to Capacitor..."
 npx cap sync android
 
-echo -e "\n${BLUE}Step 5/8:${NC} Building signed release APK..."
+echo -e "\n${BLUE}Step 5/7:${NC} Building signed release APK..."
 cd android && ./gradlew assembleRelease && cd ..
 
-echo -e "\n${BLUE}Step 6/8:${NC} Copying APK to downloads..."
-mkdir -p downloads
-cp android/app/build/outputs/apk/release/app-release.apk downloads/ditto.apk
+APK_PATH="android/app/build/outputs/apk/release/app-release.apk"
+APK_SIZE=$(ls -lh "$APK_PATH" | awk '{print $5}')
 
-APK_SIZE=$(ls -lh downloads/ditto.apk | awk '{print $5}')
-APK_PATH=$(realpath downloads/ditto.apk)
-
-echo -e "\n${BLUE}Step 7/8:${NC} Committing build..."
-git add -f downloads/ditto.apk android/app/build.gradle
-git commit -m "Build ${DATE_TAG}: Update ditto.apk (${APK_SIZE})"
+echo -e "\n${BLUE}Step 6/7:${NC} Committing build..."
+git add android/app/build.gradle
+git commit -m "Build ${DATE_TAG}: ditto.apk (${APK_SIZE})"
 
 # Determine the final tag with the commit hash
 SHORT_HASH=$(git rev-parse --short HEAD)
 NEW_TAG="${DATE_TAG}+${SHORT_HASH}"
 
-echo -e "\n${BLUE}Step 8/8:${NC} Tagging and pushing..."
+echo -e "\n${BLUE}Step 7/7:${NC} Tagging and pushing..."
 git tag -a "${NEW_TAG}" -m "Build ${NEW_TAG}"
 git push origin main
 git push origin "${NEW_TAG}"
