@@ -78,9 +78,15 @@ export function useLayoutOptions(options: LayoutOptions): void {
   }
 
   // Clean up on unmount — reset to defaults so the next page starts fresh.
+  // Only reset if the store still holds this component's options.
+  // During page transitions the new page's render-phase setOptions runs
+  // before the old page's cleanup effect, so blindly resetting would
+  // clobber the incoming page's options (causing the FAB to disappear).
   useEffect(() => {
     return () => {
-      store.reset();
+      if (store.getSnapshot() === prev.current) {
+        store.reset();
+      }
     };
   }, [store]);
 }
