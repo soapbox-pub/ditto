@@ -4,11 +4,6 @@ import { NostrContext } from '@nostrify/react';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getEffectiveRelays, DITTO_RELAY } from '@/lib/appRelays';
 import { NostrBatcher } from '@/lib/NostrBatcher';
-import { initNostrWasm } from 'nostr-wasm/gzipped';
-
-// Initialize nostr-wasm
-// https://github.com/nickkuk/nostr-wasm
-const nw = await initNostrWasm();
 
 interface NostrProviderProps {
   children: React.ReactNode;
@@ -40,16 +35,7 @@ const NostrProvider: React.FC<NostrProviderProps> = (props) => {
   if (!pool.current) {
     pool.current = new NPool({
       open(url: string) {
-        return new NRelay1(url, {
-          verifyEvent(event) {
-            try {
-              nw.verifyEvent(event);
-              return true;
-            } catch {
-              return false;
-            }
-          },
-        });
+        return new NRelay1(url);
       },
       reqRouter(filters: NostrFilter[]) {
         const routes = new Map<string, NostrFilter[]>();
