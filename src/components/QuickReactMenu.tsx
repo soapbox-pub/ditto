@@ -19,6 +19,8 @@ interface QuickReactMenuProps {
   eventKind: number;
   /** Called after an emoji is selected so the parent can close the popover. */
   onClose?: () => void;
+  /** Called when the full picker is opened/closed so the parent can lock the popover open. */
+  onExpandChange?: (expanded: boolean) => void;
   /** Optional extra class names. */
   className?: string;
 }
@@ -28,6 +30,7 @@ export function QuickReactMenu({
   eventPubkey,
   eventKind,
   onClose,
+  onExpandChange,
   className,
 }: QuickReactMenuProps) {
   const { user } = useCurrentUser();
@@ -112,7 +115,7 @@ export function QuickReactMenu({
   if (showFullPicker) {
     return (
       <div
-        className={cn('bg-popover border border-border rounded-xl shadow-xl', className)}
+        className={cn('rounded-xl shadow-xl overflow-hidden', className)}
         onClick={(e) => e.stopPropagation()}
       >
         <EmojiPicker onSelect={handleEmojiSelect} />
@@ -145,7 +148,10 @@ export function QuickReactMenu({
 
       {/* More button to show full picker */}
       <button
-        onClick={() => setShowFullPicker(true)}
+        onClick={() => {
+          setShowFullPicker(true);
+          onExpandChange?.(true);
+        }}
         className="flex items-center justify-center size-9 rounded-full text-muted-foreground transition-all hover:bg-accent hover:text-foreground hover:scale-110 active:scale-95"
         title="More reactions"
       >
