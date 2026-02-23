@@ -1,5 +1,6 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
@@ -18,10 +19,11 @@ interface ProfileHoverCardProps {
 }
 
 /**
- * Wraps any element with a hover card that shows a profile preview.
- * Shows avatar, display name, NIP-05, and bio on hover.
+ * Inner content component — mounts only when the hover card is open.
+ * Triggers a background refetch of the author's profile on mount.
  */
-export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCardProps) {
+function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
+  const queryClient = useQueryClient();
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(pubkey);
@@ -30,6 +32,83 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
   const nip05Display = nip05 ? formatNip05Display(nip05) : undefined;
   const nip05Domain = getNip05Domain(nip05);
 
+  useEffect(() => {
+    queryClient.refetchQueries({ queryKey: ['author', pubkey] });
+  }, [pubkey, queryClient]);
+
+  return (
+    <>
+      {/* Mini banner */}
+      <div className="h-16 bg-secondary relative">
+        {metadata?.banner && (
+          <img
+            src={metadata.banner}
+            alt=""
+            className="w-full h-full object-cover"
+            loading="lazy"
+          />
+        )}
+      </div>
+
+      {/* Profile info */}
+      <div className="px-4 pb-4">
+        {/* Avatar overlapping the banner */}
+        <div className="-mt-8 mb-2">
+          <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
+            <Avatar className="size-16 border-3 border-background">
+              <AvatarImage src={metadata?.picture} alt={displayName} />
+              <AvatarFallback className="bg-primary/20 text-primary text-lg">
+                {displayName[0]?.toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </Link>
+        </div>
+
+        {/* Name + NIP-05 */}
+        <Link
+          to={profileUrl}
+          className="font-bold text-[15px] hover:underline block truncate"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {author.data?.event ? (
+            <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
+          ) : displayName}
+        </Link>
+
+        {nip05Display && (
+          <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
+            <span className="truncate">@{nip05Display}</span>
+            {nip05Domain && (
+              <ExternalFavicon url={`https://${nip05Domain}`} size={14} className="shrink-0" />
+            )}
+          </div>
+        )}
+
+        {metadata?.bot && (
+          <span className="text-xs text-primary mt-1 inline-block" title="Bot account">Bot</span>
+        )}
+
+        {/* Bio */}
+        {metadata?.about && (
+          <p className={cn(
+            'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
+            'line-clamp-3',
+          )}>
+            {author.data?.event ? (
+              <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
+            ) : metadata.about}
+          </p>
+        )}
+      </div>
+    </>
+  );
+}
+
+/**
+ * Wraps any element with a hover card that shows a profile preview.
+ * Shows avatar, display name, NIP-05, and bio on hover.
+ */
+export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCardProps) {
   return (
     <HoverCard openDelay={300} closeDelay={150}>
       <HoverCardTrigger asChild={asChild}>
@@ -42,68 +121,7 @@ export function ProfileHoverCard({ pubkey, children, asChild }: ProfileHoverCard
         className="w-72 p-0 rounded-2xl overflow-hidden border border-border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Mini banner */}
-        <div className="h-16 bg-secondary relative">
-          {metadata?.banner && (
-            <img
-              src={metadata.banner}
-              alt=""
-              className="w-full h-full object-cover"
-              loading="lazy"
-            />
-          )}
-        </div>
-
-        {/* Profile info */}
-        <div className="px-4 pb-4">
-          {/* Avatar overlapping the banner */}
-          <div className="-mt-8 mb-2">
-            <Link to={profileUrl} onClick={(e) => e.stopPropagation()}>
-              <Avatar className="size-16 border-3 border-background">
-                <AvatarImage src={metadata?.picture} alt={displayName} />
-                <AvatarFallback className="bg-primary/20 text-primary text-lg">
-                  {displayName[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
-            </Link>
-          </div>
-
-          {/* Name + NIP-05 */}
-          <Link
-            to={profileUrl}
-            className="font-bold text-[15px] hover:underline block truncate"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {author.data?.event ? (
-              <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
-            ) : displayName}
-          </Link>
-
-          {nip05Display && (
-            <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
-              <span className="truncate">@{nip05Display}</span>
-              {nip05Domain && (
-                <ExternalFavicon url={`https://${nip05Domain}`} size={14} className="shrink-0" />
-              )}
-            </div>
-          )}
-
-          {metadata?.bot && (
-            <span className="text-xs text-primary mt-1 inline-block" title="Bot account">Bot</span>
-          )}
-
-          {/* Bio */}
-          {metadata?.about && (
-            <p className={cn(
-              'text-sm text-muted-foreground mt-2 whitespace-pre-wrap break-words',
-              'line-clamp-3',
-            )}>
-              {author.data?.event ? (
-                <EmojifiedText tags={author.data.event.tags}>{metadata.about}</EmojifiedText>
-              ) : metadata.about}
-            </p>
-          )}
-        </div>
+        <ProfileHoverCardBody pubkey={pubkey} />
       </HoverCardContent>
     </HoverCard>
   );
