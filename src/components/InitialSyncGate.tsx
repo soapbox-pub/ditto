@@ -210,7 +210,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 const THEMES: { value: Theme; label: string; description: string; preview: string }[] = [
-  { value: 'dark', label: 'Ditto', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
+  { value: 'dark', label: 'Dark', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
   { value: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border' },
   { value: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black' },
   { value: 'pink', label: 'Pink', description: 'Warm and playful', preview: 'bg-[hsl(330,100%,96%)]' },
