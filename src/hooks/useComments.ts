@@ -1,44 +1,14 @@
 import { NKinds, NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-import { useNip85EventStats, useNip85AddrStats } from '@/hooks/useNip85Stats';
 
 export function useComments(root: NostrEvent | URL, limit?: number) {
   const { nostr } = useNostr();
 
-  // Determine the identifier for NIP-85 stats
-  let nip85Identifier: string | undefined;
-  let nip85Type: 'event' | 'addr' | undefined;
-  
-  if (root instanceof URL) {
-    // URLs don't have NIP-85 stats
-    nip85Identifier = undefined;
-  } else if (NKinds.addressable(root.kind)) {
-    const d = root.tags.find(([name]) => name === 'd')?.[1] ?? '';
-    nip85Identifier = `${root.kind}:${root.pubkey}:${d}`;
-    nip85Type = 'addr';
-  } else if (NKinds.replaceable(root.kind)) {
-    nip85Identifier = `${root.kind}:${root.pubkey}:`;
-    nip85Type = 'addr';
-  } else {
-    nip85Identifier = root.id;
-    nip85Type = 'event';
-  }
-
-  const nip85EventStats = useNip85EventStats(nip85Type === 'event' ? nip85Identifier : undefined);
-  const nip85AddrStats = useNip85AddrStats(nip85Type === 'addr' ? nip85Identifier : undefined);
-  const nip85Stats = nip85Type === 'event' ? nip85EventStats.data : nip85AddrStats.data;
-
-  // Use a stable boolean in the queryKey instead of the full nip85Stats object.
-  // This prevents re-queries when the stats object reference changes but values are identical.
-  const hasNip85Stats = !!nip85Stats;
-
   return useQuery({
-    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit, hasNip85Stats],
+    queryKey: ['nostr', 'comments', root instanceof URL ? root.toString() : root.id, limit],
     queryFn: async (c) => {
-      // If we have NIP-85 comment count and no limit specified, use a smaller default limit
-      const hasNip85CommentCount = !!nip85Stats?.commentCount;
-      const effectiveLimit = limit ?? (hasNip85CommentCount ? 10 : undefined);
+      const effectiveLimit = limit;
 
       const filter: NostrFilter = { kinds: [1111] };
 
@@ -123,7 +93,6 @@ export function useComments(root: NostrEvent | URL, limit?: number) {
           // Sort direct replies by creation time (oldest first for threaded display)
           return directReplies.sort((a, b) => a.created_at - b.created_at);
         },
-        nip85Stats,
       };
     },
     enabled: !!root,
