@@ -6,6 +6,7 @@ import type { NostrFilter } from '@nostrify/nostrify';
 import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ContentFilter } from './useContentFilters';
+import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 const SETTINGS_D_TAG = 'mew-metadata';
 
@@ -95,8 +96,14 @@ export function useEncryptedSettings() {
 
       try {
         const decrypted = await user.signer.nip44.decrypt(user.pubkey, event.content);
-        const parsed = JSON.parse(decrypted) as EncryptedSettings;
-        return parsed;
+        const json = JSON.parse(decrypted);
+        const result = EncryptedSettingsSchema.safeParse(json);
+        if (!result.success) {
+          console.warn('Encrypted settings failed validation, using partial data:', result.error.issues);
+          // Fall back to an empty object so invalid fields (e.g. theme as object) are dropped
+          return {} as EncryptedSettings;
+        }
+        return result.data as EncryptedSettings;
       } catch (error) {
         console.error('Failed to decrypt settings:', error);
         return null;

@@ -5,6 +5,7 @@ import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import type { EncryptedSettings } from './useEncryptedSettings';
 import { parseMuteTags, setCachedMuteItems } from './useMuteList';
+import { EncryptedSettingsSchema } from '@/lib/schemas';
 
 export type SyncPhase =
   | 'idle'         // No user logged in
@@ -134,7 +135,12 @@ export function useInitialSync() {
 
           try {
             const decrypted = await user.signer.nip44.decrypt(user.pubkey, settingsEvent.content);
-            const parsed = JSON.parse(decrypted) as EncryptedSettings;
+            const json = JSON.parse(decrypted);
+            const result = EncryptedSettingsSchema.safeParse(json);
+            if (!result.success) {
+              console.warn('Encrypted settings failed validation during initial sync:', result.error.issues);
+            }
+            const parsed = (result.success ? result.data : {}) as EncryptedSettings;
 
             // Apply decrypted settings to local config (same logic as NostrSync)
             updateConfig((current) => {
