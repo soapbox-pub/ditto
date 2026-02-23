@@ -6,6 +6,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -92,7 +93,7 @@ export function ComposeBox({
   previewMode: controlledPreviewMode,
   onHasPreviewableContentChange,
 }: ComposeBoxProps) {
-  const { user, metadata } = useCurrentUser();
+  const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const queryClient = useQueryClient();
@@ -606,14 +607,18 @@ export function ComposeBox({
 
       <div className="flex gap-3">
         {!hideAvatar && user && (
-          <Link to={getProfileUrl(user.pubkey, metadata)} className="shrink-0">
-            <Avatar className="size-12 shrink-0 mt-0.5">
-              <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-              <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                {(metadata?.name?.[0] || '?').toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-          </Link>
+          isProfileLoading ? (
+            <Skeleton className="size-12 shrink-0 mt-0.5 rounded-full" />
+          ) : (
+            <Link to={getProfileUrl(user.pubkey, metadata)} className="shrink-0">
+              <Avatar className="size-12 shrink-0 mt-0.5">
+                <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+                <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                  {(metadata?.name?.[0] || '?').toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            </Link>
+          )
         )}
 
         <div className="flex-1 min-w-0">

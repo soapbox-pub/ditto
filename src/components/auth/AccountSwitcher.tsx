@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu.tsx';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar.tsx';
+import { Skeleton } from '@/components/ui/skeleton.tsx';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { genUserName } from '@/lib/genUserName';
 
@@ -19,7 +20,7 @@ interface AccountSwitcherProps {
 }
 
 export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
-  const { currentUser, otherUsers, setLogin, removeLogin } = useLoggedInAccounts();
+  const { currentUser, otherUsers, isLoading, setLogin, removeLogin } = useLoggedInAccounts();
   const [isOpen, setIsOpen] = useState(false);
 
   if (!currentUser) return null;
@@ -41,12 +42,20 @@ export function AccountSwitcher({ onAddAccountClick }: AccountSwitcherProps) {
     <DropdownMenu modal={false} open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
         <button className='flex items-center gap-3 p-3 rounded-full hover:bg-accent transition-all w-full text-foreground'>
-          <Avatar className='w-10 h-10'>
-            <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
-            <AvatarFallback>{getDisplayName(currentUser).charAt(0)}</AvatarFallback>
-          </Avatar>
+          {isLoading ? (
+            <Skeleton className='w-10 h-10 rounded-full shrink-0' />
+          ) : (
+            <Avatar className='w-10 h-10'>
+              <AvatarImage src={currentUser.metadata.picture} alt={getDisplayName(currentUser)} />
+              <AvatarFallback>{getDisplayName(currentUser).charAt(0)}</AvatarFallback>
+            </Avatar>
+          )}
           <div className='flex-1 text-left hidden md:block truncate'>
-            <p className='font-medium text-sm truncate'>{getDisplayName(currentUser)}</p>
+            {isLoading ? (
+              <Skeleton className='h-4 w-24' />
+            ) : (
+              <p className='font-medium text-sm truncate'>{getDisplayName(currentUser)}</p>
+            )}
           </div>
           <ChevronDown className='w-4 h-4 text-muted-foreground' />
         </button>
