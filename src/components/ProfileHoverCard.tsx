@@ -9,6 +9,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
 import { getProfileUrl } from '@/lib/profileUrl';
+import { FollowButton } from '@/components/FollowButton';
 import { cn } from '@/lib/utils';
 
 interface ProfileHoverCardProps {
@@ -48,6 +49,10 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
             loading="lazy"
           />
         )}
+        {/* Follow button over the banner */}
+        <div className="absolute top-2 right-2">
+          <FollowButton pubkey={pubkey} size="sm" />
+        </div>
       </div>
 
       {/* Profile info */}
