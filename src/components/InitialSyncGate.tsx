@@ -2,7 +2,7 @@ import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef, crea
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
-import { MewLogo } from '@/components/MewLogo';
+import { DittoLogo } from '@/components/DittoLogo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -160,7 +160,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
         {/* Logo with gentle pulse */}
         <div className="relative">
           <div className="absolute inset-0 rounded-full bg-primary/10 animate-ping opacity-30" />
-          <MewLogo size={72} className="relative" />
+          <DittoLogo size={72} className="relative" />
         </div>
 
         {/* Spinner */}
@@ -210,7 +210,7 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // ---------------------------------------------------------------------------
 
 const THEMES: { value: Theme; label: string; description: string; preview: string }[] = [
-  { value: 'dark', label: 'Mew', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
+  { value: 'dark', label: 'Ditto', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
   { value: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border' },
   { value: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black' },
   { value: 'pink', label: 'Pink', description: 'Warm and playful', preview: 'bg-[hsl(330,100%,96%)]' },
@@ -512,7 +512,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 function KeygenStep({ onGenerate }: { onGenerate: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <MewLogo size={80} />
+      <DittoLogo size={80} />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
@@ -906,15 +906,15 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 function WelcomeStep({ onNext, isSignup = false }: { onNext: () => void; isSignup?: boolean }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <MewLogo size={80} />
+      <DittoLogo size={80} />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
-          {isSignup ? 'Now, let\'s personalize' : 'Welcome to Mew'}
+          {isSignup ? 'Now, let\'s personalize' : 'Welcome to Ditto'}
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
           {isSignup
-            ? 'A few quick preferences to make Mew feel like yours. You can always change these later in Settings.'
+            ? 'A few quick preferences to make Ditto feel like yours. You can always change these later in Settings.'
             : 'Let\'s personalize your experience. This only takes a moment and you can always change these later in Settings.'}
         </p>
       </div>
@@ -1430,7 +1430,7 @@ function OutroStep({ onComplete }: { onComplete: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="relative">
-        <MewLogo size={72} />
+        <DittoLogo size={72} />
         <div className="absolute -bottom-1 -right-1 bg-primary/10 rounded-full p-1.5">
           <Heart className="w-5 h-5 text-primary fill-primary" />
         </div>

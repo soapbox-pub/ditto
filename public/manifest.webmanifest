@@ -1,6 +1,6 @@
 {
-  "name": "Mew",
-  "short_name": "Mew",
+  "name": "Ditto",
+  "short_name": "Ditto",
   "description": "A Nostr client for the social web",
   "start_url": "/",
   "display": "standalone",

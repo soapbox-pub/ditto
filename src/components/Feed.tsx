@@ -36,18 +36,18 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
 
   // Tab settings from localStorage
   const showGlobalFeed = (() => {
-    const stored = localStorage.getItem('mew:showGlobalFeed');
+    const stored = localStorage.getItem('ditto:showGlobalFeed');
     return stored !== null ? stored === 'true' : true;
   })();
 
   const showCommunityFeed = (() => {
-    const stored = localStorage.getItem('mew:showCommunityFeed');
+    const stored = localStorage.getItem('ditto:showCommunityFeed');
     return stored !== null ? stored === 'true' : false;
   })();
 
   const communityLabel = (() => {
     try {
-      const stored = localStorage.getItem('mew:community');
+      const stored = localStorage.getItem('ditto:community');
       if (stored) {
         const community = JSON.parse(stored);
         return community.label || 'Community';
@@ -139,7 +139,7 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
         <div className="border-b border-border sticky top-mobile-bar sidebar:top-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-md z-10 py-3">
           <div className="flex items-center justify-center gap-3 px-6">
             <p className="text-[13px] sidebar:text-sm text-muted-foreground">
-              Follow accounts you care about on Mew
+              Follow accounts you care about on Ditto
             </p>
             <Button onClick={() => setLoginDialogOpen(true)} className="rounded-full" size="sm">
               Join

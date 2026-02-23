@@ -23,7 +23,7 @@ type NotificationTab = 'all' | 'mentions';
 
 export function NotificationsPage() {
   useSeoMeta({
-    title: 'Notifications | Mew',
+    title: 'Notifications | Ditto',
     description: 'Your Nostr notifications',
   });
 

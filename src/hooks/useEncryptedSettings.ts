@@ -8,7 +8,7 @@ import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppCo
 import type { ContentFilter } from './useContentFilters';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
-const SETTINGS_D_TAG = 'mew-metadata';
+const SETTINGS_D_TAG = 'ditto-metadata';
 
 /**
  * Timestamp of last local write. NostrSync should skip applying
@@ -140,7 +140,7 @@ export function useEncryptedSettings() {
         content: encrypted,
         tags: [
           ['d', SETTINGS_D_TAG],
-          ['title', 'Mew Metadata'],
+          ['title', 'Ditto Metadata'],
           ['client', location.hostname],
         ],
         created_at: Math.floor(Date.now() / 1000),

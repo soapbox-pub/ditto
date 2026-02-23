@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { MewLogo } from '@/components/MewLogo';
+import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
@@ -144,7 +144,7 @@ export function LeftSidebar() {
   };
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'dark', label: 'Mew', icon: <Cat className="size-4" /> },
+    { value: 'dark', label: 'Ditto', icon: <Cat className="size-4" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
     { value: 'black', label: 'Black', icon: <Moon className="size-4" /> },
     { value: 'pink', label: 'Pink', icon: <Heart className="size-4" /> },
@@ -154,7 +154,7 @@ export function LeftSidebar() {
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
       {/* Logo */}
       <Link to="/" className="px-3 mb-1" onClick={scrollToTopIfCurrent('/')}>
-        <MewLogo size={48} />
+        <DittoLogo size={48} />
       </Link>
 
       {/* Search bar - visible on xl */}

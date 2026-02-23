@@ -160,7 +160,6 @@ function formatClientInfo(client: string | undefined): { name: string; url?: str
   const clientMap: Record<string, string> = {
     'gleasonator.dev': 'Gleasonator',
     'ditto.pub': 'Ditto',
-    'mew.shakespeare.wtf': 'Mew',
   };
   
   // Try parsing as URL first
@@ -230,7 +229,7 @@ export function PostDetailPage({ eventId, relays, authorHint }: PostDetailPagePr
   const [retryEvent, setRetryEvent] = useState<NostrEvent | null>(null);
 
   useSeoMeta({
-    title: (event || retryEvent) ? 'Post Details - Mew' : 'Loading... - Mew',
+    title: (event || retryEvent) ? 'Post Details - Ditto' : 'Loading... - Ditto',
   });
 
   if (isLoading) {
@@ -272,8 +271,8 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
 
   useSeoMeta({
     title: resolvedEvent
-      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Mew`
-      : 'Loading... - Mew',
+      ? `${resolvedEvent.tags.find(([n]) => n === 'title')?.[1] || 'Post Details'} - Ditto`
+      : 'Loading... - Ditto',
   });
 
   if (isLoading) {

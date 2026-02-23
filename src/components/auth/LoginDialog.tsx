@@ -64,7 +64,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const generateConnectSession = useCallback(() => {
     const relayUrls = login.getRelayUrls();
     const params = generateNostrConnectParams(relayUrls);
-    const uri = generateNostrConnectURI(params, 'Mew');
+    const uri = generateNostrConnectURI(params, 'Ditto');
     setNostrConnectParams(params);
     setNostrConnectUri(uri);
     setConnectError(null);

@@ -12,8 +12,8 @@ export function SettingsPage() {
   const { user } = useCurrentUser();
 
   useSeoMeta({
-    title: 'Settings | Mew',
-    description: 'Manage your Mew settings',
+    title: 'Settings | Ditto',
+    description: 'Manage your Ditto settings',
   });
 
   const activeSection = section || (user ? 'profile' : 'content');

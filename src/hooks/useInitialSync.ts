@@ -31,7 +31,7 @@ const SYNC_TIMEOUT_MS = 8000;
  */
 function isSyncDone(pubkey: string): boolean {
   try {
-    return localStorage.getItem(`mew:sync-done:${pubkey}`) === '1';
+    return localStorage.getItem(`ditto:sync-done:${pubkey}`) === '1';
   } catch {
     return false;
   }
@@ -55,7 +55,7 @@ export function useInitialSync() {
   const markSyncComplete = useCallback(() => {
     if (!user) return;
     try {
-      localStorage.setItem(`mew:sync-done:${user.pubkey}`, '1');
+      localStorage.setItem(`ditto:sync-done:${user.pubkey}`, '1');
     } catch {
       // localStorage may not be available
     }
@@ -95,7 +95,7 @@ export function useInitialSync() {
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(
-            [{ kinds: [30078], authors: [user.pubkey], '#d': ['mew-metadata'], limit: 1 }],
+            [{ kinds: [30078], authors: [user.pubkey], '#d': ['ditto-metadata'], limit: 1 }],
             { signal: controller.signal },
           ).catch(() => []),
           nostr.query(

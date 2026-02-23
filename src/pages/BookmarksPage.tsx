@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 export function BookmarksPage() {
   useSeoMeta({
-    title: 'Bookmarks | Mew',
+    title: 'Bookmarks | Ditto',
     description: 'Your saved bookmarks on Nostr.',
   });
 

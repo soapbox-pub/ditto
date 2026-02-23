@@ -6,12 +6,12 @@ import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
 import { getEffectiveRelays } from '@/lib/appRelays';
 
-/** Interface for the native MewNotification Capacitor plugin. */
-interface MewNotificationPlugin {
+/** Interface for the native DittoNotification Capacitor plugin. */
+interface DittoNotificationPlugin {
   configure(options: { userPubkey?: string; relayUrls?: string[] }): Promise<void>;
 }
 
-const MewNotification = registerPlugin<MewNotificationPlugin>('MewNotification');
+const DittoNotification = registerPlugin<DittoNotificationPlugin>('DittoNotification');
 
 /**
  * Hook that manages native device notifications for the Nostr app.
@@ -49,7 +49,7 @@ export function useNativeNotifications(): void {
 
     if (!user) {
       // User logged out -- clear native config
-      MewNotification.configure({});
+      DittoNotification.configure({});
       return;
     }
 
@@ -61,7 +61,7 @@ export function useNativeNotifications(): void {
     if (relayUrls.length === 0) return;
 
     // Configure the native service with current user + relays
-    MewNotification.configure({
+    DittoNotification.configure({
       userPubkey: user.pubkey,
       relayUrls,
     });

@@ -645,7 +645,7 @@ export function ProfilePage() {
   }, [metadataEvent?.content, metadata?.website]);
 
   useSeoMeta({
-    title: `${displayName} | Mew`,
+    title: `${displayName} | Ditto`,
     description: metadata?.about || 'Nostr profile',
   });
 

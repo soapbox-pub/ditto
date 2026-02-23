@@ -49,7 +49,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   const communityPubkeys = (() => {
     if (tab !== 'communities') return [];
     try {
-      const dataStr = localStorage.getItem('mew:communityData');
+      const dataStr = localStorage.getItem('ditto:communityData');
       if (!dataStr) return [];
       
       const data = JSON.parse(dataStr);
@@ -99,7 +99,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Get the community domain for verification
         let communityDomain = '';
         try {
-          const communityStr = localStorage.getItem('mew:community');
+          const communityStr = localStorage.getItem('ditto:community');
           if (communityStr) {
             const community = JSON.parse(communityStr);
             communityDomain = community.domain;

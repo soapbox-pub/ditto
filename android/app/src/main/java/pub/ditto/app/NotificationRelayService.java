@@ -1,4 +1,4 @@
-package com.mew.app;
+package pub.ditto.app;
 
 import android.app.AlarmManager;
 import android.app.Notification;
@@ -44,7 +44,7 @@ import okhttp3.WebSocketListener;
  * for real-time notification delivery.
  *
  * Battery strategy:
- * - NO permanent WakeLock — the CPU is allowed to sleep between events
+ * - NO permanent WakeLock -- the CPU is allowed to sleep between events
  * - OkHttp pings are disabled (the OS will kill idle TCP in Doze anyway)
  * - An AlarmManager alarm fires every ~8 minutes using setAndAllowWhileIdle(),
  *   which penetrates Doze maintenance windows
@@ -70,9 +70,9 @@ import okhttp3.WebSocketListener;
 public class NotificationRelayService extends Service {
 
     private static final String TAG = "NotificationRelaySvc";
-    private static final String CHANNEL_ID = "mew_background_service";
+    private static final String CHANNEL_ID = "ditto_background_service";
     private static final int NOTIFICATION_ID = 1;
-    private static final String PREFS_NAME = "mew_notification_config";
+    private static final String PREFS_NAME = "ditto_notification_config";
 
     // Keepalive alarm fires every 8 minutes. setAndAllowWhileIdle() has a minimum
     // enforcement interval of ~9 minutes in Doze, so 8 min is effectively the most
@@ -83,7 +83,7 @@ public class NotificationRelayService extends Service {
     // How long to hold a WakeLock for the keepalive ping + potential reconnect
     private static final long KEEPALIVE_WAKELOCK_TIMEOUT_MS = 15_000;
 
-    private static final String ACTION_KEEPALIVE = "com.mew.app.ACTION_KEEPALIVE";
+    private static final String ACTION_KEEPALIVE = "pub.ditto.app.ACTION_KEEPALIVE";
 
     // Backoff bounds
     private static final long INITIAL_BACKOFF_MS = 1_000;
@@ -126,22 +126,22 @@ public class NotificationRelayService extends Service {
         // The system requires startForeground() within 5 seconds of startForegroundService().
         startForeground(NOTIFICATION_ID, buildForegroundNotification());
 
-        // No ping interval — we handle keepalive ourselves via AlarmManager.
+        // No ping interval -- we handle keepalive ourselves via AlarmManager.
         // OkHttp's built-in pings would only work while the CPU is awake anyway.
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
                 .readTimeout(0, TimeUnit.SECONDS) // No read timeout for persistent connection
                 .writeTimeout(5, TimeUnit.SECONDS)
-                .pingInterval(0, TimeUnit.SECONDS) // Disabled — we use AlarmManager keepalive
+                .pingInterval(0, TimeUnit.SECONDS) // Disabled -- we use AlarmManager keepalive
                 .build();
 
         poller = new NostrPoller(this);
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        // Create a WakeLock for keepalive pings — always acquired with a timeout,
+        // Create a WakeLock for keepalive pings -- always acquired with a timeout,
         // never held indefinitely.
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        keepaliveWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "mew:keepalive-ping");
+        keepaliveWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ditto:keepalive-ping");
         keepaliveWakeLock.setReferenceCounted(false);
 
         registerKeepaliveReceiver();
@@ -199,7 +199,7 @@ public class NotificationRelayService extends Service {
                     backoffMs = INITIAL_BACKOFF_MS;
                     connectIfConfigured();
                 } else {
-                    // Connection exists — check if last ping got a pong.
+                    // Connection exists -- check if last ping got a pong.
                     // If we sent a ping last cycle and never got a pong, the connection
                     // is likely dead (TCP half-open after Doze).
                     if (lastPingSentTimestamp > 0 && lastPongTimestamp < lastPingSentTimestamp) {
@@ -208,7 +208,7 @@ public class NotificationRelayService extends Service {
                         backoffMs = INITIAL_BACKOFF_MS;
                         connectIfConfigured();
                     } else {
-                        // Connection seems alive — send a ping for the next cycle to verify.
+                        // Connection seems alive -- send a ping for the next cycle to verify.
                         // OkHttp WebSocket handles ping/pong at the protocol level when we
                         // call send() or when the server sends data, but we need an explicit
                         // application-level check since OkHttp's built-in pings are disabled.
@@ -578,9 +578,9 @@ public class NotificationRelayService extends Service {
         );
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("Mew")
+                .setContentTitle("Ditto")
                 .setContentText("Connected for notifications")
-                .setSmallIcon(R.drawable.ic_stat_mew)
+                .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -595,7 +595,7 @@ public class NotificationRelayService extends Service {
                     "Background Connection",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Keeps Mew connected for instant notifications");
+            channel.setDescription("Keeps Ditto connected for instant notifications");
             channel.setShowBadge(false);
 
             NotificationManager manager = getSystemService(NotificationManager.class);

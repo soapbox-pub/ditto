@@ -40,7 +40,7 @@ export interface FollowListData {
 }
 
 /** localStorage key for cached follow list pubkeys. */
-const FOLLOW_CACHE_KEY = 'mew:followListCache';
+const FOLLOW_CACHE_KEY = 'ditto:followListCache';
 
 /** Read cached follow pubkeys from localStorage for a given user. */
 function getCachedFollowList(pubkey: string): FollowListData | undefined {

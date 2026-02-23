@@ -23,7 +23,7 @@ export function HashtagPage() {
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
-    title: `#${tag} | Mew`,
+    title: `#${tag} | Ditto`,
     description: `Posts tagged with #${tag}`,
   });
 
