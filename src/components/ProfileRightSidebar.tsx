@@ -326,7 +326,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
       )}
 
       {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-right">
+      <footer className="mt-auto pt-4 pb-4 text-left">
         <p className="text-xs text-muted-foreground">
           Vibed with{' '}
           <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
