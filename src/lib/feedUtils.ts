@@ -1,44 +1,43 @@
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /**
- * Maximum allowed gap between newest and oldest events in a relay response.
- * If a relay returns events spanning more than this (e.g., 10h newest → 4d oldest),
- * we filter out the outliers to prevent pagination gaps.
- *
- * Set to 6 hours - this allows for normal timeline variation while filtering
- * relays with large gaps that would skip events.
+ * Minimum gap (in seconds) between consecutive events to be considered an
+ * out-of-sync boundary. If a relay returns events spanning a large time
+ * range (e.g., 10h newest → 4d oldest), there will be a large gap between
+ * the "main cluster" and the outliers from the stale relay.
  */
-const MAX_EVENT_SPAN_SECONDS = 6 * 60 * 60; // 6 hours
+const MIN_GAP_SECONDS = 6 * 60 * 60; // 6 hours
 
 /**
- * Filters out events from relays that are out of sync.
+ * Computes a safe pagination cursor from a set of events.
  *
- * If the relay pool returns events spanning a large time range (e.g., 10h to 4d),
- * it indicates one relay is missing events and returning much older results.
- * We filter out events older than MAX_EVENT_SPAN_SECONDS from the newest event
- * to prevent pagination gaps.
+ * When querying multiple relays, a stale relay may return very old events
+ * alongside recent ones. Using the absolute oldest timestamp as the cursor
+ * would skip everything in between. This function detects large gaps in the
+ * timestamp distribution and returns the oldest timestamp from the main
+ * (most recent) cluster, ignoring outliers below the gap.
+ *
+ * All events are still returned and displayed — only the cursor is adjusted.
  */
-export function filterOutOfSyncEvents(events: NostrEvent[]): NostrEvent[] {
-  if (events.length === 0) return events;
+export function getPaginationCursor(events: NostrEvent[]): number {
+  if (events.length === 0) return Math.floor(Date.now() / 1000);
+  if (events.length === 1) return events[0].created_at;
 
-  // Find the newest event timestamp
-  const newestTimestamp = Math.max(...events.map(e => e.created_at));
+  // Sort descending (newest first).
+  const sorted = events.map((e) => e.created_at).sort((a, b) => b - a);
 
-  // Filter out events that are too old relative to the newest
-  const threshold = newestTimestamp - MAX_EVENT_SPAN_SECONDS;
-  const filtered = events.filter(e => e.created_at >= threshold);
-
-  // If we filtered out more than 30% of events, log a warning
-  if (filtered.length < events.length * 0.7) {
-    console.warn(
-      `Filtered ${events.length - filtered.length} out-of-sync events ` +
-      `(${events.length} → ${filtered.length}). ` +
-      `Newest: ${new Date(newestTimestamp * 1000).toISOString()}, ` +
-      `Threshold: ${new Date(threshold * 1000).toISOString()}`
-    );
+  // Walk from newest to oldest, find the first gap larger than the threshold.
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i] - sorted[i + 1];
+    if (gap >= MIN_GAP_SECONDS) {
+      // The cursor is the timestamp just above the gap (the oldest event
+      // in the main cluster). Events below the gap are outliers.
+      return sorted[i];
+    }
   }
 
-  return filtered;
+  // No large gap found — all events are in one cluster.
+  return sorted[sorted.length - 1];
 }
 
 /** A feed item — either a direct post or a repost wrapping the original event. */
