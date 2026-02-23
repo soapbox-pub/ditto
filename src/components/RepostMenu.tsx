@@ -52,7 +52,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     publishEvent(
       {
         kind: 6,
-        content: JSON.stringify(event),
+        content: '',
         created_at: Math.floor(Date.now() / 1000),
         tags: [
           ['e', event.id],
