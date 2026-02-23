@@ -153,56 +153,6 @@ function formatFullDate(timestamp: number): string {
   });
 }
 
-/** Formats a client tag (URL, hostname, or plaintext name) into display name and optional URL. */
-function formatClientInfo(client: string | undefined): { name: string; url?: string } | undefined {
-  if (!client) return undefined;
-  
-  // Map known hostnames/URLs to client names
-  const clientMap: Record<string, string> = {
-    'gleasonator.dev': 'Gleasonator',
-    'ditto.pub': 'Ditto',
-  };
-  
-  // Try parsing as URL first
-  try {
-    const url = new URL(client);
-    const hostname = url.hostname;
-    
-    // Check if hostname matches a known client
-    if (clientMap[hostname]) {
-      return { name: clientMap[hostname], url: url.href };
-    }
-    
-    // For unknown URLs, capitalize the hostname
-    const name = hostname
-      .split('.')[0]
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-    return { name, url: url.href };
-  } catch {
-    // Not a URL, treat as hostname or plaintext client name
-    
-    // Check if it's a known hostname
-    if (clientMap[client]) {
-      return { name: clientMap[client], url: `https://${client}` };
-    }
-    
-    // If it contains a dot, treat as hostname
-    if (client.includes('.')) {
-      const name = client
-        .split('.')[0]
-        .split('-')
-        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(' ');
-      return { name, url: `https://${client}` };
-    }
-    
-    // Otherwise, it's a plaintext client name (no URL)
-    return { name: client };
-  }
-}
-
 /**
  * Extracts the parent (replied-to) event ID from an event's tags following NIP-10 conventions.
  * Supports both the preferred marked-tag scheme and the deprecated positional scheme.
@@ -725,11 +675,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return () => { observer.disconnect(); clearTimeout(timer); clearTimeout(pulseTimer); };
   }, [parentEventId]);
 
-  // Extract client info from tags
-  const clientInfo = useMemo(() => {
-    const clientTag = event.tags.find(([name]) => name === 'client');
-    return formatClientInfo(clientTag?.[1]);
-  }, [event.tags]);
+  // Extract client from tags
+  const clientTag = event.tags.find(([name]) => name === 'client');
 
   // Check if the current user can zap this event's author
   const canZapAuthor = user && canZap(metadata);
@@ -862,21 +809,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               </button>
             ) : null}
             <span className="ml-auto shrink-0 flex items-center gap-1.5">
-              {clientInfo && (
+              {clientTag?.[1] && (
                 <>
-                  {clientInfo.url ? (
-                    <a
-                      href={clientInfo.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="hover:underline"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {clientInfo.name}
-                    </a>
-                  ) : (
-                    <span>{clientInfo.name}</span>
-                  )}
+                  <span>{clientTag?.[1]}</span>
                   <span>·</span>
                 </>
               )}
@@ -888,21 +823,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
         {/* Date-only row if no stats */}
         {!hasStats && (
           <div className="py-2 sidebar:py-2.5 mt-2 sidebar:mt-3 text-xs sidebar:text-sm text-muted-foreground flex items-center gap-1.5">
-            {clientInfo && (
+            {clientTag?.[1] && (
               <>
-                {clientInfo.url ? (
-                  <a
-                    href={clientInfo.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {clientInfo.name}
-                  </a>
-                ) : (
-                  <span>{clientInfo.name}</span>
-                )}
+                <span>{clientTag?.[1]}</span>
                 <span>·</span>
               </>
             )}
