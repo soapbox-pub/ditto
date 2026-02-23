@@ -1,7 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
-
-const NIP85_STATS_PUBKEY = '5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export interface Nip85EventStats {
   commentCount: number;
@@ -25,15 +24,17 @@ export interface Nip85UserStats {
  */
 export function useNip85EventStats(eventId: string | undefined) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery<Nip85EventStats | undefined>({
-    queryKey: ['nip85-event-stats', eventId],
+    queryKey: ['nip85-event-stats', eventId, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!eventId) return undefined;
+      if (!eventId || !statsPubkey) return undefined;
 
       try {
         const events = await nostr.query(
-          [{ kinds: [30383], authors: [NIP85_STATS_PUBKEY], '#d': [eventId], limit: 1 }],
+          [{ kinds: [30383], authors: [statsPubkey], '#d': [eventId], limit: 1 }],
           { signal },
         );
 
@@ -55,7 +56,7 @@ export function useNip85EventStats(eventId: string | undefined) {
         return undefined;
       }
     },
-    enabled: !!eventId,
+    enabled: !!eventId && !!statsPubkey,
     staleTime: 30 * 1000,
     retry: false,
   });
@@ -67,11 +68,13 @@ export function useNip85EventStats(eventId: string | undefined) {
  */
 export function useNip85UserStats(pubkey: string | undefined) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery<Nip85UserStats | undefined>({
-    queryKey: ['nip85-user-stats', pubkey],
+    queryKey: ['nip85-user-stats', pubkey, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!pubkey) return undefined;
+      if (!pubkey || !statsPubkey) return undefined;
 
       const timeout = AbortSignal.timeout(2000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -81,7 +84,7 @@ export function useNip85UserStats(pubkey: string | undefined) {
           [
             {
               kinds: [30382],
-              authors: [NIP85_STATS_PUBKEY],
+              authors: [statsPubkey],
               '#d': [pubkey],
               limit: 1,
             },
@@ -105,7 +108,7 @@ export function useNip85UserStats(pubkey: string | undefined) {
         return undefined;
       }
     },
-    enabled: !!pubkey,
+    enabled: !!pubkey && !!statsPubkey,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -117,11 +120,13 @@ export function useNip85UserStats(pubkey: string | undefined) {
  */
 export function useNip85AddrStats(addr: string | undefined) {
   const { nostr } = useNostr();
+  const { config } = useAppContext();
+  const statsPubkey = config.nip85StatsPubkey;
 
   return useQuery<Nip85EventStats | undefined>({
-    queryKey: ['nip85-addr-stats', addr],
+    queryKey: ['nip85-addr-stats', addr, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!addr) return undefined;
+      if (!addr || !statsPubkey) return undefined;
 
       const timeout = AbortSignal.timeout(2000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -131,7 +136,7 @@ export function useNip85AddrStats(addr: string | undefined) {
           [
             {
               kinds: [30384],
-              authors: [NIP85_STATS_PUBKEY],
+              authors: [statsPubkey],
               '#d': [addr],
               limit: 1,
             },
@@ -157,7 +162,7 @@ export function useNip85AddrStats(addr: string | undefined) {
         return undefined;
       }
     },
-    enabled: !!addr,
+    enabled: !!addr && !!statsPubkey,
     staleTime: 30 * 1000,
     retry: false,
   });

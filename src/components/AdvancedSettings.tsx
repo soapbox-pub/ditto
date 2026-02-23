@@ -16,12 +16,25 @@ export function AdvancedSettings() {
   const { toast } = useToast();
   const [walletOpen, setWalletOpen] = useState(false);
   const [relaysOpen, setRelaysOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
+  const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [newBlossomUrl, setNewBlossomUrl] = useState('');
   const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
   const [linkPreviewUrl, setLinkPreviewUrl] = useState(config.linkPreviewUrl);
   const [corsProxy, setCorsProxy] = useState(config.corsProxy);
+
+  const handleStatsPubkeyChange = (value: string) => {
+    setStatsPubkey(value);
+    if (value.length === 64 && /^[0-9a-f]{64}$/i.test(value)) {
+      updateConfig(() => ({ nip85StatsPubkey: value.toLowerCase() }));
+      toast({ title: 'Stats source updated', description: 'Using NIP-85 stats from this pubkey.' });
+    } else if (value.length === 0) {
+      updateConfig(() => ({ nip85StatsPubkey: '' }));
+      toast({ title: 'Stats source cleared' });
+    }
+  };
 
   const handleAddBlossomServer = () => {
     const trimmed = newBlossomUrl.trim();
@@ -205,6 +218,55 @@ export function AdvancedSettings() {
           </Collapsible>
         </div>
       )}
+
+      {/* Stats Source Section */}
+      <div>
+        <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button
+              variant="ghost"
+              className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+            >
+              <span className="text-base font-semibold">Stats Source</span>
+              {statsOpen ? (
+                <ChevronUp className="h-4 w-4 text-muted-foreground" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              )}
+              <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <div className="px-3 pt-3 pb-4 space-y-3">
+              <div>
+                <Label htmlFor="stats-pubkey" className="text-sm font-medium">
+                  NIP-85 Stats Pubkey
+                </Label>
+                <p className="text-xs text-muted-foreground mt-1 mb-2">
+                  Trusted pubkey for pre-computed engagement stats (likes, reposts, comments).
+                </p>
+                <Input
+                  id="stats-pubkey"
+                  value={statsPubkey}
+                  onChange={(e) => handleStatsPubkeyChange(e.target.value)}
+                  placeholder="Enter 64-character hex pubkey"
+                  className="font-mono text-sm"
+                  maxLength={64}
+                />
+                {statsPubkey && statsPubkey.length !== 64 && (
+                  <p className="text-xs text-destructive mt-1">
+                    Pubkey must be exactly 64 hexadecimal characters
+                  </p>
+                )}
+                <div className="text-xs text-muted-foreground mt-2">
+                  <span className="font-medium">Default: </span>
+                  <span className="font-mono break-all">5f68e85ee174102ca8978eef302129f081f03456c884185d5ec1c1224ab633ea</span>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* System Section */}
       <div>
