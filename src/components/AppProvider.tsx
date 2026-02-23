@@ -2,6 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
+import { themes, buildThemeCss } from '@/themes';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -128,14 +129,18 @@ export function AppProvider(props: AppProviderProps) {
 }
 
 /**
- * Hook to apply theme changes to the document root
+ * Hook to apply theme changes to the document root via an injected <style> tag.
  */
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
-    const root = window.document.documentElement;
+    const css = buildThemeCss(themes[theme]);
 
-    // Just apply the theme instantly - no transitions, no RAF
-    root.classList.remove('dark', 'light', 'black', 'pink');
-    root.classList.add(theme);
+    let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'theme-vars';
+      document.head.appendChild(el);
+    }
+    el.textContent = css;
   }, [theme]);
 }
