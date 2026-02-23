@@ -1,7 +1,9 @@
-import { useState } from 'react';
-import { Blocks, Play } from 'lucide-react';
+import { useState, useRef, useCallback, forwardRef } from 'react';
+import { Blocks, Play, Maximize2, Minimize2, RotateCcw, X, Gamepad2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Webxdc } from '@/components/Webxdc';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/components/ui/tooltip';
+import { Webxdc, type WebxdcHandle } from '@/components/Webxdc';
+import { GameControls } from '@/components/GameControls';
 import { useWebxdc } from '@/hooks/useWebxdc';
 import { cn } from '@/lib/utils';
 
@@ -23,9 +25,41 @@ export interface WebxdcEmbedProps {
  */
 export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedProps) {
   const [launched, setLaunched] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [iframeKey, setIframeKey] = useState(0);
+  const [showGamepad, setShowGamepad] = useState(false);
+  const [webxdcHandle, setWebxdcHandle] = useState<WebxdcHandle | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Callback ref: when the Webxdc component mounts, store the handle in state
+  // so GameControls re-renders with a non-null handle.
+  const webxdcHandleCallback = useCallback((handle: WebxdcHandle | null) => {
+    setWebxdcHandle(handle);
+  }, []);
 
   // Derive a stable iframe ID from the UUID or URL
   const iframeId = uuid ?? url.replace(/[^a-zA-Z0-9]/g, '').slice(0, 32);
+
+  const handleReload = useCallback(() => {
+    setIframeKey((k) => k + 1);
+  }, []);
+
+  const handleClose = useCallback(() => {
+    setLaunched(false);
+    setIsFullscreen(false);
+    setShowGamepad(false);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    setIsFullscreen((prev) => !prev);
+  }, []);
+
+  const toggleGamepad = useCallback(() => {
+    setShowGamepad((prev) => {
+      if (!prev) webxdcHandle?.focus();
+      return !prev;
+    });
+  }, [webxdcHandle]);
 
   if (!launched) {
     return (
@@ -64,10 +98,133 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
 
   return (
     <div
-      className={cn('mt-3 rounded-2xl border border-border overflow-hidden', className)}
+      ref={containerRef}
+      className={cn(
+        isFullscreen
+          ? 'fixed inset-0 z-50 bg-background flex flex-col'
+          : 'mt-3 rounded-2xl border border-border overflow-hidden flex flex-col',
+        !isFullscreen && className,
+      )}
       onClick={(e) => e.stopPropagation()}
     >
-      <WebxdcIframe id={iframeId} url={url} uuid={uuid} />
+      {/* Controls bar */}
+      <div className={cn(
+        'flex items-center justify-between px-3 py-1.5 bg-muted/60 border-b border-border',
+        isFullscreen ? '' : 'rounded-t-2xl',
+      )}>
+        <div className="flex items-center gap-2 min-w-0">
+          {icon ? (
+            <img
+              src={icon}
+              alt={name ?? 'Webxdc App'}
+              className="size-5 rounded-md object-cover flex-shrink-0"
+            />
+          ) : (
+            <Blocks className="size-4 text-muted-foreground flex-shrink-0" />
+          )}
+          <span className="text-xs font-medium text-muted-foreground truncate">
+            {name ?? 'Webxdc App'}
+          </span>
+        </div>
+
+        <TooltipProvider delayDuration={300}>
+          <div className="flex items-center gap-0.5">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn('size-7', showGamepad && 'text-primary')}
+                  onClick={toggleGamepad}
+                >
+                  <Gamepad2 className="size-3.5" />
+                  <span className="sr-only">
+                    {showGamepad ? 'Hide gamepad' : 'Show gamepad'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {showGamepad ? 'Hide gamepad' : 'Show gamepad'}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={handleReload}
+                >
+                  <RotateCcw className="size-3.5" />
+                  <span className="sr-only">Reload</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Reload</TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={toggleFullscreen}
+                >
+                  {isFullscreen ? (
+                    <Minimize2 className="size-3.5" />
+                  ) : (
+                    <Maximize2 className="size-3.5" />
+                  )}
+                  <span className="sr-only">
+                    {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+                  </span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">
+                {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7"
+                  onClick={handleClose}
+                >
+                  <X className="size-3.5" />
+                  <span className="sr-only">Close</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">Close</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
+      </div>
+
+      {/* Iframe area */}
+      <div className={cn(isFullscreen ? 'flex-1 relative' : 'relative')}>
+        <WebxdcIframe
+          key={iframeKey}
+          ref={webxdcHandleCallback}
+          id={iframeId}
+          url={url}
+          uuid={uuid}
+          isFullscreen={isFullscreen}
+        />
+      </div>
+
+      {/* Game controls overlay */}
+      {showGamepad && (
+        <div className={cn(
+          'border-t border-border bg-background/80 backdrop-blur-sm',
+          isFullscreen ? '' : 'rounded-b-2xl',
+        )}>
+          <GameControls webxdcHandle={webxdcHandle} />
+        </div>
+      )}
     </div>
   );
 }
@@ -76,18 +233,24 @@ export function WebxdcEmbed({ url, uuid, name, icon, className }: WebxdcEmbedPro
  * Inner component that renders the actual webxdc iframe.
  * Separated so the useWebxdc hook only runs when the app is launched.
  */
-function WebxdcIframe({ id, url, uuid }: { id: string; url: string; uuid?: string }) {
+const WebxdcIframe = forwardRef<WebxdcHandle, {
+  id: string;
+  url: string;
+  uuid?: string;
+  isFullscreen: boolean;
+}>(function WebxdcIframe({ id, url, uuid, isFullscreen }, ref) {
   const webxdc = useWebxdc(uuid ?? '');
 
   return (
     <Webxdc
+      ref={ref}
       id={id}
       xdc={url}
       webxdc={webxdc}
       className="w-full border-0"
-      style={{ height: '400px' }}
+      style={{ height: isFullscreen ? '100%' : '400px' }}
     />
   );
-}
+});
 
 export default WebxdcEmbed;
