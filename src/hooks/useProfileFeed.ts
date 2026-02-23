@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { filterOutOfSyncEvents, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /** Extended FeedItem with pagination metadata. */
@@ -92,18 +92,12 @@ export function useProfileFeed(pubkey: string | undefined) {
         { signal: querySignal },
       );
 
-      const rawFeedEvents = allEvents;
-
-      // Filter out events from out-of-sync relays before processing
-      const events = filterOutOfSyncEvents(rawFeedEvents);
+      const events = allEvents;
 
       // Track oldest timestamp from the raw query (before tab filtering/dedup) for pagination.
-      // Using this instead of the last processed item's timestamp prevents skipping events
-      // when tab filtering discards many results.
+      // getPaginationCursor ignores outliers from out-of-sync relays to prevent cursor jumps.
       const validEvents = events.filter((ev) => ev.created_at <= now);
-      const oldestQueryTimestamp = validEvents.length > 0
-        ? Math.min(...validEvents.map((ev) => ev.created_at))
-        : now;
+      const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
       // Process events into FeedItems, unwrapping kind 6 reposts
       const items: FeedItem[] = [];

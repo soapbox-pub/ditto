@@ -5,7 +5,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { filterOutOfSyncEvents, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -94,8 +94,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           { signal },
         );
 
-        // Filter out events from out-of-sync relays before processing
-        const events = filterOutOfSyncEvents(rawEvents);
+        const events = rawEvents;
 
         // Get the community domain for verification
         let communityDomain = '';
@@ -148,11 +147,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
             })
           : events; // Fallback if no domain found
 
-        // Track oldest timestamp from the raw query for pagination
+        // Track oldest timestamp from the raw query for pagination, ignoring
+        // outliers from out-of-sync relays to prevent cursor jumps.
         const validFilteredEvents = filteredEvents.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = validFilteredEvents.length > 0
-          ? Math.min(...validFilteredEvents.map((ev) => ev.created_at))
-          : now;
+        const oldestQueryTimestamp = getPaginationCursor(validFilteredEvents);
 
         // Process reposts same as follows feed
         const items: FeedItem[] = [];
@@ -229,14 +227,10 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           { signal },
         );
 
-        // Filter out events from out-of-sync relays before processing
-        const events = filterOutOfSyncEvents(rawEvents);
-
-        // Track oldest timestamp from the raw query for pagination
-        const validEvents = events.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = validEvents.length > 0
-          ? Math.min(...validEvents.map((ev) => ev.created_at))
-          : now;
+        // Track oldest timestamp from the raw query for pagination, ignoring
+        // outliers from out-of-sync relays to prevent cursor jumps.
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
         const items: FeedItem[] = [];
         const repostMissingIds: string[] = [];
@@ -309,13 +303,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
           { signal },
         );
 
-        // Filter out events from out-of-sync relays before processing
-        const filteredEvents = filterOutOfSyncEvents(rawEvents);
-
-        const validEvents = filteredEvents.filter((ev) => ev.created_at <= now);
-        const oldestQueryTimestamp = validEvents.length > 0
-          ? Math.min(...validEvents.map((ev) => ev.created_at))
-          : now;
+        const validEvents = rawEvents.filter((ev) => ev.created_at <= now);
+        const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
         const items = validEvents
           .sort((a, b) => b.created_at - a.created_at)
