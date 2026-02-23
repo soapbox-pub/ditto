@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Cat, Heart, ChevronDown } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Button } from '@/components/ui/button';
@@ -59,7 +60,7 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
 export function LeftSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, metadata, event: currentUserEvent } = useCurrentUser();
+  const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
@@ -207,21 +208,34 @@ export function LeftSidebar() {
           <Popover open={accountPopoverOpen} onOpenChange={setAccountPopoverOpen}>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left">
-                <Avatar className="size-10 shrink-0">
-                  <AvatarImage src={metadata?.picture} alt={metadata?.name} />
-                  <AvatarFallback className="bg-primary/20 text-primary text-sm">
-                    {(metadata?.name?.[0] || '?').toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0 flex-1">
-                  <span className="font-semibold text-sm truncate">
-                    {currentUserEvent && metadata?.name ? (
-                      <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
-                    ) : (metadata?.name || 'Anonymous')}
-                  </span>
-                  <span className="text-xs text-muted-foreground truncate">
-                    {metadata?.nip05 ? `@${formatNip05Display(metadata.nip05)}` : ''}
-                  </span>
+                {isProfileLoading ? (
+                  <Skeleton className="size-10 shrink-0 rounded-full" />
+                ) : (
+                  <Avatar className="size-10 shrink-0">
+                    <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+                    <AvatarFallback className="bg-primary/20 text-primary text-sm">
+                      {(metadata?.name?.[0] || '?').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="flex flex-col min-w-0 flex-1 gap-1">
+                  {isProfileLoading ? (
+                    <>
+                      <Skeleton className="h-3.5 w-24" />
+                      <Skeleton className="h-3 w-16" />
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-semibold text-sm truncate">
+                        {currentUserEvent && metadata?.name ? (
+                          <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
+                        ) : (metadata?.name || genUserName(user?.pubkey))}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {metadata?.nip05 ? `@${formatNip05Display(metadata.nip05)}` : ''}
+                      </span>
+                    </>
+                  )}
                 </div>
               </button>
             </PopoverTrigger>
