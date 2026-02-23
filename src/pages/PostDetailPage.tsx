@@ -980,11 +980,11 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           orderedReplies.map((reply) => (
             <NoteCard key={reply.id} event={reply} />
           ))
-        ) : (
+        ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
             No replies yet. Be the first to reply!
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );
