@@ -1,5 +1,5 @@
 import { useNostr } from '@nostrify/react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNip85EventStats } from '@/hooks/useNip85Stats';
@@ -115,6 +115,48 @@ export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
     },
     enabled,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+const SORTED_PAGE_SIZE = 20;
+
+/**
+ * Fetches sorted posts with infinite scroll pagination.
+ * Uses NIP-50 search extensions with `until`-based cursor pagination
+ * against relay.ditto.pub.
+ */
+export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
+  const { nostr } = useNostr();
+
+  return useInfiniteQuery<NostrEvent[], Error>({
+    queryKey: ['infinite-sorted-posts', sort],
+    queryFn: async ({ pageParam, signal }) => {
+      const ditto = nostr.relay(DITTO_RELAY);
+      const filter: Record<string, unknown> = {
+        kinds: [1],
+        search: `sort:${sort}`,
+        limit: SORTED_PAGE_SIZE,
+      };
+      if (pageParam) {
+        filter.until = pageParam;
+      }
+
+      const events = await ditto.query(
+        [filter as { kinds: number[]; search: string; limit: number; until?: number }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+      return events;
+    },
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length === 0) return undefined;
+      const oldest = lastPage[lastPage.length - 1].created_at;
+      return oldest - 1;
+    },
+    initialPageParam: undefined as number | undefined,
+    enabled,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    placeholderData: (prev) => prev,
   });
 }
 
