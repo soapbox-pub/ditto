@@ -410,13 +410,15 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
             </button>
 
             <RepostMenu event={event}>
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-                title="Repost"
-              >
-                <RepostIcon className="size-5" />
-                {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-              </button>
+              {(isReposted: boolean) => (
+                <button
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'}`}
+                  title={isReposted ? 'Undo repost' : 'Repost'}
+                >
+                  <RepostIcon className="size-5" />
+                  {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+                </button>
+              )}
             </RepostMenu>
 
             <ReactionButton
