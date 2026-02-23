@@ -847,13 +847,15 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
 
           {/* Repost */}
           <RepostMenu event={event}>
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
-              title="Reposts"
-            >
-              <RepostIcon className="size-5" />
-              {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
-            </button>
+            {(isReposted: boolean) => (
+              <button
+                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'}`}
+                title={isReposted ? 'Undo repost' : 'Reposts'}
+              >
+                <RepostIcon className="size-5" />
+                {repostTotal ? <span className="text-sm tabular-nums">{repostTotal}</span> : null}
+              </button>
+            )}
           </RepostMenu>
 
           {/* React */}
