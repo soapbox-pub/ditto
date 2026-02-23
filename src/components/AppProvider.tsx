@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
 import { themes, buildThemeCss } from '@/themes';
+import { ThemeSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -22,38 +23,9 @@ const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 }) satisfies z.ZodType<RelayMetadata>;
 
-// Zod schema for FeedSettings validation.
-// All fields use .optional() so localStorage data with missing keys
-// (from older encrypted settings) doesn't reject the whole object.
-// .passthrough() preserves extra keys from newer encrypted settings.
-// Missing fields get filled in by the defaultConfig merge in line below.
-const FeedSettingsSchema = z.object({
-  feedIncludePosts: z.boolean().optional(),
-  feedIncludeReposts: z.boolean().optional(),
-  feedIncludeArticles: z.boolean().optional(),
-  showArticles: z.boolean().optional(),
-  showVines: z.boolean().optional(),
-  showPolls: z.boolean().optional(),
-  showTreasures: z.boolean().optional(),
-  showTreasureGeocaches: z.boolean().optional(),
-  showTreasureFoundLogs: z.boolean().optional(),
-  showColors: z.boolean().optional(),
-  showPacks: z.boolean().optional(),
-  showStreams: z.boolean().optional(),
-  feedIncludeVines: z.boolean().optional(),
-  feedIncludePolls: z.boolean().optional(),
-  feedIncludeTreasureGeocaches: z.boolean().optional(),
-  feedIncludeTreasureFoundLogs: z.boolean().optional(),
-  feedIncludeColors: z.boolean().optional(),
-  feedIncludePacks: z.boolean().optional(),
-  feedIncludeStreams: z.boolean().optional(),
-  showDecks: z.boolean().optional(),
-  feedIncludeDecks: z.boolean().optional(),
-}).passthrough();
-
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
-  theme: z.enum(['dark', 'light', 'black', 'pink']),
+  theme: ThemeSchema,
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
@@ -67,7 +39,7 @@ const AppConfigSchema = z.object({
   faviconUrl: z.string(),
   linkPreviewUrl: z.string(),
   corsProxy: z.string(),
-  contentWarningPolicy: z.enum(['blur', 'hide', 'show']),
+  contentWarningPolicy: ContentWarningPolicySchema,
 });
 
 export function AppProvider(props: AppProviderProps) {
