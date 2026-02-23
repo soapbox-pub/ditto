@@ -581,6 +581,7 @@ export function ProfilePage() {
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [followingModalOpen, setFollowingModalOpen] = useState(false);
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [npubCopied, setNpubCopied] = useState(false);
 
   // Determine if the URL param is a NIP-05 identifier (contains @ or is a domain-like string)
   const isNip05Param = useMemo(() => {
@@ -680,6 +681,16 @@ export function ProfilePage() {
   }, [supplementary?.following]);
 
   const isOwnProfile = user?.pubkey === pubkey;
+  const npubEncoded = useMemo(() => pubkey ? nip19.npubEncode(pubkey) : '', [pubkey]);
+
+  const handleCopyNpub = useCallback(() => {
+    if (!npubEncoded) return;
+    navigator.clipboard.writeText(npubEncoded);
+    setNpubCopied(true);
+    toast({ title: 'Public key copied to clipboard' });
+    setTimeout(() => setNpubCopied(false), 2000);
+  }, [npubEncoded, toast]);
+
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
@@ -923,6 +934,16 @@ export function ProfilePage() {
                   </Avatar>
                 </button>
                 <div className="flex items-center gap-2 mt-14 md:mt-20">
+                  {/* Copy npub */}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full size-10"
+                    onClick={handleCopyNpub}
+                    title="Copy public key"
+                  >
+                    {npubCopied ? <Check className="size-5 text-green-500" /> : <Copy className="size-5" />}
+                  </Button>
                   {/* More menu */}
                   {!isOwnProfile && (
                     <Button
