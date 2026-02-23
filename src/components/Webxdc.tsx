@@ -2,6 +2,8 @@ import {
   useRef,
   useEffect,
   useCallback,
+  useImperativeHandle,
+  forwardRef,
   type IframeHTMLAttributes,
 } from "react";
 import type { Webxdc as WebxdcAPI, ReceivedStatusUpdate } from "@webxdc/types";
@@ -18,6 +20,14 @@ export interface WebxdcProps
   xdc: Uint8Array | string;
   /** A `Webxdc` instance that backs the iframe's webxdc API calls. */
   webxdc: WebxdcAPI<unknown>;
+}
+
+/** Imperative handle exposed by the Webxdc component. */
+export interface WebxdcHandle {
+  /** Send a postMessage to the iframe (used for synthetic keyboard events). */
+  postMessage: (msg: Record<string, unknown>, transfer?: Transferable[]) => void;
+  /** Focus the iframe element. */
+  focus: () => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,7 +60,10 @@ async function resolveXdc(xdc: Uint8Array | string): Promise<ArrayBuffer> {
  *  3. Proxies every JSON-RPC request to the provided `Webxdc` instance.
  *  4. Forwards `webxdc.update` notifications into the frame.
  */
-export function Webxdc({ id, xdc, webxdc, ...iframeProps }: WebxdcProps) {
+export const Webxdc = forwardRef<WebxdcHandle, WebxdcProps>(function Webxdc(
+  { id, xdc, webxdc, ...iframeProps },
+  ref,
+) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Keep latest props in refs so the message handler always sees current values
@@ -79,6 +92,20 @@ export function Webxdc({ id, xdc, webxdc, ...iframeProps }: WebxdcProps) {
     },
     [origin],
   );
+
+  // Expose imperative handle so parent components can post messages and focus.
+  useImperativeHandle(ref, () => ({
+    postMessage: (msg: Record<string, unknown>, transfer?: Transferable[]) => {
+      iframeRef.current?.contentWindow?.postMessage(
+        msg,
+        origin,
+        transfer ?? [],
+      );
+    },
+    focus: () => {
+      iframeRef.current?.focus();
+    },
+  }), [origin]);
 
   // ------------------------------------------------------------------
   // Handle messages coming from the iframe
@@ -253,7 +280,7 @@ export function Webxdc({ id, xdc, webxdc, ...iframeProps }: WebxdcProps) {
       {...iframeProps}
     />
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Utilities
