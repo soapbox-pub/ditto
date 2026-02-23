@@ -133,7 +133,8 @@ export function AppProvider(props: AppProviderProps) {
  */
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
-    const css = buildThemeCss(themes[theme]);
+    const tokens = themes[theme] ?? themes.dark;
+    const css = buildThemeCss(tokens);
 
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {
