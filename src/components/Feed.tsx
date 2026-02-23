@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/components/InitialSyncGate';
 import { useFeed } from '@/hooks/useFeed';
+import { useInfiniteSortedPosts } from '@/hooks/useTrending';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -69,28 +70,42 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
     }
   }, [user]);
 
+  // When logged out (and not on a kind-specific page), show the "hot" sorted
+  // feed instead of the noisy global feed so new visitors see quality content.
+  const useTopFeedForLoggedOut = !user && !kinds;
+
+  // Standard feed query (used when logged in, or on kind-specific pages)
   const feedQuery = useFeed(activeTab, kinds ? { kinds } : undefined);
-  const queryKey = useMemo(() => ['feed', activeTab], [activeTab]);
+
+  // "Hot" sorted feed query (used when logged out on the home page)
+  const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
+
+  // Unify the two query shapes behind a single interface
+  const activeQuery = useTopFeedForLoggedOut ? topQuery : feedQuery;
+  const queryKey = useMemo(
+    () => useTopFeedForLoggedOut ? ['infinite-sorted-posts', 'hot'] : ['feed', activeTab],
+    [useTopFeedForLoggedOut, activeTab],
+  );
 
   const handleRefresh = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey });
   }, [queryClient, queryKey]);
 
   const {
-    data,
+    data: rawData,
     isPending,
     isLoading,
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = feedQuery;
+  } = activeQuery;
 
   // Auto-fetch page 2 as soon as page 1 arrives for smoother scrolling
   useEffect(() => {
-    if (hasNextPage && !isFetchingNextPage && data?.pages?.length === 1) {
+    if (hasNextPage && !isFetchingNextPage && rawData?.pages?.length === 1) {
       fetchNextPage();
     }
-  }, [hasNextPage, isFetchingNextPage, data?.pages?.length, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, rawData?.pages?.length, fetchNextPage]);
 
   // Intersection observer for infinite scroll
   const { ref: scrollRef, inView } = useInView({
@@ -104,19 +119,40 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  // Flatten, deduplicate, and filter muted content
+  // Flatten, deduplicate, and filter muted content.
+  // The two query types have different page shapes:
+  //   - useFeed returns { items: FeedItem[] }
+  //   - useInfiniteSortedPosts returns NostrEvent[]
   const feedItems = useMemo(() => {
+    if (!rawData?.pages) return [];
     const seen = new Set<string>();
-    return data?.pages.flatMap(page => page.items).filter(item => {
-      const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
-      if (!key || seen.has(key)) return false;
-      seen.add(key);
-      if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
-      return true;
-    }) || [];
-  }, [data?.pages, muteItems]);
 
-  const showSkeleton = isPending || (isLoading && !data);
+    if (useTopFeedForLoggedOut) {
+      // Pages are NostrEvent[]
+      return (rawData.pages as unknown as import('@nostrify/nostrify').NostrEvent[][])
+        .flat()
+        .filter((event) => {
+          if (seen.has(event.id)) return false;
+          seen.add(event.id);
+          if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+          return true;
+        })
+        .map((event): FeedItem => ({ event, sortTimestamp: event.created_at }));
+    }
+
+    // Pages are { items: FeedItem[] }
+    return (rawData.pages as unknown as { items: FeedItem[] }[])
+      .flatMap((page) => page.items)
+      .filter((item) => {
+        const key = item.repostedBy ? `repost-${item.repostedBy}-${item.event.id}` : item.event.id;
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        if (muteItems.length > 0 && isEventMuted(item.event, muteItems)) return false;
+        return true;
+      });
+  }, [rawData?.pages, muteItems, useTopFeedForLoggedOut]);
+
+  const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
