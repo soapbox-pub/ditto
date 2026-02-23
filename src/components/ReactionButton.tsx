@@ -32,6 +32,7 @@ export function ReactionButton({
   const [menuOpen, setMenuOpen] = useState(false);
   const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const justClosedRef = useRef(false);
+  const pickerExpandedRef = useRef(false);
   const userReaction = useUserReaction(eventId);
 
   const hasReacted = !!userReaction;
@@ -48,6 +49,8 @@ export function ReactionButton({
   }, [user]);
 
   const handleMouseLeave = useCallback(() => {
+    // Don't auto-close when the full emoji picker is open
+    if (pickerExpandedRef.current) return;
     // Delay closing to allow user to move to the menu
     closeTimeoutRef.current = setTimeout(() => {
       setMenuOpen(false);
@@ -57,6 +60,7 @@ export function ReactionButton({
   return (
     <Popover open={menuOpen} onOpenChange={(open) => {
       if (open && justClosedRef.current) return;
+      if (!open) pickerExpandedRef.current = false;
       setMenuOpen(open);
     }}>
       <PopoverTrigger asChild>
@@ -103,7 +107,11 @@ export function ReactionButton({
           eventId={eventId}
           eventPubkey={eventPubkey}
           eventKind={eventKind}
+          onExpandChange={(expanded) => {
+            pickerExpandedRef.current = expanded;
+          }}
           onClose={() => {
+            pickerExpandedRef.current = false;
             justClosedRef.current = true;
             setMenuOpen(false);
             setTimeout(() => {
