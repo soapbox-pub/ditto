@@ -8,11 +8,10 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useDeleteEvent } from '@/hooks/useDeleteEvent';
-import { useEventInteractions } from '@/hooks/useEventInteractions';
+import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import type { EventStats } from '@/hooks/useTrending';
-import type { EventInteractions } from '@/hooks/useEventInteractions';
 
 interface RepostMenuProps {
   event: NostrEvent;
@@ -25,12 +24,10 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
   const { user } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const { mutate: deleteEvent } = useDeleteEvent();
-  const { data: interactions } = useEventInteractions(event.id);
+  const repostEventId = useRepostStatus(event.id);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const userRepost = user ? interactions?.reposts.find(r => r.pubkey === user.pubkey) : undefined;
-  const repostEventId = userRepost?.eventId;
   const isReposted = !!repostEventId;
 
   const handleRepost = () => {
@@ -48,18 +45,8 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       });
     }
 
-    // Optimistically add a placeholder repost entry for the current user
-    const interactionsKey = ['event-interactions', event.id, !!interactions?.nip85Stats];
-    const prevInteractions = queryClient.getQueryData<EventInteractions>(interactionsKey);
-    if (user && prevInteractions) {
-      queryClient.setQueryData<EventInteractions>(interactionsKey, {
-        ...prevInteractions,
-        reposts: [
-          { eventId: 'optimistic', pubkey: user.pubkey, createdAt: Math.floor(Date.now() / 1000) },
-          ...prevInteractions.reposts,
-        ],
-      });
-    }
+    // Optimistically mark as reposted
+    queryClient.setQueryData(['user-repost', event.id], 'optimistic');
 
     // Kind 6 repost
     publishEvent(
@@ -80,6 +67,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
           }, 3000);
         },
         onError: () => {
@@ -88,9 +76,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           if (prevStats) {
             queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
           }
-          if (prevInteractions) {
-            queryClient.setQueryData<EventInteractions>(interactionsKey, prevInteractions);
-          }
+          queryClient.setQueryData(['user-repost', event.id], null);
         },
       }
     );
@@ -108,15 +94,9 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
       });
     }
 
-    // Optimistically remove the user's repost from interactions
-    const interactionsKey = ['event-interactions', event.id, !!interactions?.nip85Stats];
-    const prevInteractions = queryClient.getQueryData<EventInteractions>(interactionsKey);
-    if (user && prevInteractions) {
-      queryClient.setQueryData<EventInteractions>(interactionsKey, {
-        ...prevInteractions,
-        reposts: prevInteractions.reposts.filter(r => r.pubkey !== user.pubkey),
-      });
-    }
+    // Optimistically mark as not reposted
+    const prevRepostStatus = queryClient.getQueryData(['user-repost', event.id]);
+    queryClient.setQueryData(['user-repost', event.id], null);
 
     deleteEvent(
       { eventId: repostEventId, eventKind: 6 },
@@ -127,6 +107,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           setTimeout(() => {
             queryClient.invalidateQueries({ queryKey: ['event-stats', event.id] });
             queryClient.invalidateQueries({ queryKey: ['event-interactions', event.id] });
+            queryClient.invalidateQueries({ queryKey: ['user-repost', event.id] });
           }, 3000);
         },
         onError: () => {
@@ -135,9 +116,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
           if (prevStats) {
             queryClient.setQueryData<EventStats>(['event-stats', event.id], prevStats);
           }
-          if (prevInteractions) {
-            queryClient.setQueryData<EventInteractions>(interactionsKey, prevInteractions);
-          }
+          queryClient.setQueryData(['user-repost', event.id], prevRepostStatus);
         },
       }
     );

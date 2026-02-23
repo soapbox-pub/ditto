@@ -1,7 +1,6 @@
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
-import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
 
 export interface RepostEntry {
@@ -37,13 +36,6 @@ export interface EventInteractions {
   quotes: QuoteEntry[];
   reactions: ReactionEntry[];
   zaps: ZapEntry[];
-  /** NIP-85 stats if available */
-  nip85Stats?: {
-    commentCount: number;
-    repostCount: number;
-    reactionCount: number;
-    zapCount: number;
-  };
 }
 
 /** Extracts the zap amount in millisatoshis from a kind 9735 zap receipt. */
@@ -129,22 +121,11 @@ function extractZapMessage(event: NostrEvent): string {
 /** Fetches interaction events (reposts, quotes, reactions, zaps) for a given event ID. */
 export function useEventInteractions(eventId: string | undefined) {
   const { nostr } = useNostr();
-  const nip85Stats = useNip85EventStats(eventId);
-
-  // Use a stable boolean in the query key instead of the full nip85Stats.data
-  // object. The object reference changes on every NIP-85 refetch (30s staleTime)
-  // even when the values are identical, which caused the query key to change and
-  // triggered a fresh fetch with a brief flash of undefined data.
-  const hasNip85Stats = !!nip85Stats.data;
 
   return useQuery<EventInteractions>({
-    queryKey: ['event-interactions', eventId ?? '', hasNip85Stats],
+    queryKey: ['event-interactions', eventId ?? ''],
     queryFn: async ({ signal }) => {
       if (!eventId) return { reposts: [], quotes: [], reactions: [], zaps: [] };
-
-      // If NIP-85 stats are available, use a smaller limit for actual events
-      const interactionLimit = hasNip85Stats ? 10 : 50;
-      const quoteLimit = hasNip85Stats ? 5 : 20;
 
       const timeout = AbortSignal.timeout(5000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -152,8 +133,8 @@ export function useEventInteractions(eventId: string | undefined) {
       // Single query with two filter objects — relay handles as OR
       const allEvents = await nostr.query(
         [
-          { kinds: [6, 7, 9735], '#e': [eventId], limit: interactionLimit },
-          { kinds: [1], '#q': [eventId], limit: quoteLimit },
+          { kinds: [6, 7, 9735], '#e': [eventId], limit: 50 },
+          { kinds: [1], '#q': [eventId], limit: 20 },
         ],
         { signal: combined },
       );
@@ -218,13 +199,7 @@ export function useEventInteractions(eventId: string | undefined) {
       reactions.sort((a, b) => b.createdAt - a.createdAt);
       zaps.sort((a, b) => b.amountSats - a.amountSats); // Sort zaps by amount (largest first)
 
-      return { 
-        reposts, 
-        quotes, 
-        reactions, 
-        zaps,
-        nip85Stats: nip85Stats.data,
-      };
+      return { reposts, quotes, reactions, zaps };
     },
     enabled: !!eventId,
     staleTime: 60 * 1000,
