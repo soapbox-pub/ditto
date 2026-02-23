@@ -1,6 +1,2 @@
 /assets/*              /assets/:splat          200
-/og-image.png          /og-image.png           200
-/logo.png              /logo.png               200
-/robots.txt            /robots.txt             200
-/manifest.webmanifest  /manifest.webmanifest   200
 /*                     /index.html             200
