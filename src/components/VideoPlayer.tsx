@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Expand } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 
 interface VideoPlayerProps {
   src: string;
@@ -18,11 +19,12 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+  const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -151,6 +153,7 @@ export function VideoPlayer({ src, poster, className }: VideoPlayerProps) {
         onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
         onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
+        onError={onBlossomError}
       />
 
       {/* Big centered play button before first play */}

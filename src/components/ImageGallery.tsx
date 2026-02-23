@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 
 interface ImageGalleryProps {
   images: string[];
@@ -107,6 +108,7 @@ function GridImage({
 }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
+  const { src, onError } = useBlossomFallback(url);
 
   // If the image is already cached by the browser, onLoad may have
   // fired before the ref was attached. Check on mount.
@@ -143,7 +145,7 @@ function GridImage({
       )}
       <img
         ref={imgRef}
-        src={url}
+        src={src}
         alt=""
         className={cn(
           'w-full object-cover transition-all duration-300 hover:scale-[1.02]',
@@ -156,6 +158,7 @@ function GridImage({
         }}
         loading="lazy"
         onLoad={() => setLoaded(true)}
+        onError={onError}
       />
       {/* "+N" overlay on last visible image */}
       {overflow > 0 && (
@@ -348,16 +351,11 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
           </div>
         )}
 
-        <img
+        <LightboxImage
           key={currentUrl}
-          src={currentUrl}
-          alt=""
-          className={cn(
-            'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
-            isLoaded ? 'opacity-100' : 'opacity-0',
-          )}
+          url={currentUrl}
+          isLoaded={isLoaded}
           onLoad={() => setIsLoaded(true)}
-          draggable={false}
         />
       </div>
 
@@ -378,5 +376,24 @@ export function Lightbox({ images, currentIndex, onClose, onNext, onPrev, topBar
         </div>
       )}
     </div>
+  );
+}
+
+/** Lightbox image with Blossom server fallback. */
+function LightboxImage({ url, isLoaded, onLoad }: { url: string; isLoaded: boolean; onLoad: () => void }) {
+  const { src, onError } = useBlossomFallback(url);
+
+  return (
+    <img
+      src={src}
+      alt=""
+      className={cn(
+        'max-w-full max-h-full object-contain rounded-lg select-none transition-opacity duration-300',
+        isLoaded ? 'opacity-100' : 'opacity-0',
+      )}
+      onLoad={onLoad}
+      onError={onError}
+      draggable={false}
+    />
   );
 }
