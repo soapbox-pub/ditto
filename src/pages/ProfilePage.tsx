@@ -628,6 +628,13 @@ export function ProfilePage() {
   // Kind 0 — resolved from the author cache (seeded by the feed query above).
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
+
+  // Refetch the author's profile whenever we navigate to this profile page.
+  useEffect(() => {
+    if (pubkey) {
+      queryClient.refetchQueries({ queryKey: ['author', pubkey] });
+    }
+  }, [pubkey, queryClient]);
   const metadataEvent = author.data?.event;
   const displayName = metadata?.name || (pubkey ? genUserName(pubkey) : 'Anonymous');
 

@@ -4,6 +4,7 @@ import { ArrowLeft, MessageCircle, Zap, MoreHorizontal, Radio, Loader2, AlertCir
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -611,9 +612,15 @@ function VineDetailContent({ event }: { event: NostrEvent }) {
 function PostDetailContent({ event }: { event: NostrEvent }) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
+  const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
+
+  // Refetch the author's profile whenever we navigate to a post by this author.
+  useEffect(() => {
+    queryClient.refetchQueries({ queryKey: ['author', event.pubkey] });
+  }, [event.pubkey, queryClient]);
   const nip05 = metadata?.nip05;
   const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
 
