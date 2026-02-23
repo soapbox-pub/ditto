@@ -35,7 +35,7 @@ import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
-import { useMemo, useState, useRef, useEffect } from 'react';
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -277,9 +277,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
           <StreamContent event={event} />
         ) : (
           <>
-            <div className="mt-2 break-words overflow-hidden">
-              <NoteContent event={event} className="text-[15px] leading-relaxed" />
-            </div>
+            <TruncatedNoteContent event={event} />
             <NoteMedia images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
           </>
         )}
@@ -454,6 +452,49 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         </>
       )}
     </article>
+  );
+}
+
+const MAX_HEIGHT = 400; // px — posts taller than this get truncated
+
+/** Truncates long text note content with a "Read more" fade + button. */
+function TruncatedNoteContent({ event }: { event: NostrEvent }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [overflows, setOverflows] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
+  const measure = useCallback(() => {
+    const el = contentRef.current;
+    if (el) setOverflows(el.scrollHeight > MAX_HEIGHT);
+  }, []);
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [measure]);
+
+  return (
+    <div className="mt-2 break-words overflow-hidden">
+      <div
+        ref={contentRef}
+        style={!expanded && overflows ? { maxHeight: MAX_HEIGHT, overflow: 'hidden' } : undefined}
+        className="relative"
+      >
+        <NoteContent event={event} className="text-[15px] leading-relaxed" />
+        {!expanded && overflows && (
+          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-background to-transparent pointer-events-none" />
+        )}
+      </div>
+      {overflows && (
+        <button
+          className="mt-1 text-sm text-primary hover:underline"
+          onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }}
+        >
+          {expanded ? 'Show less' : 'Read more'}
+        </button>
+      )}
+    </div>
   );
 }
 
