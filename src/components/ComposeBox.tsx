@@ -12,6 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { EmojiPicker } from '@/components/EmojiPicker';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { MentionAutocomplete } from '@/components/MentionAutocomplete';
+import { EmojiShortcodeAutocomplete } from '@/components/EmojiShortcodeAutocomplete';
 
 import { NoteContent } from '@/components/NoteContent';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -296,6 +297,19 @@ export function ComposeBox({
   }, [content, expand]);
 
   const handleInsertMention = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
+    const newContent = content.slice(0, start) + replacement + content.slice(end);
+    setContent(newContent);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      if (textarea) {
+        textarea.focus();
+        const pos = start + replacement.length;
+        textarea.setSelectionRange(pos, pos);
+      }
+    });
+  }, [content]);
+
+  const handleInsertShortcodeEmoji = useCallback(({ start, end, replacement }: { start: number; end: number; replacement: string }) => {
     const newContent = content.slice(0, start) + replacement + content.slice(end);
     setContent(newContent);
     requestAnimationFrame(() => {
@@ -629,6 +643,11 @@ export function ComposeBox({
               textareaRef={textareaRef}
               content={content}
               onInsertMention={handleInsertMention}
+            />
+            <EmojiShortcodeAutocomplete
+              textareaRef={textareaRef}
+              content={content}
+              onInsertEmoji={handleInsertShortcodeEmoji}
             />
           </div>
         ) : (
