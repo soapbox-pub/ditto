@@ -5,6 +5,7 @@ import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { isCustomEmoji, getCustomEmojiUrl } from '@/components/CustomEmoji';
 
 export interface RepostEntry {
+  eventId: string;
   pubkey: string;
   createdAt: number;
 }
@@ -169,6 +170,7 @@ export function useEventInteractions(eventId: string | undefined) {
         switch (e.kind) {
           case 6:
             reposts.push({
+              eventId: e.id,
               pubkey: e.pubkey,
               createdAt: e.created_at,
             });
