@@ -29,11 +29,6 @@ const AppConfigSchema = z.object({
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
-  nip85StatsPubkey: z.string().refine(
-    (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
-    { message: 'Must be empty or a valid 64-character hex pubkey' }
-  ),
-  nip85OnlyMode: z.boolean(),
   blossomServers: z.array(z.url()),
   defaultZapComment: z.string(),
   faviconUrl: z.string(),
