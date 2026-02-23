@@ -1,266 +1,47 @@
-import { useState, useMemo } from 'react';
-import { Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
+import { useCallback } from 'react';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
+import { useTheme } from '@/hooks/useTheme';
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
 }
 
-interface EmojiCategory {
-  name: string;
-  icon: string;
-  emojis: string[];
+interface EmojiMartEmoji {
+  id: string;
+  native: string;
+  shortcodes: string;
+  unified: string;
 }
 
-const CATEGORIES: EmojiCategory[] = [
-  {
-    name: 'Smileys',
-    icon: '😀',
-    emojis: [
-      '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','😊',
-      '😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋',
-      '😛','😜','🤪','😝','🤑','🤗','🤭','🫢','🫣','🤫',
-      '🤔','🫡','🤐','🤨','😐','😑','😶','🫥','😏','😒',
-      '🙄','😬','🤥','🫨','😌','😔','😪','🤤','😴','😷',
-      '🤒','🤕','🤢','🤮','🥵','🥶','🥴','😵','🤯','🤠',
-      '🥳','🥸','😎','🤓','🧐','😕','🫤','😟','🙁','😮',
-      '😯','😲','😳','🥺','🥹','😦','😧','😨','😰','😥',
-      '😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱',
-      '😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡',
-      '👹','👺','👻','👽','👾','🤖',
-    ],
-  },
-  {
-    name: 'Gestures',
-    icon: '👋',
-    emojis: [
-      '👋','🤚','🖐️','✋','🖖','🫱','🫲','🫳','🫴','🫷',
-      '🫸','👌','🤌','🤏','✌️','🤞','🫰','🤟','🤘','🤙',
-      '👈','👉','👆','🖕','👇','☝️','🫵','👍','👎','✊',
-      '👊','🤛','🤜','👏','🙌','🫶','👐','🤲','🤝','🙏',
-      '✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻',
-      '👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄',
-    ],
-  },
-  {
-    name: 'People',
-    icon: '👶',
-    emojis: [
-      '👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓',
-      '👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇',
-      '🤦','🤷','👮','🕵️','💂','🥷','👷','🫅','🤴','👸',
-      '👳','👲','🧕','🤵','👰','🤰','🫃','🫄','🤱','👼',
-      '🎅','🤶','🦸','🦹','🧙','🧚','🧛','🧜','🧝','🧞',
-      '🧟','🧌','💆','💇','🚶','🧍','🧎','🏃','💃','🕺',
-    ],
-  },
-  {
-    name: 'Nature',
-    icon: '🐶',
-    emojis: [
-      '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨',
-      '🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒',
-      '🐔','🐧','🐦','🐤','🐣','🐥','🪿','🦆','🐦‍⬛','🦅',
-      '🦉','🦇','🐺','🐗','🐴','🦄','🫎','🐝','🪱','🐛',
-      '🦋','🐌','🐞','🐜','🪰','🪲','🪳','🦟','🦗','🕷️',
-      '🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀',
-      '🪸','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🪼','🐊',
-      '🐅','🐆','🦓','🫏','🦍','🦧','🦣','🐘','🦛','🦏',
-      '🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖',
-      '🐏','🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈',
-      '🐈‍⬛','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊️',
-      '🐇','🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️',
-      '🦔','🌵','🎄','🌲','🌳','🌴','🪵','🌱','🌿','☘️',
-      '🍀','🎍','🪴','🎋','🍃','🍂','🍁','🪺','🪹','🍄',
-      '🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞',
-      '🌝','🌛','🌜','🌚','🌕','🌖','🌗','🌘','🌑','🌒',
-      '🌓','🌔','🌙','🌎','🌍','🌏','🪐','💫','⭐','🌟',
-      '✨','⚡','☄️','💥','🔥','🌪️','🌈','☀️','🌤️','⛅',
-      '🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄',
-      '🌬️','💨','💧','💦','🫧','☔','☂️','🌊','🌫️',
-    ],
-  },
-  {
-    name: 'Food',
-    icon: '🍔',
-    emojis: [
-      '🍇','🍈','🍉','🍊','🍋','🍌','🍍','🥭','🍎','🍏',
-      '🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑',
-      '🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🥦','🧄',
-      '🧅','🥜','🫘','🌰','🫚','🫛','🍞','🥐','🥖','🫓',
-      '🥨','🥯','🥞','🧇','🧀','🍖','🍗','🥩','🥓','🍔',
-      '🍟','🍕','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚',
-      '🍳','🥘','🍲','🫕','🥣','🥗','🍿','🧈','🧂','🥫',
-      '🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣',
-      '🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐',
-      '🦑','🦪','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁',
-      '🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖',
-      '🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃',
-      '🫗','🥤','🧋','🧃','🧉','🧊',
-    ],
-  },
-  {
-    name: 'Activities',
-    icon: '⚽',
-    emojis: [
-      '⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱',
-      '🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳',
-      '🪁','🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷',
-      '⛸️','🥌','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','🤺',
-      '⛹️','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗',
-      '🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖️','🏵️','🎗️',
-      '🎪','🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎹',
-      '🥁','🪘','🪗','🎷','🎺','🪈','🎸','🪕','🎻','🎲',
-      '♟️','🎯','🎳','🎮','🕹️','🎰',
-    ],
-  },
-  {
-    name: 'Objects',
-    icon: '💡',
-    emojis: [
-      '⌚','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','💾',
-      '💿','📀','📼','📷','📸','📹','🎥','📽️','🎞️','📞',
-      '☎️','📟','📠','📺','📻','🎙️','🎚️','🎛️','🧭','⏱️',
-      '⏲️','⏰','🕰️','🔋','🔌','💡','🔦','🕯️','🪔','🧯',
-      '💰','💴','💵','💶','💷','🪙','💳','💎','⚖️','🪜',
-      '🧰','🪛','🔧','🔨','⚒️','🛠️','⛏️','🪚','🔩','⚙️',
-      '🪤','🧱','⛓️','🧲','🔫','💣','🪓','🔪','🗡️','⚔️',
-      '🛡️','🚬','⚰️','🪦','⚱️','🏺','🔮','📿','🧿','🪬',
-      '💈','⚗️','🔭','🔬','🕳️','🩹','🩺','🩻','🩼','💊',
-      '💉','🩸','🧬','🦠','🧫','🧪','🌡️','🧹','🪠','🧺',
-      '🧻','🚽','🪣','🧼','🫧','🪥','🧽','🧴','🔑','🗝️',
-      '🚪','🪑','🛋️','🛏️','🛌','🧸','🪆','🖼️','🪞','🪟',
-      '🛍️','🛒','🎁','🎈','🎏','🎀','🪄','🪅','🎊','🎉',
-      '🪩','🎎','🏮','🎐','🧧','✉️','📩','📨','📧','💌',
-      '📥','📤','📦','🏷️','🪧','📪','📫','📬','📭','📮',
-    ],
-  },
-  {
-    name: 'Symbols',
-    icon: '❤️',
-    emojis: [
-      '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔',
-      '❤️‍🔥','❤️‍🩹','❣️','💕','💞','💓','💗','💖','💘','💝',
-      '💟','☮️','✝️','☪️','🪯','🕉️','☸️','✡️','🔯','🕎',
-      '☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍',
-      '♎','♏','♐','♑','♒','♓','🆔','⚛️','🉑','☢️',
-      '☣️','📴','📳','🈶','🈚','🈸','🈺','🈷️','✴️','🆚',
-      '💮','🉐','㊙️','㊗️','🈴','🈵','🈹','🈲','🅰️','🅱️',
-      '🆎','🆑','🅾️','🆘','❌','⭕','🛑','⛔','📛','🚫',
-      '💯','💢','♨️','🚷','🚯','🚳','🚱','🔞','📵','🚭',
-      '❗','❕','❓','❔','‼️','⁉️','🔅','🔆','〽️','⚠️',
-      '🚸','🔱','⚜️','🔰','♻️','✅','🈯','💹','❇️','✳️',
-      '❎','🌐','💠','Ⓜ️','🌀','💤','🏧','🚾','♿','🅿️',
-      '🛗','🈳','🈂️','🛂','🛃','🛄','🛅','🚹','🚺','🚻',
-      '🚼','🚾','🔣','ℹ️','🔤','🔡','🔠','🆖','🆗','🆙',
-      '🆒','🆕','🆓','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣',
-      '7️⃣','8️⃣','9️⃣','🔟','🔢','#️⃣','*️⃣','⏏️','▶️','⏸️',
-      '⏯️','⏹️','⏺️','⏭️','⏮️','⏩','⏪','⏫','⏬','◀️',
-      '🔼','🔽','➡️','⬅️','⬆️','⬇️','↗️','↘️','↙️','↖️',
-      '↕️','↔️','↪️','↩️','⤴️','⤵️','🔀','🔁','🔂','🔄',
-      '🔃','🎵','🎶','➕','➖','➗','✖️','🟰','♾️','💲',
-      '💱','™️','©️','®️','👁️‍🗨️','🔚','🔙','🔛','🔝','🔜',
-    ],
-  },
-  {
-    name: 'Flags',
-    icon: '🏁',
-    emojis: [
-      '🏁','🚩','🎌','🏴','🏳️','🏳️‍🌈','🏳️‍⚧️','🏴‍☠️','🇺🇸','🇬🇧',
-      '🇫🇷','🇩🇪','🇯🇵','🇨🇳','🇰🇷','🇮🇳','🇧🇷','🇲🇽','🇨🇦','🇦🇺',
-      '🇮🇹','🇪🇸','🇷🇺','🇹🇷','🇦🇷','🇳🇱','🇸🇪','🇳🇴','🇩🇰','🇫🇮',
-      '🇵🇱','🇺🇦','🇨🇭','🇦🇹','🇧🇪','🇵🇹','🇬🇷','🇮🇪','🇿🇦','🇳🇿',
-      '🇸🇬','🇹🇭','🇻🇳','🇮🇩','🇵🇭','🇲🇾','🇪🇬','🇳🇬','🇰🇪','🇨🇴',
-      '🇵🇪','🇨🇱','🇻🇪','🇨🇺','🇩🇴','🇵🇷','🇯🇲','🇹🇹','🇧🇧','🇧🇸',
-    ],
-  },
-];
-
 export function EmojiPicker({ onSelect }: EmojiPickerProps) {
-  const [search, setSearch] = useState('');
-  const [activeCategory, setActiveCategory] = useState(0);
+  const { theme } = useTheme();
 
-  const filteredCategories = useMemo(() => {
-    if (!search.trim()) return CATEGORIES;
-    // Simple search: we can't really search emoji by name without a mapping,
-    // so we just show all categories and let the user scroll. For the search
-    // bar, we'll use it to filter common keywords mapped to emoji.
-    const q = search.toLowerCase();
-    return CATEGORIES.map((cat) => ({
-      ...cat,
-      emojis: cat.emojis.filter(() => {
-        // Without a name-to-emoji map, just show all when searching.
-        // The search is for category name matching as a basic filter.
-        return cat.name.toLowerCase().includes(q);
-      }),
-    })).filter((cat) => cat.emojis.length > 0);
-  }, [search]);
-
-  const categoriesToShow = search.trim() ? filteredCategories : CATEGORIES;
+  const handleSelect = useCallback((emoji: EmojiMartEmoji) => {
+    if (emoji.native) {
+      onSelect(emoji.native);
+    }
+  }, [onSelect]);
 
   return (
-    <div 
-      className="flex flex-col w-[320px] h-[360px]"
+    <div
+      className="emoji-mart-wrapper"
       onWheel={(e) => {
         // Prevent scroll from bubbling to the page
         e.stopPropagation();
       }}
     >
-      {/* Search */}
-      <div className="px-3 pt-3 pb-2">
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-muted-foreground" />
-          <Input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search emoji..."
-            className="h-8 pl-8 text-sm bg-secondary/50 border-0 rounded-lg"
-          />
-        </div>
-      </div>
-
-      {/* Category tabs */}
-      {!search.trim() && (
-        <div className="flex items-center gap-0.5 px-2 pb-1 border-b border-border">
-          {CATEGORIES.map((cat, i) => (
-            <button
-              key={cat.name}
-              onClick={() => setActiveCategory(i)}
-              className={cn(
-                'p-1.5 rounded-md text-base transition-colors hover:bg-secondary/60',
-                activeCategory === i && 'bg-secondary',
-              )}
-              title={cat.name}
-            >
-              {cat.icon}
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* Emoji grid */}
-      <ScrollArea className="flex-1">
-        <div className="px-2 py-1">
-          {(search.trim() ? categoriesToShow : [CATEGORIES[activeCategory]]).map((cat) => (
-            <div key={cat.name}>
-              <div className="text-xs font-semibold text-muted-foreground px-1 py-1.5">{cat.name}</div>
-              <div className="grid grid-cols-8 gap-0.5">
-                {cat.emojis.map((emoji, i) => (
-                  <button
-                    key={`${emoji}-${i}`}
-                    onClick={() => onSelect(emoji)}
-                    className="flex items-center justify-center size-9 rounded-md text-xl hover:bg-secondary/80 transition-colors active:scale-90"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
+      <Picker
+        data={data}
+        onEmojiSelect={handleSelect}
+        theme={theme === 'dark' ? 'dark' : 'light'}
+        previewPosition="none"
+        skinTonePosition="search"
+        set="native"
+        maxFrequentRows={2}
+        navPosition="bottom"
+        perLine={8}
+      />
     </div>
   );
 }

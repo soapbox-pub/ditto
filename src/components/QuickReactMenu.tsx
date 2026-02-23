@@ -112,7 +112,7 @@ export function QuickReactMenu({
   if (showFullPicker) {
     return (
       <div
-        className={cn('bg-popover border border-border rounded-xl shadow-xl', className)}
+        className={cn('rounded-xl shadow-xl overflow-hidden', className)}
         onClick={(e) => e.stopPropagation()}
       >
         <EmojiPicker onSelect={handleEmojiSelect} />
