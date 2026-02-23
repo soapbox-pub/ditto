@@ -8,7 +8,7 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}🔨 Mew APK Builder (Secure)${NC}\n"
+echo -e "${GREEN}🔨 Ditto APK Builder (Secure)${NC}\n"
 
 # CalVer date prefix (full tag determined after commit)
 DATE_TAG="v$(date +%Y.%m.%d)"
@@ -80,14 +80,14 @@ cd android && ./gradlew assembleRelease && cd ..
 
 echo -e "\n${BLUE}Step 6/8:${NC} Copying APK to downloads..."
 mkdir -p downloads
-cp android/app/build/outputs/apk/release/app-release.apk downloads/mew.apk
+cp android/app/build/outputs/apk/release/app-release.apk downloads/ditto.apk
 
-APK_SIZE=$(ls -lh downloads/mew.apk | awk '{print $5}')
-APK_PATH=$(realpath downloads/mew.apk)
+APK_SIZE=$(ls -lh downloads/ditto.apk | awk '{print $5}')
+APK_PATH=$(realpath downloads/ditto.apk)
 
 echo -e "\n${BLUE}Step 7/8:${NC} Committing build..."
-git add -f downloads/mew.apk android/app/build.gradle
-git commit -m "Build ${DATE_TAG}: Update mew.apk (${APK_SIZE})"
+git add -f downloads/ditto.apk android/app/build.gradle
+git commit -m "Build ${DATE_TAG}: Update ditto.apk (${APK_SIZE})"
 
 # Determine the final tag with the commit hash
 SHORT_HASH=$(git rev-parse --short HEAD)

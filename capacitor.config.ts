@@ -1,12 +1,12 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.mew.app',
-  appName: 'mew',
+  appId: 'pub.ditto.app',
+  appName: 'ditto',
   webDir: 'dist',
   server: {
     // Handle deep links from your domain
-    hostname: 'mew.app',
+    hostname: 'ditto.pub',
     androidScheme: 'https'
   },
   android: {

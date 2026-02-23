@@ -1,4 +1,4 @@
-package com.mew.app;
+package pub.ditto.app;
 
 import android.content.Intent;
 import android.net.Uri;
@@ -12,7 +12,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         // Register the native notification config plugin before super.onCreate
-        registerPlugin(MewNotificationPlugin.class);
+        registerPlugin(DittoNotificationPlugin.class);
 
         super.onCreate(savedInstanceState);
 
@@ -42,7 +42,7 @@ public class MainActivity extends BridgeActivity {
     private void handleNotificationIntent(Intent intent) {
         if (intent == null) return;
         Uri data = intent.getData();
-        if (data != null && "mew.app".equals(data.getHost())) {
+        if (data != null && "ditto.pub".equals(data.getHost())) {
             String path = data.getPath();
             if (path != null && !path.isEmpty()) {
                 // Wait for WebView to be ready, then navigate

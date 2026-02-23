@@ -12,7 +12,7 @@ export interface MuteListItem {
 }
 
 /** localStorage key for cached mute list items. */
-const MUTE_CACHE_KEY = 'mew:muteListCache';
+const MUTE_CACHE_KEY = 'ditto:muteListCache';
 
 /** Read cached mute items from localStorage for a given user. */
 function getCachedMuteItems(pubkey: string): MuteListItem[] | undefined {

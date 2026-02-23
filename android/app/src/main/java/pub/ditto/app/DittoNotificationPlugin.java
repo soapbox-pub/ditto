@@ -1,4 +1,4 @@
-package com.mew.app;
+package pub.ditto.app;
 
 import android.content.SharedPreferences;
 import android.content.Context;
@@ -15,11 +15,11 @@ import org.json.JSONArray;
  * Capacitor plugin that allows the JS layer to configure the native
  * notification polling service with the user's pubkey and relay URLs.
  */
-@CapacitorPlugin(name = "MewNotification")
-public class MewNotificationPlugin extends Plugin {
+@CapacitorPlugin(name = "DittoNotification")
+public class DittoNotificationPlugin extends Plugin {
 
-    private static final String TAG = "MewNotificationPlugin";
-    private static final String PREFS_NAME = "mew_notification_config";
+    private static final String TAG = "DittoNotificationPlugin";
+    private static final String PREFS_NAME = "ditto_notification_config";
 
     @PluginMethod
     public void configure(PluginCall call) {

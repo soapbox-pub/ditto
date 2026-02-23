@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { MewLogo } from '@/components/MewLogo';
+import { DittoLogo } from '@/components/DittoLogo';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface MobileTopBarProps {
@@ -36,10 +36,10 @@ export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
         )}
       </div>
 
-      {/* Center: Mew logo */}
+      {/* Center: Ditto logo */}
       <div className="flex-1 flex items-center justify-center">
         <Link to="/" onClick={handleLogoClick}>
-          <MewLogo size={28} />
+          <DittoLogo size={28} />
         </Link>
       </div>
 

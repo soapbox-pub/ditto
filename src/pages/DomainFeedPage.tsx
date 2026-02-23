@@ -66,7 +66,7 @@ export function DomainFeedPage() {
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
-    title: domain ? `${domain} | Mew` : 'Domain Feed | Mew',
+    title: domain ? `${domain} | Ditto` : 'Domain Feed | Ditto',
     description: domain ? `Posts from users on ${domain}` : 'Domain feed',
   });
 

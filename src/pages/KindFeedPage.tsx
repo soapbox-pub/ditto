@@ -12,7 +12,7 @@ interface KindFeedPageProps {
 
 export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPageProps) {
   useSeoMeta({
-    title: `${title} | Mew`,
+    title: `${title} | Ditto`,
     description: `${title} on Nostr`,
   });
 

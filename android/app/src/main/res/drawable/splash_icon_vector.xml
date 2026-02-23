@@ -6,7 +6,7 @@
 
     <!--
       Android 12 splash screen masks the icon to a circle at 2/3 of canvas (160dp of 240dp).
-      The Mew logo occupies roughly 60-920 in a 1024 viewport.
+      The Ditto logo occupies roughly 60-920 in a 1024 viewport.
       Using a 1200x1200 viewport with the logo's original coordinates naturally
       provides ~88px padding on each side, keeping it within the circular safe zone.
     -->

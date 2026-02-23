@@ -37,7 +37,7 @@ function getStatusConfig(status: string | undefined) {
 
 export function StreamsFeedPage() {
   useSeoMeta({
-    title: 'Streams | Mew',
+    title: 'Streams | Ditto',
     description: 'Live streams on Nostr',
   });
 

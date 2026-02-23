@@ -4,7 +4,7 @@
     android:viewportWidth="1024"
     android:viewportHeight="1024">
 
-    <!-- Mew logo as monochrome notification small icon -->
+    <!-- Ditto logo as monochrome notification small icon -->
 
     <!-- Main cat body -->
     <path

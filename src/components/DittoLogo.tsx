@@ -1,19 +1,19 @@
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 
-interface MewLogoProps {
+interface DittoLogoProps {
   className?: string;
   size?: number;
 }
 
-/** The Mew logo rendered from the custom SVG asset. */
-export function MewLogo({ className, size = 40 }: MewLogoProps) {
+/** The Ditto logo rendered from the custom SVG asset. */
+export function DittoLogo({ className, size = 40 }: DittoLogoProps) {
   const { theme } = useTheme();
   
   return (
     <img
       src="/logo.svg"
-      alt="Mew"
+      alt="Ditto"
       width={size}
       height={size}
       className={cn(

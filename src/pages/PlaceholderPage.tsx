@@ -11,7 +11,7 @@ interface PlaceholderPageProps {
 
 export function PlaceholderPage({ title, icon, description }: PlaceholderPageProps) {
   useSeoMeta({
-    title: `${title} | Mew`,
+    title: `${title} | Ditto`,
     description: description || `${title} page`,
   });
 

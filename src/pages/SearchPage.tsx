@@ -33,7 +33,7 @@ function parseTab(value: string | null): TabType {
 
 export function SearchPage() {
   useSeoMeta({
-    title: 'Search | Mew',
+    title: 'Search | Ditto',
     description: 'Search Nostr',
   });
 

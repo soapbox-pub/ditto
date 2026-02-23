@@ -4,7 +4,7 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 const Index = () => {
   useSeoMeta({
-    title: 'Mew',
+    title: 'Ditto',
     description: 'A Nostr client for the social web.',
   });
 

@@ -76,7 +76,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   }, [feedSettings]);
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'dark', label: 'Mew', icon: <Cat className="size-5" /> },
+    { value: 'dark', label: 'Ditto', icon: <Cat className="size-5" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-5" /> },
     { value: 'black', label: 'Black', icon: <Moon className="size-5" /> },
     { value: 'pink', label: 'Pink', icon: <Heart className="size-5" /> },

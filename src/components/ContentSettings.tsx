@@ -392,23 +392,23 @@ function FeedTabsSection() {
   const [communityDomain, setCommunityDomain] = useState('');
   const [isDownloading, setIsDownloading] = useState(false);
   const [community, setCommunity] = useState<{ domain: string; userCount: number; label: string } | null>(() => {
-    const stored = localStorage.getItem('mew:community');
+    const stored = localStorage.getItem('ditto:community');
     return stored ? JSON.parse(stored) : null;
   });
 
   const [showGlobalFeed, setShowGlobalFeed] = useState(() => {
-    const stored = localStorage.getItem('mew:showGlobalFeed');
+    const stored = localStorage.getItem('ditto:showGlobalFeed');
     return stored !== null ? stored === 'true' : true; // Default to true
   });
 
   const [showCommunityFeed, setShowCommunityFeed] = useState(() => {
-    const stored = localStorage.getItem('mew:showCommunityFeed');
+    const stored = localStorage.getItem('ditto:showCommunityFeed');
     return stored !== null ? stored === 'true' : false; // Default to false
   });
 
   const handleToggleGlobalFeed = (checked: boolean) => {
     setShowGlobalFeed(checked);
-    localStorage.setItem('mew:showGlobalFeed', String(checked));
+    localStorage.setItem('ditto:showGlobalFeed', String(checked));
     toast({
       title: checked ? 'Global feed enabled' : 'Global feed disabled',
       description: checked 
@@ -419,7 +419,7 @@ function FeedTabsSection() {
 
   const handleToggleCommunityFeed = (checked: boolean) => {
     setShowCommunityFeed(checked);
-    localStorage.setItem('mew:showCommunityFeed', String(checked));
+    localStorage.setItem('ditto:showCommunityFeed', String(checked));
     toast({
       title: checked ? 'Community feed enabled' : 'Community feed disabled',
       description: checked 
@@ -471,14 +471,14 @@ function FeedTabsSection() {
       // Store in localStorage (single community only)
       const newCommunity = { domain, userCount, label };
       setCommunity(newCommunity);
-      localStorage.setItem('mew:community', JSON.stringify(newCommunity));
+      localStorage.setItem('ditto:community', JSON.stringify(newCommunity));
       
       // Store the actual JSON data for later use
-      localStorage.setItem('mew:communityData', JSON.stringify(data));
+      localStorage.setItem('ditto:communityData', JSON.stringify(data));
 
       // Auto-enable the Community feed tab
       setShowCommunityFeed(true);
-      localStorage.setItem('mew:showCommunityFeed', 'true');
+      localStorage.setItem('ditto:showCommunityFeed', 'true');
 
       toast({
         title: 'Community set',
@@ -500,12 +500,12 @@ function FeedTabsSection() {
 
   const handleRemoveCommunity = () => {
     setCommunity(null);
-    localStorage.removeItem('mew:community');
-    localStorage.removeItem('mew:communityData');
+    localStorage.removeItem('ditto:community');
+    localStorage.removeItem('ditto:communityData');
     
     // Also disable the community feed tab
     setShowCommunityFeed(false);
-    localStorage.setItem('mew:showCommunityFeed', 'false');
+    localStorage.setItem('ditto:showCommunityFeed', 'false');
     
     toast({
       title: 'Community removed',

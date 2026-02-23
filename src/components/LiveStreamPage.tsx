@@ -97,7 +97,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   // The URL to play: prefer streaming for live, recording for ended
   const playUrl = status === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
 
-  useSeoMeta({ title: `${title} - Mew` });
+  useSeoMeta({ title: `${title} - Ditto` });
 
   // Lock body scroll on mobile to prevent page scrolling past the viewport-locked layout
   useEffect(() => {

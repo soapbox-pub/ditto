@@ -1,4 +1,4 @@
-package com.mew.app;
+package pub.ditto.app;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -38,10 +38,10 @@ import okhttp3.WebSocketListener;
 public class NostrPoller {
 
     private static final String TAG = "NostrPoller";
-    private static final String PREFS_NAME = "mew_notifications";
-    private static final String META_PREFS_NAME = "mew_metadata_cache";
+    private static final String PREFS_NAME = "ditto_notifications";
+    private static final String META_PREFS_NAME = "ditto_metadata_cache";
     private static final String KEY_LAST_SEEN = "nostr:notification-last-seen";
-    private static final String CHANNEL_ID = "mew_notifications";
+    private static final String CHANNEL_ID = "ditto_notifications";
     private static final int MAX_NOTIFICATION_ID = 2147483646;
 
     private final Context context;
@@ -70,7 +70,7 @@ public class NostrPoller {
         String action = kindToAction(event);
         showNotification(
                 hashId(event.optString("id")),
-                "Mew",
+                "Ditto",
                 displayName + " " + action
         );
 
@@ -119,7 +119,7 @@ public class NostrPoller {
         if (filtered.size() > 3) {
             showNotification(
                     hashId(filtered.get(0).optString("id") + "-summary"),
-                    "Mew",
+                    "Ditto",
                     "You have " + filtered.size() + " new notifications"
             );
         } else {
@@ -130,7 +130,7 @@ public class NostrPoller {
                 String action = kindToAction(event);
                 showNotification(
                         hashId(event.optString("id")),
-                        "Mew",
+                        "Ditto",
                         displayName + " " + action
                 );
             }
@@ -384,7 +384,7 @@ public class NostrPoller {
         if (manager == null) return;
 
         Intent intent = new Intent(context, MainActivity.class);
-        intent.setData(Uri.parse("https://mew.app/notifications"));
+        intent.setData(Uri.parse("https://ditto.pub/notifications"));
         intent.setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         PendingIntent pendingIntent = PendingIntent.getActivity(
                 context, id, intent,
@@ -394,7 +394,7 @@ public class NostrPoller {
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setContentTitle(title)
                 .setContentText(body)
-                .setSmallIcon(R.drawable.ic_stat_mew)
+                .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
                 .setContentIntent(pendingIntent)
                 .setAutoCancel(true);
