@@ -91,9 +91,10 @@ interface ProfileMoreMenuProps {
   displayName: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isOwnProfile?: boolean;
 }
 
-function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMoreMenuProps) {
+function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
@@ -161,21 +162,25 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange }: ProfileMor
           />
         </div>
 
-        <Separator />
+        {!isOwnProfile && (
+          <>
+            <Separator />
 
-        <div className="py-1">
-          <MenuRow
-            icon={<VolumeX className="size-5" />}
-            label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
-            onClick={handleMuteUser}
-          />
-          <MenuRow
-            icon={<Flag className="size-5" />}
-            label={`Report @${displayName}`}
-            onClick={handleReport}
-            destructive
-          />
-        </div>
+            <div className="py-1">
+              <MenuRow
+                icon={<VolumeX className="size-5" />}
+                label={userMuted ? `Unmute @${displayName}` : `Mute @${displayName}`}
+                onClick={handleMuteUser}
+              />
+              <MenuRow
+                icon={<Flag className="size-5" />}
+                label={`Report @${displayName}`}
+                onClick={handleReport}
+                destructive
+              />
+            </div>
+          </>
+        )}
 
         <Separator />
 
@@ -931,17 +936,15 @@ export function ProfilePage() {
                 </button>
                 <div className="flex items-center gap-2 mt-14 md:mt-20">
                   {/* More menu */}
-                  {!isOwnProfile && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="rounded-full size-10"
-                      onClick={() => setMoreMenuOpen(true)}
-                      title="More options"
-                    >
-                      <MoreHorizontal className="size-5" />
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    className="rounded-full size-10"
+                    onClick={() => setMoreMenuOpen(true)}
+                    title="More options"
+                  >
+                    <MoreHorizontal className="size-5" />
+                  </Button>
                   {/* Zap button */}
                   {!isOwnProfile && authorEvent && canZap(metadata) && (
                     <ZapDialog target={authorEvent}>
@@ -1121,6 +1124,7 @@ export function ProfilePage() {
             displayName={displayName}
             open={moreMenuOpen}
             onOpenChange={setMoreMenuOpen}
+            isOwnProfile={isOwnProfile}
           />
         )}
 
