@@ -1,6 +1,7 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages, UserRoundCheck, Loader2 } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -14,7 +15,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useTrendingTags, useSortedPosts, type SortMode } from '@/hooks/useTrending';
+import { useTrendingTags, useInfiniteSortedPosts, type SortMode } from '@/hooks/useTrending';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
@@ -106,13 +107,38 @@ export function SearchPage() {
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
   const isTrendsTab = activeTab === 'trends';
   const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
-  const { data: rawSortedPosts, isLoading: sortedLoading } = useSortedPosts(trendSort, 5, isTrendsTab);
+  const {
+    data: sortedData,
+    isPending: sortedPending,
+    isLoading: sortedLoading,
+    fetchNextPage: fetchNextSorted,
+    hasNextPage: hasNextSorted,
+    isFetchingNextPage: isFetchingNextSorted,
+  } = useInfiniteSortedPosts(trendSort, isTrendsTab);
   const { muteItems } = useMuteList();
 
+  // Flatten, deduplicate, and filter muted posts from paginated sorted results
   const sortedPosts = useMemo(() => {
-    if (!rawSortedPosts || muteItems.length === 0) return rawSortedPosts;
-    return rawSortedPosts.filter((e) => !isEventMuted(e, muteItems));
-  }, [rawSortedPosts, muteItems]);
+    const seen = new Set<string>();
+    return sortedData?.pages.flat().filter((event) => {
+      if (seen.has(event.id)) return false;
+      seen.add(event.id);
+      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
+      return true;
+    }) ?? [];
+  }, [sortedData?.pages, muteItems]);
+
+  // Intersection observer for infinite scroll on sorted posts
+  const { ref: sortedScrollRef, inView: sortedInView } = useInView({
+    threshold: 0,
+    rootMargin: '400px',
+  });
+
+  useEffect(() => {
+    if (sortedInView && hasNextSorted && !isFetchingNextSorted) {
+      fetchNextSorted();
+    }
+  }, [sortedInView, hasNextSorted, isFetchingNextSorted, fetchNextSorted]);
 
   // Filter by platform (Nostr/Mastodon) client-side
   const posts = useMemo(() => {
@@ -313,18 +339,27 @@ export function SearchPage() {
               <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} />
             </div>
 
-            {/* Sorted posts */}
-            {sortedLoading ? (
+            {/* Sorted posts — infinite scroll */}
+            {(sortedPending || sortedLoading) && sortedPosts.length === 0 ? (
               <div className="divide-y divide-border">
-                {Array.from({ length: 3 }).map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <PostSkeleton key={i} />
                 ))}
               </div>
-            ) : sortedPosts && sortedPosts.length > 0 ? (
+            ) : sortedPosts.length > 0 ? (
               <div>
-                {sortedPosts.slice(0, 5).map((event) => (
+                {sortedPosts.map((event) => (
                   <NoteCard key={event.id} event={event} />
                 ))}
+                {hasNextSorted && (
+                  <div ref={sortedScrollRef} className="py-4">
+                    {isFetchingNextSorted && (
+                      <div className="flex justify-center">
+                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <EmptyState message={`No ${trendSort} posts right now.`} />
