@@ -32,8 +32,8 @@ export function useDeleteEvent() {
       // Invalidate feed queries so relays are re-queried.
       // The relay should no longer return the deleted event.
       queryClient.invalidateQueries({ queryKey: ['feed'] });
-      queryClient.invalidateQueries({ queryKey: ['profileFeed'] });
-      queryClient.invalidateQueries({ queryKey: ['profileLikes'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['profile-likes-infinite'] });
       queryClient.invalidateQueries({ queryKey: ['replies'] });
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
