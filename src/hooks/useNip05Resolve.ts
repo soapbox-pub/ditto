@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { useAppContext } from '@/hooks/useAppContext';
 
 /**
  * Fetches a NIP-05 nostr.json URL. Tries direct first, falls back to CORS proxy.
  */
-async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
+async function fetchNostrJson(url: URL, signal: AbortSignal): Promise<Record<string, unknown> | null> {
   // Try direct fetch first (works when server has proper CORS headers)
   try {
     const response = await fetch(url, { signal });
@@ -12,19 +11,8 @@ async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSigna
       return await response.json();
     }
   } catch {
-    // CORS or network error — fall through to proxy
+    // fallthrough
   }
-
-  // Fallback: CORS proxy
-  try {
-    const response = await fetch(corsProxy.replace('{href}', encodeURIComponent(url)), { signal });
-    if (response.ok) {
-      return await response.json();
-    }
-  } catch {
-    // Both failed
-  }
-
   return null;
 }
 
@@ -37,7 +25,6 @@ async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSigna
  * - `domain.com` (no @) → looks up `_` (default user) at `domain.com`
  */
 export function useNip05Resolve(identifier: string | undefined) {
-  const { config } = useAppContext();
   return useQuery<string | null>({
     queryKey: ['nip05-resolve', identifier],
     queryFn: async ({ signal }) => {
@@ -61,10 +48,12 @@ export function useNip05Resolve(identifier: string | undefined) {
 
       if (!domain) return null;
 
-      const url = `https://${domain}/.well-known/nostr.json?name=${encodeURIComponent(name)}`;
-      const fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
+      const url = new URL('/.well-known/nostr.json', `https://${domain}`);
+      url.searchParams.set('name', name);
 
-      const data = await fetchNostrJson(url, config.corsProxy, fetchSignal);
+      const fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(800)]);
+
+      const data = await fetchNostrJson(url, fetchSignal);
       if (!data) return null;
 
       const names = data.names;

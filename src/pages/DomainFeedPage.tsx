@@ -8,7 +8,6 @@ import { NoteCard } from '@/components/NoteCard';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { useAppContext } from '@/hooks/useAppContext';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
 import { isEventMuted } from '@/lib/muteHelpers';
@@ -18,18 +17,14 @@ import type { NostrEvent } from '@nostrify/nostrify';
 /**
  * Fetches a nostr.json URL. Tries direct first, falls back to CORS proxy.
  */
-async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSignal): Promise<Record<string, unknown> | null> {
+async function fetchNostrJson(url: URL, signal: AbortSignal): Promise<Record<string, unknown> | null> {
   try {
     const response = await fetch(url, { signal });
-    if (response.ok) return await response.json();
+    if (response.ok) {
+      return await response.json();
+    }
   } catch {
-    // CORS or network error — fall through to proxy
-  }
-  try {
-    const response = await fetch(corsProxy.replace('{href}', encodeURIComponent(url)), { signal });
-    if (response.ok) return await response.json();
-  } catch {
-    // Both failed
+    // fallthrough
   }
   return null;
 }
@@ -38,13 +33,13 @@ async function fetchNostrJson(url: string, corsProxy: string, signal: AbortSigna
  * Fetches the NIP-05 JSON from a domain's .well-known/nostr.json endpoint
  * and returns the pubkeys of all users registered on that domain.
  */
-function useDomainPubkeys(domain: string | undefined, corsProxy: string) {
+function useDomainPubkeys(domain: string | undefined) {
   return useQuery<string[]>({
     queryKey: ['domain-pubkeys', domain],
     queryFn: async ({ signal }) => {
       if (!domain) return [];
-      const fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(8000)]);
-      const data = await fetchNostrJson(`https://${domain}/.well-known/nostr.json`, corsProxy, fetchSignal);
+      const fetchSignal = AbortSignal.any([signal, AbortSignal.timeout(800)]);
+      const data = await fetchNostrJson(new URL('/.well-known/nostr.json', `https://${domain}`), fetchSignal);
       if (!data) throw new Error('Failed to fetch nostr.json');
       if (!data.names || typeof data.names !== 'object') return [];
       return Object.values(data.names).filter((pk): pk is string => typeof pk === 'string');
@@ -59,7 +54,6 @@ export function DomainFeedPage() {
   const { domain } = useParams<{ domain: string }>();
   const navigate = useNavigate();
   const { nostr } = useNostr();
-  const { config } = useAppContext();
   const { feedSettings } = useFeedSettings();
 
   const kinds = getEnabledFeedKinds(feedSettings).filter((k) => k !== 6);
@@ -71,7 +65,7 @@ export function DomainFeedPage() {
   });
 
   const { muteItems } = useMuteList();
-  const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain, config.corsProxy);
+  const { data: pubkeys, isLoading: pubkeysLoading, isError: pubkeysError } = useDomainPubkeys(domain);
 
   const { data: events, isLoading: eventsLoading } = useQuery<NostrEvent[]>({
     queryKey: ['domain-feed', domain, pubkeys?.length ?? 0, kindsKey],
