@@ -3,6 +3,9 @@ import type { RelayMetadata } from '@/contexts/AppContext';
 /** Relay used for NIP-50 search, trending, and streaming queries. */
 export const DITTO_RELAY = 'wss://relay.ditto.pub/';
 
+/** Relay used for kind 34236 addressable short video events, used by divine */
+export const DIVINE_RELAY = 'wss://divine.video/';
+
 /** Normalize a relay URL for deduplication (lowercase, strip trailing slash). */
 function normalizeUrl(url: string): string {
   return url.toLowerCase().replace(/\/+$/, '');
