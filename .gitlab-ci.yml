@@ -83,8 +83,6 @@ build-apk:
         -deststorepass "$KEYSTORE_PASSWORD"
         -srcalias upload
         -destalias upload
-        -srckeypass "$KEY_PASSWORD"
-        -destkeypass "$KEY_PASSWORD"
         -noprompt
     - rm android/app/my-upload-key.jks
 
