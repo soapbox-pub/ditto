@@ -83,8 +83,8 @@ export function useNip05Resolve(identifier: string | undefined) {
       return pubkey;
     },
     enabled: !!identifier,
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 60 * 60 * 1000,  // 1 hour — NIP-05 records rarely change
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
     retry: 1,
   });
 }
