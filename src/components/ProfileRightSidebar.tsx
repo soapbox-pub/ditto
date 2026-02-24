@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Check, Copy, QrCode, ExternalLink, Bitcoin, ShieldAlert } from 'lucide-react';
+import { Blurhash } from 'react-blurhash';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -34,6 +35,8 @@ interface MediaItem {
   dTag?: string;
   /** True if the source event has a NIP-36 content-warning tag. */
   hasContentWarning: boolean;
+  /** NIP-94 blurhash value from the imeta tag, if available. */
+  blurhash?: string;
 }
 
 /** Extracts image URLs from content. */
@@ -48,15 +51,21 @@ function extractVideoUrls(content: string): string[] {
   return content.match(regex) || [];
 }
 
-/** Extract the video URL from a vine's imeta tag. */
-function extractImetaUrl(event: NostrEvent): string | undefined {
-  const imetaTag = event.tags.find(([name]) => name === 'imeta');
-  if (!imetaTag) return undefined;
-  for (let i = 1; i < imetaTag.length; i++) {
-    const part = imetaTag[i];
-    if (part.startsWith('url ')) return part.slice(4);
+/** Extract url and blurhash from the first matching imeta tag for a given URL (or the first tag if no URL given). */
+function extractImetaFields(event: NostrEvent, matchUrl?: string): { url?: string; blurhash?: string } {
+  const imetaTags = event.tags.filter(([name]) => name === 'imeta');
+  for (const imetaTag of imetaTags) {
+    const fields: Record<string, string> = {};
+    for (let i = 1; i < imetaTag.length; i++) {
+      const spaceIdx = imetaTag[i].indexOf(' ');
+      if (spaceIdx === -1) continue;
+      fields[imetaTag[i].slice(0, spaceIdx)] = imetaTag[i].slice(spaceIdx + 1);
+    }
+    if (!fields.url) continue;
+    if (matchUrl && fields.url !== matchUrl) continue;
+    return { url: fields.url, blurhash: fields.blurhash };
   }
-  return undefined;
+  return {};
 }
 
 /** Extract media items from an array of events (pure function, no query). */
@@ -72,27 +81,83 @@ function extractMedia(events: NostrEvent[], cwPolicy: string): MediaItem[] {
 
     // For media-native kinds (vines etc.), extract from imeta tags
     if (event.kind !== 1) {
-      const imetaUrl = extractImetaUrl(event);
-      if (imetaUrl && !seen.has(imetaUrl)) {
-        seen.add(imetaUrl);
+      const { url, blurhash } = extractImetaFields(event);
+      if (url && !seen.has(url)) {
+        seen.add(url);
         const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-        items.push({ url: imetaUrl, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
+        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, kind: event.kind, dTag, hasContentWarning: hasCW });
       }
       continue;
     }
 
-    // For kind 1, extract from content
+    // For kind 1, extract URLs from content, then look up blurhash in imeta tags
     const images = extractImageUrls(event.content);
     const videos = extractVideoUrls(event.content);
     for (const url of [...images, ...videos]) {
       if (!seen.has(url)) {
         seen.add(url);
-        items.push({ url, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
+        const { blurhash } = extractImetaFields(event, url);
+        items.push({ url, blurhash, eventId: event.id, authorPubkey: event.pubkey, hasContentWarning: hasCW });
       }
     }
   }
 
   return items.slice(0, 9);
+}
+
+/** Single media tile with a blurhash/skeleton shown until the image loads. */
+function MediaTile({ item }: { item: MediaItem }) {
+  const [loaded, setLoaded] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
+  const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(item.url);
+
+  useEffect(() => {
+    if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
+      setLoaded(true);
+    }
+  }, []);
+
+  return (
+    <div className="relative w-full h-full">
+      {/* Blurhash or skeleton placeholder while media loads */}
+      {!loaded && (
+        item.blurhash ? (
+          <Blurhash
+            hash={item.blurhash}
+            width={32}
+            height={32}
+            resolutionX={32}
+            resolutionY={32}
+            punch={1}
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          />
+        ) : (
+          <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
+        )
+      )}
+      {isVideo ? (
+        <video
+          src={item.url}
+          className="absolute inset-0 w-full h-full object-cover"
+          muted
+          autoPlay
+          loop
+          playsInline
+          preload="metadata"
+          onLoadedData={() => setLoaded(true)}
+        />
+      ) : (
+        <img
+          ref={imgRef}
+          src={item.url}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          loading="lazy"
+          onLoad={() => setLoaded(true)}
+        />
+      )}
+    </div>
+  );
 }
 
 /** Build a nevent/naddr link for navigating to an event. */
@@ -279,31 +344,13 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
                 );
               }
 
-              const isVideo = /\.(mp4|webm|mov)(\?.*)?$/i.test(item.url);
               return (
                 <Link
                   key={i}
                   to={eventLink(item)}
-                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block"
+                  className="aspect-square rounded-lg overflow-hidden hover:opacity-80 transition-opacity block relative"
                 >
-                  {isVideo ? (
-                    <video
-                      src={item.url}
-                      className="w-full h-full object-cover"
-                      muted
-                      autoPlay
-                      loop
-                      playsInline
-                      preload="metadata"
-                    />
-                  ) : (
-                    <img
-                      src={item.url}
-                      alt=""
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
-                  )}
+                  <MediaTile item={item} />
                 </Link>
               );
             })}
