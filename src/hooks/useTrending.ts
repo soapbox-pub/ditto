@@ -5,9 +5,15 @@ import { useNip85EventStats } from '@/hooks/useNip85Stats';
 import { type ResolvedEmoji } from '@/components/CustomEmoji';
 import { DITTO_RELAY } from '@/lib/appRelays';
 
+/** Trusted pubkey that publishes trend label events (kind 1985). */
+const TRENDS_PUBKEY = '15b68d319a088a9b0c6853d2232aff0d69c8c58f0dccceabfb9a82bd4fd19c58';
+
 export interface TrendingTag {
   tag: string;
-  count: number;
+  /** Number of distinct accounts that used this hashtag. */
+  accounts: number;
+  /** Total uses of this hashtag. */
+  uses: number;
 }
 
 /**
@@ -25,6 +31,7 @@ export function useTrendingTags(enabled = true) {
       const events = await ditto.query(
         [{
           kinds: [1985],
+          authors: [TRENDS_PUBKEY],
           '#L': ['pub.ditto.trends'],
           '#l': ['#t'],
           limit: 1,
@@ -34,12 +41,15 @@ export function useTrendingTags(enabled = true) {
 
       if (events.length === 0) return [];
 
-      // The label event contains `t` tags for each trending hashtag
+      // The label event contains `t` tags for each trending hashtag.
+      // Tag format: ['t', hashtag, '', accounts, uses]
+      // index 3 = distinct accounts using the hashtag
+      // index 4 = total uses of the hashtag
       const tTags = events[0].tags.filter(([name]) => name === 't');
-      return tTags.map(([, tag], index) => ({
+      return tTags.map(([, tag, , rawAccounts, rawUses]) => ({
         tag: tag.toLowerCase(),
-        // Use reverse index as a rough popularity signal (first = most trending)
-        count: tTags.length - index,
+        accounts: parseInt(rawAccounts || '0', 10),
+        uses: parseInt(rawUses || '0', 10),
       }));
     },
     enabled,
@@ -61,6 +71,7 @@ export function useTrendingPosts(enabled = true) {
       const labelEvents = await ditto.query(
         [{
           kinds: [1985],
+          authors: [TRENDS_PUBKEY],
           '#L': ['pub.ditto.trends'],
           '#l': ['#e'],
           limit: 1,
@@ -256,6 +267,7 @@ export function useTagSparklines(tags: string[], enabled = true) {
           ditto.query(
             [{
               kinds: [1985],
+              authors: [TRENDS_PUBKEY],
               '#L': ['pub.ditto.trends'],
               '#l': ['#t'],
               since,
