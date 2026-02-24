@@ -74,7 +74,10 @@ build-apk:
     - echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
     # Decode signing keystore from CI/CD variable
+    - echo "Keystore base64 length:$(echo -n "$ANDROID_KEYSTORE_BASE64" | wc -c)"
     - echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/my-upload-key.keystore
+    - echo "Keystore file size:$(wc -c < android/app/my-upload-key.keystore)"
+    - keytool -list -keystore android/app/my-upload-key.keystore -storepass "$KEYSTORE_PASSWORD" 2>&1 | head -5
 
     # Write key.properties from CI/CD variables
     - |
