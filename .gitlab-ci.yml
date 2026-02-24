@@ -67,7 +67,7 @@ build-apk:
     - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
 
     # Accept licenses and install SDK components
-    - yes | sdkmanager --licenses > /dev/null 2>&1 || true
+    - printf 'y\ny\ny\ny\ny\ny\ny\n' | sdkmanager --licenses > /dev/null 2>&1 || true
     - sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" > /dev/null
 
     # Write local.properties for Gradle
