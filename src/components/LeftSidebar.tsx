@@ -127,7 +127,7 @@ export function LeftSidebar() {
       { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
     );
     return items;
-  }, [feedSettings, user, metadata]);
+  }, [feedSettings, user, userProfileUrl]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
