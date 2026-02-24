@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
+import { Image, Film, ExternalLink, Blocks } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -104,8 +105,8 @@ function EmbeddedNoteCard({
   // Truncate long content, stripping media URLs and nested nostr event references
   const truncatedContent = useMemo(() => {
     const cleaned = event.content
-      // Strip media URLs
-      .replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf)(\?[^\s]*)?/gi, '')
+      // Strip media URLs (same extensions as NoteContent's MEDIA_URL_REGEX)
+      .replace(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?/gi, '')
       // Strip embedded event references (nevent / note) so they don't nest
       .replace(/nostr:(nevent1|note1)[023456789acdefghjklmnpqrstuvwxyz]+/g, '')
       // Collapse leftover whitespace
@@ -121,6 +122,18 @@ function EmbeddedNoteCard({
       /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/i,
     );
     return match?.[0] ?? null;
+  }, [event.content]);
+
+  // Detect stripped attachments to show indicator chips
+  const attachments = useMemo(() => {
+    const imgs = (event.content.match(/https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi) || []).length;
+    const vids = (event.content.match(/https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi) || []).length;
+    const apps = (event.content.match(/https?:\/\/[^\s]+\.xdc(\?[^\s]*)?/gi) || []).length;
+    // Count non-media URLs that were kept as link previews in the full render
+    const allUrls = event.content.match(/https?:\/\/[^\s]+/g) || [];
+    const mediaRegex = /\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?$/i;
+    const links = allUrls.filter((u) => !mediaRegex.test(u)).length;
+    return { imgs, vids, apps, links };
   }, [event.content]);
 
   // NIP-36 content-warning check
@@ -221,6 +234,36 @@ function EmbeddedNoteCard({
         ) : truncatedContent ? (
           <EmbedContentPreview text={truncatedContent} />
         ) : null}
+
+        {/* Attachment indicators for stripped media/links */}
+        {!hasCW && (attachments.imgs > (firstImage ? 1 : 0) || attachments.vids > 0 || attachments.apps > 0 || attachments.links > 0) && (
+          <div className="flex items-center gap-2 flex-wrap">
+            {attachments.imgs > (firstImage ? 1 : 0) && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Image className="size-3" />
+                {attachments.imgs > 1 ? `${attachments.imgs} images` : '1 image'}
+              </span>
+            )}
+            {attachments.vids > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Film className="size-3" />
+                {attachments.vids > 1 ? `${attachments.vids} videos` : 'Video'}
+              </span>
+            )}
+            {attachments.apps > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Blocks className="size-3" />
+                App
+              </span>
+            )}
+            {attachments.links > 0 && (
+              <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+                <ExternalLink className="size-3" />
+                {attachments.links > 1 ? `${attachments.links} links` : 'Link'}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -231,7 +274,7 @@ function EmbedContentPreview({ text }: { text: string }) {
   const segments = useMemo(() => parseEmbedSegments(text), [text]);
 
   return (
-    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words line-clamp-3">
+    <p className="text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words overflow-hidden line-clamp-3">
       {segments.map((seg, i) => {
         if (seg.type === 'text') {
           return <span key={i}>{seg.value}</span>;

@@ -274,7 +274,7 @@ export function NoteContent({
   const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojis(tokens[0].value);
 
   return (
-    <div className={cn('whitespace-pre-wrap break-words', isEmojiOnly && 'text-5xl leading-tight', className)}>
+    <div className={cn('whitespace-pre-wrap break-words overflow-hidden', isEmojiOnly && 'text-5xl leading-tight', className)}>
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':
