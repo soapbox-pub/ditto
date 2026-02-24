@@ -155,7 +155,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
-  const { data: nip05Verified } = useNip05Verify(nip05, event.pubkey);
+  const { data: nip05Verified, isPending: nip05Pending } = useNip05Verify(nip05, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
   const { data: stats } = useEventStats(event.id);
@@ -312,6 +312,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         )}
       </div>
       <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
+        {nip05 && nip05Pending && <Skeleton className="h-3 w-24" />}
+        {nip05 && nip05Pending && <span className="shrink-0">·</span>}
         {nip05 && nip05Verified && <Nip05Badge nip05={nip05} pubkey={event.pubkey} />}
         {nip05 && nip05Verified && <span className="shrink-0">·</span>}
         <span className="shrink-0 hover:underline whitespace-nowrap">
