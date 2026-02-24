@@ -282,7 +282,7 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   );
 }
 
-function PostDetailShell({ children }: { children: React.ReactNode }) {
+export function PostDetailShell({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
 
   return (
@@ -984,7 +984,7 @@ function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: numbe
 }
 
 
-function PostDetailSkeleton() {
+export function PostDetailSkeleton() {
   return (
     <div>
       <div className="px-4 pt-3 pb-0">
