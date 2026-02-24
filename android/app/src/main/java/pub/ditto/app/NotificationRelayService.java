@@ -324,12 +324,10 @@ public class NotificationRelayService extends Service {
 
             } else if ("EOSE".equals(type) && subId.equals(msg.optString(1))) {
                 // Close the subscription and the connection cleanly.
-                try {
-                    JSONArray close = new JSONArray();
-                    close.put("CLOSE");
-                    close.put(subId);
-                    webSocket.send(close.toString());
-                } catch (JSONException ignored) {}
+                JSONArray close = new JSONArray();
+                close.put("CLOSE");
+                close.put(subId);
+                webSocket.send(close.toString());
                 webSocket.close(1000, "done");
 
                 // Dispatch collected events on the handler thread.
