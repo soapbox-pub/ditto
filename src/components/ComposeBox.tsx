@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Paperclip, Smile, AlertTriangle, X, Loader2 } from 'lucide-react';
 import { nip19 } from 'nostr-tools';
+import { encode as blurhashEncode } from 'blurhash';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -26,6 +27,56 @@ import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 const MAX_CHARS = 5000;
+
+/**
+ * For an image File, returns `{ dim: "WxH", blurhash: "..." }`.
+ * Decodes to a small canvas (max 64px wide) for speed — large enough
+ * for a good blurhash sample but cheap to compute.
+ * Returns an empty object for non-image files or if anything fails.
+ */
+async function getImageMeta(file: File): Promise<{ dim?: string; blurhash?: string }> {
+  if (!file.type.startsWith('image/')) return {};
+  try {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = url;
+      });
+
+      const naturalWidth = img.naturalWidth;
+      const naturalHeight = img.naturalHeight;
+      if (!naturalWidth || !naturalHeight) return {};
+
+      const dim = `${naturalWidth}x${naturalHeight}`;
+
+      // Downsample for blurhash encoding — 64px wide keeps it fast
+      const SAMPLE_W = 64;
+      const scale = SAMPLE_W / naturalWidth;
+      const sampleW = SAMPLE_W;
+      const sampleH = Math.max(1, Math.round(naturalHeight * scale));
+
+      const canvas = document.createElement('canvas');
+      canvas.width = sampleW;
+      canvas.height = sampleH;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return { dim };
+
+      ctx.drawImage(img, 0, 0, sampleW, sampleH);
+      const { data } = ctx.getImageData(0, 0, sampleW, sampleH);
+
+      // componentX/Y: 4x3 gives a good balance of detail vs hash length
+      const blurhash = blurhashEncode(data, sampleW, sampleH, 4, 3);
+      return { dim, blurhash };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  } catch {
+    return {};
+  }
+}
 
 interface ComposeBoxProps {
   onSuccess?: () => void;
@@ -344,6 +395,13 @@ export function ComposeBox({
         // Update the url tag in the NIP-94 tags to match
         const urlTag = tags.find(t => t[0] === 'url');
         if (urlTag) urlTag[1] = url;
+      }
+
+      // Compute dim + blurhash from the original file and inject into NIP-94 tags
+      if (!isXdc) {
+        const { dim, blurhash } = await getImageMeta(uploadableFile);
+        if (dim) tags.push(['dim', dim]);
+        if (blurhash) tags.push(['blurhash', blurhash]);
       }
 
       // Store the full NIP-94 tags for later use in imeta
