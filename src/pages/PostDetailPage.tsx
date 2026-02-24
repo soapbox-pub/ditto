@@ -95,6 +95,10 @@ interface ImetaEntry {
   summary?: string;
   /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
   webxdc?: string;
+  /** Pixel dimensions from NIP-94 `dim` tag, e.g. "1280x720". */
+  dim?: string;
+  /** Blurhash placeholder from NIP-94 `blurhash` tag. */
+  blurhash?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. */
@@ -112,7 +116,15 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
       entry[key] = value;
     }
     if (entry.url) {
-      map.set(entry.url, { url: entry.url, thumbnail: entry.image, mime: entry.m, summary: entry.summary, webxdc: entry.webxdc });
+      map.set(entry.url, {
+        url: entry.url,
+        thumbnail: entry.image,
+        mime: entry.m,
+        summary: entry.summary,
+        webxdc: entry.webxdc,
+        dim: entry.dim,
+        blurhash: entry.blurhash,
+      });
     }
   }
   return map;
@@ -764,9 +776,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                 <NoteContent event={event} className="text-[15px] leading-relaxed" />
               </div>
               {videos.map((url, i) => (
-                <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} />
+                <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
               ))}
-              <ImageGallery images={images} maxGridHeight="500px" />
+              <ImageGallery images={images} maxGridHeight="500px" imetaMap={imetaMap} />
               {webxdcApps.map((app) => (
                 <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />
               ))}

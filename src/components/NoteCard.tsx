@@ -88,6 +88,10 @@ interface ImetaEntry {
   summary?: string;
   /** Webxdc session UUID — present when the attachment is a stateful webxdc app. */
   webxdc?: string;
+  /** Pixel dimensions from NIP-94 `dim` tag, e.g. "1280x720". */
+  dim?: string;
+  /** Blurhash placeholder from NIP-94 `blurhash` tag. */
+  blurhash?: string;
 }
 
 /** Parse all imeta tags into a map keyed by URL. Works for any event kind. */
@@ -111,6 +115,8 @@ function parseImetaMap(tags: string[][]): Map<string, ImetaEntry> {
         mime: entry.m,
         summary: entry.summary,
         webxdc: entry.webxdc,
+        dim: entry.dim,
+        blurhash: entry.blurhash,
       });
     }
   }
@@ -512,11 +518,11 @@ function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: stri
     <>
       {/* Videos — each rendered with play/pause overlay */}
       {videos.map((url, i) => (
-        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} />
+        <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
       ))}
 
       {/* Images */}
-      <ImageGallery images={images} maxGridHeight="400px" />
+      <ImageGallery images={images} maxGridHeight="400px" imetaMap={imetaMap} />
 
       {/* Webxdc apps */}
       {webxdcApps.map((app) => (
@@ -527,8 +533,8 @@ function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: stri
 }
 
 /** Inline video player for kind 1 notes. */
-function NoteVideoPlayer({ url, poster }: { url: string; poster?: string }) {
-  return <VideoPlayer src={url} poster={poster} />;
+function NoteVideoPlayer({ url, poster, dim, blurhash }: { url: string; poster?: string; dim?: string; blurhash?: string }) {
+  return <VideoPlayer src={url} poster={poster} dim={dim} blurhash={blurhash} />;
 }
 
 /** Media content for kind 34236 vine events — rendered at full card width. */
