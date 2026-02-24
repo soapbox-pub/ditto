@@ -297,32 +297,42 @@ export function useTagSparklines(tags: string[], enabled = true) {
         sparkMap.set(tag, new Array(SPARKLINE_DAYS).fill(0));
       }
 
-      // Query each tag × day sequentially to avoid hitting relay REQ limits.
-      // Filtering by `#t` so we only get label events that include that specific
-      // hashtag — matching server line: `#${tagName}: [value]` in the per-day filter.
-      for (const tag of sortedTags) {
-        for (let di = 0; di < days.length; di++) {
-          const { since, until } = days[di];
-          const events = await ditto.query(
-            [{
-              kinds: [1985],
-              authors: [TRENDS_PUBKEY],
-              '#L': ['pub.ditto.trends'],
-              '#l': ['#t'],
-              '#t': [tag],
-              since,
-              until,
-              limit: 1,
-            }],
-            { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
-          );
-          const event = events[0];
-          if (!event) continue;
-          // Tag format: ['t', hashtag, '', accounts, uses]
+      // Build one filter per tag×day and send them all in a single REQ.
+      // Each filter is narrow enough (since/until + #t) that the relay returns
+      // at most 1 event per filter; we then sort results into buckets client-side.
+      const filters = sortedTags.flatMap((tag) =>
+        days.map(({ since, until }) => ({
+          kinds: [1985],
+          authors: [TRENDS_PUBKEY],
+          '#L': ['pub.ditto.trends'],
+          '#l': ['#t'],
+          '#t': [tag],
+          since,
+          until,
+          limit: 1,
+        })),
+      );
+
+      const allEvents = await ditto.query(
+        filters,
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+      );
+
+      // Sort results into tag×day buckets.
+      // Tag format: ['t', hashtag, '', accounts, uses]
+      for (const event of allEvents) {
+        for (const tag of sortedTags) {
           const tTag = event.tags.find(([name, value]) => name === 't' && value?.toLowerCase() === tag);
           if (!tTag) continue;
+          // Find which day bucket this event belongs to
+          const di = days.findIndex(({ since, until }) =>
+            event.created_at >= since && event.created_at < until,
+          );
+          if (di === -1) continue;
           const uses = parseInt(tTag[4] || '0', 10);
-          sparkMap.get(tag)![di] = uses;
+          const bucket = sparkMap.get(tag)!;
+          // Keep the highest uses value if multiple events land in the same bucket
+          if (uses > bucket[di]) bucket[di] = uses;
         }
       }
 
