@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { Send, MessageCircle } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
@@ -13,7 +13,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
 
 interface LiveStreamChatProps {
@@ -195,7 +195,7 @@ function ChatMessage({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   return (
     <div className="group flex items-start gap-2 py-1 px-1 rounded hover:bg-secondary/40 transition-colors">

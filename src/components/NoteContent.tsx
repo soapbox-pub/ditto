@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { LinkPreview } from '@/components/LinkPreview';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
@@ -363,7 +363,7 @@ function NostrMention({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const hasRealName = !!author.data?.metadata?.name;
   const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
-  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
+  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <ProfileHoverCard pubkey={pubkey} asChild>

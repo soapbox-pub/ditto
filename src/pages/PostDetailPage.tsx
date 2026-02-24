@@ -51,7 +51,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { canZap } from '@/lib/canZap';
 import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { ContentWarningGuard } from '@/components/ContentWarningGuard';
 import { MutedContentGuard } from '@/components/MutedContentGuard';
 
@@ -331,7 +331,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+  const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
     <div className="flex items-center gap-2.5 pt-1">
@@ -572,7 +572,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     queryClient.refetchQueries({ queryKey: ['author', event.pubkey] });
   }, [event.pubkey, queryClient]);
   const nip05 = metadata?.nip05;
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
     // Kind detection — mirrors NoteCard
     const isVine = event.kind === 34236;

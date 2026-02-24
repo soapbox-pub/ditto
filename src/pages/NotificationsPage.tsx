@@ -14,7 +14,7 @@ import { useNotifications, type NotificationItem } from '@/hooks/useNotification
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
@@ -330,7 +330,7 @@ function NotificationHeader({
   const author = useAuthor(actorPubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(actorPubkey);
-  const profileUrl = useMemo(() => getProfileUrl(actorPubkey, metadata), [actorPubkey, metadata]);
+  const profileUrl = useProfileUrl(actorPubkey, metadata);
 
   if (author.isLoading) {
     return (

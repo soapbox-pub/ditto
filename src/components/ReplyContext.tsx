@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 interface ReplyContextProps {
   pubkeys: string[];
@@ -40,7 +40,7 @@ export function ReplyContext({ pubkeys, className }: ReplyContextProps) {
 function ReplyAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
-  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
+  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   if (author.isLoading) {
     return <Skeleton className="h-3.5 w-20 inline-block" />;
