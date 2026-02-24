@@ -73,11 +73,20 @@ build-apk:
     # Write local.properties for Gradle
     - echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
 
-    # Decode signing keystore from CI/CD variable
-    - echo "Keystore base64 length:$(echo -n "$ANDROID_KEYSTORE_BASE64" | wc -c)"
-    - echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/my-upload-key.keystore
-    - echo "Keystore file size:$(wc -c < android/app/my-upload-key.keystore)"
-    - keytool -list -keystore android/app/my-upload-key.keystore -storepass "$KEYSTORE_PASSWORD" 2>&1 | head -5
+    # Decode signing keystore and migrate JKS -> PKCS12 for Gradle compatibility
+    - echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/my-upload-key.jks
+    - keytool -importkeystore
+        -srckeystore android/app/my-upload-key.jks
+        -destkeystore android/app/my-upload-key.keystore
+        -deststoretype pkcs12
+        -srcstorepass "$KEYSTORE_PASSWORD"
+        -deststorepass "$KEYSTORE_PASSWORD"
+        -srcalias upload
+        -destalias upload
+        -srckeypass "$KEY_PASSWORD"
+        -destkeypass "$KEY_PASSWORD"
+        -noprompt
+    - rm android/app/my-upload-key.jks
 
     # Write key.properties from CI/CD variables
     - |
