@@ -12,8 +12,8 @@ import type { NostrMetadata } from '@nostrify/nostrify';
  * who claims someone else's NIP-05 in their kind-0 profile cannot hijack
  * profile links.
  *
- * `_@domain.com` users always fall back to npub because bare domains are
- * reserved for domain feeds, not individual profiles.
+ * `_@domain.com` users link to `/domain.com` — the profile page detects
+ * bare domains as NIP-05 identifiers and resolves them correctly.
  */
 export function getProfileUrl(
   pubkey: string,
@@ -22,11 +22,12 @@ export function getProfileUrl(
 ): string {
   if (nip05Verified && metadata?.nip05) {
     const nip05 = metadata.nip05;
-    // Only use NIP-05 URL for non-default users
-    // _@domain.com falls through to npub (domain.com is the domain feed)
-    if (!nip05.startsWith('_@')) {
-      return `/${nip05}`;
+    // _@domain.com → /domain.com (the profile page detects bare domains as NIP-05)
+    if (nip05.startsWith('_@')) {
+      return `/${nip05.slice(2)}`;
     }
+    // user@domain.com → /user@domain.com
+    return `/${nip05}`;
   }
   return `/${nip19.npubEncode(pubkey)}`;
 }
