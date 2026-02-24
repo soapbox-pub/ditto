@@ -27,10 +27,10 @@ export function useNip85EventStats(eventId: string | undefined) {
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
 
-  return useQuery<Nip85EventStats | undefined>({
+  return useQuery<Nip85EventStats | null>({
     queryKey: ['nip85-event-stats', eventId, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!eventId || !statsPubkey) return undefined;
+      if (!eventId || !statsPubkey) return null;
 
       try {
         const events = await nostr.query(
@@ -38,7 +38,7 @@ export function useNip85EventStats(eventId: string | undefined) {
           { signal },
         );
 
-        if (events.length === 0) return undefined;
+        if (events.length === 0) return null;
 
         const event = events[0];
         const getTagValue = (tagName: string): number => {
@@ -53,7 +53,7 @@ export function useNip85EventStats(eventId: string | undefined) {
           zapCount: getTagValue('zap_cnt'),
         };
       } catch {
-        return undefined;
+        return null;
       }
     },
     enabled: !!eventId && !!statsPubkey,
@@ -71,10 +71,10 @@ export function useNip85UserStats(pubkey: string | undefined) {
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
 
-  return useQuery<Nip85UserStats | undefined>({
+  return useQuery<Nip85UserStats | null>({
     queryKey: ['nip85-user-stats', pubkey, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!pubkey || !statsPubkey) return undefined;
+      if (!pubkey || !statsPubkey) return null;
 
       const timeout = AbortSignal.timeout(2000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -92,7 +92,7 @@ export function useNip85UserStats(pubkey: string | undefined) {
           { signal: combined },
         );
 
-        if (events.length === 0) return undefined;
+        if (events.length === 0) return null;
 
         const event = events[0];
         const getTagValue = (tagName: string): number => {
@@ -105,7 +105,7 @@ export function useNip85UserStats(pubkey: string | undefined) {
           postCount: getTagValue('post_cnt'),
         };
       } catch {
-        return undefined;
+        return null;
       }
     },
     enabled: !!pubkey && !!statsPubkey,
@@ -123,10 +123,10 @@ export function useNip85AddrStats(addr: string | undefined) {
   const { config } = useAppContext();
   const statsPubkey = config.nip85StatsPubkey;
 
-  return useQuery<Nip85EventStats | undefined>({
+  return useQuery<Nip85EventStats | null>({
     queryKey: ['nip85-addr-stats', addr, statsPubkey],
     queryFn: async ({ signal }) => {
-      if (!addr || !statsPubkey) return undefined;
+      if (!addr || !statsPubkey) return null;
 
       const timeout = AbortSignal.timeout(2000);
       const combined = AbortSignal.any([signal, timeout]);
@@ -144,7 +144,7 @@ export function useNip85AddrStats(addr: string | undefined) {
           { signal: combined },
         );
 
-        if (events.length === 0) return undefined;
+        if (events.length === 0) return null;
 
         const event = events[0];
         const getTagValue = (tagName: string): number => {
@@ -159,7 +159,7 @@ export function useNip85AddrStats(addr: string | undefined) {
           zapCount: getTagValue('zap_cnt'),
         };
       } catch {
-        return undefined;
+        return null;
       }
     },
     enabled: !!addr && !!statsPubkey,
