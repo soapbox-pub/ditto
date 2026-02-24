@@ -117,9 +117,9 @@ export function RightSidebar() {
               >
                 <div>
                   <div className="font-bold text-sm">#{item.tag}</div>
-                  {item.count > 0 && (
+                  {item.accounts > 0 && (
                     <div className="text-xs text-muted-foreground">
-                      <span className="text-primary font-semibold">{item.count}</span> posts
+                      <span className="text-primary font-semibold">{item.accounts.toLocaleString()}</span> people talking
                     </div>
                   )}
                 </div>
