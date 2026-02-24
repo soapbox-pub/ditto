@@ -10,10 +10,15 @@ import type { AddressPointer } from 'nostr-tools/nip19';
 const HEX_64_RE = /^[0-9a-f]{64}$/;
 
 /**
- * Returns true if the identifier looks like a NIP-05 username (contains @).
+ * Returns true if the identifier looks like a NIP-05 identifier.
+ * Covers both `user@domain.com` and bare domains like `fiatjaf.com`
+ * (which represent `_@domain.com` root users).
  */
 function isNip05Like(id: string): boolean {
-  return id.includes('@');
+  if (id.includes('@')) return true;
+  // Bare domain (e.g. "fiatjaf.com") — has a dot but is not a NIP-19 bech32 prefix
+  if (id.includes('.') && !id.startsWith('npub1') && !id.startsWith('nprofile1')) return true;
+  return false;
 }
 
 /**
