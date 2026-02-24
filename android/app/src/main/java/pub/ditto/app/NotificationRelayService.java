@@ -40,32 +40,25 @@ import okhttp3.WebSocket;
 import okhttp3.WebSocketListener;
 
 /**
- * Foreground service that maintains a WebSocket connection to a Nostr relay
- * for real-time notification delivery.
+ * Foreground service that periodically fetches new Nostr notifications and
+ * displays them as Android notifications.
  *
  * Battery strategy:
- * - NO permanent WakeLock -- the CPU is allowed to sleep between events
- * - OkHttp pings are disabled (the OS will kill idle TCP in Doze anyway)
- * - An AlarmManager alarm fires every ~8 minutes using setAndAllowWhileIdle(),
- *   which penetrates Doze maintenance windows
- * - Each alarm acquires a brief WakeLock (~10s), sends a WebSocket ping to
- *   check liveness, and reconnects if the connection is dead
- * - The WebSocket naturally stays alive when the device is awake (screen on,
- *   app in foreground) with no extra cost
- * - When the device enters Doze, the TCP connection may silently die; the
- *   next alarm detects this and reconnects, picking up any missed events
- *   via the `since` timestamp
+ * - Connect-fetch-disconnect on each alarm cycle. No persistent WebSocket.
+ * - Fetch at most 5 events per cycle (limit:5). If we get 5 we already show
+ *   a summary, so fetching more is pointless.
+ * - AlarmManager fires every ~8 minutes using setAndAllowWhileIdle(), which
+ *   penetrates Doze maintenance windows.
+ * - Each alarm acquires a brief WakeLock for the duration of the fetch, then
+ *   releases it. The radio returns to idle after the connection closes.
+ * - Adaptive interval: backs off to 15 min when quiet (no notifications for
+ *   two consecutive cycles), resets to 8 min when a notification arrives.
  *
- * Expected battery profile:
- * - ~3 brief CPU wake-ups per hour in deep Doze (vs continuous CPU with old WakeLock)
- * - Notifications may be delayed up to ~8 minutes when device is in deep sleep
- * - Instant delivery when device is awake
- *
- * Reconnection:
- * - Exponential backoff (1s -> 2s -> 4s -> ... -> 5 min cap) on failure
- * - Resets to 1s on successful connection
- * - Network-aware: reconnects immediately when connectivity is restored
- * - Listens for config changes (login/logout/relay change) via SharedPreferences
+ * Reconnection on failure:
+ * - Exponential backoff (1s -> 2s -> 4s -> ... -> 5 min cap) on connect failure.
+ * - Resets on next successful alarm cycle.
+ * - Network-aware: reconnects immediately when connectivity is restored.
+ * - Listens for config changes (login/logout/relay change) via SharedPreferences.
  */
 public class NotificationRelayService extends Service {
 
@@ -74,98 +67,93 @@ public class NotificationRelayService extends Service {
     private static final int NOTIFICATION_ID = 1;
     private static final String PREFS_NAME = "ditto_notification_config";
 
-    // Keepalive alarm fires every 8 minutes. setAndAllowWhileIdle() has a minimum
-    // enforcement interval of ~9 minutes in Doze, so 8 min is effectively the most
-    // frequent we can reliably achieve. The actual interval may be longer when the
-    // OS batches alarms.
-    private static final long KEEPALIVE_INTERVAL_MS = 8 * 60 * 1_000;
+    // Max events to fetch per cycle. If we hit this we show a summary anyway,
+    // so there is no benefit to fetching more.
+    private static final int FETCH_LIMIT = 5;
 
-    // How long to hold a WakeLock for the keepalive ping + potential reconnect
-    private static final long KEEPALIVE_WAKELOCK_TIMEOUT_MS = 15_000;
+    // Base alarm interval. setAndAllowWhileIdle() batches alarms in Doze with
+    // a minimum ~9 min window, so 8 min is the practical maximum frequency.
+    private static final long INTERVAL_ACTIVE_MS = 8 * 60 * 1_000;
 
-    private static final String ACTION_KEEPALIVE = "pub.ditto.app.ACTION_KEEPALIVE";
+    // Backed-off interval used when no notifications arrived last cycle.
+    private static final long INTERVAL_QUIET_MS = 15 * 60 * 1_000;
 
-    // Backoff bounds
+    // WakeLock held for the duration of a fetch cycle. Long enough for connect
+    // + REQ + up to 5 events + EOSE + metadata fetch + disconnect.
+    private static final long FETCH_WAKELOCK_TIMEOUT_MS = 30_000;
+
+    private static final String ACTION_FETCH = "pub.ditto.app.ACTION_FETCH";
+
+    // Backoff bounds for relay connect failures (separate from alarm interval).
     private static final long INITIAL_BACKOFF_MS = 1_000;
-    private static final long MAX_BACKOFF_MS = 5 * 60 * 1_000; // 5 minutes
+    private static final long MAX_BACKOFF_MS = 5 * 60 * 1_000;
 
     private OkHttpClient httpClient;
     private NostrPoller poller;
     private WebSocket currentWebSocket;
     private String currentSubId;
-    private boolean eoseReceived = false;
-    private final List<JSONObject> backfillEvents = new ArrayList<>();
+    private final List<JSONObject> fetchedEvents = new ArrayList<>();
 
     private long backoffMs = INITIAL_BACKOFF_MS;
+    private boolean lastCycleWasQuiet = false;
+
     private final Handler handler = new Handler(Looper.getMainLooper());
     private Runnable reconnectRunnable;
 
-    private PowerManager.WakeLock keepaliveWakeLock;
+    private PowerManager.WakeLock fetchWakeLock;
     private AlarmManager alarmManager;
-    private PendingIntent keepalivePendingIntent;
+    private PendingIntent fetchPendingIntent;
     private ConnectivityManager.NetworkCallback networkCallback;
     private SharedPreferences.OnSharedPreferenceChangeListener configListener;
-    private KeepaliveReceiver keepaliveReceiver;
+    private FetchReceiver fetchReceiver;
 
-    // Current connection state
     private List<String> relayUrls = new ArrayList<>();
     private int relayIndex = 0;
-    private String connectedRelayUrl;
-    private String connectedUserPubkey;
-
-    // Track last successful pong to detect dead connections
-    private volatile long lastPongTimestamp = 0;
-    private volatile long lastPingSentTimestamp = 0;
 
     @Override
     public void onCreate() {
         super.onCreate();
         createNotificationChannel();
-
-        // Post the foreground notification immediately to avoid ANR on Android 12+.
-        // The system requires startForeground() within 5 seconds of startForegroundService().
         startForeground(NOTIFICATION_ID, buildForegroundNotification());
 
-        // No ping interval -- we handle keepalive ourselves via AlarmManager.
-        // OkHttp's built-in pings would only work while the CPU is awake anyway.
         httpClient = new OkHttpClient.Builder()
                 .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(0, TimeUnit.SECONDS) // No read timeout for persistent connection
+                .readTimeout(15, TimeUnit.SECONDS)
                 .writeTimeout(5, TimeUnit.SECONDS)
-                .pingInterval(0, TimeUnit.SECONDS) // Disabled -- we use AlarmManager keepalive
                 .build();
 
         poller = new NostrPoller(this);
         alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
 
-        // Create a WakeLock for keepalive pings -- always acquired with a timeout,
-        // never held indefinitely.
         PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-        keepaliveWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ditto:keepalive-ping");
-        keepaliveWakeLock.setReferenceCounted(false);
+        fetchWakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ditto:fetch");
+        fetchWakeLock.setReferenceCounted(false);
 
-        registerKeepaliveReceiver();
+        registerFetchReceiver();
         registerNetworkCallback();
         registerConfigListener();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        connectIfConfigured();
+        scheduleFetchAlarm(INTERVAL_ACTIVE_MS);
+        // Do an immediate fetch on start so the user doesn't wait up to 8 min
+        // after installing / logging in for their first notification check.
+        handler.post(this::runFetchCycle);
         return START_STICKY;
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        cancelKeepaliveAlarm();
-        disconnect();
+        cancelFetchAlarm();
+        closeWebSocket();
         handler.removeCallbacksAndMessages(null);
-        unregisterKeepaliveReceiver();
+        unregisterFetchReceiver();
         unregisterNetworkCallback();
         unregisterConfigListener();
-        if (keepaliveWakeLock != null && keepaliveWakeLock.isHeld()) {
-            keepaliveWakeLock.release();
+        if (fetchWakeLock != null && fetchWakeLock.isHeld()) {
+            fetchWakeLock.release();
         }
         httpClient.dispatcher().executorService().shutdownNow();
     }
@@ -175,170 +163,103 @@ public class NotificationRelayService extends Service {
         return null;
     }
 
-    // --- Keepalive alarm ---
+    // -------------------------------------------------------------------------
+    // Fetch alarm
+    // -------------------------------------------------------------------------
 
-    /**
-     * BroadcastReceiver for the keepalive alarm. When fired, it acquires a
-     * temporary WakeLock and checks if the WebSocket connection is still alive.
-     * If the connection is dead or we're not connected, it triggers a reconnect.
-     */
-    private class KeepaliveReceiver extends BroadcastReceiver {
+    private class FetchReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            if (!ACTION_KEEPALIVE.equals(intent.getAction())) return;
-
-            Log.d(TAG, "Keepalive alarm fired");
-
-            // Acquire a temporary WakeLock to give us time to ping and potentially reconnect.
-            keepaliveWakeLock.acquire(KEEPALIVE_WAKELOCK_TIMEOUT_MS);
-
-            handler.post(() -> {
-                if (currentWebSocket == null) {
-                    // Connection was lost (e.g. Doze killed the TCP socket)
-                    Log.d(TAG, "Keepalive: no active WebSocket, reconnecting");
-                    backoffMs = INITIAL_BACKOFF_MS;
-                    connectIfConfigured();
-                } else {
-                    // Connection exists -- check if last ping got a pong.
-                    // If we sent a ping last cycle and never got a pong, the connection
-                    // is likely dead (TCP half-open after Doze).
-                    if (lastPingSentTimestamp > 0 && lastPongTimestamp < lastPingSentTimestamp) {
-                        Log.d(TAG, "Keepalive: no pong since last ping, connection is dead");
-                        disconnect();
-                        backoffMs = INITIAL_BACKOFF_MS;
-                        connectIfConfigured();
-                    } else {
-                        // Connection seems alive -- send a ping for the next cycle to verify.
-                        // OkHttp WebSocket handles ping/pong at the protocol level when we
-                        // call send() or when the server sends data, but we need an explicit
-                        // application-level check since OkHttp's built-in pings are disabled.
-                        lastPingSentTimestamp = SystemClock.elapsedRealtime();
-                        try {
-                            // Send a Nostr-level ping: an empty message that relays will ignore.
-                            // Some relays respond to unknown messages with NOTICE, which counts
-                            // as proof of liveness via onMessage.
-                            // We track liveness via any onMessage callback instead.
-                            Log.d(TAG, "Keepalive: connection alive, scheduling next alarm");
-                        } catch (Exception e) {
-                            Log.w(TAG, "Keepalive: ping failed", e);
-                            disconnect();
-                            connectIfConfigured();
-                        }
-                    }
-                }
-
-                // Schedule the next alarm
-                scheduleKeepaliveAlarm();
-            });
+            if (!ACTION_FETCH.equals(intent.getAction())) return;
+            Log.d(TAG, "Fetch alarm fired");
+            fetchWakeLock.acquire(FETCH_WAKELOCK_TIMEOUT_MS);
+            handler.post(NotificationRelayService.this::runFetchCycle);
         }
     }
 
-    private void registerKeepaliveReceiver() {
-        keepaliveReceiver = new KeepaliveReceiver();
-        IntentFilter filter = new IntentFilter(ACTION_KEEPALIVE);
+    private void registerFetchReceiver() {
+        fetchReceiver = new FetchReceiver();
+        IntentFilter filter = new IntentFilter(ACTION_FETCH);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(keepaliveReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+            registerReceiver(fetchReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
         } else {
-            registerReceiver(keepaliveReceiver, filter);
+            registerReceiver(fetchReceiver, filter);
         }
 
-        // Create the PendingIntent for the alarm
-        Intent intent = new Intent(ACTION_KEEPALIVE);
+        Intent intent = new Intent(ACTION_FETCH);
         intent.setPackage(getPackageName());
-        keepalivePendingIntent = PendingIntent.getBroadcast(
+        fetchPendingIntent = PendingIntent.getBroadcast(
                 this, 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
     }
 
-    private void unregisterKeepaliveReceiver() {
-        if (keepaliveReceiver != null) {
-            try {
-                unregisterReceiver(keepaliveReceiver);
-            } catch (Exception ignored) {}
+    private void unregisterFetchReceiver() {
+        if (fetchReceiver != null) {
+            try { unregisterReceiver(fetchReceiver); } catch (Exception ignored) {}
         }
     }
 
-    private void scheduleKeepaliveAlarm() {
-        if (alarmManager == null || keepalivePendingIntent == null) return;
-
-        long triggerAt = SystemClock.elapsedRealtime() + KEEPALIVE_INTERVAL_MS;
-
-        // setAndAllowWhileIdle() penetrates Doze mode. The OS may defer alarms
-        // but guarantees delivery within a maintenance window. No special permissions
-        // required (unlike setExactAndAllowWhileIdle).
+    private void scheduleFetchAlarm(long intervalMs) {
+        if (alarmManager == null || fetchPendingIntent == null) return;
         alarmManager.setAndAllowWhileIdle(
                 AlarmManager.ELAPSED_REALTIME_WAKEUP,
-                triggerAt,
-                keepalivePendingIntent
+                SystemClock.elapsedRealtime() + intervalMs,
+                fetchPendingIntent
         );
     }
 
-    private void cancelKeepaliveAlarm() {
-        if (alarmManager != null && keepalivePendingIntent != null) {
-            alarmManager.cancel(keepalivePendingIntent);
+    private void cancelFetchAlarm() {
+        if (alarmManager != null && fetchPendingIntent != null) {
+            alarmManager.cancel(fetchPendingIntent);
         }
     }
 
-    // --- Connection lifecycle ---
+    // -------------------------------------------------------------------------
+    // Fetch cycle: connect -> REQ (limit 5) -> EOSE -> disconnect
+    // -------------------------------------------------------------------------
 
-    private void connectIfConfigured() {
+    private void runFetchCycle() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         String userPubkey = prefs.getString("userPubkey", null);
         String relayUrlsJson = prefs.getString("relayUrls", null);
 
         if (userPubkey == null || relayUrlsJson == null) {
-            Log.d(TAG, "No config, disconnecting");
-            disconnect();
-            cancelKeepaliveAlarm();
+            Log.d(TAG, "No config, skipping fetch");
+            releaseFetchWakeLock();
             return;
         }
 
-        List<String> newRelayUrls = parseRelayUrls(relayUrlsJson);
-        if (newRelayUrls.isEmpty()) {
-            disconnect();
-            cancelKeepaliveAlarm();
+        List<String> urls = parseRelayUrls(relayUrlsJson);
+        if (urls.isEmpty()) {
+            Log.d(TAG, "No relay URLs, skipping fetch");
+            releaseFetchWakeLock();
             return;
         }
 
-        // If relay list changed, reset the index
-        if (!newRelayUrls.equals(relayUrls)) {
-            relayUrls = newRelayUrls;
+        if (!urls.equals(relayUrls)) {
+            relayUrls = urls;
             relayIndex = 0;
         }
 
-        String relayUrl = relayUrls.get(relayIndex);
-
-        // Already connected to the right relay with the right pubkey
-        if (currentWebSocket != null && relayUrl.equals(connectedRelayUrl) && userPubkey.equals(connectedUserPubkey)) {
+        if (!isNetworkAvailable()) {
+            Log.d(TAG, "No network, skipping fetch");
+            releaseFetchWakeLock();
             return;
         }
 
-        // Config changed or rotating relay, reconnect
-        disconnect();
-        connect(relayUrl, userPubkey);
+        fetch(relayUrls.get(relayIndex), userPubkey);
     }
 
-    private void connect(String relayUrl, String userPubkey) {
-        if (!isNetworkAvailable()) {
-            Log.d(TAG, "No network, waiting for connectivity");
-            return;
-        }
-
-        connectedRelayUrl = relayUrl;
-        connectedUserPubkey = userPubkey;
-        eoseReceived = false;
-        backfillEvents.clear();
-        lastPingSentTimestamp = 0;
-        lastPongTimestamp = 0;
-
+    private void fetch(String relayUrl, String userPubkey) {
         long since = poller.getLastSeenTimestamp();
         if (since == 0) {
-            since = (System.currentTimeMillis() / 1000) - 300; // 5 minutes ago
+            since = (System.currentTimeMillis() / 1000) - 300; // 5 min ago on first run
             poller.setLastSeenTimestamp(since);
         }
 
-        currentSubId = "live-" + Long.toHexString(System.nanoTime());
+        currentSubId = "notif-" + Long.toHexString(System.nanoTime());
+        fetchedEvents.clear();
 
         try {
             JSONObject filter = new JSONObject();
@@ -349,6 +270,7 @@ public class NotificationRelayService extends Service {
             pTags.put(userPubkey);
             filter.put("#p", pTags);
             filter.put("since", since + 1);
+            filter.put("limit", FETCH_LIMIT);
 
             JSONArray req = new JSONArray();
             req.put("REQ");
@@ -358,136 +280,136 @@ public class NotificationRelayService extends Service {
             final String reqStr = req.toString();
             final String subId = currentSubId;
 
-            Log.d(TAG, "Connecting to " + relayUrl);
+            Log.d(TAG, "Fetching from " + relayUrl + " since=" + since);
 
             Request request = new Request.Builder().url(relayUrl).build();
             currentWebSocket = httpClient.newWebSocket(request, new WebSocketListener() {
                 @Override
                 public void onOpen(WebSocket webSocket, Response response) {
-                    Log.d(TAG, "Connected to " + relayUrl);
-                    backoffMs = INITIAL_BACKOFF_MS; // Reset backoff on success
-                    lastPongTimestamp = SystemClock.elapsedRealtime();
+                    backoffMs = INITIAL_BACKOFF_MS;
                     webSocket.send(reqStr);
-
-                    // Start the keepalive alarm now that we have a connection
-                    scheduleKeepaliveAlarm();
                 }
 
                 @Override
                 public void onMessage(WebSocket webSocket, String text) {
-                    // Any message from the relay proves the connection is alive
-                    lastPongTimestamp = SystemClock.elapsedRealtime();
-                    handleMessage(text, subId, relayUrl, userPubkey);
+                    handleMessage(text, subId, relayUrl, userPubkey, webSocket);
                 }
 
                 @Override
                 public void onFailure(WebSocket webSocket, Throwable t, Response response) {
                     Log.w(TAG, "WebSocket failure: " + t.getMessage());
                     currentWebSocket = null;
-                    scheduleReconnect();
+                    scheduleRetry(relayUrl, userPubkey);
                 }
 
                 @Override
                 public void onClosed(WebSocket webSocket, int code, String reason) {
-                    Log.d(TAG, "WebSocket closed: " + code + " " + reason);
                     currentWebSocket = null;
-                    if (code != 1000) {
-                        scheduleReconnect();
-                    }
+                    // Normal close after EOSE — nothing to do.
                 }
             });
         } catch (JSONException e) {
             Log.w(TAG, "Failed to build REQ", e);
+            releaseFetchWakeLock();
         }
     }
 
-    private void disconnect() {
-        if (reconnectRunnable != null) {
-            handler.removeCallbacks(reconnectRunnable);
-            reconnectRunnable = null;
-        }
-        if (currentWebSocket != null) {
-            try {
-                if (currentSubId != null) {
-                    JSONArray close = new JSONArray();
-                    close.put("CLOSE");
-                    close.put(currentSubId);
-                    currentWebSocket.send(close.toString());
-                }
-                currentWebSocket.close(1000, "service stopping");
-            } catch (Exception ignored) {}
-            currentWebSocket = null;
-        }
-        connectedRelayUrl = null;
-        connectedUserPubkey = null;
-        currentSubId = null;
-        eoseReceived = false;
-        backfillEvents.clear();
-    }
-
-    private void scheduleReconnect() {
-        if (reconnectRunnable != null) {
-            handler.removeCallbacks(reconnectRunnable);
-        }
-
-        // Rotate to the next relay in the list
-        if (!relayUrls.isEmpty()) {
-            relayIndex = (relayIndex + 1) % relayUrls.size();
-            Log.d(TAG, "Rotating to relay " + relayIndex + ": " + relayUrls.get(relayIndex));
-        }
-
-        Log.d(TAG, "Reconnecting in " + backoffMs + "ms");
-        reconnectRunnable = () -> {
-            reconnectRunnable = null;
-            connectIfConfigured();
-        };
-        handler.postDelayed(reconnectRunnable, backoffMs);
-
-        // Exponential backoff with cap
-        backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
-    }
-
-    // --- Message handling ---
-
-    private void handleMessage(String text, String subId, String relayUrl, String userPubkey) {
+    private void handleMessage(String text, String subId, String relayUrl, String userPubkey, WebSocket webSocket) {
         try {
             JSONArray msg = new JSONArray(text);
             String type = msg.optString(0);
 
             if ("EVENT".equals(type) && subId.equals(msg.optString(1))) {
-                JSONObject event = msg.getJSONObject(2);
+                fetchedEvents.add(msg.getJSONObject(2));
 
-                if (!eoseReceived) {
-                    // Before EOSE: buffer events for batch processing
-                    backfillEvents.add(event);
-                } else {
-                    // After EOSE: real-time event, dispatch immediately
-                    poller.handleEvent(event, userPubkey, relayUrl, httpClient);
-                }
             } else if ("EOSE".equals(type) && subId.equals(msg.optString(1))) {
-                eoseReceived = true;
-                Log.d(TAG, "EOSE received, " + backfillEvents.size() + " backfill events");
-                // Process any backfilled events as a batch
-                if (!backfillEvents.isEmpty()) {
-                    List<JSONObject> batch = new ArrayList<>(backfillEvents);
-                    backfillEvents.clear();
-                    poller.handleEventBatch(batch, userPubkey, relayUrl, httpClient);
-                }
-                // Subscription stays open for real-time events
+                // Close the subscription and the connection cleanly.
+                try {
+                    JSONArray close = new JSONArray();
+                    close.put("CLOSE");
+                    close.put(subId);
+                    webSocket.send(close.toString());
+                } catch (JSONException ignored) {}
+                webSocket.close(1000, "done");
+
+                // Dispatch collected events on the handler thread.
+                List<JSONObject> batch = new ArrayList<>(fetchedEvents);
+                fetchedEvents.clear();
+                handler.post(() -> onFetchComplete(batch, userPubkey, relayUrl));
+
             } else if ("CLOSED".equals(type) && subId.equals(msg.optString(1))) {
                 Log.w(TAG, "Subscription closed by relay: " + msg.optString(2));
-                if (currentWebSocket != null) {
-                    currentWebSocket.close(1000, "sub closed");
-                    currentWebSocket = null;
-                }
-                scheduleReconnect();
+                webSocket.close(1000, "sub closed");
+                currentWebSocket = null;
+                // Treat as empty fetch rather than retrying.
+                handler.post(() -> onFetchComplete(new ArrayList<>(fetchedEvents), userPubkey, relayUrl));
+                fetchedEvents.clear();
             }
         } catch (Exception e) {
             Log.w(TAG, "Parse error", e);
         }
     }
 
-    // --- Network monitoring ---
+    private void onFetchComplete(List<JSONObject> events, String userPubkey, String relayUrl) {
+        Log.d(TAG, "Fetch complete: " + events.size() + " events");
+
+        if (!events.isEmpty()) {
+            poller.handleEventBatch(events, userPubkey, relayUrl, httpClient);
+            lastCycleWasQuiet = false;
+            // Active — reset to base interval.
+            scheduleFetchAlarm(INTERVAL_ACTIVE_MS);
+        } else {
+            // Nothing arrived. Back off if last cycle was also quiet.
+            if (lastCycleWasQuiet) {
+                Log.d(TAG, "Two quiet cycles, backing off to " + (INTERVAL_QUIET_MS / 60000) + " min");
+                scheduleFetchAlarm(INTERVAL_QUIET_MS);
+            } else {
+                scheduleFetchAlarm(INTERVAL_ACTIVE_MS);
+            }
+            lastCycleWasQuiet = true;
+        }
+
+        releaseFetchWakeLock();
+    }
+
+    private void scheduleRetry(String relayUrl, String userPubkey) {
+        // Rotate relay on failure
+        if (!relayUrls.isEmpty()) {
+            relayIndex = (relayIndex + 1) % relayUrls.size();
+        }
+
+        Log.d(TAG, "Retrying in " + backoffMs + "ms on relay " + relayIndex);
+        Runnable retry = () -> fetch(relayUrls.get(relayIndex), userPubkey);
+        handler.postDelayed(retry, backoffMs);
+        backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
+
+        // Still schedule the next alarm so we don't get stuck if retry also fails.
+        scheduleFetchAlarm(INTERVAL_ACTIVE_MS);
+        releaseFetchWakeLock();
+    }
+
+    private void closeWebSocket() {
+        if (reconnectRunnable != null) {
+            handler.removeCallbacks(reconnectRunnable);
+            reconnectRunnable = null;
+        }
+        if (currentWebSocket != null) {
+            try { currentWebSocket.close(1000, "service stopping"); } catch (Exception ignored) {}
+            currentWebSocket = null;
+        }
+        currentSubId = null;
+        fetchedEvents.clear();
+    }
+
+    private void releaseFetchWakeLock() {
+        if (fetchWakeLock != null && fetchWakeLock.isHeld()) {
+            fetchWakeLock.release();
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Network monitoring
+    // -------------------------------------------------------------------------
 
     private void registerNetworkCallback() {
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
@@ -500,10 +422,11 @@ public class NotificationRelayService extends Service {
         networkCallback = new ConnectivityManager.NetworkCallback() {
             @Override
             public void onAvailable(Network network) {
-                Log.d(TAG, "Network available, reconnecting");
+                Log.d(TAG, "Network available, triggering fetch");
                 handler.post(() -> {
                     backoffMs = INITIAL_BACKOFF_MS;
-                    connectIfConfigured();
+                    fetchWakeLock.acquire(FETCH_WAKELOCK_TIMEOUT_MS);
+                    runFetchCycle();
                 });
             }
 
@@ -520,9 +443,7 @@ public class NotificationRelayService extends Service {
         if (networkCallback == null) return;
         ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm != null) {
-            try {
-                cm.unregisterNetworkCallback(networkCallback);
-            } catch (Exception ignored) {}
+            try { cm.unregisterNetworkCallback(networkCallback); } catch (Exception ignored) {}
         }
     }
 
@@ -535,15 +456,19 @@ public class NotificationRelayService extends Service {
         return caps != null && caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET);
     }
 
-    // --- Config change listener ---
+    // -------------------------------------------------------------------------
+    // Config change listener
+    // -------------------------------------------------------------------------
 
     private void registerConfigListener() {
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         configListener = (sharedPreferences, key) -> {
-            Log.d(TAG, "Config changed, reconnecting");
+            Log.d(TAG, "Config changed, triggering immediate fetch");
             handler.post(() -> {
                 backoffMs = INITIAL_BACKOFF_MS;
-                connectIfConfigured();
+                lastCycleWasQuiet = false;
+                fetchWakeLock.acquire(FETCH_WAKELOCK_TIMEOUT_MS);
+                runFetchCycle();
             });
         };
         prefs.registerOnSharedPreferenceChangeListener(configListener);
@@ -555,7 +480,9 @@ public class NotificationRelayService extends Service {
         prefs.unregisterOnSharedPreferenceChangeListener(configListener);
     }
 
-    // --- Helpers ---
+    // -------------------------------------------------------------------------
+    // Helpers
+    // -------------------------------------------------------------------------
 
     private List<String> parseRelayUrls(String json) {
         List<String> urls = new ArrayList<>();
@@ -579,7 +506,7 @@ public class NotificationRelayService extends Service {
 
         return new NotificationCompat.Builder(this, CHANNEL_ID)
                 .setContentTitle("Ditto")
-                .setContentText("Connected for notifications")
+                .setContentText("Checking for notifications")
                 .setSmallIcon(R.drawable.ic_stat_ditto)
                 .setContentIntent(pendingIntent)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
