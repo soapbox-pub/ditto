@@ -8,132 +8,58 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Generating Android app icons...${NC}\n"
 
-# Check for inkscape (preferred) or rsvg-convert as fallback
-if command -v inkscape &> /dev/null; then
-    SVG_RENDERER="inkscape"
-elif command -v rsvg-convert &> /dev/null; then
-    SVG_RENDERER="rsvg"
-else
-    echo -e "${YELLOW}Warning: neither inkscape nor rsvg-convert found. Install one to render SVG icons.${NC}"
-    echo "On Fedora/RHEL: sudo dnf install inkscape"
-    echo "On Ubuntu/Debian: sudo apt-get install inkscape"
-    exit 1
-fi
-
-# Check if ImageMagick is installed (needed for compositing).
-# ImageMagick 7+ uses `magick`; ImageMagick 6 (Ubuntu/Debian) uses `convert`.
-if command -v magick &> /dev/null; then
-    MAGICK="magick"
-elif command -v convert &> /dev/null; then
-    MAGICK="convert"
-else
+# Check if ImageMagick is installed
+if ! command -v magick &> /dev/null; then
     echo -e "${YELLOW}Warning: ImageMagick not found. Please install it to generate icons.${NC}"
     echo "On Fedora/RHEL: sudo dnf install ImageMagick"
     echo "On Ubuntu/Debian: sudo apt-get install imagemagick"
     exit 1
 fi
 
-# Source SVG logo
-SOURCE_SVG="public/logo.svg"
+# Source icon — purple background with white logo, fully composed
+SOURCE_ICON="public/icon-512.png"
 
-if [ ! -f "$SOURCE_SVG" ]; then
-    echo -e "${YELLOW}Error: Source logo not found at $SOURCE_SVG${NC}"
+if [ ! -f "$SOURCE_ICON" ]; then
+    echo -e "${YELLOW}Error: Source icon not found at $SOURCE_ICON${NC}"
     exit 1
 fi
 
-# Brand colors
-BG_COLOR="#7c52e0"   # Ditto purple
+mkdir -p android/app/src/main/res/{mipmap-mdpi,mipmap-hdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi}
 
-TMPDIR=$(mktemp -d)
-LOGO_WHITE_SVG="$TMPDIR/logo_white.svg"
-LOGO_WHITE="$TMPDIR/logo_white.png"
+echo "Generating mdpi icons (48x48)..."
+magick "$SOURCE_ICON" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+magick "$SOURCE_ICON" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+magick "$SOURCE_ICON" -resize 30x30 -background none -gravity center -extent 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
 
-# Recolor the SVG fill to white before rasterizing.
-sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" > "$LOGO_WHITE_SVG"
+echo "Generating hdpi icons (72x72)..."
+magick "$SOURCE_ICON" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+magick "$SOURCE_ICON" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+magick "$SOURCE_ICON" -resize 46x46 -background none -gravity center -extent 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
 
-echo "Rendering white SVG at 512x512..."
+echo "Generating xhdpi icons (96x96)..."
+magick "$SOURCE_ICON" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+magick "$SOURCE_ICON" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+magick "$SOURCE_ICON" -resize 62x62 -background none -gravity center -extent 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
 
-if [ "$SVG_RENDERER" = "inkscape" ]; then
-    inkscape --export-type=png --export-filename="$LOGO_WHITE" -w 512 -h 512 "$LOGO_WHITE_SVG" 2>/dev/null
-else
-    rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
-fi
+echo "Generating xxhdpi icons (144x144)..."
+magick "$SOURCE_ICON" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+magick "$SOURCE_ICON" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+magick "$SOURCE_ICON" -resize 92x92 -background none -gravity center -extent 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
 
-# ── Flat launcher icons (ic_launcher.png, ic_launcher_round.png) ──
-# Used on Android < API 26 and as fallback.
-# Purple background with white logo centered, 75% of icon size.
+echo "Generating xxxhdpi icons (192x192)..."
+magick "$SOURCE_ICON" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+magick "$SOURCE_ICON" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+magick "$SOURCE_ICON" -resize 122x122 -background none -gravity center -extent 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
-echo "Generating flat launcher icons..."
-
-make_flat() {
-    local size=$1
-    local dest=$2
-    local content_size=$(echo "$size * 75 / 100" | bc)
-    $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
-        \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
-        -gravity center -compose over -composite \
-        "$dest"
-}
-
-make_flat_round() {
-    local size=$1
-    local dest=$2
-    local content_size=$(echo "$size * 75 / 100" | bc)
-    $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
-        \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
-        -gravity center -compose over -composite \
-        \( +clone -alpha extract \
-           -draw "fill white circle $((size/2)),$((size/2)) $((size/2)),0" \) \
-        -alpha off -compose copy_opacity -composite \
-        "$dest"
-}
-
-make_flat  48  android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-make_flat  72  android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-make_flat  96  android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-make_flat 144  android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-make_flat 192  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-
-make_flat_round  48  android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-make_flat_round  72  android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-make_flat_round  96  android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-make_flat_round 144  android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-make_flat_round 192  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
-# ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
-# Canvas must be 108dp × density. Logo fits in center 66% (safe zone).
-# API 26+ uses these with the background color from ic_launcher_background.xml.
-
-echo "Generating adaptive foreground PNGs..."
-
-make_foreground() {
-    local size=$1
-    local dest=$2
-    local content_size=$(echo "$size * 66 / 100" | bc)
-    $MAGICK -size "${size}x${size}" "xc:none" \
-        \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
-        -gravity center -compose over -composite \
-        "$dest"
-}
-
-make_foreground 108  android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-make_foreground 162  android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-make_foreground 216  android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-make_foreground 324  android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-make_foreground 432  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
-
-# Update background color
+# Background color must match icon-512.png background
 BACKGROUND_COLOR_FILE="android/app/src/main/res/values/ic_launcher_background.xml"
 mkdir -p android/app/src/main/res/values
 cat > "$BACKGROUND_COLOR_FILE" << 'EOF'
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#7c52e0</color>
+    <color name="ic_launcher_background">#7c3aed</color>
 </resources>
 EOF
 
-# Cleanup temp files
-rm -rf "$TMPDIR"
-
 echo -e "\n${GREEN}Android icons generated successfully!${NC}"
-echo -e "Icon: white Ditto logo on ${GREEN}${BG_COLOR}${NC} (Ditto purple)"
+echo -e "Icon: white logo on ${GREEN}#7c3aed${NC} purple background"
