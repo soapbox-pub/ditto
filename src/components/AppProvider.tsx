@@ -114,5 +114,8 @@ function useApplyTheme(theme: Theme) {
       document.head.appendChild(el);
     }
     el.textContent = css;
+    // Now that CSS variables are set, the inline body background from
+    // theme.js is no longer needed — bg-background will resolve correctly.
+    document.body.removeAttribute('style');
   }, [theme]);
 }

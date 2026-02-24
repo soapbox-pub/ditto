@@ -15,9 +15,7 @@ createRoot(document.getElementById("root")!).render(
   </ErrorBoundary>
 );
 
-// Remove the HTML preloader after React has painted and clear the
-// inline body background so CSS variables control the theme from here.
+// Remove the HTML preloader after React has painted.
 requestAnimationFrame(() => {
   document.getElementById('preloader')?.remove();
-  document.body.removeAttribute('style');
 });
