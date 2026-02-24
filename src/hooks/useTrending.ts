@@ -16,6 +16,12 @@ export interface TrendingTag {
   uses: number;
 }
 
+export interface TrendingTagsResult {
+  tags: TrendingTag[];
+  /** created_at of the label event, used to align sparkline day boundaries. */
+  labelCreatedAt: number;
+}
+
 /**
  * Fetches trending hashtags from relay.ditto.pub via kind 1985 label events.
  * These are published with L: "pub.ditto.trends" and l: "#t", "pub.ditto.trends".
@@ -24,7 +30,7 @@ export interface TrendingTag {
 export function useTrendingTags(enabled = true) {
   const { nostr } = useNostr();
 
-  return useQuery<TrendingTag[]>({
+  return useQuery<TrendingTagsResult>({
     queryKey: ['trending-tags'],
     queryFn: async ({ signal }) => {
       const ditto = nostr.relay(DITTO_RELAY);
@@ -39,18 +45,21 @@ export function useTrendingTags(enabled = true) {
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
 
-      if (events.length === 0) return [];
+      if (events.length === 0) return { tags: [], labelCreatedAt: 0 };
 
       // The label event contains `t` tags for each trending hashtag.
       // Tag format: ['t', hashtag, '', accounts, uses]
       // index 3 = distinct accounts using the hashtag
       // index 4 = total uses of the hashtag
       const tTags = events[0].tags.filter(([name]) => name === 't');
-      return tTags.map(([, tag, , rawAccounts, rawUses]) => ({
-        tag: tag.toLowerCase(),
-        accounts: parseInt(rawAccounts || '0', 10),
-        uses: parseInt(rawUses || '0', 10),
-      }));
+      return {
+        tags: tTags.map(([, tag, , rawAccounts, rawUses]) => ({
+          tag: tag.toLowerCase(),
+          accounts: parseInt(rawAccounts || '0', 10),
+          uses: parseInt(rawUses || '0', 10),
+        })),
+        labelCreatedAt: events[0].created_at,
+      };
     },
     enabled,
     staleTime: 5 * 60 * 1000,
@@ -258,38 +267,24 @@ function generateSparklineDays(refTimestampSecs: number): { since: number; until
  * derived from the most-recent label event's created_at, and filters each
  * per-day query by the specific hashtag (`#t`) so only label events that
  * mention that tag are returned.
+ *
+ * @param labelCreatedAt - created_at from the useTrendingTags label event,
+ *   used to align day boundaries without an extra round-trip.
  */
-export function useTagSparklines(tags: string[], enabled = true) {
+export function useTagSparklines(tags: string[], labelCreatedAt: number, enabled = true) {
   const { nostr } = useNostr();
 
   const sortedTags = [...new Set(tags.map((t) => t.toLowerCase()))].sort();
 
   return useQuery<Map<string, number[]>>({
-    queryKey: ['tag-sparklines', sortedTags.join(',')],
+    queryKey: ['tag-sparklines', sortedTags.join(','), labelCreatedAt],
     queryFn: async ({ signal }) => {
-      if (sortedTags.length === 0) return new Map();
+      if (sortedTags.length === 0 || !labelCreatedAt) return new Map();
 
       const ditto = nostr.relay(DITTO_RELAY);
 
-      // Fetch the most-recent label event to use as the reference date,
-      // matching the server: `const date = new Date(label.created_at * 1000)`
-      const [latestLabel] = await ditto.query(
-        [{
-          kinds: [1985],
-          authors: [TRENDS_PUBKEY],
-          '#L': ['pub.ditto.trends'],
-          '#l': ['#t'],
-          limit: 1,
-        }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
-      );
-
-      if (!latestLabel) {
-        return new Map(sortedTags.map((tag) => [tag, new Array(SPARKLINE_DAYS).fill(0)]));
-      }
-
       // Generate UTC-midnight-aligned day boundaries from the label's created_at
-      const days = generateSparklineDays(latestLabel.created_at);
+      const days = generateSparklineDays(labelCreatedAt);
 
       // Initialise empty buckets for every tag
       const sparkMap = new Map<string, number[]>();
