@@ -6,7 +6,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
  * Returns the current user's repost event ID for a given event, if any.
  *
  * Checks the optimistic cache first (set by RepostMenu on repost/unrepost),
- * then falls back to querying the relay for the user's kind 6 events.
+ * then falls back to querying the relay for the user's kind 6 or kind 16 events.
  *
  * Returns:
  * - `undefined` while loading
@@ -26,9 +26,10 @@ export function useRepostStatus(eventId: string | undefined): string | null | un
     queryFn: async ({ signal }): Promise<string | null> => {
       if (!eventId || !user) return null;
 
+      // Query both kind 6 (note reposts) and kind 16 (generic reposts)
       const events = await nostr.query(
         [{
-          kinds: [6],
+          kinds: [6, 16],
           authors: [user.pubkey],
           '#e': [eventId],
           limit: 1,

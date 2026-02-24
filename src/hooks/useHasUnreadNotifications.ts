@@ -30,7 +30,7 @@ export function useHasUnreadNotifications(): boolean {
 
       const events = await nostr.query(
         [{
-          kinds: [1, 6, 7, 9735],
+          kinds: [1, 6, 16, 7, 9735],
           '#p': [user.pubkey],
           since: notificationsCursor + 1,
           limit: 1,

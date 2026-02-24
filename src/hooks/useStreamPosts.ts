@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useFeedSettings } from './useFeedSettings';
 import { useMuteList } from './useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import type { NostrEvent, NostrFilter } from '@nostrify/nostrify';
 import { DITTO_RELAY } from '@/lib/appRelays';
@@ -127,7 +128,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     // Build the kinds list: either vines-only or user-selected feed kinds (minus reposts)
     const kinds: number[] = isVines
       ? [34236]
-      : enabledKinds.filter((k) => k !== 6);
+      : enabledKinds.filter((k) => !isRepostKind(k));
 
     // Base filter for streaming (kinds only - no search)
     const streamFilter: NostrFilter = { kinds };

@@ -2,7 +2,7 @@ import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { useFeedSettings } from './useFeedSettings';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 /** Extended FeedItem with pagination metadata. */
@@ -99,14 +99,14 @@ export function useProfileFeed(pubkey: string | undefined) {
       const validEvents = events.filter((ev) => ev.created_at <= now);
       const oldestQueryTimestamp = getPaginationCursor(validEvents);
 
-      // Process events into FeedItems, unwrapping kind 6 reposts
+      // Process events into FeedItems, unwrapping kind 6/16 reposts
       const items: FeedItem[] = [];
       const repostMissingIds: string[] = [];
       const repostMap = new Map<string, NostrEvent>();
 
       for (const ev of validEvents) {
-        if (ev.kind === 6) {
-          // Handle reposts
+        if (isRepostKind(ev.kind)) {
+          // Handle reposts (kind 6 for notes, kind 16 for generic)
           const embedded = parseRepostContent(ev);
           if (embedded && embedded.created_at <= now) {
             items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });

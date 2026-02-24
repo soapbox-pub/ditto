@@ -5,7 +5,7 @@ import { useFeedSettings } from './useFeedSettings';
 import { useFollowList } from './useFollowActions';
 import { parseAuthorEvent } from './useAuthor';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
-import { getPaginationCursor, parseRepostContent, type FeedItem } from '@/lib/feedUtils';
+import { getPaginationCursor, parseRepostContent, isRepostKind, type FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 const PAGE_SIZE = 15;
@@ -158,8 +158,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const repostMap = new Map<string, NostrEvent>();
 
         for (const ev of validFilteredEvents) {
-          if (ev.kind === 6) {
-            // Handle reposts
+          if (isRepostKind(ev.kind)) {
+            // Handle reposts (kind 6 for notes, kind 16 for generic)
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
@@ -237,8 +237,8 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         const repostMap = new Map<string, NostrEvent>();
 
         for (const ev of validEvents) {
-          if (ev.kind === 6) {
-            // Handle reposts
+          if (isRepostKind(ev.kind)) {
+            // Handle reposts (kind 6 for notes, kind 16 for generic)
             const embedded = parseRepostContent(ev);
             if (embedded && embedded.created_at <= now) {
               items.push({ event: embedded, repostedBy: ev.pubkey, sortTimestamp: ev.created_at });
@@ -292,7 +292,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         return { items: dedupedItems, oldestQueryTimestamp };
       } else {
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
-        const globalKinds = allKinds.filter((k) => k !== 6);
+        const globalKinds = allKinds.filter((k) => !isRepostKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
         if (pageParam) {
           filter.until = pageParam;

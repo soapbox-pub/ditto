@@ -154,6 +154,7 @@ function NotificationItemView({ item, isNew }: { item: NotificationItem; isNew: 
     case 7:
       return <LikeNotification item={item} isNew={isNew} />;
     case 6:
+    case 16:
       return <RepostNotification item={item} isNew={isNew} />;
     case 9735:
       return <ZapNotification item={item} isNew={isNew} />;

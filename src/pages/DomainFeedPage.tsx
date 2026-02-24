@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useMuteList } from '@/hooks/useMuteList';
 import { getEnabledFeedKinds } from '@/lib/extraKinds';
+import { isRepostKind } from '@/lib/feedUtils';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -56,7 +57,7 @@ export function DomainFeedPage() {
   const { nostr } = useNostr();
   const { feedSettings } = useFeedSettings();
 
-  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => k !== 6);
+  const kinds = getEnabledFeedKinds(feedSettings).filter((k) => !isRepostKind(k));
   const kindsKey = [...kinds].sort().join(',');
 
   useSeoMeta({
