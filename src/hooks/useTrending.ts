@@ -281,7 +281,7 @@ export function useTagSparklines(tags: string[], enabled = true) {
           '#l': ['#t'],
           limit: 1,
         }],
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(3000)]) },
       );
 
       if (!latestLabel) {
@@ -296,6 +296,9 @@ export function useTagSparklines(tags: string[], enabled = true) {
       for (const tag of sortedTags) {
         sparkMap.set(tag, new Array(SPARKLINE_DAYS).fill(0));
       }
+
+      // Trends is not critical
+      await new Promise((resolve) => requestIdleCallback(resolve, { timeout: 10000 }));
 
       // Build one filter per tag×day and send them all in a single REQ.
       // Each filter is narrow enough (since/until + #t) that the relay returns
@@ -315,7 +318,7 @@ export function useTagSparklines(tags: string[], enabled = true) {
 
       const allEvents = await ditto.query(
         filters,
-        { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]) },
       );
 
       // Sort results into tag×day buckets.
