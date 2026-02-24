@@ -47,53 +47,21 @@ BG_COLOR="#7c52e0"   # Ditto purple
 TMPDIR=$(mktemp -d)
 LOGO_WHITE_SVG="$TMPDIR/logo_white.svg"
 LOGO_WHITE="$TMPDIR/logo_white.png"
-ICON_512="$TMPDIR/icon_512.png"
 
 # Recolor the SVG fill to white before rasterizing.
-# This is more reliable than post-processing with ImageMagick.
 sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" > "$LOGO_WHITE_SVG"
 
 echo "Rendering white SVG at 512x512..."
 
-if [ "$SVG_RENDERER" = "rsvg" ]; then
-    rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
+if [ "$SVG_RENDERER" = "inkscape" ]; then
+    inkscape --export-type=png --export-filename="$LOGO_WHITE" -w 512 -h 512 "$LOGO_WHITE_SVG" 2>/dev/null
 else
-    inkscape --export-type=png --export-filename="$LOGO_WHITE" -w 512 -h 512 "$LOGO_WHITE_SVG"
+    rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
 fi
 
-# Composite white logo onto purple background (full bleed for legacy icons)
-# Logo scaled to 80% with padding for aesthetic balance
-$MAGICK -size 512x512 "xc:${BG_COLOR}" \
-    \( "$LOGO_WHITE" -resize 410x410 \) \
-    -gravity center -compose over -composite \
-    "$ICON_512"
-
-# Create Android resource directories if they don't exist
-mkdir -p android/app/src/main/res/{mipmap-mdpi,mipmap-hdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi}
-
-# ── Legacy / non-adaptive launcher icons (full bleed: purple bg + white logo) ──
-
-echo "Generating mdpi icons (48x48)..."
-$MAGICK "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-$MAGICK "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
-
-echo "Generating hdpi icons (72x72)..."
-$MAGICK "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-$MAGICK "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-
-echo "Generating xhdpi icons (96x96)..."
-$MAGICK "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-$MAGICK "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-
-echo "Generating xxhdpi icons (144x144)..."
-$MAGICK "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-$MAGICK "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-
-echo "Generating xxxhdpi icons (192x192)..."
-$MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-$MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-
 # ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
+# Launcher PNGs (ic_launcher, ic_launcher_round) are committed directly to the repo.
+# Only the adaptive foreground PNGs need to be generated here.
 # Safe zone = 66% of canvas. Content centered on transparent background.
 
 echo "Generating adaptive foreground PNGs..."
