@@ -174,7 +174,16 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
         ref={videoRef}
         src={src}
         poster={poster}
-        className="w-full max-h-[70vh] object-cover cursor-pointer"
+        className={cn(
+          'w-full cursor-pointer',
+          // When dim is known the container already has the correct aspect ratio,
+          // so the video just needs to fill it (absolute inset-0). Without dim we
+          // fall back to the original constrained height with object-cover so the
+          // player doesn't grow to an unmanageable size.
+          aspectRatio
+            ? 'absolute inset-0 h-full object-cover'
+            : 'max-h-[70vh] object-cover',
+        )}
         playsInline
         preload="metadata"
         {...({ 'webkit-playsinline': 'true' } as React.HTMLAttributes<HTMLVideoElement>)}
