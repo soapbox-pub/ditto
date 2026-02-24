@@ -2,19 +2,21 @@ image: node:22
 
 default:
   interruptible: true
-  timeout: 1 minute
 
 stages:
   - test
   - deploy
+  - build
 
 test:
   stage: test
+  timeout: 1 minute
   script:
     - npm run test
 
 pages:
   stage: deploy
+  timeout: 1 minute
   script:
     - npm run build
     - rm -rf public
@@ -25,3 +27,87 @@ pages:
   only:
     variables:
       - $CI_DEFAULT_BRANCH == $CI_COMMIT_REF_NAME
+
+build-apk:
+  stage: build
+  image: eclipse-temurin:21-jdk
+  timeout: 15 minutes
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+/
+  variables:
+    ANDROID_SDK_ROOT: /opt/android-sdk
+    ANDROID_HOME: /opt/android-sdk
+  before_script:
+    # Install system dependencies
+    - apt-get update -qq
+    - apt-get install -y -qq curl unzip imagemagick librsvg2-bin > /dev/null
+
+    # Install Node.js 22
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y -qq nodejs > /dev/null
+    - node --version
+    - npm --version
+
+    # Install Android SDK command-line tools
+    - mkdir -p $ANDROID_SDK_ROOT/cmdline-tools
+    - curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o cmdline-tools.zip
+    - unzip -q cmdline-tools.zip -d $ANDROID_SDK_ROOT/cmdline-tools
+    - mv $ANDROID_SDK_ROOT/cmdline-tools/cmdline-tools $ANDROID_SDK_ROOT/cmdline-tools/latest
+    - export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+
+    # Accept licenses and install SDK components
+    - yes | sdkmanager --licenses > /dev/null 2>&1 || true
+    - sdkmanager --install "platforms;android-36" "build-tools;36.0.0" "platform-tools" > /dev/null
+
+    # Write local.properties for Gradle
+    - echo "sdk.dir=$ANDROID_SDK_ROOT" > android/local.properties
+
+    # Decode signing keystore from CI/CD variable
+    - echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > android/app/my-upload-key.keystore
+
+    # Write key.properties from CI/CD variables
+    - |
+      cat > android/key.properties << EOF
+      storePassword=$KEYSTORE_PASSWORD
+      keyPassword=$KEY_PASSWORD
+      keyAlias=upload
+      storeFile=my-upload-key.keystore
+      EOF
+  script:
+    # Extract version from git tag (e.g., v2026.02.24+abc1234 -> 20260224 / 2026.02.24)
+    - TAG="${CI_COMMIT_TAG#v}"
+    - VERSION_NAME="${TAG%%+*}"
+    - VERSION_CODE=$(echo "$VERSION_NAME" | tr -d '.')
+    - echo "Building version $VERSION_NAME (code $VERSION_CODE) from tag $CI_COMMIT_TAG"
+
+    # Stamp version into build.gradle
+    - sed -i "s/versionCode [0-9]*/versionCode ${VERSION_CODE}/" android/app/build.gradle
+    - sed -i "s/versionName \"[^\"]*\"/versionName \"${VERSION_NAME}\"/" android/app/build.gradle
+
+    # Build web assets
+    - npm ci --silent
+    - npx vite build -l error
+    - cp dist/index.html dist/404.html
+
+    # Generate Android icons
+    - bash scripts/generate-icons.sh
+
+    # Sync web assets to Capacitor Android project
+    - npx cap sync android
+
+    # Build signed release APK
+    - cd android && chmod +x gradlew && ./gradlew assembleRelease && cd ..
+
+    # Copy APK to a predictable artifact path
+    - mkdir -p artifacts
+    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/ditto-${CI_COMMIT_TAG}.apk"
+    - ls -lh "artifacts/ditto-${CI_COMMIT_TAG}.apk"
+  artifacts:
+    paths:
+      - "artifacts/ditto-${CI_COMMIT_TAG}.apk"
+    expire_in: 90 days
+  cache:
+    key: android-gradle
+    paths:
+      - android/.gradle/
+      - .gradle/
