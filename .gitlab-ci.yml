@@ -52,7 +52,7 @@ build-apk:
   before_script:
     # Install system dependencies
     - apt-get update -qq
-    - apt-get install -y -qq curl unzip imagemagick librsvg2-bin > /dev/null
+    - apt-get install -y -qq curl unzip imagemagick inkscape > /dev/null
 
     # Install Node.js 22
     - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
