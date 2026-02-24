@@ -51,7 +51,7 @@ export function useNip05Resolve(identifier: string | undefined) {
 
       if (cleaned.includes('@')) {
         const atIndex = cleaned.indexOf('@');
-        name = cleaned.slice(0, atIndex).toLowerCase();
+        name = cleaned.slice(0, atIndex);
         domain = cleaned.slice(atIndex + 1);
       } else {
         // No @ means it's just a domain, look up the default user (_)
@@ -70,12 +70,12 @@ export function useNip05Resolve(identifier: string | undefined) {
       const names = data.names;
       if (!names || typeof names !== 'object') return null;
 
-      // Look up by lowercase name; fall back to case-insensitive search
-      // in case the server returns names in non-standard casing
+      // Look up by exact name first; fall back to case-insensitive search
+      // in case the server normalises casing differently from the stored metadata value
       const namesRecord = names as Record<string, string>;
       let pubkey: string | undefined = namesRecord[name];
       if (typeof pubkey !== 'string') {
-        const entry = Object.entries(namesRecord).find(([k]) => k.toLowerCase() === name);
+        const entry = Object.entries(namesRecord).find(([k]) => k.toLowerCase() === name.toLowerCase());
         pubkey = entry?.[1];
       }
       if (typeof pubkey !== 'string') return null;
