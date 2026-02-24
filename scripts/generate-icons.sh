@@ -20,8 +20,13 @@ else
     exit 1
 fi
 
-# Check if ImageMagick is installed (needed for compositing)
-if ! command -v magick &> /dev/null; then
+# Check if ImageMagick is installed (needed for compositing).
+# ImageMagick 7+ uses `magick`; ImageMagick 6 (Ubuntu/Debian) uses `convert`.
+if command -v magick &> /dev/null; then
+    MAGICK="magick"
+elif command -v convert &> /dev/null; then
+    MAGICK="convert"
+else
     echo -e "${YELLOW}Warning: ImageMagick not found. Please install it to generate icons.${NC}"
     echo "On Fedora/RHEL: sudo dnf install ImageMagick"
     echo "On Ubuntu/Debian: sudo apt-get install imagemagick"
@@ -56,7 +61,7 @@ else
 fi
 
 # Recolor: replace the purple fill with white, keep alpha
-magick "$LOGO_HI_RES" \
+$MAGICK "$LOGO_HI_RES" \
     -alpha on \
     \( +clone -alpha extract \) \
     -compose CopyOpacity -composite \
@@ -65,7 +70,7 @@ magick "$LOGO_HI_RES" \
 
 # Composite white logo onto purple background (full bleed for non-adaptive legacy icons)
 # Logo scaled to 80% with padding for aesthetic balance
-magick -size 512x512 "xc:${BG_COLOR}" \
+$MAGICK -size 512x512 "xc:${BG_COLOR}" \
     \( "$LOGO_WHITE" -resize 410x410 \) \
     -gravity center -compose over -composite \
     "$ICON_512"
@@ -76,24 +81,24 @@ mkdir -p android/app/src/main/res/{mipmap-mdpi,mipmap-hdpi,mipmap-xhdpi,mipmap-x
 # ── Legacy / non-adaptive launcher icons (full bleed: purple bg + white logo) ──
 
 echo "Generating mdpi icons (48x48)..."
-magick "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
-magick "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+$MAGICK "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+$MAGICK "$ICON_512" -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
 echo "Generating hdpi icons (72x72)..."
-magick "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
-magick "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+$MAGICK "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+$MAGICK "$ICON_512" -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
 
 echo "Generating xhdpi icons (96x96)..."
-magick "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
-magick "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+$MAGICK "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+$MAGICK "$ICON_512" -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
 
 echo "Generating xxhdpi icons (144x144)..."
-magick "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-magick "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+$MAGICK "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+$MAGICK "$ICON_512" -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
 
 echo "Generating xxxhdpi icons (192x192)..."
-magick "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-magick "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+$MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+$MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
 # ── Adaptive icon foreground PNGs (transparent bg, white logo with safe-zone padding) ──
 # Foreground safe zone = 66% of canvas. Content should be ~66% size, centered on transparent bg.
@@ -104,7 +109,7 @@ make_foreground() {
     local size=$1
     local content_size=$(echo "$size * 66 / 100" | bc)
     local dest=$2
-    magick -size "${size}x${size}" "xc:none" \
+    $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
         -gravity center -compose over -composite \
         "$dest"
