@@ -19,11 +19,8 @@
   var p = document.getElementById('preloader');
   if (p) {
     p.style.background = t.bg;
-    // Invert the white logo to dark on light backgrounds
-    if (theme === 'light' || theme === 'pink') {
-      var logo = p.querySelector('img');
-      if (logo) logo.style.filter = 'invert(1)';
-    }
+    var logo = p.querySelector('[data-logo]');
+    if (logo) logo.style.background = t.primary;
     var spinner = p.querySelector('[data-spinner]');
     if (spinner) {
       spinner.style.borderColor = t.primary.replace(')', ' / 0.25)');
