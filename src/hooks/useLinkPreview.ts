@@ -1,24 +1,28 @@
 import { useQuery } from '@tanstack/react-query';
+import { z } from 'zod';
 import { useAppContext } from '@/hooks/useAppContext';
 import { templateUrl } from '@/lib/faviconUrl';
 
+/** Zod schema for OEmbed responses from the link preview endpoint. */
+const OEmbedSchema = z.object({
+  type: z.enum(['link', 'photo', 'video', 'rich']),
+  version: z.string().optional(),
+  title: z.string().optional(),
+  author_name: z.string().optional(),
+  author_url: z.url().optional(),
+  provider_name: z.string().optional(),
+  provider_url: z.url().optional(),
+  thumbnail_url: z.url().optional(),
+  thumbnail_width: z.number().optional(),
+  thumbnail_height: z.number().optional(),
+  url: z.url().optional(),
+  html: z.string().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+});
+
 /** OEmbed response from the link preview endpoint. */
-export interface OEmbedData {
-  type: 'link' | 'photo' | 'video' | 'rich';
-  version?: string;
-  title?: string;
-  author_name?: string;
-  author_url?: string;
-  provider_name?: string;
-  provider_url?: string;
-  thumbnail_url?: string;
-  thumbnail_width?: number;
-  thumbnail_height?: number;
-  url?: string;
-  html?: string;
-  width?: number;
-  height?: number;
-}
+export type OEmbedData = z.infer<typeof OEmbedSchema>;
 
 /** Fetch OEmbed data for a URL from the configured link preview endpoint. */
 async function fetchLinkPreview(
@@ -35,12 +39,14 @@ async function fetchLinkPreview(
 
     if (!response.ok) return null;
 
-    const data: OEmbedData = await response.json();
+    const parsed = OEmbedSchema.safeParse(await response.json());
+
+    if (!parsed.success) return null;
 
     // Must have at least a title to be useful
-    if (!data.title) return null;
+    if (!parsed.data.title) return null;
 
-    return data;
+    return parsed.data;
   } catch {
     return null;
   }
