@@ -323,10 +323,10 @@ export function SearchPage() {
                   <TrendSkeleton key={i} />
                 ))}
               </div>
-            ) : trends && trends.length > 0 ? (
+            ) : trends && trends.tags.length > 0 ? (
               <div className="flex flex-wrap gap-2 px-4 pb-4">
-                {trends.slice(0, 5).map((trend, index) => (
-                  <TrendItem key={index} trend={trend} />
+                {trends.tags.slice(0, 5).map((trend, index) => (
+                  <TrendItem key={index} trend={{ tag: trend.tag, count: trend.uses }} />
                 ))}
               </div>
             ) : (
