@@ -8,15 +8,15 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Generating Android app icons...${NC}\n"
 
-# Check for rsvg-convert (preferred for SVG) or inkscape as fallback
-if command -v rsvg-convert &> /dev/null; then
-    SVG_RENDERER="rsvg"
-elif command -v inkscape &> /dev/null; then
+# Check for inkscape (preferred) or rsvg-convert as fallback
+if command -v inkscape &> /dev/null; then
     SVG_RENDERER="inkscape"
+elif command -v rsvg-convert &> /dev/null; then
+    SVG_RENDERER="rsvg"
 else
-    echo -e "${YELLOW}Warning: neither rsvg-convert nor inkscape found. Install one to render SVG icons.${NC}"
-    echo "On Fedora/RHEL: sudo dnf install librsvg2-tools"
-    echo "On Ubuntu/Debian: sudo apt-get install librsvg2-bin"
+    echo -e "${YELLOW}Warning: neither inkscape nor rsvg-convert found. Install one to render SVG icons.${NC}"
+    echo "On Fedora/RHEL: sudo dnf install inkscape"
+    echo "On Ubuntu/Debian: sudo apt-get install inkscape"
     exit 1
 fi
 
