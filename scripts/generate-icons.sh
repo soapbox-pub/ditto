@@ -59,28 +59,68 @@ else
     rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
 fi
 
+# ── Flat launcher icons (ic_launcher.png, ic_launcher_round.png) ──
+# Used on Android < API 26 and as fallback.
+# Purple background with white logo centered, 75% of icon size.
+
+echo "Generating flat launcher icons..."
+
+make_flat() {
+    local size=$1
+    local dest=$2
+    local content_size=$(echo "$size * 75 / 100" | bc)
+    $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
+        \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
+        -gravity center -compose over -composite \
+        "$dest"
+}
+
+make_flat_round() {
+    local size=$1
+    local dest=$2
+    local content_size=$(echo "$size * 75 / 100" | bc)
+    $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
+        \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
+        -gravity center -compose over -composite \
+        \( +clone -alpha extract \
+           -draw "fill white circle $((size/2)),$((size/2)) $((size/2)),0" \) \
+        -alpha off -compose copy_opacity -composite \
+        "$dest"
+}
+
+make_flat  48  android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+make_flat  72  android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+make_flat  96  android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+make_flat 144  android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+make_flat 192  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+
+make_flat_round  48  android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+make_flat_round  72  android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+make_flat_round  96  android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+make_flat_round 144  android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+make_flat_round 192  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+
 # ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
-# Launcher PNGs (ic_launcher, ic_launcher_round) are committed directly to the repo.
-# Only the adaptive foreground PNGs need to be generated here.
-# Safe zone = 66% of canvas. Content centered on transparent background.
+# Canvas must be 108dp × density. Logo fits in center 66% (safe zone).
+# API 26+ uses these with the background color from ic_launcher_background.xml.
 
 echo "Generating adaptive foreground PNGs..."
 
 make_foreground() {
     local size=$1
-    local content_size=$(echo "$size * 66 / 100" | bc)
     local dest=$2
+    local content_size=$(echo "$size * 66 / 100" | bc)
     $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
         -gravity center -compose over -composite \
         "$dest"
 }
 
-make_foreground 48  android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
-make_foreground 72  android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
-make_foreground 96  android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
-make_foreground 144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
-make_foreground 192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
+make_foreground 108  android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png
+make_foreground 162  android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
+make_foreground 216  android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png
+make_foreground 324  android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png
+make_foreground 432  android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png
 
 # Update background color
 BACKGROUND_COLOR_FILE="android/app/src/main/res/values/ic_launcher_background.xml"
