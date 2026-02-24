@@ -9,6 +9,10 @@
     "test": "npm i --silent && tsc --noEmit && eslint && vitest run --reporter=dot --silent && vite build -l error && cp dist/index.html dist/404.html && echo 'All tests passed!'",
     "icons": "bash scripts/generate-icons.sh"
   },
+  "engines": {
+    "npm": "10.9.4",
+    "node": "22.x"
+  },
   "dependencies": {
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.1.0",
@@ -81,10 +85,6 @@
     "uri-templates": "^0.2.0",
     "vaul": "^0.9.3",
     "zod": "^4.3.6"
-  },
-  "engines": {
-    "npm": "10.9.4",
-    "node": "22.x"
   },
   "devDependencies": {
     "@capacitor/android": "^8.1.0",
