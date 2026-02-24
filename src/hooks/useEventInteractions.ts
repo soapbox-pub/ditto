@@ -133,7 +133,7 @@ export function useEventInteractions(eventId: string | undefined) {
       // Single query with two filter objects — relay handles as OR
       const allEvents = await nostr.query(
         [
-          { kinds: [6, 7, 9735], '#e': [eventId], limit: 50 },
+          { kinds: [6, 16, 7, 9735], '#e': [eventId], limit: 50 },
           { kinds: [1], '#q': [eventId], limit: 20 },
         ],
         { signal: combined },
@@ -150,6 +150,7 @@ export function useEventInteractions(eventId: string | undefined) {
       for (const e of eTagEvents) {
         switch (e.kind) {
           case 6:
+          case 16:
             reposts.push({
               eventId: e.id,
               pubkey: e.pubkey,

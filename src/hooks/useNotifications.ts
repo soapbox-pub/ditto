@@ -10,7 +10,7 @@ import { useEncryptedSettings } from './useEncryptedSettings';
 const PAGE_SIZE = 20;
 
 export interface NotificationItem {
-  /** The notification event (kind 1, 6, 7, or 9735). */
+  /** The notification event (kind 1, 6, 16, 7, or 9735). */
   event: NostrEvent;
   /** The referenced event (the post that was liked/reposted/zapped), if available. */
   referencedEvent?: NostrEvent;
@@ -65,7 +65,7 @@ export function useNotifications(): NotificationData {
       if (!user) return { items: [], oldestTimestamp: Math.floor(Date.now() / 1000) };
 
       const filter: Record<string, unknown> = {
-        kinds: [1, 6, 7, 9735],
+        kinds: [1, 6, 16, 7, 9735],
         '#p': [user.pubkey],
         limit: PAGE_SIZE,
       };

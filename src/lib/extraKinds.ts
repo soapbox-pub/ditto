@@ -74,6 +74,15 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     feedOnly: true,
   },
   {
+    kind: 16,
+    feedKey: 'feedIncludeReposts',
+    label: 'Generic Reposts',
+    description: 'Shared non-text-note posts from others',
+    addressable: false,
+    section: 'feed',
+    feedOnly: true,
+  },
+  {
     kind: 30023,
     showKey: 'showArticles',
     feedKey: 'feedIncludeArticles',

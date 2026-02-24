@@ -40,6 +40,22 @@ export function getPaginationCursor(events: NostrEvent[]): number {
   return sorted[sorted.length - 1];
 }
 
+/** The set of kind numbers that represent reposts (kind 6 for notes, kind 16 for everything else). */
+export const REPOST_KINDS = new Set([6, 16]);
+
+/** Check if a kind number is a repost kind (6 or 16). */
+export function isRepostKind(kind: number): boolean {
+  return REPOST_KINDS.has(kind);
+}
+
+/**
+ * Returns the correct repost kind for a given event.
+ * Kind 6 is only for reposting kind 1 text notes; kind 16 is for everything else.
+ */
+export function getRepostKind(originalEventKind: number): number {
+  return originalEventKind === 1 ? 6 : 16;
+}
+
 /** A feed item — either a direct post or a repost wrapping the original event. */
 export interface FeedItem {
   /** The event to display (original note). */
@@ -51,7 +67,7 @@ export interface FeedItem {
 }
 
 /**
- * Tries to parse the original event from a kind 6 repost's content.
+ * Tries to parse the original event from a kind 6 or kind 16 repost's content.
  * Returns undefined if the content is empty or not valid JSON.
  */
 export function parseRepostContent(repost: NostrEvent): NostrEvent | undefined {

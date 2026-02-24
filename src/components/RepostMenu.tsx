@@ -11,6 +11,7 @@ import { useDeleteEvent } from '@/hooks/useDeleteEvent';
 import { useRepostStatus } from '@/hooks/useRepostStatus';
 import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
+import { getRepostKind } from '@/lib/feedUtils';
 import type { EventStats } from '@/hooks/useTrending';
 
 interface RepostMenuProps {
@@ -48,16 +49,23 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     // Optimistically mark as reposted
     queryClient.setQueryData(['user-repost', event.id], 'optimistic');
 
-    // Kind 6 repost
+    // Kind 6 for kind 1 notes, kind 16 (generic repost) for everything else
+    const repostKind = getRepostKind(event.kind);
+    const tags: string[][] = [
+      ['e', event.id],
+      ['p', event.pubkey],
+    ];
+    // Kind 16 generic reposts require a 'k' tag with the original event's kind
+    if (repostKind === 16) {
+      tags.push(['k', String(event.kind)]);
+    }
+
     publishEvent(
       {
-        kind: 6,
+        kind: repostKind,
         content: '',
         created_at: Math.floor(Date.now() / 1000),
-        tags: [
-          ['e', event.id],
-          ['p', event.pubkey],
-        ],
+        tags,
       },
       {
         onSuccess: () => {
@@ -99,7 +107,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
     queryClient.setQueryData(['user-repost', event.id], null);
 
     deleteEvent(
-      { eventId: repostEventId, eventKind: 6 },
+      { eventId: repostEventId, eventKind: getRepostKind(event.kind) },
       {
         onSuccess: () => {
           toast({ title: 'Repost removed' });
