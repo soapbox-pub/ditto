@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import { Play, Pause, Volume2, VolumeX, Expand } from 'lucide-react';
+import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 
@@ -7,6 +8,18 @@ interface VideoPlayerProps {
   src: string;
   poster?: string;
   className?: string;
+  /** NIP-94 `dim` tag value, e.g. "1280x720". Sets the aspect ratio before metadata loads. */
+  dim?: string;
+  /** NIP-94 `blurhash` tag value. Shown as a placeholder before the video poster/frame loads. */
+  blurhash?: string;
+}
+
+/** Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`. */
+function parseDim(dim: string | undefined): { width: number; height: number } | undefined {
+  if (!dim) return undefined;
+  const [w, h] = dim.split('x').map(Number);
+  if (!w || !h || isNaN(w) || isNaN(h)) return undefined;
+  return { width: w, height: h };
 }
 
 /** Format seconds to m:ss or h:mm:ss. */
@@ -19,7 +32,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VideoPlayer({ src: originalSrc, poster, className }: VideoPlayerProps) {
+export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +45,11 @@ export function VideoPlayer({ src: originalSrc, poster, className }: VideoPlayer
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
+  // True once the video has enough data to display a frame (or has a poster)
+  const [videoReady, setVideoReady] = useState(!!poster);
+
+  const dimensions = parseDim(dim);
+  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -134,10 +152,24 @@ export function VideoPlayer({ src: originalSrc, poster, className }: VideoPlayer
         'relative mt-3 rounded-2xl overflow-hidden border border-border bg-black group',
         className,
       )}
+      style={aspectRatio ? { aspectRatio } : undefined}
       onMouseMove={revealControls}
       onMouseLeave={() => { if (isPlaying) scheduleHide(); }}
       onClick={(e) => e.stopPropagation()}
     >
+      {/* Blurhash placeholder — shown until the video has a displayable frame */}
+      {blurhash && !videoReady && (
+        <Blurhash
+          hash={blurhash}
+          width="100%"
+          height="100%"
+          resolutionX={32}
+          resolutionY={32}
+          punch={1}
+          style={{ position: 'absolute', inset: 0 }}
+        />
+      )}
+
       <video
         ref={videoRef}
         src={src}
@@ -153,6 +185,7 @@ export function VideoPlayer({ src: originalSrc, poster, className }: VideoPlayer
         onTimeUpdate={() => setCurrentTime(videoRef.current?.currentTime ?? 0)}
         onLoadedMetadata={() => setDuration(videoRef.current?.duration ?? 0)}
         onDurationChange={() => setDuration(videoRef.current?.duration ?? 0)}
+        onLoadedData={() => setVideoReady(true)}
         onError={onBlossomError}
       />
 

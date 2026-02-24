@@ -1,8 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, X, Download } from 'lucide-react';
+import { Blurhash } from 'react-blurhash';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useBlossomFallback } from '@/hooks/useBlossomFallback';
+
+/** Minimal imeta fields needed for pre-load sizing. */
+interface ImetaDimensions {
+  dim?: string;
+  blurhash?: string;
+}
 
 interface ImageGalleryProps {
   images: string[];
@@ -11,6 +18,11 @@ interface ImageGalleryProps {
   maxVisible?: number;
   /** Max height for images in the grid. */
   maxGridHeight?: string;
+  /**
+   * Optional map from image URL to imeta metadata (dim, blurhash).
+   * Used to size skeleton placeholders correctly before the image loads.
+   */
+  imetaMap?: Map<string, ImetaDimensions>;
 }
 
 /**
@@ -23,6 +35,7 @@ export function ImageGallery({
   className,
   maxVisible = 4,
   maxGridHeight = '400px',
+  imetaMap,
 }: ImageGalleryProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
@@ -72,6 +85,8 @@ export function ImageGallery({
             maxGridHeight={maxGridHeight}
             overflow={i === visibleImages.length - 1 ? overflow : 0}
             onOpen={(e) => openLightbox(i, e)}
+            dim={imetaMap?.get(url)?.dim}
+            blurhash={imetaMap?.get(url)?.blurhash}
           />
         ))}
       </div>
@@ -90,7 +105,18 @@ export function ImageGallery({
   );
 }
 
-/** Single image tile with a skeleton shown until the image loads. */
+/**
+ * Parses a NIP-94 `dim` string like "1280x720" into `{ width, height }`.
+ * Returns undefined if the string is missing or malformed.
+ */
+function parseDim(dim: string | undefined): { width: number; height: number } | undefined {
+  if (!dim) return undefined;
+  const [w, h] = dim.split('x').map(Number);
+  if (!w || !h || isNaN(w) || isNaN(h)) return undefined;
+  return { width: w, height: h };
+}
+
+/** Single image tile with a blurhash/skeleton shown until the image loads. */
 function GridImage({
   url,
   index,
@@ -98,6 +124,8 @@ function GridImage({
   maxGridHeight,
   overflow,
   onOpen,
+  dim,
+  blurhash,
 }: {
   url: string;
   index: number;
@@ -105,6 +133,10 @@ function GridImage({
   maxGridHeight: string;
   overflow: number;
   onOpen: (e: React.MouseEvent) => void;
+  /** NIP-94 `dim` tag value, e.g. "1280x720". Used to size the placeholder before load. */
+  dim?: string;
+  /** NIP-94 `blurhash` tag value. Rendered as a canvas placeholder before the image loads. */
+  blurhash?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
   const imgRef = useRef<HTMLImageElement>(null);
@@ -125,6 +157,18 @@ function GridImage({
       ? maxGridHeight
       : `calc(${maxGridHeight} / 2)`;
 
+  // Derive intrinsic aspect ratio from the imeta `dim` tag so the placeholder
+  // occupies the correct height before the image bytes arrive. Falls back to
+  // the existing maxGridHeight-based sizing when no dim is available.
+  const dimensions = parseDim(dim);
+  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
+
+  // For single images with a known aspect ratio we can let the element grow
+  // naturally; for grid tiles we still cap at the grid height.
+  const skeletonStyle: React.CSSProperties = isSingle && aspectRatio
+    ? { aspectRatio, width: '100%' }
+    : { minHeight: isSingle ? '200px' : heightStyle };
+
   return (
     <button
       type="button"
@@ -134,27 +178,45 @@ function GridImage({
       )}
       onClick={onOpen}
     >
-      {/* Skeleton placeholder — matches the image dimensions */}
+      {/* Placeholder shown while the image is loading */}
       {!loaded && (
-        <Skeleton
-          className="absolute inset-0 w-full h-full rounded-none"
-          style={{
-            minHeight: isSingle ? '200px' : heightStyle,
-          }}
-        />
+        blurhash ? (
+          // Blurhash canvas — fills the same space as the eventual image
+          <Blurhash
+            hash={blurhash}
+            width="100%"
+            height="100%"
+            resolutionX={32}
+            resolutionY={32}
+            punch={1}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              ...skeletonStyle,
+            }}
+          />
+        ) : (
+          <Skeleton
+            className="absolute inset-0 w-full h-full rounded-none"
+            style={skeletonStyle}
+          />
+        )
       )}
       <img
         ref={imgRef}
         src={src}
         alt=""
+        width={dimensions?.width}
+        height={dimensions?.height}
         className={cn(
           'w-full object-cover transition-all duration-300 hover:scale-[1.02]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
         style={{
-          height: heightStyle,
+          height: isSingle && aspectRatio ? undefined : heightStyle,
           maxHeight: isSingle ? '85dvh' : undefined,
-          minHeight: isSingle ? '200px' : undefined,
+          minHeight: isSingle && !aspectRatio ? '200px' : undefined,
+          aspectRatio: isSingle ? aspectRatio : undefined,
         }}
         loading="lazy"
         onLoad={() => setLoaded(true)}
