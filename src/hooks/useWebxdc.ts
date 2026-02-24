@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Webxdc as WebxdcAPI, SendingStatusUpdate, ReceivedStatusUpdate, RealtimeListener } from '@webxdc/types';
-import { nip19 } from 'nostr-tools';
+import { generateSecretKey, getPublicKey, nip19 } from 'nostr-tools';
+import { NSecSigner } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
@@ -21,6 +22,20 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
   const { user, metadata } = useCurrentUser();
   const { mutate: publishEvent } = useNostrPublish();
   const queryClient = useQueryClient();
+
+  // Ephemeral keypair generated once per webxdc session for logged-out users
+  const ephemeralKeyRef = useRef<Uint8Array | null>(null);
+  if (!ephemeralKeyRef.current) {
+    ephemeralKeyRef.current = generateSecretKey();
+  }
+  const ephemeralSigner = useMemo(
+    () => new NSecSigner(ephemeralKeyRef.current!),
+    [],
+  );
+  const ephemeralPubkey = useMemo(
+    () => getPublicKey(ephemeralKeyRef.current!),
+    [],
+  );
 
   // Track the update listener callback
   const listenerRef = useRef<((update: ReceivedStatusUpdate<unknown>) => void) | null>(null);
@@ -97,8 +112,22 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     };
   }, []);
 
-  const selfAddr = user ? nip19.npubEncode(user.pubkey) : '';
-  const selfName = metadata?.display_name || metadata?.name || (user ? nip19.npubEncode(user.pubkey).slice(0, 12) : '');
+  const activePubkey = user ? user.pubkey : ephemeralPubkey;
+
+  const selfAddr = nip19.npubEncode(activePubkey);
+  const selfName = metadata?.display_name || metadata?.name || nip19.npubEncode(activePubkey).slice(0, 12);
+
+  // Publish a signed event using whichever signer is active (logged-in user or ephemeral key)
+  const publishSigned = useCallback(async (template: Parameters<typeof ephemeralSigner.signEvent>[0]) => {
+    if (user) {
+      // Logged-in path: delegate to useNostrPublish so the client tag is added
+      publishEvent(template);
+    } else {
+      // Logged-out path: sign with the ephemeral key and publish directly
+      const event = await ephemeralSigner.signEvent(template);
+      await nostr.event(event, { signal: AbortSignal.timeout(5000) });
+    }
+  }, [user, publishEvent, ephemeralSigner, nostr]);
 
   const sendUpdate = useCallback((update: SendingStatusUpdate<unknown>, _description: '') => {
     const tags: string[][] = [
@@ -109,18 +138,18 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
     if (update.document) tags.push(['document', update.document]);
     if (update.summary) tags.push(['summary', update.summary]);
 
-    publishEvent({
+    publishSigned({
       kind: 4932,
       content: JSON.stringify(update.payload),
       tags,
       created_at: Math.floor(Date.now() / 1000),
-    }, {
-      onSuccess: () => {
-        // Invalidate the query to pick up the new event
-        queryClient.invalidateQueries({ queryKey: ['webxdc-updates', uuid] });
-      },
+    }).then(() => {
+      // Invalidate the query to pick up the new event
+      queryClient.invalidateQueries({ queryKey: ['webxdc-updates', uuid] });
+    }).catch((err) => {
+      console.error('Failed to publish webxdc update:', err);
     });
-  }, [uuid, publishEvent, queryClient]);
+  }, [uuid, publishSigned, queryClient]);
 
   const setUpdateListener = useCallback(async (
     cb: (update: ReceivedStatusUpdate<unknown>) => void,
@@ -173,7 +202,7 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
           if (msg[0] === 'EVENT') {
             const event = msg[2];
             // Don't echo back our own events
-            if (user && event.pubkey === user.pubkey) continue;
+            if (event.pubkey === activePubkey) continue;
             if (!realtimeListener) continue;
 
             try {
@@ -210,11 +239,13 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
         }
         const base64 = btoa(binary);
 
-        publishEvent({
+        publishSigned({
           kind: 20932,
           content: base64,
           tags: [['i', uuid]],
           created_at: Math.floor(Date.now() / 1000),
+        }).catch((err) => {
+          console.error('Failed to publish webxdc realtime event:', err);
         });
       },
       leave() {
@@ -223,7 +254,7 @@ export function useWebxdc(uuid: string): WebxdcAPI<unknown> {
         realtimeAbortRef.current = null;
       },
     };
-  }, [uuid, nostr, user, publishEvent]);
+  }, [uuid, nostr, activePubkey, publishSigned]);
 
   return useMemo((): WebxdcAPI<unknown> => ({
     selfAddr,
