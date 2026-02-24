@@ -90,10 +90,13 @@ export function TrendSparkline({ data }: { data: number[] }) {
 export function RightSidebar() {
   const isXl = useIsXl();
 
-  const { data: trendingTags, isLoading: tagsLoading } = useTrendingTags(isXl);
+  const { data: trendingTagsResult, isLoading: tagsLoading } = useTrendingTags(isXl);
   const { data: rawHotPosts, isLoading: hotLoading } = useSortedPosts('hot', 5, isXl);
   const { data: latestAccounts, isLoading: accountsLoading } = useLatestAccounts(isXl);
   const { muteItems } = useMuteList();
+
+  const trendingTags = trendingTagsResult?.tags;
+  const labelCreatedAt = trendingTagsResult?.labelCreatedAt ?? 0;
 
   const hotPosts = useMemo(() => {
     if (!rawHotPosts || muteItems.length === 0) return rawHotPosts;
@@ -102,7 +105,7 @@ export function RightSidebar() {
 
   // Fetch real sparkline data for the visible trending tags
   const visibleTags = useMemo(() => (trendingTags ?? []).slice(0, 5).map((t) => t.tag), [trendingTags]);
-  const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, isXl && visibleTags.length > 0);
+  const { data: sparklineData, isLoading: sparklinesLoading } = useTagSparklines(visibleTags, labelCreatedAt, isXl && visibleTags.length > 0);
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
