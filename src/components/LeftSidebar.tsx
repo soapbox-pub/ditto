@@ -23,7 +23,7 @@ import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
 
@@ -66,6 +66,7 @@ export function LeftSidebar() {
   const { theme, setTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
+  const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
@@ -117,7 +118,7 @@ export function LeftSidebar() {
     // Only show Profile and Bookmarks when logged in
     if (user) {
       items.push(
-        { to: getProfileUrl(user.pubkey, metadata), icon: <User className="size-6" />, label: 'Profile' },
+        { to: userProfileUrl, icon: <User className="size-6" />, label: 'Profile' },
         { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
       );
     }
@@ -247,7 +248,7 @@ export function LeftSidebar() {
             >
               {/* Current user card */}
               <Link
-                to={getProfileUrl(currentUser.pubkey, currentUser.metadata)}
+                to={userProfileUrl}
                 onClick={() => setAccountPopoverOpen(false)}
                 className="block p-4 border-b border-border hover:bg-secondary/60 transition-colors"
               >

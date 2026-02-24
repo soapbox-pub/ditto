@@ -12,7 +12,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
@@ -185,7 +185,7 @@ function StreamCardAuthor({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+  const profileUrl = useProfileUrl(pubkey, metadata);
 
   if (author.isLoading) {
     return <Skeleton className="size-9 rounded-full shrink-0" />;

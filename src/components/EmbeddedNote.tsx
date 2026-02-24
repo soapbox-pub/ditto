@@ -8,7 +8,7 @@ import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -95,7 +95,7 @@ function EmbeddedNoteCard({
 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
   const neventId = useMemo(
     () => nip19.neventEncode({ id: event.id, author: event.pubkey }),
     [event.id, event.pubkey],
@@ -247,7 +247,7 @@ function EmbedMention({ pubkey }: { pubkey: string; npub: string }) {
   const author = useAuthor(pubkey);
   const hasRealName = !!author.data?.metadata?.name;
   const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
-  const profileUrl = getProfileUrl(pubkey, author.data?.metadata);
+  const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <ProfileHoverCard pubkey={pubkey} asChild>

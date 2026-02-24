@@ -23,7 +23,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 const MAX_CHARS = 5000;
 
@@ -94,6 +94,7 @@ export function ComposeBox({
   onHasPreviewableContentChange,
 }: ComposeBoxProps) {
   const { user, metadata, isLoading: isProfileLoading } = useCurrentUser();
+  const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { mutateAsync: createEvent, isPending } = useNostrPublish();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const queryClient = useQueryClient();
@@ -610,7 +611,7 @@ export function ComposeBox({
           isProfileLoading ? (
             <Skeleton className="size-12 shrink-0 mt-0.5 rounded-full" />
           ) : (
-            <Link to={getProfileUrl(user.pubkey, metadata)} className="shrink-0">
+            <Link to={userProfileUrl} className="shrink-0">
               <Avatar className="size-12 shrink-0 mt-0.5">
                 <AvatarImage src={metadata?.picture} alt={metadata?.name} />
                 <AvatarFallback className="bg-primary/20 text-primary text-sm">

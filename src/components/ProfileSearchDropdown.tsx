@@ -9,7 +9,9 @@ import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
+import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
 
 interface ProfileSearchDropdownProps {
@@ -31,6 +33,7 @@ export function ProfileSearchDropdown({
   enableTextSearch,
 }: ProfileSearchDropdownProps) {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -65,13 +68,13 @@ export function ProfileSearchDropdown({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = useCallback((profile: SearchProfile) => {
+  const handleSelect = useCallback((profile: SearchProfile, profileUrl: string) => {
     setOpen(false);
     setQuery('');
     if (onSelect) {
       onSelect(profile);
     } else {
-      navigate(getProfileUrl(profile.pubkey, profile.metadata));
+      navigate(profileUrl);
     }
   }, [navigate, onSelect]);
 
@@ -104,7 +107,10 @@ export function ProfileSearchDropdown({
       e.preventDefault();
       // If a profile is highlighted, select it
       if (open && profiles && selectedIndex >= 0 && selectedIndex < profiles.length) {
-        handleSelect(profiles[selectedIndex]);
+        const profile = profiles[selectedIndex];
+        const nip05 = profile.metadata.nip05;
+        const nip05Verified = !!nip05 && queryClient.getQueryData<boolean>(['nip05-verify', nip05, profile.pubkey]) === true;
+        handleSelect(profile, getProfileUrl(profile.pubkey, profile.metadata, nip05Verified));
       } else {
         // Otherwise do a text search
         handleTextSearch();
@@ -194,7 +200,7 @@ export function ProfileSearchDropdown({
                 profile={profile}
                 isSelected={index === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
-                onClick={() => handleSelect(profile)}
+                onClick={handleSelect}
               />
             ))}
           </div>
@@ -229,7 +235,7 @@ export function ProfileSearchDropdown({
                 profile={profile}
                 isSelected={index === selectedIndex}
                 isFollowed={followedPubkeys.has(profile.pubkey)}
-                onClick={() => handleSelect(profile)}
+                onClick={handleSelect}
               />
             ))}
           </div>
@@ -257,12 +263,13 @@ function ProfileItem({
   profile: SearchProfile;
   isSelected: boolean;
   isFollowed: boolean;
-  onClick: () => void;
+  onClick: (profile: SearchProfile, profileUrl: string) => void;
 }) {
   const { metadata, pubkey } = profile;
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
+  const profileUrl = useProfileUrl(pubkey, metadata);
 
   // Format nip05 for display — strip leading underscore prefix; only show when verified
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
@@ -279,7 +286,7 @@ function ProfileItem({
         'w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors cursor-pointer',
         isSelected ? 'bg-accent text-accent-foreground' : 'hover:bg-secondary/60',
       )}
-      onClick={onClick}
+      onClick={() => onClick(profile, profileUrl)}
       onMouseDown={(e) => e.preventDefault()} // Prevent input blur
     >
       <div className="relative shrink-0">

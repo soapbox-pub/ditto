@@ -18,7 +18,7 @@ import { Nip05Badge } from '@/components/Nip05Badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 
@@ -281,7 +281,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
 
   // Find the host from participants or default to the event author
   const host = participants.find((p) => p.role?.toLowerCase() === 'host');
@@ -290,7 +290,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
   const hostAuthor = useAuthor(hostPubkey);
   const hostMetadata = hostAuthor.data?.metadata;
   const hostName = getDisplayName(hostMetadata, hostPubkey);
-  const hostProfileUrl = useMemo(() => getProfileUrl(hostPubkey, hostMetadata), [hostPubkey, hostMetadata]);
+  const hostProfileUrl = useProfileUrl(hostPubkey, hostMetadata);
 
   // Use the host if different from the event author
   const showPubkey = hostPubkey;
@@ -363,7 +363,7 @@ function ParticipantRow({ pubkey, role }: { pubkey: string; role?: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+  const profileUrl = useProfileUrl(pubkey, metadata);
 
   return (
     <div className="flex items-center gap-2.5">

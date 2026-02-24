@@ -25,12 +25,13 @@ import { Nip05Badge } from '@/components/Nip05Badge';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useEventStats } from '@/hooks/useTrending';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
@@ -154,7 +155,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const nip05 = metadata?.nip05;
-  const profileUrl = useMemo(() => getProfileUrl(event.pubkey, metadata), [event.pubkey, metadata]);
+  const { data: nip05Verified } = useNip05Verify(nip05, event.pubkey);
+  const profileUrl = useProfileUrl(event.pubkey, metadata);
   const encodedId = useMemo(() => encodeEventId(event), [event]);
   const { data: stats } = useEventStats(event.id);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
@@ -310,8 +312,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         )}
       </div>
       <div className="flex items-center gap-1 text-sm text-muted-foreground min-w-0 pr-2">
-        {nip05 && <Nip05Badge nip05={nip05} pubkey={event.pubkey} />}
-        {nip05 && <span className="shrink-0">·</span>}
+        {nip05 && nip05Verified && <Nip05Badge nip05={nip05} pubkey={event.pubkey} />}
+        {nip05 && nip05Verified && <span className="shrink-0">·</span>}
         <span className="shrink-0 hover:underline whitespace-nowrap">
           {timeAgo(event.created_at)}
         </span>
@@ -733,7 +735,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
 function RepostHeader({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
@@ -761,7 +763,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
 function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
@@ -791,7 +793,7 @@ function StreamHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
 function DeckHeader({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
@@ -819,7 +821,7 @@ function DeckHeader({ pubkey }: { pubkey: string }) {
 function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 'found' }) {
   const author = useAuthor(pubkey);
   const name = author.data?.metadata?.name || genUserName(pubkey);
-  const url = useMemo(() => getProfileUrl(pubkey, author.data?.metadata), [pubkey, author.data?.metadata]);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { HoverCard, HoverCardTrigger, HoverCardContent } from '@/components/ui/hover-card';
@@ -9,7 +9,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { FollowButton } from '@/components/FollowButton';
 import { cn } from '@/lib/utils';
 
@@ -29,7 +29,7 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(pubkey);
-  const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
+  const profileUrl = useProfileUrl(pubkey, metadata);
   const nip05 = metadata?.nip05;
   const nip05Domain = getNip05Domain(nip05);
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);

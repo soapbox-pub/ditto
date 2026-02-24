@@ -14,7 +14,7 @@ import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
-import { getProfileUrl } from '@/lib/profileUrl';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
 
@@ -58,6 +58,7 @@ function DrawerMenuItem({ to, icon, label, onClick }: DrawerMenuItemProps) {
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { user, metadata } = useCurrentUser();
+  const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
   const { theme, setTheme } = useTheme();
@@ -145,7 +146,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
               )}
 
               <DrawerMenuItem
-                to={user ? getProfileUrl(user.pubkey, metadata) : '/profile'}
+                to={user ? userProfileUrl : '/profile'}
                 icon={<User className="size-5" />}
                 label="Profile"
                 onClick={handleClose}

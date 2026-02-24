@@ -5,7 +5,7 @@ import { CardsIcon } from "./components/icons/CardsIcon";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { MainLayout } from "./components/MainLayout";
 import { useCurrentUser } from "./hooks/useCurrentUser";
-import { getProfileUrl } from "./lib/profileUrl";
+import { useProfileUrl } from "./hooks/useProfileUrl";
 
 // Eager: critical path (home page + 404)
 import Index from "./pages/Index";
@@ -17,8 +17,9 @@ const NIP19Page = lazy(() => import("./pages/NIP19Page").then(m => ({ default: m
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
   const { user, metadata } = useCurrentUser();
+  const profileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   if (!user) return <Navigate to="/" replace />;
-  return <Navigate to={getProfileUrl(user.pubkey, metadata)} replace />;
+  return <Navigate to={profileUrl} replace />;
 }
 const NotificationsPage = lazy(() => import("./pages/NotificationsPage").then(m => ({ default: m.NotificationsPage })));
 const SearchPage = lazy(() => import("./pages/SearchPage").then(m => ({ default: m.SearchPage })));
