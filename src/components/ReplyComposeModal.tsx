@@ -14,6 +14,7 @@ import { NoteContent } from '@/components/NoteContent';
 import { ComposeBox } from '@/components/ComposeBox';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
@@ -130,7 +131,7 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
           <div className="flex items-center gap-1 min-w-0 text-sm">
             <span className="font-bold truncate">{displayName}</span>
             {nip05 && (
-              <span className="text-muted-foreground truncate">@{nip05}</span>
+              <VerifiedNip05Text nip05={nip05} pubkey={event.pubkey} className="text-muted-foreground truncate" />
             )}
             {metadata?.bot && (
               <span className="text-xs text-primary" title="Bot account">🤖</span>

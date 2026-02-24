@@ -357,7 +357,7 @@ function AuthorHintRow({ pubkey }: { pubkey: string }) {
             </span>
             {metadata?.nip05 && (
               <span className="hidden sm:inline-flex">
-                <Nip05Badge nip05={metadata.nip05} className="text-xs text-muted-foreground" iconSize={12} />
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey} className="text-xs text-muted-foreground" iconSize={12} />
               </span>
             )}
           </>
@@ -732,7 +732,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
                   </Link>
                 </ProfileHoverCard>
                 {nip05 && (
-                  <Nip05Badge nip05={nip05} className="text-sm text-muted-foreground" />
+                  <Nip05Badge nip05={nip05} pubkey={event.pubkey} className="text-sm text-muted-foreground" />
                 )}
               </div>
 

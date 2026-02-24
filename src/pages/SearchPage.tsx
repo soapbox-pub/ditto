@@ -19,6 +19,7 @@ import { useTrendingTags, useInfiniteSortedPosts, type SortMode } from '@/hooks/
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
@@ -497,7 +498,7 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
           {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
         </div>
         {metadata?.nip05 && (
-          <p className="text-sm text-muted-foreground truncate">@{metadata.nip05}</p>
+          <VerifiedNip05Text nip05={metadata.nip05} pubkey={profile.pubkey} className="text-sm text-muted-foreground truncate block" />
         )}
         {metadata?.about && (
           <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">

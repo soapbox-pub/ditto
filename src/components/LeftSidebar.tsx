@@ -22,7 +22,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
-import { formatNip05Display } from '@/lib/nip05';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
@@ -231,9 +231,9 @@ export function LeftSidebar() {
                           <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
                         ) : (metadata?.name || genUserName(user?.pubkey))}
                       </span>
-                      <span className="text-xs text-muted-foreground truncate">
-                        {metadata?.nip05 ? `@${formatNip05Display(metadata.nip05)}` : ''}
-                      </span>
+                      {metadata?.nip05 && user && (
+                        <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
+                      )}
                     </>
                   )}
                 </div>
@@ -265,9 +265,7 @@ export function LeftSidebar() {
                       ) : getDisplayName(currentUser)}
                     </span>
                     {currentUser.metadata.nip05 && (
-                      <span className="text-xs text-muted-foreground truncate">
-                        @{formatNip05Display(currentUser.metadata.nip05)}
-                      </span>
+                      <VerifiedNip05Text nip05={currentUser.metadata.nip05} pubkey={currentUser.pubkey} className="text-xs text-muted-foreground truncate" />
                     )}
                   </div>
                 </div>
@@ -298,9 +296,7 @@ export function LeftSidebar() {
                           ) : getDisplayName(account)}
                         </span>
                         {account.metadata.nip05 && (
-                          <span className="text-xs text-muted-foreground truncate">
-                            @{formatNip05Display(account.metadata.nip05)}
-                          </span>
+                          <VerifiedNip05Text nip05={account.metadata.nip05} pubkey={account.pubkey} className="text-xs text-muted-foreground truncate" />
                         )}
                       </div>
                     </button>

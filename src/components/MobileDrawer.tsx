@@ -13,6 +13,7 @@ import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
@@ -116,8 +117,8 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </AvatarFallback>
               </Avatar>
               <div className="font-bold text-[15px]">{displayName}</div>
-              {nip05 && (
-                <div className="text-sm text-muted-foreground">@{nip05}</div>
+              {nip05 && user && (
+                <VerifiedNip05Text nip05={nip05} pubkey={user.pubkey} className="text-sm text-muted-foreground block" />
               )}
             </div>
 

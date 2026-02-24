@@ -7,6 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles';
 import { genUserName } from '@/lib/genUserName';
+import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { cn } from '@/lib/utils';
@@ -261,11 +262,12 @@ function ProfileItem({
   const { metadata, pubkey } = profile;
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const nip05 = metadata.nip05;
+  const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
 
-  // Format nip05 for display — strip leading underscore prefix
-  const nip05Display = nip05?.startsWith('_@') ? nip05.slice(2) : nip05;
-  
-  // Show NIP-05 if available, otherwise show npub
+  // Format nip05 for display — strip leading underscore prefix; only show when verified
+  const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
+
+  // Show NIP-05 if verified, otherwise show npub
   const identifier = nip05Display || nip19.npubEncode(pubkey);
 
   return (
