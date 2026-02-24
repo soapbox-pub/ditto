@@ -3,6 +3,7 @@ import { cn } from '@/lib/utils';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { formatNip05Display, getNip05Domain, getNip05User } from '@/lib/nip05';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Nip05BadgeProps {
   nip05: string;
@@ -37,7 +38,8 @@ export function VerifiedNip05Text({
   pubkey: string;
   className?: string;
 }) {
-  const { data: verified } = useNip05Verify(nip05, pubkey);
+  const { data: verified, isPending } = useNip05Verify(nip05, pubkey);
+  if (isPending) return <Skeleton className={cn('h-3 w-24 inline-block', className)} />;
   if (!verified) return null;
   return (
     <span className={className}>@{formatNip05Display(nip05)}</span>
@@ -45,7 +47,16 @@ export function VerifiedNip05Text({
 }
 
 export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05BadgeProps) {
-  const { data: verified } = useNip05Verify(nip05, pubkey);
+  const { data: verified, isPending } = useNip05Verify(nip05, pubkey);
+
+  if (isPending) {
+    return (
+      <span className={cn('inline-flex items-center gap-1', className)}>
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="rounded-full" style={{ width: iconSize, height: iconSize }} />
+      </span>
+    );
+  }
 
   if (!verified) return null;
 
