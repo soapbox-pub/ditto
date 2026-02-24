@@ -159,11 +159,12 @@ export function useEncryptedSettings() {
       return updatedSettings;
     },
     // Update cache in-place instead of refetching, which avoids
-    // NostrSync re-running and causing a re-render loop
+    // NostrSync re-running and causing a re-render loop.
+    // Do NOT invalidate the encryptedSettings query here — doing so triggers a
+    // relay refetch that can return the old event before the new one propagates,
+    // which causes NostrSync to overwrite the theme the user just selected.
     onSuccess: (data) => {
       queryClient.setQueryData(['parsedSettings', query.data?.id], data);
-      // Invalidate to trigger a background refetch of the event (to get the new published version)
-      queryClient.invalidateQueries({ queryKey: ['encryptedSettings', user?.pubkey] });
     },
   });
 
