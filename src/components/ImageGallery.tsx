@@ -151,23 +151,29 @@ function GridImage({
   }, []);
 
   const isSingle = visibleCount === 1;
-  const heightStyle = isSingle
-    ? 'auto'
-    : visibleCount === 3 && index === 0
-      ? maxGridHeight
-      : `calc(${maxGridHeight} / 2)`;
 
-  // Derive intrinsic aspect ratio from the imeta `dim` tag so the placeholder
-  // occupies the correct height before the image bytes arrive. Falls back to
-  // the existing maxGridHeight-based sizing when no dim is available.
+  // Derive intrinsic aspect ratio from the imeta `dim` tag.
   const dimensions = parseDim(dim);
   const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
 
-  // For single images with a known aspect ratio we can let the element grow
-  // naturally; for grid tiles we still cap at the grid height.
-  const skeletonStyle: React.CSSProperties = isSingle && aspectRatio
-    ? { aspectRatio, width: '100%' }
-    : { minHeight: isSingle ? '200px' : heightStyle };
+  // The button container owns all sizing so that both the placeholder and the
+  // <img> can be absolutely positioned to fill it cleanly.
+  //
+  // - Single image with dim  → aspect-ratio drives the height naturally, capped at 85dvh
+  // - Single image without dim → fallback min-height of 200px
+  // - Grid tile               → fixed height derived from maxGridHeight
+  const containerStyle: React.CSSProperties = isSingle
+    ? {
+        aspectRatio,
+        maxHeight: '85dvh',
+        minHeight: aspectRatio ? undefined : '200px',
+      }
+    : {
+        height:
+          visibleCount === 3 && index === 0
+            ? maxGridHeight
+            : `calc(${maxGridHeight} / 2)`,
+      };
 
   return (
     <button
@@ -176,30 +182,30 @@ function GridImage({
         'relative block w-full overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         visibleCount === 3 && index === 0 && 'row-span-2',
       )}
+      style={containerStyle}
       onClick={onOpen}
     >
       {/* Placeholder shown while the image is loading */}
       {!loaded && (
         blurhash ? (
-          // Blurhash canvas — fills the same space as the eventual image
+          // Blurhash canvas fills the container via CSS — pass small integer decode
+          // resolution; the canvas is stretched to 100%×100% by the style prop.
           <Blurhash
             hash={blurhash}
-            width="100%"
-            height="100%"
+            width={32}
+            height={32}
             resolutionX={32}
             resolutionY={32}
             punch={1}
             style={{
               position: 'absolute',
               inset: 0,
-              ...skeletonStyle,
+              width: '100%',
+              height: '100%',
             }}
           />
         ) : (
-          <Skeleton
-            className="absolute inset-0 w-full h-full rounded-none"
-            style={skeletonStyle}
-          />
+          <Skeleton className="absolute inset-0 w-full h-full rounded-none" />
         )
       )}
       <img
@@ -209,15 +215,9 @@ function GridImage({
         width={dimensions?.width}
         height={dimensions?.height}
         className={cn(
-          'w-full object-cover transition-all duration-300 hover:scale-[1.02]',
+          'absolute inset-0 w-full h-full object-cover transition-all duration-300 hover:scale-[1.02]',
           loaded ? 'opacity-100' : 'opacity-0',
         )}
-        style={{
-          height: isSingle && aspectRatio ? undefined : heightStyle,
-          maxHeight: isSingle ? '85dvh' : undefined,
-          minHeight: isSingle && !aspectRatio ? '200px' : undefined,
-          aspectRatio: isSingle ? aspectRatio : undefined,
-        }}
         loading="lazy"
         onLoad={() => setLoaded(true)}
         onError={onError}
