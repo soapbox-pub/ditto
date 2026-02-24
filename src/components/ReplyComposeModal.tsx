@@ -142,8 +142,8 @@ function EmbeddedPost({ event }: { event: NostrEvent }) {
         </div>
 
         {/* Content preview – clamp to a few lines */}
-        <div className="text-sm line-clamp-4">
-          <NoteContent event={event} className="text-sm leading-relaxed" />
+        <div className="text-sm line-clamp-4 overflow-hidden">
+          <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
         </div>
 
         {/* Show first image thumbnail if any */}
