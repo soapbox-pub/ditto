@@ -43,32 +43,25 @@ fi
 
 # Brand colors
 BG_COLOR="#7c52e0"   # Ditto purple
-FG_COLOR="#FFFFFF"   # White icon
 
-# Render SVG to a high-res PNG with white fill, then composite onto purple background.
-# The SVG uses the brand purple (#7c52e0) as fill — we recolor to white via ImageMagick.
 TMPDIR=$(mktemp -d)
-LOGO_HI_RES="$TMPDIR/logo_raw.png"
+LOGO_WHITE_SVG="$TMPDIR/logo_white.svg"
 LOGO_WHITE="$TMPDIR/logo_white.png"
 ICON_512="$TMPDIR/icon_512.png"
 
-echo "Rendering SVG at 512x512..."
+# Recolor the SVG fill to white before rasterizing.
+# This is more reliable than post-processing with ImageMagick.
+sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" > "$LOGO_WHITE_SVG"
+
+echo "Rendering white SVG at 512x512..."
 
 if [ "$SVG_RENDERER" = "rsvg" ]; then
-    rsvg-convert -w 512 -h 512 "$SOURCE_SVG" -o "$LOGO_HI_RES"
+    rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
 else
-    inkscape --export-type=png --export-filename="$LOGO_HI_RES" -w 512 -h 512 "$SOURCE_SVG"
+    inkscape --export-type=png --export-filename="$LOGO_WHITE" -w 512 -h 512 "$LOGO_WHITE_SVG"
 fi
 
-# Recolor: replace the purple fill with white, keep alpha
-$MAGICK "$LOGO_HI_RES" \
-    -alpha on \
-    \( +clone -alpha extract \) \
-    -compose CopyOpacity -composite \
-    -fill white -colorize 100 \
-    "$LOGO_WHITE"
-
-# Composite white logo onto purple background (full bleed for non-adaptive legacy icons)
+# Composite white logo onto purple background (full bleed for legacy icons)
 # Logo scaled to 80% with padding for aesthetic balance
 $MAGICK -size 512x512 "xc:${BG_COLOR}" \
     \( "$LOGO_WHITE" -resize 410x410 \) \
@@ -100,8 +93,8 @@ echo "Generating xxxhdpi icons (192x192)..."
 $MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
 $MAGICK "$ICON_512" -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
 
-# ── Adaptive icon foreground PNGs (transparent bg, white logo with safe-zone padding) ──
-# Foreground safe zone = 66% of canvas. Content should be ~66% size, centered on transparent bg.
+# ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
+# Safe zone = 66% of canvas. Content centered on transparent background.
 
 echo "Generating adaptive foreground PNGs..."
 
