@@ -8,6 +8,7 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useMuteList } from '@/hooks/useMuteList';
 import { isEventMuted } from '@/lib/muteHelpers';
 import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { timeAgo } from '@/lib/timeAgo';
 import { NSchema as n } from '@nostrify/nostrify';
 import { nip19 } from 'nostr-tools';
@@ -273,9 +274,7 @@ function LatestAccountCard({ event }: { event: NostrEvent }) {
           <EmojifiedText tags={event.tags}>{displayName}</EmojifiedText>
         </Link>
         {metadata.nip05 && (
-          <span className="text-xs text-muted-foreground truncate block">
-            @{metadata.nip05}
-          </span>
+          <VerifiedNip05Text nip05={metadata.nip05} pubkey={event.pubkey} className="text-xs text-muted-foreground truncate block" />
         )}
       </div>
 

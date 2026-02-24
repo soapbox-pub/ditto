@@ -16,6 +16,7 @@ import { useFollowList, useFollowActions } from '@/hooks/useFollowActions';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useNostr } from '@nostrify/react';
 import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 
 /** Parse a follow pack / starter pack event into structured data. */
 function parsePackEvent(event: NostrEvent) {
@@ -154,9 +155,7 @@ export function FollowPackDetailContent({ event }: { event: NostrEvent }) {
               {displayName}
             </Link>
             {metadata?.nip05 && (
-              <span className="text-sm text-muted-foreground truncate block">
-                @{metadata.nip05}
-              </span>
+              <VerifiedNip05Text nip05={metadata.nip05} pubkey={event.pubkey} className="text-sm text-muted-foreground truncate block" />
             )}
           </div>
 

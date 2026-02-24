@@ -17,7 +17,7 @@ import { ProfileRightSidebar } from '@/components/ProfileRightSidebar';
 import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
-import { Nip05Badge } from '@/components/Nip05Badge';
+import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
@@ -32,7 +32,7 @@ import { useProfileMedia } from '@/hooks/useProfileMedia';
 import { useProfileSupplementary } from '@/hooks/useProfileData';
 import { useNip05Resolve } from '@/hooks/useNip05Resolve';
 import { genUserName } from '@/lib/genUserName';
-import { formatNip05Display } from '@/lib/nip05';
+
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -249,7 +249,7 @@ function FollowingUserRow({ pubkey }: { pubkey: string }) {
               ) : displayName}
             </div>
             {metadata?.nip05 && (
-              <div className="text-xs text-muted-foreground truncate">@{formatNip05Display(metadata.nip05)}</div>
+              <VerifiedNip05Text nip05={metadata.nip05} pubkey={pubkey} className="text-xs text-muted-foreground truncate block" />
             )}
             {metadata?.about && (
               <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{metadata.about}</div>
@@ -981,7 +981,7 @@ export function ProfilePage() {
                 ) : displayName}
               </h2>
               {metadata?.nip05 && (
-                <Nip05Badge nip05={metadata.nip05} className="text-sm text-muted-foreground" />
+                <Nip05Badge nip05={metadata.nip05} pubkey={pubkey ?? ''} className="text-sm text-muted-foreground" />
               )}
 
               {/* Following count + Streak indicator */}

@@ -15,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CustomEmojiImg, isCustomEmoji, EmojifiedText } from '@/components/CustomEmoji';
 import { useEventInteractions, type RepostEntry, type QuoteEntry, type ReactionEntry, type ZapEntry } from '@/hooks/useEventInteractions';
 import { useAuthor } from '@/hooks/useAuthor';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
@@ -257,7 +258,7 @@ function UserRow({ pubkey, subtitle }: { pubkey: string; subtitle?: string }) {
             ) : displayName}
           </span>
           {metadata?.nip05 && (
-            <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
+            <VerifiedNip05Text nip05={metadata.nip05} pubkey={pubkey} className="text-xs text-muted-foreground truncate" />
           )}
         </div>
         {subtitle && (
@@ -294,7 +295,7 @@ function ZapRow({ zap }: { zap: ZapEntry }) {
             ) : displayName}
           </span>
           {metadata?.nip05 && (
-            <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
+            <VerifiedNip05Text nip05={metadata.nip05} pubkey={zap.senderPubkey} className="text-xs text-muted-foreground truncate" />
           )}
         </div>
         {zap.message && (
@@ -337,7 +338,7 @@ function QuoteRow({ quote }: { quote: QuoteEntry }) {
             ) : displayName}
           </span>
           {metadata?.nip05 && (
-            <span className="text-xs text-muted-foreground truncate">@{metadata.nip05}</span>
+            <VerifiedNip05Text nip05={metadata.nip05} pubkey={quote.pubkey} className="text-xs text-muted-foreground truncate" />
           )}
         </div>
         {quote.content && (

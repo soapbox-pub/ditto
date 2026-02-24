@@ -333,7 +333,7 @@ function StreamAuthorRow({ event, participants }: { event: NostrEvent; participa
         </ProfileHoverCard>
         <div className="flex items-center gap-1.5">
           {showMetadata?.nip05 && (
-            <Nip05Badge nip05={showMetadata.nip05} className="text-xs text-muted-foreground" iconSize={12} />
+            <Nip05Badge nip05={showMetadata.nip05} pubkey={showPubkey} className="text-xs text-muted-foreground" iconSize={12} />
           )}
           {host && (
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0">Host</Badge>

@@ -1,22 +1,54 @@
 import { Link } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
-import { getNip05Domain, getNip05User } from '@/lib/nip05';
+import { formatNip05Display, getNip05Domain, getNip05User } from '@/lib/nip05';
+import { useNip05Verify } from '@/hooks/useNip05Verify';
 
 interface Nip05BadgeProps {
   nip05: string;
+  /** The pubkey of the profile claiming this NIP-05 identifier. Used for verification. */
+  pubkey: string;
   className?: string;
   /** Size of the favicon in pixels (default: 16) */
   iconSize?: number;
 }
 
 /**
- * Displays a NIP-05 identifier with its domain favicon.
+ * Displays a NIP-05 identifier with its domain favicon, but only after verifying
+ * that the identifier resolves to the expected pubkey via the domain's
+ * .well-known/nostr.json endpoint.
+ *
  * - `_@domain.com` renders as `@domain.com` (domain is clickable → domain feed)
  * - `user@domain.com` renders as `@user@domain.com` (domain part is clickable → domain feed)
  * - The domain text and favicon are both clickable links to `/timeline/{domain}`
+ * - Returns null while verifying or if verification fails.
  */
-export function Nip05Badge({ nip05, className, iconSize = 16 }: Nip05BadgeProps) {
+/**
+ * Renders a verified NIP-05 identifier as plain text (e.g. in compact UI contexts).
+ * Only renders when the NIP-05 identifier has been verified against the pubkey.
+ * Returns null while verifying or if verification fails.
+ */
+export function VerifiedNip05Text({
+  nip05,
+  pubkey,
+  className,
+}: {
+  nip05: string;
+  pubkey: string;
+  className?: string;
+}) {
+  const { data: verified } = useNip05Verify(nip05, pubkey);
+  if (!verified) return null;
+  return (
+    <span className={className}>@{formatNip05Display(nip05)}</span>
+  );
+}
+
+export function Nip05Badge({ nip05, pubkey, className, iconSize = 16 }: Nip05BadgeProps) {
+  const { data: verified } = useNip05Verify(nip05, pubkey);
+
+  if (!verified) return null;
+
   const domain = getNip05Domain(nip05);
   const user = getNip05User(nip05);
   const isDefaultUser = user === '_';

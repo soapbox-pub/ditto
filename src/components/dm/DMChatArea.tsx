@@ -3,6 +3,7 @@ import { useConversationMessages } from '@/hooks/useConversationMessages';
 import { useDMContext } from '@/hooks/useDMContext';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAuthor } from '@/hooks/useAuthor';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { genUserName } from '@/lib/genUserName';
 import { MESSAGE_PROTOCOL, PROTOCOL_MODE, type MessageProtocol } from '@/lib/dmConstants';
 import { formatConversationTime, formatFullDateTime } from '@/lib/dmUtils';
@@ -181,7 +182,7 @@ const ChatHeader = ({ pubkey, onBack }: { pubkey: string; onBack?: () => void })
       <div className="flex-1 min-w-0">
         <h2 className="font-semibold truncate">{displayName}</h2>
         {metadata?.nip05 && (
-          <p className="text-xs text-muted-foreground truncate">{metadata.nip05}</p>
+          <VerifiedNip05Text nip05={metadata.nip05} pubkey={pubkey} className="text-xs text-muted-foreground truncate block" />
         )}
       </div>
     </div>

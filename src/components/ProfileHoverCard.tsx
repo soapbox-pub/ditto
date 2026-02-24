@@ -8,6 +8,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { formatNip05Display, getNip05Domain } from '@/lib/nip05';
+import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { FollowButton } from '@/components/FollowButton';
 import { cn } from '@/lib/utils';
@@ -30,8 +31,9 @@ function ProfileHoverCardBody({ pubkey }: { pubkey: string }) {
   const displayName = metadata?.name ?? genUserName(pubkey);
   const profileUrl = useMemo(() => getProfileUrl(pubkey, metadata), [pubkey, metadata]);
   const nip05 = metadata?.nip05;
-  const nip05Display = nip05 ? formatNip05Display(nip05) : undefined;
   const nip05Domain = getNip05Domain(nip05);
+  const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
+  const nip05Display = nip05Verified && nip05 ? formatNip05Display(nip05) : undefined;
 
   useEffect(() => {
     queryClient.refetchQueries({ queryKey: ['author', pubkey] });
