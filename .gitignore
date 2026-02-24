@@ -42,6 +42,5 @@ android/local.properties
 android/build/
 android/.gradle/
 android/*/build/
-android/app/src/main/res/mipmap-*/ic_launcher*.png
-android/app/src/main/res/mipmap-hdpi/*
+android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png
 android/downloads/
