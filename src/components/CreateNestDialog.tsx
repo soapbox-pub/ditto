@@ -99,7 +99,7 @@ export function CreateNestDialog({ open, onOpenChange }: CreateNestDialogProps) 
         ['status', isScheduled ? 'planned' : 'live'],
         ['starts', isScheduled ? String(Math.floor(new Date(scheduledTime).getTime() / 1000)) : String(now)],
         ['color', selectedGradient],
-        ['service', config.nestsApiUrl + '/api/v1/nests'],
+        ['service', config.nestsApiUrl],
         ['relays', ...relays],
       ];
 

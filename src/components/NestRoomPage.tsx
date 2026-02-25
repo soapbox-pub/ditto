@@ -84,26 +84,39 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   const statusConfig = getStatusConfig(status);
   const isLive = status === 'live';
 
-  // Extract LiveKit server URL from streaming tags
+  // Extract LiveKit server URL from streaming tags.
+  // Endpoints are stored as wss+livekit://… and need the +livekit stripped.
+  // Also accept plain wss:// as a fallback (some API versions).
   const livekitUrl = useMemo(() => {
     const streamingTags = event.tags.filter(([n]) => n === 'streaming');
+
+    // Prefer the wss+livekit:// prefixed URL (canonical format)
     for (const [, url] of streamingTags) {
       if (url?.startsWith('wss+livekit://') || url?.startsWith('ws+livekit://')) {
-        return url.replace('wss+livekit://', 'wss://').replace('ws+livekit://', 'ws://');
+        return url.replace('+livekit', '');
       }
     }
+
+    // Fallback: any wss:// streaming URL
+    for (const [, url] of streamingTags) {
+      if (url?.startsWith('wss://') || url?.startsWith('ws://')) {
+        return url;
+      }
+    }
+
     return undefined;
   }, [event.tags]);
 
-  // Token management - from navigation state or fetched
+  // Token management — always refresh on mount (like the nests app).
+  // The state token is used as the initial value so the room can
+  // connect immediately, but we still fire a refresh to get a fresh JWT.
   const stateToken = (location.state as { token?: string } | null)?.token;
   const [token, setToken] = useState<string | undefined>(stateToken);
-  const tokenRefreshed = useRef(false);
+  const tokenRefreshed = useRef<string | null>(null);
 
-  // Fetch token on mount if we don't have one from state
   useEffect(() => {
-    if (token || tokenRefreshed.current || !dTag) return;
-    tokenRefreshed.current = true;
+    if (!dTag || tokenRefreshed.current === dTag) return;
+    tokenRefreshed.current = dTag;
 
     (async () => {
       try {
@@ -113,7 +126,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         console.error('Failed to join nest:', err);
       }
     })();
-  }, [api, dTag, token]);
+  }, [api, dTag]);
 
   // Presence tracking
   const { handRaised, toggleHand, lowerHand } = useNestPresencePublisher(aTag, isLive);
