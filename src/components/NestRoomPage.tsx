@@ -324,7 +324,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
           {/* Not yet connected — show empty participants */}
           <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsEmpty connecting={isConnecting} />
+            <NestParticipantsEmpty connecting={isConnecting} error={session.connectionError} />
           </div>
 
           {/* Controls without LiveKit (only leave + hand + share) */}
@@ -494,7 +494,19 @@ function NestParticipantsGrid({
 }
 
 /** Fallback participants display when not connected to LiveKit. */
-function NestParticipantsEmpty({ connecting }: { connecting?: boolean }) {
+function NestParticipantsEmpty({ connecting, error }: { connecting?: boolean; error?: string | null }) {
+  if (error) {
+    return (
+      <div className="text-center py-8 px-4">
+        <div className="inline-flex items-center justify-center size-10 rounded-full bg-destructive/10 mb-3">
+          <Users className="size-5 text-destructive" />
+        </div>
+        <p className="text-sm text-destructive font-medium mb-1">Unable to connect</p>
+        <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="text-center py-8">
       <Users className="size-6 text-muted-foreground/40 mx-auto mb-2" />

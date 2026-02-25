@@ -51,6 +51,8 @@ export interface NestSessionState {
   room: Room | null;
   /** LiveKit connection status. */
   connectionState: ConnectionState;
+  /** Connection error message (e.g. room expired). */
+  connectionError: string | null;
   /** Whether the nest is minimized to the mini-bar. */
   minimized: boolean;
   /** Shorthand: a session is active. */
@@ -100,6 +102,7 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
 
   // Refs for cleanup
@@ -124,6 +127,8 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
     joiningRef.current = true;
 
     try {
+      setConnectionError(null);
+
       // If already in a different room, leave first
       if (roomRef.current) {
         await roomRef.current.disconnect();
@@ -183,6 +188,13 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
         await newRoom.connect(url, tkn);
       } catch (err) {
         console.error('Failed to connect to LiveKit:', err);
+        const message = err instanceof Error ? err.message : 'Connection failed';
+        const isExpired = message.includes('not found') || message.includes('404');
+        setConnectionError(
+          isExpired
+            ? 'This room has expired. The audio session is no longer available. Please create a new nest.'
+            : `Failed to connect: ${message}`,
+        );
         roomRef.current = null;
         return;
       }
@@ -224,6 +236,7 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
     setLivekitUrl(null);
     setMinimized(false);
     setConnectionState(ConnectionState.Disconnected);
+    setConnectionError(null);
   }, []);
 
   // ── minimize ──
@@ -266,6 +279,7 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
     event,
     room,
     connectionState,
+    connectionError,
     minimized,
     isActive,
     isOwner,
@@ -276,7 +290,7 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
     leaveNest,
     minimize,
     expand,
-  }), [event, room, connectionState, minimized, isActive, isOwner, aTag, dTag, naddr, joinNest, leaveNest, minimize, expand]);
+  }), [event, room, connectionState, connectionError, minimized, isActive, isOwner, aTag, dTag, naddr, joinNest, leaveNest, minimize, expand]);
 
   return (
     <NestSessionContext.Provider value={value}>
