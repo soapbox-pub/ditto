@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Home, TrendingUp, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { Home, TrendingUp, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -168,6 +168,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                       Explore
                     </span>
                     <div className="flex-1 h-px bg-border/50" />
+                    <button
+                      onClick={() => {
+                        handleClose();
+                        navigate('/settings');
+                      }}
+                      className="text-muted-foreground/70 hover:text-muted-foreground hover:bg-secondary/60 transition-colors px-2 py-0.5 rounded-full"
+                    >
+                      <Pencil className="size-3.5" />
+                    </button>
                   </div>
 
                   {exploreItems.map((item) => (
@@ -179,17 +188,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                       onClick={handleClose}
                     />
                   ))}
-
-                  {/* Edit link */}
-                  <button
-                    onClick={() => {
-                      handleClose();
-                      navigate('/settings');
-                    }}
-                    className="flex items-center gap-4 py-2 px-2 rounded-lg text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
-                  >
-                    <span className="ml-9">Edit</span>
-                  </button>
 
                   <div className="my-2 mx-2">
                     <Separator />
