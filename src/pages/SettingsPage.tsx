@@ -68,7 +68,7 @@ export function SettingsPage() {
   );
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="min-h-screen">
       {/* Header */}
       <div className="px-4 pt-4 pb-3">
         <div className="flex items-center gap-4">
