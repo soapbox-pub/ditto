@@ -373,7 +373,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
     return (
       <article
         className={cn(
-          'px-4 pt-3 pb-0 hover:bg-accent/5 transition-colors cursor-pointer overflow-hidden',
+          'px-4 pt-3 pb-0 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
           className,
         )}
         onClick={handleCardClick}
@@ -397,7 +397,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   return (
     <article
         className={cn(
-          'px-4 py-3 border-b border-border hover:bg-accent/5 transition-colors cursor-pointer overflow-hidden',
+          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
           className,
         )}
         onClick={handleCardClick}
@@ -447,7 +447,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
                 <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'}`}
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
                   title={isReposted ? 'Undo repost' : 'Repost'}
                 >
                   <RepostIcon className="size-5" />
@@ -786,7 +786,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <RepostIcon className="size-4 text-green-500 translate-y-px" />
+        <RepostIcon className="size-4 text-accent translate-y-px" />
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (

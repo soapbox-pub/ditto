@@ -65,15 +65,12 @@ function NavTab({ icon, label, active, showIndicator, onClick, to }: NavTabProps
         )}
       </span>
       <span className="text-[10px] font-medium">{label}</span>
-      {active && (
-        <span className="absolute bottom-1 w-6 h-0.5 bg-accent rounded-full" />
-      )}
     </>
   );
 
   const className = cn(
-    'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors relative',
-    active ? 'text-foreground' : 'text-muted-foreground',
+    'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+    active ? 'text-accent' : 'text-muted-foreground',
   );
 
   if (to) {
@@ -170,7 +167,7 @@ export function MobileBottomNav() {
         <DrawerContent className="max-h-[60vh]">
           <DrawerTitle className="sr-only">Explore</DrawerTitle>
           <div className="px-4 pt-2 pb-6">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground/70 mb-3 px-2">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-accent/70 mb-3 px-2">
               Explore
             </h3>
             {exploreItems.length > 0 ? (
@@ -183,7 +180,7 @@ export function MobileBottomNav() {
                     className={cn(
                       'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
                       isItemActive(item.id, location.pathname, location.search)
-                        ? 'bg-accent/10 font-semibold'
+                        ? 'text-accent font-semibold'
                         : 'text-foreground hover:bg-secondary/60',
                     )}
                   >
