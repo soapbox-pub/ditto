@@ -114,7 +114,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="left" className="w-[300px] p-0 border-r-border">
+      <SheetContent side="right" className="w-[300px] p-0 border-l-border">
         <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
         {user ? (
