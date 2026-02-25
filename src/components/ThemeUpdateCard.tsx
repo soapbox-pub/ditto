@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Palette, Copy } from 'lucide-react';
+import { Palette, Copy, Pencil } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useAuthor } from '@/hooks/useAuthor';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { genUserName } from '@/lib/genUserName';
 import { parseThemeDefinition } from '@/lib/themeEvent';
@@ -23,6 +24,8 @@ interface ThemeUpdateCardProps {
  * card in feeds, showing the theme's colors, title, and description.
  */
 export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
+  const { user } = useCurrentUser();
+  const isOwn = user?.pubkey === event.pubkey;
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const authorEvent = author.data?.event;
@@ -134,12 +137,21 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
             View Profile
           </Button>
         </Link>
-        <Link to={`/settings/theme?import=${event.pubkey}&theme=${theme.identifier}`}>
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
-            <Copy className="size-3.5 mr-1" />
-            Copy Theme
-          </Button>
-        </Link>
+        {isOwn ? (
+          <Link to={`/settings/theme?edit=${theme.identifier}`}>
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-accent">
+              <Pencil className="size-3.5 mr-1" />
+              Edit Theme
+            </Button>
+          </Link>
+        ) : (
+          <Link to={`/settings/theme?import=${event.pubkey}&theme=${theme.identifier}`}>
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground hover:text-primary">
+              <Copy className="size-3.5 mr-1" />
+              Copy Theme
+            </Button>
+          </Link>
+        )}
       </div>
     </div>
   );

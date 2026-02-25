@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/useToast';
@@ -28,13 +29,6 @@ import { hslStringToHex, hexToHslString, deriveTokensFromCore, getContrastRatioH
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 type PresetName = 'dark' | 'light' | 'black' | 'pink';
-
-const PRESETS: { value: PresetName; label: string; preview: string }[] = [
-  { value: 'light', label: 'Light', preview: 'bg-white border border-border' },
-  { value: 'dark', label: 'Dark', preview: 'bg-[hsl(228,20%,10%)]' },
-  { value: 'black', label: 'Black', preview: 'bg-black' },
-  { value: 'pink', label: 'Pink', preview: 'bg-[hsl(330,100%,96%)]' },
-];
 
 /** Core color keys exposed in the simple editor */
 const CORE_KEYS = ['background', 'foreground', 'primary', 'accent'] as const;
@@ -396,41 +390,30 @@ export function ThemeBuilderPage() {
         </div>
       </div>
 
+      {/* Core color bar — visual strip below header */}
+      <div className="flex h-10">
+        {CORE_KEYS.map((key) => (
+          <div
+            key={key}
+            className="flex-1 transition-colors duration-300"
+            style={{ backgroundColor: hexTokens[key] || '#888' }}
+          />
+        ))}
+      </div>
+
       <div className="p-4 space-y-6">
-        {/* Preset selector */}
+        {/* Start from existing theme */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Start from a preset</h2>
-          <div className="grid grid-cols-4 gap-2">
-            {PRESETS.map((preset) => (
-              <button
-                key={preset.value}
-                type="button"
-                onClick={() => applyPreset(preset.value)}
-                className={cn(
-                  'flex flex-col items-center gap-2 p-3 rounded-xl transition-all duration-200 hover:bg-muted/50',
-                  'ring-1 ring-border hover:ring-primary/50',
-                )}
-              >
-                <div className={cn('size-10 rounded-full', preset.preview)} />
-                <span className="text-xs font-medium">{preset.label}</span>
-              </button>
-            ))}
-          </div>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Start from existing theme</h2>
+          <StartFromThemeDropdown
+            userThemes={_userThemes.data ?? []}
+            onSelect={(selectedTokens) => {
+              setTokens(selectedTokens);
+              setAutoDerive(true);
+              setActiveEditingTheme(null);
+            }}
+          />
         </section>
-
-        <Separator />
-
-        {/* Auto-derive toggle */}
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label className="text-sm font-medium flex items-center gap-2">
-              <Wand2 className="size-4 text-primary" />
-              Auto-derive colors
-            </Label>
-            <p className="text-xs text-muted-foreground">Automatically generate surface and UI colors from core colors</p>
-          </div>
-          <Switch checked={autoDerive} onCheckedChange={setAutoDerive} />
-        </div>
 
         <Separator />
 
@@ -446,6 +429,18 @@ export function ThemeBuilderPage() {
                 onChange={(hex) => updateToken(key, hex)}
               />
             ))}
+          </div>
+
+          {/* Auto-derive toggle — below core colors */}
+          <div className="flex items-center justify-between pt-1">
+            <div className="space-y-0.5">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Wand2 className="size-4 text-primary" />
+                Auto-derive colors
+              </Label>
+              <p className="text-xs text-muted-foreground">Generate surface and UI colors from the 4 core colors above</p>
+            </div>
+            <Switch checked={autoDerive} onCheckedChange={setAutoDerive} />
           </div>
         </section>
 
@@ -716,6 +711,68 @@ export function ThemeBuilderPage() {
         </DialogContent>
       </Dialog>
     </main>
+  );
+}
+
+// ─── Start From Existing Theme Dropdown ───────────────────────────────
+
+function StartFromThemeDropdown({ userThemes, onSelect }: {
+  userThemes: ThemeDefinition[];
+  onSelect: (tokens: ThemeTokens) => void;
+}) {
+  const allOptions = [
+    // User's published themes
+    ...userThemes.map(t => ({
+      group: 'my' as const,
+      id: `user:${t.identifier}`,
+      label: t.title,
+      tokens: t.tokens,
+    })),
+    // Builtin themes
+    { group: 'builtin' as const, id: 'builtin:light', label: 'Light', tokens: builtinThemes.light },
+    { group: 'builtin' as const, id: 'builtin:dark', label: 'Dark', tokens: builtinThemes.dark },
+    // Presets
+    ...Object.entries(themePresets).map(([id, preset]) => ({
+      group: 'preset' as const,
+      id: `preset:${id}`,
+      label: preset.label,
+      tokens: preset.tokens,
+    })),
+  ];
+
+  const hasUserThemes = userThemes.length > 0;
+
+  return (
+    <Select onValueChange={(val) => {
+      const option = allOptions.find(o => o.id === val);
+      if (option) onSelect(option.tokens);
+    }}>
+      <SelectTrigger className="w-full">
+        <SelectValue placeholder="Choose a theme to start from..." />
+      </SelectTrigger>
+      <SelectContent>
+        {hasUserThemes && (
+          <SelectGroup>
+            <SelectLabel>My Themes</SelectLabel>
+            {allOptions.filter(o => o.group === 'my').map(o => (
+              <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+            ))}
+          </SelectGroup>
+        )}
+        <SelectGroup>
+          <SelectLabel>Builtin</SelectLabel>
+          {allOptions.filter(o => o.group === 'builtin').map(o => (
+            <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+          ))}
+        </SelectGroup>
+        <SelectGroup>
+          <SelectLabel>Presets</SelectLabel>
+          {allOptions.filter(o => o.group === 'preset').map(o => (
+            <SelectItem key={o.id} value={o.id}>{o.label}</SelectItem>
+          ))}
+        </SelectGroup>
+      </SelectContent>
+    </Select>
   );
 }
 
