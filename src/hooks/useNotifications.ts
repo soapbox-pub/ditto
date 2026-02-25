@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
@@ -175,9 +175,17 @@ export function useNotifications(): NotificationData {
   }, [data?.pages]);
 
   // Only use cursor if settings have actually loaded, otherwise null
-  const notificationsCursor = settings !== undefined && settings !== null
+  const remoteCursor = settings !== undefined && settings !== null
     ? (settings.notificationsCursor ?? 0)
     : null;
+
+  // Optimistic local cursor — updated immediately on markAsRead so that
+  // newNotificationIds collapses to empty before the query cache catches up,
+  // preventing the NotificationsPage effect from re-triggering markAsRead.
+  const optimisticCursor = useRef<number | null>(null);
+  const notificationsCursor = optimisticCursor.current !== null
+    ? Math.max(optimisticCursor.current, remoteCursor ?? 0)
+    : remoteCursor;
 
   // Build set of unread notification IDs
   const newNotificationIds = useMemo(() => {
@@ -199,12 +207,18 @@ export function useNotifications(): NotificationData {
 
     if (newestTimestamp <= notificationsCursor) return;
 
+    // Update optimistic cursor immediately so unread state clears before
+    // the query cache updates, preventing re-trigger loops.
+    optimisticCursor.current = newestTimestamp;
+
     try {
       await updateSettings.mutateAsync({
         notificationsCursor: newestTimestamp,
       });
     } catch (error) {
       console.error('Failed to mark notifications as read:', error);
+      // Roll back optimistic cursor on failure
+      optimisticCursor.current = null;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.pubkey, items.length, notificationsCursor]);
