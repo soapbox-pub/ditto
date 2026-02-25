@@ -133,6 +133,17 @@ export function ContentSettings() {
         </Collapsible>
       </div>
 
+      {/* Theme Preferences Section */}
+      <div className="px-3 py-4 border-b border-border space-y-4">
+        <div>
+          <h3 className="text-sm font-semibold">Theme Preferences</h3>
+          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+            Control how custom profile themes are displayed throughout the app.
+          </p>
+        </div>
+        <ThemePreferencesSection />
+      </div>
+
       {/* Muted Content Section */}
       <div>
         <Collapsible open={mutesOpen} onOpenChange={setMutesOpen}>
@@ -936,9 +947,51 @@ function MuteTypeSection({
               className="shrink-0 h-8 w-8 p-0"
             >
               <Trash2 className="h-4 w-4 text-destructive" />
-            </Button>
+             </Button>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ThemePreferencesSection() {
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const { updateSettings } = useEncryptedSettings();
+  const { user } = useCurrentUser();
+
+  const showOnProfiles = feedSettings.showCustomProfileThemes !== false;
+  const showInFeed = feedSettings.feedIncludeProfileThemes !== false;
+
+  const handleToggle = async (key: 'showCustomProfileThemes' | 'feedIncludeProfileThemes', value: boolean) => {
+    updateFeedSettings({ [key]: value });
+    if (user) {
+      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Show custom profile themes</Label>
+          <p className="text-xs text-muted-foreground">Display other users' custom themes when visiting their profiles</p>
+        </div>
+        <Switch
+          checked={showOnProfiles}
+          onCheckedChange={(val) => handleToggle('showCustomProfileThemes', val)}
+        />
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="space-y-0.5">
+          <Label className="text-sm font-medium">Show theme updates in feed</Label>
+          <p className="text-xs text-muted-foreground">Display theme update events from people you follow in your feed</p>
+        </div>
+        <Switch
+          checked={showInFeed}
+          onCheckedChange={(val) => handleToggle('feedIncludeProfileThemes', val)}
+        />
       </div>
     </div>
   );

@@ -394,6 +394,9 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeStreams: selectedContent.has('streams'),
       showDecks: selectedContent.has('decks'),
       feedIncludeDecks: selectedContent.has('decks'),
+      showProfileThemes: false,
+      feedIncludeProfileThemes: true,
+      showCustomProfileThemes: true,
     };
 
     updateConfig((current) => ({

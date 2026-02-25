@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { nip19 } from 'nostr-tools';
 
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
@@ -9,10 +10,13 @@ import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useProfileTheme, usePublishProfileTheme } from '@/hooks/useProfileTheme';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
 import { hslStringToHex, hexToHslString, deriveTokensFromCore, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -92,8 +96,18 @@ function getPresetTokens(preset: PresetName): ThemeTokens {
 }
 
 export function ThemeBuilderPage() {
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { theme: currentTheme, customTheme: savedCustomTheme, applyCustomTheme } = useTheme();
+  const { user } = useCurrentUser();
+  const { publish: publishProfileTheme, isPending: isPublishing } = usePublishProfileTheme();
+
+  // Check if we're importing from a profile
+  const importPubkey = searchParams.get('import');
+
+  // Check if the user currently has a published profile theme
+  const ownProfileTheme = useProfileTheme(user?.pubkey);
+  const hasPublishedTheme = !!ownProfileTheme.data;
 
   useSeoMeta({
     title: 'Theme Builder | Ditto',
@@ -110,6 +124,16 @@ export function ThemeBuilderPage() {
   });
   const [autoDerive, setAutoDerive] = useState(true);
   const [previewing, setPreviewing] = useState(false);
+
+  // Import from another user's profile theme
+  const importQuery = useProfileTheme(importPubkey ?? undefined);
+  useEffect(() => {
+    if (importQuery.data?.tokens) {
+      setTokens(importQuery.data.tokens);
+      setAutoDerive(false); // imported themes have specific tokens
+      toast({ title: 'Theme imported', description: 'Imported theme from profile. Customize it and save!' });
+    }
+  }, [importQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hex representations of current tokens for color pickers
   const hexTokens = useMemo(() => {
@@ -173,12 +197,24 @@ export function ThemeBuilderPage() {
     }
   }, [previewing, currentTheme, savedCustomTheme, tokens, applyCustomTheme]);
 
-  // Save
-  const handleSave = useCallback(() => {
+  // Save & optionally re-publish
+  const handleSave = useCallback(async () => {
     applyCustomTheme(tokens);
     setPreviewing(false);
-    toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
-  }, [tokens, applyCustomTheme, toast]);
+
+    // If user has a published profile theme, auto-republish with updated tokens
+    if (user && hasPublishedTheme) {
+      try {
+        await publishProfileTheme(tokens);
+        toast({ title: 'Theme saved & published', description: 'Your custom theme is now active and updated on your profile.' });
+      } catch (error) {
+        console.error('Failed to republish theme:', error);
+        toast({ title: 'Theme saved locally', description: 'Saved but failed to update your profile theme.', variant: 'destructive' });
+      }
+    } else {
+      toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
+    }
+  }, [tokens, user, hasPublishedTheme, applyCustomTheme, publishProfileTheme, toast]);
 
   // Export/import JSON
   const handleExport = useCallback(() => {
@@ -230,9 +266,9 @@ export function ThemeBuilderPage() {
             <Eye className="size-4 mr-1.5" />
             {previewing ? 'Revert' : 'Preview'}
           </Button>
-          <Button size="sm" onClick={handleSave}>
+          <Button size="sm" onClick={handleSave} disabled={isPublishing}>
             <Save className="size-4 mr-1.5" />
-            Save
+            {isPublishing ? 'Saving...' : 'Save'}
           </Button>
         </div>
       </div>
@@ -399,9 +435,46 @@ export function ThemeBuilderPage() {
 
         <Separator />
 
+        {/* Profile Publishing Status */}
+        {user && (
+          <>
+            <section className="space-y-3">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile Sharing</h2>
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <Globe className="size-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {hasPublishedTheme ? 'Published to profile' : 'Not shared'}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    {hasPublishedTheme
+                      ? 'Your theme is visible when others visit your profile. Saving will auto-update it.'
+                      : 'Enable sharing in Edit Profile to display your theme on your profile.'}
+                  </p>
+                </div>
+                {hasPublishedTheme && (
+                  <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600 border-green-500/20 shrink-0">
+                    <Check className="size-3 mr-1" /> Live
+                  </Badge>
+                )}
+              </div>
+            </section>
+
+            <Separator />
+          </>
+        )}
+
         {/* Import / Export */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Import & Export</h2>
+
+          {/* Import from profile */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Import from a Nostr profile</Label>
+            <ImportFromProfile />
+          </div>
 
           {/* File import/export */}
           <div className="flex gap-2">
@@ -426,6 +499,48 @@ export function ThemeBuilderPage() {
         </section>
       </div>
     </main>
+  );
+}
+
+// ─── Import from Profile ──────────────────────────────────────────────
+
+function ImportFromProfile() {
+  const [importInput, setImportInput] = useState('');
+  const { toast } = useToast();
+
+  const handleImport = useCallback(() => {
+    if (!importInput.trim()) return;
+    try {
+      let pubkey = importInput.trim();
+      // Try to decode NIP-19
+      if (pubkey.startsWith('npub1') || pubkey.startsWith('nprofile1')) {
+        const decoded = nip19.decode(pubkey);
+        pubkey = decoded.type === 'npub' ? decoded.data : decoded.type === 'nprofile' ? decoded.data.pubkey : pubkey;
+      }
+      if (/^[0-9a-f]{64}$/i.test(pubkey)) {
+        // Navigate with import param (page will reload with the query)
+        window.location.href = `/settings/theme?import=${pubkey}`;
+      } else {
+        toast({ title: 'Invalid identifier', description: 'Enter an npub or hex pubkey.', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Invalid identifier', description: 'Could not decode the Nostr identifier.', variant: 'destructive' });
+    }
+  }, [importInput, toast]);
+
+  return (
+    <div className="flex gap-2">
+      <Input
+        value={importInput}
+        onChange={(e) => setImportInput(e.target.value)}
+        placeholder="npub1... or hex pubkey"
+        className="h-9 text-sm"
+      />
+      <Button variant="outline" size="sm" onClick={handleImport} className="shrink-0">
+        <Upload className="size-4 mr-1.5" />
+        Import
+      </Button>
+    </div>
   );
 }
 

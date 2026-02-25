@@ -43,6 +43,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
+import { ThemeUpdateCard } from '@/components/ThemeUpdateCard';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId } from '@/lib/nostrEvents';
 
@@ -258,6 +259,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
+
+  // Profile theme events get a specialized card
+  if (event.kind === 30203) {
+    return <ThemeUpdateCard event={event} />;
+  }
 
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
