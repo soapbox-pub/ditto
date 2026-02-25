@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine, Minimize2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -261,12 +261,35 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   const isConnected = room !== null && session.connectionState === ConnectionState.Connected;
   const isConnecting = session.connectionState === ConnectionState.Connecting || (session.event?.id === event.id && !room && session.connectionState !== ConnectionState.Disconnected);
 
+  // Back button confirmation
+  const [backDialogOpen, setBackDialogOpen] = useState(false);
+
+  const handleBackClick = useCallback(() => {
+    if (session.isActive && !session.minimized) {
+      setBackDialogOpen(true);
+    } else {
+      navigate(-1);
+    }
+  }, [session.isActive, session.minimized, navigate]);
+
+  const handleBackMinimize = useCallback(() => {
+    setBackDialogOpen(false);
+    session.minimize();
+    navigate(-1);
+  }, [session, navigate]);
+
+  const handleBackLeave = useCallback(() => {
+    setBackDialogOpen(false);
+    session.leaveNest();
+    navigate(-1);
+  }, [session, navigate]);
+
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
       {/* Header */}
       <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBackClick}
           className="p-1.5 -ml-1.5 rounded-full hover:bg-secondary/60 transition-colors"
           aria-label="Go back"
         >
@@ -278,6 +301,32 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
           {statusConfig.label}
         </Badge>
       </div>
+
+      {/* Back button confirmation dialog */}
+      <AlertDialog open={backDialogOpen} onOpenChange={setBackDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Mic className="size-5 text-primary" />
+              You're in a nest
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You're currently in an active audio room. What would you like to do?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button onClick={handleBackMinimize} className="w-full gap-2">
+              <Minimize2 className="size-4" />
+              Minimize & Keep Listening
+            </Button>
+            <Button variant="destructive" onClick={handleBackLeave} className="w-full gap-2">
+              <LogOut className="size-4" />
+              Leave Nest
+            </Button>
+            <AlertDialogCancel className="w-full mt-0">Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Connected: provide the Room context without lifecycle ownership.
           Using RoomContext.Provider directly instead of <LiveKitRoom> to
