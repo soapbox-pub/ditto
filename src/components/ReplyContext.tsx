@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 
+import { EmbeddedNote } from '@/components/EmbeddedNote';
+import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
@@ -8,18 +10,21 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 interface ReplyContextProps {
   pubkeys: string[];
+  /** Hex event ID of the parent post being replied to. */
+  parentEventId?: string;
   className?: string;
 }
 
 /**
  * Displays "Replying to @username" or "Replying to @user1 and @user2" context for reply posts.
+ * When parentEventId is provided, hovering over the line shows an embedded preview of the parent post.
  * Used consistently across NoteCard and notification views.
  */
-export function ReplyContext({ pubkeys, className }: ReplyContextProps) {
+export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContextProps) {
   // Show max 2 authors for cleaner UI
   const displayPubkeys = pubkeys.slice(0, 2);
 
-  return (
+  const content = (
     <div className={className || 'flex items-center flex-wrap gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
       <span className="shrink-0">Replying to</span>
       {displayPubkeys.map((pubkey, index) => (
@@ -34,6 +39,27 @@ export function ReplyContext({ pubkeys, className }: ReplyContextProps) {
         </span>
       )}
     </div>
+  );
+
+  if (!parentEventId) {
+    return content;
+  }
+
+  return (
+    <HoverCard openDelay={300} closeDelay={150}>
+      <HoverCardTrigger asChild>
+        {content}
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="bottom"
+        align="start"
+        sideOffset={4}
+        className="w-80 p-0 rounded-2xl shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" />
+      </HoverCardContent>
+    </HoverCard>
   );
 }
 

@@ -43,6 +43,7 @@ import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
 import { useAppContext } from '@/hooks/useAppContext';
+import { getParentEventId } from '@/lib/nostrEvents';
 
 interface NoteCardProps {
   event: NostrEvent;
@@ -234,6 +235,12 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
     return [...new Set(allPTags.map(([, pubkey]) => pubkey))];
   }, [event.tags, isTextNote, isReply]);
 
+  // Extract the parent event ID for reply hover card preview
+  const parentEventId = useMemo(() => {
+    if (!isReply) return undefined;
+    return getParentEventId(event);
+  }, [event, isReply]);
+
   // Kind 34236 specific
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
@@ -257,7 +264,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
     <>
       {/* Reply context (kind 1 only) — shown above content */}
       {isReply && replyToPubkeys.length > 0 && (
-        <ReplyContext pubkeys={replyToPubkeys} />
+        <ReplyContext pubkeys={replyToPubkeys} parentEventId={parentEventId} />
       )}
 
       {/* Content — kind-based dispatch, guarded by NIP-36 content-warning */}
