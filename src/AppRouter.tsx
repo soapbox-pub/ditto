@@ -1,5 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { Clapperboard, BarChart3, Palette, PartyPopper, FileText } from "lucide-react";
+import { Clapperboard, BarChart3, Palette, PartyPopper, FileText, Sparkles } from "lucide-react";
 import { CardsIcon } from "./components/icons/CardsIcon";
 import { ScrollToTop } from "./components/ScrollToTop";
 import { MainLayout } from "./components/MainLayout";
@@ -61,6 +61,7 @@ export function AppRouter() {
           <Route path="/streams" element={<StreamsFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
           <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
+          <Route path="/themes" element={<KindFeedPage kind={30203} title="Public Themes" icon={<Sparkles className="size-5" />} emptyMessage="No public themes yet. Be the first to share yours!" />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
