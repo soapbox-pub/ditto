@@ -219,10 +219,7 @@ export function LeftSidebar() {
                   ) : (
                     <Plus className="size-5 text-muted-foreground" />
                   )}
-                  <div className="flex flex-col">
-                    <span className="text-sm">{def.label}</span>
-                    <span className="text-xs text-muted-foreground">{def.description}</span>
-                  </div>
+                  <span className="text-sm">{def.label}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
