@@ -6,7 +6,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
 import { useTheme } from '@/hooks/useTheme';
-import { useProfileTheme, usePublishProfileTheme } from '@/hooks/useProfileTheme';
+import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -466,19 +467,18 @@ interface ImageUploadFieldProps {
 }
 
 /**
- * Section in Edit Profile for sharing / un-sharing the user's custom theme.
- * Queries the user's current kind 30203 to detect existing published theme.
+ * Section in Edit Profile for sharing / un-sharing the user's active profile theme.
+ * Queries the user's current kind 11667 to detect existing published theme.
  */
 function ShareThemeSection() {
   const { user } = useCurrentUser();
   const { customTheme } = useTheme();
   const { toast } = useToast();
-  const profileThemeQuery = useProfileTheme(user?.pubkey);
-  const { publish, isPending: isPublishing } = usePublishProfileTheme();
-  const { mutateAsync: publishEvent } = useNostrPublish();
+  const activeThemeQuery = useActiveProfileTheme(user?.pubkey);
+  const { setActiveTheme, clearActiveTheme, isPending: isPublishing } = usePublishTheme();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const isShared = !!profileThemeQuery.data;
+  const isShared = !!activeThemeQuery.data;
   const hasCustomTheme = !!customTheme;
 
   const handleToggle = async (share: boolean) => {
@@ -490,25 +490,18 @@ function ShareThemeSection() {
         return;
       }
       try {
-        await publish(customTheme);
-        profileThemeQuery.refetch();
+        await setActiveTheme({ tokens: customTheme });
+        activeThemeQuery.refetch();
         toast({ title: 'Theme published', description: 'Your custom theme is now visible on your profile.' });
       } catch (error) {
         console.error('Failed to publish theme:', error);
         toast({ title: 'Failed to publish', description: 'Could not publish your theme.', variant: 'destructive' });
       }
     } else {
-      // Delete by publishing a kind 5 deletion event
       try {
         setIsDeleting(true);
-        await publishEvent({
-          kind: 5,
-          content: '',
-          tags: [
-            ['a', `30203:${user.pubkey}:profile-theme`],
-          ],
-        });
-        profileThemeQuery.refetch();
+        await clearActiveTheme();
+        activeThemeQuery.refetch();
         toast({ title: 'Theme removed', description: 'Your profile theme is no longer shared.' });
       } catch (error) {
         console.error('Failed to delete theme:', error);
@@ -559,7 +552,7 @@ function ShareThemeSection() {
         <Switch
           checked={isShared}
           onCheckedChange={handleToggle}
-          disabled={!hasCustomTheme || isPublishing || isDeleting || profileThemeQuery.isLoading}
+          disabled={!hasCustomTheme || isPublishing || isDeleting || activeThemeQuery.isLoading}
           className="scale-90"
         />
       </div>

@@ -133,11 +133,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
-    kind: 30203,
+    kind: 33891,
     showKey: 'showProfileThemes',
     feedKey: 'feedIncludeProfileThemes',
-    label: 'Profile Themes',
-    description: 'Custom profile theme updates',
+    label: 'Custom Themes',
+    description: 'Shareable custom UI themes',
     addressable: true,
     section: 'social',
     feedOnly: true,
