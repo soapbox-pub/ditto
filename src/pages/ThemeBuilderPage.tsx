@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 
@@ -9,7 +9,6 @@ import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
@@ -362,6 +361,14 @@ export function ThemeBuilderPage() {
 
         <Separator />
 
+        {/* Live preview */}
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Preview</h2>
+          <ThemePreview tokens={tokens} hexTokens={hexTokens} />
+        </section>
+
+        <Separator />
+
         {/* Contrast warnings */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Accessibility</h2>
@@ -389,14 +396,6 @@ export function ThemeBuilderPage() {
               {failingContrasts.length} color pair{failingContrasts.length > 1 ? 's' : ''} below WCAG AA (4.5:1). Consider adjusting for better readability.
             </p>
           )}
-        </section>
-
-        <Separator />
-
-        {/* Live preview */}
-        <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Preview</h2>
-          <ThemePreview tokens={tokens} hexTokens={hexTokens} />
         </section>
 
         <Separator />
@@ -512,86 +511,161 @@ function ImportFromProfile() {
 
 // ─── Live Preview Component ───────────────────────────────────────────
 
-function ThemePreview({ tokens, hexTokens }: { tokens: ThemeTokens; hexTokens: Record<string, string> }) {
-  // Build inline CSS vars for scoped preview
-  const style = useMemo(() => {
-    const vars: Record<string, string> = {};
-    for (const [key, val] of Object.entries(tokens)) {
-      const cssVar = `--${key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`)}`;
-      vars[cssVar] = val;
-    }
-    return vars;
-  }, [tokens]);
-
+function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<string, string> }) {
   return (
-    <div style={style} className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-      {/* Mock profile banner */}
+    <div className="rounded-xl border overflow-hidden" style={{ borderColor: hexTokens.border, backgroundColor: hexTokens.background }}>
+
+      {/* ── Profile Header ── */}
+
+      {/* Banner */}
+      <div className="h-32 relative" style={{ backgroundColor: hexTokens.secondary }} />
+
+      {/* Profile info */}
+      <div className="px-4 pb-3" style={{ backgroundColor: hexTokens.background }}>
+        {/* Avatar + action buttons row */}
+        <div className="flex justify-between items-start -mt-10 mb-2">
+          {/* Avatar */}
+          <div
+            className="size-20 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
+            style={{
+              backgroundColor: `${hexTokens.primary}33`,
+              color: hexTokens.primary,
+              border: `4px solid ${hexTokens.background}`,
+            }}
+          >
+            A
+          </div>
+          {/* Action buttons */}
+          <div className="flex items-center gap-2 mt-12">
+            <div
+              className="size-9 rounded-full flex items-center justify-center"
+              style={{ border: `1px solid ${hexTokens.border}` }}
+            >
+              <MoreHorizontal className="size-4" style={{ color: hexTokens.foreground }} />
+            </div>
+            <button
+              className="px-4 py-1.5 rounded-full text-xs font-bold"
+              style={{ backgroundColor: hexTokens.primary, color: hexTokens.primaryForeground }}
+            >
+              Follow
+            </button>
+          </div>
+        </div>
+
+        {/* Name & handle */}
+        <p className="text-lg font-bold" style={{ color: hexTokens.foreground }}>Alice</p>
+        <p className="text-xs" style={{ color: hexTokens.mutedForeground }}>@alice</p>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-4 mt-1.5">
+          <span className="flex items-center gap-1">
+            <Users className="size-3.5" style={{ color: hexTokens.primary }} />
+            <span className="text-xs font-bold" style={{ color: hexTokens.primary }}>142</span>
+            <span className="text-xs" style={{ color: hexTokens.mutedForeground }}>following</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <Flame className="size-3.5" style={{ color: hexTokens.primary }} />
+            <span className="text-xs font-bold" style={{ color: hexTokens.foreground }}>7</span>
+          </span>
+        </div>
+
+        {/* Bio */}
+        <p className="mt-2 text-sm" style={{ color: hexTokens.foreground }}>
+          Nostr enthusiast. Building cool things on the decentralized web.
+        </p>
+      </div>
+
+      {/* ── Tabs ── */}
+      <div className="flex" style={{ borderBottom: `1px solid ${hexTokens.border}`, backgroundColor: `${hexTokens.background}cc` }}>
+        {['Posts', 'Replies', 'Media', 'Likes'].map((tab, i) => (
+          <button
+            key={tab}
+            className="flex-1 py-2.5 text-xs font-medium text-center relative"
+            style={{ color: i === 0 ? hexTokens.foreground : hexTokens.mutedForeground }}
+          >
+            {tab}
+            {i === 0 && (
+              <div
+                className="absolute bottom-0 left-1/2 -translate-x-1/2 w-10 h-0.5 rounded-full"
+                style={{ backgroundColor: hexTokens.primary }}
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Note Card ── */}
       <div
-        className="h-24 relative"
-        style={{
-          background: `linear-gradient(135deg, ${hexTokens.primary}40, ${hexTokens.accent}40, ${hexTokens.background})`,
-        }}
+        className="px-4 py-3"
+        style={{ borderBottom: `1px solid ${hexTokens.border}`, backgroundColor: hexTokens.background }}
       >
-        <div className="absolute -bottom-6 left-4">
-          <div className="size-12 rounded-full border-2" style={{ borderColor: hexTokens.background, backgroundColor: hexTokens.primary }}>
-            <div className="size-full rounded-full flex items-center justify-center text-sm font-bold" style={{ color: hexTokens.background }}>
-              A
+        {/* Author row */}
+        <div className="flex items-center gap-2.5">
+          {/* Note avatar */}
+          <div
+            className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+            style={{ backgroundColor: `${hexTokens.primary}33`, color: hexTokens.primary }}
+          >
+            B
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-sm truncate" style={{ color: hexTokens.foreground }}>Bob</span>
+            </div>
+            <div className="flex items-center gap-1 text-xs" style={{ color: hexTokens.mutedForeground }}>
+              <span>@bob</span>
+              <span>·</span>
+              <span>2h</span>
             </div>
           </div>
         </div>
+
+        {/* Note content */}
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: hexTokens.foreground }}>
+          Just discovered this amazing custom theme feature! Love how you can personalize everything. 🎨
+        </p>
+
+        {/* Action buttons */}
+        <div className="flex items-center gap-5 mt-2.5 -ml-2">
+          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.mutedForeground }}>
+            <MessageCircle className="size-4" /> <span className="text-xs">3</span>
+          </span>
+          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: '#22c55e' }}>
+            <Repeat2 className="size-4" /> <span className="text-xs">1</span>
+          </span>
+          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.mutedForeground }}>
+            <Heart className="size-4" /> <span className="text-xs">12</span>
+          </span>
+          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: '#f59e0b' }}>
+            <Zap className="size-4" /> <span className="text-xs">2.1k</span>
+          </span>
+        </div>
       </div>
 
-      {/* Mock profile info */}
-      <div className="pt-8 px-4 pb-3" style={{ backgroundColor: hexTokens.background }}>
-        <p className="font-semibold text-sm" style={{ color: hexTokens.foreground }}>Alice</p>
-        <p className="text-xs mt-0.5" style={{ color: hexTokens.mutedForeground || hexTokens.foreground }}>Nostr enthusiast. Building cool things.</p>
-      </div>
-
-      {/* Mock note card */}
-      <div className="mx-3 mb-3 rounded-lg p-3" style={{ backgroundColor: hexTokens.card, border: `1px solid ${hexTokens.border}` }}>
-        <div className="flex items-center gap-2 mb-2">
-          <Skeleton className="size-6 rounded-full" style={{ backgroundColor: hexTokens.muted || hexTokens.secondary }} />
-          <div>
-            <p className="text-xs font-medium" style={{ color: hexTokens.cardForeground }}>Bob</p>
-            <p className="text-[10px]" style={{ color: hexTokens.mutedForeground }}>2h ago</p>
+      {/* ── Second Note (partial, to show feed continuity) ── */}
+      <div
+        className="px-4 py-3"
+        style={{ backgroundColor: hexTokens.background }}
+      >
+        <div className="flex items-center gap-2.5">
+          <div
+            className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+            style={{ backgroundColor: hexTokens.muted, color: hexTokens.mutedForeground }}
+          >
+            C
+          </div>
+          <div className="min-w-0 flex-1">
+            <span className="font-bold text-sm" style={{ color: hexTokens.foreground }}>Charlie</span>
+            <div className="flex items-center gap-1 text-xs" style={{ color: hexTokens.mutedForeground }}>
+              <span>@charlie</span>
+              <span>·</span>
+              <span>5h</span>
+            </div>
           </div>
         </div>
-        <p className="text-xs leading-relaxed" style={{ color: hexTokens.cardForeground }}>
-          Just discovered this amazing custom theme feature! Love how you can personalize everything.
+        <p className="mt-2 text-sm leading-relaxed" style={{ color: hexTokens.foreground }}>
+          This is what the decentralized social web looks like.
         </p>
-        <div className="flex items-center gap-4 mt-2.5 text-[10px]" style={{ color: hexTokens.mutedForeground }}>
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80"><MessageCircle className="size-3" /> 3</span>
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80"><Repeat2 className="size-3" /> 1</span>
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80"><Heart className="size-3" /> 12</span>
-          <span className="flex items-center gap-1 cursor-pointer hover:opacity-80" style={{ color: hexTokens.primary }}><Zap className="size-3" /> 2.1k</span>
-        </div>
-      </div>
-
-      {/* Mock buttons */}
-      <div className="px-3 pb-3 flex gap-2">
-        <button className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: hexTokens.primary, color: hexTokens.primaryForeground }}>
-          Primary
-        </button>
-        <button className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: hexTokens.secondary, color: hexTokens.secondaryForeground }}>
-          Secondary
-        </button>
-        <button className="px-3 py-1.5 rounded-lg text-xs font-medium" style={{ backgroundColor: hexTokens.destructive, color: hexTokens.destructiveForeground }}>
-          Destructive
-        </button>
-      </div>
-
-      {/* Color swatch strip */}
-      <div className="px-3 pb-3">
-        <div className="flex rounded-lg overflow-hidden h-6">
-          {(['background', 'foreground', 'primary', 'accent', 'card', 'muted', 'border'] as const).map((key) => (
-            <div
-              key={key}
-              className="flex-1"
-              style={{ backgroundColor: hexTokens[key] }}
-              title={TOKEN_LABELS[key] || key}
-            />
-          ))}
-        </div>
       </div>
     </div>
   );
