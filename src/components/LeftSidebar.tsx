@@ -375,8 +375,6 @@ export function LeftSidebar() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" side="top" className="w-48">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
                     {builtinThemeOptions.map((opt) => (
                       <DropdownMenuItem
                         key={opt.value}
@@ -410,6 +408,17 @@ export function LeftSidebar() {
                         </DropdownMenuItem>
                       );
                     })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setAccountPopoverOpen(false);
+                        navigate('/settings/appearance');
+                      }}
+                      className="flex items-center gap-2 cursor-pointer text-muted-foreground"
+                    >
+                      <Settings className="size-4" />
+                      <span>More</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
