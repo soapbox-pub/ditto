@@ -9,14 +9,18 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { KindInfoButton } from '@/components/KindInfoButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamKind } from '@/hooks/useStreamKind';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useOpenPost } from '@/hooks/useOpenPost';
+import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
+
+const streamsDef = EXTRA_KINDS.find((def) => def.route === 'streams')!;
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
@@ -66,10 +70,11 @@ export function StreamsFeedPage() {
           <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             <Radio className="size-5" />
             <h1 className="text-xl font-bold">Streams</h1>
           </div>
+          <KindInfoButton kindDef={streamsDef} icon={<Radio className="size-5" />} />
         </div>
 
         {/* Feed */}
