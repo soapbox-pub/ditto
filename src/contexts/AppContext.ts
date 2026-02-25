@@ -83,6 +83,8 @@ export interface AppConfig {
   useAppRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
+  /** Ordered list of content-type route names for the sidebar Explore section. */
+  sidebarOrder: string[];
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
   /** Blossom file upload server URLs */
