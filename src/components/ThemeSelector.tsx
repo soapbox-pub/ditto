@@ -1,4 +1,4 @@
-import { Check, Paintbrush } from 'lucide-react';
+import { Check, Paintbrush, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
@@ -229,6 +229,20 @@ export function ThemeSelector() {
               </button>
             );
           })}
+
+          {/* Browse public themes */}
+          <Link
+            to="/themes"
+            className="relative group rounded-xl border-2 border-dashed p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-border hover:border-primary/40"
+          >
+            <div className="aspect-[4/3] rounded-lg overflow-hidden relative flex flex-col items-center justify-center gap-1.5 bg-muted/30">
+              <Globe className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
+              <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors font-medium">Browse</span>
+            </div>
+            <p className="mt-1.5 text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
+              Public Themes
+            </p>
+          </Link>
         </div>
 
         {/* Customize link */}
