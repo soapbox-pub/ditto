@@ -1,4 +1,5 @@
-import { Check } from 'lucide-react';
+import { Check, Paintbrush } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
@@ -229,6 +230,15 @@ export function ThemeSelector() {
             );
           })}
         </div>
+
+        {/* Customize link */}
+        <Link
+          to="/settings/theme"
+          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-dashed border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+        >
+          <Paintbrush className="size-4" />
+          Customize your own theme
+        </Link>
     </div>
   );
 }
