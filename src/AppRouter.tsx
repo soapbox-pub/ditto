@@ -27,6 +27,8 @@ import { StreamsFeedPage } from "./pages/StreamsFeedPage";
 import { NestsFeedPage } from "./pages/NestsFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
+import { NestSessionProvider } from "./contexts/NestSessionContext";
+import { MinimizedNestBar } from "./components/MinimizedNestBar";
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -39,7 +41,9 @@ function ProfileRedirect() {
 export function AppRouter() {
   return (
     <BrowserRouter>
+      <NestSessionProvider>
       <ScrollToTop />
+      <MinimizedNestBar />
       <Routes>
         {/* All routes share the persistent MainLayout (sidebar + nav) */}
         <Route element={<MainLayout />}>
@@ -77,6 +81,7 @@ export function AppRouter() {
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
+      </NestSessionProvider>
     </BrowserRouter>
   );
 }

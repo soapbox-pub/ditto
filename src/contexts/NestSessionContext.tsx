@@ -8,7 +8,6 @@ import {
   useMemo,
   type ReactNode,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Room, ConnectionState, RoomEvent } from 'livekit-client';
 import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';

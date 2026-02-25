@@ -1,17 +1,18 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine } from 'lucide-react';
+import { useMemo, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine, Minimize2 } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 import {
   LiveKitRoom,
-  RoomAudioRenderer,
   useParticipants,
   useLocalParticipant,
 } from '@livekit/components-react';
+import { ConnectionState } from 'livekit-client';
 import type { RemoteParticipant, LocalParticipant as LKLocalParticipant } from 'livekit-client';
 
 import { useNostr } from '@nostrify/react';
+import { useNestSession } from '@/contexts/NestSessionContext';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,11 +85,10 @@ interface NestRoomPageProps {
 
 export function NestRoomPage({ event }: NestRoomPageProps) {
   const navigate = useNavigate();
-  const location = useLocation();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
-  const api = useNestsApi();
   const { toast } = useToast();
+  const session = useNestSession();
 
   const title = getTag(event.tags, 'title') || 'Untitled Nest';
   const summary = getTag(event.tags, 'summary');
@@ -102,49 +102,23 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   const isLive = status === 'live';
   const isOwner = user?.pubkey === event.pubkey;
 
-  // Extract LiveKit server URL from streaming tags.
-  // Endpoints are stored as wss+livekit://… and need the +livekit stripped.
-  // Also accept plain wss:// as a fallback (some API versions).
-  const livekitUrl = useMemo(() => {
-    const streamingTags = event.tags.filter(([n]) => n === 'streaming');
-
-    // Prefer the wss+livekit:// prefixed URL (canonical format)
-    for (const [, url] of streamingTags) {
-      if (url?.startsWith('wss+livekit://') || url?.startsWith('ws+livekit://')) {
-        return url.replace('+livekit', '');
-      }
-    }
-
-    // Fallback: any wss:// streaming URL
-    for (const [, url] of streamingTags) {
-      if (url?.startsWith('wss://') || url?.startsWith('ws://')) {
-        return url;
-      }
-    }
-
-    return undefined;
-  }, [event.tags]);
-
-  // Token management — always refresh on mount (like the nests app).
-  // The state token is used as the initial value so the room can
-  // connect immediately, but we still fire a refresh to get a fresh JWT.
-  const stateToken = (location.state as { token?: string } | null)?.token;
-  const [token, setToken] = useState<string | undefined>(stateToken);
-  const tokenRefreshed = useRef<string | null>(null);
-
+  // Auto-join the nest via the global session if not already in this room.
+  // Also un-minimize when we navigate to the full room view.
+  const joinAttempted = useRef(false);
   useEffect(() => {
-    if (!dTag || tokenRefreshed.current === dTag) return;
-    tokenRefreshed.current = dTag;
+    if (session.minimized) {
+      session.expand(); // un-minimize since we're on the full page now
+    }
+    if (session.isActive && session.event?.id === event.id) {
+      return; // already in this room
+    }
+    if (joinAttempted.current) return;
+    joinAttempted.current = true;
+    session.joinNest(event);
+  }, [session, event]);
 
-    (async () => {
-      try {
-        const result = await api.joinRoom(dTag);
-        setToken(result.token);
-      } catch (err) {
-        console.error('Failed to join nest:', err);
-      }
-    })();
-  }, [api, dTag]);
+  // The Room instance from the global session (null if not yet connected)
+  const room = session.isActive && session.event?.id === event.id ? session.room : null;
 
   // Room info (admin list, speakers)
   const { data: roomInfo } = useNestRoomInfo(dTag || undefined);
@@ -264,7 +238,17 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
     </div>
   );
 
-  const hasLiveKit = !!(livekitUrl && token);
+  const handleMinimize = useCallback(() => {
+    session.minimize();
+    navigate(-1);
+  }, [session, navigate]);
+
+  const handleLeave = useCallback(() => {
+    session.leaveNest();
+    navigate(-1);
+  }, [session, navigate]);
+
+  const isConnected = room !== null && session.connectionState === ConnectionState.Connected;
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
@@ -284,16 +268,15 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         </Badge>
       </div>
 
-      {/* Wrap in LiveKit room if we have connection details */}
-      {hasLiveKit ? (
+      {/* Connected: use the global session Room for LiveKit hooks */}
+      {isConnected ? (
         <LiveKitRoom
-          serverUrl={livekitUrl!}
-          token={token!}
-          connect={isLive}
+          room={room!}
+          serverUrl=""
+          token=""
           audio={false}
           video={false}
         >
-          <RoomAudioRenderer />
           {headerCard}
 
           {/* Participants (uses LiveKit hooks) */}
@@ -314,7 +297,8 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
               event={event}
               handRaised={handRaised}
               onToggleHand={toggleHand}
-              onLeave={() => navigate(-1)}
+              onLeave={handleLeave}
+              onMinimize={handleMinimize}
               isOwner={isOwner}
               onCloseRoom={handleCloseRoom}
             />
@@ -330,7 +314,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         <>
           {headerCard}
 
-          {/* No LiveKit — show empty participants */}
+          {/* Not yet connected — show empty participants */}
           <div className="px-4 mt-4 shrink-0">
             <NestParticipantsEmpty />
           </div>
@@ -594,12 +578,13 @@ function ParticipantTile({
   );
 }
 
-/** Bottom control bar with mic toggle, hand raise, and leave. Must be inside LiveKitRoom. */
+/** Bottom control bar with mic toggle, hand raise, minimize, and leave. Must be inside LiveKitRoom. */
 function NestControlBar({
   event,
   handRaised,
   onToggleHand,
   onLeave,
+  onMinimize,
   isOwner,
   onCloseRoom,
 }: {
@@ -607,6 +592,7 @@ function NestControlBar({
   handRaised: boolean;
   onToggleHand: () => void;
   onLeave: () => void;
+  onMinimize: () => void;
   isOwner: boolean;
   onCloseRoom: () => void;
 }) {
@@ -748,6 +734,21 @@ function NestControlBar({
             </Button>
           </TooltipTrigger>
           <TooltipContent>Share</TooltipContent>
+        </Tooltip>
+
+        {/* Minimize */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full size-12"
+              onClick={onMinimize}
+            >
+              <Minimize2 className="size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Minimize</TooltipContent>
         </Tooltip>
 
         {/* Close Room (owner only) */}

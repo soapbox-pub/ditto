@@ -18,6 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/useToast';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNestsApi } from '@/hooks/useNestsApi';
+import { useNestSession } from '@/contexts/NestSessionContext';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useNostr } from '@nostrify/react';
 import { cn } from '@/lib/utils';
@@ -51,6 +52,7 @@ export function CreateNestDialog({ open, onOpenChange }: CreateNestDialogProps) 
   const { user } = useCurrentUser();
   const { nostr } = useNostr();
   const api = useNestsApi();
+  const nestSession = useNestSession();
   const { config } = useAppContext();
 
   const [name, setName] = useState('');
@@ -123,7 +125,10 @@ export function CreateNestDialog({ open, onOpenChange }: CreateNestDialogProps) 
       // Broadcast to all relays
       await nostr.event(event);
 
-      // 4. Navigate to the room
+      // 4. Join the nest via global session (with initial token)
+      await nestSession.joinNest(event, room.token);
+
+      // 5. Navigate to the room
       const naddr = nip19.naddrEncode({
         kind: NEST_KIND,
         pubkey: event.pubkey,
@@ -133,9 +138,7 @@ export function CreateNestDialog({ open, onOpenChange }: CreateNestDialogProps) 
       onOpenChange(false);
       resetForm();
 
-      navigate(`/${naddr}`, {
-        state: { event, token: room.token },
-      });
+      navigate(`/${naddr}`);
     } catch (error) {
       console.error('Failed to create nest:', error);
       toast({
