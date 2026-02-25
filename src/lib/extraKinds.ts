@@ -139,6 +139,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     blurb: 'Watch and broadcast live video. Start a stream from a streaming app.',
     sites: [{ url: 'https://zap.stream', name: 'zap.stream' }],
   },
+  {
+    kind: 30312,
+    showKey: 'showNests',
+    feedKey: 'feedIncludeNests',
+    label: 'Nests',
+    description: 'Live audio rooms',
+    route: 'nests',
+    addressable: true,
+    section: 'media',
+  },
   // Social
   {
     kind: 36767,

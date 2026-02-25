@@ -205,7 +205,7 @@ export function ContentSettings() {
 }
 
 // Import the internals from FeedSettingsForm (we'll need to export them)
-import { Clapperboard, BarChart3, Palette, PartyPopper, Radio, MessageSquare, Repeat2, FileText } from 'lucide-react';
+import { Clapperboard, BarChart3, Palette, PartyPopper, Radio, MessageSquare, Repeat2, FileText, Mic } from 'lucide-react';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
@@ -223,6 +223,7 @@ const ICONS: Record<string, React.ReactNode> = {
   colors: <Palette className="size-5" />,
   packs: <PartyPopper className="size-5" />,
   streams: <Radio className="size-5" />,
+  nests: <Mic className="size-5" />,
   articles: <FileText className="size-5" />,
   decks: <CardsIcon className="size-5" />,
   posts: <MessageSquare className="size-5" />,

@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Mic, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -211,7 +211,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream;
+  const isNest = event.kind === 30312;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isNest;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -303,6 +304,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <MagicDeckContent event={event} />
         ) : isStream ? (
           <StreamContent event={event} />
+        ) : isNest ? (
+          <NestContent event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
@@ -472,6 +475,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       {/* Stream header — "<radio> <name> is streaming / streamed" */}
       {isStream && (
         <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
+      )}
+
+      {/* Nest header — "<mic> <name> is hosting / hosted a nest" */}
+      {isNest && (
+        <NestHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
       )}
 
       {/* Header: avatar + name/handle stacked */}
@@ -892,4 +900,107 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
   );
 }
 
+function NestHeader({ pubkey, isLive }: { pubkey: string; isLive: boolean }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <Mic className={cn("size-4 translate-y-px", isLive ? "text-primary" : "text-muted-foreground")} />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
+          {isLive ? 'is hosting a nest' : 'hosted a nest'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Nest gradients for card backgrounds. */
+const NEST_CARD_GRADIENTS: Record<string, string> = {
+  'gradient-1': 'linear-gradient(90deg, #16a085 0%, #f4d03f 100%)',
+  'gradient-2': 'linear-gradient(90deg, #e65c00 0%, #f9d423 100%)',
+  'gradient-3': 'linear-gradient(90deg, #3a1c71 0%, #d76d77 50%, #ffaf7b 100%)',
+  'gradient-4': 'linear-gradient(90deg, #8584b4 0%, #6969aa 50%, #62629b 100%)',
+  'gradient-5': 'linear-gradient(90deg, #00c6fb 0%, #005bea 100%)',
+  'gradient-6': 'linear-gradient(90deg, #d558c8 0%, #24d292 100%)',
+  'gradient-7': 'linear-gradient(90deg, #d31027 0%, #ea384d 100%)',
+  'gradient-8': 'linear-gradient(90deg, #ff512f 0%, #dd2476 100%)',
+  'gradient-9': 'linear-gradient(90deg, #6a3093 0%, #a044ff 100%)',
+  'gradient-10': 'linear-gradient(90deg, #00b09b 0%, #96c93d 100%)',
+  'gradient-11': 'linear-gradient(90deg, #f78ca0 0%, #f9748f 19%, #fd868c 60%)',
+};
+
+/** Inline content for kind 30312 nest room events. */
+function NestContent({ event }: { event: NostrEvent }) {
+  const navigate = useNavigate();
+  const title = getTag(event.tags, 'title') || 'Untitled Nest';
+  const summary = getTag(event.tags, 'summary');
+  const imageUrl = getTag(event.tags, 'image');
+  const color = getTag(event.tags, 'color');
+  const status = getTag(event.tags, 'status');
+
+  const statusConfig = getStreamStatusConfig(status);
+
+  const encodedId = useMemo(() => {
+    const dTag = getTag(event.tags, 'd') || '';
+    return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
+  }, [event]);
+
+  const backgroundStyle = useMemo(() => {
+    if (imageUrl) {
+      return { backgroundImage: `url(${imageUrl})`, backgroundSize: 'cover' as const, backgroundPosition: 'center' as const };
+    }
+    if (color && NEST_CARD_GRADIENTS[color]) {
+      return { backgroundImage: NEST_CARD_GRADIENTS[color] };
+    }
+    return { backgroundImage: NEST_CARD_GRADIENTS['gradient-5'] };
+  }, [imageUrl, color]);
+
+  return (
+    <div className="mt-2 space-y-2">
+      {/* Gradient/image card */}
+      <button
+        type="button"
+        className="w-full text-left rounded-xl overflow-hidden border border-border group"
+        onClick={(e) => {
+          e.stopPropagation();
+          navigate(`/${encodedId}`);
+        }}
+      >
+        <div className="relative px-4 py-5 text-white" style={backgroundStyle}>
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative z-10 space-y-2">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className={cn('text-[10px] border-white/30', statusConfig.className)}>
+                {status === 'live' && <div className="size-1.5 bg-white rounded-full animate-pulse mr-1" />}
+                {statusConfig.label}
+              </Badge>
+            </div>
+            <h3 className="font-bold text-base leading-snug line-clamp-2 group-hover:underline">
+              {title}
+            </h3>
+            {summary && (
+              <p className="text-sm text-white/80 line-clamp-2">{summary}</p>
+            )}
+          </div>
+        </div>
+      </button>
+    </div>
+  );
+}
 

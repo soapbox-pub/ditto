@@ -52,6 +52,8 @@ export interface FeedSettings {
   showPacks: boolean;
   /** Show Streams (kind 30311) link in sidebar */
   showStreams: boolean;
+  /** Show Nests (kind 30312) link in sidebar */
+  showNests: boolean;
   /** Include Vines in the follows/global feed */
   feedIncludeVines: boolean;
   /** Include Polls in the follows/global feed */
@@ -66,6 +68,8 @@ export interface FeedSettings {
   feedIncludePacks: boolean;
   /** Include Streams in the follows/global feed */
   feedIncludeStreams: boolean;
+  /** Include Nests in the follows/global feed */
+  feedIncludeNests: boolean;
   /** Show Magic Decks (kind 37381) link in sidebar */
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
@@ -95,6 +99,8 @@ export interface AppConfig {
   feedSettings: FeedSettings;
   /** Ordered list of sidebar item IDs (built-in + extra-kind). */
   sidebarOrder: string[];
+  /** Nests API base URL for live audio rooms */
+  nestsApiUrl: string;
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
   /** Blossom file upload server URLs */

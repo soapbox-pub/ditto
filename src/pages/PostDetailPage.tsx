@@ -31,6 +31,7 @@ import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
+import { NestRoomPage } from '@/components/NestRoomPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
 
@@ -39,6 +40,9 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 
 /** Kind 30311 = NIP-53 Live Activities. */
 const LIVE_STREAM_KIND = 30311;
+
+/** Kind 30312 = NIP-53 Nest Audio Rooms. */
+const NEST_ROOM_KIND = 30312;
 import { useReplies } from '@/hooks/useReplies';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -243,6 +247,11 @@ export function AddrPostDetailPage({ addr, relays }: AddrPostDetailPageProps) {
   // Live streams (NIP-53) get their own immersive layout with player + chat
   if (resolvedEvent.kind === LIVE_STREAM_KIND) {
     return <LiveStreamPage event={resolvedEvent} />;
+  }
+
+  // Nest rooms (NIP-53 audio) get their own immersive layout with participants + chat
+  if (resolvedEvent.kind === NEST_ROOM_KIND) {
+    return <NestRoomPage event={resolvedEvent} />;
   }
 
   return (
