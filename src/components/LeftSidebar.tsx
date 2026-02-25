@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Heart, ChevronDown } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Heart, ChevronDown, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -13,7 +13,6 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import LoginDialog from '@/components/auth/LoginDialog';
 import { useOnboarding } from '@/components/InitialSyncGate';
-import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
@@ -64,13 +63,12 @@ export function LeftSidebar() {
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme } = useTheme();
-  const { feedSettings } = useFeedSettings();
+  const { feedSettings, updateFeedSettings } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
-  const [composeOpen, setComposeOpen] = useState(false);
 
   /** When already on the target route, scroll to top instead of navigating. */
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
@@ -91,6 +89,13 @@ export function LeftSidebar() {
     articles: <FileText className="size-6" />,
     decks: <CardsIcon className="size-6" />,
   };
+
+  /** Extra kinds that have a sidebar toggle but are currently hidden. */
+  const hiddenKinds = useMemo(() => {
+    return EXTRA_KINDS.filter(
+      (def) => def.showKey && def.route && !feedSettings[def.showKey],
+    );
+  }, [feedSettings]);
 
   const navItems = useMemo(() => {
     const items = [
@@ -182,24 +187,46 @@ export function LeftSidebar() {
           />
         ))}
 
-        {/* Compose/Join button */}
-        {user ? (
-          <>
-            <Button
-              className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-              onClick={() => setComposeOpen(true)}
-            >
-              <span>Compose</span>
-            </Button>
-            <ReplyComposeModal open={composeOpen} onOpenChange={setComposeOpen} />
-          </>
-        ) : (
-          <Button
-            className="w-full mt-4 rounded-full h-12 text-base font-bold bg-primary hover:bg-primary/90 text-primary-foreground"
-            onClick={() => setLoginDialogOpen(true)}
-          >
-            <span>Join</span>
-          </Button>
+        {/* Add sidebar item button */}
+        {hiddenKinds.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-full mt-4 rounded-full h-12 text-base font-medium border-dashed border-2 text-muted-foreground hover:text-foreground hover:border-solid transition-all"
+              >
+                <Plus className="size-5 mr-2" />
+                <span>Add</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="center" className="w-[220px]">
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {hiddenKinds.map((def) => (
+                <DropdownMenuItem
+                  key={def.kind}
+                  onClick={() => {
+                    if (def.showKey) {
+                      updateFeedSettings({ [def.showKey]: true });
+                    }
+                  }}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
+                  {def.route && ROUTE_ICONS[def.route] ? (
+                    <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                      {ROUTE_ICONS[def.route]}
+                    </span>
+                  ) : (
+                    <Plus className="size-5 text-muted-foreground" />
+                  )}
+                  <div className="flex flex-col">
+                    <span className="text-sm">{def.label}</span>
+                    <span className="text-xs text-muted-foreground">{def.description}</span>
+                  </div>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </nav>
 
