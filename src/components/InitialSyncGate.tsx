@@ -9,6 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Theme, type ContentWarningPolicy } from '@/contexts/AppContext';
+import { themePresets, type ThemeTokens } from '@/themes';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -209,12 +210,25 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-const THEMES: { value: Theme; label: string; description: string; preview: string; splitPreview?: boolean }[] = [
-  { value: 'system', label: 'System', description: 'Matches your device', preview: '', splitPreview: true },
-  { value: 'dark', label: 'Dark', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
-  { value: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border' },
-  { value: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black' },
-  { value: 'pink', label: 'Pink', description: 'Warm and playful', preview: 'bg-[hsl(330,100%,96%)]' },
+/** Theme option for the onboarding step. `presetId` is set for custom presets. */
+interface ThemeOption {
+  id: string;
+  label: string;
+  description: string;
+  preview: string;
+  splitPreview?: boolean;
+  /** If set, this is a preset that sets theme to "custom" with themePresets[presetId] */
+  presetId?: string;
+  /** If set, this is a builtin theme */
+  builtinTheme?: Theme;
+}
+
+const THEMES: ThemeOption[] = [
+  { id: 'system', label: 'System', description: 'Matches your device', preview: '', splitPreview: true, builtinTheme: 'system' },
+  { id: 'dark', label: 'Dark', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]', builtinTheme: 'dark' },
+  { id: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border', builtinTheme: 'light' },
+  { id: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black', presetId: 'black' },
+  { id: 'pink', label: 'Pink', description: 'Warm and playful', preview: 'bg-[hsl(330,100%,96%)]', presetId: 'pink' },
 ];
 
 interface ContentKind {
@@ -269,6 +283,9 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
   const [step, setStep] = useState<Step>(steps[0]);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dark');
+  const [selectedCustomTheme, setSelectedCustomTheme] = useState<ThemeTokens | undefined>(undefined);
+  /** Tracks which option the user tapped in the ThemeStep (could be a preset id or builtin id) */
+  const [selectedThemeId, setSelectedThemeId] = useState('dark');
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
     new Set(['vines', 'streams']),
   );
@@ -382,6 +399,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     updateConfig((current) => ({
       ...current,
       theme: selectedTheme,
+      customTheme: selectedCustomTheme,
       feedSettings,
       contentWarningPolicy: selectedCW,
     }));
@@ -390,6 +408,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       try {
         await updateSettings.mutateAsync({
           theme: selectedTheme,
+          customTheme: selectedCustomTheme,
           feedSettings,
           contentWarningPolicy: selectedCW,
         });
@@ -423,7 +442,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
     } else {
       goTo('follows');
     }
-  }, [selectedTheme, selectedContent, selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
+  }, [selectedTheme, selectedCustomTheme, selectedContent, selectedCW, updateConfig, updateSettings, user, nostr, goTo]);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background">
@@ -458,10 +477,20 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
           {step === 'theme' && (
             <ThemeStep
-              selected={selectedTheme}
-              onSelect={(t) => {
-                setSelectedTheme(t);
-                updateConfig((c) => ({ ...c, theme: t }));
+              selectedId={selectedThemeId}
+              onSelect={(option) => {
+                setSelectedThemeId(option.id);
+                if (option.presetId) {
+                  const tokens = themePresets[option.presetId];
+                  setSelectedTheme('custom');
+                  setSelectedCustomTheme(tokens);
+                  updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: tokens }));
+                } else {
+                  const t = option.builtinTheme!;
+                  setSelectedTheme(t);
+                  setSelectedCustomTheme(undefined);
+                  updateConfig((c) => ({ ...c, theme: t, customTheme: undefined }));
+                }
               }}
               onNext={next}
               onBack={back}
@@ -933,13 +962,13 @@ function WelcomeStep({ onNext, isSignup = false }: { onNext: () => void; isSignu
 }
 
 function ThemeStep({
-  selected,
+  selectedId,
   onSelect,
   onNext,
   onBack,
 }: {
-  selected: Theme;
-  onSelect: (t: Theme) => void;
+  selectedId: string;
+  onSelect: (option: ThemeOption) => void;
   onNext: () => void;
   onBack: () => void;
 }) {
@@ -951,20 +980,20 @@ function ThemeStep({
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        {THEMES.map((theme) => (
+        {THEMES.map((themeOption) => (
           <button
-            key={theme.value}
+            key={themeOption.id}
             type="button"
-            onClick={() => onSelect(theme.value)}
+            onClick={() => onSelect(themeOption)}
             className={cn(
               'group relative flex flex-col items-center gap-3 p-4 rounded-xl transition-all duration-200',
               'hover:bg-muted/50',
-              selected === theme.value
+              selectedId === themeOption.id
                 ? 'ring-2 ring-primary bg-primary/5'
                 : 'ring-1 ring-border',
             )}
           >
-            {theme.splitPreview ? (
+            {themeOption.splitPreview ? (
               <div className="w-14 h-14 rounded-full overflow-hidden transition-transform duration-200 group-hover:scale-110 flex">
                 <div className="w-1/2 h-full bg-white" />
                 <div className="w-1/2 h-full bg-[hsl(228,20%,10%)]" />
@@ -973,15 +1002,15 @@ function ThemeStep({
               <div
                 className={cn(
                   'w-14 h-14 rounded-full transition-transform duration-200 group-hover:scale-110',
-                  theme.preview,
+                  themeOption.preview,
                 )}
               />
             )}
             <div className="space-y-0.5 text-center">
-              <p className="text-sm font-medium">{theme.label}</p>
-              <p className="text-xs text-muted-foreground">{theme.description}</p>
+              <p className="text-sm font-medium">{themeOption.label}</p>
+              <p className="text-xs text-muted-foreground">{themeOption.description}</p>
             </div>
-            {selected === theme.value && (
+            {selectedId === themeOption.id && (
               <div className="absolute top-2 right-2">
                 <Check className="w-4 h-4 text-primary" />
               </div>

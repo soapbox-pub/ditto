@@ -1,9 +1,50 @@
 import { z } from 'zod';
 
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
+import type { ThemeTokens } from '@/themes';
 
 /** Zod schema for Theme validation */
-export const ThemeSchema = z.enum(['dark', 'light', 'black', 'pink', 'system']) satisfies z.ZodType<Theme>;
+export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
+
+/**
+ * Accepts current theme values as well as legacy values ("black", "pink")
+ * from older configs. Consumers should migrate legacy values to "custom".
+ */
+export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'black', 'pink']);
+
+/** HSL value string like "258 70% 55%" */
+const HslValue = z.string().regex(/^\d/);
+
+/** Zod schema for ThemeTokens (custom theme colors) */
+export const ThemeTokensSchema = z.object({
+  background: HslValue,
+  foreground: HslValue,
+  card: HslValue,
+  cardForeground: HslValue,
+  popover: HslValue,
+  popoverForeground: HslValue,
+  primary: HslValue,
+  primaryForeground: HslValue,
+  secondary: HslValue,
+  secondaryForeground: HslValue,
+  muted: HslValue,
+  mutedForeground: HslValue,
+  accent: HslValue,
+  accentForeground: HslValue,
+  destructive: HslValue,
+  destructiveForeground: HslValue,
+  border: HslValue,
+  input: HslValue,
+  ring: HslValue,
+  sidebarBackground: HslValue,
+  sidebarForeground: HslValue,
+  sidebarPrimary: HslValue,
+  sidebarPrimaryForeground: HslValue,
+  sidebarAccent: HslValue,
+  sidebarAccentForeground: HslValue,
+  sidebarBorder: HslValue,
+  sidebarRing: HslValue,
+}) satisfies z.ZodType<ThemeTokens>;
 
 /** Zod schema for ContentWarningPolicy validation */
 export const ContentWarningPolicySchema = z.enum(['blur', 'hide', 'show']) satisfies z.ZodType<ContentWarningPolicy>;
@@ -64,7 +105,8 @@ export const ContentFilterSchema = z.object({
  * Uses looseObject to preserve unknown keys from newer app versions.
  */
 export const EncryptedSettingsSchema = z.looseObject({
-  theme: ThemeSchema.optional(),
+  theme: ThemeSchemaCompat.optional(),
+  customTheme: ThemeTokensSchema.optional(),
   useAppRelays: z.boolean().optional(),
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),

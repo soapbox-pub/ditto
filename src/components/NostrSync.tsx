@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { themePresets } from '@/themes';
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -111,8 +112,23 @@ export function NostrSync() {
       let changed = false;
       const updates = { ...current };
 
-      if (encryptedSettings.theme && encryptedSettings.theme !== current.theme) {
-        updates.theme = encryptedSettings.theme;
+      if (encryptedSettings.theme) {
+        // Migrate legacy theme values ("black", "pink") from older encrypted settings
+        const remoteTheme = encryptedSettings.theme as string;
+        if (remoteTheme in themePresets) {
+          if (current.theme !== 'custom' || JSON.stringify(current.customTheme) !== JSON.stringify(themePresets[remoteTheme])) {
+            updates.theme = 'custom';
+            updates.customTheme = themePresets[remoteTheme];
+            changed = true;
+          }
+        } else if (encryptedSettings.theme !== current.theme) {
+          updates.theme = encryptedSettings.theme;
+          changed = true;
+        }
+      }
+
+      if (encryptedSettings.customTheme && JSON.stringify(encryptedSettings.customTheme) !== JSON.stringify(current.customTheme)) {
+        updates.customTheme = encryptedSettings.customTheme;
         changed = true;
       }
 

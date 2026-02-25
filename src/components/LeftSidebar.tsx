@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Heart, Monitor, ChevronDown, Plus } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor, ChevronDown, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -25,6 +25,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
+import { themePresets } from '@/themes';
 
 interface NavItemProps {
   to: string;
@@ -62,7 +63,7 @@ export function LeftSidebar() {
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
@@ -150,13 +151,34 @@ export function LeftSidebar() {
     navigate('/');
   };
 
-  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+  const builtinThemeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
-    { value: 'dark', label: 'Dark', icon: <Palette className="size-4" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
-    { value: 'black', label: 'Black', icon: <Moon className="size-4" /> },
-    { value: 'pink', label: 'Pink', icon: <Heart className="size-4" /> },
+    { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
   ];
+
+  const presetOptions = Object.keys(themePresets).map((id) => ({
+    id,
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+  }));
+
+  /** Compute a display label for the current theme. */
+  const currentThemeLabel = (() => {
+    if (theme !== 'custom') {
+      return builtinThemeOptions.find(t => t.value === theme)?.label ?? theme;
+    }
+    // Check if custom theme matches a preset
+    const matchingPreset = customTheme
+      ? presetOptions.find(p => JSON.stringify(themePresets[p.id]) === JSON.stringify(customTheme))
+      : undefined;
+    return matchingPreset ? matchingPreset.label : 'Custom';
+  })();
+
+  const currentThemeIcon = (() => {
+    const builtin = builtinThemeOptions.find(t => t.value === theme);
+    if (builtin) return builtin.icon;
+    return <Palette className="size-4" />;
+  })();
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
@@ -340,30 +362,49 @@ export function LeftSidebar() {
                         <span>Theme</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        {themes.find(t => t.value === theme)?.icon}
-                        <span className="text-xs">{themes.find(t => t.value === theme)?.label}</span>
+                        {currentThemeIcon}
+                        <span className="text-xs">{currentThemeLabel}</span>
                         <ChevronDown className="size-4" />
                       </div>
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" side="top" className="w-48">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {themes.map((themeOption) => (
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Builtin</DropdownMenuLabel>
+                    {builtinThemeOptions.map((opt) => (
                       <DropdownMenuItem
-                        key={themeOption.label}
-                        onClick={() => setTheme(themeOption.value)}
+                        key={opt.value}
+                        onClick={() => setTheme(opt.value)}
                         className="flex items-center justify-between cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
-                          {themeOption.icon}
-                          <span>{themeOption.label}</span>
+                          {opt.icon}
+                          <span>{opt.label}</span>
                         </div>
-                        {theme === themeOption.value && (
+                        {theme === opt.value && (
                           <Check className="size-4 text-primary" />
                         )}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Custom</DropdownMenuLabel>
+                    {presetOptions.map((preset) => {
+                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id]);
+                      return (
+                        <DropdownMenuItem
+                          key={preset.id}
+                          onClick={() => applyCustomTheme(themePresets[preset.id])}
+                          className="flex items-center justify-between cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2">
+                            <Palette className="size-4" />
+                            <span>{preset.label}</span>
+                          </div>
+                          {isActive && (
+                            <Check className="size-4 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

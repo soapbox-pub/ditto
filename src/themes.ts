@@ -1,4 +1,4 @@
-import type { ConcreteTheme, Theme } from '@/contexts/AppContext';
+import type { Theme } from '@/contexts/AppContext';
 
 export interface ThemeTokens {
   background: string;
@@ -30,7 +30,11 @@ export interface ThemeTokens {
   sidebarRing: string;
 }
 
-export const themes: Record<ConcreteTheme, ThemeTokens> = {
+/**
+ * Builtin themes whose colors are defined at build time.
+ * Self-hosters can customize these values before building.
+ */
+export const builtinThemes: Record<'light' | 'dark', ThemeTokens> = {
   light: {
     background: '0 0% 100%',
     foreground: '222.2 84% 4.9%',
@@ -90,7 +94,13 @@ export const themes: Record<ConcreteTheme, ThemeTokens> = {
     sidebarBorder: '228 14% 20%',
     sidebarRing: '258 70% 60%',
   },
+};
 
+/**
+ * Custom theme presets. Clicking a preset sets theme to "custom"
+ * and applies the preset's token values to customTheme.
+ */
+export const themePresets: Record<string, ThemeTokens> = {
   black: {
     background: '0 0% 0%',
     foreground: '0 0% 95%',
@@ -165,8 +175,13 @@ export function buildThemeCss(tokens: ThemeTokens): string {
   return `:root { ${vars} }`;
 }
 
-/** Resolves a theme preference to a concrete theme. "system" maps to "light" or "dark" based on OS preference. */
-export function resolveTheme(theme: Theme): ConcreteTheme {
+/**
+ * Resolves a theme preference to the concrete builtin theme name.
+ * - "system" → "light" or "dark" based on OS preference.
+ * - "custom" → returns "custom" (caller must supply tokens from config.customTheme).
+ * - "light" / "dark" → returned as-is.
+ */
+export function resolveTheme(theme: Theme): 'light' | 'dark' | 'custom' {
   if (theme === 'system') {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
