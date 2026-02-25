@@ -95,9 +95,10 @@ export function ThemeBuilderPage() {
   const { user } = useCurrentUser();
   const { publishTheme, setActiveTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
 
-  // Check if we're importing from a profile
+  // Check if we're importing from a profile or editing an existing theme
   const importPubkey = searchParams.get('import');
   const importThemeId = searchParams.get('theme');
+  const editIdentifier = searchParams.get('edit');
 
   // Check if the user currently has a published active profile theme
   const ownActiveTheme = useActiveProfileTheme(user?.pubkey);
@@ -134,6 +135,17 @@ export function ThemeBuilderPage() {
     const match = _userThemes.data.find(t => JSON.stringify(t.tokens) === JSON.stringify(tokens));
     if (match) setActiveEditingTheme(match);
   }, [_userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load a specific theme for editing via ?edit= param
+  useEffect(() => {
+    if (!editIdentifier || !_userThemes.data) return;
+    const target = _userThemes.data.find(t => t.identifier === editIdentifier);
+    if (target && activeEditingTheme?.identifier !== editIdentifier) {
+      setTokens(target.tokens);
+      setAutoDerive(false);
+      setActiveEditingTheme(target);
+    }
+  }, [editIdentifier, _userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clear editing context when starting fresh
   const handleNewTheme = useCallback(() => {
