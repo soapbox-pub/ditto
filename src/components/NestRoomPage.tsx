@@ -25,11 +25,11 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from '@/components/ui/drawer';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -425,15 +425,18 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         </>
       )}
 
-      {/* Mobile chat drawer — rendered once, outside the connected/disconnected branches */}
-      <Drawer open={chatOpen} onOpenChange={setChatOpen}>
-        <DrawerContent className="h-[85dvh] max-h-[85dvh]">
-          <DrawerHeader className="sr-only">
-            <DrawerTitle>Live Chat</DrawerTitle>
-          </DrawerHeader>
+      {/* Mobile chat sheet — slides up from bottom with close button */}
+      <Sheet open={chatOpen} onOpenChange={setChatOpen}>
+        <SheetContent side="bottom" className="h-[85dvh] max-h-[85dvh] flex flex-col p-0 rounded-t-2xl">
+          <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <MessageCircle className="size-4" />
+              Live Chat
+            </SheetTitle>
+          </SheetHeader>
           <LiveStreamChat aTag={aTag} className="flex-1 min-h-0" />
-        </DrawerContent>
-      </Drawer>
+        </SheetContent>
+      </Sheet>
     </main>
   );
 }
