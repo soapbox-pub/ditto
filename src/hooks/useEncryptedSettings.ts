@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
@@ -117,18 +117,26 @@ export function useEncryptedSettings() {
     refetchOnReconnect: false,
   });
 
+  // Tracks the latest optimistic settings so rapid successive mutations
+  // don't overwrite each other by reading stale cache data.
+  const pendingSettings = useRef<EncryptedSettings | null>(null);
+
   // Update settings
   const updateSettings = useMutation({
     mutationFn: async (patch: Partial<EncryptedSettings>) => {
       if (!user) throw new Error('User not logged in');
       if (!user.signer.nip44) throw new Error('NIP-44 encryption not supported by signer');
 
-      const currentSettings = settings.data || {};
+      // Use the latest pending settings if available, otherwise fall back to cache.
+      const currentSettings = pendingSettings.current ?? settings.data ?? {};
       const updatedSettings: EncryptedSettings = {
         ...currentSettings,
         ...patch,
         lastSync: Date.now(),
       };
+
+      // Optimistically track so the next rapid mutation sees this state immediately
+      pendingSettings.current = updatedSettings;
 
       // Encrypt the settings
       const plaintext = JSON.stringify(updatedSettings);
@@ -169,6 +177,8 @@ export function useEncryptedSettings() {
     onSuccess: ({ updatedSettings, signedEvent }) => {
       queryClient.setQueryData(['encryptedSettings', user?.pubkey], signedEvent);
       queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
+      // Cache is now up to date — pending ref no longer needed
+      pendingSettings.current = null;
     },
   });
 

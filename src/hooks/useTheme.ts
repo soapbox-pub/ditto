@@ -3,6 +3,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRef, useCallback } from "react";
+import { themes, buildThemeCss, resolveTheme } from "@/themes";
 
 /**
  * Hook to get and set the active theme
@@ -15,6 +16,26 @@ export function useTheme(): { theme: Theme; setTheme: (theme: Theme) => void } {
   const debounceTimer = useRef<NodeJS.Timeout>();
 
   const setTheme = useCallback((theme: Theme) => {
+    // Disable all transitions while swapping theme to prevent animated flicker
+    const noTransition = document.createElement('style');
+    noTransition.textContent = '*, *::before, *::after { transition: none !important; }';
+    document.head.appendChild(noTransition);
+
+    // Apply CSS vars synchronously before React re-renders to eliminate flicker
+    const resolved = resolveTheme(theme);
+    const css = buildThemeCss(themes[resolved] ?? themes.dark);
+    let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'theme-vars';
+      document.head.appendChild(el);
+    }
+    el.textContent = css;
+    document.documentElement.className = resolved;
+
+    // Re-enable transitions after the browser has painted the new theme
+    requestAnimationFrame(() => noTransition.remove());
+
     // Update local immediately
     updateConfig((currentConfig) => ({
       ...currentConfig,
