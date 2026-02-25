@@ -304,10 +304,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         ) : isStream ? (
           <StreamContent event={event} />
         ) : (
-          <>
-            <TruncatedNoteContent event={event} />
-            <NoteMedia images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
-          </>
+          <TruncatedNoteContent event={event} images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
       </ContentWarningGuard>
     </>
@@ -491,8 +488,15 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
 
 const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
-/** Truncates long text note content with a "Read more" fade + button. */
-function TruncatedNoteContent({ event }: { event: NostrEvent }) {
+/** Truncates long text note content with a "Read more" fade + button.
+ *  Media attachments are also hidden behind the truncation and revealed on expand. */
+function TruncatedNoteContent({ event, images, videos, imetaMap, webxdcApps = [] }: {
+  event: NostrEvent;
+  images: string[];
+  videos: string[];
+  imetaMap: Map<string, ImetaEntry>;
+  webxdcApps?: ImetaEntry[];
+}) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [overflows, setOverflows] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -507,6 +511,8 @@ function TruncatedNoteContent({ event }: { event: NostrEvent }) {
     window.addEventListener('resize', measure);
     return () => window.removeEventListener('resize', measure);
   }, [measure]);
+
+  const showMedia = !overflows || expanded;
 
   return (
     <div className="mt-2 break-words overflow-hidden">
@@ -527,6 +533,9 @@ function TruncatedNoteContent({ event }: { event: NostrEvent }) {
         >
           {expanded ? 'Show less' : 'Read more'}
         </button>
+      )}
+      {showMedia && (
+        <NoteMedia images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
       )}
     </div>
   );
