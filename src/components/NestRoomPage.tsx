@@ -529,18 +529,19 @@ function ParticipantTile({
   const isMicEnabled = participant.isMicrophoneEnabled;
 
   return (
-    <ParticipantPopover
-      participant={participant}
-      hostPubkey={hostPubkey}
-      roomId={roomId}
-      adminPubkeys={adminPubkeys}
-      isCurrentUserAdmin={isCurrentUserAdmin}
-    >
-      <button
-        type="button"
-        className="flex flex-col items-center text-center gap-1.5 cursor-pointer outline-none"
+    <div className="flex flex-col items-center text-center gap-1.5">
+      {/* Avatar — click opens action popover */}
+      <ParticipantPopover
+        participant={participant}
+        hostPubkey={hostPubkey}
+        roomId={roomId}
+        adminPubkeys={adminPubkeys}
+        isCurrentUserAdmin={isCurrentUserAdmin}
       >
-        <div className="relative">
+        <button
+          type="button"
+          className="relative cursor-pointer outline-none"
+        >
           <Avatar className={cn(
             'size-16 border-2 transition-all',
             isSpeaker && isMicEnabled
@@ -569,9 +570,12 @@ function ParticipantTile({
               <Hand className="size-3" />
             </div>
           )}
-        </div>
+        </button>
+      </ParticipantPopover>
 
-        <div className="min-w-0 w-full">
+      {/* Name — hover shows profile card */}
+      <ProfileHoverCard pubkey={pubkey} asChild>
+        <div className="min-w-0 w-full cursor-default">
           <p className="text-xs font-medium truncate">{displayName}</p>
           {isHost && (
             <span className="text-[10px] text-primary font-semibold">Host</span>
@@ -580,8 +584,8 @@ function ParticipantTile({
             <span className="text-[10px] text-muted-foreground">Speaker</span>
           )}
         </div>
-      </button>
-    </ParticipantPopover>
+      </ProfileHoverCard>
+    </div>
   );
 }
 
