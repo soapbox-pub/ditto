@@ -11,6 +11,7 @@ interface ThemeOption {
 }
 
 const themeOptions: ThemeOption[] = [
+  { id: 'system', label: 'System' },
   { id: 'light', label: 'Light', tokens: themes.light },
   { id: 'dark', label: 'Dark', tokens: themes.dark },
   { id: 'black', label: 'Black', tokens: themes.black },
@@ -30,6 +31,74 @@ export function ThemeSelector() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {themeOptions.map((option) => {
+          if (option.id === 'system') {
+            const isActive = theme === 'system';
+            const lightTokens = themes.light;
+            const darkTokens = themes.dark;
+
+            return (
+              <button
+                key="system"
+                className={cn(
+                  'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isActive
+                    ? 'border-primary shadow-sm'
+                    : 'border-border hover:border-primary/40',
+                )}
+                onClick={() => setTheme('system')}
+              >
+                {/* Split preview: left light, right dark */}
+                <div className="aspect-[4/3] rounded-lg overflow-hidden relative">
+                  {/* Light half */}
+                  <div
+                    className="absolute inset-0 w-1/2"
+                    style={{ backgroundColor: hsl(lightTokens.background) }}
+                  >
+                    <div className="h-2.5 w-full" style={{ backgroundColor: hsl(lightTokens.card) }} />
+                    <div className="p-1.5 space-y-1">
+                      <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: hsl(lightTokens.foreground), opacity: 0.6 }} />
+                      <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: hsl(lightTokens.mutedForeground), opacity: 0.4 }} />
+                      <div className="pt-0.5">
+                        <div className="h-2 w-8 rounded-sm" style={{ backgroundColor: hsl(lightTokens.primary) }} />
+                      </div>
+                    </div>
+                  </div>
+                  {/* Dark half */}
+                  <div
+                    className="absolute inset-0 left-1/2"
+                    style={{ backgroundColor: hsl(darkTokens.background) }}
+                  >
+                    <div className="h-2.5 w-full" style={{ backgroundColor: hsl(darkTokens.card) }} />
+                    <div className="p-1.5 space-y-1">
+                      <div className="h-1 w-3/4 rounded-full" style={{ backgroundColor: hsl(darkTokens.foreground), opacity: 0.6 }} />
+                      <div className="h-1 w-1/2 rounded-full" style={{ backgroundColor: hsl(darkTokens.mutedForeground), opacity: 0.4 }} />
+                      <div className="pt-0.5">
+                        <div className="h-2 w-8 rounded-sm" style={{ backgroundColor: hsl(darkTokens.primary) }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Active check mark */}
+                  {isActive && (
+                    <div className="absolute top-1 left-1 size-4 rounded-full flex items-center justify-center"
+                      style={{ backgroundColor: hsl(lightTokens.primary) }}
+                    >
+                      <Check className="size-2.5" style={{ color: hsl(lightTokens.primaryForeground) }} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Label */}
+                <p className={cn(
+                  'mt-1.5 text-xs font-medium text-center transition-colors',
+                  isActive ? 'text-foreground' : 'text-muted-foreground',
+                )}>
+                  {option.label}
+                </p>
+              </button>
+            );
+          }
+
           if (option.id === 'custom') {
             return (
               <button

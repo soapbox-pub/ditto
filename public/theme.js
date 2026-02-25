@@ -11,9 +11,13 @@
   var theme = 'dark';
   try {
     var cfg = JSON.parse(localStorage.getItem('nostr:app-config') || '{}');
-    if (cfg.theme && themes[cfg.theme]) theme = cfg.theme;
+    if (cfg.theme && (themes[cfg.theme] || cfg.theme === 'system')) theme = cfg.theme;
   } catch (e) {}
-  var t = themes[theme];
+  // Resolve "system" to light or dark based on OS preference
+  if (theme === 'system') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  var t = themes[theme] || themes.dark;
   document.documentElement.className = theme;
   document.body.style.background = t.bg;
   var p = document.getElementById('preloader');

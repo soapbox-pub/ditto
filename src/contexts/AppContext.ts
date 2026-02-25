@@ -1,6 +1,10 @@
 import { createContext } from "react";
 
-export type Theme = "dark" | "light" | "black" | "pink";
+/** A concrete theme with its own color palette. */
+export type ConcreteTheme = "dark" | "light" | "black" | "pink";
+
+/** User-facing theme preference. "system" resolves to "light" or "dark" based on OS preference. */
+export type Theme = ConcreteTheme | "system";
 
 /**
  * How to handle events with a NIP-36 content-warning tag.

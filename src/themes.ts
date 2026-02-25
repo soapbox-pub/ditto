@@ -1,4 +1,4 @@
-import type { Theme } from '@/contexts/AppContext';
+import type { ConcreteTheme, Theme } from '@/contexts/AppContext';
 
 export interface ThemeTokens {
   background: string;
@@ -30,7 +30,7 @@ export interface ThemeTokens {
   sidebarRing: string;
 }
 
-export const themes: Record<Theme, ThemeTokens> = {
+export const themes: Record<ConcreteTheme, ThemeTokens> = {
   light: {
     background: '0 0% 100%',
     foreground: '222.2 84% 4.9%',
@@ -163,4 +163,12 @@ export function buildThemeCss(tokens: ThemeTokens): string {
     .map(([k, v]) => `${toThemeVar(k)}: ${v};`)
     .join(' ');
   return `:root { ${vars} }`;
+}
+
+/** Resolves a theme preference to a concrete theme. "system" maps to "light" or "dark" based on OS preference. */
+export function resolveTheme(theme: Theme): ConcreteTheme {
+  if (theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return theme;
 }
