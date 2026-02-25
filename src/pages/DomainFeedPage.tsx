@@ -89,7 +89,7 @@ export function DomainFeedPage() {
   const isLoading = pubkeysLoading || eventsLoading;
 
   return (
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      <main className="min-h-screen">
         <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-3 px-4 py-4 border-b border-border bg-background/80 backdrop-blur-md z-10')}>
           <button
             onClick={() => navigate(-1)}

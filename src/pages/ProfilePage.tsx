@@ -874,7 +874,7 @@ export function ProfilePage() {
     // If we're resolving a NIP-05, show loading state
     if (isNip05Param && nip05Loading) {
       return (
-        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+        <main className="min-h-screen">
           <div className="h-36 md:h-48 bg-secondary animate-pulse" />
           <div className="px-4 pb-4">
             <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
@@ -889,7 +889,7 @@ export function ProfilePage() {
     // If NIP-05 resolved to null (not found), show error
     if (isNip05Param && !nip05Loading) {
       return (
-        <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+        <main className="min-h-screen">
           <div className="p-8 text-center text-muted-foreground">
             <p>User not found: {npub}</p>
             <p className="text-xs mt-2">Could not resolve this NIP-05 identifier.</p>
@@ -898,7 +898,7 @@ export function ProfilePage() {
       );
     }
     return (
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      <main className="min-h-screen">
         <div className="p-8 text-center text-muted-foreground">
           <p>Please log in to view your profile.</p>
         </div>
@@ -907,7 +907,7 @@ export function ProfilePage() {
   }
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="min-h-screen">
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
         <div className="h-36 md:h-48 bg-secondary relative">
