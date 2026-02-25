@@ -481,7 +481,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
               onSelect={(option) => {
                 setSelectedThemeId(option.id);
                 if (option.presetId) {
-                  const tokens = themePresets[option.presetId];
+                  const tokens = themePresets[option.presetId].tokens;
                   setSelectedTheme('custom');
                   setSelectedCustomTheme(tokens);
                   updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: tokens }));

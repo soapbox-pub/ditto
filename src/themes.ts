@@ -96,12 +96,25 @@ export const builtinThemes: Record<'light' | 'dark', ThemeTokens> = {
   },
 };
 
+/** Metadata for a theme preset. */
+export interface ThemePreset {
+  /** Display label. */
+  label: string;
+  /** Emoji shown in compact theme pickers (dropdowns, cycle buttons). */
+  emoji: string;
+  /** Full set of CSS token values. */
+  tokens: ThemeTokens;
+}
+
 /**
  * Custom theme presets. Clicking a preset sets theme to "custom"
  * and applies the preset's token values to customTheme.
  */
-export const themePresets: Record<string, ThemeTokens> = {
+export const themePresets: Record<string, ThemePreset> = {
   black: {
+    label: 'Black',
+    emoji: '🖤',
+    tokens: {
     background: '0 0% 0%',
     foreground: '0 0% 95%',
     card: '0 0% 5%',
@@ -129,36 +142,41 @@ export const themePresets: Record<string, ThemeTokens> = {
     sidebarAccentForeground: '0 0% 90%',
     sidebarBorder: '0 0% 15%',
     sidebarRing: '258 70% 60%',
+    },
   },
 
   pink: {
-    background: '330 100% 96%',
-    foreground: '330 30% 10%',
-    card: '330 100% 99%',
-    cardForeground: '330 30% 10%',
-    popover: '330 100% 99%',
-    popoverForeground: '330 30% 10%',
-    primary: '330 90% 60%',
-    primaryForeground: '0 0% 100%',
-    secondary: '330 60% 90%',
-    secondaryForeground: '330 30% 15%',
-    muted: '330 60% 90%',
-    mutedForeground: '330 25% 45%',
-    accent: '330 90% 60%',
-    accentForeground: '0 0% 100%',
-    destructive: '0 84.2% 60.2%',
-    destructiveForeground: '210 40% 98%',
-    border: '330 40% 85%',
-    input: '330 40% 85%',
-    ring: '330 90% 60%',
-    sidebarBackground: '330 80% 95%',
-    sidebarForeground: '330 30% 15%',
-    sidebarPrimary: '330 90% 60%',
-    sidebarPrimaryForeground: '0 0% 100%',
-    sidebarAccent: '330 60% 88%',
-    sidebarAccentForeground: '330 30% 15%',
-    sidebarBorder: '330 40% 82%',
-    sidebarRing: '330 90% 60%',
+    label: 'Pink',
+    emoji: '🌸',
+    tokens: {
+      background: '330 100% 96%',
+      foreground: '330 30% 10%',
+      card: '330 100% 99%',
+      cardForeground: '330 30% 10%',
+      popover: '330 100% 99%',
+      popoverForeground: '330 30% 10%',
+      primary: '330 90% 60%',
+      primaryForeground: '0 0% 100%',
+      secondary: '330 60% 90%',
+      secondaryForeground: '330 30% 15%',
+      muted: '330 60% 90%',
+      mutedForeground: '330 25% 45%',
+      accent: '330 90% 60%',
+      accentForeground: '0 0% 100%',
+      destructive: '0 84.2% 60.2%',
+      destructiveForeground: '210 40% 98%',
+      border: '330 40% 85%',
+      input: '330 40% 85%',
+      ring: '330 90% 60%',
+      sidebarBackground: '330 80% 95%',
+      sidebarForeground: '330 30% 15%',
+      sidebarPrimary: '330 90% 60%',
+      sidebarPrimaryForeground: '0 0% 100%',
+      sidebarAccent: '330 60% 88%',
+      sidebarAccentForeground: '330 30% 15%',
+      sidebarBorder: '330 40% 82%',
+      sidebarRing: '330 90% 60%',
+    },
   },
 };
 

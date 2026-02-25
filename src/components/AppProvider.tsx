@@ -80,7 +80,7 @@ export function AppProvider(props: AppProviderProps) {
         const legacyTheme = result.theme as string | undefined;
         if (legacyTheme && legacyTheme in themePresets) {
           result.theme = 'custom';
-          result.customTheme = themePresets[legacyTheme];
+          result.customTheme = themePresets[legacyTheme].tokens;
         }
 
         return result;
