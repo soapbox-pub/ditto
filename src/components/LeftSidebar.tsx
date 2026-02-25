@@ -157,32 +157,31 @@ export function LeftSidebar() {
     { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
   ];
 
-  const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
-    id,
-    label: preset.label,
-    emoji: preset.emoji,
-  }));
+  const presetOptions = Object.entries(themePresets)
+    .filter(([, preset]) => preset.featured)
+    .map(([id, preset]) => ({
+      id,
+      label: preset.label,
+      emoji: preset.emoji,
+    }));
+
+  /** Find the preset matching the current custom theme (searches all presets, not just featured). */
+  const activePreset = theme === 'custom' && customTheme
+    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme))
+    : undefined;
 
   /** Compute a display label for the current theme. */
   const currentThemeLabel = (() => {
     if (theme !== 'custom') {
       return builtinThemeOptions.find(t => t.value === theme)?.label ?? theme;
     }
-    // Check if custom theme matches a preset
-    const matchingPreset = customTheme
-      ? presetOptions.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme))
-      : undefined;
-    return matchingPreset ? matchingPreset.label : 'Custom';
+    return activePreset ? activePreset[1].label : 'Custom';
   })();
 
   const currentThemeIcon = (() => {
     const builtin = builtinThemeOptions.find(t => t.value === theme);
     if (builtin) return builtin.icon;
-    // Check if active custom theme matches a preset
-    if (customTheme) {
-      const matchingPreset = presetOptions.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme));
-      if (matchingPreset) return <span className="text-sm leading-none">{themePresets[matchingPreset.id].emoji}</span>;
-    }
+    if (activePreset) return <span className="text-sm leading-none">{activePreset[1].emoji}</span>;
     return <Palette className="size-4" />;
   })();
 

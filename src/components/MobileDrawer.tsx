@@ -85,11 +85,13 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { id: 'dark', label: 'Dark', icon: <Moon className="size-5" /> },
   ];
 
-  const presetCycle = Object.entries(themePresets).map(([id, preset]) => ({
-    id,
-    label: preset.label,
-    icon: <span className="text-base leading-none">{preset.emoji}</span>,
-  }));
+  const presetCycle = Object.entries(themePresets)
+    .filter(([, preset]) => preset.featured)
+    .map(([id, preset]) => ({
+      id,
+      label: preset.label,
+      icon: <span className="text-base leading-none">{preset.emoji}</span>,
+    }));
 
   const allThemeCycle = [...builtinCycle, ...presetCycle];
 
@@ -98,11 +100,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     if (theme !== 'custom') {
       return builtinCycle.find(t => t.id === theme) ?? builtinCycle[0];
     }
-    // Check if custom matches a preset
-    const match = customTheme
-      ? presetCycle.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme))
-      : undefined;
-    return match ?? { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
+    // Check all presets (not just featured) so the label is correct even for non-featured presets
+    if (customTheme) {
+      const allMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
+      if (allMatch) {
+        const [id, preset] = allMatch;
+        // If it's in the cycle, return the cycle entry; otherwise build a display-only entry
+        const cycleEntry = presetCycle.find(p => p.id === id);
+        if (cycleEntry) return cycleEntry;
+        return { id, label: preset.label, icon: <span className="text-base leading-none">{preset.emoji}</span> };
+      }
+    }
+    return { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
   })();
 
   const cycleTheme = () => {
