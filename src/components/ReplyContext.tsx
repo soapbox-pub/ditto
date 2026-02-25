@@ -57,7 +57,7 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
         className="w-80 p-0 rounded-2xl shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
-        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" />
+        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" disableHoverCards />
       </HoverCardContent>
     </HoverCard>
   );
