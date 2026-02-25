@@ -29,6 +29,7 @@ import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 import { NestSessionProvider } from "./contexts/NestSessionContext";
 import { MinimizedNestBar } from "./components/MinimizedNestBar";
+import { NestNavigationGuard } from "./components/NestNavigationGuard";
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -44,6 +45,7 @@ export function AppRouter() {
       <NestSessionProvider>
       <ScrollToTop />
       <MinimizedNestBar />
+      <NestNavigationGuard />
       <Routes>
         {/* All routes share the persistent MainLayout (sidebar + nav) */}
         <Route element={<MainLayout />}>
