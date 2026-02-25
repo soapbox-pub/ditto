@@ -36,14 +36,6 @@ export const ThemeTokensSchema = z.object({
   border: HslValue,
   input: HslValue,
   ring: HslValue,
-  sidebarBackground: HslValue,
-  sidebarForeground: HslValue,
-  sidebarPrimary: HslValue,
-  sidebarPrimaryForeground: HslValue,
-  sidebarAccent: HslValue,
-  sidebarAccentForeground: HslValue,
-  sidebarBorder: HslValue,
-  sidebarRing: HslValue,
 }) satisfies z.ZodType<ThemeTokens>;
 
 /** Zod schema for ContentWarningPolicy validation */

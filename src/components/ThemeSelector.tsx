@@ -54,7 +54,7 @@ function ThemePreviewCard({
         {/* Simulated sidebar strip */}
         <div
           className="absolute right-0 top-0 bottom-0 w-4"
-          style={{ backgroundColor: hsl(tokens.sidebarBackground) }}
+          style={{ backgroundColor: hsl(tokens.secondary) }}
         />
 
         {/* Active check mark */}
