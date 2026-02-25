@@ -51,8 +51,10 @@ TMPDIR=$(mktemp -d)
 LOGO_WHITE_SVG="$TMPDIR/logo_white.svg"
 LOGO_WHITE="$TMPDIR/logo_white.png"
 
-# Recolor the SVG fill to white before rasterizing.
-sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" > "$LOGO_WHITE_SVG"
+# Recolor the SVG fill to white and fix the viewBox to be centered
+# Original viewBox is "-5 -10 100 100" which is off-center
+# Change to "0 0 90 80" to properly frame the logo content
+sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" | sed 's/viewBox="-5 -10 100 100"/viewBox="0 0 90 80"/' > "$LOGO_WHITE_SVG"
 
 echo "Rendering white SVG at 512x512..."
 
@@ -61,8 +63,9 @@ if [ "$SVG_RENDERER" = "inkscape" ]; then
 elif [ "$SVG_RENDERER" = "rsvg" ]; then
     rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
 else
-    # Use ImageMagick
-    $MAGICK "$LOGO_WHITE_SVG" -resize 512x512 -background none -flatten "$LOGO_WHITE"
+    # Use ImageMagick - the SVG viewBox is "-5 -10 100 100" which creates off-center rendering
+    # Render larger and crop to get better centering
+    $MAGICK "$LOGO_WHITE_SVG" -resize 600x600 -background none -flatten -gravity center -crop 512x512+0+0 +repage "$LOGO_WHITE"
 fi
 
 # ── Legacy launcher icons (pre-Android 8.0) ──
@@ -72,7 +75,7 @@ echo "Generating legacy launcher PNGs (ic_launcher.png, ic_launcher_round.png)..
 
 make_legacy_icon() {
     local size=$1
-    local content_size=$((size * 50 / 100))
+    local content_size=$((size * 40 / 100))
     local dest=$2
     local round=$3
     
@@ -111,7 +114,7 @@ echo "Generating adaptive foreground PNGs..."
 
 make_foreground() {
     local size=$1
-    local content_size=$((size * 50 / 100))
+    local content_size=$((size * 40 / 100))
     local dest=$2
     $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
