@@ -15,6 +15,14 @@ export interface SubKindDef {
   addressable: boolean;
 }
 
+/** An external site where users can create or participate in a specific kind. */
+export interface ExtraKindSite {
+  /** Full URL to the site. */
+  url: string;
+  /** Display name override. Defaults to the first segment of the hostname, capitalized. */
+  name?: string;
+}
+
 /** Section labels for grouping extra kinds in settings UI. */
 export type ExtraKindSection = 'feed' | 'media' | 'social' | 'whimsy';
 
@@ -50,6 +58,10 @@ export interface ExtraKindDef {
   section: ExtraKindSection;
   /** If true, this entry only has a feed toggle (no sidebar toggle). */
   feedOnly?: boolean;
+  /** Longer, whimsical blurb shown in the info modal. */
+  blurb?: string;
+  /** External sites where users can create or participate in this kind of content. */
+  sites?: ExtraKindSite[];
 }
 
 /** All supported extra content kinds, ordered by section (feed → media → social → whimsy). */
@@ -91,6 +103,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'articles',
     addressable: true,
     section: 'feed',
+    blurb: 'Blog posts, essays, and guides. Write and publish from a dedicated editor.',
+    sites: [{ url: 'https://inkwell.shakespeare.wtf' }],
   },
   // Media
   {
@@ -102,6 +116,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'vines',
     addressable: true,
     section: 'media',
+    blurb: 'Short video clips. Record and share from a dedicated app.',
+    sites: [{ url: 'https://divine.video' }],
   },
   {
     kind: 30311,
@@ -112,6 +128,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'streams',
     addressable: true,
     section: 'media',
+    blurb: 'Watch and broadcast live video. Start a stream from a streaming app.',
+    sites: [{ url: 'https://zap.stream', name: 'zap.stream' }],
   },
   // Social
   {
@@ -123,6 +141,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'polls',
     addressable: false,
     section: 'social',
+    blurb: 'Ask a question, let people vote. Create polls from a polling app.',
+    sites: [{ url: 'https://pollerama.fun' }],
   },
   {
     kind: 39089,
@@ -133,6 +153,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'packs',
     addressable: true,
     section: 'social',
+    blurb: 'Curated lists of people to follow. Browse or create your own.',
+    sites: [{ url: 'https://following.space', name: 'following.space' }, { url: 'https://following.party', name: 'following.party' }],
   },
   // Whimsy
   {
@@ -144,6 +166,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'colors',
     addressable: false,
     section: 'whimsy',
+    blurb: 'Share your mood as a color palette. Pick colors that match the moment.',
+    sites: [{ url: 'https://espy.you' }],
   },
   {
     kind: 37381,
@@ -154,6 +178,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'decks',
     addressable: true,
     section: 'whimsy',
+    blurb: 'Magic: The Gathering deck lists. Build and share decks with other players.',
+    sites: [{ url: 'https://surveil.cards' }],
   },
   {
     kind: 37516,
@@ -163,6 +189,8 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     route: 'treasures',
     addressable: true,
     section: 'whimsy',
+    blurb: 'Real-world geocaching. Hide treasures outside, find others, and log your discoveries.',
+    sites: [{ url: 'https://treasures.to' }],
     subKinds: [
       {
         kind: 37516,

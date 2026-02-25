@@ -15,6 +15,7 @@ export function TreasuresPage() {
       kind={kinds}
       title="Treasures"
       icon={<ChestIcon className="size-5" />}
+      kindDef={treasuresDef}
       emptyMessage={
         kinds.length === 0
           ? 'All treasure types are disabled. Enable geocaches or found logs in Settings > Feed.'
