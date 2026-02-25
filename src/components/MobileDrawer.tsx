@@ -193,7 +193,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       icon: <span className="text-base leading-none">{preset.emoji}</span>,
     }));
 
-  const allThemeCycle = [...builtinCycle, ...presetCycle];
+  // Include "Custom" in the cycle if user has a non-preset custom theme
+  const isCustomNonPreset = theme === 'custom' && customTheme &&
+    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
+  const customCycleEntry = customTheme && isCustomNonPreset
+    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> }]
+    : [];
+
+  const allThemeCycle = [...builtinCycle, ...presetCycle, ...customCycleEntry];
 
   const currentThemeInfo = (() => {
     if (theme !== 'custom') {
@@ -212,16 +219,27 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   })();
 
   const cycleTheme = () => {
+    // If already on Custom, navigate to theme builder instead of cycling
+    if (currentThemeInfo.id === 'custom') {
+      onOpenChange(false);
+      navigate('/settings/theme');
+      return;
+    }
+
     const currentId = currentThemeInfo.id;
     const idx = allThemeCycle.findIndex(t => t.id === currentId);
     const nextIdx = (idx + 1) % allThemeCycle.length;
     const next = allThemeCycle[nextIdx];
 
-    const builtin = builtinCycle.find(b => b.id === next.id);
-    if (builtin) {
-      setTheme(builtin.id);
+    if (next.id === 'custom' && customTheme) {
+      applyCustomTheme(customTheme);
     } else {
-      applyCustomTheme(themePresets[next.id].tokens);
+      const builtin = builtinCycle.find(b => b.id === next.id);
+      if (builtin) {
+        setTheme(builtin.id);
+      } else {
+        applyCustomTheme(themePresets[next.id].tokens);
+      }
     }
   };
 
