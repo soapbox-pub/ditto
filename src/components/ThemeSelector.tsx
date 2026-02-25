@@ -1,5 +1,5 @@
-import { Check, Globe, Plus } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Check, Globe, Plus, Pencil } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -78,7 +78,6 @@ export function ThemeSelector() {
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
   const userThemesQuery = useUserThemes(user?.pubkey);
-  const navigate = useNavigate();
 
   const hasUserThemes = (userThemesQuery.data?.length ?? 0) > 0;
 
@@ -127,27 +126,33 @@ export function ThemeSelector() {
               const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(userTheme.tokens);
 
               return (
-                <button
-                  key={`user-${userTheme.identifier}`}
-                  className={cn(
-                    'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-left',
-                    isActive
-                      ? 'border-primary shadow-sm'
-                      : 'border-border hover:border-primary/40',
-                  )}
-                  onClick={() => {
-                    applyCustomTheme(userTheme.tokens);
-                    navigate(`/settings/theme?edit=${userTheme.identifier}`);
-                  }}
-                >
-                  <ThemePreviewCard tokens={userTheme.tokens} isActive={!!isActive} />
-                  <p className={cn(
-                    'mt-1.5 text-xs font-medium text-center transition-colors truncate',
-                    isActive ? 'text-foreground' : 'text-muted-foreground',
-                  )}>
-                    {userTheme.title}
-                  </p>
-                </button>
+                <div key={`user-${userTheme.identifier}`} className="relative group">
+                  <button
+                    className={cn(
+                      'w-full rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-left',
+                      isActive
+                        ? 'border-primary shadow-sm'
+                        : 'border-border hover:border-primary/40',
+                    )}
+                    onClick={() => applyCustomTheme(userTheme.tokens)}
+                  >
+                    <ThemePreviewCard tokens={userTheme.tokens} isActive={!!isActive} />
+                    <p className={cn(
+                      'mt-1.5 text-xs font-medium text-center transition-colors truncate',
+                      isActive ? 'text-foreground' : 'text-muted-foreground',
+                    )}>
+                      {userTheme.title}
+                    </p>
+                  </button>
+                  {/* Edit button overlay */}
+                  <Link
+                    to={`/settings/theme?edit=${userTheme.identifier}`}
+                    className="absolute top-2.5 right-2.5 size-6 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary"
+                    title="Edit theme"
+                  >
+                    <Pencil className="size-3 text-muted-foreground" />
+                  </Link>
+                </div>
               );
             })}
 
