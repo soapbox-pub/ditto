@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'pub.ditto.app',
-  appName: 'ditto',
+  appName: 'Ditto',
   webDir: 'dist',
   server: {
     // Handle deep links from your domain
