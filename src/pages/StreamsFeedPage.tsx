@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { ArrowLeft, Radio, Users, Clock } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
@@ -14,6 +14,7 @@ import { useStreamKind } from '@/hooks/useStreamKind';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
@@ -103,7 +104,6 @@ export function StreamsFeedPage() {
 }
 
 function StreamCard({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
   const title = getTag(event.tags, 'title') || 'Untitled Stream';
   const summary = getTag(event.tags, 'summary');
   const imageUrl = getTag(event.tags, 'image');
@@ -116,10 +116,13 @@ function StreamCard({ event }: { event: NostrEvent }) {
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
 
+  const { onClick, onAuxClick } = useOpenPost(`/${naddrId}`);
+
   return (
     <Card
       className="overflow-hidden cursor-pointer hover:bg-secondary/30 transition-colors"
-      onClick={() => navigate(`/${naddrId}`)}
+      onClick={onClick}
+      onAuxClick={onAuxClick}
     >
       {/* Thumbnail */}
       {imageUrl && (
