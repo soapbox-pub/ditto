@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette, Star, Plus } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette, Plus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 
@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/useToast';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
@@ -562,13 +561,11 @@ export function ThemeBuilderPage() {
 
         <Separator />
 
-        {/* My Themes */}
+        {/* Profile theme status */}
         {user && (
           <>
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">My Themes</h2>
-
-              {/* Active profile theme status */}
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile Theme</h2>
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
@@ -589,59 +586,6 @@ export function ThemeBuilderPage() {
                   </Badge>
                 )}
               </div>
-
-              {/* Published theme list */}
-              {_userThemes.data && _userThemes.data.length > 0 && (
-                <div className="space-y-2">
-                  {_userThemes.data.map((theme) => (
-                    <ThemeCard
-                      key={theme.identifier}
-                      theme={theme}
-                      isActive={ownActiveTheme.data?.sourceRef?.endsWith(`:${theme.identifier}`) ?? false}
-                      isEditing={activeEditingTheme?.identifier === theme.identifier}
-                      onLoadIntoEditor={() => {
-                        setTokens(theme.tokens);
-                        setAutoDerive(false);
-                        setActiveEditingTheme(theme);
-                        toast({ title: 'Theme loaded', description: `Editing "${theme.title}".` });
-                      }}
-                      onSetActive={async () => {
-                        try {
-                          await setActiveTheme({
-                            tokens: theme.tokens,
-                            sourceAuthor: user.pubkey,
-                            sourceIdentifier: theme.identifier,
-                          });
-                          applyCustomTheme(theme.tokens);
-                          toast({ title: 'Theme activated', description: `"${theme.title}" is now your profile theme.` });
-                        } catch {
-                          toast({ title: 'Failed', description: 'Could not set as active theme.', variant: 'destructive' });
-                        }
-                      }}
-                      onEditMetadata={() => {
-                        setEditingTheme(theme);
-                        setPublishTitle(theme.title);
-                        setPublishDescription(theme.description || '');
-                        setPublishDialogOpen(true);
-                      }}
-                      onDelete={async () => {
-                        try {
-                          await deleteTheme(theme.identifier);
-                          toast({ title: 'Theme deleted', description: `"${theme.title}" has been removed.` });
-                        } catch {
-                          toast({ title: 'Failed', description: 'Could not delete theme.', variant: 'destructive' });
-                        }
-                      }}
-                    />
-                  ))}
-                </div>
-              )}
-
-              {_userThemes.data?.length === 0 && (
-                <p className="text-xs text-muted-foreground italic">
-                  No published themes yet. Save a theme above to publish it.
-                </p>
-              )}
             </section>
 
             <Separator />
@@ -679,6 +623,34 @@ export function ThemeBuilderPage() {
             </Button>
           </div>
         </section>
+
+        {/* Delete theme */}
+        {user && activeEditingTheme && (
+          <>
+            <Separator />
+            <section>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10 w-full justify-center"
+                disabled={isPublishing}
+                onClick={async () => {
+                  if (!activeEditingTheme) return;
+                  try {
+                    await deleteTheme(activeEditingTheme.identifier);
+                    toast({ title: 'Theme deleted', description: `"${activeEditingTheme.title}" has been removed.` });
+                    handleNewTheme();
+                  } catch {
+                    toast({ title: 'Failed', description: 'Could not delete theme.', variant: 'destructive' });
+                  }
+                }}
+              >
+                <Trash2 className="size-4 mr-1.5" />
+                Delete "{activeEditingTheme.title}"
+              </Button>
+            </section>
+          </>
+        )}
       </div>
 
       {/* ── Publish Dialog ── */}
@@ -806,100 +778,6 @@ function StartFromThemeDropdown({ userThemes, onSelect }: {
   );
 }
 
-// ─── Theme Card (My Themes list item) ─────────────────────────────────
-
-interface ThemeCardProps {
-  theme: ThemeDefinition;
-  isActive: boolean;
-  isEditing?: boolean;
-  onLoadIntoEditor: () => void;
-  onSetActive: () => void;
-  onEditMetadata: () => void;
-  onDelete: () => void;
-}
-
-function ThemeCard({ theme, isActive, isEditing, onLoadIntoEditor, onSetActive, onEditMetadata, onDelete }: ThemeCardProps) {
-  const swatches = [
-    theme.tokens.background,
-    theme.tokens.foreground,
-    theme.tokens.primary,
-    theme.tokens.accent,
-  ].map((hsl) => {
-    try { return hslStringToHex(hsl); } catch { return '#888'; }
-  });
-
-  return (
-    <div className={cn(
-      'flex items-center gap-3 rounded-lg border p-3 transition-colors',
-      isEditing ? 'border-accent/50 bg-accent/5' : isActive ? 'border-primary/40 bg-primary/5' : 'border-border',
-    )}>
-      {/* Color swatches */}
-      <div className="flex rounded-md overflow-hidden h-8 w-16 shrink-0">
-        {swatches.map((hex, i) => (
-          <div key={i} className="flex-1" style={{ backgroundColor: hex }} />
-        ))}
-      </div>
-
-      {/* Info */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <span className="text-sm font-medium truncate">{theme.title}</span>
-          {isEditing && (
-            <Badge variant="secondary" className="text-[10px] bg-accent/10 text-accent border-accent/20 shrink-0">
-              Editing
-            </Badge>
-          )}
-          {isActive && !isEditing && (
-            <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 shrink-0">
-              Active
-            </Badge>
-          )}
-        </div>
-        {theme.description && (
-          <p className="text-xs text-muted-foreground truncate">{theme.description}</p>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={onLoadIntoEditor} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-              <Pencil className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Edit in builder</TooltipContent>
-        </Tooltip>
-        {!isActive && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button onClick={onSetActive} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-primary">
-                <Star className="size-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent>Set as profile theme</TooltipContent>
-          </Tooltip>
-        )}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={onEditMetadata} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
-              <MoreHorizontal className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Edit title & description</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button onClick={onDelete} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-destructive">
-              <Trash2 className="size-3.5" />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent>Delete theme</TooltipContent>
-        </Tooltip>
-      </div>
-    </div>
-  );
-}
 
 // ─── Import from Profile ──────────────────────────────────────────────
 
