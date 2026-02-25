@@ -86,7 +86,7 @@ function MainLayoutInner() {
           <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px]", showFAB && "pb-24")}>
             <Outlet />
             {showFAB && (
-              <div className="sticky bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+              <div className="sticky bottom-22 sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
                 <div className="pointer-events-auto">
                   <FloatingComposeButton kind={fabKind} />
                 </div>
