@@ -2,6 +2,7 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 interface KindFeedPageProps {
   kind: number | number[];
@@ -11,10 +12,14 @@ interface KindFeedPageProps {
 }
 
 export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPageProps) {
+  const primaryKind = Array.isArray(kind) ? kind[0] : kind;
+
   useSeoMeta({
     title: `${title} | Ditto`,
     description: `${title} on Nostr`,
   });
+
+  useLayoutOptions({ showFAB: true, fabKind: primaryKind });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 

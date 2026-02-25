@@ -62,7 +62,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -82,16 +82,23 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <Outlet />
+          {/* Wrap the center column in a relative container for the FAB */}
+          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px]", showFAB && "pb-24")}>
+            <Outlet />
+            {showFAB && (
+              <div className="sticky bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+                <div className="pointer-events-auto">
+                  <FloatingComposeButton kind={fabKind} />
+                </div>
+              </div>
+            )}
+          </div>
           {rightSidebar ?? <RightSidebar />}
         </Suspense>
       </div>
 
       {/* Mobile bottom nav - only on small screens */}
       <MobileBottomNav />
-
-      {/* Mobile floating compose button - only on feed page */}
-      {showFAB && <FloatingComposeButton />}
 
       {/* Bottom padding spacer for mobile bottom nav */}
       {!noBottomSpacer && <div className="h-16 sidebar:hidden" />}
