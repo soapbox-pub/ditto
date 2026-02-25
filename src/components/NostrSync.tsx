@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNostr } from '@nostrify/react';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -17,9 +17,13 @@ export function NostrSync() {
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const { settings: encryptedSettings, isLoading: settingsLoading, recentlyWritten } = useEncryptedSettings();
-  
-  // Track the last synced settings timestamp to prevent re-syncing the same data
+
+  // Track the last synced settings timestamp to prevent re-syncing the same data.
+  // Seeded to the remote lastSync on first load so that a stale relay event
+  // (older than what useInitialSync already applied) does not overwrite local
+  // settings after a page reload.
   const lastSyncedTimestamp = useRef<number>(0);
+  const [seededTimestamp, setSeededTimestamp] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -73,16 +77,27 @@ export function NostrSync() {
   useEffect(() => {
     if (!user || settingsLoading || !encryptedSettings) return;
 
-    // Don't overwrite local config if we just saved settings
+    // Get the remote sync timestamp
+    const remoteSync = encryptedSettings.lastSync || 0;
+
+    // On first load, seed the ref with the current remote timestamp so that
+    // we don't re-apply settings that were already applied by useInitialSync.
+    // This prevents stale relay events from overwriting local changes after a
+    // page reload (where lastWriteTs module variable resets to 0).
+    if (!seededTimestamp) {
+      lastSyncedTimestamp.current = remoteSync;
+      setSeededTimestamp(true);
+      return;
+    }
+
+    // Don't overwrite local config if we just saved settings (short-circuit for
+    // the immediate write window, e.g. before the new event propagates back).
     if (recentlyWritten()) {
       console.log('Skipping settings sync - recent write');
       return;
     }
 
-    // Get the remote sync timestamp
-    const remoteSync = encryptedSettings.lastSync || 0;
-    
-    // Only sync if we haven't already synced this exact timestamp
+    // Skip if the remote snapshot is older than what we last applied.
     if (remoteSync <= lastSyncedTimestamp.current) {
       return;
     }
@@ -127,7 +142,7 @@ export function NostrSync() {
       // Return the same reference if nothing changed to prevent re-render
       return changed ? updates : current;
     });
-  }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten]);
+  }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten, seededTimestamp]);
 
   return null;
 }

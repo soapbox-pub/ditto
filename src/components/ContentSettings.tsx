@@ -236,13 +236,17 @@ function KindBadge({ kind }: { kind: number }) {
 
 function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: boolean }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
-  const { updateSettings } = useEncryptedSettings();
+  const { updateSettings, settings: nostrSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
 
   const handleToggle = async (key: string, value: boolean) => {
     updateFeedSettings({ [key]: value });
     if (user) {
-      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      // Merge against the Nostr-cached feed settings (most up-to-date persisted
+      // state) rather than the local React state, which may lag behind when
+      // multiple toggles fire in quick succession.
+      const baseFeed = nostrSettings?.feedSettings ?? feedSettings;
+      const updatedFeedSettings = { ...baseFeed, [key]: value };
       await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
     }
   };
@@ -280,7 +284,7 @@ function SubKindRow({ sub, parentEnabled }: { sub: SubKindDef; parentEnabled: bo
 
 function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
-  const { updateSettings } = useEncryptedSettings();
+  const { updateSettings, settings: nostrSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
   const icon = ICONS[def.route ?? String(def.kind)] ?? <Palette className="size-5" />;
   const hasSubKinds = !!def.subKinds;
@@ -289,7 +293,11 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const handleToggle = async (key: string, value: boolean) => {
     updateFeedSettings({ [key]: value });
     if (user) {
-      const updatedFeedSettings = { ...feedSettings, [key]: value };
+      // Merge against the Nostr-cached feed settings (most up-to-date persisted
+      // state) rather than the local React state, which may lag behind when
+      // multiple toggles fire in quick succession.
+      const baseFeed = nostrSettings?.feedSettings ?? feedSettings;
+      const updatedFeedSettings = { ...baseFeed, [key]: value };
       await updateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
     }
   };
