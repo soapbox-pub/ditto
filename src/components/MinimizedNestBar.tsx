@@ -142,6 +142,9 @@ export function MinimizedNestBar() {
     if (position) {
       savePosition(position);
     }
+    // Reset drag flag after a short delay so the click handler
+    // on the title area can check it, but it doesn't linger.
+    setTimeout(() => { didDragRef.current = false; }, 100);
   }, [position]);
 
   if (!session.isActive || !session.minimized || !session.event) return null;
@@ -151,9 +154,14 @@ export function MinimizedNestBar() {
   const gradient = (color && NEST_GRADIENTS[color]) || NEST_GRADIENTS['gradient-5'];
 
   const handleExpand = () => {
-    if (didDragRef.current) return; // don't expand after a drag
     session.expand();
     navigate(`/${session.naddr}`);
+  };
+
+  /** Expand from the title tap — gated by drag detection. */
+  const handleTitleTap = () => {
+    if (didDragRef.current) return;
+    handleExpand();
   };
 
   const handleLeave = () => {
@@ -203,7 +211,7 @@ export function MinimizedNestBar() {
           <button
             type="button"
             className="flex items-center gap-2.5 min-w-0 flex-1"
-            onClick={handleExpand}
+            onClick={handleTitleTap}
           >
             <div
               className="size-9 rounded-xl shrink-0 shadow-inner"
