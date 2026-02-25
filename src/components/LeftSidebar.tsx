@@ -606,6 +606,24 @@ export function LeftSidebar() {
                         </DropdownMenuItem>
                       );
                     })}
+                    {/* Custom theme item — shown when user has a saved custom theme */}
+                    {customTheme && !activePreset && (
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setAccountPopoverOpen(false);
+                          navigate('/settings/theme');
+                        }}
+                        className="flex items-center justify-between cursor-pointer"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Palette className="size-4" />
+                          <span>Custom</span>
+                        </div>
+                        {theme === 'custom' && (
+                          <Check className="size-4 text-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
                       onClick={() => {
