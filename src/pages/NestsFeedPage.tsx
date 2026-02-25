@@ -216,6 +216,9 @@ function NestCard({ event }: { event: NostrEvent }) {
   const aTag = `${NEST_KIND}:${event.pubkey}:${dTag}`;
   const { count: listenerCount, pubkeys: presencePubkeys } = useNestPresenceCount(aTag);
 
+  // Hide live rooms with no active participants (stale/abandoned)
+  if (status === 'live' && listenerCount === 0) return null;
+
   const naddrId = useMemo(() => {
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event, dTag]);
