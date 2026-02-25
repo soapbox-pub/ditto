@@ -27,7 +27,7 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
   const replyingToLabel = parentEventId ? (
     <HoverCard openDelay={300} closeDelay={150}>
       <HoverCardTrigger asChild>
-        <span className="shrink-0 cursor-default">Replying to</span>
+        <span className="shrink-0 cursor-pointer hover:underline">Replying to</span>
       </HoverCardTrigger>
       <HoverCardContent
         side="bottom"
