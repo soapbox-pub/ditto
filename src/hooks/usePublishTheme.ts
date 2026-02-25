@@ -80,10 +80,14 @@ export function usePublishTheme() {
       content: '',
       tags: [
         ['a', `${THEME_DEFINITION_KIND}:${user.pubkey}:${identifier}`],
+        ['k', String(THEME_DEFINITION_KIND)],
       ],
     });
 
     queryClient.invalidateQueries({ queryKey: ['userThemes', user.pubkey] });
+    // Also invalidate feed caches so the theme disappears from public feeds
+    queryClient.invalidateQueries({ queryKey: ['feed'] });
+    queryClient.invalidateQueries({ queryKey: ['streamKind'] });
   }, [user, publishEvent, queryClient]);
 
   /** Clear the active profile theme (kind 5 deletion of kind 11667). */
