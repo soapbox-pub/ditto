@@ -80,10 +80,10 @@ export function ThemeSelector() {
     { id: 'dark', label: 'Dark' },
   ];
 
-  const presetOptions = Object.entries(themePresets).map(([id, tokens]) => ({
+  const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
     id,
-    label: id.charAt(0).toUpperCase() + id.slice(1),
-    tokens,
+    label: preset.label,
+    tokens: preset.tokens,
   }));
 
   /** Check if a preset matches the current custom theme tokens */
@@ -93,11 +93,8 @@ export function ThemeSelector() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Builtin themes section */}
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">Builtin</p>
-        <div className="grid grid-cols-3 gap-3">
+    <div className="space-y-3">
+      <div className="grid grid-cols-3 gap-3">
           {builtinOptions.map((option) => {
             if (option.id === 'system') {
               const isActive = theme === 'system';
@@ -192,13 +189,7 @@ export function ThemeSelector() {
               </button>
             );
           })}
-        </div>
-      </div>
 
-      {/* Custom theme presets section */}
-      <div className="space-y-3">
-        <p className="text-sm font-medium text-muted-foreground">Custom</p>
-        <div className="grid grid-cols-3 gap-3">
           {/* Active custom theme (if it doesn't match any preset) */}
           {theme === 'custom' && customTheme && !presetOptions.some(p => isPresetActive(p.tokens)) && (
             <button
@@ -238,7 +229,6 @@ export function ThemeSelector() {
             );
           })}
         </div>
-      </div>
     </div>
   );
 }

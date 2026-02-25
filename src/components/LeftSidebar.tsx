@@ -157,9 +157,10 @@ export function LeftSidebar() {
     { value: 'dark', label: 'Dark', icon: <Moon className="size-4" /> },
   ];
 
-  const presetOptions = Object.keys(themePresets).map((id) => ({
+  const presetOptions = Object.entries(themePresets).map(([id, preset]) => ({
     id,
-    label: id.charAt(0).toUpperCase() + id.slice(1),
+    label: preset.label,
+    emoji: preset.emoji,
   }));
 
   /** Compute a display label for the current theme. */
@@ -169,7 +170,7 @@ export function LeftSidebar() {
     }
     // Check if custom theme matches a preset
     const matchingPreset = customTheme
-      ? presetOptions.find(p => JSON.stringify(themePresets[p.id]) === JSON.stringify(customTheme))
+      ? presetOptions.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme))
       : undefined;
     return matchingPreset ? matchingPreset.label : 'Custom';
   })();
@@ -177,6 +178,11 @@ export function LeftSidebar() {
   const currentThemeIcon = (() => {
     const builtin = builtinThemeOptions.find(t => t.value === theme);
     if (builtin) return builtin.icon;
+    // Check if active custom theme matches a preset
+    if (customTheme) {
+      const matchingPreset = presetOptions.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme));
+      if (matchingPreset) return <span className="text-sm leading-none">{themePresets[matchingPreset.id].emoji}</span>;
+    }
     return <Palette className="size-4" />;
   })();
 
@@ -369,7 +375,8 @@ export function LeftSidebar() {
                     </button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" side="top" className="w-48">
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Builtin</DropdownMenuLabel>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
                     {builtinThemeOptions.map((opt) => (
                       <DropdownMenuItem
                         key={opt.value}
@@ -385,18 +392,16 @@ export function LeftSidebar() {
                         )}
                       </DropdownMenuItem>
                     ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuLabel className="text-xs text-muted-foreground">Custom</DropdownMenuLabel>
                     {presetOptions.map((preset) => {
-                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id]);
+                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id].tokens);
                       return (
                         <DropdownMenuItem
                           key={preset.id}
-                          onClick={() => applyCustomTheme(themePresets[preset.id])}
+                          onClick={() => applyCustomTheme(themePresets[preset.id].tokens)}
                           className="flex items-center justify-between cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
-                            <Palette className="size-4" />
+                            <span className="text-sm leading-none">{preset.emoji}</span>
                             <span>{preset.label}</span>
                           </div>
                           {isActive && (

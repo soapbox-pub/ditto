@@ -85,10 +85,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     { id: 'dark', label: 'Dark', icon: <Moon className="size-5" /> },
   ];
 
-  const presetCycle = Object.keys(themePresets).map((id) => ({
+  const presetCycle = Object.entries(themePresets).map(([id, preset]) => ({
     id,
-    label: id.charAt(0).toUpperCase() + id.slice(1),
-    icon: <Palette className="size-5" />,
+    label: preset.label,
+    icon: <span className="text-base leading-none">{preset.emoji}</span>,
   }));
 
   const allThemeCycle = [...builtinCycle, ...presetCycle];
@@ -100,7 +100,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     }
     // Check if custom matches a preset
     const match = customTheme
-      ? presetCycle.find(p => JSON.stringify(themePresets[p.id]) === JSON.stringify(customTheme))
+      ? presetCycle.find(p => JSON.stringify(themePresets[p.id].tokens) === JSON.stringify(customTheme))
       : undefined;
     return match ?? { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
   })();
@@ -116,7 +116,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     if (builtin) {
       setTheme(builtin.id);
     } else {
-      applyCustomTheme(themePresets[next.id]);
+      applyCustomTheme(themePresets[next.id].tokens);
     }
   };
 
