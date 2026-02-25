@@ -191,6 +191,81 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
   );
 }
 
+/** Regex to detect image/GIF URLs in chat messages. */
+const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/i;
+
+/** Regex to split content into URL and non-URL segments. */
+const URL_REGEX = /(https?:\/\/[^\s]+)/g;
+
+/** Render chat message content with inline images/GIFs and clickable links. */
+function ChatContent({ content }: { content: string }) {
+  const parts = content.split(URL_REGEX);
+
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (URL_REGEX.test(part)) {
+          // Reset regex lastIndex since test() advances it
+          URL_REGEX.lastIndex = 0;
+
+          if (IMAGE_URL_REGEX.test(part)) {
+            // Render as inline image
+            return (
+              <a
+                key={i}
+                href={part}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block my-1"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <img
+                  src={part}
+                  alt=""
+                  loading="lazy"
+                  className="max-w-full max-h-48 rounded-lg object-contain"
+                  onError={(e) => {
+                    // If image fails to load, replace with a link
+                    const el = e.currentTarget;
+                    const link = document.createElement('a');
+                    link.href = part;
+                    link.target = '_blank';
+                    link.rel = 'noopener noreferrer';
+                    link.className = 'text-sm text-primary hover:underline break-all';
+                    link.textContent = part;
+                    el.parentElement?.replaceChild(link, el);
+                  }}
+                />
+              </a>
+            );
+          }
+
+          // Render as clickable link
+          return (
+            <a
+              key={i}
+              href={part}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-primary hover:underline break-all"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {part}
+            </a>
+          );
+        }
+
+        // Reset regex
+        URL_REGEX.lastIndex = 0;
+
+        // Plain text
+        if (!part) return null;
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 function ChatMessage({ event }: { event: NostrEvent }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
@@ -208,7 +283,7 @@ function ChatMessage({ event }: { event: NostrEvent }) {
         </Avatar>
       </Link>
       <div className="flex-1 min-w-0">
-        <span className="inline">
+        <div>
           <Link
             to={profileUrl}
             className="text-xs font-semibold text-primary hover:underline mr-1.5"
@@ -216,8 +291,10 @@ function ChatMessage({ event }: { event: NostrEvent }) {
           >
             {displayName}
           </Link>
-          <span className="text-sm text-foreground break-words">{event.content}</span>
-        </span>
+          <span className="text-sm text-foreground break-words">
+            <ChatContent content={event.content} />
+          </span>
+        </div>
         <span className="text-[10px] text-muted-foreground/60 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {shortTimeAgo(event.created_at)}
         </span>
