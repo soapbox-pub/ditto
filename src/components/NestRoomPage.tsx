@@ -102,20 +102,29 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   const isLive = status === 'live';
   const isOwner = user?.pubkey === event.pubkey;
 
-  // Auto-join the nest via the global session if not already in this room.
-  // Also un-minimize when we navigate to the full room view.
-  const joinAttempted = useRef(false);
+  // Refs to access latest session state without re-triggering effects
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+
+  // Auto-join the nest via the global session on mount.
+  // If returning from minimized state, un-minimize.
   useEffect(() => {
-    if (session.minimized) {
-      session.expand(); // un-minimize since we're on the full page now
+    const s = sessionRef.current;
+
+    // Un-minimize on mount (we're viewing the full room page)
+    if (s.minimized) {
+      s.expand();
     }
-    if (session.isActive && session.event?.id === event.id) {
-      return; // already in this room
+
+    // Already connected to this room — nothing to do
+    if (s.isActive && s.event?.id === event.id) {
+      return;
     }
-    if (joinAttempted.current) return;
-    joinAttempted.current = true;
-    session.joinNest(event);
-  }, [session, event]);
+
+    // Join the room
+    s.joinNest(event);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [event.id]); // re-run only if the event changes
 
   // The Room instance from the global session (null if not yet connected)
   const room = session.isActive && session.event?.id === event.id ? session.room : null;
