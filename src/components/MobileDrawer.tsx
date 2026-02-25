@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, TrendingUp, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
 import { DndContext, closestCenter, TouchSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -58,11 +58,17 @@ interface DrawerMenuItemProps {
 }
 
 function DrawerMenuItem({ to, icon, label, onClick }: DrawerMenuItemProps) {
+  const location = useLocation();
+  const active = location.pathname === to;
+
   return (
     <Link
       to={to}
       onClick={onClick}
-      className="flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
+      className={cn(
+        'flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]',
+        active ? 'bg-accent/10 font-bold' : '',
+      )}
     >
       <span className="text-muted-foreground">{icon}</span>
       <span className="font-medium">{label}</span>

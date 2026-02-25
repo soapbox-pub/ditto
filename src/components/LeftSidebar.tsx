@@ -98,7 +98,7 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
       onClick={onClick}
       className={cn(
         'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
-        active ? 'font-bold' : 'font-normal text-muted-foreground',
+        active ? 'font-bold bg-accent/10' : 'font-normal text-muted-foreground',
       )}
     >
       <span className="relative">
@@ -167,7 +167,7 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 flex-1 min-w-0',
           editing ? 'px-2' : 'px-4',
-          active ? 'font-bold' : 'font-normal text-muted-foreground',
+          active ? 'font-bold bg-accent/10' : 'font-normal text-muted-foreground',
         )}
       >
         <span className="shrink-0">{icon}</span>
