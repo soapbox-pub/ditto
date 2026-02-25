@@ -1,19 +1,22 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { Send, MessageCircle } from 'lucide-react';
+import { Send, MessageCircle, Zap } from 'lucide-react';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
+import type { Event } from 'nostr-tools';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ZapDialog } from '@/components/ZapDialog';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 
 interface LiveStreamChatProps {
@@ -117,6 +120,36 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
     }
   };
 
+  // Bulk query reactions (kind 7) for all visible chat messages
+  const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
+  const { data: reactions = [] } = useQuery<NostrEvent[]>({
+    queryKey: ['chat-reactions', aTag, messageIds.length],
+    queryFn: async ({ signal }) => {
+      if (messageIds.length === 0) return [];
+      const events = await nostr.query(
+        [{ kinds: [7], '#e': messageIds, limit: 500 }],
+        { signal: AbortSignal.any([signal, AbortSignal.timeout(8000)]) },
+      );
+      return events;
+    },
+    enabled: messageIds.length > 0,
+    staleTime: 15_000,
+    refetchInterval: 10_000,
+  });
+
+  // Group reactions by event ID
+  const reactionsByEvent = useMemo(() => {
+    const map = new Map<string, NostrEvent[]>();
+    for (const r of reactions) {
+      const eTag = r.tags.find(([n]) => n === 'e')?.[1];
+      if (!eTag) continue;
+      const list = map.get(eTag) || [];
+      list.push(r);
+      map.set(eTag, list);
+    }
+    return map;
+  }, [reactions]);
+
   return (
     <div className={cn('flex flex-col overflow-hidden', className)}>
       {/* Chat header */}
@@ -154,7 +187,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
           </div>
         ) : (
           messages.map((msg) => (
-            <ChatMessage key={msg.id} event={msg} />
+            <ChatMessage key={msg.id} event={msg} reactions={reactionsByEvent.get(msg.id)} />
           ))
         )}
       </div>
@@ -266,14 +299,67 @@ function ChatContent({ content }: { content: string }) {
   );
 }
 
-function ChatMessage({ event }: { event: NostrEvent }) {
+/** Quick reaction emojis for chat messages. */
+const CHAT_QUICK_EMOJIS = ['❤️', '😂', '🔥', '👀'];
+
+function ChatMessage({ event, reactions }: { event: NostrEvent; reactions?: NostrEvent[] }) {
+  const [zapOpen, setZapOpen] = useState(false);
+  const { user } = useCurrentUser();
+  const { mutate: publishEvent } = useNostrPublish();
+  const queryClient = useQueryClient();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = getDisplayName(metadata, event.pubkey);
   const profileUrl = useProfileUrl(event.pubkey, metadata);
+  const showZap = user && user.pubkey !== event.pubkey && canZap(metadata);
+
+  // Aggregate reactions into emoji → count
+  const reactionSummary = useMemo(() => {
+    if (!reactions || reactions.length === 0) return [];
+    const counts = new Map<string, number>();
+    for (const r of reactions) {
+      const emoji = r.content || '❤️';
+      counts.set(emoji, (counts.get(emoji) || 0) + 1);
+    }
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 6);
+  }, [reactions]);
+
+  const handleReact = useCallback((emoji: string) => {
+    if (!user) return;
+    publishEvent(
+      {
+        kind: 7,
+        content: emoji,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [
+          ['e', event.id],
+          ['p', event.pubkey],
+          ['k', String(event.kind)],
+        ],
+      },
+      {
+        onSuccess: () => {
+          // Refresh reactions after a delay
+          setTimeout(() => {
+            queryClient.invalidateQueries({ queryKey: ['chat-reactions'] });
+          }, 2000);
+        },
+      },
+    );
+  }, [user, event, publishEvent, queryClient]);
+
+  const zapTriggerRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (zapOpen && zapTriggerRef.current) {
+      zapTriggerRef.current.click();
+      setZapOpen(false);
+    }
+  }, [zapOpen]);
 
   return (
-    <div className="group flex items-start gap-2 py-1 px-1 rounded hover:bg-secondary/40 transition-colors">
+    <div className="group relative flex items-start gap-2 py-1 px-1 rounded hover:bg-secondary/40 transition-colors">
       <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
         <Avatar className="size-6">
           <AvatarImage src={metadata?.picture} alt={displayName} />
@@ -295,10 +381,64 @@ function ChatMessage({ event }: { event: NostrEvent }) {
             <ChatContent content={event.content} />
           </span>
         </div>
+
+        {/* Reaction summary badges */}
+        {reactionSummary.length > 0 && (
+          <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+            {reactionSummary.map(([emoji, count]) => (
+              <button
+                key={emoji}
+                type="button"
+                className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-secondary/60 hover:bg-secondary text-[11px] transition-colors"
+                onClick={() => handleReact(emoji)}
+              >
+                <span>{emoji}</span>
+                {count > 1 && <span className="text-muted-foreground tabular-nums">{count}</span>}
+              </button>
+            ))}
+          </div>
+        )}
+
         <span className="text-[10px] text-muted-foreground/60 ml-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
           {shortTimeAgo(event.created_at)}
         </span>
       </div>
+
+      {/* Hover action bar — floats on the right edge */}
+      {user && (
+        <div className="absolute -top-2 right-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-10">
+          <div className="flex items-center gap-0.5 bg-background border border-border rounded-lg shadow-md px-1 py-0.5">
+            {CHAT_QUICK_EMOJIS.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                className="size-6 flex items-center justify-center rounded hover:bg-secondary/80 text-sm transition-colors"
+                onClick={() => handleReact(emoji)}
+                title={`React with ${emoji}`}
+              >
+                {emoji}
+              </button>
+            ))}
+            {showZap && (
+              <button
+                type="button"
+                className="size-6 flex items-center justify-center rounded hover:bg-secondary/80 text-amber-500 transition-colors"
+                onClick={() => setZapOpen(true)}
+                title="Zap"
+              >
+                <Zap className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ZapDialog rendered outside hover area */}
+      {showZap && (
+        <ZapDialog target={event as Event}>
+          <button ref={zapTriggerRef} className="hidden" aria-hidden />
+        </ZapDialog>
+      )}
     </div>
   );
 }
