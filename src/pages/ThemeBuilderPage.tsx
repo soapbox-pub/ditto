@@ -93,6 +93,7 @@ export function ThemeBuilderPage() {
   const importPubkey = searchParams.get('import');
   const importThemeId = searchParams.get('theme');
   const editIdentifier = searchParams.get('edit');
+  const isNew = searchParams.has('new');
 
   // Check if the user currently has a published active profile theme
   const ownActiveTheme = useActiveProfileTheme(user?.pubkey);
@@ -108,6 +109,8 @@ export function ThemeBuilderPage() {
 
   // Working state: the tokens being edited
   const [tokens, setTokens] = useState<ThemeTokens>(() => {
+    // ?new param: always start fresh
+    if (isNew) return builtinThemes.dark;
     if (savedCustomTheme) return savedCustomTheme;
     if (currentTheme === 'light' || currentTheme === 'dark') {
       return builtinThemes[currentTheme];
@@ -124,8 +127,9 @@ export function ThemeBuilderPage() {
   });
 
   // When user themes load, check if current tokens match a published theme
+  // Skip if ?new or ?edit is in the URL (those have explicit intent)
   useEffect(() => {
-    if (!_userThemes.data || activeEditingTheme) return;
+    if (!_userThemes.data || activeEditingTheme || isNew || editIdentifier) return;
     const match = _userThemes.data.find(t => JSON.stringify(t.tokens) === JSON.stringify(tokens));
     if (match) setActiveEditingTheme(match);
   }, [_userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -146,6 +150,8 @@ export function ThemeBuilderPage() {
     setActiveEditingTheme(null);
     setTokens(builtinThemes.dark);
     setAutoDerive(true);
+    // Clear URL params to avoid stale ?edit= or ?new
+    window.history.replaceState({}, '', '/settings/theme?new');
     toast({ title: 'Starting fresh', description: 'Create a new theme from scratch.' });
   }, [toast]);
 
@@ -287,6 +293,7 @@ export function ThemeBuilderPage() {
       return;
     }
     try {
+      const isUpdate = !!editingTheme;
       const identifier = await publishTheme({
         tokens,
         title: publishTitle.trim(),
@@ -304,14 +311,17 @@ export function ThemeBuilderPage() {
         event: {} as ThemeDefinition['event'], // placeholder, will be refreshed on next query
       });
 
-      // Also set as active profile theme
-      await setActiveTheme({
-        tokens,
-        sourceAuthor: user?.pubkey,
-        sourceIdentifier: identifier,
-      });
-
-      toast({ title: 'Theme published!', description: `"${publishTitle.trim()}" is now live on your profile and in the public feed.` });
+      if (!isUpdate) {
+        // New theme: also set as active profile theme
+        await setActiveTheme({
+          tokens,
+          sourceAuthor: user?.pubkey,
+          sourceIdentifier: identifier,
+        });
+        toast({ title: 'Theme published!', description: `"${publishTitle.trim()}" is now live on your profile and in the public feed.` });
+      } else {
+        toast({ title: 'Theme updated', description: `"${publishTitle.trim()}" has been updated.` });
+      }
     } catch (error) {
       console.error('Failed to publish theme:', error);
       toast({ title: 'Publish failed', description: 'Could not publish your theme.', variant: 'destructive' });
@@ -366,12 +376,32 @@ export function ThemeBuilderPage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold truncate">
-            {activeEditingTheme ? activeEditingTheme.title : 'New Theme'}
-          </h1>
-          <p className="text-xs text-muted-foreground">
-            {activeEditingTheme ? 'Editing published theme' : 'Create a new custom theme'}
-          </p>
+          {activeEditingTheme ? (
+            <button
+              onClick={() => {
+                setEditingTheme(activeEditingTheme);
+                setPublishTitle(activeEditingTheme.title);
+                setPublishDescription(activeEditingTheme.description || '');
+                setPublishDialogOpen(true);
+              }}
+              className="text-left group"
+            >
+              <h1 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                {activeEditingTheme.title}
+                <Pencil className="size-3 text-muted-foreground group-hover:text-primary shrink-0" />
+              </h1>
+              {activeEditingTheme.description ? (
+                <p className="text-xs text-muted-foreground truncate">{activeEditingTheme.description}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">Tap to edit title & description</p>
+              )}
+            </button>
+          ) : (
+            <div>
+              <h1 className="text-lg font-bold truncate">New Theme</h1>
+              <p className="text-xs text-muted-foreground">Create a new custom theme</p>
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {activeEditingTheme && (
