@@ -294,7 +294,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   }, [session, navigate]);
 
   return (
-    <main className="flex flex-col flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] max-sidebar:max-h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))]">
+    <main className="flex flex-col flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:h-[calc(100dvh-3.5rem-3rem-env(safe-area-inset-bottom))] max-sidebar:max-h-[calc(100dvh-3.5rem-3rem-env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
         <button
@@ -361,7 +361,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
           </div>
 
           {/* Sticky bottom: controls + chat button */}
-          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 pb-2 pt-1">
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-3">
             <NestControlBar
               event={event}
               handRaised={handRaised}
@@ -394,7 +394,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
           </div>
 
           {/* Sticky bottom: controls + chat button */}
-          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 pb-2 pt-1">
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 py-3">
             <NestControlBarSimple
               handRaised={handRaised}
               onToggleHand={toggleHand}
@@ -409,7 +409,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
       {/* Mobile chat sheet — slides up from bottom with close button */}
       <Sheet open={chatOpen} onOpenChange={setChatOpen}>
-        <SheetContent side="bottom" className="h-[85dvh] max-h-[85dvh] flex flex-col p-0 rounded-t-2xl">
+        <SheetContent side="bottom" className="h-[85dvh] max-h-[85dvh] flex flex-col p-0 rounded-t-2xl [&>button:last-child]:hidden">
           <SheetHeader className="sr-only">
             <SheetTitle>Live Chat</SheetTitle>
           </SheetHeader>

@@ -154,7 +154,7 @@ export function LiveStreamChat({ aTag, className }: LiveStreamChatProps) {
   return (
     <div className={cn('flex flex-col overflow-hidden', className)}>
       {/* Chat header */}
-      <div className="flex items-center gap-2 px-4 pr-10 py-3 border-b border-border shrink-0">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
         <MessageCircle className="size-4 text-muted-foreground" />
         <span className="text-sm font-semibold">Live Chat</span>
         <span className="text-xs text-muted-foreground ml-auto tabular-nums">
