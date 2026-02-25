@@ -37,7 +37,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNestsApi } from '@/hooks/useNestsApi';
 import { useNestRoomInfo } from '@/hooks/useNestRoomInfo';
 import { useNestPresencePublisher, useNestPresenceCount } from '@/hooks/useNestPresence';
-import { ParticipantActionSheet } from '@/components/NestParticipantActions';
+import { ParticipantPopover } from '@/components/NestParticipantActions';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useToast } from '@/hooks/useToast';
@@ -513,7 +513,7 @@ function NestParticipantsEmpty() {
   );
 }
 
-/** Single participant tile with avatar, name, mic indicator, hand-raised badge, and tap action sheet. */
+/** Single participant tile with avatar, name, mic indicator, hand-raised badge, and tap-to-open popover. */
 function ParticipantTile({
   participant,
   hostPubkey,
@@ -529,7 +529,6 @@ function ParticipantTile({
   adminPubkeys: Set<string>;
   isCurrentUserAdmin: boolean;
 }) {
-  const [menuOpen, setMenuOpen] = useState(false);
   const pubkey = participant.identity;
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
@@ -539,11 +538,16 @@ function ParticipantTile({
   const isMicEnabled = participant.isMicrophoneEnabled;
 
   return (
-    <>
+    <ParticipantPopover
+      participant={participant}
+      hostPubkey={hostPubkey}
+      roomId={roomId}
+      adminPubkeys={adminPubkeys}
+      isCurrentUserAdmin={isCurrentUserAdmin}
+    >
       <button
         type="button"
-        className="flex flex-col items-center text-center gap-1.5 cursor-pointer"
-        onClick={() => setMenuOpen(true)}
+        className="flex flex-col items-center text-center gap-1.5 cursor-pointer outline-none"
       >
         <div className="relative">
           <Avatar className={cn(
@@ -586,17 +590,7 @@ function ParticipantTile({
           )}
         </div>
       </button>
-
-      <ParticipantActionSheet
-        open={menuOpen}
-        onOpenChange={setMenuOpen}
-        participant={participant}
-        hostPubkey={hostPubkey}
-        roomId={roomId}
-        adminPubkeys={adminPubkeys}
-        isCurrentUserAdmin={isCurrentUserAdmin}
-      />
-    </>
+    </ParticipantPopover>
   );
 }
 

@@ -1,15 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, UserPlus, UserMinus, MicOff, ArrowUpFromLine, ArrowDownFromLine, ShieldPlus, ShieldMinus, VolumeX, ExternalLink } from 'lucide-react';
 import type { RemoteParticipant, LocalParticipant as LKLocalParticipant } from 'livekit-client';
 
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerDescription,
-} from '@/components/ui/drawer';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Separator } from '@/components/ui/separator';
 import { ZapDialog } from '@/components/ZapDialog';
@@ -24,29 +18,29 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
 
-interface ParticipantActionSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+interface ParticipantPopoverProps {
+  /** The popover trigger (the participant tile content). */
+  children: ReactNode;
   participant: RemoteParticipant | LKLocalParticipant;
-  /** The room event's pubkey (host). */
   hostPubkey: string;
-  /** The room's d-tag (room ID for API calls). */
   roomId: string;
-  /** Pubkeys of current room admins. */
   adminPubkeys: Set<string>;
-  /** Whether the current logged-in user is a room admin (or host). */
   isCurrentUserAdmin: boolean;
 }
 
-export function ParticipantActionSheet({
-  open,
-  onOpenChange,
+/**
+ * A compact floating popover menu anchored to a participant's avatar.
+ * Wraps its children as the trigger element.
+ */
+export function ParticipantPopover({
+  children,
   participant,
   hostPubkey,
   roomId,
   adminPubkeys,
   isCurrentUserAdmin,
-}: ParticipantActionSheetProps) {
+}: ParticipantPopoverProps) {
+  const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const api = useNestsApi();
@@ -74,19 +68,18 @@ export function ParticipantActionSheet({
 
   const [actionPending, setActionPending] = useState(false);
 
-  /** Helper to run an async admin action with loading state and error handling. */
   const runAction = useCallback(async (label: string, fn: () => Promise<void>) => {
     setActionPending(true);
     try {
       await fn();
-      onOpenChange(false);
+      setOpen(false);
     } catch (err) {
       console.error(`Failed to ${label}:`, err);
       toast({ title: 'Error', description: `Could not ${label}.`, variant: 'destructive' });
     } finally {
       setActionPending(false);
     }
-  }, [onOpenChange, toast]);
+  }, [toast]);
 
   const handlePromote = () =>
     runAction('promote to stage', () => api.updatePermissions(roomId, pubkey, { can_publish: true }));
@@ -119,7 +112,7 @@ export function ParticipantActionSheet({
     mutation.mutate(muteItem, {
       onSuccess: () => {
         toast({ title: isUserMuted ? `Unmuted ${displayName}` : `Muted ${displayName}` });
-        onOpenChange(false);
+        setOpen(false);
       },
       onError: () => {
         toast({ title: 'Error', description: 'Failed to update mute list.', variant: 'destructive' });
@@ -128,156 +121,128 @@ export function ParticipantActionSheet({
   };
 
   const handleViewProfile = () => {
-    onOpenChange(false);
+    setOpen(false);
     navigate(profileUrl);
   };
 
+  const hasAdminActions = isCurrentUserAdmin && !isSelf;
+  const hasSelfAdminActions = isCurrentUserAdmin && isSelf && isSpeaker;
+
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader className="text-left">
-          <div className="flex items-center gap-3">
-            <Avatar className="size-12">
-              <AvatarImage src={metadata?.picture} alt={displayName} />
-              <AvatarFallback className="bg-primary/20 text-primary">
-                {displayName[0]?.toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
-            <div className="min-w-0 flex-1">
-              <DrawerTitle className="text-base truncate">{displayName}</DrawerTitle>
-              <DrawerDescription className="text-xs">
-                {isHost ? 'Host' : isTargetAdmin ? 'Moderator' : isSpeaker ? 'Speaker' : 'Listener'}
-              </DrawerDescription>
-            </div>
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        {children}
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="center"
+        sideOffset={8}
+        className="w-52 p-1.5 rounded-xl shadow-xl border border-border/60 backdrop-blur-sm"
+      >
+        {/* Header: avatar + name */}
+        <div className="flex items-center gap-2.5 px-2 py-1.5 mb-1">
+          <Avatar className="size-8 shrink-0">
+            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-xs">
+              {displayName[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold truncate leading-tight">{displayName}</p>
+            <p className="text-[10px] text-muted-foreground leading-tight">
+              {isHost ? 'Host' : isTargetAdmin ? 'Moderator' : isSpeaker ? 'Speaker' : 'Listener'}
+            </p>
           </div>
-        </DrawerHeader>
-
-        <div className="px-4 pb-6 space-y-1">
-          {/* ── Universal actions ── */}
-
-          {/* View Profile */}
-          <ActionRow icon={<ExternalLink className="size-4" />} label="View Profile" onClick={handleViewProfile} />
-
-          {/* Zap */}
-          {canZapUser && authorEvent && (
-            <ZapDialog target={authorEvent}>
-              <ActionRow icon={<Zap className="size-4" />} label={`Zap ${displayName}`} onClick={() => onOpenChange(false)} />
-            </ZapDialog>
-          )}
-
-          {/* Follow / Unfollow */}
-          {user && !isSelf && (
-            <ActionRow
-              icon={isFollowed ? <UserMinus className="size-4" /> : <UserPlus className="size-4" />}
-              label={isFollowed ? 'Unfollow' : 'Follow'}
-              onClick={handleFollow}
-              disabled={followPending}
-            />
-          )}
-
-          {/* Mute / Unmute user */}
-          {user && !isSelf && (
-            <ActionRow
-              icon={<VolumeX className="size-4" />}
-              label={isUserMuted ? 'Unmute User' : 'Mute User'}
-              onClick={handleMuteUser}
-              className={!isUserMuted ? 'text-destructive' : undefined}
-            />
-          )}
-
-          {/* ── Admin / Host actions ── */}
-          {isCurrentUserAdmin && !isSelf && (
-            <>
-              <Separator className="my-2" />
-
-              {/* Promote / Demote stage */}
-              {!isSpeaker ? (
-                <ActionRow
-                  icon={<ArrowUpFromLine className="size-4" />}
-                  label="Add to Stage"
-                  onClick={handlePromote}
-                  disabled={actionPending}
-                />
-              ) : (
-                <ActionRow
-                  icon={<ArrowDownFromLine className="size-4" />}
-                  label="Remove from Stage"
-                  onClick={handleDemote}
-                  disabled={actionPending}
-                />
-              )}
-
-              {/* Mute microphone (only if on stage and mic is on) */}
-              {isSpeaker && isMicEnabled && (
-                <ActionRow
-                  icon={<MicOff className="size-4" />}
-                  label="Mute Microphone"
-                  onClick={handleMuteMic}
-                  disabled={actionPending}
-                />
-              )}
-
-              {/* Make / Remove moderator (not for the host) */}
-              {!isHost && !isTargetAdmin && (
-                <ActionRow
-                  icon={<ShieldPlus className="size-4" />}
-                  label="Make Moderator"
-                  onClick={handleMakeAdmin}
-                  disabled={actionPending}
-                />
-              )}
-              {!isHost && isTargetAdmin && (
-                <ActionRow
-                  icon={<ShieldMinus className="size-4" />}
-                  label="Remove Moderator"
-                  onClick={handleRemoveAdmin}
-                  disabled={actionPending}
-                  className="text-destructive"
-                />
-              )}
-            </>
-          )}
-
-          {/* ── Self admin actions ── */}
-          {isCurrentUserAdmin && isSelf && isSpeaker && (
-            <>
-              <Separator className="my-2" />
-              <ActionRow
-                icon={<ArrowDownFromLine className="size-4" />}
-                label="Leave Stage"
-                onClick={handleDemote}
-                disabled={actionPending}
-              />
-            </>
-          )}
         </div>
-      </DrawerContent>
-    </Drawer>
+
+        <Separator className="mb-1" />
+
+        {/* Universal actions */}
+        <MenuItem icon={<ExternalLink />} label="View Profile" onClick={handleViewProfile} />
+
+        {canZapUser && authorEvent && (
+          <ZapDialog target={authorEvent}>
+            <MenuItem icon={<Zap />} label="Zap" onClick={() => setOpen(false)} />
+          </ZapDialog>
+        )}
+
+        {user && !isSelf && (
+          <MenuItem
+            icon={isFollowed ? <UserMinus /> : <UserPlus />}
+            label={isFollowed ? 'Unfollow' : 'Follow'}
+            onClick={handleFollow}
+            disabled={followPending}
+          />
+        )}
+
+        {user && !isSelf && (
+          <MenuItem
+            icon={<VolumeX />}
+            label={isUserMuted ? 'Unmute User' : 'Mute User'}
+            onClick={handleMuteUser}
+            destructive={!isUserMuted}
+          />
+        )}
+
+        {/* Admin actions */}
+        {hasAdminActions && (
+          <>
+            <Separator className="my-1" />
+
+            {!isSpeaker ? (
+              <MenuItem icon={<ArrowUpFromLine />} label="Add to Stage" onClick={handlePromote} disabled={actionPending} />
+            ) : (
+              <MenuItem icon={<ArrowDownFromLine />} label="Remove from Stage" onClick={handleDemote} disabled={actionPending} />
+            )}
+
+            {isSpeaker && isMicEnabled && (
+              <MenuItem icon={<MicOff />} label="Mute Mic" onClick={handleMuteMic} disabled={actionPending} />
+            )}
+
+            {!isHost && !isTargetAdmin && (
+              <MenuItem icon={<ShieldPlus />} label="Make Moderator" onClick={handleMakeAdmin} disabled={actionPending} />
+            )}
+            {!isHost && isTargetAdmin && (
+              <MenuItem icon={<ShieldMinus />} label="Remove Moderator" onClick={handleRemoveAdmin} disabled={actionPending} destructive />
+            )}
+          </>
+        )}
+
+        {/* Self admin actions */}
+        {hasSelfAdminActions && (
+          <>
+            <Separator className="my-1" />
+            <MenuItem icon={<ArrowDownFromLine />} label="Leave Stage" onClick={handleDemote} disabled={actionPending} />
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
-/** A single action row in the participant menu. */
-function ActionRow({
+/** Compact menu item with icon and label. */
+function MenuItem({
   icon,
   label,
   onClick,
   disabled,
-  className,
+  destructive,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   label: string;
   onClick?: () => void;
   disabled?: boolean;
-  className?: string;
+  destructive?: boolean;
 }) {
   return (
     <button
       type="button"
       className={cn(
-        'flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-        'hover:bg-secondary/60 active:bg-secondary',
-        disabled && 'opacity-50 pointer-events-none',
-        className,
+        'flex items-center gap-2.5 w-full px-2 py-1.5 rounded-lg text-[13px] transition-colors',
+        'hover:bg-accent active:bg-accent/80',
+        disabled && 'opacity-40 pointer-events-none',
+        destructive ? 'text-destructive' : 'text-popover-foreground',
+        '[&_svg]:size-3.5 [&_svg]:shrink-0',
       )}
       onClick={onClick}
       disabled={disabled}
