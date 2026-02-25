@@ -18,7 +18,7 @@ export function BookmarksPage() {
   const { events, isLoading, isLoadingEvents, bookmarkedIds } = useBookmarks();
 
   return (
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      <main className="min-h-screen">
         {/* Sticky header */}
         <div className={cn('sidebar:sticky sidebar:top-0', 'flex items-center gap-4 px-4 pt-4 pb-5 bg-background/80 backdrop-blur-md z-10')}>
           <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">

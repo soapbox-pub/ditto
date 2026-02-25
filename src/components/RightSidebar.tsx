@@ -1,4 +1,5 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { X } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -230,11 +231,11 @@ export function RightSidebar() {
 
 /** Compact hot post card for the sidebar. */
 function HotPostCard({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name || genUserName(event.pubkey);
   const encodedId = useMemo(() => nip19.neventEncode({ id: event.id, author: event.pubkey }), [event]);
+  const { onClick: openPost, onAuxClick } = useOpenPost(`/${encodedId}`);
 
   // Truncate content for sidebar display
   const snippet = useMemo(() => {
@@ -246,7 +247,8 @@ function HotPostCard({ event }: { event: NostrEvent }) {
 
   return (
     <button
-      onClick={() => navigate(`/${encodedId}`)}
+      onClick={openPost}
+      onAuxClick={onAuxClick}
       className="block w-full text-left hover:bg-secondary/40 -mx-2 px-2 py-2 rounded-lg transition-colors"
     >
       <div className="flex items-center gap-1.5 mb-0.5">

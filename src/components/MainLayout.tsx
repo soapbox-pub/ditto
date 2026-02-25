@@ -15,7 +15,7 @@ function PageSkeleton() {
   return (
     <>
       {/* Main column skeleton */}
-      <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+      <main className="flex-1 min-w-0 min-h-screen">
         {/* Header skeleton */}
         <div className="flex items-center gap-4 px-4 mt-4 mb-5">
           <Skeleton className="h-6 w-32" />
@@ -83,7 +83,7 @@ function MainLayoutInner() {
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
           {/* Wrap the center column in a relative container for the FAB */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px]", showFAB && "pb-24")}>
+          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border", showFAB && "pb-24")}>
             <Outlet />
             {showFAB && (
               <div className="sticky bottom-20 sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
