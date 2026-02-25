@@ -8,13 +8,18 @@
       Ditto logo from public/logo.svg.
       SVG viewBox is "-5 -10 100 100", so we shift all paths by (+5, +10)
       to place the origin at (0,0) for the 100x100 viewport.
-      The logo naturally fills this space; Android's adaptive icon safe zone
-      (66% of 108dp = ~72dp) is handled by the outer padding of the 108dp canvas.
+      Scaled to 75% of viewport size (0.75) and centered for 50% safe zone.
+      Scale of 0.75 brings the 100x100 logo down to 75x75 within the 108dp canvas,
+      which is approximately 50% of the total area with proper padding.
     -->
 
     <group
         android:translateX="5"
-        android:translateY="10">
+        android:translateY="10"
+        android:scaleX="0.75"
+        android:scaleY="0.75"
+        android:pivotX="50"
+        android:pivotY="40">
 
         <!-- path1: bottom arc / bottom-right swash -->
         <path
