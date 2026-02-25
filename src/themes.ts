@@ -1,5 +1,4 @@
 import type { Theme } from '@/contexts/AppContext';
-import { buildConfig } from '@/lib/buildConfig';
 
 export interface ThemeTokens {
   background: string;
@@ -23,60 +22,54 @@ export interface ThemeTokens {
   ring: string;
 }
 
-/** Default light theme tokens before any build-time overrides. */
-const defaultLightTheme: ThemeTokens = {
-  background: '0 0% 100%',
-  foreground: '222.2 84% 4.9%',
-  card: '0 0% 100%',
-  cardForeground: '222.2 84% 4.9%',
-  popover: '0 0% 100%',
-  popoverForeground: '222.2 84% 4.9%',
-  primary: '258 70% 55%',
-  primaryForeground: '0 0% 100%',
-  secondary: '210 40% 96.1%',
-  secondaryForeground: '222.2 47.4% 11.2%',
-  muted: '210 40% 96.1%',
-  mutedForeground: '215.4 16.3% 46.9%',
-  accent: '258 70% 55%',
-  accentForeground: '0 0% 100%',
-  destructive: '0 84.2% 60.2%',
-  destructiveForeground: '210 40% 98%',
-  border: '214.3 31.8% 91.4%',
-  input: '214.3 31.8% 91.4%',
-  ring: '258 70% 55%',
-};
-
-/** Default dark theme tokens before any build-time overrides. */
-const defaultDarkTheme: ThemeTokens = {
-  background: '228 20% 10%',
-  foreground: '210 40% 98%',
-  card: '228 20% 12%',
-  cardForeground: '210 40% 98%',
-  popover: '228 20% 12%',
-  popoverForeground: '210 40% 98%',
-  primary: '258 70% 60%',
-  primaryForeground: '0 0% 100%',
-  secondary: '228 16% 18%',
-  secondaryForeground: '210 40% 98%',
-  muted: '228 16% 18%',
-  mutedForeground: '215 20.2% 65.1%',
-  accent: '258 70% 60%',
-  accentForeground: '0 0% 100%',
-  destructive: '0 72% 51%',
-  destructiveForeground: '210 40% 98%',
-  border: '228 14% 20%',
-  input: '228 14% 20%',
-  ring: '258 70% 60%',
-};
-
 /**
  * Builtin themes whose colors are defined at build time.
- * Self-hosters can customize these values with VITE_THEME_LIGHT_* and
- * VITE_THEME_DARK_* environment variables before building.
+ * Self-hosters can customize these values before building.
  */
 export const builtinThemes: Record<'light' | 'dark', ThemeTokens> = {
-  light: { ...defaultLightTheme, ...buildConfig.lightThemeOverrides },
-  dark: { ...defaultDarkTheme, ...buildConfig.darkThemeOverrides },
+  light: {
+    background: '0 0% 100%',
+    foreground: '222.2 84% 4.9%',
+    card: '0 0% 100%',
+    cardForeground: '222.2 84% 4.9%',
+    popover: '0 0% 100%',
+    popoverForeground: '222.2 84% 4.9%',
+    primary: '258 70% 55%',
+    primaryForeground: '0 0% 100%',
+    secondary: '210 40% 96.1%',
+    secondaryForeground: '222.2 47.4% 11.2%',
+    muted: '210 40% 96.1%',
+    mutedForeground: '215.4 16.3% 46.9%',
+    accent: '258 70% 55%',
+    accentForeground: '0 0% 100%',
+    destructive: '0 84.2% 60.2%',
+    destructiveForeground: '210 40% 98%',
+    border: '214.3 31.8% 91.4%',
+    input: '214.3 31.8% 91.4%',
+    ring: '258 70% 55%',
+  },
+
+  dark: {
+    background: '228 20% 10%',
+    foreground: '210 40% 98%',
+    card: '228 20% 12%',
+    cardForeground: '210 40% 98%',
+    popover: '228 20% 12%',
+    popoverForeground: '210 40% 98%',
+    primary: '258 70% 60%',
+    primaryForeground: '0 0% 100%',
+    secondary: '228 16% 18%',
+    secondaryForeground: '210 40% 98%',
+    muted: '228 16% 18%',
+    mutedForeground: '215 20.2% 65.1%',
+    accent: '258 70% 60%',
+    accentForeground: '0 0% 100%',
+    destructive: '0 72% 51%',
+    destructiveForeground: '210 40% 98%',
+    border: '228 14% 20%',
+    input: '228 14% 20%',
+    ring: '258 70% 60%',
+  },
 };
 
 /** Metadata for a theme preset. */
