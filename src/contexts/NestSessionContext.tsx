@@ -105,6 +105,7 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
   // Refs for cleanup
   const roomRef = useRef<Room | null>(null);
   const tokenRefreshRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const joiningRef = useRef(false);
 
   // Derived state
   const dTag = event ? (getTag(event.tags, 'd') || '') : '';
@@ -118,85 +119,93 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
 
   // ── joinNest ──
   const joinNest = useCallback(async (nestEvent: NostrEvent, initialToken?: string) => {
-    // If already in a different room, leave first
-    if (roomRef.current) {
-      await roomRef.current.disconnect();
-      roomRef.current = null;
-    }
-    if (tokenRefreshRef.current) {
-      clearInterval(tokenRefreshRef.current);
-      tokenRefreshRef.current = null;
-    }
+    // Prevent concurrent join attempts (e.g. React Strict Mode double-fires)
+    if (joiningRef.current) return;
+    joiningRef.current = true;
 
-    const url = extractLivekitUrl(nestEvent);
-    if (!url) {
-      console.error('No LiveKit URL found in nest event');
-      return;
-    }
-
-    const roomDTag = getTag(nestEvent.tags, 'd') || '';
-
-    // Get token
-    let tkn = initialToken;
-    if (!tkn) {
-      try {
-        const result = await api.joinRoom(roomDTag);
-        tkn = result.token;
-      } catch (err) {
-        console.error('Failed to get nest token:', err);
-        return;
+    try {
+      // If already in a different room, leave first
+      if (roomRef.current) {
+        await roomRef.current.disconnect();
+        roomRef.current = null;
       }
-    }
-
-    // Create and connect Room
-    const newRoom = new Room();
-    roomRef.current = newRoom;
-
-    // Track connection state
-    const handleStateChange = (state: ConnectionState) => {
-      setConnectionState(state);
-    };
-    newRoom.on(RoomEvent.ConnectionStateChanged, handleStateChange);
-
-    // Track disconnection (e.g. host closed room, network error)
-    newRoom.on(RoomEvent.Disconnected, () => {
-      setRoom(null);
-      setEvent(null);
-      setToken(null);
-      setLivekitUrl(null);
-      setMinimized(false);
-      setConnectionState(ConnectionState.Disconnected);
-      roomRef.current = null;
       if (tokenRefreshRef.current) {
         clearInterval(tokenRefreshRef.current);
         tokenRefreshRef.current = null;
       }
-    });
 
-    try {
-      await newRoom.connect(url, tkn);
-    } catch (err) {
-      console.error('Failed to connect to LiveKit:', err);
-      roomRef.current = null;
-      return;
-    }
-
-    setRoom(newRoom);
-    setEvent(nestEvent);
-    setToken(tkn);
-    setLivekitUrl(url);
-    setMinimized(false);
-    setConnectionState(newRoom.state);
-
-    // Background token refresh to prevent expiry
-    tokenRefreshRef.current = setInterval(async () => {
-      try {
-        const result = await api.joinRoom(roomDTag);
-        setToken(result.token);
-      } catch {
-        // Token refresh failed — not critical, current token may still be valid
+      const url = extractLivekitUrl(nestEvent);
+      if (!url) {
+        console.error('No LiveKit URL found in nest event');
+        return;
       }
-    }, TOKEN_REFRESH_INTERVAL);
+
+      const roomDTag = getTag(nestEvent.tags, 'd') || '';
+
+      // Get token
+      let tkn = initialToken;
+      if (!tkn) {
+        try {
+          const result = await api.joinRoom(roomDTag);
+          tkn = result.token;
+        } catch (err) {
+          console.error('Failed to get nest token:', err);
+          return;
+        }
+      }
+
+      // Create and connect Room
+      const newRoom = new Room();
+      roomRef.current = newRoom;
+
+      // Track connection state
+      const handleStateChange = (state: ConnectionState) => {
+        setConnectionState(state);
+      };
+      newRoom.on(RoomEvent.ConnectionStateChanged, handleStateChange);
+
+      // Track disconnection (e.g. host closed room, network error)
+      newRoom.on(RoomEvent.Disconnected, () => {
+        setRoom(null);
+        setEvent(null);
+        setToken(null);
+        setLivekitUrl(null);
+        setMinimized(false);
+        setConnectionState(ConnectionState.Disconnected);
+        roomRef.current = null;
+        if (tokenRefreshRef.current) {
+          clearInterval(tokenRefreshRef.current);
+          tokenRefreshRef.current = null;
+        }
+      });
+
+      try {
+        await newRoom.connect(url, tkn);
+      } catch (err) {
+        console.error('Failed to connect to LiveKit:', err);
+        roomRef.current = null;
+        return;
+      }
+
+      setRoom(newRoom);
+      setEvent(nestEvent);
+      setToken(tkn);
+      setLivekitUrl(url);
+      setMinimized(false);
+      setConnectionState(newRoom.state);
+
+      // Background token refresh to prevent expiry
+      tokenRefreshRef.current = setInterval(async () => {
+        try {
+          const result = await api.joinRoom(roomDTag);
+          setToken(result.token);
+        } catch {
+          // Token refresh failed — not critical, current token may still be valid
+        }
+      }, TOKEN_REFRESH_INTERVAL);
+    } finally {
+      joiningRef.current = false;
+    }
   }, [api]);
 
   // ── leaveNest ──

@@ -259,6 +259,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   }, [session, navigate]);
 
   const isConnected = room !== null && session.connectionState === ConnectionState.Connected;
+  const isConnecting = session.connectionState === ConnectionState.Connecting || (session.event?.id === event.id && !room && session.connectionState !== ConnectionState.Disconnected);
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
@@ -323,7 +324,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
           {/* Not yet connected — show empty participants */}
           <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsEmpty />
+            <NestParticipantsEmpty connecting={isConnecting} />
           </div>
 
           {/* Controls without LiveKit (only leave + hand + share) */}
@@ -493,12 +494,12 @@ function NestParticipantsGrid({
 }
 
 /** Fallback participants display when not connected to LiveKit. */
-function NestParticipantsEmpty() {
+function NestParticipantsEmpty({ connecting }: { connecting?: boolean }) {
   return (
     <div className="text-center py-8">
       <Users className="size-6 text-muted-foreground/40 mx-auto mb-2" />
       <p className="text-sm text-muted-foreground">
-        No participants yet. Be the first to join!
+        {connecting ? 'Connecting to room...' : 'No participants yet. Be the first to join!'}
       </p>
     </div>
   );
