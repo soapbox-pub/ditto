@@ -161,17 +161,10 @@ export function deriveTokensFromCore(
     ? formatHsl(fgParsed.h, Math.max(fgParsed.s - 20, 0), Math.max(fgParsed.l - 30, 40))
     : formatHsl(fgParsed.h, Math.max(fgParsed.s - 30, 0), Math.min(fgParsed.l + 35, 55));
 
-  // Sidebar: slightly different shade of background
-  const sidebarBg = dark ? darken(background, 2) : darken(background, 2);
-  const sidebarAccentBg = dark ? lighten(background, 4) : darken(background, 6);
-  const sidebarBorder = border;
-
   // Foreground variants
   const cardFg = foreground;
   const popoverFg = foreground;
   const secondaryFg = foreground;
-  const sidebarFg = foreground;
-  const sidebarAccentFg = foreground;
 
   // Primary/accent foregrounds: auto-contrast
   const primaryFg = contrastForeground(primary);
@@ -201,13 +194,5 @@ export function deriveTokensFromCore(
     border,
     input,
     ring: primary,
-    sidebarBackground: sidebarBg,
-    sidebarForeground: sidebarFg,
-    sidebarPrimary: primary,
-    sidebarPrimaryForeground: primaryFg,
-    sidebarAccent: sidebarAccentBg,
-    sidebarAccentForeground: sidebarAccentFg,
-    sidebarBorder,
-    sidebarRing: primary,
   };
 }
