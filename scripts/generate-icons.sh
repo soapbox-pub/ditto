@@ -72,7 +72,7 @@ echo "Generating legacy launcher PNGs (ic_launcher.png, ic_launcher_round.png)..
 
 make_legacy_icon() {
     local size=$1
-    local content_size=$((size * 66 / 100))
+    local content_size=$((size * 50 / 100))
     local dest=$2
     local round=$3
     
@@ -111,7 +111,7 @@ echo "Generating adaptive foreground PNGs..."
 
 make_foreground() {
     local size=$1
-    local content_size=$((size * 66 / 100))
+    local content_size=$((size * 50 / 100))
     local dest=$2
     $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
