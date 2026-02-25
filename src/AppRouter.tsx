@@ -11,6 +11,11 @@ import { NIP19Page } from "./pages/NIP19Page";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ProfileSettings } from "./pages/ProfileSettings";
+import { AppearanceSettings } from "./pages/AppearanceSettings";
+import { WalletSettingsPage } from "./pages/WalletSettingsPage";
+import { NotificationSettings } from "./pages/NotificationSettings";
+import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
@@ -40,7 +45,12 @@ export function AppRouter() {
           <Route path="/t/:tag" element={<HashtagPage />} />
           <Route path="/timeline/:domain" element={<DomainFeedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/settings/:section" element={<SettingsPage />} />
+          <Route path="/settings/profile" element={<ProfileSettings />} />
+          <Route path="/settings/appearance" element={<AppearanceSettings />} />
+          <Route path="/settings/appearance/:tab" element={<AppearanceSettings />} />
+          <Route path="/settings/wallet" element={<WalletSettingsPage />} />
+          <Route path="/settings/notifications" element={<NotificationSettings />} />
+          <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
           <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" icon={<Clapperboard className="size-5" />} />} />
           <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" icon={<BarChart3 className="size-5" />} />} />
           <Route path="/treasures" element={<TreasuresPage />} />
