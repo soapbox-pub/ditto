@@ -51,8 +51,10 @@ TMPDIR=$(mktemp -d)
 LOGO_WHITE_SVG="$TMPDIR/logo_white.svg"
 LOGO_WHITE="$TMPDIR/logo_white.png"
 
-# Recolor the SVG fill to white before rasterizing.
-sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" > "$LOGO_WHITE_SVG"
+# Recolor the SVG fill to white and fix the viewBox to be centered
+# Original viewBox is "-5 -10 100 100" which is off-center
+# Change to "0 0 90 80" to properly frame the logo content
+sed 's/#7c52e0/#ffffff/g' "$SOURCE_SVG" | sed 's/viewBox="-5 -10 100 100"/viewBox="0 0 90 80"/' > "$LOGO_WHITE_SVG"
 
 echo "Rendering white SVG at 512x512..."
 

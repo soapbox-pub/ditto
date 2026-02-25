@@ -1,25 +1,22 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
+    android:viewportWidth="90"
+    android:viewportHeight="80">
 
     <!--
       Ditto logo from public/logo.svg.
-      SVG viewBox is "-5 -10 100 100", so we shift all paths by (+5, +10)
-      to place the origin at (0,0) for the 100x100 viewport.
+      Adjusted viewBox to 90x80 (was 100x100) to properly center the logo content.
+      Original SVG viewBox "-5 -10 100 100" was asymmetric, causing off-center rendering.
       Scaled to 60% of viewport size (0.6) and centered for 40% safe zone.
-      Scale of 0.6 brings the 100x100 logo down to 60x60 within the 108dp canvas,
-      which is approximately 40% of the total area with generous padding.
-      Additional horizontal offset (+2) compensates for asymmetric viewBox.
     -->
 
     <group
-        android:translateX="7"
+        android:translateX="5"
         android:translateY="10"
         android:scaleX="0.6"
         android:scaleY="0.6"
-        android:pivotX="50"
+        android:pivotX="45"
         android:pivotY="40">
 
         <!-- path1: bottom arc / bottom-right swash -->
