@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Bell, User, Search, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { Home, Compass, Bell, User, Search, TrendingUp, Bookmark, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -16,6 +16,7 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 const ITEM_ICONS: Record<string, React.ReactElement> = {
   __feed: <Home className="size-5" />,
   __trends: <TrendingUp className="size-5" />,
+  __bookmarks: <Bookmark className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -41,6 +42,7 @@ function itemPath(id: string): string {
 function isItemActive(id: string, pathname: string, search: string): boolean {
   if (id === '__feed') return pathname === '/';
   if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
+  if (id === '__bookmarks') return pathname === '/bookmarks';
   return pathname === `/${id}`;
 }
 

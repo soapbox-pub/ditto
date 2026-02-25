@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 const ITEM_ICONS: Record<string, React.ReactNode> = {
   __feed: <Home className="size-5" />,
   __trends: <TrendingUp className="size-5" />,
+  __bookmarks: <Bookmark className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -380,12 +381,6 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 </>
               )}
 
-              <DrawerMenuItem
-                to="/bookmarks"
-                icon={<Bookmark className="size-5" />}
-                label="Bookmarks"
-                onClick={handleClose}
-              />
               <DrawerMenuItem
                 to="/settings"
                 icon={<Settings className="size-5" />}
