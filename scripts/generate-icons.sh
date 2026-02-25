@@ -13,8 +13,11 @@ if command -v inkscape &> /dev/null; then
     SVG_RENDERER="inkscape"
 elif command -v rsvg-convert &> /dev/null; then
     SVG_RENDERER="rsvg"
+elif command -v magick &> /dev/null || command -v convert &> /dev/null; then
+    SVG_RENDERER="imagemagick"
+    echo -e "${YELLOW}Using ImageMagick for SVG rendering (inkscape/rsvg-convert not found)${NC}"
 else
-    echo -e "${YELLOW}Warning: neither inkscape nor rsvg-convert found. Install one to render SVG icons.${NC}"
+    echo -e "${YELLOW}Error: no SVG renderer found. Please install inkscape, rsvg-convert, or ImageMagick.${NC}"
     echo "On Fedora/RHEL: sudo dnf install inkscape"
     echo "On Ubuntu/Debian: sudo apt-get install inkscape"
     exit 1
@@ -55,20 +58,60 @@ echo "Rendering white SVG at 512x512..."
 
 if [ "$SVG_RENDERER" = "inkscape" ]; then
     inkscape --export-type=png --export-filename="$LOGO_WHITE" -w 512 -h 512 "$LOGO_WHITE_SVG" 2>/dev/null
-else
+elif [ "$SVG_RENDERER" = "rsvg" ]; then
     rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
+else
+    # Use ImageMagick
+    $MAGICK "$LOGO_WHITE_SVG" -resize 512x512 -background none -flatten "$LOGO_WHITE"
 fi
 
+# ── Legacy launcher icons (pre-Android 8.0) ──
+# For devices < API 26, generate full icons with purple background + white logo
+
+echo "Generating legacy launcher PNGs (ic_launcher.png, ic_launcher_round.png)..."
+
+make_legacy_icon() {
+    local size=$1
+    local content_size=$((size * 66 / 100))
+    local dest=$2
+    local round=$3
+    
+    if [ "$round" = "round" ]; then
+        # Round icon with circular mask
+        $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
+            \( -size "${size}x${size}" xc:black -fill white -draw "circle $((size/2)),$((size/2)) $((size/2)),0" \) \
+            -alpha off -compose copy_opacity -composite \
+            \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
+            -gravity center -compose over -composite \
+            "$dest"
+    else
+        # Square icon
+        $MAGICK -size "${size}x${size}" "xc:${BG_COLOR}" \
+            \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
+            -gravity center -compose over -composite \
+            "$dest"
+    fi
+}
+
+make_legacy_icon 48  android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+make_legacy_icon 48  android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png round
+make_legacy_icon 72  android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+make_legacy_icon 72  android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png round
+make_legacy_icon 96  android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+make_legacy_icon 96  android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png round
+make_legacy_icon 144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+make_legacy_icon 144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png round
+make_legacy_icon 192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+make_legacy_icon 192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png round
+
 # ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
-# Launcher PNGs (ic_launcher, ic_launcher_round) are committed directly to the repo.
-# Only the adaptive foreground PNGs need to be generated here.
-# Safe zone = 66% of canvas. Content centered on transparent background.
+# For Android 8.0+ (API 26+) adaptive icons
 
 echo "Generating adaptive foreground PNGs..."
 
 make_foreground() {
     local size=$1
-    local content_size=$(echo "$size * 66 / 100" | bc)
+    local content_size=$((size * 66 / 100))
     local dest=$2
     $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
