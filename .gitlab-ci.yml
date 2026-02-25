@@ -122,11 +122,11 @@ build-apk:
 
     # Copy APK to a predictable artifact path
     - mkdir -p artifacts
-    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/ditto-${CI_COMMIT_TAG}.apk"
-    - ls -lh "artifacts/ditto-${CI_COMMIT_TAG}.apk"
+    - cp android/app/build/outputs/apk/release/app-release.apk "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
+    - ls -lh "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
   artifacts:
     paths:
-      - "artifacts/ditto-${CI_COMMIT_TAG}.apk"
+      - "artifacts/Ditto-${CI_COMMIT_TAG}.apk"
     expire_in: 90 days
   cache:
     key: android-gradle
@@ -149,6 +149,6 @@ release:
     description: "Ditto $CI_COMMIT_TAG"
     assets:
       links:
-        - name: "ditto-${CI_COMMIT_TAG}.apk"
-          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
+        - name: "Ditto-${CI_COMMIT_TAG}.apk"
+          url: "${CI_PROJECT_URL}/-/jobs/artifacts/${CI_COMMIT_TAG}/raw/artifacts/Ditto-${CI_COMMIT_TAG}.apk?job=build-apk"
           link_type: package
