@@ -27,6 +27,9 @@ export default {
 			'2xl': '1536px',
 		},
 		extend: {
+			spacing: {
+				'22': '5.5rem',
+			},
 			fontFamily: {
 				sans: ['Inter Variable', 'Inter', 'system-ui', 'sans-serif'],
 			},
