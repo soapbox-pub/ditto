@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Home, Compass, Bell, User, Search, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
@@ -92,7 +92,6 @@ function NavTab({ icon, label, active, showIndicator, onClick, to }: NavTabProps
 
 export function MobileBottomNav() {
   const location = useLocation();
-  const navigate = useNavigate();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
   const { orderedItems } = useFeedSettings();

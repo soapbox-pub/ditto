@@ -24,13 +24,6 @@ export interface ThemeDefinition {
   event: NostrEvent;
 }
 
-/** All ThemeTokens keys for validation. */
-const REQUIRED_TOKEN_KEYS: (keyof ThemeTokens)[] = [
-  'background', 'foreground', 'card', 'cardForeground', 'popover', 'popoverForeground',
-  'primary', 'primaryForeground', 'secondary', 'secondaryForeground',
-  'muted', 'mutedForeground', 'accent', 'accentForeground',
-  'destructive', 'destructiveForeground', 'border', 'input', 'ring',
-];
 
 /** Parse and validate a kind 33891 theme definition event. Returns null if invalid. */
 export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null {
