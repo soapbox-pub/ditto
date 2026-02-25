@@ -1,13 +1,28 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor, ChevronDown, Plus } from 'lucide-react';
+import {
+  Bell, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
+  User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
+  ChevronDown, Plus, Pencil, X, GripVertical,
+} from 'lucide-react';
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext, verticalListSortingStrategy, useSortable, arrayMove,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenuLabel, DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 import { DittoLogo } from '@/components/DittoLogo';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
@@ -26,6 +41,27 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { cn } from '@/lib/utils';
 import type { Theme } from '@/contexts/AppContext';
 import { themePresets } from '@/themes';
+
+// ── Icon map ──────────────────────────────────────────────────────────────────
+
+/** Map route name to lucide icon (size-6 for sidebar). */
+const ROUTE_ICONS: Record<string, React.ReactElement> = {
+  vines: <Clapperboard className="size-6" />,
+  polls: <BarChart3 className="size-6" />,
+  treasures: <ChestIcon className="size-6" />,
+  colors: <Palette className="size-6" />,
+  packs: <PartyPopper className="size-6" />,
+  streams: <Radio className="size-6" />,
+  articles: <FileText className="size-6" />,
+  decks: <CardsIcon className="size-6" />,
+};
+
+/** Lookup label for a route. */
+function routeLabel(route: string): string {
+  return EXTRA_KINDS.find((d) => d.route === route)?.label ?? route;
+}
+
+// ── Nav item components ───────────────────────────────────────────────────────
 
 interface NavItemProps {
   to: string;
@@ -57,6 +93,122 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
   );
 }
 
+// ── Sortable explore item ─────────────────────────────────────────────────────
+
+interface ExploreItemProps {
+  route: string;
+  active: boolean;
+  editing: boolean;
+  onRemove: (route: string) => void;
+  onClick?: (e: React.MouseEvent) => void;
+}
+
+function SortableExploreItem({ route, active, editing, onRemove, onClick }: ExploreItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: route, disabled: !editing });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const icon = ROUTE_ICONS[route] ?? <Palette className="size-6" />;
+  const label = routeLabel(route);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group flex items-center rounded-full transition-colors relative',
+        isDragging && 'z-10 opacity-80 shadow-lg bg-background',
+      )}
+    >
+      {/* Drag handle — only in edit mode */}
+      {editing && (
+        <button
+          className="flex items-center justify-center w-8 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors"
+          {...attributes}
+          {...listeners}
+        >
+          <GripVertical className="size-4" />
+        </button>
+      )}
+
+      <Link
+        to={`/${route}`}
+        onClick={onClick}
+        className={cn(
+          'flex items-center gap-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 flex-1 min-w-0',
+          editing ? 'px-2' : 'px-4',
+          active ? 'font-bold' : 'font-normal text-muted-foreground',
+        )}
+      >
+        <span className="shrink-0">{icon}</span>
+        <span className="truncate">{label}</span>
+      </Link>
+
+      {/* Remove button — always visible in edit mode, visible on hover otherwise */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(route); }}
+        className={cn(
+          'flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10',
+          editing
+            ? 'opacity-100'
+            : 'opacity-0 group-hover:opacity-100',
+        )}
+        title={`Remove ${label} from sidebar`}
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
+// ── Section header ────────────────────────────────────────────────────────────
+
+interface SectionHeaderProps {
+  label: string;
+  editing?: boolean;
+  onToggleEdit?: () => void;
+}
+
+function SectionHeader({ label, editing, onToggleEdit }: SectionHeaderProps) {
+  return (
+    <div className="flex items-center gap-2 px-4 pt-4 pb-1">
+      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+        {label}
+      </span>
+      <div className="flex-1 h-px bg-border/50" />
+      {onToggleEdit && (
+        <button
+          onClick={onToggleEdit}
+          className={cn(
+            'text-xs font-medium transition-colors px-2 py-0.5 rounded-full',
+            editing
+              ? 'text-primary hover:bg-primary/10'
+              : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-secondary/60',
+          )}
+        >
+          {editing ? (
+            'Done'
+          ) : (
+            <Pencil className="size-3.5" />
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Main sidebar ──────────────────────────────────────────────────────────────
+
 export function LeftSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,12 +216,21 @@ export function LeftSidebar() {
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
-  const { feedSettings, updateFeedSettings } = useFeedSettings();
+  const {
+    feedSettings, orderedRoutes, updateSidebarOrder, addToSidebar, removeFromSidebar,
+  } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  // DnD sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor),
+  );
 
   /** When already on the target route, scroll to top instead of navigating. */
   const scrollToTopIfCurrent = useCallback((to: string) => (e: React.MouseEvent) => {
@@ -79,18 +240,6 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  /** Map route name → lucide icon (size-6 for sidebar). */
-  const ROUTE_ICONS: Record<string, React.ReactElement> = {
-    vines: <Clapperboard className="size-6" />,
-    polls: <BarChart3 className="size-6" />,
-    treasures: <ChestIcon className="size-6" />,
-    colors: <Palette className="size-6" />,
-    packs: <PartyPopper className="size-6" />,
-    streams: <Radio className="size-6" />,
-    articles: <FileText className="size-6" />,
-    decks: <CardsIcon className="size-6" />,
-  };
-
   /** Extra kinds that have a sidebar toggle but are currently hidden. */
   const hiddenKinds = useMemo(() => {
     return EXTRA_KINDS.filter(
@@ -98,42 +247,18 @@ export function LeftSidebar() {
     );
   }, [feedSettings]);
 
-  const navItems = useMemo(() => {
-    const items = [
-      { to: '/', icon: <Home className="size-6" />, label: 'Home' },
-    ];
+  /** Handle drag-and-drop reorder. */
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
 
-    // Only show notifications when logged in
-    if (user) {
-      items.push({ to: '/notifications', icon: <Bell className="size-6" />, label: 'Notifications' });
-    }
+    const oldIndex = orderedRoutes.indexOf(active.id as string);
+    const newIndex = orderedRoutes.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    items.push({ to: '/search', icon: <Search className="size-6" />, label: 'Search' });
-
-    // Add enabled extra-kind links from the shared config (skip feed-only items)
-    for (const def of EXTRA_KINDS) {
-      if (def.showKey && def.route && feedSettings[def.showKey]) {
-        items.push({
-          to: `/${def.route}`,
-          icon: ROUTE_ICONS[def.route] ?? <Palette className="size-6" />,
-          label: def.label,
-        });
-      }
-    }
-
-    // Only show Profile and Bookmarks when logged in
-    if (user) {
-      items.push(
-        { to: userProfileUrl, icon: <User className="size-6" />, label: 'Profile' },
-        { to: '/bookmarks', icon: <Bookmark className="size-6" />, label: 'Bookmarks' },
-      );
-    }
-
-    items.push(
-      { to: '/settings', icon: <Settings className="size-6" />, label: 'Settings' },
-    );
-    return items;
-  }, [feedSettings, user, userProfileUrl]);
+    const newOrder = arrayMove(orderedRoutes, oldIndex, newIndex);
+    updateSidebarOrder(newOrder);
+  }, [orderedRoutes, updateSidebarOrder]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
@@ -144,12 +269,12 @@ export function LeftSidebar() {
   };
 
   const handleLogout = async () => {
-    // Close popover first to avoid state update on unmounted component
     setAccountPopoverOpen(false);
-    // Wait for logout to complete before navigation
     await logout();
     navigate('/');
   };
+
+  // ── Theme options ──────────────────────────────────────────────────────────
 
   const builtinThemeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
@@ -165,12 +290,10 @@ export function LeftSidebar() {
       emoji: preset.emoji,
     }));
 
-  /** Find the preset matching the current custom theme (searches all presets, not just featured). */
   const activePreset = theme === 'custom' && customTheme
     ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme))
     : undefined;
 
-  /** Compute a display label for the current theme. */
   const currentThemeLabel = (() => {
     if (theme !== 'custom') {
       return builtinThemeOptions.find(t => t.value === theme)?.label ?? theme;
@@ -192,7 +315,7 @@ export function LeftSidebar() {
         <DittoLogo size={48} />
       </Link>
 
-      {/* Search bar - visible on xl */}
+      {/* Search bar */}
       <div className="px-2 py-4">
         <ProfileSearchDropdown
           placeholder="Search..."
@@ -202,40 +325,66 @@ export function LeftSidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex flex-col gap-0.5 flex-1">
-        {navItems.map((item) => (
+      <nav className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        {/* Core navigation — only notifications (Home removed, Search removed) */}
+        {user && (
           <NavItem
-            key={item.to}
-            to={item.to}
-            icon={item.icon}
-            label={item.label}
-            active={location.pathname === item.to}
-            showIndicator={item.to === '/notifications' && hasUnread}
-            onClick={item.to === '/' ? scrollToTopIfCurrent('/') : undefined}
+            to="/notifications"
+            icon={<Bell className="size-6" />}
+            label="Notifications"
+            active={location.pathname === '/notifications'}
+            showIndicator={hasUnread}
           />
-        ))}
+        )}
 
-        {/* Add sidebar item button */}
+        {/* ── Explore section ── */}
+        <SectionHeader
+          label="Explore"
+          editing={editing}
+          onToggleEdit={() => setEditing(!editing)}
+        />
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={orderedRoutes}
+            strategy={verticalListSortingStrategy}
+          >
+            {orderedRoutes.map((route) => (
+              <SortableExploreItem
+                key={route}
+                route={route}
+                active={location.pathname === `/${route}`}
+                editing={editing}
+                onRemove={removeFromSidebar}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+
+        {/* "More..." add trigger — subtle inline link */}
         {hiddenKinds.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-full mt-4 rounded-full h-12 text-base font-medium border-dashed border-2 text-muted-foreground hover:text-foreground hover:border-solid transition-all"
+              <button
+                className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
               >
-                <Plus className="size-5 mr-2" />
-                <span>Add</span>
-              </Button>
+                <Plus className="size-4" />
+                <span>More...</span>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="center" className="w-[220px]">
+            <DropdownMenuContent align="start" className="w-[220px]">
               <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
               <DropdownMenuSeparator />
               {hiddenKinds.map((def) => (
                 <DropdownMenuItem
                   key={def.kind}
                   onClick={() => {
-                    if (def.showKey) {
-                      updateFeedSettings({ [def.showKey]: true });
+                    if (def.route) {
+                      addToSidebar(def.route);
                     }
                   }}
                   className="flex items-center gap-3 cursor-pointer"
@@ -253,11 +402,42 @@ export function LeftSidebar() {
             </DropdownMenuContent>
           </DropdownMenu>
         )}
+
+        {/* ── You section ── (logged-in only) */}
+        {user && (
+          <>
+            <SectionHeader label="You" />
+
+            <NavItem
+              to={userProfileUrl}
+              icon={<User className="size-6" />}
+              label="Profile"
+              active={location.pathname === userProfileUrl}
+            />
+            <NavItem
+              to="/bookmarks"
+              icon={<Bookmark className="size-6" />}
+              label="Bookmarks"
+              active={location.pathname === '/bookmarks'}
+            />
+          </>
+        )}
+
+        {/* ── Settings ── */}
+        <div className="mt-auto pt-2">
+          <div className="h-px bg-border/50 mx-4 mb-1" />
+          <NavItem
+            to="/settings"
+            icon={<Settings className="size-6" />}
+            label="Settings"
+            active={location.pathname.startsWith('/settings')}
+          />
+        </div>
       </nav>
 
       {/* User profile at bottom — only when logged in */}
       {user && currentUser && (
-        <div className="mt-auto pt-4">
+        <div className="pt-2">
           <Popover open={accountPopoverOpen} onOpenChange={setAccountPopoverOpen}>
             <PopoverTrigger asChild>
               <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left">

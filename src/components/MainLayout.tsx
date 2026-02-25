@@ -68,7 +68,7 @@ function MainLayoutInner() {
   return (
     <>
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
+      <MobileTopBar onMenuClick={() => setDrawerOpen(true)} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
