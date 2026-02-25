@@ -24,9 +24,28 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
   // Show max 2 authors for cleaner UI
   const displayPubkeys = pubkeys.slice(0, 2);
 
-  const content = (
+  const replyingToLabel = parentEventId ? (
+    <HoverCard openDelay={300} closeDelay={150}>
+      <HoverCardTrigger asChild>
+        <span className="shrink-0 cursor-default">Replying to</span>
+      </HoverCardTrigger>
+      <HoverCardContent
+        side="bottom"
+        align="start"
+        sideOffset={4}
+        className="w-80 p-0 rounded-2xl shadow-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" disableHoverCards />
+      </HoverCardContent>
+    </HoverCard>
+  ) : (
+    <span className="shrink-0">Replying to</span>
+  );
+
+  return (
     <div className={className || 'flex items-center flex-wrap gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
-      <span className="shrink-0">Replying to</span>
+      {replyingToLabel}
       {displayPubkeys.map((pubkey, index) => (
         <span key={pubkey} className="inline-flex items-center gap-1 min-w-0">
           <ReplyAuthor pubkey={pubkey} />
@@ -39,27 +58,6 @@ export function ReplyContext({ pubkeys, parentEventId, className }: ReplyContext
         </span>
       )}
     </div>
-  );
-
-  if (!parentEventId) {
-    return content;
-  }
-
-  return (
-    <HoverCard openDelay={300} closeDelay={150}>
-      <HoverCardTrigger asChild>
-        {content}
-      </HoverCardTrigger>
-      <HoverCardContent
-        side="bottom"
-        align="start"
-        sideOffset={4}
-        className="w-80 p-0 rounded-2xl shadow-lg"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <EmbeddedNote eventId={parentEventId} className="border-0 rounded-none" disableHoverCards />
-      </HoverCardContent>
-    </HoverCard>
   );
 }
 
