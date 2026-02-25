@@ -33,6 +33,7 @@ import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings, isBuiltinItem, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
+import { useUserThemes } from '@/hooks/useUserThemes';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
@@ -304,11 +305,21 @@ export function LeftSidebar() {
     ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme))
     : undefined;
 
+  // User's published themes for the dropdown
+  const sidebarUserThemes = useUserThemes(user?.pubkey);
+
+  // Check if current custom theme matches a user-published theme
+  const activeUserTheme = theme === 'custom' && customTheme && !activePreset
+    ? sidebarUserThemes.data?.find(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme))
+    : undefined;
+
   const currentThemeLabel = (() => {
     if (theme !== 'custom') {
       return builtinThemeOptions.find(t => t.value === theme)?.label ?? theme;
     }
-    return activePreset ? activePreset[1].label : 'Custom';
+    if (activePreset) return activePreset[1].label;
+    if (activeUserTheme) return activeUserTheme.title;
+    return 'Custom';
   })();
 
   const currentThemeIcon = (() => {
@@ -606,8 +617,33 @@ export function LeftSidebar() {
                         </DropdownMenuItem>
                       );
                     })}
-                    {/* Custom theme item — shown when user has a saved custom theme */}
-                    {customTheme && !activePreset && (
+                    {/* User's published themes */}
+                    {sidebarUserThemes.data && sidebarUserThemes.data.length > 0 && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-accent/70">My Themes</DropdownMenuLabel>
+                        {sidebarUserThemes.data.map((ut) => {
+                          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(ut.tokens);
+                          return (
+                            <DropdownMenuItem
+                              key={ut.identifier}
+                              onClick={() => applyCustomTheme(ut.tokens)}
+                              className="flex items-center justify-between cursor-pointer"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Palette className="size-3.5 text-accent shrink-0" />
+                                <span className="truncate">{ut.title}</span>
+                              </div>
+                              {isActive && (
+                                <Check className="size-4 text-primary shrink-0" />
+                              )}
+                            </DropdownMenuItem>
+                          );
+                        })}
+                      </>
+                    )}
+                    {/* Custom theme item — shown when user has a non-preset, non-published custom theme */}
+                    {customTheme && !activePreset && !activeUserTheme && (
                       <DropdownMenuItem
                         onClick={() => {
                           setAccountPopoverOpen(false);

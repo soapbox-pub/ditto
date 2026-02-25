@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useUserThemes } from '@/hooks/useUserThemes';
 import { Home, TrendingUp, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
 import { DndContext, closestCenter, TouchSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
@@ -19,7 +20,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
 import { useCallback, useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
-import { themePresets } from '@/themes';
+import { themePresets, type ThemeTokens } from '@/themes';
 import { cn } from '@/lib/utils';
 
 /** Map item ID to icon for drawer items. Covers both built-ins and extra-kind routes. */
@@ -199,27 +200,41 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       icon: <span className="text-base leading-none">{preset.emoji}</span>,
     }));
 
-  // Include "Custom" in the cycle if user has a non-preset custom theme
+  // User's published themes for cycling
+  const drawerUserThemes = useUserThemes(user?.pubkey);
+  const userThemeCycle = (drawerUserThemes.data ?? []).map((t) => ({
+    id: `user:${t.identifier}`,
+    label: t.title,
+    icon: <Palette className="size-5" />,
+    tokens: t.tokens,
+  }));
+
+  // Include "Custom" in the cycle if user has a non-preset, non-published custom theme
   const isCustomNonPreset = theme === 'custom' && customTheme &&
-    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
+    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme)) &&
+    !(drawerUserThemes.data ?? []).some(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme));
   const customCycleEntry = customTheme && isCustomNonPreset
-    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> }]
+    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" />, tokens: undefined as ThemeTokens | undefined }]
     : [];
 
-  const allThemeCycle = [...builtinCycle, ...presetCycle, ...customCycleEntry];
+  const allThemeCycle = [...builtinCycle.map(b => ({ ...b, tokens: undefined as ThemeTokens | undefined })), ...presetCycle.map(p => ({ ...p, tokens: undefined as ThemeTokens | undefined })), ...userThemeCycle, ...customCycleEntry];
 
   const currentThemeInfo = (() => {
     if (theme !== 'custom') {
       return builtinCycle.find(t => t.id === theme) ?? builtinCycle[0];
     }
     if (customTheme) {
-      const allMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
-      if (allMatch) {
-        const [id, preset] = allMatch;
+      // Check presets
+      const presetMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
+      if (presetMatch) {
+        const [id, preset] = presetMatch;
         const cycleEntry = presetCycle.find(p => p.id === id);
         if (cycleEntry) return cycleEntry;
         return { id, label: preset.label, icon: <span className="text-base leading-none">{preset.emoji}</span> };
       }
+      // Check user's published themes
+      const userMatch = userThemeCycle.find(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme));
+      if (userMatch) return userMatch;
     }
     return { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
   })();
@@ -239,11 +254,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
     if (next.id === 'custom' && customTheme) {
       applyCustomTheme(customTheme);
+    } else if (next.tokens) {
+      // User-published theme
+      applyCustomTheme(next.tokens);
     } else {
       const builtin = builtinCycle.find(b => b.id === next.id);
       if (builtin) {
         setTheme(builtin.id);
-      } else {
+      } else if (themePresets[next.id]) {
         applyCustomTheme(themePresets[next.id].tokens);
       }
     }

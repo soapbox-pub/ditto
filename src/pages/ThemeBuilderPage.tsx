@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette, Star } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 
@@ -11,6 +11,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useToast } from '@/hooks/useToast';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
@@ -19,6 +22,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
+import type { ThemeDefinition } from '@/lib/themeEvent';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
 import { hslStringToHex, hexToHslString, deriveTokensFromCore, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -89,7 +93,7 @@ export function ThemeBuilderPage() {
   const { toast } = useToast();
   const { theme: currentTheme, customTheme: savedCustomTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
-  const { setActiveTheme, isPending: isPublishing } = usePublishTheme();
+  const { publishTheme, setActiveTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
 
   // Check if we're importing from a profile
   const importPubkey = searchParams.get('import');
@@ -202,12 +206,18 @@ export function ThemeBuilderPage() {
     }
   }, [previewing, currentTheme, savedCustomTheme, tokens, applyCustomTheme]);
 
-  // Save & optionally re-publish active profile theme
+  // Publish dialog state
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
+  const [publishTitle, setPublishTitle] = useState('');
+  const [publishDescription, setPublishDescription] = useState('');
+  const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
+
+  // Save: apply locally, then prompt to publish if not published yet
   const handleSave = useCallback(async () => {
     applyCustomTheme(tokens);
     setPreviewing(false);
 
-    // If user has a published active profile theme, auto-update it
+    // If user has an active profile theme, auto-update it
     if (user && hasPublishedTheme) {
       try {
         await setActiveTheme({ tokens });
@@ -216,10 +226,51 @@ export function ThemeBuilderPage() {
         console.error('Failed to update active theme:', error);
         toast({ title: 'Theme saved locally', description: 'Saved but failed to update your profile theme.', variant: 'destructive' });
       }
+    } else if (user) {
+      // First save: ask if they want to publish
+      setPublishTitle('');
+      setPublishDescription('');
+      setEditingTheme(null);
+      setPublishDialogOpen(true);
     } else {
       toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
     }
   }, [tokens, user, hasPublishedTheme, applyCustomTheme, setActiveTheme, toast]);
+
+  // Publish theme as kind 33891
+  const handlePublish = useCallback(async () => {
+    if (!publishTitle.trim()) {
+      toast({ title: 'Title required', description: 'Give your theme a name.', variant: 'destructive' });
+      return;
+    }
+    try {
+      const identifier = await publishTheme({
+        tokens,
+        title: publishTitle.trim(),
+        description: publishDescription.trim() || undefined,
+        identifier: editingTheme?.identifier,
+      });
+      setPublishDialogOpen(false);
+
+      // Also set as active profile theme
+      await setActiveTheme({
+        tokens,
+        sourceAuthor: user?.pubkey,
+        sourceIdentifier: identifier,
+      });
+
+      toast({ title: 'Theme published!', description: `"${publishTitle.trim()}" is now live on your profile and in the public feed.` });
+    } catch (error) {
+      console.error('Failed to publish theme:', error);
+      toast({ title: 'Publish failed', description: 'Could not publish your theme.', variant: 'destructive' });
+    }
+  }, [publishTitle, publishDescription, tokens, editingTheme, user, publishTheme, setActiveTheme, toast]);
+
+  // Skip publish — just save locally
+  const handleSkipPublish = useCallback(() => {
+    setPublishDialogOpen(false);
+    toast({ title: 'Theme saved', description: 'Your custom theme is now active locally.' });
+  }, [toast]);
 
   // Export/import JSON
   const handleExport = useCallback(() => {
@@ -419,23 +470,25 @@ export function ThemeBuilderPage() {
 
         <Separator />
 
-        {/* Profile Publishing Status */}
+        {/* My Themes */}
         {user && (
           <>
             <section className="space-y-3">
-              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Profile Sharing</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">My Themes</h2>
+
+              {/* Active profile theme status */}
               <div className="flex items-center justify-between rounded-lg border p-3">
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <Globe className="size-4 text-primary" />
                     <span className="text-sm font-medium">
-                      {hasPublishedTheme ? 'Published to profile' : 'Not shared'}
+                      {hasPublishedTheme ? 'Profile theme active' : 'No profile theme'}
                     </span>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {hasPublishedTheme
-                      ? 'Your theme is visible when others visit your profile. Saving will auto-update it.'
-                      : 'Enable sharing in Edit Profile to display your theme on your profile.'}
+                      ? 'Visitors see your theme on your profile. Saving auto-updates it.'
+                      : 'Publish a theme to display it on your profile.'}
                   </p>
                 </div>
                 {hasPublishedTheme && (
@@ -444,6 +497,57 @@ export function ThemeBuilderPage() {
                   </Badge>
                 )}
               </div>
+
+              {/* Published theme list */}
+              {_userThemes.data && _userThemes.data.length > 0 && (
+                <div className="space-y-2">
+                  {_userThemes.data.map((theme) => (
+                    <ThemeCard
+                      key={theme.identifier}
+                      theme={theme}
+                      isActive={ownActiveTheme.data?.sourceRef?.endsWith(`:${theme.identifier}`) ?? false}
+                      onLoadIntoEditor={() => {
+                        setTokens(theme.tokens);
+                        setAutoDerive(false);
+                        toast({ title: 'Theme loaded', description: `"${theme.title}" loaded into the editor.` });
+                      }}
+                      onSetActive={async () => {
+                        try {
+                          await setActiveTheme({
+                            tokens: theme.tokens,
+                            sourceAuthor: user.pubkey,
+                            sourceIdentifier: theme.identifier,
+                          });
+                          applyCustomTheme(theme.tokens);
+                          toast({ title: 'Theme activated', description: `"${theme.title}" is now your profile theme.` });
+                        } catch {
+                          toast({ title: 'Failed', description: 'Could not set as active theme.', variant: 'destructive' });
+                        }
+                      }}
+                      onEditMetadata={() => {
+                        setEditingTheme(theme);
+                        setPublishTitle(theme.title);
+                        setPublishDescription(theme.description || '');
+                        setPublishDialogOpen(true);
+                      }}
+                      onDelete={async () => {
+                        try {
+                          await deleteTheme(theme.identifier);
+                          toast({ title: 'Theme deleted', description: `"${theme.title}" has been removed.` });
+                        } catch {
+                          toast({ title: 'Failed', description: 'Could not delete theme.', variant: 'destructive' });
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {_userThemes.data?.length === 0 && (
+                <p className="text-xs text-muted-foreground italic">
+                  No published themes yet. Save a theme above to publish it.
+                </p>
+              )}
             </section>
 
             <Separator />
@@ -482,7 +586,156 @@ export function ThemeBuilderPage() {
           </div>
         </section>
       </div>
+
+      {/* ── Publish Dialog ── */}
+      <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {editingTheme ? 'Edit Theme Details' : 'Publish Theme on Nostr?'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingTheme
+                ? 'Update your theme\'s title and description.'
+                : 'Share your theme with the Nostr community. Others can browse, preview, and use it.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Color swatch preview */}
+            <div className="flex rounded-lg overflow-hidden h-8">
+              {(['background', 'foreground', 'primary', 'accent'] as const).map((key) => (
+                <div
+                  key={key}
+                  className="flex-1"
+                  style={{ backgroundColor: hexTokens[key] }}
+                />
+              ))}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="theme-title">Title</Label>
+              <Input
+                id="theme-title"
+                value={publishTitle}
+                onChange={(e) => setPublishTitle(e.target.value)}
+                placeholder="e.g. My Dark Theme"
+                maxLength={80}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="theme-description">Description (optional)</Label>
+              <Textarea
+                id="theme-description"
+                value={publishDescription}
+                onChange={(e) => setPublishDescription(e.target.value)}
+                placeholder="A sleek dark theme with purple accents..."
+                maxLength={200}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            {!editingTheme && (
+              <Button variant="ghost" onClick={handleSkipPublish} className="sm:mr-auto">
+                Skip
+              </Button>
+            )}
+            <Button onClick={handlePublish} disabled={isPublishing || !publishTitle.trim()}>
+              <Palette className="size-4 mr-1.5" />
+              {isPublishing ? 'Publishing...' : editingTheme ? 'Update' : 'Publish'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
+  );
+}
+
+// ─── Theme Card (My Themes list item) ─────────────────────────────────
+
+interface ThemeCardProps {
+  theme: ThemeDefinition;
+  isActive: boolean;
+  onLoadIntoEditor: () => void;
+  onSetActive: () => void;
+  onEditMetadata: () => void;
+  onDelete: () => void;
+}
+
+function ThemeCard({ theme, isActive, onLoadIntoEditor, onSetActive, onEditMetadata, onDelete }: ThemeCardProps) {
+  const swatches = [
+    theme.tokens.background,
+    theme.tokens.foreground,
+    theme.tokens.primary,
+    theme.tokens.accent,
+  ].map((hsl) => {
+    try { return hslStringToHex(hsl); } catch { return '#888'; }
+  });
+
+  return (
+    <div className={cn(
+      'flex items-center gap-3 rounded-lg border p-3 transition-colors',
+      isActive ? 'border-primary/40 bg-primary/5' : 'border-border',
+    )}>
+      {/* Color swatches */}
+      <div className="flex rounded-md overflow-hidden h-8 w-16 shrink-0">
+        {swatches.map((hex, i) => (
+          <div key={i} className="flex-1" style={{ backgroundColor: hex }} />
+        ))}
+      </div>
+
+      {/* Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <span className="text-sm font-medium truncate">{theme.title}</span>
+          {isActive && (
+            <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 shrink-0">
+              Active
+            </Badge>
+          )}
+        </div>
+        {theme.description && (
+          <p className="text-xs text-muted-foreground truncate">{theme.description}</p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onLoadIntoEditor} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+              <Pencil className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Edit in builder</TooltipContent>
+        </Tooltip>
+        {!isActive && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button onClick={onSetActive} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-primary">
+                <Star className="size-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Set as profile theme</TooltipContent>
+          </Tooltip>
+        )}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onEditMetadata} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground">
+              <MoreHorizontal className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Edit title & description</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button onClick={onDelete} className="p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground hover:text-destructive">
+              <Trash2 className="size-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent>Delete theme</TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
   );
 }
 
