@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
-import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, ArrowLeft, X } from 'lucide-react';
+import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -10,15 +9,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-  DrawerClose,
-} from '@/components/ui/drawer';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -30,7 +20,6 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { useToast } from '@/hooks/useToast';
 import { useZaps } from '@/hooks/useZaps';
 import { useWallet } from '@/hooks/useWallet';
-import { useIsMobile } from '@/hooks/useIsMobile';
 import { useAppContext } from '@/hooks/useAppContext';
 import type { Event } from 'nostr-tools';
 import QRCode from 'qrcode';
@@ -97,7 +86,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
         <div className="flex flex-col justify-center min-h-0 flex-1 px-2">
           {/* QR Code */}
           <div className="flex justify-center">
-            <Card className="p-3 [@media(max-height:680px)]:max-w-[65vw] max-w-[95vw] mx-auto">
+            <Card className="p-3 max-w-[95vw] mx-auto">
               <CardContent className="p-0 flex justify-center">
                 {qrCodeUrl ? (
                   <img
@@ -165,7 +154,7 @@ const ZapContent = forwardRef<HTMLDivElement, ZapContentProps>(({
               Open in Lightning Wallet
             </Button>
 
-            <div className="text-xs sm:text-[.65rem] text-muted-foreground text-center">
+            <div className="text-xs text-muted-foreground text-center">
               Scan the QR code or copy the invoice to pay with any Lightning wallet.
             </div>
           </div>
@@ -249,7 +238,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
   const [copied, setCopied] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
-  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (target) {
@@ -320,7 +308,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
       setCopied(false);
       setQrCodeUrl('');
     } else {
-      // Clean up state when dialog closes
       setAmount(100);
       setInvoice(null);
       setCopied(false);
@@ -354,86 +341,6 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
 
   if (!canZap) {
     return <>{children}</>;
-  }
-
-  if (isMobile) {
-    // Use drawer for entire mobile flow, make it full-screen when showing invoice
-    return (
-      <Drawer
-        open={open}
-        onOpenChange={(newOpen) => {
-          // Reset invoice when closing
-          if (!newOpen) {
-            setInvoice(null);
-            setQrCodeUrl('');
-          }
-          setOpen(newOpen);
-        }}
-        dismissible={true} // Always allow dismissal via drag
-        snapPoints={invoice ? [0.5, 0.75, 0.98] : [0.98]}
-        activeSnapPoint={invoice ? 0.98 : 0.98}
-        modal={true}
-        shouldScaleBackground={false}
-        fadeFromIndex={0}
-      >
-        <DrawerTrigger asChild>
-          <div className={`cursor-pointer ${className || ''}`} onClick={(e) => e.stopPropagation()}>
-            {children}
-          </div>
-        </DrawerTrigger>
-        <DrawerContent
-          key={invoice ? 'payment' : 'form'}
-          className={cn(
-            "transition-all duration-300",
-            invoice ? "h-full max-h-screen" : "max-h-[98vh]"
-          )}
-          data-testid="zap-modal"
-        >
-          <DrawerHeader className="text-center relative">
-            {/* Back button when showing invoice */}
-            {invoice && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setInvoice(null);
-                  setQrCodeUrl('');
-                }}
-                className="absolute left-4 top-4 flex items-center gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-
-            {/* Close button */}
-            <DrawerClose asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute right-4 top-4"
-              >
-                <X className="h-4 w-4" />
-                <span className="sr-only">Close</span>
-              </Button>
-            </DrawerClose>
-
-            <DrawerTitle className="text-lg break-words pt-2">
-              {invoice ? 'Lightning Payment' : 'Send a Zap'}
-            </DrawerTitle>
-            <DrawerDescription className="text-sm break-words text-center">
-              {invoice ? (
-                'Pay with Bitcoin Lightning Network'
-              ) : (
-                'Zaps are small Bitcoin payments that support the creator of this item. If you enjoyed this, consider sending a zap!'
-              )}
-            </DrawerDescription>
-          </DrawerHeader>
-          <div className="flex-1 overflow-y-auto px-4 pb-4">
-            <ZapContent {...contentProps} />
-          </div>
-        </DrawerContent>
-      </Drawer>
-    );
   }
 
   return (
