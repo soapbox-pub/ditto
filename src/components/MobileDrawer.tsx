@@ -61,7 +61,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
-  const { theme, setTheme } = useTheme();
+  const { theme, customTheme, setTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
   const navigate = useNavigate();
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
@@ -77,17 +77,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       }));
   }, [feedSettings]);
 
-  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: 'dark', label: 'Dark', icon: <Palette className="size-5" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-5" /> },
     { value: 'black', label: 'Black', icon: <Moon className="size-5" /> },
     { value: 'pink', label: 'Pink', icon: <Heart className="size-5" /> },
+    ...(customTheme ? [{ value: 'custom' as Theme, label: 'Custom', icon: <Palette className="size-5" /> }] : []),
   ];
 
-  const currentTheme = themes.find(t => t.value === theme) || themes[0];
+  const currentThemeOption = themeOptions.find(t => t.value === theme) || themeOptions[0];
   const cycleTheme = () => {
-    const idx = themes.findIndex(t => t.value === theme);
-    const next = themes[(idx + 1) % themes.length];
+    const idx = themeOptions.findIndex(t => t.value === theme);
+    const next = themeOptions[(idx + 1) % themeOptions.length];
     setTheme(next.value);
   };
 
@@ -186,10 +187,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-muted-foreground">{currentTheme.icon}</span>
+                  <span className="text-muted-foreground">{currentThemeOption.icon}</span>
                   <span className="font-medium">Theme</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{currentTheme.label}</span>
+                <span className="text-sm text-muted-foreground">{currentThemeOption.label}</span>
               </button>
             </div>
 

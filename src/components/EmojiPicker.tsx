@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Picker } from 'emoji-mart';
 import data from '@emoji-mart/data';
 import { useTheme } from '@/hooks/useTheme';
+import { themes } from '@/themes';
+import { isDarkTheme } from '@/lib/colorUtils';
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void;
@@ -24,7 +26,7 @@ interface EmojiMartEmoji {
  * creating it once per mount, we avoid the illegal constructor error.
  */
 export function EmojiPicker({ onSelect }: EmojiPickerProps) {
-  const { theme } = useTheme();
+  const { theme, customTheme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const pickerRef = useRef<InstanceType<typeof Picker> | null>(null);
   const onSelectRef = useRef(onSelect);
@@ -46,7 +48,14 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
     const picker = new Picker({
       data,
       onEmojiSelect: handleSelect,
-      theme: theme === 'dark' ? 'dark' : 'light',
+      theme: (() => {
+        if (theme === 'custom' && customTheme) {
+          return isDarkTheme(customTheme.background) ? 'dark' : 'light';
+        }
+        // For built-in themes, check background luminance
+        const builtInTokens = themes[theme as keyof typeof themes];
+        return builtInTokens ? isDarkTheme(builtInTokens.background) ? 'dark' : 'light' : 'dark';
+      })(),
       previewPosition: 'none',
       skinTonePosition: 'search',
       set: 'native',
@@ -67,7 +76,7 @@ export function EmojiPicker({ onSelect }: EmojiPickerProps) {
     };
     // We intentionally depend only on mount/unmount + theme.
     // The handleSelect callback uses a ref so it never goes stale.
-  }, [theme, handleSelect]);
+  }, [theme, customTheme, handleSelect]);
 
   return (
     <div

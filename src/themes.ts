@@ -30,7 +30,8 @@ export interface ThemeTokens {
   sidebarRing: string;
 }
 
-export const themes: Record<Theme, ThemeTokens> = {
+/** Built-in theme token sets. Custom themes are stored in AppConfig.customTheme. */
+export const themes: Record<Exclude<Theme, 'custom'>, ThemeTokens> = {
   light: {
     background: '0 0% 100%',
     foreground: '222.2 84% 4.9%',

@@ -101,6 +101,19 @@ export function NostrSync() {
         changed = true;
       }
 
+      if (encryptedSettings.customTheme) {
+        const currentCustom = current.customTheme;
+        const remoteCustom = encryptedSettings.customTheme;
+        // Check if any token actually differs
+        const customChanged = !currentCustom || Object.keys(remoteCustom).some(
+          (key) => remoteCustom[key as keyof typeof remoteCustom] !== currentCustom?.[key as keyof typeof currentCustom]
+        );
+        if (customChanged) {
+          updates.customTheme = remoteCustom;
+          changed = true;
+        }
+      }
+
       if (encryptedSettings.useAppRelays !== undefined && encryptedSettings.useAppRelays !== current.useAppRelays) {
         updates.useAppRelays = encryptedSettings.useAppRelays;
         changed = true;

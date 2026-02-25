@@ -115,6 +115,16 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
+    kind: 30203,
+    showKey: 'showProfileThemes',
+    feedKey: 'feedIncludeProfileThemes',
+    label: 'Profile Themes',
+    description: 'Custom profile theme updates',
+    addressable: true,
+    section: 'social',
+    feedOnly: true,
+  },
+  {
     kind: 1068,
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',

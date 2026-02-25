@@ -63,7 +63,7 @@ export function LeftSidebar() {
   const { user, metadata, event: currentUserEvent, isLoading: isProfileLoading } = useCurrentUser();
   const { currentUser, otherUsers, setLogin } = useLoggedInAccounts();
   const { logout } = useLoginActions();
-  const { theme, setTheme } = useTheme();
+  const { theme, customTheme, setTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
@@ -145,11 +145,12 @@ export function LeftSidebar() {
     navigate('/');
   };
 
-  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+  const themeOptions: { value: Theme; label: string; icon: React.ReactNode }[] = [
     { value: 'dark', label: 'Dark', icon: <Palette className="size-4" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
     { value: 'black', label: 'Black', icon: <Moon className="size-4" /> },
     { value: 'pink', label: 'Pink', icon: <Heart className="size-4" /> },
+    ...(customTheme ? [{ value: 'custom' as Theme, label: 'Custom', icon: <Palette className="size-4" /> }] : []),
   ];
 
   return (
@@ -315,8 +316,8 @@ export function LeftSidebar() {
                         <span>Theme</span>
                       </div>
                       <div className="flex items-center gap-2 text-muted-foreground">
-                        {themes.find(t => t.value === theme)?.icon}
-                        <span className="text-xs">{themes.find(t => t.value === theme)?.label}</span>
+                        {themeOptions.find(t => t.value === theme)?.icon}
+                        <span className="text-xs">{themeOptions.find(t => t.value === theme)?.label ?? 'Dark'}</span>
                         <ChevronDown className="size-4" />
                       </div>
                     </button>
@@ -324,21 +325,28 @@ export function LeftSidebar() {
                   <DropdownMenuContent align="end" side="top" className="w-48">
                     <DropdownMenuLabel className="text-xs text-muted-foreground">Choose theme</DropdownMenuLabel>
                     <DropdownMenuSeparator />
-                    {themes.map((themeOption) => (
+                    {themeOptions.map((opt) => (
                       <DropdownMenuItem
-                        key={themeOption.label}
-                        onClick={() => setTheme(themeOption.value)}
+                        key={opt.label}
+                        onClick={() => setTheme(opt.value)}
                         className="flex items-center justify-between cursor-pointer"
                       >
                         <div className="flex items-center gap-2">
-                          {themeOption.icon}
-                          <span>{themeOption.label}</span>
+                          {opt.icon}
+                          <span>{opt.label}</span>
                         </div>
-                        {theme === themeOption.value && (
+                        {theme === opt.value && (
                           <Check className="size-4 text-primary" />
                         )}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild className="cursor-pointer">
+                      <Link to="/settings/theme" className="flex items-center gap-2">
+                        <Palette className="size-4" />
+                        <span>{customTheme ? 'Edit Custom Theme' : 'Create Custom Theme'}</span>
+                      </Link>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>

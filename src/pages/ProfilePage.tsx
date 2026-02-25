@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +36,10 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ScopedTheme } from '@/components/ScopedTheme';
+import type { ThemeTokens } from '@/themes';
+import { useProfileTheme } from '@/hooks/useProfileTheme';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -693,6 +697,14 @@ export function ProfilePage() {
 
   const isOwnProfile = user?.pubkey === pubkey;
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
+
+  // Profile theme: query the visited user's kind 30203 (if not own profile and enabled)
+  const { feedSettings } = useFeedSettings();
+  const showCustomProfileThemes = feedSettings.showCustomProfileThemes !== false;
+  const profileThemeQuery = useProfileTheme(
+    !isOwnProfile && showCustomProfileThemes ? pubkey : undefined,
+  );
+  const profileThemeTokens = profileThemeQuery.data?.tokens;
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
   const { data: pinnedEvents = [], isLoading: pinnedEventsLoading } = useQuery({
@@ -891,22 +903,24 @@ export function ProfilePage() {
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
       <PullToRefresh onRefresh={handleRefresh}>
-        {/* Banner */}
-        <div className="h-36 md:h-48 bg-secondary relative">
-          {author.isLoading ? (
-            <Skeleton className="w-full h-full rounded-none" />
-          ) : metadata?.banner ? (
-            <img
-              src={metadata.banner}
-              alt=""
-              className="w-full h-full object-cover cursor-pointer"
-              onClick={() => setLightboxImage(metadata.banner!)}
-            />
-          ) : null}
-        </div>
+        {/* Profile header area — scoped to visitor's custom theme if available */}
+        <ProfileThemeWrapper tokens={profileThemeTokens}>
+          {/* Banner */}
+          <div className="h-36 md:h-48 bg-secondary relative">
+            {author.isLoading ? (
+              <Skeleton className="w-full h-full rounded-none" />
+            ) : metadata?.banner ? (
+              <img
+                src={metadata.banner}
+                alt=""
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxImage(metadata.banner!)}
+              />
+            ) : null}
+          </div>
 
-        {/* Profile info */}
-        <div className="px-4 pb-4">
+          {/* Profile info */}
+          <div className="px-4 pb-4">
           {author.isLoading ? (
             <>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
@@ -1026,9 +1040,23 @@ export function ProfilePage() {
                   ))}
                 </div>
               )}
+
+              {/* Profile theme indicator + copy button */}
+              {profileThemeTokens && !isOwnProfile && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Link
+                    to={`/settings/theme?import=${pubkey}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Palette className="size-3.5" />
+                    Copy Theme
+                  </Link>
+                </div>
+              )}
             </>
           )}
         </div>
+        </ProfileThemeWrapper>
 
         {/* Tabs */}
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
@@ -1148,4 +1176,13 @@ export function ProfilePage() {
       </PullToRefresh>
       </main>
   );
+}
+
+/**
+ * Wraps children in a ScopedTheme when profile theme tokens are available.
+ * Otherwise renders children directly with a plain fragment.
+ */
+function ProfileThemeWrapper({ tokens, children }: { tokens?: ThemeTokens; children: React.ReactNode }) {
+  if (!tokens) return <>{children}</>;
+  return <ScopedTheme tokens={tokens}>{children}</ScopedTheme>;
 }

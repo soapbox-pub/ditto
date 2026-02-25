@@ -2,8 +2,9 @@ import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { themes, buildThemeCss } from '@/themes';
-import { ThemeSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { themes, buildThemeCss, type ThemeTokens } from '@/themes';
+import { isDarkTheme } from '@/lib/colorUtils';
+import { ThemeSchema, CustomThemeSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -26,6 +27,7 @@ const RelayMetadataSchema = z.object({
 // Zod schema for AppConfig validation
 const AppConfigSchema = z.object({
   theme: ThemeSchema,
+  customTheme: CustomThemeSchema.optional(),
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
@@ -90,7 +92,7 @@ export function AppProvider(props: AppProviderProps) {
   };
 
   // Apply theme effects to document
-  useApplyTheme(config.theme);
+  useApplyTheme(config.theme, config.customTheme);
 
   return (
     <AppContext.Provider value={appContextValue}>
@@ -101,10 +103,22 @@ export function AppProvider(props: AppProviderProps) {
 
 /**
  * Hook to apply theme changes to the document root via an injected <style> tag.
+ * For custom themes, uses user-defined tokens. Also sets the `dark` class on
+ * <html> based on background luminance so that third-party components and
+ * `dark:` Tailwind variants work correctly.
  */
-function useApplyTheme(theme: Theme) {
+function useApplyTheme(theme: Theme, customTheme?: ThemeTokens) {
   useEffect(() => {
-    const tokens = themes[theme] ?? themes.dark;
+    let tokens: ThemeTokens;
+    if (theme === 'custom' && customTheme) {
+      tokens = customTheme;
+    } else if (theme === 'custom') {
+      // Custom selected but no tokens defined yet — fall back to dark
+      tokens = themes.dark;
+    } else {
+      tokens = themes[theme as Exclude<Theme, 'custom'>] ?? themes.dark;
+    }
+
     const css = buildThemeCss(tokens);
 
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
@@ -114,8 +128,16 @@ function useApplyTheme(theme: Theme) {
       document.head.appendChild(el);
     }
     el.textContent = css;
+
+    // Set the dark/light class on <html> based on background luminance.
+    // This ensures dark: Tailwind variants and third-party components
+    // (e.g. emoji picker) respond correctly to any custom theme.
+    const dark = isDarkTheme(tokens.background);
+    document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.classList.toggle('light', !dark);
+
     // Now that CSS variables are set, the inline body background from
     // theme.js is no longer needed — bg-background will resolve correctly.
     document.body.removeAttribute('style');
-  }, [theme]);
+  }, [theme, customTheme]);
 }

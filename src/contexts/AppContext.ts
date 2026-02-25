@@ -1,6 +1,8 @@
 import { createContext } from "react";
 
-export type Theme = "dark" | "light" | "black" | "pink";
+import type { ThemeTokens } from '@/themes';
+
+export type Theme = "dark" | "light" | "black" | "pink" | "custom";
 
 /**
  * How to handle events with a NIP-36 content-warning tag.
@@ -64,6 +66,12 @@ export interface FeedSettings {
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
   feedIncludeDecks: boolean;
+  /** Show Profile Themes (kind 30203) link in sidebar */
+  showProfileThemes: boolean;
+  /** Include Profile Theme updates in the follows/global feed */
+  feedIncludeProfileThemes: boolean;
+  /** Show custom profile themes when visiting other users' profiles */
+  showCustomProfileThemes: boolean;
 }
 
 export interface AppConfig {
@@ -89,6 +97,8 @@ export interface AppConfig {
   corsProxy: string;
   /** How to handle NIP-36 content-warning events (blur, hide, or show). Default: "blur". */
   contentWarningPolicy: ContentWarningPolicy;
+  /** Custom theme tokens (used when theme === "custom") */
+  customTheme?: ThemeTokens;
 }
 
 export interface AppContextType {
