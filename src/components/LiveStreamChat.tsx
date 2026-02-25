@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ZapDialog } from '@/components/ZapDialog';
+import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
@@ -360,23 +361,27 @@ function ChatMessage({ event, reactions }: { event: NostrEvent; reactions?: Nost
 
   return (
     <div className="group relative flex items-start gap-2 py-1 px-1 rounded hover:bg-secondary/40 transition-colors">
-      <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
-        <Avatar className="size-6">
-          <AvatarImage src={metadata?.picture} alt={displayName} />
-          <AvatarFallback className="bg-primary/20 text-primary text-[9px]">
-            {displayName[0]?.toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-      </Link>
+      <ProfileHoverCard pubkey={event.pubkey} asChild>
+        <Link to={profileUrl} className="shrink-0 mt-0.5" onClick={(e) => e.stopPropagation()}>
+          <Avatar className="size-6">
+            <AvatarImage src={metadata?.picture} alt={displayName} />
+            <AvatarFallback className="bg-primary/20 text-primary text-[9px]">
+              {displayName[0]?.toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+        </Link>
+      </ProfileHoverCard>
       <div className="flex-1 min-w-0">
         <div>
-          <Link
-            to={profileUrl}
-            className="text-xs font-semibold text-primary hover:underline mr-1.5"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {displayName}
-          </Link>
+          <ProfileHoverCard pubkey={event.pubkey} asChild>
+            <Link
+              to={profileUrl}
+              className="text-xs font-semibold text-primary hover:underline mr-1.5"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {displayName}
+            </Link>
+          </ProfileHoverCard>
           <span className="text-sm text-foreground break-words">
             <ChatContent content={event.content} />
           </span>
