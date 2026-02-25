@@ -22,6 +22,7 @@ export interface BuiltinSidebarItem {
 export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: '__feed', label: 'Feed', path: '/' },
   { id: '__trends', label: 'Trends', path: '/search?tab=trends' },
+  { id: '__bookmarks', label: 'Bookmarks', path: '/bookmarks' },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
@@ -108,12 +109,8 @@ function computeOrderedItems(
     }
   }
 
-  // Append any new built-ins not in persisted order (e.g. __trends added later)
-  for (const b of BUILTIN_SIDEBAR_ITEMS) {
-    if (builtinIds.has(b.id)) {
-      ordered.push(b.id);
-    }
-  }
+  // NOTE: Built-ins NOT in sidebarOrder are treated as explicitly removed.
+  // They appear in the hiddenItems list so users can re-add them via "More...".
 
   return ordered;
 }

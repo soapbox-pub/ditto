@@ -48,6 +48,7 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
   // Built-ins
   __feed: <Home className="size-6" />,
   __trends: <TrendingUp className="size-6" />,
+  __bookmarks: <Bookmark className="size-6" />,
   // Extra-kind routes
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
@@ -426,12 +427,6 @@ export function LeftSidebar() {
               icon={<User className="size-6" />}
               label="Profile"
               active={location.pathname === userProfileUrl}
-            />
-            <NavItem
-              to="/bookmarks"
-              icon={<Bookmark className="size-6" />}
-              label="Bookmarks"
-              active={location.pathname === '/bookmarks'}
             />
             <NavItem
               to="/settings"
