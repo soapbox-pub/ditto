@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
 
 /** Zod schema for Theme validation */
-export const ThemeSchema = z.enum(['dark', 'light', 'black', 'pink']) satisfies z.ZodType<Theme>;
+export const ThemeSchema = z.enum(['dark', 'light', 'black', 'pink', 'system']) satisfies z.ZodType<Theme>;
 
 /** Zod schema for ContentWarningPolicy validation */
 export const ContentWarningPolicySchema = z.enum(['blur', 'hide', 'show']) satisfies z.ZodType<ContentWarningPolicy>;

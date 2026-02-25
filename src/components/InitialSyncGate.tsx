@@ -209,7 +209,8 @@ function SyncScreen({ phase }: { phase: SyncPhase }) {
 // Setup Questionnaire
 // ---------------------------------------------------------------------------
 
-const THEMES: { value: Theme; label: string; description: string; preview: string }[] = [
+const THEMES: { value: Theme; label: string; description: string; preview: string; splitPreview?: boolean }[] = [
+  { value: 'system', label: 'System', description: 'Matches your device', preview: '', splitPreview: true },
   { value: 'dark', label: 'Dark', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]' },
   { value: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border' },
   { value: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black' },
@@ -963,12 +964,19 @@ function ThemeStep({
                 : 'ring-1 ring-border',
             )}
           >
-            <div
-              className={cn(
-                'w-14 h-14 rounded-full transition-transform duration-200 group-hover:scale-110',
-                theme.preview,
-              )}
-            />
+            {theme.splitPreview ? (
+              <div className="w-14 h-14 rounded-full overflow-hidden transition-transform duration-200 group-hover:scale-110 flex">
+                <div className="w-1/2 h-full bg-white" />
+                <div className="w-1/2 h-full bg-[hsl(228,20%,10%)]" />
+              </div>
+            ) : (
+              <div
+                className={cn(
+                  'w-14 h-14 rounded-full transition-transform duration-200 group-hover:scale-110',
+                  theme.preview,
+                )}
+              />
+            )}
             <div className="space-y-0.5 text-center">
               <p className="text-sm font-medium">{theme.label}</p>
               <p className="text-xs text-muted-foreground">{theme.description}</p>

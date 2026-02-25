@@ -2,7 +2,7 @@ import { ReactNode, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { themes, buildThemeCss } from '@/themes';
+import { themes, buildThemeCss, resolveTheme } from '@/themes';
 import { ThemeSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 
 interface AppProviderProps {
@@ -101,21 +101,35 @@ export function AppProvider(props: AppProviderProps) {
 
 /**
  * Hook to apply theme changes to the document root via an injected <style> tag.
+ * When theme is "system", resolves to "light" or "dark" based on OS preference
+ * and listens for changes to prefers-color-scheme.
  */
 function useApplyTheme(theme: Theme) {
   useEffect(() => {
-    const tokens = themes[theme] ?? themes.dark;
-    const css = buildThemeCss(tokens);
+    function apply() {
+      const resolved = resolveTheme(theme);
+      const tokens = themes[resolved] ?? themes.dark;
+      const css = buildThemeCss(tokens);
 
-    let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
-    if (!el) {
-      el = document.createElement('style');
-      el.id = 'theme-vars';
-      document.head.appendChild(el);
+      let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
+      if (!el) {
+        el = document.createElement('style');
+        el.id = 'theme-vars';
+        document.head.appendChild(el);
+      }
+      el.textContent = css;
+      // Now that CSS variables are set, the inline body background from
+      // theme.js is no longer needed — bg-background will resolve correctly.
+      document.body.removeAttribute('style');
     }
-    el.textContent = css;
-    // Now that CSS variables are set, the inline body background from
-    // theme.js is no longer needed — bg-background will resolve correctly.
-    document.body.removeAttribute('style');
+
+    apply();
+
+    // When theme is "system", listen for OS color scheme changes
+    if (theme === 'system') {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)');
+      mq.addEventListener('change', apply);
+      return () => mq.removeEventListener('change', apply);
+    }
   }, [theme]);
 }

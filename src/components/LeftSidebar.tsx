@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Heart, ChevronDown, Plus } from 'lucide-react';
+import { Home, Bell, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Heart, Monitor, ChevronDown, Plus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -151,6 +151,7 @@ export function LeftSidebar() {
   };
 
   const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: 'system', label: 'System', icon: <Monitor className="size-4" /> },
     { value: 'dark', label: 'Dark', icon: <Palette className="size-4" /> },
     { value: 'light', label: 'Light', icon: <Sun className="size-4" /> },
     { value: 'black', label: 'Black', icon: <Moon className="size-4" /> },
