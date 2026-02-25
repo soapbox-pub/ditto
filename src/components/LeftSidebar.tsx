@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell, Home, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
@@ -49,6 +49,7 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
   // Built-ins
   __feed: <Home className="size-6" />,
   __trends: <TrendingUp className="size-6" />,
+  __bookmarks: <Bookmark className="size-6" />,
   // Extra-kind routes
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
@@ -78,6 +79,7 @@ function itemPath(id: string): string {
 function isItemActive(id: string, pathname: string, search: string): boolean {
   if (id === '__feed') return pathname === '/';
   if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
+  if (id === '__bookmarks') return pathname === '/bookmarks';
   return pathname === `/${id}`;
 }
 
@@ -237,6 +239,15 @@ export function LeftSidebar() {
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
   } = useFeedSettings();
+
+  // Filter out auth-required items when not logged in
+  const visibleItems = useMemo(() => {
+    if (user) return orderedItems;
+    return orderedItems.filter((id) => {
+      const builtin = getBuiltinItem(id);
+      return !builtin?.requiresAuth;
+    });
+  }, [orderedItems, user]);
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -377,10 +388,10 @@ export function LeftSidebar() {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={orderedItems}
+            items={visibleItems}
             strategy={verticalListSortingStrategy}
           >
-            {orderedItems.map((id) => (
+            {visibleItems.map((id) => (
               <SortableExploreItem
                 key={id}
                 id={id}
@@ -437,12 +448,6 @@ export function LeftSidebar() {
               icon={<User className="size-6" />}
               label="Profile"
               active={location.pathname === userProfileUrl}
-            />
-            <NavItem
-              to="/bookmarks"
-              icon={<Bookmark className="size-6" />}
-              label="Bookmarks"
-              active={location.pathname === '/bookmarks'}
             />
             <NavItem
               to="/settings"

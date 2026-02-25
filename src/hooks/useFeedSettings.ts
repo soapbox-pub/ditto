@@ -16,12 +16,15 @@ export interface BuiltinSidebarItem {
   label: string;
   /** Navigation path. */
   path: string;
+  /** If true, only shown when a user is logged in. */
+  requiresAuth?: boolean;
 }
 
 /** All available built-in sidebar items, in default display order. */
 export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: '__feed', label: 'Feed', path: '/' },
   { id: '__trends', label: 'Trends', path: '/search?tab=trends' },
+  { id: '__bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
