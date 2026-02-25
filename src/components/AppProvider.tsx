@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useLayoutEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
@@ -117,7 +117,7 @@ export function AppProvider(props: AppProviderProps) {
  * When theme is "custom", uses the provided customTheme tokens.
  */
 function useApplyTheme(theme: Theme, customTheme: ThemeTokens | undefined) {
-  useEffect(() => {
+  useLayoutEffect(() => {
     function apply() {
       const resolved = resolveTheme(theme);
       let tokens: ThemeTokens;
@@ -138,6 +138,7 @@ function useApplyTheme(theme: Theme, customTheme: ThemeTokens | undefined) {
         document.head.appendChild(el);
       }
       el.textContent = css;
+      document.documentElement.className = resolved;
       // Now that CSS variables are set, the inline body background from
       // theme.js is no longer needed — bg-background will resolve correctly.
       document.body.removeAttribute('style');

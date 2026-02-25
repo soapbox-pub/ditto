@@ -95,6 +95,9 @@ export function NostrSync() {
     // the immediate write window, e.g. before the new event propagates back).
     if (recentlyWritten()) {
       console.log('Skipping settings sync - recent write');
+      // Advance the cursor so this snapshot is never re-applied once the write
+      // window expires and the effect fires again.
+      lastSyncedTimestamp.current = remoteSync;
       return;
     }
 

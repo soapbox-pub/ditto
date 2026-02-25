@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -155,7 +155,6 @@ function encodeEventId(event: NostrEvent): string {
 }
 
 export function NoteCard({ event, className, repostedBy, compact, threaded }: NoteCardProps) {
-  const navigate = useNavigate();
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
