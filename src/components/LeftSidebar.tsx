@@ -31,7 +31,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
-import { useFeedSettings, isBuiltinItem, getBuiltinItem } from '@/hooks/useFeedSettings';
+import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
