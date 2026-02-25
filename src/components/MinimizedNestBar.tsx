@@ -2,6 +2,17 @@ import { useNavigate } from 'react-router-dom';
 import { Mic, MicOff, Maximize2, X } from 'lucide-react';
 import { useLocalParticipant, RoomContext } from '@livekit/components-react';
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { useNestSession } from '@/contexts/NestSessionContext';
 import { cn } from '@/lib/utils';
@@ -90,15 +101,35 @@ export function MinimizedNestBar() {
           <Maximize2 className="size-4" />
         </Button>
 
-        {/* Leave */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0 text-destructive hover:text-destructive"
-          onClick={handleLeave}
-        >
-          <X className="size-4" />
-        </Button>
+        {/* Leave — with confirmation */}
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 shrink-0 text-destructive hover:text-destructive"
+            >
+              <X className="size-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Leave this nest?</AlertDialogTitle>
+              <AlertDialogDescription>
+                You will be disconnected from the audio room.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleLeave}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Leave
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );
