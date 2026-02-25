@@ -10,7 +10,7 @@ import {
 } from 'react';
 import { nip19 } from 'nostr-tools';
 import { Room, ConnectionState, RoomEvent } from 'livekit-client';
-import { LiveKitRoom, RoomAudioRenderer } from '@livekit/components-react';
+import { RoomContext, RoomAudioRenderer } from '@livekit/components-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -260,18 +260,14 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
 
   return (
     <NestSessionContext.Provider value={value}>
-      {/* Persistent audio engine — stays mounted while session is active */}
-      {room && livekitUrl && token && (
+      {/* Persistent audio engine — stays mounted while session is active.
+          Uses RoomContext.Provider directly (not LiveKitRoom) to avoid
+          lifecycle management that could disconnect our manually-managed Room. */}
+      {room && (
         <div className="hidden">
-          <LiveKitRoom
-            room={room}
-            serverUrl={livekitUrl}
-            token={token}
-            audio={false}
-            video={false}
-          >
+          <RoomContext.Provider value={room}>
             <RoomAudioRenderer />
-          </LiveKitRoom>
+          </RoomContext.Provider>
         </div>
       )}
       {children}

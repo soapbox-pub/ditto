@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Mic, MicOff, Maximize2, X } from 'lucide-react';
-import { useLocalParticipant, LiveKitRoom } from '@livekit/components-react';
+import { useLocalParticipant, RoomContext } from '@livekit/components-react';
 
 import { Button } from '@/components/ui/button';
 import { useNestSession } from '@/contexts/NestSessionContext';
@@ -75,15 +75,9 @@ export function MinimizedNestBar() {
 
         {/* Controls — needs LiveKit context for mic state */}
         {session.room && (
-          <LiveKitRoom
-            room={session.room}
-            serverUrl=""
-            token=""
-            audio={false}
-            video={false}
-          >
+          <RoomContext.Provider value={session.room}>
             <MiniBarMicButton />
-          </LiveKitRoom>
+          </RoomContext.Provider>
         )}
 
         {/* Expand */}

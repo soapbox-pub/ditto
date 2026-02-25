@@ -4,7 +4,7 @@ import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, Ar
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 import {
-  LiveKitRoom,
+  RoomContext,
   useParticipants,
   useLocalParticipant,
 } from '@livekit/components-react';
@@ -277,15 +277,12 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         </Badge>
       </div>
 
-      {/* Connected: use the global session Room for LiveKit hooks */}
+      {/* Connected: provide the Room context without lifecycle ownership.
+          Using RoomContext.Provider directly instead of <LiveKitRoom> to
+          prevent the component from calling room.disconnect() on unmount
+          (which would kill the persistent audio session). */}
       {isConnected ? (
-        <LiveKitRoom
-          room={room!}
-          serverUrl=""
-          token=""
-          audio={false}
-          video={false}
-        >
+        <RoomContext.Provider value={room!}>
           {headerCard}
 
           {/* Participants (uses LiveKit hooks) */}
@@ -318,7 +315,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
             <LiveStreamChat aTag={aTag} className="h-full" />
           </div>
           <div className="hidden xl:block h-8" />
-        </LiveKitRoom>
+        </RoomContext.Provider>
       ) : (
         <>
           {headerCard}
