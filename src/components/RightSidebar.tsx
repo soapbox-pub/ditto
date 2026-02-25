@@ -168,7 +168,7 @@ export function RightSidebar() {
         )}
       </section>
 
-      <div className="h-px bg-border/50 mb-6" />
+      <div className="h-px bg-border mb-6" />
 
       {/* Hot Posts */}
       <section className="mb-6">
@@ -201,7 +201,7 @@ export function RightSidebar() {
         )}
       </section>
 
-      <div className="h-px bg-border/50 mb-6" />
+      <div className="h-px bg-border mb-6" />
 
       {/* Latest Accounts */}
       <section className="mb-6">
