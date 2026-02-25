@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { type ReactNode, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import { Image, Film, ExternalLink, Blocks } from 'lucide-react';
@@ -62,13 +62,15 @@ interface EmbeddedNoteProps {
   /** Hex event ID to fetch and display. */
   eventId: string;
   className?: string;
+  /** When true, ProfileHoverCards inside the card are disabled to prevent nested hover cards. */
+  disableHoverCards?: boolean;
 }
 
 /** Maximum characters of note content to show in the embedded preview. */
 const MAX_CONTENT_LENGTH = 280;
 
 /** Inline embedded note card – similar to a link preview but for Nostr events. */
-export function EmbeddedNote({ eventId, className }: EmbeddedNoteProps) {
+export function EmbeddedNote({ eventId, className, disableHoverCards }: EmbeddedNoteProps) {
   const { data: event, isLoading, isError } = useEvent(eventId);
 
   if (isLoading) {
@@ -79,16 +81,18 @@ export function EmbeddedNote({ eventId, className }: EmbeddedNoteProps) {
     return null;
   }
 
-  return <EmbeddedNoteCard event={event} className={className} />;
+  return <EmbeddedNoteCard event={event} className={className} disableHoverCards={disableHoverCards} />;
 }
 
 /** The actual card once the event has been fetched. */
 function EmbeddedNoteCard({
   event,
   className,
+  disableHoverCards,
 }: {
   event: { id: string; pubkey: string; content: string; created_at: number; tags: string[][] };
   className?: string;
+  disableHoverCards?: boolean;
 }) {
   const { config } = useAppContext();
   const navigate = useNavigate();
@@ -192,7 +196,7 @@ function EmbeddedNoteCard({
             </>
           ) : (
             <>
-              <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
                 <Link
                   to={profileUrl}
                   className="shrink-0"
@@ -205,9 +209,9 @@ function EmbeddedNoteCard({
                     </AvatarFallback>
                   </Avatar>
                 </Link>
-              </ProfileHoverCard>
+              </MaybeProfileHoverCard>
 
-              <ProfileHoverCard pubkey={event.pubkey} asChild>
+              <MaybeProfileHoverCard pubkey={event.pubkey} disabled={disableHoverCards}>
                 <Link
                   to={profileUrl}
                   className="text-sm font-semibold truncate hover:underline"
@@ -217,7 +221,7 @@ function EmbeddedNoteCard({
                     <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
                   ) : displayName}
                 </Link>
-              </ProfileHoverCard>
+              </MaybeProfileHoverCard>
             </>
           )}
 
@@ -232,7 +236,7 @@ function EmbeddedNoteCard({
             Content warning{cwTag?.[1] ? <>{' '}&ldquo;{cwTag[1]}&rdquo;</> : ''}
           </p>
         ) : truncatedContent ? (
-          <EmbedContentPreview text={truncatedContent} />
+          <EmbedContentPreview text={truncatedContent} disableHoverCards={disableHoverCards} />
         ) : null}
 
         {/* Attachment indicators for stripped media/links */}
@@ -270,7 +274,7 @@ function EmbeddedNoteCard({
 }
 
 /** Renders embedded-note text with @mentions resolved inline. */
-function EmbedContentPreview({ text }: { text: string }) {
+function EmbedContentPreview({ text, disableHoverCards }: { text: string; disableHoverCards?: boolean }) {
   const segments = useMemo(() => parseEmbedSegments(text), [text]);
 
   return (
@@ -279,21 +283,21 @@ function EmbedContentPreview({ text }: { text: string }) {
         if (seg.type === 'text') {
           return <span key={i}>{seg.value}</span>;
         }
-        return <EmbedMention key={i} pubkey={seg.pubkey} npub={seg.npub} />;
+        return <EmbedMention key={i} pubkey={seg.pubkey} npub={seg.npub} disableHoverCards={disableHoverCards} />;
       })}
     </p>
   );
 }
 
 /** Inline @mention inside an embedded note preview. */
-function EmbedMention({ pubkey }: { pubkey: string; npub: string }) {
+function EmbedMention({ pubkey, disableHoverCards }: { pubkey: string; npub: string; disableHoverCards?: boolean }) {
   const author = useAuthor(pubkey);
   const hasRealName = !!author.data?.metadata?.name;
   const displayName = author.data?.metadata?.name ?? genUserName(pubkey);
   const profileUrl = useProfileUrl(pubkey, author.data?.metadata);
 
   return (
-    <ProfileHoverCard pubkey={pubkey} asChild>
+    <MaybeProfileHoverCard pubkey={pubkey} disabled={disableHoverCards}>
       <Link
         to={profileUrl}
         className={cn(
@@ -306,6 +310,18 @@ function EmbedMention({ pubkey }: { pubkey: string; npub: string }) {
           <EmojifiedText tags={author.data.event.tags}>{displayName}</EmojifiedText>
         ) : displayName}
       </Link>
+    </MaybeProfileHoverCard>
+  );
+}
+
+/** Conditionally wraps children in a ProfileHoverCard. When disabled, renders children directly. */
+function MaybeProfileHoverCard({ pubkey, disabled, children }: { pubkey: string; disabled?: boolean; children: ReactNode }) {
+  if (disabled) {
+    return <>{children}</>;
+  }
+  return (
+    <ProfileHoverCard pubkey={pubkey} asChild>
+      {children}
     </ProfileHoverCard>
   );
 }
