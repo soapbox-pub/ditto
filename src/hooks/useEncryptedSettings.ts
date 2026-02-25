@@ -156,15 +156,19 @@ export function useEncryptedSettings() {
         console.error('Failed to publish encrypted settings:', error);
       });
 
-      return updatedSettings;
+      return { updatedSettings, signedEvent };
     },
     // Update cache in-place instead of refetching, which avoids
     // NostrSync re-running and causing a re-render loop.
     // Do NOT invalidate the encryptedSettings query here — doing so triggers a
     // relay refetch that can return the old event before the new one propagates,
     // which causes NostrSync to overwrite the theme the user just selected.
-    onSuccess: (data) => {
-      queryClient.setQueryData(['parsedSettings', query.data?.id], data);
+    //
+    // Use the signed event's ID (not the old query event ID) so the parsed
+    // settings cache entry is keyed correctly and NostrSync picks it up.
+    onSuccess: ({ updatedSettings, signedEvent }) => {
+      queryClient.setQueryData(['encryptedSettings', user?.pubkey], signedEvent);
+      queryClient.setQueryData(['parsedSettings', signedEvent.id], updatedSettings);
     },
   });
 
