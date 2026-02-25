@@ -4,7 +4,6 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { WalletSettings } from '@/components/WalletSettings';
 import { RelayListManager } from '@/components/RelayListManager';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
@@ -14,7 +13,6 @@ export function AdvancedSettings() {
   const { user } = useCurrentUser();
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
-  const [walletOpen, setWalletOpen] = useState(false);
   const [relaysOpen, setRelaysOpen] = useState(false);
   const [statsOpen, setStatsOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -73,35 +71,6 @@ export function AdvancedSettings() {
           Power user features including wallet connections and network relay management.
         </p>
       </div>
-
-      {/* Wallet Section — only when logged in */}
-      {user && (
-        <div>
-          <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>
-            <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
-                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
-              >
-                <span className="text-base font-semibold">Wallet</span>
-                {walletOpen ? (
-                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                )}
-                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
-              </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="pb-4 pt-4">
-                <div className="px-3">
-                  <WalletSettings />
-                </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        </div>
-      )}
 
       {/* Network (Relays) Section — only when logged in */}
       {user && (
