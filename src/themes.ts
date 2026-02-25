@@ -113,7 +113,7 @@ export interface ThemePreset {
 export const themePresets: Record<string, ThemePreset> = {
   black: {
     label: 'Black',
-    emoji: '🖤',
+    emoji: '⚫',
     tokens: {
     background: '0 0% 0%',
     foreground: '0 0% 95%',
