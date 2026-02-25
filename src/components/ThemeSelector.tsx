@@ -2,6 +2,8 @@ import { Check, Paintbrush, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useUserThemes } from '@/hooks/useUserThemes';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
 import { cn } from '@/lib/utils';
 
@@ -74,6 +76,8 @@ function ThemePreviewCard({
 
 export function ThemeSelector() {
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
+  const { user } = useCurrentUser();
+  const userThemesQuery = useUserThemes(user?.pubkey);
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -225,6 +229,32 @@ export function ThemeSelector() {
                   isActive ? 'text-foreground' : 'text-muted-foreground',
                 )}>
                   {preset.label}
+                </p>
+              </button>
+            );
+          })}
+
+          {/* User's published themes */}
+          {userThemesQuery.data?.map((userTheme) => {
+            const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(userTheme.tokens);
+
+            return (
+              <button
+                key={`user-${userTheme.identifier}`}
+                className={cn(
+                  'relative group rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  isActive
+                    ? 'border-primary shadow-sm'
+                    : 'border-border hover:border-primary/40',
+                )}
+                onClick={() => applyCustomTheme(userTheme.tokens)}
+              >
+                <ThemePreviewCard tokens={userTheme.tokens} isActive={!!isActive} />
+                <p className={cn(
+                  'mt-1.5 text-xs font-medium text-center transition-colors truncate',
+                  isActive ? 'text-foreground' : 'text-muted-foreground',
+                )}>
+                  {userTheme.title}
                 </p>
               </button>
             );
