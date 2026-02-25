@@ -43,11 +43,6 @@ const SURFACE_KEYS = [
 const UI_KEYS = ['border', 'input', 'ring', 'destructive', 'destructiveForeground'] as const;
 
 /** Sidebar keys */
-const SIDEBAR_KEYS = [
-  'sidebarBackground', 'sidebarForeground', 'sidebarPrimary', 'sidebarPrimaryForeground',
-  'sidebarAccent', 'sidebarAccentForeground', 'sidebarBorder', 'sidebarRing',
-] as const;
-
 /** Human-readable labels for token keys */
 const TOKEN_LABELS: Record<string, string> = {
   background: 'Background',
@@ -67,14 +62,6 @@ const TOKEN_LABELS: Record<string, string> = {
   ring: 'Focus Ring',
   destructive: 'Destructive',
   destructiveForeground: 'Destructive Text',
-  sidebarBackground: 'Background',
-  sidebarForeground: 'Text',
-  sidebarPrimary: 'Primary',
-  sidebarPrimaryForeground: 'Primary Text',
-  sidebarAccent: 'Accent',
-  sidebarAccentForeground: 'Accent Text',
-  sidebarBorder: 'Border',
-  sidebarRing: 'Focus Ring',
 };
 
 /** Pairs to check contrast on */
@@ -361,27 +348,6 @@ export function ThemeBuilderPage() {
           <CollapsibleContent className="pt-3">
             <div className="grid grid-cols-2 gap-3">
               {UI_KEYS.map((key) => (
-                <ColorPicker
-                  key={key}
-                  label={TOKEN_LABELS[key]}
-                  value={hexTokens[key] || '#000000'}
-                  onChange={(hex) => updateToken(key, hex)}
-                  disabled={autoDerive}
-                />
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* Sidebar colors (collapsible) */}
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider group">
-            <span>Sidebar Colors</span>
-            <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3">
-            <div className="grid grid-cols-2 gap-3">
-              {SIDEBAR_KEYS.map((key) => (
                 <ColorPicker
                   key={key}
                   label={TOKEN_LABELS[key]}
