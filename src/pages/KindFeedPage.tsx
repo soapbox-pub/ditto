@@ -18,9 +18,11 @@ interface KindFeedPageProps {
   backTo?: string;
   /** Always show the back button, even on desktop (default: only mobile). */
   alwaysShowBack?: boolean;
+  /** If set, the FAB navigates to this URL instead of opening a compose dialog. */
+  fabHref?: string;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -33,7 +35,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
     description: `${title} on Nostr`,
   });
 
-  useLayoutOptions({ showFAB: true, fabKind: primaryKind });
+  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
