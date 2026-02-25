@@ -61,8 +61,9 @@ if [ "$SVG_RENDERER" = "inkscape" ]; then
 elif [ "$SVG_RENDERER" = "rsvg" ]; then
     rsvg-convert -w 512 -h 512 "$LOGO_WHITE_SVG" -o "$LOGO_WHITE"
 else
-    # Use ImageMagick
-    $MAGICK "$LOGO_WHITE_SVG" -resize 512x512 -background none -flatten "$LOGO_WHITE"
+    # Use ImageMagick - the SVG viewBox is "-5 -10 100 100" which creates off-center rendering
+    # Render larger and crop to get better centering
+    $MAGICK "$LOGO_WHITE_SVG" -resize 600x600 -background none -flatten -gravity center -crop 512x512+0+0 +repage "$LOGO_WHITE"
 fi
 
 # ── Legacy launcher icons (pre-Android 8.0) ──
