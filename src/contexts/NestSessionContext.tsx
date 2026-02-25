@@ -230,6 +230,17 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
     setMinimized(false);
   }, []);
 
+  // Warn before closing tab/refreshing while in an active session
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (roomRef.current) {
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, []);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {

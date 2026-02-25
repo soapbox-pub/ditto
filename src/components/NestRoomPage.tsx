@@ -32,7 +32,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
-import { NestNavigationGuard } from '@/components/NestNavigationGuard';
+
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -262,9 +262,6 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
-      {/* Navigation guard — intercepts link clicks when session is active */}
-      <NestNavigationGuard />
-
       {/* Header */}
       <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
         <button
