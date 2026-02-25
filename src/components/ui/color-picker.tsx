@@ -29,6 +29,7 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
   const [hue, setHue] = React.useState(() => hexToHue(value));
   const [isDraggingSL, setIsDraggingSL] = React.useState(false);
   const [isDraggingHue, setIsDraggingHue] = React.useState(false);
+  const [popoverOpen, setPopoverOpen] = React.useState(false);
 
   // Sync external value changes
   React.useEffect(() => {
@@ -36,47 +37,63 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
     setHue(hexToHue(value));
   }, [value]);
 
-  // Draw the saturation/lightness gradient
+  // Draw the saturation/lightness gradient.
+  // Uses requestAnimationFrame to ensure the canvas is in the DOM after popover opens.
   React.useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!popoverOpen) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
 
-    // White to hue (horizontal)
-    const gradH = ctx.createLinearGradient(0, 0, w, 0);
-    gradH.addColorStop(0, '#ffffff');
-    gradH.addColorStop(1, `hsl(${hue}, 100%, 50%)`);
-    ctx.fillStyle = gradH;
-    ctx.fillRect(0, 0, w, h);
+      const w = canvas.width;
+      const h = canvas.height;
 
-    // Transparent to black (vertical)
-    const gradV = ctx.createLinearGradient(0, 0, 0, h);
-    gradV.addColorStop(0, 'rgba(0,0,0,0)');
-    gradV.addColorStop(1, '#000000');
-    ctx.fillStyle = gradV;
-    ctx.fillRect(0, 0, w, h);
-  }, [hue]);
+      // White to hue (horizontal)
+      const gradH = ctx.createLinearGradient(0, 0, w, 0);
+      gradH.addColorStop(0, '#ffffff');
+      gradH.addColorStop(1, `hsl(${hue}, 100%, 50%)`);
+      ctx.fillStyle = gradH;
+      ctx.fillRect(0, 0, w, h);
 
-  // Draw the hue bar
+      // Transparent to black (vertical)
+      const gradV = ctx.createLinearGradient(0, 0, 0, h);
+      gradV.addColorStop(0, 'rgba(0,0,0,0)');
+      gradV.addColorStop(1, '#000000');
+      ctx.fillStyle = gradV;
+      ctx.fillRect(0, 0, w, h);
+    };
+
+    // Defer drawing to next frame so Radix has time to mount the portal content
+    const raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [hue, popoverOpen]);
+
+  // Draw the hue bar when popover opens
   React.useEffect(() => {
-    const canvas = hueRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    if (!popoverOpen) return;
 
-    const w = canvas.width;
-    const h = canvas.height;
-    const grad = ctx.createLinearGradient(0, 0, w, 0);
-    for (let i = 0; i <= 360; i += 30) {
-      grad.addColorStop(i / 360, `hsl(${i}, 100%, 50%)`);
-    }
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-  }, []);
+    const draw = () => {
+      const canvas = hueRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      const grad = ctx.createLinearGradient(0, 0, w, 0);
+      for (let i = 0; i <= 360; i += 30) {
+        grad.addColorStop(i / 360, `hsl(${i}, 100%, 50%)`);
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, w, h);
+    };
+
+    const raf = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(raf);
+  }, [popoverOpen]);
 
   const handleSLInteraction = React.useCallback(
     (e: React.MouseEvent<HTMLCanvasElement> | MouseEvent) => {
@@ -158,7 +175,7 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
   const hueX = (hue / 360) * 100;
 
   return (
-    <Popover>
+    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
       <PopoverTrigger asChild disabled={disabled}>
         <button
           type="button"
