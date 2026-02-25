@@ -155,7 +155,7 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
   const showSkeleton = isPending || (isLoading && !rawData);
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="flex-1 min-w-0 min-h-screen">
       {!hideCompose && <ComposeBox compact />}
 
       {header}

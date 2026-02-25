@@ -32,6 +32,7 @@ import { getDisplayName } from '@/lib/getDisplayName';
 import { genUserName } from '@/lib/genUserName';
 
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { useOpenPost } from '@/hooks/useOpenPost';
 import { timeAgo } from '@/lib/timeAgo';
 import { canZap } from '@/lib/canZap';
 import { cn } from '@/lib/utils';
@@ -172,12 +173,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   // Check if the current user can zap this event's author
   const canZapAuthor = user && canZap(metadata);
 
+  const { onClick: openPost, onAuxClick: auxOpenPost } = useOpenPost(`/${encodedId}`);
+
   // Handler to navigate to post detail, but only if click didn't originate from a modal
   const handleCardClick = (e: React.MouseEvent) => {
-    // Don't navigate if clicking on interactive elements or if a modal/dialog is involved
     const target = e.target as HTMLElement;
-    
-    // Check if click is on or within a dialog/drawer/portal element
     if (
       target.closest('[role="dialog"]') ||
       target.closest('[data-radix-dialog-overlay]') ||
@@ -188,8 +188,22 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
     ) {
       return;
     }
+    openPost();
+  };
 
-    navigate(`/${encodedId}`);
+  const handleAuxClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest('[role="dialog"]') ||
+      target.closest('[data-radix-dialog-overlay]') ||
+      target.closest('[data-radix-dialog-content]') ||
+      target.closest('[data-vaul-drawer]') ||
+      target.closest('[data-vaul-drawer-overlay]') ||
+      target.closest('[data-testid="zap-modal"]')
+    ) {
+      return;
+    }
+    auxOpenPost(e);
   };
 
   const isVine = event.kind === 34236;
@@ -361,6 +375,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
           className,
         )}
         onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
       >
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
@@ -379,12 +394,13 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   // ── Normal layout ──
   return (
     <article
-      className={cn(
-        'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
-        className,
-      )}
-      onClick={handleCardClick}
-    >
+        className={cn(
+          'px-4 py-3 border-b border-border hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
       {/* Repost header */}
       {repostedBy && (
         <RepostHeader pubkey={repostedBy} />
@@ -645,7 +661,6 @@ function getStreamStatusConfig(status: string | undefined) {
 
 /** Inline content for kind 30311 live stream events. */
 function StreamContent({ event }: { event: NostrEvent }) {
-  const navigate = useNavigate();
   const title = getTag(event.tags, 'title') || 'Untitled Stream';
   const summary = getTag(event.tags, 'summary');
   const imageUrl = getTag(event.tags, 'image');
@@ -660,6 +675,8 @@ function StreamContent({ event }: { event: NostrEvent }) {
     const dTag = getTag(event.tags, 'd') || '';
     return nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag });
   }, [event]);
+
+  const { onClick: openPost } = useOpenPost(`/${encodedId}`);
 
   return (
     <div className="mt-2 space-y-2">
@@ -730,7 +747,7 @@ function StreamContent({ event }: { event: NostrEvent }) {
         className="flex items-start gap-2 text-left w-full group"
         onClick={(e) => {
           e.stopPropagation();
-          navigate(`/${encodedId}`);
+          openPost();
         }}
       >
         <Radio className="size-4 text-primary shrink-0 mt-0.5" />

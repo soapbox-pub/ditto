@@ -89,7 +89,7 @@ export function NotificationsPage() {
   ];
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
+    <main className="min-h-screen">
       {/* Tab bar */}
       <div className="flex border-b border-border sticky top-mobile-bar sidebar:top-0 bg-background/80 backdrop-blur-md z-10">
         {tabs.map(({ key, label }) => (
