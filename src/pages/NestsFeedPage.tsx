@@ -58,11 +58,49 @@ function getStatusConfig(status: string | undefined) {
   }
 }
 
-/** Validate a nest event has the required tags. */
+/**
+ * Validate a nest event has the required infrastructure tags.
+ * Mirrors the nests app: must have a LiveKit streaming URL and a service URL.
+ */
 function isValidNest(event: NostrEvent): boolean {
   const title = getTag(event.tags, 'title');
   const dTag = getTag(event.tags, 'd');
-  return !!title && !!dTag;
+  if (!title || !dTag) return false;
+
+  const hasLivekit = event.tags.some(
+    ([name, value]) =>
+      name === 'streaming' &&
+      (value?.startsWith('wss+livekit://') || value?.startsWith('ws+livekit://')),
+  );
+  const hasService = event.tags.some(
+    ([name, value]) => name === 'service' && value?.startsWith('http'),
+  );
+
+  return hasLivekit && hasService;
+}
+
+/**
+ * Filter rooms by status to only show relevant ones:
+ * - "live" rooms are shown (presence filtering happens at card level)
+ * - "planned" rooms are shown only if their start time is less than 1 hour past
+ * - "ended" rooms are excluded entirely
+ * - Unknown status is excluded
+ */
+function isRelevantNest(event: NostrEvent): boolean {
+  const status = getTag(event.tags, 'status');
+
+  if (status === 'live') return true;
+
+  if (status === 'planned') {
+    const starts = Number(getTag(event.tags, 'starts'));
+    if (!starts) return true; // No start time = show it
+    const now = Math.floor(Date.now() / 1000);
+    // Hide planned rooms whose start time is more than 1 hour past
+    return starts + 3600 > now;
+  }
+
+  // Hide ended rooms and unknown statuses
+  return false;
 }
 
 export function NestsFeedPage() {
@@ -76,15 +114,22 @@ export function NestsFeedPage() {
 
   const { events, isLoading } = useStreamKind(NEST_KIND);
 
-  // Filter and sort: live first, then planned, then ended. Newest first within groups.
+  // Filter to valid + relevant rooms, then sort: live first, then planned.
   const sorted = useMemo(() => {
-    const valid = events.filter(isValidNest);
-    const statusOrder: Record<string, number> = { live: 0, planned: 1, ended: 2 };
+    const valid = events.filter((e) => isValidNest(e) && isRelevantNest(e));
+    const statusOrder: Record<string, number> = { live: 0, planned: 1 };
     return [...valid].sort((a, b) => {
-      const aStatus = getTag(a.tags, 'status') || 'ended';
-      const bStatus = getTag(b.tags, 'status') || 'ended';
-      const orderDiff = (statusOrder[aStatus] ?? 3) - (statusOrder[bStatus] ?? 3);
+      const aStatus = getTag(a.tags, 'status') || 'live';
+      const bStatus = getTag(b.tags, 'status') || 'live';
+      const orderDiff = (statusOrder[aStatus] ?? 2) - (statusOrder[bStatus] ?? 2);
       if (orderDiff !== 0) return orderDiff;
+      // Within planned: sort by start time ascending (soonest first)
+      if (aStatus === 'planned' && bStatus === 'planned') {
+        const aStarts = Number(getTag(a.tags, 'starts')) || 0;
+        const bStarts = Number(getTag(b.tags, 'starts')) || 0;
+        return aStarts - bStarts;
+      }
+      // Within live: newest first
       return b.created_at - a.created_at;
     });
   }, [events]);
