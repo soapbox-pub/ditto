@@ -22,6 +22,7 @@ import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { StreamsFeedPage } from "./pages/StreamsFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
+import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -48,6 +49,7 @@ export function AppRouter() {
           <Route path="/settings/profile" element={<ProfileSettings />} />
           <Route path="/settings/appearance" element={<AppearanceSettings />} />
           <Route path="/settings/appearance/:tab" element={<AppearanceSettings />} />
+          <Route path="/settings/theme" element={<ThemeBuilderPage />} />
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
