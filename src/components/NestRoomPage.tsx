@@ -324,7 +324,12 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
           {/* Not yet connected — show empty participants */}
           <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsEmpty connecting={isConnecting} error={session.connectionError} />
+            <NestParticipantsEmpty
+              connecting={isConnecting}
+              error={session.connectionError}
+              isOwner={isOwner}
+              onCreateNew={() => navigate('/nests')}
+            />
           </div>
 
           {/* Controls without LiveKit (only leave + hand + share) */}
@@ -494,7 +499,12 @@ function NestParticipantsGrid({
 }
 
 /** Fallback participants display when not connected to LiveKit. */
-function NestParticipantsEmpty({ connecting, error }: { connecting?: boolean; error?: string | null }) {
+function NestParticipantsEmpty({ connecting, error, isOwner, onCreateNew }: {
+  connecting?: boolean;
+  error?: string | null;
+  isOwner?: boolean;
+  onCreateNew?: () => void;
+}) {
   if (error) {
     return (
       <div className="text-center py-8 px-4">
@@ -502,7 +512,12 @@ function NestParticipantsEmpty({ connecting, error }: { connecting?: boolean; er
           <Users className="size-5 text-destructive" />
         </div>
         <p className="text-sm text-destructive font-medium mb-1">Unable to connect</p>
-        <p className="text-xs text-muted-foreground max-w-[280px] mx-auto">{error}</p>
+        <p className="text-xs text-muted-foreground max-w-[280px] mx-auto mb-3">{error}</p>
+        {isOwner && onCreateNew && (
+          <Button variant="outline" size="sm" className="rounded-full" onClick={onCreateNew}>
+            Create a New Nest
+          </Button>
+        )}
       </div>
     );
   }
