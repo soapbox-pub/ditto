@@ -414,10 +414,9 @@ export function LeftSidebar() {
                         setAccountPopoverOpen(false);
                         navigate('/settings/appearance');
                       }}
-                      className="flex items-center gap-2 cursor-pointer text-muted-foreground"
+                      className="cursor-pointer text-muted-foreground"
                     >
-                      <Settings className="size-4" />
-                      <span>More</span>
+                      More...
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
