@@ -1,10 +1,12 @@
 import { createContext } from "react";
+import type { ThemeTokens } from "@/themes";
 
-/** A concrete theme with its own color palette. */
-export type ConcreteTheme = "dark" | "light" | "black" | "pink";
-
-/** User-facing theme preference. "system" resolves to "light" or "dark" based on OS preference. */
-export type Theme = ConcreteTheme | "system";
+/**
+ * A builtin theme whose colors are defined at build time.
+ * "system" resolves to "light" or "dark" based on OS preference.
+ * "custom" uses user-defined token values stored in `customTheme`.
+ */
+export type Theme = "light" | "dark" | "system" | "custom";
 
 /**
  * How to handle events with a NIP-36 content-warning tag.
@@ -73,6 +75,8 @@ export interface FeedSettings {
 export interface AppConfig {
   /** Current theme */
   theme: Theme;
+  /** Token values for the custom theme slot. Only used when theme === "custom". */
+  customTheme?: ThemeTokens;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
   /** Whether to use app default relays in addition to user relays */

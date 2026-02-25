@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Heart, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { User, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -17,6 +17,7 @@ import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
+import { themePresets } from '@/themes';
 
 /** Map route name → icon for extra kind drawer items. */
 const ROUTE_ICONS: Record<string, React.ReactNode> = {
@@ -61,7 +62,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const { feedSettings } = useFeedSettings();
   const navigate = useNavigate();
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
@@ -77,19 +78,46 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
       }));
   }, [feedSettings]);
 
-  const themes: { value: Theme; label: string; icon: React.ReactNode }[] = [
-    { value: 'system', label: 'System', icon: <Monitor className="size-5" /> },
-    { value: 'dark', label: 'Dark', icon: <Palette className="size-5" /> },
-    { value: 'light', label: 'Light', icon: <Sun className="size-5" /> },
-    { value: 'black', label: 'Black', icon: <Moon className="size-5" /> },
-    { value: 'pink', label: 'Pink', icon: <Heart className="size-5" /> },
+  // Cycle order: builtin themes first, then presets
+  const builtinCycle: { id: Theme; label: string; icon: React.ReactNode }[] = [
+    { id: 'system', label: 'System', icon: <Monitor className="size-5" /> },
+    { id: 'light', label: 'Light', icon: <Sun className="size-5" /> },
+    { id: 'dark', label: 'Dark', icon: <Moon className="size-5" /> },
   ];
 
-  const currentTheme = themes.find(t => t.value === theme) || themes[0];
+  const presetCycle = Object.keys(themePresets).map((id) => ({
+    id,
+    label: id.charAt(0).toUpperCase() + id.slice(1),
+    icon: <Palette className="size-5" />,
+  }));
+
+  const allThemeCycle = [...builtinCycle, ...presetCycle];
+
+  /** Determine current position in the cycle and display info. */
+  const currentThemeInfo = (() => {
+    if (theme !== 'custom') {
+      return builtinCycle.find(t => t.id === theme) ?? builtinCycle[0];
+    }
+    // Check if custom matches a preset
+    const match = customTheme
+      ? presetCycle.find(p => JSON.stringify(themePresets[p.id]) === JSON.stringify(customTheme))
+      : undefined;
+    return match ?? { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
+  })();
+
   const cycleTheme = () => {
-    const idx = themes.findIndex(t => t.value === theme);
-    const next = themes[(idx + 1) % themes.length];
-    setTheme(next.value);
+    const currentId = currentThemeInfo.id;
+    const idx = allThemeCycle.findIndex(t => t.id === currentId);
+    const nextIdx = (idx + 1) % allThemeCycle.length;
+    const next = allThemeCycle[nextIdx];
+
+    // If it's a builtin, use setTheme; if it's a preset, use applyCustomTheme
+    const builtin = builtinCycle.find(b => b.id === next.id);
+    if (builtin) {
+      setTheme(builtin.id);
+    } else {
+      applyCustomTheme(themePresets[next.id]);
+    }
   };
 
   const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
@@ -187,10 +215,10 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
               >
                 <div className="flex items-center gap-4">
-                  <span className="text-muted-foreground">{currentTheme.icon}</span>
+                  <span className="text-muted-foreground">{currentThemeInfo.icon}</span>
                   <span className="font-medium">Theme</span>
                 </div>
-                <span className="text-sm text-muted-foreground">{currentTheme.label}</span>
+                <span className="text-sm text-muted-foreground">{currentThemeInfo.label}</span>
               </button>
             </div>
 
