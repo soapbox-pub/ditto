@@ -538,7 +538,7 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
       </div>
 
       {/* Profile info */}
-      <div className="px-4 pb-3" style={{ backgroundColor: hexTokens.background }}>
+      <div className="px-4 pb-3 relative z-10" style={{ backgroundColor: hexTokens.background }}>
         {/* Avatar + action buttons row */}
         <div className="flex justify-between items-start -mt-10 mb-2">
           {/* Avatar */}
