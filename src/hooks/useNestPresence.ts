@@ -89,7 +89,17 @@ export function useNestPresenceCount(aTag: string) {
     [presenceEvents],
   );
 
-  return { presenceEvents, pubkeys, count: pubkeys.length };
+  /** Set of pubkeys that currently have their hand raised. */
+  const handsRaised = useMemo(
+    () => new Set(
+      presenceEvents
+        .filter((e) => e.tags.some(([n, v]) => n === 'hand' && v === '1'))
+        .map((e) => e.pubkey),
+    ),
+    [presenceEvents],
+  );
+
+  return { presenceEvents, pubkeys, count: pubkeys.length, handsRaised };
 }
 
 /**

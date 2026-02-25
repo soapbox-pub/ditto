@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2 } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 import {
@@ -11,6 +11,18 @@ import {
 } from '@livekit/components-react';
 import type { RemoteParticipant, LocalParticipant as LKLocalParticipant } from 'livekit-client';
 
+import { useNostr } from '@nostrify/react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -71,7 +83,10 @@ interface NestRoomPageProps {
 export function NestRoomPage({ event }: NestRoomPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { nostr } = useNostr();
+  const { user } = useCurrentUser();
   const api = useNestsApi();
+  const { toast } = useToast();
 
   const title = getTag(event.tags, 'title') || 'Untitled Nest';
   const summary = getTag(event.tags, 'summary');
@@ -83,6 +98,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   const aTag = `${NEST_KIND}:${event.pubkey}:${dTag}`;
   const statusConfig = getStatusConfig(status);
   const isLive = status === 'live';
+  const isOwner = user?.pubkey === event.pubkey;
 
   // Extract LiveKit server URL from streaming tags.
   // Endpoints are stored as wss+livekit://… and need the +livekit stripped.
@@ -130,7 +146,36 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
   // Presence tracking
   const { handRaised, toggleHand, lowerHand } = useNestPresencePublisher(aTag, isLive);
-  const { count: presenceCount } = useNestPresenceCount(aTag);
+  const { count: presenceCount, handsRaised } = useNestPresenceCount(aTag);
+
+  // Close room handler (owner only) — re-publish event with status "ended"
+  const handleCloseRoom = useCallback(async () => {
+    if (!user?.signer || !isOwner) return;
+
+    try {
+      // Clone tags, update status → ended, add ends timestamp
+      const newTags = event.tags.map(([name, ...rest]) =>
+        name === 'status' ? ['status', 'ended'] : [name, ...rest],
+      );
+      if (!newTags.some(([n]) => n === 'ends')) {
+        newTags.push(['ends', String(Math.floor(Date.now() / 1000))]);
+      }
+
+      const updatedEvent = await user.signer.signEvent({
+        kind: NEST_KIND,
+        content: event.content,
+        tags: newTags,
+        created_at: Math.floor(Date.now() / 1000),
+      });
+
+      await nostr.event(updatedEvent);
+      toast({ title: 'Room closed', description: 'The nest has been ended.' });
+      navigate(-1);
+    } catch (err) {
+      console.error('Failed to close room:', err);
+      toast({ title: 'Error', description: 'Could not close the room.', variant: 'destructive' });
+    }
+  }, [user, isOwner, event, nostr, toast, navigate]);
 
   // Background style
   const backgroundStyle = useMemo(() => {
@@ -243,7 +288,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
           {/* Participants (uses LiveKit hooks) */}
           <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsGrid event={event} lowerHand={lowerHand} />
+            <NestParticipantsGrid event={event} lowerHand={lowerHand} handsRaised={handsRaised} />
           </div>
 
           {/* Controls (uses LiveKit hooks) */}
@@ -253,6 +298,8 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
               handRaised={handRaised}
               onToggleHand={toggleHand}
               onLeave={() => navigate(-1)}
+              isOwner={isOwner}
+              onCloseRoom={handleCloseRoom}
             />
           </div>
 
@@ -277,6 +324,8 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
               handRaised={handRaised}
               onToggleHand={toggleHand}
               onLeave={() => navigate(-1)}
+              isOwner={isOwner}
+              onCloseRoom={handleCloseRoom}
             />
           </div>
 
@@ -337,7 +386,7 @@ function NestHostRow({ event }: { event: NostrEvent }) {
  * Grid of participants from LiveKit, split into speakers and audience.
  * Must be rendered inside a <LiveKitRoom> context.
  */
-function NestParticipantsGrid({ event, lowerHand }: { event: NostrEvent; lowerHand: () => void }) {
+function NestParticipantsGrid({ event, lowerHand, handsRaised }: { event: NostrEvent; lowerHand: () => void; handsRaised: Set<string> }) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
 
@@ -381,6 +430,7 @@ function NestParticipantsGrid({ event, lowerHand }: { event: NostrEvent; lowerHa
                 key={p.identity}
                 participant={p}
                 hostPubkey={event.pubkey}
+                handRaised={handsRaised.has(p.identity)}
               />
             ))}
           </div>
@@ -404,6 +454,7 @@ function NestParticipantsGrid({ event, lowerHand }: { event: NostrEvent; lowerHa
                 key={p.identity}
                 participant={p}
                 hostPubkey={event.pubkey}
+                handRaised={handsRaised.has(p.identity)}
               />
             ))}
           </div>
@@ -425,13 +476,15 @@ function NestParticipantsEmpty() {
   );
 }
 
-/** Single participant tile with avatar, name, and mic indicator. */
+/** Single participant tile with avatar, name, mic indicator, and hand-raised badge. */
 function ParticipantTile({
   participant,
   hostPubkey,
+  handRaised,
 }: {
   participant: RemoteParticipant | LKLocalParticipant;
   hostPubkey: string;
+  handRaised: boolean;
 }) {
   const pubkey = participant.identity;
   const author = useAuthor(pubkey);
@@ -466,6 +519,13 @@ function ParticipantTile({
               {isMicEnabled ? <Mic className="size-3" /> : <MicOff className="size-3" />}
             </div>
           )}
+
+          {/* Hand-raised indicator */}
+          {handRaised && (
+            <div className="absolute -top-1 -left-1 size-6 rounded-full flex items-center justify-center border-2 border-background bg-amber-500 text-white animate-bounce">
+              <Hand className="size-3" />
+            </div>
+          )}
         </div>
       </ProfileHoverCard>
 
@@ -488,11 +548,15 @@ function NestControlBar({
   handRaised,
   onToggleHand,
   onLeave,
+  isOwner,
+  onCloseRoom,
 }: {
   event: NostrEvent;
   handRaised: boolean;
   onToggleHand: () => void;
   onLeave: () => void;
+  isOwner: boolean;
+  onCloseRoom: () => void;
 }) {
   const { user } = useCurrentUser();
   const api = useNestsApi();
@@ -521,6 +585,17 @@ function NestControlBar({
     }
   }, [api, dTag, user]);
 
+  /** Owner self-promotes back to stage via the API. */
+  const handleGoOnStage = useCallback(async () => {
+    if (!user || !dTag) return;
+    try {
+      await api.updatePermissions(dTag, user.pubkey, { can_publish: true });
+    } catch (err) {
+      console.error('Failed to go on stage:', err);
+      toast({ title: 'Error', description: 'Could not join the stage.', variant: 'destructive' });
+    }
+  }, [api, dTag, user, toast]);
+
   const handleShare = useCallback(() => {
     const url = window.location.href;
     navigator.clipboard.writeText(url).then(() => {
@@ -531,7 +606,7 @@ function NestControlBar({
   return (
     <div className="flex items-center justify-center gap-3 py-3">
       <TooltipProvider>
-        {/* Leave button */}
+        {/* Leave / Leave Stage button */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -548,8 +623,8 @@ function NestControlBar({
           </TooltipContent>
         </Tooltip>
 
-        {/* Hand raise */}
-        {user && !isOnStage && (
+        {/* Hand raise (non-owners who are off stage) */}
+        {user && !isOnStage && !isOwner && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -564,6 +639,23 @@ function NestControlBar({
             <TooltipContent>
               {handRaised ? 'Lower Hand' : 'Raise Hand'}
             </TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* Go on Stage (owner who is off stage) */}
+        {isOwner && !isOnStage && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="rounded-full size-12"
+                onClick={handleGoOnStage}
+              >
+                <ArrowUpFromLine className="size-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Go on Stage</TooltipContent>
           </Tooltip>
         )}
 
@@ -605,6 +697,11 @@ function NestControlBar({
           </TooltipTrigger>
           <TooltipContent>Share</TooltipContent>
         </Tooltip>
+
+        {/* Close Room (owner only) */}
+        {isOwner && (
+          <CloseRoomButton onCloseRoom={onCloseRoom} />
+        )}
       </TooltipProvider>
     </div>
   );
@@ -615,10 +712,14 @@ function NestControlBarSimple({
   handRaised,
   onToggleHand,
   onLeave,
+  isOwner,
+  onCloseRoom,
 }: {
   handRaised: boolean;
   onToggleHand: () => void;
   onLeave: () => void;
+  isOwner: boolean;
+  onCloseRoom: () => void;
 }) {
   const { user } = useCurrentUser();
   const { toast } = useToast();
@@ -647,7 +748,7 @@ function NestControlBarSimple({
           <TooltipContent>Leave Room</TooltipContent>
         </Tooltip>
 
-        {user && (
+        {user && !isOwner && (
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -678,7 +779,50 @@ function NestControlBarSimple({
           </TooltipTrigger>
           <TooltipContent>Share</TooltipContent>
         </Tooltip>
+
+        {isOwner && (
+          <CloseRoomButton onCloseRoom={onCloseRoom} />
+        )}
       </TooltipProvider>
     </div>
+  );
+}
+
+/** Close Room button with confirmation dialog. */
+function CloseRoomButton({ onCloseRoom }: { onCloseRoom: () => void }) {
+  return (
+    <AlertDialog>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full size-12 text-destructive hover:bg-destructive/10 hover:text-destructive"
+            >
+              <XCircle className="size-5" />
+            </Button>
+          </AlertDialogTrigger>
+        </TooltipTrigger>
+        <TooltipContent>Close Room</TooltipContent>
+      </Tooltip>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Close this nest?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This will end the room for all participants. Everyone currently listening or speaking will be disconnected.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={onCloseRoom}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Close Room
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }
