@@ -169,12 +169,6 @@ export function MobileBottomNav() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
   );
 
-  const handleHomeClick = useCallback(() => {
-    if (location.pathname === '/') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [location.pathname]);
-
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -197,9 +191,9 @@ export function MobileBottomNav() {
     }));
   }, [orderedItems]);
 
-  // Check if current path matches any explore route (excluding __feed which is the Home tab)
+  // Check if current path matches any explore route
   const isExploreActive = orderedItems.some((id) =>
-    id !== '__feed' && isItemActive(id, location.pathname, location.search),
+    isItemActive(id, location.pathname, location.search),
   );
 
   const handleDrawerClose = (open: boolean) => {
@@ -210,21 +204,14 @@ export function MobileBottomNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
-        <NavTab
-          to="/"
-          icon={<Home className="size-5" />}
-          label="Home"
-          active={location.pathname === '/'}
-          onClick={handleHomeClick}
-        />
-        <NavTab
-          icon={<Compass className="size-5" />}
-          label="Explore"
-          active={isExploreActive}
-          onClick={() => setExploreOpen(true)}
-        />
-        {user ? (
+        {user && (
           <>
+            <NavTab
+              to={userProfileUrl}
+              icon={<User className="size-5" />}
+              label="You"
+              active={location.pathname === userProfileUrl}
+            />
             <NavTab
               to="/notifications"
               icon={<Bell className="size-5" />}
@@ -232,21 +219,20 @@ export function MobileBottomNav() {
               active={location.pathname === '/notifications'}
               showIndicator={hasUnread}
             />
-            <NavTab
-              to={userProfileUrl}
-              icon={<User className="size-5" />}
-              label="You"
-              active={location.pathname === userProfileUrl}
-            />
           </>
-        ) : (
-          <NavTab
-            to="/search"
-            icon={<Search className="size-5" />}
-            label="Search"
-            active={location.pathname === '/search'}
-          />
         )}
+        <NavTab
+          icon={<Compass className="size-5" />}
+          label="Explore"
+          active={isExploreActive}
+          onClick={() => setExploreOpen(true)}
+        />
+        <NavTab
+          to="/search"
+          icon={<Search className="size-5" />}
+          label="Search"
+          active={location.pathname === '/search'}
+        />
       </nav>
 
       {/* Explore bottom sheet */}
