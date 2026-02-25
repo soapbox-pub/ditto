@@ -26,11 +26,22 @@ export function useLocalStorage<T>(
 
   const setValue = (value: T | ((prev: T) => T)) => {
     try {
-      const valueToStore = value instanceof Function ? value(state) : value;
-      // Skip if the updater returned the same reference (nothing changed)
-      if (valueToStore === state) return;
-      setState(valueToStore);
-      localStorage.setItem(key, serialize(valueToStore));
+      if (value instanceof Function) {
+        // Use React's functional setState so the updater always receives the
+        // latest state, even when multiple setValue calls are batched before a
+        // re-render (fixes stale-closure resets on the first click).
+        setState((prev) => {
+          const next = value(prev);
+          // Skip if the updater returned the same reference (nothing changed)
+          if (next === prev) return prev;
+          localStorage.setItem(key, serialize(next));
+          return next;
+        });
+      } else {
+        if (value === state) return;
+        setState(value);
+        localStorage.setItem(key, serialize(value));
+      }
     } catch (error) {
       console.warn(`Failed to save ${key} to localStorage:`, error);
     }
