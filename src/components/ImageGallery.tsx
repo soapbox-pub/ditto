@@ -139,6 +139,7 @@ function GridImage({
   blurhash?: string;
 }) {
   const [loaded, setLoaded] = useState(false);
+  const [probedAspectRatio, setProbedAspectRatio] = useState<string | undefined>(undefined);
   const imgRef = useRef<HTMLImageElement>(null);
   const { src, onError } = useBlossomFallback(url);
 
@@ -147,21 +148,26 @@ function GridImage({
   useEffect(() => {
     if (imgRef.current?.complete && imgRef.current.naturalWidth > 0) {
       setLoaded(true);
+      if (!dim) {
+        const { naturalWidth: w, naturalHeight: h } = imgRef.current;
+        if (w && h) setProbedAspectRatio(`${w} / ${h}`);
+      }
     }
-  }, []);
+  }, [dim]);
 
   const isSingle = visibleCount === 1;
 
-  // Derive intrinsic aspect ratio from the imeta `dim` tag.
+  // Derive intrinsic aspect ratio from the imeta `dim` tag, or from probed
+  // naturalWidth/naturalHeight after the image loads (for images with no dim).
   const dimensions = parseDim(dim);
-  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : undefined;
+  const aspectRatio = dimensions ? `${dimensions.width} / ${dimensions.height}` : probedAspectRatio;
 
   // The button container owns all sizing so that both the placeholder and the
   // <img> can be absolutely positioned to fill it cleanly.
   //
-  // - Single image with dim  → aspect-ratio drives the height naturally, capped at 85dvh
-  // - Single image without dim → fallback min-height of 200px
-  // - Grid tile               → fixed height derived from maxGridHeight
+  // - Single image with dim or probed ratio → aspect-ratio drives the height naturally, capped at 85dvh
+  // - Single image without dim (loading)    → fallback min-height of 200px until probed
+  // - Grid tile                             → fixed height derived from maxGridHeight
   const containerStyle: React.CSSProperties = isSingle
     ? {
         aspectRatio,
@@ -219,7 +225,15 @@ function GridImage({
           loaded ? 'opacity-100' : 'opacity-0',
         )}
         loading="lazy"
-        onLoad={() => setLoaded(true)}
+        onLoad={(e) => {
+          setLoaded(true);
+          if (!dim) {
+            const img = e.currentTarget;
+            if (img.naturalWidth && img.naturalHeight) {
+              setProbedAspectRatio(`${img.naturalWidth} / ${img.naturalHeight}`);
+            }
+          }
+        }}
         onError={onError}
       />
       {/* "+N" overlay on last visible image */}
