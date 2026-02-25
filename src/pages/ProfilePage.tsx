@@ -935,7 +935,9 @@ export function ProfilePage() {
                 className="w-full h-full object-cover cursor-pointer"
                 onClick={() => setLightboxImage(metadata.banner!)}
               />
-            ) : null}
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
+            )}
           </div>
 
           {/* Profile info */}
@@ -1032,10 +1034,10 @@ export function ProfilePage() {
                 )}
                 {streak > 1 && (
                   <div
-                    className="flex items-center gap-1 text-primary"
+                    className="flex items-center gap-1 text-accent"
                     title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
                   >
-                    <Flame className="size-4 fill-primary" />
+                    <Flame className="size-4 fill-accent" />
                     <span className="text-sm font-bold tabular-nums">
                       {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
                     </span>

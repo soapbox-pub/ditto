@@ -65,11 +65,14 @@ function NavTab({ icon, label, active, showIndicator, onClick, to }: NavTabProps
         )}
       </span>
       <span className="text-[10px] font-medium">{label}</span>
+      {active && (
+        <span className="absolute bottom-1 w-6 h-0.5 bg-accent rounded-full" />
+      )}
     </>
   );
 
   const className = cn(
-    'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
+    'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors relative',
     active ? 'text-foreground' : 'text-muted-foreground',
   );
 
@@ -180,7 +183,7 @@ export function MobileBottomNav() {
                     className={cn(
                       'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
                       isItemActive(item.id, location.pathname, location.search)
-                        ? 'bg-primary/10 text-primary font-semibold'
+                        ? 'bg-accent/10 font-semibold'
                         : 'text-foreground hover:bg-secondary/60',
                     )}
                   >
