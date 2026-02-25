@@ -294,6 +294,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
         const globalKinds = allKinds.filter((k) => !isRepostKind(k));
         const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
+        // Use hot sorting on the homepage Global tab for better content quality,
+        // but not on kind-specific pages that pass custom kinds.
+        if (tab === 'global' && !options?.kinds) {
+          filter.search = 'sort:hot';
+        }
         if (pageParam) {
           filter.until = pageParam;
         }
