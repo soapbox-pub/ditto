@@ -1,4 +1,4 @@
-import { useState, useCallback, type ReactNode } from 'react';
+import { useState, useCallback, useRef, useEffect, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Zap, UserPlus, UserMinus, MicOff, ArrowUpFromLine, ArrowDownFromLine, ShieldPlus, ShieldMinus, VolumeX, ExternalLink } from 'lucide-react';
 import type { RemoteParticipant, LocalParticipant as LKLocalParticipant } from 'livekit-client';
@@ -41,6 +41,7 @@ export function ParticipantPopover({
   isCurrentUserAdmin,
 }: ParticipantPopoverProps) {
   const [open, setOpen] = useState(false);
+  const [zapOpen, setZapOpen] = useState(false);
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const api = useNestsApi();
@@ -129,6 +130,7 @@ export function ParticipantPopover({
   const hasSelfAdminActions = isCurrentUserAdmin && isSelf && isSpeaker;
 
   return (
+  <>
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         {children}
@@ -161,9 +163,7 @@ export function ParticipantPopover({
         <MenuItem icon={<ExternalLink />} label="View Profile" onClick={handleViewProfile} />
 
         {canZapUser && authorEvent && (
-          <ZapDialog target={authorEvent}>
-            <MenuItem icon={<Zap />} label="Zap" onClick={() => setOpen(false)} />
-          </ZapDialog>
+          <MenuItem icon={<Zap />} label="Zap" onClick={() => { setOpen(false); setZapOpen(true); }} />
         )}
 
         {user && !isSelf && (
@@ -217,7 +217,37 @@ export function ParticipantPopover({
         )}
       </PopoverContent>
     </Popover>
+
+    {/* ZapDialog rendered outside the popover so it survives popover close.
+        The hidden button auto-triggers the dialog when zapOpen becomes true. */}
+    {canZapUser && authorEvent && (
+      <ZapDialog target={authorEvent}>
+        <ZapTriggerBridge open={zapOpen} onDone={() => setZapOpen(false)} />
+      </ZapDialog>
+    )}
+  </>
   );
+}
+
+/**
+ * Hidden bridge that programmatically clicks itself when `open` becomes true,
+ * triggering the parent ZapDialog. Reports back when it should clean up.
+ */
+function ZapTriggerBridge({ open, onDone }: { open: boolean; onDone: () => void }) {
+  const ref = useRef<HTMLButtonElement>(null);
+  const prevOpen = useRef(false);
+
+  useEffect(() => {
+    if (open && !prevOpen.current && ref.current) {
+      ref.current.click();
+    }
+    if (!open && prevOpen.current) {
+      onDone();
+    }
+    prevOpen.current = open;
+  }, [open, onDone]);
+
+  return <button ref={ref} className="hidden" aria-hidden />;
 }
 
 /** Compact menu item with icon and label. */
