@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine, Minimize2 } from 'lucide-react';
+import { ArrowLeft, Mic, MicOff, Users, Clock, Hand, LogOut, Share2, XCircle, ArrowUpFromLine, Minimize2, MessageCircle } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 import { useSeoMeta } from '@unhead/react';
 import {
@@ -15,15 +15,21 @@ import { useNostr } from '@nostrify/react';
 import { useNestSession } from '@/contexts/NestSessionContext';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { LiveStreamChat } from '@/components/LiveStreamChat';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -264,6 +270,9 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   // Back button confirmation
   const [backDialogOpen, setBackDialogOpen] = useState(false);
 
+  // Mobile chat drawer
+  const [chatOpen, setChatOpen] = useState(false);
+
   const handleBackClick = useCallback(() => {
     if (session.isActive && !session.minimized) {
       setBackDialogOpen(true);
@@ -285,7 +294,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   }, [session, navigate]);
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:h-[calc(100dvh-6.5rem)] max-sidebar:max-h-[calc(100dvh-6.5rem)] max-sidebar:overflow-hidden">
+    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:min-h-0 max-sidebar:overflow-y-auto">
       {/* Header */}
       <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
         <button
@@ -361,10 +370,18 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
             />
           </div>
 
-          {/* Mobile chat */}
-          <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0">
-            <LiveStreamChat aTag={aTag} className="h-full" />
+          {/* Mobile: chat button + drawer */}
+          <div className="xl:hidden flex justify-center mt-3 shrink-0">
+            <Button
+              variant="outline"
+              className="rounded-full gap-2"
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageCircle className="size-4" />
+              Chat
+            </Button>
           </div>
+
           <div className="hidden xl:block h-8" />
         </RoomContext.Provider>
       ) : (
@@ -392,13 +409,31 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
             />
           </div>
 
-          {/* Mobile chat */}
-          <div className="xl:hidden mt-4 border-t border-border flex-1 min-h-0">
-            <LiveStreamChat aTag={aTag} className="h-full" />
+          {/* Mobile: chat button + drawer */}
+          <div className="xl:hidden flex justify-center mt-3 shrink-0">
+            <Button
+              variant="outline"
+              className="rounded-full gap-2"
+              onClick={() => setChatOpen(true)}
+            >
+              <MessageCircle className="size-4" />
+              Chat
+            </Button>
           </div>
+
           <div className="hidden xl:block h-8" />
         </>
       )}
+
+      {/* Mobile chat drawer — rendered once, outside the connected/disconnected branches */}
+      <Drawer open={chatOpen} onOpenChange={setChatOpen}>
+        <DrawerContent className="h-[85dvh] max-h-[85dvh]">
+          <DrawerHeader className="sr-only">
+            <DrawerTitle>Live Chat</DrawerTitle>
+          </DrawerHeader>
+          <LiveStreamChat aTag={aTag} className="flex-1 min-h-0" />
+        </DrawerContent>
+      </Drawer>
     </main>
   );
 }
