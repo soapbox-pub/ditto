@@ -99,8 +99,8 @@ export function NestSessionProvider({ children }: { children: ReactNode }) {
 
   const [event, setEvent] = useState<NostrEvent | null>(null);
   const [room, setRoom] = useState<Room | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [livekitUrl, setLivekitUrl] = useState<string | null>(null);
+  const [_token, setToken] = useState<string | null>(null);
+  const [_livekitUrl, setLivekitUrl] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>(ConnectionState.Disconnected);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [minimized, setMinimized] = useState(false);
