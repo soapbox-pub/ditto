@@ -342,8 +342,8 @@ export function LeftSidebar() {
         )}
       </div>
 
-      {/* Search bar */}
-      <div className="px-2 py-4">
+      {/* Search bar — hidden at xl when it appears in the right sidebar instead */}
+      <div className="px-2 py-4 xl:hidden">
         <ProfileSearchDropdown
           placeholder="Search..."
           inputClassName="py-3.5"

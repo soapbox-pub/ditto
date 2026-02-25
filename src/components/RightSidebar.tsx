@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useOpenPost } from '@/hooks/useOpenPost';
 import { X } from 'lucide-react';
+import { ProfileSearchDropdown } from '@/components/ProfileSearchDropdown';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmojifiedText } from '@/components/CustomEmoji';
@@ -110,6 +111,15 @@ export function RightSidebar() {
 
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
+      {/* Search bar */}
+      <div className="mb-5">
+        <ProfileSearchDropdown
+          placeholder="Search..."
+          inputClassName="py-3.5"
+          enableTextSearch
+        />
+      </div>
+
       {/* Trending Tags */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
@@ -158,6 +168,8 @@ export function RightSidebar() {
         )}
       </section>
 
+      <div className="h-px bg-border/50 mb-6" />
+
       {/* Hot Posts */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
@@ -188,6 +200,8 @@ export function RightSidebar() {
           <p className="text-sm text-muted-foreground">No hot posts right now.</p>
         )}
       </section>
+
+      <div className="h-px bg-border/50 mb-6" />
 
       {/* Latest Accounts */}
       <section className="mb-6">
