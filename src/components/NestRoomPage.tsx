@@ -35,7 +35,9 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNestsApi } from '@/hooks/useNestsApi';
+import { useNestRoomInfo } from '@/hooks/useNestRoomInfo';
 import { useNestPresencePublisher, useNestPresenceCount } from '@/hooks/useNestPresence';
+import { ParticipantActionSheet } from '@/components/NestParticipantActions';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useToast } from '@/hooks/useToast';
@@ -143,6 +145,14 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
       }
     })();
   }, [api, dTag]);
+
+  // Room info (admin list, speakers)
+  const { data: roomInfo } = useNestRoomInfo(dTag || undefined);
+  const adminPubkeys = useMemo(
+    () => new Set(roomInfo?.admins ?? (event ? [event.pubkey] : [])),
+    [roomInfo, event],
+  );
+  const isCurrentUserAdmin = !!(user && adminPubkeys.has(user.pubkey));
 
   // Presence tracking
   const { handRaised, toggleHand, lowerHand } = useNestPresencePublisher(aTag, isLive);
@@ -288,7 +298,14 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
 
           {/* Participants (uses LiveKit hooks) */}
           <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsGrid event={event} lowerHand={lowerHand} handsRaised={handsRaised} />
+            <NestParticipantsGrid
+              event={event}
+              lowerHand={lowerHand}
+              handsRaised={handsRaised}
+              roomId={dTag}
+              adminPubkeys={adminPubkeys}
+              isCurrentUserAdmin={isCurrentUserAdmin}
+            />
           </div>
 
           {/* Controls (uses LiveKit hooks) */}
@@ -386,7 +403,21 @@ function NestHostRow({ event }: { event: NostrEvent }) {
  * Grid of participants from LiveKit, split into speakers and audience.
  * Must be rendered inside a <LiveKitRoom> context.
  */
-function NestParticipantsGrid({ event, lowerHand, handsRaised }: { event: NostrEvent; lowerHand: () => void; handsRaised: Set<string> }) {
+function NestParticipantsGrid({
+  event,
+  lowerHand,
+  handsRaised,
+  roomId,
+  adminPubkeys,
+  isCurrentUserAdmin,
+}: {
+  event: NostrEvent;
+  lowerHand: () => void;
+  handsRaised: Set<string>;
+  roomId: string;
+  adminPubkeys: Set<string>;
+  isCurrentUserAdmin: boolean;
+}) {
   const participants = useParticipants();
   const { localParticipant } = useLocalParticipant();
 
@@ -431,6 +462,9 @@ function NestParticipantsGrid({ event, lowerHand, handsRaised }: { event: NostrE
                 participant={p}
                 hostPubkey={event.pubkey}
                 handRaised={handsRaised.has(p.identity)}
+                roomId={roomId}
+                adminPubkeys={adminPubkeys}
+                isCurrentUserAdmin={isCurrentUserAdmin}
               />
             ))}
           </div>
@@ -455,6 +489,9 @@ function NestParticipantsGrid({ event, lowerHand, handsRaised }: { event: NostrE
                 participant={p}
                 hostPubkey={event.pubkey}
                 handRaised={handsRaised.has(p.identity)}
+                roomId={roomId}
+                adminPubkeys={adminPubkeys}
+                isCurrentUserAdmin={isCurrentUserAdmin}
               />
             ))}
           </div>
@@ -476,16 +513,23 @@ function NestParticipantsEmpty() {
   );
 }
 
-/** Single participant tile with avatar, name, mic indicator, and hand-raised badge. */
+/** Single participant tile with avatar, name, mic indicator, hand-raised badge, and tap action sheet. */
 function ParticipantTile({
   participant,
   hostPubkey,
   handRaised,
+  roomId,
+  adminPubkeys,
+  isCurrentUserAdmin,
 }: {
   participant: RemoteParticipant | LKLocalParticipant;
   hostPubkey: string;
   handRaised: boolean;
+  roomId: string;
+  adminPubkeys: Set<string>;
+  isCurrentUserAdmin: boolean;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
   const pubkey = participant.identity;
   const author = useAuthor(pubkey);
   const metadata = author.data?.metadata;
@@ -495,8 +539,12 @@ function ParticipantTile({
   const isMicEnabled = participant.isMicrophoneEnabled;
 
   return (
-    <div className="flex flex-col items-center text-center gap-1.5">
-      <ProfileHoverCard pubkey={pubkey} asChild>
+    <>
+      <button
+        type="button"
+        className="flex flex-col items-center text-center gap-1.5 cursor-pointer"
+        onClick={() => setMenuOpen(true)}
+      >
         <div className="relative">
           <Avatar className={cn(
             'size-16 border-2 transition-all',
@@ -527,18 +575,28 @@ function ParticipantTile({
             </div>
           )}
         </div>
-      </ProfileHoverCard>
 
-      <div className="min-w-0 w-full">
-        <p className="text-xs font-medium truncate">{displayName}</p>
-        {isHost && (
-          <span className="text-[10px] text-primary font-semibold">Host</span>
-        )}
-        {!isHost && isSpeaker && (
-          <span className="text-[10px] text-muted-foreground">Speaker</span>
-        )}
-      </div>
-    </div>
+        <div className="min-w-0 w-full">
+          <p className="text-xs font-medium truncate">{displayName}</p>
+          {isHost && (
+            <span className="text-[10px] text-primary font-semibold">Host</span>
+          )}
+          {!isHost && isSpeaker && (
+            <span className="text-[10px] text-muted-foreground">Speaker</span>
+          )}
+        </div>
+      </button>
+
+      <ParticipantActionSheet
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        participant={participant}
+        hostPubkey={hostPubkey}
+        roomId={roomId}
+        adminPubkeys={adminPubkeys}
+        isCurrentUserAdmin={isCurrentUserAdmin}
+      />
+    </>
   );
 }
 
