@@ -1,19 +1,21 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Compass, Bell, User, Search, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { Home, Compass, Bell, User, Search, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { cn } from '@/lib/utils';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 // ── Icon map for explore items ────────────────────────────────────────────────
 
-const ROUTE_ICONS: Record<string, React.ReactElement> = {
+const ITEM_ICONS: Record<string, React.ReactElement> = {
+  __feed: <Home className="size-5" />,
+  __trends: <TrendingUp className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -24,8 +26,22 @@ const ROUTE_ICONS: Record<string, React.ReactElement> = {
   decks: <CardsIcon className="size-5" />,
 };
 
-function routeLabel(route: string): string {
-  return EXTRA_KINDS.find((d) => d.route === route)?.label ?? route;
+function itemLabel(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.label;
+  return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
+}
+
+function itemPath(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.path;
+  return `/${id}`;
+}
+
+function isItemActive(id: string, pathname: string, search: string): boolean {
+  if (id === '__feed') return pathname === '/';
+  if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
+  return pathname === `/${id}`;
 }
 
 // ── Tab component ─────────────────────────────────────────────────────────────
@@ -79,7 +95,7 @@ export function MobileBottomNav() {
   const navigate = useNavigate();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { orderedRoutes } = useFeedSettings();
+  const { orderedItems } = useFeedSettings();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [exploreOpen, setExploreOpen] = useState(false);
 
@@ -89,17 +105,20 @@ export function MobileBottomNav() {
     }
   }, [location.pathname]);
 
-  // Build explore items from ordered routes
+  // Build explore items from ordered items (includes built-ins)
   const exploreItems = useMemo(() => {
-    return orderedRoutes.map((route) => ({
-      route,
-      icon: ROUTE_ICONS[route] ?? <Palette className="size-5" />,
-      label: routeLabel(route),
+    return orderedItems.map((id) => ({
+      id,
+      icon: ITEM_ICONS[id] ?? <Palette className="size-5" />,
+      label: itemLabel(id),
+      path: itemPath(id),
     }));
-  }, [orderedRoutes]);
+  }, [orderedItems]);
 
-  // Check if current path matches any explore route
-  const isExploreActive = orderedRoutes.some((route) => location.pathname === `/${route}`);
+  // Check if current path matches any explore route (excluding __feed which is the Home tab)
+  const isExploreActive = orderedItems.some((id) =>
+    id !== '__feed' && isItemActive(id, location.pathname, location.search),
+  );
 
   return (
     <>
@@ -144,7 +163,7 @@ export function MobileBottomNav() {
       </nav>
 
       {/* Explore bottom sheet */}
-      <Drawer open={exploreOpen} onOpenChange={setExploreOpen}>
+      <Drawer open={exploreOpen} onOpenChange={setExploreOpen} dismissible>
         <DrawerContent className="max-h-[60vh]">
           <DrawerTitle className="sr-only">Explore</DrawerTitle>
           <div className="px-4 pt-2 pb-6">
@@ -155,12 +174,12 @@ export function MobileBottomNav() {
               <div className="grid grid-cols-2 gap-1">
                 {exploreItems.map((item) => (
                   <Link
-                    key={item.route}
-                    to={`/${item.route}`}
+                    key={item.id}
+                    to={item.path}
                     onClick={() => setExploreOpen(false)}
                     className={cn(
                       'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
-                      location.pathname === `/${item.route}`
+                      isItemActive(item.id, location.pathname, location.search)
                         ? 'bg-primary/10 text-primary font-semibold'
                         : 'text-foreground hover:bg-secondary/60',
                     )}

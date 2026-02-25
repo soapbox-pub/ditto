@@ -1,7 +1,7 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
+  Bell, Home, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
   User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
   ChevronDown, Plus, Pencil, X, GripVertical,
 } from 'lucide-react';
@@ -16,7 +16,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
-import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
@@ -32,7 +31,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useTheme } from '@/hooks/useTheme';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useFeedSettings, isBuiltinItem, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
@@ -44,8 +43,12 @@ import { themePresets } from '@/themes';
 
 // ── Icon map ──────────────────────────────────────────────────────────────────
 
-/** Map route name to lucide icon (size-6 for sidebar). */
-const ROUTE_ICONS: Record<string, React.ReactElement> = {
+/** Map item ID to lucide icon (size-6 for sidebar). Covers both built-ins and extra-kind routes. */
+const ITEM_ICONS: Record<string, React.ReactElement> = {
+  // Built-ins
+  __feed: <Home className="size-6" />,
+  __trends: <TrendingUp className="size-6" />,
+  // Extra-kind routes
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
   treasures: <ChestIcon className="size-6" />,
@@ -56,9 +59,25 @@ const ROUTE_ICONS: Record<string, React.ReactElement> = {
   decks: <CardsIcon className="size-6" />,
 };
 
-/** Lookup label for a route. */
-function routeLabel(route: string): string {
-  return EXTRA_KINDS.find((d) => d.route === route)?.label ?? route;
+/** Lookup label for an item ID (built-in or extra-kind route). */
+function itemLabel(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.label;
+  return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
+}
+
+/** Lookup navigation path for an item ID. */
+function itemPath(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.path;
+  return `/${id}`;
+}
+
+/** Check if a location pathname matches an item. */
+function isItemActive(id: string, pathname: string, search: string): boolean {
+  if (id === '__feed') return pathname === '/';
+  if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
+  return pathname === `/${id}`;
 }
 
 // ── Nav item components ───────────────────────────────────────────────────────
@@ -96,14 +115,14 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
 // ── Sortable explore item ─────────────────────────────────────────────────────
 
 interface ExploreItemProps {
-  route: string;
+  id: string;
   active: boolean;
   editing: boolean;
-  onRemove: (route: string) => void;
+  onRemove: (id: string) => void;
   onClick?: (e: React.MouseEvent) => void;
 }
 
-function SortableExploreItem({ route, active, editing, onRemove, onClick }: ExploreItemProps) {
+function SortableExploreItem({ id, active, editing, onRemove, onClick }: ExploreItemProps) {
   const {
     attributes,
     listeners,
@@ -111,22 +130,23 @@ function SortableExploreItem({ route, active, editing, onRemove, onClick }: Expl
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: route, disabled: !editing });
+  } = useSortable({ id, disabled: !editing });
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
   };
 
-  const icon = ROUTE_ICONS[route] ?? <Palette className="size-6" />;
-  const label = routeLabel(route);
+  const icon = ITEM_ICONS[id] ?? <Palette className="size-6" />;
+  const label = itemLabel(id);
+  const path = itemPath(id);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-center rounded-full transition-colors relative',
+        'flex items-center rounded-full transition-colors relative',
         isDragging && 'z-10 opacity-80 shadow-lg bg-background',
       )}
     >
@@ -142,7 +162,7 @@ function SortableExploreItem({ route, active, editing, onRemove, onClick }: Expl
       )}
 
       <Link
-        to={`/${route}`}
+        to={path}
         onClick={onClick}
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 flex-1 min-w-0',
@@ -154,19 +174,16 @@ function SortableExploreItem({ route, active, editing, onRemove, onClick }: Expl
         <span className="truncate">{label}</span>
       </Link>
 
-      {/* Remove button — always visible in edit mode, visible on hover otherwise */}
-      <button
-        onClick={(e) => { e.stopPropagation(); onRemove(route); }}
-        className={cn(
-          'flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10',
-          editing
-            ? 'opacity-100'
-            : 'opacity-0 group-hover:opacity-100',
-        )}
-        title={`Remove ${label} from sidebar`}
-      >
-        <X className="size-4" />
-      </button>
+      {/* Remove button — only visible in edit mode */}
+      {editing && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemove(id); }}
+          className="flex items-center justify-center size-8 shrink-0 rounded-full transition-all text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+          title={`Remove ${label} from sidebar`}
+        >
+          <X className="size-4" />
+        </button>
+      )}
     </div>
   );
 }
@@ -217,7 +234,7 @@ export function LeftSidebar() {
   const { logout } = useLoginActions();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
   const {
-    feedSettings, orderedRoutes, updateSidebarOrder, addToSidebar, removeFromSidebar,
+    orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
   } = useFeedSettings();
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
@@ -240,25 +257,18 @@ export function LeftSidebar() {
     }
   }, [location.pathname]);
 
-  /** Extra kinds that have a sidebar toggle but are currently hidden. */
-  const hiddenKinds = useMemo(() => {
-    return EXTRA_KINDS.filter(
-      (def) => def.showKey && def.route && !feedSettings[def.showKey],
-    );
-  }, [feedSettings]);
-
   /** Handle drag-and-drop reorder. */
   const handleDragEnd = useCallback((event: DragEndEvent) => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const oldIndex = orderedRoutes.indexOf(active.id as string);
-    const newIndex = orderedRoutes.indexOf(over.id as string);
+    const oldIndex = orderedItems.indexOf(active.id as string);
+    const newIndex = orderedItems.indexOf(over.id as string);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const newOrder = arrayMove(orderedRoutes, oldIndex, newIndex);
+    const newOrder = arrayMove(orderedItems, oldIndex, newIndex);
     updateSidebarOrder(newOrder);
-  }, [orderedRoutes, updateSidebarOrder]);
+  }, [orderedItems, updateSidebarOrder]);
 
   const getDisplayName = (account: Account): string => {
     return account.metadata.name ?? genUserName(account.pubkey);
@@ -310,10 +320,27 @@ export function LeftSidebar() {
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
-      {/* Logo */}
-      <Link to="/" className="px-3 mb-1" onClick={scrollToTopIfCurrent('/')}>
-        <DittoLogo size={48} />
-      </Link>
+      {/* Logo row — logo left, notifications bell right */}
+      <div className="flex items-center justify-between px-3 mb-1">
+        <Link to="/" onClick={scrollToTopIfCurrent('/')}>
+          <DittoLogo size={48} />
+        </Link>
+
+        {user && (
+          <Link
+            to="/notifications"
+            className={cn(
+              'relative p-2 rounded-full transition-colors hover:bg-secondary/60',
+              location.pathname === '/notifications' ? 'text-foreground' : 'text-muted-foreground',
+            )}
+          >
+            <Bell className="size-6" />
+            {hasUnread && (
+              <span className="absolute top-1.5 right-1.5 size-2.5 bg-primary rounded-full" />
+            )}
+          </Link>
+        )}
+      </div>
 
       {/* Search bar */}
       <div className="px-2 py-4">
@@ -326,17 +353,6 @@ export function LeftSidebar() {
 
       {/* Navigation */}
       <nav className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        {/* Core navigation — only notifications (Home removed, Search removed) */}
-        {user && (
-          <NavItem
-            to="/notifications"
-            icon={<Bell className="size-6" />}
-            label="Notifications"
-            active={location.pathname === '/notifications'}
-            showIndicator={hasUnread}
-          />
-        )}
-
         {/* ── Explore section ── */}
         <SectionHeader
           label="Explore"
@@ -350,23 +366,24 @@ export function LeftSidebar() {
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={orderedRoutes}
+            items={orderedItems}
             strategy={verticalListSortingStrategy}
           >
-            {orderedRoutes.map((route) => (
+            {orderedItems.map((id) => (
               <SortableExploreItem
-                key={route}
-                route={route}
-                active={location.pathname === `/${route}`}
+                key={id}
+                id={id}
+                active={isItemActive(id, location.pathname, location.search)}
                 editing={editing}
                 onRemove={removeFromSidebar}
+                onClick={id === '__feed' ? scrollToTopIfCurrent('/') : undefined}
               />
             ))}
           </SortableContext>
         </DndContext>
 
         {/* "More..." add trigger — subtle inline link */}
-        {hiddenKinds.length > 0 && (
+        {hiddenItems.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -379,24 +396,20 @@ export function LeftSidebar() {
             <DropdownMenuContent align="start" className="w-[220px]">
               <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {hiddenKinds.map((def) => (
+              {hiddenItems.map((item) => (
                 <DropdownMenuItem
-                  key={def.kind}
-                  onClick={() => {
-                    if (def.route) {
-                      addToSidebar(def.route);
-                    }
-                  }}
+                  key={item.id}
+                  onClick={() => addToSidebar(item.id)}
                   className="flex items-center gap-3 cursor-pointer"
                 >
-                  {def.route && ROUTE_ICONS[def.route] ? (
+                  {ITEM_ICONS[item.id] ? (
                     <span className="size-5 flex items-center justify-center [&>svg]:size-5">
-                      {ROUTE_ICONS[def.route]}
+                      {ITEM_ICONS[item.id]}
                     </span>
                   ) : (
                     <Plus className="size-5 text-muted-foreground" />
                   )}
-                  <span className="text-sm">{def.label}</span>
+                  <span className="text-sm">{item.label}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
@@ -404,7 +417,7 @@ export function LeftSidebar() {
         )}
 
         {/* ── You section ── (logged-in only) */}
-        {user && (
+        {user ? (
           <>
             <SectionHeader label="You" />
 
@@ -420,19 +433,25 @@ export function LeftSidebar() {
               label="Bookmarks"
               active={location.pathname === '/bookmarks'}
             />
+            <NavItem
+              to="/settings"
+              icon={<Settings className="size-6" />}
+              label="Settings"
+              active={location.pathname.startsWith('/settings')}
+            />
           </>
+        ) : (
+          /* Logged out: Settings standalone at the bottom */
+          <div className="mt-auto pt-2">
+            <div className="h-px bg-border/50 mx-4 mb-1" />
+            <NavItem
+              to="/settings"
+              icon={<Settings className="size-6" />}
+              label="Settings"
+              active={location.pathname.startsWith('/settings')}
+            />
+          </div>
         )}
-
-        {/* ── Settings ── */}
-        <div className="mt-auto pt-2">
-          <div className="h-px bg-border/50 mx-4 mb-1" />
-          <NavItem
-            to="/settings"
-            icon={<Settings className="size-6" />}
-            label="Settings"
-            active={location.pathname.startsWith('/settings')}
-          />
-        </div>
       </nav>
 
       {/* User profile at bottom — only when logged in */}

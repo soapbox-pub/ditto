@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { Home, TrendingUp, Bookmark, Settings, LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Separator } from '@/components/ui/separator';
@@ -10,7 +10,7 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
 import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
 import { useTheme } from '@/hooks/useTheme';
-import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
@@ -18,8 +18,10 @@ import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
 import { themePresets } from '@/themes';
 
-/** Map route name to icon for extra kind drawer items. */
-const ROUTE_ICONS: Record<string, React.ReactNode> = {
+/** Map item ID to icon for drawer items. Covers both built-ins and extra-kind routes. */
+const ITEM_ICONS: Record<string, React.ReactNode> = {
+  __feed: <Home className="size-5" />,
+  __trends: <TrendingUp className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -30,8 +32,16 @@ const ROUTE_ICONS: Record<string, React.ReactNode> = {
   decks: <CardsIcon className="size-5" />,
 };
 
-function routeLabel(route: string): string {
-  return EXTRA_KINDS.find((d) => d.route === route)?.label ?? route;
+function itemLabel(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.label;
+  return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
+}
+
+function itemPath(id: string): string {
+  const builtin = getBuiltinItem(id);
+  if (builtin) return builtin.path;
+  return `/${id}`;
 }
 
 interface MobileDrawerProps {
@@ -64,18 +74,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
   const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
-  const { orderedRoutes } = useFeedSettings();
+  const { orderedItems } = useFeedSettings();
   const navigate = useNavigate();
   const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
 
-  /** Build explore items from ordered routes. */
+  /** Build explore items from ordered items (includes built-ins). */
   const exploreItems = useMemo(() => {
-    return orderedRoutes.map((route) => ({
-      to: `/${route}`,
-      icon: ROUTE_ICONS[route] ?? <Palette className="size-5" />,
-      label: routeLabel(route),
+    return orderedItems.map((id) => ({
+      to: itemPath(id),
+      icon: ITEM_ICONS[id] ?? <Palette className="size-5" />,
+      label: itemLabel(id),
     }));
-  }, [orderedRoutes]);
+  }, [orderedItems]);
 
   // Theme cycling logic
   const builtinCycle: { id: Theme; label: string; icon: React.ReactNode }[] = [
@@ -170,7 +180,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     />
                   ))}
 
-                  {/* Manage link */}
+                  {/* Edit link */}
                   <button
                     onClick={() => {
                       handleClose();
@@ -178,7 +188,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                     }}
                     className="flex items-center gap-4 py-2 px-2 rounded-lg text-xs text-muted-foreground/60 hover:text-muted-foreground transition-colors"
                   >
-                    <span className="ml-9">Manage...</span>
+                    <span className="ml-9">Edit</span>
                   </button>
 
                   <div className="my-2 mx-2">
