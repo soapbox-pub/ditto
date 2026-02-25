@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Plus, Construction } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -12,10 +13,13 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 interface FloatingComposeButtonProps {
   /** The Nostr event kind this FAB creates. kind=1 opens compose; others show "Coming soon". */
   kind?: number;
+  /** If set, the FAB navigates to this URL instead of opening a dialog. */
+  href?: string;
 }
 
-export function FloatingComposeButton({ kind = 1 }: FloatingComposeButtonProps) {
+export function FloatingComposeButton({ kind = 1, href }: FloatingComposeButtonProps) {
   const { user } = useCurrentUser();
+  const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
   const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
@@ -24,7 +28,9 @@ export function FloatingComposeButton({ kind = 1 }: FloatingComposeButtonProps) 
   }
 
   const handleClick = () => {
-    if (kind === 1) {
+    if (href) {
+      navigate(href);
+    } else if (kind === 1) {
       setComposeOpen(true);
     } else {
       setComingSoonOpen(true);
