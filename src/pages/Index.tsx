@@ -8,7 +8,7 @@ const Index = () => {
     description: 'A Nostr client for the social web.',
   });
 
-  useLayoutOptions({ showFAB: true });
+  useLayoutOptions({ showFAB: true, fabKind: 1 });
 
   return <Feed />;
 };

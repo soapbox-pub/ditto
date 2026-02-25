@@ -6,6 +6,8 @@ export interface LayoutOptions {
   rightSidebar?: React.ReactNode;
   /** Whether to show the floating compose button (default: false) */
   showFAB?: boolean;
+  /** The Nostr event kind the FAB creates (default: 1). Only used when showFAB is true. */
+  fabKind?: number;
   /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
   noBottomSpacer?: boolean;
   /** Additional classes for the wrapper div */
@@ -68,6 +70,7 @@ export function useLayoutOptions(options: LayoutOptions): void {
   const changed =
     prev.current === null ||
     prev.current.showFAB !== options.showFAB ||
+    prev.current.fabKind !== options.fabKind ||
     prev.current.noBottomSpacer !== options.noBottomSpacer ||
     prev.current.wrapperClassName !== options.wrapperClassName ||
     prev.current.rightSidebar !== options.rightSidebar;
