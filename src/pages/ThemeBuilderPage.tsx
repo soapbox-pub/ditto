@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette, Star } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette, Star, Plus } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 
@@ -122,6 +122,27 @@ export function ThemeBuilderPage() {
   const [autoDerive, setAutoDerive] = useState(true);
   const [previewing, setPreviewing] = useState(false);
 
+  // Tracks which published theme is currently being edited (null = creating new)
+  const [activeEditingTheme, setActiveEditingTheme] = useState<ThemeDefinition | null>(() => {
+    // On mount, try to match current tokens to a published theme
+    return null; // will be set by effects or user actions
+  });
+
+  // When user themes load, check if current tokens match a published theme
+  useEffect(() => {
+    if (!_userThemes.data || activeEditingTheme) return;
+    const match = _userThemes.data.find(t => JSON.stringify(t.tokens) === JSON.stringify(tokens));
+    if (match) setActiveEditingTheme(match);
+  }, [_userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear editing context when starting fresh
+  const handleNewTheme = useCallback(() => {
+    setActiveEditingTheme(null);
+    setTokens(builtinThemes.dark);
+    setAutoDerive(true);
+    toast({ title: 'Starting fresh', description: 'Create a new theme from scratch.' });
+  }, [toast]);
+
   // Import from another user's active profile theme or a specific theme definition
   const importActiveQuery = useActiveProfileTheme(importPubkey && !importThemeId ? importPubkey : undefined);
   const importThemesQuery = useUserThemes(importPubkey && importThemeId ? importPubkey : undefined);
@@ -133,6 +154,7 @@ export function ThemeBuilderPage() {
       if (target) {
         setTokens(target.tokens);
         setAutoDerive(false);
+        setActiveEditingTheme(null); // importing = creating a new fork
         toast({ title: 'Theme imported', description: `Imported "${target.title}". Customize it and save!` });
       }
     }
@@ -140,6 +162,7 @@ export function ThemeBuilderPage() {
     else if (importActiveQuery.data?.tokens) {
       setTokens(importActiveQuery.data.tokens);
       setAutoDerive(false);
+      setActiveEditingTheme(null);
       toast({ title: 'Theme imported', description: 'Imported theme from profile. Customize it and save!' });
     }
   }, [importActiveQuery.data, importThemesQuery.data, importThemeId]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -180,6 +203,7 @@ export function ThemeBuilderPage() {
   const applyPreset = useCallback((preset: PresetName) => {
     setTokens(getPresetTokens(preset));
     setAutoDerive(true);
+    setActiveEditingTheme(null); // starting from a preset = new theme
   }, []);
 
   // Contrast warnings
@@ -212,22 +236,35 @@ export function ThemeBuilderPage() {
   const [publishDescription, setPublishDescription] = useState('');
   const [editingTheme, setEditingTheme] = useState<ThemeDefinition | null>(null);
 
-  // Save: apply locally, then prompt to publish if not published yet
+  // Save: apply locally + update/publish depending on context
   const handleSave = useCallback(async () => {
     applyCustomTheme(tokens);
     setPreviewing(false);
 
-    // If user has an active profile theme, auto-update it
-    if (user && hasPublishedTheme) {
+    if (user && activeEditingTheme) {
+      // Editing an existing published theme — re-publish it with updated tokens
       try {
-        await setActiveTheme({ tokens });
-        toast({ title: 'Theme saved & updated', description: 'Your custom theme is now active and updated on your profile.' });
+        await publishTheme({
+          tokens,
+          title: activeEditingTheme.title,
+          description: activeEditingTheme.description,
+          identifier: activeEditingTheme.identifier,
+        });
+        // Also update active profile theme if this is the active one
+        if (ownActiveTheme.data?.sourceRef?.endsWith(`:${activeEditingTheme.identifier}`)) {
+          await setActiveTheme({
+            tokens,
+            sourceAuthor: user.pubkey,
+            sourceIdentifier: activeEditingTheme.identifier,
+          });
+        }
+        toast({ title: `"${activeEditingTheme.title}" updated`, description: 'Your theme has been saved and republished.' });
       } catch (error) {
-        console.error('Failed to update active theme:', error);
-        toast({ title: 'Theme saved locally', description: 'Saved but failed to update your profile theme.', variant: 'destructive' });
+        console.error('Failed to update theme:', error);
+        toast({ title: 'Theme saved locally', description: 'Saved but failed to update on Nostr.', variant: 'destructive' });
       }
     } else if (user) {
-      // First save: ask if they want to publish
+      // New theme: ask if they want to publish
       setPublishTitle('');
       setPublishDescription('');
       setEditingTheme(null);
@@ -235,7 +272,7 @@ export function ThemeBuilderPage() {
     } else {
       toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
     }
-  }, [tokens, user, hasPublishedTheme, applyCustomTheme, setActiveTheme, toast]);
+  }, [tokens, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
 
   // Publish theme as kind 33891
   const handlePublish = useCallback(async () => {
@@ -251,6 +288,15 @@ export function ThemeBuilderPage() {
         identifier: editingTheme?.identifier,
       });
       setPublishDialogOpen(false);
+
+      // Track that we're now editing this published theme
+      setActiveEditingTheme({
+        identifier,
+        title: publishTitle.trim(),
+        description: publishDescription.trim() || undefined,
+        tokens,
+        event: {} as ThemeDefinition['event'], // placeholder, will be refreshed on next query
+      });
 
       // Also set as active profile theme
       await setActiveTheme({
@@ -314,17 +360,26 @@ export function ThemeBuilderPage() {
           <ArrowLeft className="size-5" />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-lg font-bold">Theme Builder</h1>
-          <p className="text-xs text-muted-foreground">Create your custom theme</p>
+          <h1 className="text-lg font-bold truncate">
+            {activeEditingTheme ? activeEditingTheme.title : 'New Theme'}
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            {activeEditingTheme ? 'Editing published theme' : 'Create a new custom theme'}
+          </p>
         </div>
         <div className="flex items-center gap-2">
+          {activeEditingTheme && (
+            <Button variant="ghost" size="sm" onClick={handleNewTheme} title="Start a new theme">
+              <Plus className="size-4" />
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={togglePreview}>
             <Eye className="size-4 mr-1.5" />
             {previewing ? 'Revert' : 'Preview'}
           </Button>
           <Button size="sm" onClick={handleSave} disabled={isPublishing}>
             <Save className="size-4 mr-1.5" />
-            {isPublishing ? 'Saving...' : 'Save'}
+            {isPublishing ? 'Saving...' : activeEditingTheme ? 'Update' : 'Save'}
           </Button>
         </div>
       </div>
@@ -506,10 +561,12 @@ export function ThemeBuilderPage() {
                       key={theme.identifier}
                       theme={theme}
                       isActive={ownActiveTheme.data?.sourceRef?.endsWith(`:${theme.identifier}`) ?? false}
+                      isEditing={activeEditingTheme?.identifier === theme.identifier}
                       onLoadIntoEditor={() => {
                         setTokens(theme.tokens);
                         setAutoDerive(false);
-                        toast({ title: 'Theme loaded', description: `"${theme.title}" loaded into the editor.` });
+                        setActiveEditingTheme(theme);
+                        toast({ title: 'Theme loaded', description: `Editing "${theme.title}".` });
                       }}
                       onSetActive={async () => {
                         try {
@@ -655,13 +712,14 @@ export function ThemeBuilderPage() {
 interface ThemeCardProps {
   theme: ThemeDefinition;
   isActive: boolean;
+  isEditing?: boolean;
   onLoadIntoEditor: () => void;
   onSetActive: () => void;
   onEditMetadata: () => void;
   onDelete: () => void;
 }
 
-function ThemeCard({ theme, isActive, onLoadIntoEditor, onSetActive, onEditMetadata, onDelete }: ThemeCardProps) {
+function ThemeCard({ theme, isActive, isEditing, onLoadIntoEditor, onSetActive, onEditMetadata, onDelete }: ThemeCardProps) {
   const swatches = [
     theme.tokens.background,
     theme.tokens.foreground,
@@ -674,7 +732,7 @@ function ThemeCard({ theme, isActive, onLoadIntoEditor, onSetActive, onEditMetad
   return (
     <div className={cn(
       'flex items-center gap-3 rounded-lg border p-3 transition-colors',
-      isActive ? 'border-primary/40 bg-primary/5' : 'border-border',
+      isEditing ? 'border-accent/50 bg-accent/5' : isActive ? 'border-primary/40 bg-primary/5' : 'border-border',
     )}>
       {/* Color swatches */}
       <div className="flex rounded-md overflow-hidden h-8 w-16 shrink-0">
@@ -687,7 +745,12 @@ function ThemeCard({ theme, isActive, onLoadIntoEditor, onSetActive, onEditMetad
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5">
           <span className="text-sm font-medium truncate">{theme.title}</span>
-          {isActive && (
+          {isEditing && (
+            <Badge variant="secondary" className="text-[10px] bg-accent/10 text-accent border-accent/20 shrink-0">
+              Editing
+            </Badge>
+          )}
+          {isActive && !isEditing && (
             <Badge variant="secondary" className="text-[10px] bg-green-500/10 text-green-600 border-green-500/20 shrink-0">
               Active
             </Badge>
