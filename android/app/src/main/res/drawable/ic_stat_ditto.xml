@@ -1,10 +1,12 @@
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="100"
-    android:viewportHeight="100">
+    android:viewportWidth="90"
+    android:viewportHeight="80">
 
     <!-- Ditto logo as monochrome notification small icon (white, no background) -->
+    <!-- viewportWidth/Height match the effective logo bounds (original viewBox "-5 -10 100 100"
+         shifted by translateX="5" translateY="10" gives a 90x80 usable area) -->
 
     <group
         android:translateX="5"
