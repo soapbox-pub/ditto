@@ -16,7 +16,9 @@ import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useProfileTheme, usePublishProfileTheme } from '@/hooks/useProfileTheme';
+import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { usePublishTheme } from '@/hooks/usePublishTheme';
+import { useUserThemes } from '@/hooks/useUserThemes';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
 import { hslStringToHex, hexToHslString, deriveTokensFromCore, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -87,14 +89,18 @@ export function ThemeBuilderPage() {
   const { toast } = useToast();
   const { theme: currentTheme, customTheme: savedCustomTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
-  const { publish: publishProfileTheme, isPending: isPublishing } = usePublishProfileTheme();
+  const { setActiveTheme, isPending: isPublishing } = usePublishTheme();
 
   // Check if we're importing from a profile
   const importPubkey = searchParams.get('import');
+  const importThemeId = searchParams.get('theme');
 
-  // Check if the user currently has a published profile theme
-  const ownProfileTheme = useProfileTheme(user?.pubkey);
-  const hasPublishedTheme = !!ownProfileTheme.data;
+  // Check if the user currently has a published active profile theme
+  const ownActiveTheme = useActiveProfileTheme(user?.pubkey);
+  const hasPublishedTheme = !!ownActiveTheme.data;
+
+  // User's published theme definitions
+  const _userThemes = useUserThemes(user?.pubkey);
 
   useSeoMeta({
     title: 'Theme Builder | Ditto',
@@ -112,15 +118,27 @@ export function ThemeBuilderPage() {
   const [autoDerive, setAutoDerive] = useState(true);
   const [previewing, setPreviewing] = useState(false);
 
-  // Import from another user's profile theme
-  const importQuery = useProfileTheme(importPubkey ?? undefined);
+  // Import from another user's active profile theme or a specific theme definition
+  const importActiveQuery = useActiveProfileTheme(importPubkey && !importThemeId ? importPubkey : undefined);
+  const importThemesQuery = useUserThemes(importPubkey && importThemeId ? importPubkey : undefined);
+
   useEffect(() => {
-    if (importQuery.data?.tokens) {
-      setTokens(importQuery.data.tokens);
-      setAutoDerive(false); // imported themes have specific tokens
+    // Import a specific theme by identifier
+    if (importThemeId && importThemesQuery.data) {
+      const target = importThemesQuery.data.find(t => t.identifier === importThemeId);
+      if (target) {
+        setTokens(target.tokens);
+        setAutoDerive(false);
+        toast({ title: 'Theme imported', description: `Imported "${target.title}". Customize it and save!` });
+      }
+    }
+    // Import from active profile theme
+    else if (importActiveQuery.data?.tokens) {
+      setTokens(importActiveQuery.data.tokens);
+      setAutoDerive(false);
       toast({ title: 'Theme imported', description: 'Imported theme from profile. Customize it and save!' });
     }
-  }, [importQuery.data]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [importActiveQuery.data, importThemesQuery.data, importThemeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Hex representations of current tokens for color pickers
   const hexTokens = useMemo(() => {
@@ -184,24 +202,24 @@ export function ThemeBuilderPage() {
     }
   }, [previewing, currentTheme, savedCustomTheme, tokens, applyCustomTheme]);
 
-  // Save & optionally re-publish
+  // Save & optionally re-publish active profile theme
   const handleSave = useCallback(async () => {
     applyCustomTheme(tokens);
     setPreviewing(false);
 
-    // If user has a published profile theme, auto-republish with updated tokens
+    // If user has a published active profile theme, auto-update it
     if (user && hasPublishedTheme) {
       try {
-        await publishProfileTheme(tokens);
-        toast({ title: 'Theme saved & published', description: 'Your custom theme is now active and updated on your profile.' });
+        await setActiveTheme({ tokens });
+        toast({ title: 'Theme saved & updated', description: 'Your custom theme is now active and updated on your profile.' });
       } catch (error) {
-        console.error('Failed to republish theme:', error);
+        console.error('Failed to update active theme:', error);
         toast({ title: 'Theme saved locally', description: 'Saved but failed to update your profile theme.', variant: 'destructive' });
       }
     } else {
       toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
     }
-  }, [tokens, user, hasPublishedTheme, applyCustomTheme, publishProfileTheme, toast]);
+  }, [tokens, user, hasPublishedTheme, applyCustomTheme, setActiveTheme, toast]);
 
   // Export/import JSON
   const handleExport = useCallback(() => {
@@ -532,8 +550,13 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
 
       {/* Banner */}
       <div className="h-32 relative" style={{ backgroundColor: hexTokens.secondary }}>
-        {banner && (
+        {banner ? (
           <img src={banner} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <div
+            className="absolute inset-0"
+            style={{ background: `linear-gradient(135deg, ${hexTokens.accent}1a, transparent, ${hexTokens.primary}0d)` }}
+          />
         )}
       </div>
 
@@ -590,7 +613,7 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
             <span className="text-xs" style={{ color: hexTokens.mutedForeground }}>following</span>
           </span>
           <span className="flex items-center gap-1">
-            <Flame className="size-3.5" style={{ color: hexTokens.primary }} />
+            <Flame className="size-3.5" style={{ color: hexTokens.accent }} />
             <span className="text-xs font-bold" style={{ color: hexTokens.foreground }}>7</span>
           </span>
         </div>

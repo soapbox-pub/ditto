@@ -260,8 +260,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
 
-  // Profile theme events get a specialized card
-  if (event.kind === 30203) {
+  // Theme definition events get a specialized card
+  if (event.kind === 33891) {
     return <ThemeUpdateCard event={event} />;
   }
 

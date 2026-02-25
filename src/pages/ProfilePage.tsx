@@ -38,7 +38,7 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScopedTheme } from '@/components/ScopedTheme';
 import type { ThemeTokens } from '@/themes';
-import { useProfileTheme } from '@/hooks/useProfileTheme';
+import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -716,10 +716,10 @@ export function ProfilePage() {
   const isOwnProfile = user?.pubkey === pubkey;
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
 
-  // Profile theme: query the visited user's kind 30203 (if not own profile and enabled)
+  // Profile theme: query the visited user's active profile theme (kind 11667)
   const { feedSettings } = useFeedSettings();
   const showCustomProfileThemes = feedSettings.showCustomProfileThemes !== false;
-  const profileThemeQuery = useProfileTheme(
+  const profileThemeQuery = useActiveProfileTheme(
     !isOwnProfile && showCustomProfileThemes ? pubkey : undefined,
   );
   const profileThemeTokens = profileThemeQuery.data?.tokens;
