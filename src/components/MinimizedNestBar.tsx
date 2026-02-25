@@ -1,5 +1,6 @@
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mic, MicOff, Maximize2, X } from 'lucide-react';
+import { Mic, MicOff, Maximize2, X, GripVertical } from 'lucide-react';
 import { useLocalParticipant, RoomContext } from '@livekit/components-react';
 
 import {
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useNestSession } from '@/contexts/NestSessionContext';
 import { cn } from '@/lib/utils';
 
-/** Gradient CSS values for the accent strip. */
+/** Gradient CSS values. */
 const NEST_GRADIENTS: Record<string, string> = {
   'gradient-1': 'linear-gradient(90deg, #16a085 0%, #f4d03f 100%)',
   'gradient-2': 'linear-gradient(90deg, #e65c00 0%, #f9d423 100%)',
@@ -36,14 +37,112 @@ function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
 }
 
+/** localStorage key for persisted position. */
+const POSITION_KEY = 'nest-minibar-position';
+
+interface Position {
+  x: number;
+  y: number;
+}
+
+function loadPosition(): Position | null {
+  try {
+    const raw = localStorage.getItem(POSITION_KEY);
+    if (!raw) return null;
+    const pos = JSON.parse(raw);
+    if (typeof pos.x === 'number' && typeof pos.y === 'number') return pos;
+  } catch { /* ignore */ }
+  return null;
+}
+
+function savePosition(pos: Position) {
+  try {
+    localStorage.setItem(POSITION_KEY, JSON.stringify(pos));
+  } catch { /* ignore */ }
+}
+
 /**
- * Persistent mini-bar shown at the bottom of the screen when a nest is minimized.
- * Provides mic toggle, expand, and leave controls.
- * Must be rendered inside the NestSessionProvider.
+ * Floating draggable mini-pill shown when a nest is minimized.
+ * Can be dragged anywhere on screen. Position persists in localStorage.
  */
 export function MinimizedNestBar() {
   const session = useNestSession();
   const navigate = useNavigate();
+
+  // Position state — null means use default CSS position
+  const [position, setPosition] = useState<Position | null>(loadPosition);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ px: number; py: number; sx: number; sy: number } | null>(null);
+  const didDragRef = useRef(false);
+
+  // Clamp position to viewport bounds
+  const clamp = useCallback((pos: Position): Position => {
+    const el = dragRef.current;
+    if (!el) return pos;
+    const rect = el.getBoundingClientRect();
+    const maxX = window.innerWidth - rect.width;
+    const maxY = window.innerHeight - rect.height;
+    return {
+      x: Math.max(0, Math.min(pos.x, maxX)),
+      y: Math.max(0, Math.min(pos.y, maxY)),
+    };
+  }, []);
+
+  // Re-clamp on window resize
+  useEffect(() => {
+    if (!position) return;
+    const handleResize = () => {
+      setPosition((prev) => prev ? clamp(prev) : prev);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [position, clamp]);
+
+  // Pointer handlers for drag
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    // Only drag from the grip area or the gradient strip
+    const el = dragRef.current;
+    if (!el) return;
+
+    e.preventDefault();
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    const rect = el.getBoundingClientRect();
+    dragStartRef.current = {
+      px: e.clientX,
+      py: e.clientY,
+      sx: rect.left,
+      sy: rect.top,
+    };
+    didDragRef.current = false;
+    setIsDragging(true);
+  }, []);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    const { px, py, sx, sy } = dragStartRef.current;
+    const dx = e.clientX - px;
+    const dy = e.clientY - py;
+
+    // Only count as drag if moved more than 4px
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) {
+      didDragRef.current = true;
+    }
+
+    const newPos = clamp({ x: sx + dx, y: sy + dy });
+    setPosition(newPos);
+  }, [clamp]);
+
+  const handlePointerUp = useCallback((e: React.PointerEvent) => {
+    (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    dragStartRef.current = null;
+    setIsDragging(false);
+    // Persist final position
+    if (position) {
+      savePosition(position);
+    }
+  }, [position]);
 
   if (!session.isActive || !session.minimized || !session.event) return null;
 
@@ -52,6 +151,7 @@ export function MinimizedNestBar() {
   const gradient = (color && NEST_GRADIENTS[color]) || NEST_GRADIENTS['gradient-5'];
 
   const handleExpand = () => {
+    if (didDragRef.current) return; // don't expand after a drag
     session.expand();
     navigate(`/${session.naddr}`);
   };
@@ -60,76 +160,111 @@ export function MinimizedNestBar() {
     session.leaveNest();
   };
 
+  // Style: use absolute pixel position if dragged, otherwise default CSS
+  const positionStyle: React.CSSProperties = position
+    ? { left: position.x, top: position.y }
+    : {};
+
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 sidebar:bottom-0 max-sidebar:bottom-[calc(3.5rem+env(safe-area-inset-bottom))]">
-      {/* Gradient accent strip */}
-      <div className="h-0.5" style={{ backgroundImage: gradient }} />
-
-      <div className="flex items-center gap-2 px-3 py-2 bg-background/95 backdrop-blur-md border-t border-border">
-        {/* Color dot + title */}
-        <button
-          type="button"
-          className="flex items-center gap-2.5 min-w-0 flex-1"
-          onClick={handleExpand}
-        >
-          <div
-            className="size-8 rounded-lg shrink-0"
-            style={{ backgroundImage: gradient }}
-          />
-          <div className="min-w-0 text-left">
-            <p className="text-sm font-semibold truncate leading-tight">{title}</p>
-            <p className="text-[10px] text-muted-foreground leading-tight">
-              Nest - Tap to expand
-            </p>
-          </div>
-        </button>
-
-        {/* Controls — needs LiveKit context for mic state */}
-        {session.room && (
-          <RoomContext.Provider value={session.room}>
-            <MiniBarMicButton />
-          </RoomContext.Provider>
+    <div
+      ref={dragRef}
+      className={cn(
+        'fixed z-30',
+        !isDragging && 'transition-shadow duration-200',
+        isDragging && 'shadow-2xl',
+        // Default position (when not dragged yet)
+        !position && 'sidebar:bottom-20 sidebar:left-5',
+        !position && 'max-sidebar:bottom-[calc(4rem+env(safe-area-inset-bottom))] max-sidebar:left-3 max-sidebar:right-3',
+      )}
+      style={positionStyle}
+    >
+      <div
+        className={cn(
+          'rounded-2xl shadow-xl border border-border/50 overflow-hidden',
+          'bg-background/95 backdrop-blur-xl',
+          'w-[268px] max-sidebar:w-auto',
+          isDragging && 'scale-[1.02] shadow-2xl',
+          !isDragging && 'transition-transform duration-150',
         )}
-
-        {/* Expand */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-8 shrink-0"
-          onClick={handleExpand}
+      >
+        {/* Drag handle + gradient strip */}
+        <div
+          className="h-6 flex items-center justify-center cursor-grab active:cursor-grabbing select-none touch-none"
+          style={{ backgroundImage: gradient }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
         >
-          <Maximize2 className="size-4" />
-        </Button>
+          <GripVertical className="size-3.5 text-white/70" />
+        </div>
 
-        {/* Leave — with confirmation */}
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
+        <div className="flex items-center gap-2 px-3 py-2">
+          {/* Clickable room info — expands to full view */}
+          <button
+            type="button"
+            className="flex items-center gap-2.5 min-w-0 flex-1"
+            onClick={handleExpand}
+          >
+            <div
+              className="size-9 rounded-xl shrink-0 shadow-inner"
+              style={{ backgroundImage: gradient }}
+            />
+            <div className="min-w-0 text-left">
+              <p className="text-[13px] font-semibold truncate leading-tight">{title}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">Tap to expand</p>
+            </div>
+          </button>
+
+          {/* Controls */}
+          <div className="flex items-center gap-0.5 shrink-0">
+            {/* Mic toggle — needs LiveKit context */}
+            {session.room && (
+              <RoomContext.Provider value={session.room}>
+                <MiniBarMicButton />
+              </RoomContext.Provider>
+            )}
+
+            {/* Expand */}
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 shrink-0 text-destructive hover:text-destructive"
+              className="size-7 rounded-full"
+              onClick={handleExpand}
             >
-              <X className="size-4" />
+              <Maximize2 className="size-3.5" />
             </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Leave this nest?</AlertDialogTitle>
-              <AlertDialogDescription>
-                You will be disconnected from the audio room.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={handleLeave}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Leave
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+
+            {/* Leave — with confirmation */}
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-7 rounded-full text-destructive hover:text-destructive hover:bg-destructive/10"
+                >
+                  <X className="size-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Leave this nest?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You will be disconnected from the audio room.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleLeave}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Leave
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -155,14 +290,14 @@ function MiniBarMicButton() {
       variant="ghost"
       size="icon"
       className={cn(
-        'size-8 shrink-0 rounded-full',
+        'size-7 rounded-full',
         isMicrophoneEnabled
           ? 'text-primary'
           : 'text-destructive',
       )}
       onClick={handleToggle}
     >
-      {isMicrophoneEnabled ? <Mic className="size-4" /> : <MicOff className="size-4" />}
+      {isMicrophoneEnabled ? <Mic className="size-3.5" /> : <MicOff className="size-3.5" />}
     </Button>
   );
 }
