@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Compass, Bell, User, Search, Bookmark, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
+import LoginDialog from '@/components/auth/LoginDialog';
+import { useOnboarding } from '@/components/InitialSyncGate';
 import { DndContext, closestCenter, TouchSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -160,8 +162,10 @@ export function MobileBottomNav() {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
   } = useFeedSettings();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+  const { startSignup } = useOnboarding();
   const [exploreOpen, setExploreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   // DnD sensors — touch sensor with delay to distinguish scroll from drag
   const sensors = useSensors(
@@ -204,22 +208,29 @@ export function MobileBottomNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
+        {user ? (
+          <NavTab
+            to={userProfileUrl}
+            icon={<User className="size-5" />}
+            label="You"
+            active={location.pathname === userProfileUrl}
+          />
+        ) : (
+          <NavTab
+            icon={<User className="size-5" />}
+            label="You"
+            active={false}
+            onClick={() => setLoginDialogOpen(true)}
+          />
+        )}
         {user && (
-          <>
-            <NavTab
-              to={userProfileUrl}
-              icon={<User className="size-5" />}
-              label="You"
-              active={location.pathname === userProfileUrl}
-            />
-            <NavTab
-              to="/notifications"
-              icon={<Bell className="size-5" />}
-              label="Notifications"
-              active={location.pathname === '/notifications'}
-              showIndicator={hasUnread}
-            />
-          </>
+          <NavTab
+            to="/notifications"
+            icon={<Bell className="size-5" />}
+            label="Notifications"
+            active={location.pathname === '/notifications'}
+            showIndicator={hasUnread}
+          />
         )}
         <NavTab
           icon={<Compass className="size-5" />}
@@ -332,6 +343,14 @@ export function MobileBottomNav() {
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Login dialog for logged-out "You" tab */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+        onSignupClick={startSignup}
+      />
     </>
   );
 }
