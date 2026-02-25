@@ -70,6 +70,12 @@ export interface FeedSettings {
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
   feedIncludeDecks: boolean;
+  /** Show Profile Themes (kind 30203) link in sidebar (not used — feed-only) */
+  showProfileThemes: boolean;
+  /** Include Profile Theme updates in the follows/global feed */
+  feedIncludeProfileThemes: boolean;
+  /** Show custom profile themes when visiting other users' profiles */
+  showCustomProfileThemes: boolean;
 }
 
 export interface AppConfig {

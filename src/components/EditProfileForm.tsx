@@ -1,9 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Link } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useNostrPublish } from '@/hooks/useNostrPublish';
 import { useToast } from '@/hooks/useToast';
+import { useTheme } from '@/hooks/useTheme';
+import { useProfileTheme, usePublishProfileTheme } from '@/hooks/useProfileTheme';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -17,7 +20,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Upload, ChevronDown, ChevronUp, Plus, Trash2, Palette } from 'lucide-react';
 import { NSchema as n } from '@nostrify/nostrify';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUploadFile } from '@/hooks/useUploadFile';
@@ -426,6 +429,9 @@ export const EditProfileForm: React.FC = () => {
             </Collapsible>
           </div>
 
+          {/* Share Theme Section */}
+          <ShareThemeSection />
+
           <div className="pt-2">
             <Button 
               type="submit" 
@@ -457,6 +463,108 @@ interface ImageUploadFieldProps {
   description: string;
   previewType: 'square' | 'wide';
   onUpload: (file: File) => void;
+}
+
+/**
+ * Section in Edit Profile for sharing / un-sharing the user's custom theme.
+ * Queries the user's current kind 30203 to detect existing published theme.
+ */
+function ShareThemeSection() {
+  const { user } = useCurrentUser();
+  const { customTheme } = useTheme();
+  const { toast } = useToast();
+  const profileThemeQuery = useProfileTheme(user?.pubkey);
+  const { publish, isPending: isPublishing } = usePublishProfileTheme();
+  const { mutateAsync: publishEvent } = useNostrPublish();
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const isShared = !!profileThemeQuery.data;
+  const hasCustomTheme = !!customTheme;
+
+  const handleToggle = async (share: boolean) => {
+    if (!user) return;
+
+    if (share) {
+      if (!customTheme) {
+        toast({ title: 'No custom theme', description: 'Create a custom theme in the Theme Builder first.', variant: 'destructive' });
+        return;
+      }
+      try {
+        await publish(customTheme);
+        profileThemeQuery.refetch();
+        toast({ title: 'Theme published', description: 'Your custom theme is now visible on your profile.' });
+      } catch (error) {
+        console.error('Failed to publish theme:', error);
+        toast({ title: 'Failed to publish', description: 'Could not publish your theme.', variant: 'destructive' });
+      }
+    } else {
+      // Delete by publishing a kind 5 deletion event
+      try {
+        setIsDeleting(true);
+        await publishEvent({
+          kind: 5,
+          content: '',
+          tags: [
+            ['a', `30203:${user.pubkey}:profile-theme`],
+          ],
+        });
+        profileThemeQuery.refetch();
+        toast({ title: 'Theme removed', description: 'Your profile theme is no longer shared.' });
+      } catch (error) {
+        console.error('Failed to delete theme:', error);
+        toast({ title: 'Failed to remove', description: 'Could not remove your published theme.', variant: 'destructive' });
+      } finally {
+        setIsDeleting(false);
+      }
+    }
+  };
+
+  // Color swatches for preview
+  const swatchColors = customTheme
+    ? [customTheme.background, customTheme.foreground, customTheme.primary, customTheme.accent].map((hsl) => `hsl(${hsl})`)
+    : [];
+
+  return (
+    <div className="border-b border-border pb-5">
+      <div className="flex flex-row items-center justify-between rounded-lg border p-3">
+        <div className="space-y-0.5 flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <Palette className="size-4 text-primary shrink-0" />
+            <span className="text-sm font-medium">Share theme on profile</span>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Display your custom theme when others visit your profile
+          </p>
+          {/* Color swatch preview */}
+          {hasCustomTheme && (
+            <div className="flex gap-1 mt-2">
+              {swatchColors.map((color, i) => (
+                <div
+                  key={i}
+                  className="size-5 rounded-md border border-border"
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
+          )}
+          {!hasCustomTheme && (
+            <Link
+              to="/settings/theme"
+              className="text-xs text-primary hover:underline mt-1 inline-block"
+            >
+              Create a custom theme first
+            </Link>
+          )}
+        </div>
+        <Switch
+          checked={isShared}
+          onCheckedChange={handleToggle}
+          disabled={!hasCustomTheme || isPublishing || isDeleting || profileThemeQuery.isLoading}
+          className="scale-90"
+        />
+      </div>
+    </div>
+  );
 }
 
 const ImageUploadField: React.FC<ImageUploadFieldProps> = ({

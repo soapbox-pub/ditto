@@ -78,6 +78,9 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeStreams: z.boolean().optional(),
   showDecks: z.boolean().optional(),
   feedIncludeDecks: z.boolean().optional(),
+  showProfileThemes: z.boolean().optional(),
+  feedIncludeProfileThemes: z.boolean().optional(),
+  showCustomProfileThemes: z.boolean().optional(),
 });
 
 /** Zod schema for FilterRule validation */
