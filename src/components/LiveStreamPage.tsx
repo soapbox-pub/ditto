@@ -115,7 +115,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   }, []);
 
   const chatSidebar = (
-    <aside className="hidden xl:flex xl:flex-col xl:w-[340px] xl:shrink-0 border-l border-border h-screen sticky top-0">
+    <aside className="hidden xl:flex xl:flex-col xl:w-[340px] xl:shrink-0 h-screen sticky top-0">
       <LiveStreamChat aTag={aTag} className="h-full" />
     </aside>
   );
