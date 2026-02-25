@@ -36,9 +36,8 @@ export function FloatingComposeButton({ kind = 1 }: FloatingComposeButtonProps) 
       <Button
         onClick={handleClick}
         className="size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-transform hover:scale-105 active:scale-95"
-        size="icon"
       >
-        <Plus className="size-7" strokeWidth={2.5} />
+        <Plus strokeWidth={4} />
       </Button>
 
       {/* Kind 1: Compose modal */}
