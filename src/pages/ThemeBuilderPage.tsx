@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useTheme } from '@/hooks/useTheme';
+import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useProfileTheme, usePublishProfileTheme } from '@/hooks/useProfileTheme';
 import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
@@ -512,29 +513,54 @@ function ImportFromProfile() {
 // ─── Live Preview Component ───────────────────────────────────────────
 
 function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<string, string> }) {
+  const { user } = useCurrentUser();
+  const author = useAuthor(user?.pubkey);
+  const metadata = author.data?.metadata;
+
+  // Real user data with fallbacks
+  const displayName = metadata?.name || metadata?.display_name || 'Alice';
+  const handle = metadata?.nip05?.split('@')[0] || metadata?.name?.toLowerCase() || 'alice';
+  const bio = metadata?.about || 'Nostr enthusiast. Building cool things on the decentralized web.';
+  const avatar = metadata?.picture;
+  const banner = metadata?.banner;
+  const initial = displayName[0]?.toUpperCase() || 'A';
+
   return (
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: hexTokens.border, backgroundColor: hexTokens.background }}>
 
       {/* ── Profile Header ── */}
 
       {/* Banner */}
-      <div className="h-32 relative" style={{ backgroundColor: hexTokens.secondary }} />
+      <div className="h-32 relative" style={{ backgroundColor: hexTokens.secondary }}>
+        {banner && (
+          <img src={banner} alt="" className="w-full h-full object-cover" />
+        )}
+      </div>
 
       {/* Profile info */}
       <div className="px-4 pb-3" style={{ backgroundColor: hexTokens.background }}>
         {/* Avatar + action buttons row */}
         <div className="flex justify-between items-start -mt-10 mb-2">
           {/* Avatar */}
-          <div
-            className="size-20 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
-            style={{
-              backgroundColor: `${hexTokens.primary}33`,
-              color: hexTokens.primary,
-              border: `4px solid ${hexTokens.background}`,
-            }}
-          >
-            A
-          </div>
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={displayName}
+              className="size-20 rounded-full object-cover shrink-0"
+              style={{ border: `4px solid ${hexTokens.background}` }}
+            />
+          ) : (
+            <div
+              className="size-20 rounded-full flex items-center justify-center text-xl font-bold shrink-0"
+              style={{
+                backgroundColor: `${hexTokens.primary}33`,
+                color: hexTokens.primary,
+                border: `4px solid ${hexTokens.background}`,
+              }}
+            >
+              {initial}
+            </div>
+          )}
           {/* Action buttons */}
           <div className="flex items-center gap-2 mt-12">
             <div
@@ -547,14 +573,14 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
               className="px-4 py-1.5 rounded-full text-xs font-bold"
               style={{ backgroundColor: hexTokens.primary, color: hexTokens.primaryForeground }}
             >
-              Follow
+              Edit profile
             </button>
           </div>
         </div>
 
         {/* Name & handle */}
-        <p className="text-lg font-bold" style={{ color: hexTokens.foreground }}>Alice</p>
-        <p className="text-xs" style={{ color: hexTokens.mutedForeground }}>@alice</p>
+        <p className="text-lg font-bold truncate" style={{ color: hexTokens.foreground }}>{displayName}</p>
+        <p className="text-xs" style={{ color: hexTokens.mutedForeground }}>@{handle}</p>
 
         {/* Stats row */}
         <div className="flex items-center gap-4 mt-1.5">
@@ -570,8 +596,8 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
         </div>
 
         {/* Bio */}
-        <p className="mt-2 text-sm" style={{ color: hexTokens.foreground }}>
-          Nostr enthusiast. Building cool things on the decentralized web.
+        <p className="mt-2 text-sm line-clamp-3" style={{ color: hexTokens.foreground }}>
+          {bio}
         </p>
       </div>
 
@@ -594,26 +620,33 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
         ))}
       </div>
 
-      {/* ── Note Card ── */}
+      {/* ── Note Card (as if posted by this user) ── */}
       <div
         className="px-4 py-3"
         style={{ borderBottom: `1px solid ${hexTokens.border}`, backgroundColor: hexTokens.background }}
       >
         {/* Author row */}
         <div className="flex items-center gap-2.5">
-          {/* Note avatar */}
-          <div
-            className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-            style={{ backgroundColor: `${hexTokens.primary}33`, color: hexTokens.primary }}
-          >
-            B
-          </div>
+          {avatar ? (
+            <img
+              src={avatar}
+              alt={displayName}
+              className="size-10 rounded-full object-cover shrink-0"
+            />
+          ) : (
+            <div
+              className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
+              style={{ backgroundColor: `${hexTokens.primary}33`, color: hexTokens.primary }}
+            >
+              {initial}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <span className="font-bold text-sm truncate" style={{ color: hexTokens.foreground }}>Bob</span>
+              <span className="font-bold text-sm truncate" style={{ color: hexTokens.foreground }}>{displayName}</span>
             </div>
             <div className="flex items-center gap-1 text-xs" style={{ color: hexTokens.mutedForeground }}>
-              <span>@bob</span>
+              <span>@{handle}</span>
               <span>·</span>
               <span>2h</span>
             </div>
@@ -622,7 +655,7 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
 
         {/* Note content */}
         <p className="mt-2 text-sm leading-relaxed" style={{ color: hexTokens.foreground }}>
-          Just discovered this amazing custom theme feature! Love how you can personalize everything. 🎨
+          Just updated my custom theme! Love how you can personalize everything on Nostr. 🎨
         </p>
 
         {/* Action buttons */}
@@ -652,19 +685,19 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
             className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
             style={{ backgroundColor: hexTokens.muted, color: hexTokens.mutedForeground }}
           >
-            C
+            N
           </div>
           <div className="min-w-0 flex-1">
-            <span className="font-bold text-sm" style={{ color: hexTokens.foreground }}>Charlie</span>
+            <span className="font-bold text-sm" style={{ color: hexTokens.foreground }}>Nostr</span>
             <div className="flex items-center gap-1 text-xs" style={{ color: hexTokens.mutedForeground }}>
-              <span>@charlie</span>
+              <span>@nostr</span>
               <span>·</span>
               <span>5h</span>
             </div>
           </div>
         </div>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: hexTokens.foreground }}>
-          This is what the decentralized social web looks like.
+          The decentralized social web is looking better every day.
         </p>
       </div>
     </div>
