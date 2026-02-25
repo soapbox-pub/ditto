@@ -410,11 +410,8 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
       {/* Mobile chat sheet — slides up from bottom with close button */}
       <Sheet open={chatOpen} onOpenChange={setChatOpen}>
         <SheetContent side="bottom" className="h-[85dvh] max-h-[85dvh] flex flex-col p-0 rounded-t-2xl">
-          <SheetHeader className="px-4 pt-4 pb-2 shrink-0">
-            <SheetTitle className="flex items-center gap-2 text-base">
-              <MessageCircle className="size-4" />
-              Live Chat
-            </SheetTitle>
+          <SheetHeader className="sr-only">
+            <SheetTitle>Live Chat</SheetTitle>
           </SheetHeader>
           <LiveStreamChat aTag={aTag} className="flex-1 min-h-0" />
         </SheetContent>
@@ -752,7 +749,7 @@ function NestControlBar({
   }, [toast]);
 
   return (
-    <div className="flex items-center justify-center gap-3 py-3">
+    <div className="flex items-center justify-center gap-2 sidebar:gap-3 py-2 sidebar:py-3 flex-wrap">
       <TooltipProvider>
         {/* Leave / Leave Stage button */}
         <Tooltip>
@@ -760,7 +757,7 @@ function NestControlBar({
             <Button
               variant={isOnStage ? 'outline' : 'destructive'}
               size="icon"
-              className="rounded-full size-12"
+              className="rounded-full size-10 sidebar:size-12"
               onClick={isOnStage ? handleLeaveStage : onLeave}
             >
               <LogOut className="size-5" />
@@ -778,7 +775,7 @@ function NestControlBar({
               <Button
                 variant={handRaised ? 'default' : 'outline'}
                 size="icon"
-                className={cn('rounded-full size-12', handRaised && 'bg-primary')}
+                className={cn('rounded-full size-10 sidebar:size-12', handRaised && 'bg-primary')}
                 onClick={onToggleHand}
               >
                 <Hand className="size-5" />
@@ -797,7 +794,7 @@ function NestControlBar({
               <Button
                 variant="outline"
                 size="icon"
-                className="rounded-full size-12"
+                className="rounded-full size-10 sidebar:size-12"
                 onClick={handleGoOnStage}
               >
                 <ArrowUpFromLine className="size-5" />
@@ -815,7 +812,7 @@ function NestControlBar({
                 variant={isMicrophoneEnabled ? 'default' : 'outline'}
                 size="icon"
                 className={cn(
-                  'rounded-full size-12',
+                  'rounded-full size-10 sidebar:size-12',
                   isMicrophoneEnabled
                     ? 'bg-primary hover:bg-primary/90'
                     : 'bg-destructive/10 text-destructive hover:bg-destructive/20',
@@ -837,7 +834,7 @@ function NestControlBar({
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12 xl:hidden"
+              className="rounded-full size-10 sidebar:size-12 xl:hidden"
               onClick={onChat}
             >
               <MessageCircle className="size-5" />
@@ -852,7 +849,7 @@ function NestControlBar({
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12"
+              className="rounded-full size-10 sidebar:size-12"
               onClick={handleShare}
             >
               <Share2 className="size-5" />
@@ -867,7 +864,7 @@ function NestControlBar({
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12"
+              className="rounded-full size-10 sidebar:size-12"
               onClick={onMinimize}
             >
               <Minimize2 className="size-5" />
@@ -912,14 +909,14 @@ function NestControlBarSimple({
   }, [toast]);
 
   return (
-    <div className="flex items-center justify-center gap-3 py-3">
+    <div className="flex items-center justify-center gap-2 sidebar:gap-3 py-2 sidebar:py-3 flex-wrap">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="destructive"
               size="icon"
-              className="rounded-full size-12"
+              className="rounded-full size-10 sidebar:size-12"
               onClick={onLeave}
             >
               <LogOut className="size-5" />
@@ -934,7 +931,7 @@ function NestControlBarSimple({
               <Button
                 variant={handRaised ? 'default' : 'outline'}
                 size="icon"
-                className={cn('rounded-full size-12', handRaised && 'bg-primary')}
+                className={cn('rounded-full size-10 sidebar:size-12', handRaised && 'bg-primary')}
                 onClick={onToggleHand}
               >
                 <Hand className="size-5" />
@@ -952,7 +949,7 @@ function NestControlBarSimple({
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12 xl:hidden"
+              className="rounded-full size-10 sidebar:size-12 xl:hidden"
               onClick={onChat}
             >
               <MessageCircle className="size-5" />
@@ -966,7 +963,7 @@ function NestControlBarSimple({
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12"
+              className="rounded-full size-10 sidebar:size-12"
               onClick={handleShare}
             >
               <Share2 className="size-5" />
@@ -993,7 +990,7 @@ function CloseRoomButton({ onCloseRoom }: { onCloseRoom: () => void }) {
             <Button
               variant="outline"
               size="icon"
-              className="rounded-full size-12 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="rounded-full size-10 sidebar:size-12 text-destructive hover:bg-destructive/10 hover:text-destructive"
             >
               <XCircle className="size-5" />
             </Button>
