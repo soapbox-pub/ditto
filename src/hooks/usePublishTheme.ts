@@ -10,6 +10,7 @@ import {
   buildThemeDefinitionTags,
   buildActiveThemeTags,
   titleToSlug,
+  type ThemeDefinition,
 } from '@/lib/themeEvent';
 
 /**
@@ -84,7 +85,12 @@ export function usePublishTheme() {
       ],
     });
 
-    queryClient.invalidateQueries({ queryKey: ['userThemes', user.pubkey] });
+    // Optimistically remove the deleted theme from the query cache immediately
+    // (the pool's internal cache may still return the event on re-query)
+    queryClient.setQueryData<ThemeDefinition[]>(
+      ['userThemes', user.pubkey],
+      (old) => old?.filter((t) => t.identifier !== identifier) ?? [],
+    );
     // Also invalidate feed caches so the theme disappears from public feeds
     queryClient.invalidateQueries({ queryKey: ['feed'] });
     queryClient.invalidateQueries({ queryKey: ['streamKind'] });
