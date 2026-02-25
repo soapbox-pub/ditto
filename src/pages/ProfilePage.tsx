@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -96,6 +96,7 @@ interface ProfileMoreMenuProps {
 
 function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile }: ProfileMoreMenuProps) {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
   const { addMute, removeMute, isMuted } = useMuteList();
   const userMuted = isMuted('pubkey', pubkey);
@@ -161,6 +162,23 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
             onClick={handleViewOnNjump}
           />
         </div>
+
+        {isOwnProfile && (
+          <>
+            <Separator />
+
+            <div className="py-1">
+              <MenuRow
+                icon={<Palette className="size-5" />}
+                label="Edit theme"
+                onClick={() => {
+                  close();
+                  navigate('/settings/appearance');
+                }}
+              />
+            </div>
+          </>
+        )}
 
         {!isOwnProfile && (
           <>
