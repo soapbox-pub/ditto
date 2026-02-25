@@ -294,7 +294,7 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
   }, [session, navigate]);
 
   return (
-    <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:flex max-sidebar:flex-col max-sidebar:min-h-0 max-sidebar:overflow-y-auto">
+    <main className="flex flex-col flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border xl:min-h-screen max-sidebar:h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))] max-sidebar:max-h-[calc(100dvh-3.5rem-env(safe-area-inset-bottom))]">
       {/* Header */}
       <div className="shrink-0 sidebar:sticky sidebar:top-0 z-10 flex items-center gap-4 px-4 mt-4 mb-4 bg-background/80 backdrop-blur-md">
         <button
@@ -337,91 +337,73 @@ export function NestRoomPage({ event }: NestRoomPageProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Connected: provide the Room context without lifecycle ownership.
-          Using RoomContext.Provider directly instead of <LiveKitRoom> to
-          prevent the component from calling room.disconnect() on unmount
-          (which would kill the persistent audio session). */}
+      {/* Connected: provide the Room context without lifecycle ownership. */}
       {isConnected ? (
         <RoomContext.Provider value={room!}>
-          {headerCard}
+          {/* Scrollable area: header card + participants */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {headerCard}
 
-          {/* Participants (uses LiveKit hooks) */}
-          <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsGrid
-              event={event}
-              lowerHand={lowerHand}
-              handsRaised={handsRaised}
-              roomId={dTag}
-              adminPubkeys={adminPubkeys}
-              isCurrentUserAdmin={isCurrentUserAdmin}
-            />
+            {/* Participants (uses LiveKit hooks) */}
+            <div className="px-4 mt-4">
+              <NestParticipantsGrid
+                event={event}
+                lowerHand={lowerHand}
+                handsRaised={handsRaised}
+                roomId={dTag}
+                adminPubkeys={adminPubkeys}
+                isCurrentUserAdmin={isCurrentUserAdmin}
+              />
+            </div>
+
+            {/* Desktop bottom spacer */}
+            <div className="hidden xl:block h-8" />
           </div>
 
-          {/* Controls (uses LiveKit hooks) */}
-          <div className="px-4 mt-4 shrink-0">
+          {/* Sticky bottom: controls + chat button */}
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 pb-2 pt-1">
             <NestControlBar
               event={event}
               handRaised={handRaised}
               onToggleHand={toggleHand}
               onLeave={handleLeave}
               onMinimize={handleMinimize}
+              onChat={() => setChatOpen(true)}
               isOwner={isOwner}
               onCloseRoom={handleCloseRoom}
             />
           </div>
-
-          {/* Mobile: chat button + drawer */}
-          <div className="xl:hidden flex justify-center mt-3 shrink-0">
-            <Button
-              variant="outline"
-              className="rounded-full gap-2"
-              onClick={() => setChatOpen(true)}
-            >
-              <MessageCircle className="size-4" />
-              Chat
-            </Button>
-          </div>
-
-          <div className="hidden xl:block h-8" />
         </RoomContext.Provider>
       ) : (
         <>
-          {headerCard}
+          {/* Scrollable area */}
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {headerCard}
 
-          {/* Not yet connected — show empty participants */}
-          <div className="px-4 mt-4 shrink-0">
-            <NestParticipantsEmpty
-              connecting={isConnecting}
-              error={session.connectionError}
-              isOwner={isOwner}
-              onCreateNew={() => navigate('/nests')}
-            />
+            {/* Not yet connected — show empty participants */}
+            <div className="px-4 mt-4">
+              <NestParticipantsEmpty
+                connecting={isConnecting}
+                error={session.connectionError}
+                isOwner={isOwner}
+                onCreateNew={() => navigate('/nests')}
+              />
+            </div>
+
+            <div className="hidden xl:block h-8" />
           </div>
 
-          {/* Controls without LiveKit (only leave + hand + share) */}
-          <div className="px-4 mt-4 shrink-0">
+          {/* Sticky bottom: controls + chat button */}
+          <div className="shrink-0 border-t border-border bg-background/80 backdrop-blur-md px-4 pb-2 pt-1">
             <NestControlBarSimple
               handRaised={handRaised}
               onToggleHand={toggleHand}
               onLeave={() => navigate(-1)}
+              onChat={() => setChatOpen(true)}
               isOwner={isOwner}
               onCloseRoom={handleCloseRoom}
             />
           </div>
-
-          {/* Mobile: chat button + drawer */}
-          <div className="xl:hidden flex justify-center mt-3 shrink-0">
-            <Button
-              variant="outline"
-              className="rounded-full gap-2"
-              onClick={() => setChatOpen(true)}
-            >
-              <MessageCircle className="size-4" />
-              Chat
-            </Button>
-          </div>
-
-          <div className="hidden xl:block h-8" />
         </>
       )}
 
@@ -711,6 +693,7 @@ function NestControlBar({
   onToggleHand,
   onLeave,
   onMinimize,
+  onChat,
   isOwner,
   onCloseRoom,
 }: {
@@ -719,6 +702,7 @@ function NestControlBar({
   onToggleHand: () => void;
   onLeave: () => void;
   onMinimize: () => void;
+  onChat: () => void;
   isOwner: boolean;
   onCloseRoom: () => void;
 }) {
@@ -847,6 +831,21 @@ function NestControlBar({
           </Tooltip>
         )}
 
+        {/* Chat (mobile only) */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full size-12 xl:hidden"
+              onClick={onChat}
+            >
+              <MessageCircle className="size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Chat</TooltipContent>
+        </Tooltip>
+
         {/* Share */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -891,12 +890,14 @@ function NestControlBarSimple({
   handRaised,
   onToggleHand,
   onLeave,
+  onChat,
   isOwner,
   onCloseRoom,
 }: {
   handRaised: boolean;
   onToggleHand: () => void;
   onLeave: () => void;
+  onChat: () => void;
   isOwner: boolean;
   onCloseRoom: () => void;
 }) {
@@ -944,6 +945,21 @@ function NestControlBarSimple({
             </TooltipContent>
           </Tooltip>
         )}
+
+        {/* Chat (mobile only) */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="outline"
+              size="icon"
+              className="rounded-full size-12 xl:hidden"
+              onClick={onChat}
+            >
+              <MessageCircle className="size-5" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Chat</TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
