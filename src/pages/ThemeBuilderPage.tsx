@@ -663,7 +663,7 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
           <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.mutedForeground }}>
             <MessageCircle className="size-4" /> <span className="text-xs">3</span>
           </span>
-          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: '#22c55e' }}>
+          <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.accent }}>
             <Repeat2 className="size-4" /> <span className="text-xs">1</span>
           </span>
           <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.mutedForeground }}>

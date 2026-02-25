@@ -67,7 +67,7 @@ function DrawerMenuItem({ to, icon, label, onClick }: DrawerMenuItemProps) {
       onClick={onClick}
       className={cn(
         'flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]',
-        active ? 'bg-accent/10 font-bold' : '',
+        active ? 'text-accent font-bold' : '',
       )}
     >
       <span className="text-muted-foreground">{icon}</span>
@@ -283,7 +283,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
                 <>
                   {/* Section header with edit/done toggle */}
                   <div className="flex items-center gap-2 px-2 pt-3 pb-1">
-                    <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-accent/70">
                       Explore
                     </span>
                     <div className="flex-1 h-px bg-border/50" />

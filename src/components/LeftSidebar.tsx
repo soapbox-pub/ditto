@@ -98,7 +98,7 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
       onClick={onClick}
       className={cn(
         'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
-        active ? 'font-bold bg-accent/10' : 'font-normal text-muted-foreground',
+        active ? 'font-bold text-accent' : 'font-normal text-muted-foreground',
       )}
     >
       <span className="relative">
@@ -167,7 +167,7 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 flex-1 min-w-0',
           editing ? 'px-2' : 'px-4',
-          active ? 'font-bold bg-accent/10' : 'font-normal text-muted-foreground',
+          active ? 'font-bold text-accent' : 'font-normal text-muted-foreground',
         )}
       >
         <span className="shrink-0">{icon}</span>
@@ -199,7 +199,7 @@ interface SectionHeaderProps {
 function SectionHeader({ label, editing, onToggleEdit }: SectionHeaderProps) {
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <span className="text-xs font-semibold uppercase tracking-wider text-accent/70">
         {label}
       </span>
       <div className="flex-1 h-px bg-border/50" />

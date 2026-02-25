@@ -840,7 +840,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
           <RepostMenu event={event}>
             {(isReposted: boolean) => (
               <button
-                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'}`}
+                className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
                 title={isReposted ? 'Undo repost' : 'Reposts'}
               >
                 <RepostIcon className="size-5" />
