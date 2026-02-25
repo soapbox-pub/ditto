@@ -1,18 +1,28 @@
+import { useMemo } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
+import { KindInfoButton } from '@/components/KindInfoButton';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
+import { EXTRA_KINDS, type ExtraKindDef } from '@/lib/extraKinds';
 
 interface KindFeedPageProps {
   kind: number | number[];
   title: string;
   icon?: React.ReactNode;
   emptyMessage?: string;
+  /** Override the auto-detected ExtraKindDef (useful for pages with sub-kinds like Treasures). */
+  kindDef?: ExtraKindDef;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
+
+  const resolvedDef = useMemo(
+    () => kindDef ?? EXTRA_KINDS.find((def) => def.kind === primaryKind),
+    [kindDef, primaryKind],
+  );
 
   useSeoMeta({
     title: `${title} | Ditto`,
@@ -33,10 +43,11 @@ export function KindFeedPage({ kind, title, icon, emptyMessage }: KindFeedPagePr
           <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
             {icon}
             <h1 className="text-xl font-bold">{title}</h1>
           </div>
+          {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} />}
         </div>
       }
     />
