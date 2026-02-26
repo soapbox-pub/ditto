@@ -500,7 +500,7 @@ function ShareThemeSection() {
     } else {
       try {
         setIsDeleting(true);
-        await clearActiveTheme();
+        await clearActiveTheme(activeThemeQuery.data?.event.id);
         activeThemeQuery.refetch();
         toast({ title: 'Theme removed', description: 'Your profile theme is no longer shared.' });
       } catch (error) {

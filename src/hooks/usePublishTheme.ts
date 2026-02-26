@@ -98,16 +98,21 @@ export function usePublishTheme() {
   }, [user, publishEvent, queryClient]);
 
   /** Clear the active profile theme (kind 5 deletion of kind 11667). */
-  const clearActiveTheme = useCallback(async () => {
+  const clearActiveTheme = useCallback(async (eventId?: string) => {
     if (!user) throw new Error('Must be logged in');
+
+    const tags: string[][] = [
+      ['a', `${ACTIVE_THEME_KIND}:${user.pubkey}:`],
+      ['k', String(ACTIVE_THEME_KIND)],
+    ];
+    if (eventId) {
+      tags.push(['e', eventId]);
+    }
 
     await publishEvent({
       kind: 5,
       content: '',
-      tags: [
-        ['a', `${ACTIVE_THEME_KIND}:${user.pubkey}:`],
-        ['k', String(ACTIVE_THEME_KIND)],
-      ],
+      tags,
     });
 
     queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', user.pubkey] });
