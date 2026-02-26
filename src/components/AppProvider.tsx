@@ -112,6 +112,7 @@ export function AppProvider(props: AppProviderProps) {
   // Apply theme effects to document
   useApplyTheme(config.theme, config.customTheme);
   useApplyFonts(config.theme, config.customTheme);
+  useApplyBackground(config.theme, config.customTheme);
 
   return (
     <AppContext.Provider value={appContextValue}>
@@ -178,4 +179,46 @@ function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined) {
       loadAndApplyFont(undefined);
     }
   }, [theme, customTheme?.font]);
+}
+
+/** Style element ID for background image CSS. */
+const BG_STYLE_ID = 'theme-background';
+
+/**
+ * Hook to apply or remove a background image when the theme config changes.
+ */
+function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) {
+  useEffect(() => {
+    const resolved = resolveTheme(theme);
+    const bg = resolved === 'custom' ? customTheme?.background : undefined;
+
+    let style = document.getElementById(BG_STYLE_ID) as HTMLStyleElement | null;
+
+    if (!bg?.url) {
+      style?.remove();
+      return;
+    }
+
+    if (!style) {
+      style = document.createElement('style');
+      style.id = BG_STYLE_ID;
+      document.head.appendChild(style);
+    }
+
+    const mode = bg.mode ?? 'cover';
+    let css: string;
+
+    if (mode === 'tile') {
+      css = `body { background-image: url("${bg.url}"); background-repeat: repeat; background-size: auto; }`;
+    } else {
+      // 'cover' or 'contain'
+      css = `body { background-image: url("${bg.url}"); background-size: ${mode}; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+    }
+
+    style.textContent = css;
+
+    return () => {
+      document.getElementById(BG_STYLE_ID)?.remove();
+    };
+  }, [theme, customTheme?.background]);
 }

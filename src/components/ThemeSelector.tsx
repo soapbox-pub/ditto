@@ -9,6 +9,7 @@ import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreTheme
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
+import { BackgroundPicker } from '@/components/BackgroundPicker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
@@ -184,6 +185,9 @@ export function ThemeSelector() {
 
         {/* Font */}
         <FontPicker />
+
+        {/* Background */}
+        <BackgroundPicker />
 
         {/* Share toggle */}
         {user && (
