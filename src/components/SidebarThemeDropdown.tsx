@@ -76,9 +76,10 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </DropdownMenuItem>
         ))}
         {presetOptions.map((preset) => {
-          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id].colors);
+          const p = themePresets[preset.id];
+          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(p.colors);
           return (
-            <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme(themePresets[preset.id].colors)} className="flex items-center justify-between cursor-pointer">
+            <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme({ colors: p.colors, font: p.font })} className="flex items-center justify-between cursor-pointer">
               <div className="flex items-center gap-2"><span className="text-sm leading-none">{preset.emoji}</span><span>{preset.label}</span></div>
               {isActive && <Check className="size-4 text-primary" />}
             </DropdownMenuItem>
@@ -89,9 +90,9 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">My Themes</DropdownMenuLabel>
             {userThemes.data.map((ut) => {
-              const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(ut.colors);
+              const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(ut.colors);
               return (
-                <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme(ut.colors)} className="flex items-center justify-between cursor-pointer">
+                <DropdownMenuItem key={ut.identifier} onClick={() => applyCustomTheme({ colors: ut.colors, font: ut.font })} className="flex items-center justify-between cursor-pointer">
                   <div className="flex items-center gap-2 min-w-0"><Palette className="size-3.5 text-primary shrink-0" /><span className="truncate">{ut.title}</span></div>
                   {isActive && <Check className="size-4 text-primary shrink-0" />}
                 </DropdownMenuItem>
