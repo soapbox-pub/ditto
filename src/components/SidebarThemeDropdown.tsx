@@ -100,13 +100,13 @@ export function SidebarThemeDropdown({ userPubkey, onNavigate, className }: Side
           </>
         )}
         {customTheme && !activePreset && !activeUserTheme && (
-          <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme'); }} className="flex items-center justify-between cursor-pointer">
+          <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme/edit'); }} className="flex items-center justify-between cursor-pointer">
             <div className="flex items-center gap-2"><Palette className="size-4" /><span>Custom</span></div>
             {theme === 'custom' && <Check className="size-4 text-primary" />}
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/appearance'); }} className="cursor-pointer text-muted-foreground">
+        <DropdownMenuItem onClick={() => { onNavigate?.(); navigate('/settings/theme'); }} className="cursor-pointer text-muted-foreground">
           More...
         </DropdownMenuItem>
       </DropdownMenuContent>

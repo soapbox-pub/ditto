@@ -111,7 +111,7 @@ export function ThemeBuilderPage() {
   const handleNewTheme = useCallback(() => {
     setActiveEditingTheme(null);
     setColors(builtinThemes.dark);
-    window.history.replaceState({}, '', '/settings/theme?new');
+    window.history.replaceState({}, '', '/settings/theme/edit?new');
     toast({ title: 'Starting fresh', description: 'Create a new theme from scratch.' });
   }, [toast]);
 
@@ -336,7 +336,7 @@ export function ThemeBuilderPage() {
       {/* Header */}
       <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
         <div className="flex items-center gap-4 px-4 pt-3 pb-2">
-          <Link to="/settings/appearance" className="p-2 rounded-full hover:bg-secondary transition-colors">
+          <Link to="/settings/theme" className="p-2 rounded-full hover:bg-secondary transition-colors">
             <ArrowLeft className="size-5" />
           </Link>
           <div className="flex-1 min-w-0">
@@ -719,7 +719,7 @@ function ImportFromProfile() {
         pubkey = decoded.type === 'npub' ? decoded.data : decoded.type === 'nprofile' ? decoded.data.pubkey : pubkey;
       }
       if (/^[0-9a-f]{64}$/i.test(pubkey)) {
-        window.location.href = `/settings/theme?import=${pubkey}`;
+        window.location.href = `/settings/theme/edit?import=${pubkey}`;
       } else {
         toast({ title: 'Invalid identifier', description: 'Enter an npub or hex pubkey.', variant: 'destructive' });
       }

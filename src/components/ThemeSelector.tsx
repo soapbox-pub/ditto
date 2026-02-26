@@ -1,16 +1,39 @@
-import { useMemo } from 'react';
-import { Check, Globe, Plus, Pencil } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useMemo, useCallback, useState } from 'react';
+import { Check, Loader2 } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useUserThemes } from '@/hooks/useUserThemes';
-import { builtinThemes, themePresets, coreToTokens, type CoreThemeColors, type ThemeTokens } from '@/themes';
+import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { usePublishTheme } from '@/hooks/usePublishTheme';
+import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreThemeColors, type ThemeTokens } from '@/themes';
+import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
+import { ColorPicker } from '@/components/ui/color-picker';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
 function hsl(value: string): string {
   return `hsl(${value})`;
+}
+
+/** Core color keys exposed in the editor, in display order */
+const CORE_KEYS: (keyof CoreThemeColors)[] = ['primary', 'text', 'background'];
+
+/** Human-readable labels for core color keys */
+const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
+  primary: 'Primary',
+  text: 'Text',
+  background: 'Background',
+};
+
+/** Get the effective CoreThemeColors for the current theme */
+function getEffectiveColors(theme: Theme, customTheme?: CoreThemeColors): CoreThemeColors {
+  if (theme === 'custom' && customTheme) return customTheme;
+  const resolved = resolveTheme(theme);
+  if (resolved === 'custom' && customTheme) return customTheme;
+  return builtinThemes[resolved as 'light' | 'dark'] ?? builtinThemes.dark;
 }
 
 /** Mini preview card for a theme with known tokens */
@@ -80,9 +103,33 @@ function ThemePreviewCard({
 export function ThemeSelector() {
   const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
-  const userThemesQuery = useUserThemes(user?.pubkey);
+  const activeProfileTheme = useActiveProfileTheme(user?.pubkey);
+  const { setActiveTheme, clearActiveTheme } = usePublishTheme();
+  const { toast } = useToast();
+  const [isSharing, setIsSharing] = useState(false);
 
-  const hasUserThemes = (userThemesQuery.data?.length ?? 0) > 0;
+  /** Whether the user has an active profile theme published. */
+  const isShared = !!activeProfileTheme.data;
+
+  /** Toggle sharing the theme to others via kind 11667. */
+  const handleShareToggle = useCallback(async (checked: boolean) => {
+    if (!user) return;
+    setIsSharing(true);
+    try {
+      if (checked) {
+        const colors = getEffectiveColors(theme, customTheme);
+        await setActiveTheme({ colors });
+        toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
+      } else {
+        await clearActiveTheme();
+        toast({ title: 'Theme hidden', description: 'Your theme is no longer visible on your profile.' });
+      }
+    } catch {
+      toast({ title: 'Failed to update', description: 'Could not update your theme visibility.', variant: 'destructive' });
+    } finally {
+      setIsSharing(false);
+    }
+  }, [user, theme, customTheme, setActiveTheme, clearActiveTheme, toast]);
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -102,84 +149,60 @@ export function ThemeSelector() {
     return JSON.stringify(customTheme) === JSON.stringify(presetColors);
   };
 
-  return (
+  /** The effective colors for the current theme (used in the color editor) */
+  const effectiveColors = getEffectiveColors(theme, customTheme);
+
+  /** Handle a color change from the inline editor */
+  const handleColorChange = useCallback((key: keyof CoreThemeColors, hex: string) => {
+    const hslValue = hexToHslString(hex);
+    const newColors = { ...effectiveColors, [key]: hslValue };
+    applyCustomTheme(newColors);
+  }, [effectiveColors, applyCustomTheme]);
+
+   return (
     <div className="space-y-5">
+      {/* ── Color editor (always visible) ── */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Colors
+        </h3>
+        <div className="flex items-center gap-4">
+          {CORE_KEYS.map((key) => (
+            <ColorPicker
+              key={key}
+              label={COLOR_LABELS[key]}
+              value={hslStringToHex(effectiveColors[key])}
+              onChange={(hex) => handleColorChange(key, hex)}
+            />
+          ))}
+        </div>
+      </div>
 
-      {/* ── My Themes section ── */}
+      {/* ── Share toggle ── */}
       {user && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">My Themes</h3>
-          <div className="grid grid-cols-3 gap-3">
-            {/* Create new custom theme */}
-            <Link
-              to="/settings/theme?new"
-              className="relative group rounded-xl border-2 border-dashed p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-border hover:border-accent/40"
-            >
-              <div className="aspect-[4/3] rounded-lg overflow-hidden relative flex flex-col items-center justify-center gap-1.5 bg-muted/30">
-                <Plus className="size-5 text-muted-foreground group-hover:text-accent transition-colors" />
-                <span className="text-[10px] text-muted-foreground group-hover:text-accent transition-colors font-medium">New</span>
-              </div>
-              <p className="mt-1.5 text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
-                Create Theme
-              </p>
-            </Link>
-
-            {/* User's published themes */}
-            {userThemesQuery.data?.map((userTheme) => {
-              const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(userTheme.colors);
-
-              return (
-                <div key={`user-${userTheme.identifier}`} className="relative group">
-                  <button
-                    className={cn(
-                      'w-full rounded-xl border-2 p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring text-left',
-                      isActive
-                        ? 'border-primary shadow-sm'
-                        : 'border-border hover:border-primary/40',
-                    )}
-                    onClick={() => applyCustomTheme(userTheme.colors)}
-                  >
-                    <ThemePreviewCard colors={userTheme.colors} isActive={!!isActive} />
-                    <p className={cn(
-                      'mt-1.5 text-xs font-medium text-center transition-colors truncate',
-                      isActive ? 'text-foreground' : 'text-muted-foreground',
-                    )}>
-                      {userTheme.title}
-                    </p>
-                  </button>
-                  {/* Edit button overlay */}
-                  <Link
-                    to={`/settings/theme?edit=${userTheme.identifier}`}
-                    className="absolute top-2.5 right-2.5 size-6 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary"
-                    title="Edit theme"
-                  >
-                    <Pencil className="size-3 text-muted-foreground" />
-                  </Link>
-                </div>
-              );
-            })}
-
-            {/* Browse public themes */}
-            <Link
-              to="/themes"
-              className="relative group rounded-xl border-2 border-dashed p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-border hover:border-primary/40"
-            >
-              <div className="aspect-[4/3] rounded-lg overflow-hidden relative flex flex-col items-center justify-center gap-1.5 bg-muted/30">
-                <Globe className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors font-medium">Browse</span>
-              </div>
-              <p className="mt-1.5 text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
-                Public Themes
-              </p>
-            </Link>
-          </div>
+        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
+          <Label htmlFor="share-theme" className="flex flex-col gap-1 cursor-pointer">
+            <span className="text-sm font-medium">Display my theme to others</span>
+            <span className="text-xs text-muted-foreground font-normal">
+              Share your current theme on your profile
+            </span>
+          </Label>
+          {isSharing ? (
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          ) : (
+            <Switch
+              id="share-theme"
+              checked={isShared}
+              onCheckedChange={handleShareToggle}
+            />
+          )}
         </div>
       )}
 
-      {/* ── Presets section ── */}
+      {/* ── Themes grid ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          {hasUserThemes ? 'Presets' : 'Themes'}
+          Themes
         </h3>
         <div className="grid grid-cols-3 gap-3">
           {builtinOptions.map((option) => {
@@ -278,22 +301,6 @@ export function ThemeSelector() {
               </button>
             );
           })}
-
-          {/* Browse public themes — shown in presets section when user has no custom themes */}
-          {!user && (
-            <Link
-              to="/themes"
-              className="relative group rounded-xl border-2 border-dashed p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-border hover:border-primary/40"
-            >
-              <div className="aspect-[4/3] rounded-lg overflow-hidden relative flex flex-col items-center justify-center gap-1.5 bg-muted/30">
-                <Globe className="size-5 text-muted-foreground group-hover:text-primary transition-colors" />
-                <span className="text-[10px] text-muted-foreground group-hover:text-primary transition-colors font-medium">Browse</span>
-              </div>
-              <p className="mt-1.5 text-xs font-medium text-center text-muted-foreground group-hover:text-foreground transition-colors">
-                Public Themes
-              </p>
-            </Link>
-          )}
         </div>
       </div>
     </div>
