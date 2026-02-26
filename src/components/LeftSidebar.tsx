@@ -374,7 +374,7 @@ export function LeftSidebar() {
                 onClick={() => setEditing(true)}
                 className="flex items-center gap-3 cursor-pointer"
               >
-                <Pencil className="size-5 text-muted-foreground" />
+                <Pencil className="size-5" />
                 <span className="text-sm">Edit sidebar</span>
               </DropdownMenuItem>
 
