@@ -70,11 +70,7 @@ export const ThemeFontSchema = z.object({
   url: z.string().optional(),
 });
 
-/** Zod schema for ThemeFonts */
-export const ThemeFontsSchema = z.object({
-  title: ThemeFontSchema.optional(),
-  body: ThemeFontSchema.optional(),
-});
+
 
 /** Zod schema for ThemeBackground */
 export const ThemeBackgroundSchema = z.object({
@@ -89,7 +85,7 @@ export const ThemeBackgroundSchema = z.object({
 export const ThemeConfigSchema = z.object({
   title: z.string().optional(),
   colors: CoreThemeColorsSchema,
-  fonts: ThemeFontsSchema.optional(),
+  font: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
 });
 

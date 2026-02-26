@@ -45,7 +45,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
-import { loadAndApplyFonts } from '@/lib/fontLoader';
+import { loadAndApplyFont } from '@/lib/fontLoader';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -740,7 +740,7 @@ export function ProfilePage() {
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
-  const profileThemeFonts = showCustomProfileThemes ? profileTheme?.fonts : undefined;
+  const profileThemeFont = showCustomProfileThemes ? profileTheme?.font : undefined;
 
   useEffect(() => {
     if (!profileThemeColors) return;
@@ -756,8 +756,8 @@ export function ProfilePage() {
     const previousCss = el.textContent;
     el.textContent = css;
 
-    // Apply profile fonts (if any)
-    loadAndApplyFonts(profileThemeFonts);
+    // Apply profile font (if any)
+    loadAndApplyFont(profileThemeFont);
 
     // Restore the user's own theme on cleanup
     return () => {
@@ -772,10 +772,10 @@ export function ProfilePage() {
           styleEl.textContent = buildThemeCss(coreToTokens(colors));
         }
       }
-      // Restore own fonts or clear overrides
-      loadAndApplyFonts(ownCustomTheme?.fonts);
+      // Restore own font or clear override
+      loadAndApplyFont(ownCustomTheme?.font);
     };
-  }, [profileThemeColors, profileThemeFonts]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileThemeColors, profileThemeFont]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 

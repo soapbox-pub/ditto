@@ -28,8 +28,7 @@ A theme consists of colors, optional fonts, and an optional background. Colors a
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["f", "Playfair Display", "title", "https://example.com/playfair.woff2"],
-    ["f", "Inter", "body", "https://example.com/inter.woff2"],
+    ["f", "Inter", "https://example.com/inter.woff2"],
     ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg", "dim 1920x1080"],
     ["title", "MK Dark Theme"],
     ["alt", "Custom theme: MK Dark Theme"]
@@ -47,7 +46,7 @@ The `content` field is unused and MUST be an empty string (`""`).
 |---------|----------|---------------------------------------------------------------------------------------|
 | `d`     | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"`                      |
 | `c`     | Yes (×3) | Hex color with marker. See [Color Tags](#color-tags).                                 |
-| `f`     | No       | Font declaration. See [Font Tags](#font-tags).                                        |
+| `f`     | No       | Font declaration. See [Font Tag](#font-tag).                                          |
 | `bg`    | No       | Background media. See [Background Tag](#background-tag).                              |
 | `title` | Yes      | Human-readable theme name                                                             |
 | `alt`   | Yes      | NIP-31 human-readable fallback                                                        |
@@ -74,8 +73,7 @@ Replaceable event that represents the user's currently active profile theme. Onl
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["f", "Playfair Display", "title", "https://example.com/playfair.woff2"],
-    ["f", "Inter", "body", "https://example.com/inter.woff2"],
+    ["f", "Inter", "https://example.com/inter.woff2"],
     ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg"],
     ["title", "MK Dark Theme"],
     ["alt", "Active profile theme"]
@@ -92,7 +90,7 @@ The `content` field is unused and MUST be an empty string (`""`).
 | Tag     | Required | Description                                                                           |
 |---------|----------|---------------------------------------------------------------------------------------|
 | `c`     | Yes (×3) | Hex color with marker. See [Color Tags](#color-tags).                                 |
-| `f`     | No       | Font declaration. See [Font Tags](#font-tags).                                        |
+| `f`     | No       | Font declaration. See [Font Tag](#font-tag).                                          |
 | `bg`    | No       | Background media. See [Background Tag](#background-tag).                              |
 | `title` | No       | Human-readable name for the theme                                                     |
 | `alt`   | Yes      | NIP-31 human-readable fallback                                                        |
@@ -123,20 +121,19 @@ Format: `["c", "#rrggbb", "<marker>"]`
 - All three markers (`"primary"`, `"text"`, `"background"`) MUST be present.
 - Only one `c` tag per marker is allowed.
 
-### Font Tags
+### Font Tag
 
-Format: `["f", "<family>", "<role>", "<url>"]`
+Format: `["f", "<family>", "<url>"]`
 
 | Index | Required | Description                                                                                   |
 |-------|----------|-----------------------------------------------------------------------------------------------|
 | 0     | Yes      | Tag name: `"f"`                                                                               |
-| 1     | Yes      | CSS `font-family` name (e.g. `"Playfair Display"`)                                            |
-| 2     | Yes      | Role marker: `"title"` or `"body"`                                                            |
-| 3     | Yes      | Direct URL to a font file (`.woff2`, `.ttf`, `.otf`)                                          |
+| 1     | Yes      | CSS `font-family` name (e.g. `"Inter"`)                                                       |
+| 2     | Yes      | Direct URL to a font file (`.woff2`, `.ttf`, `.otf`)                                          |
 
-- Both `f` tags are optional on the event.
-- At most one `f` tag per role is allowed.
-- `"title"` fonts apply to headings and display text. `"body"` fonts apply to body/paragraph text.
+- The `f` tag is optional on the event.
+- At most one `f` tag per event is allowed.
+- The font applies globally to all text (body, headings, UI elements).
 - If the URL fails to load, the client SHOULD fall back to a default font gracefully.
 - Variable font files (covering multiple weights in a single file) are preferred.
 
