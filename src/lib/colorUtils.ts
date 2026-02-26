@@ -122,12 +122,6 @@ function darken(hsl: string, amount: number): string {
   return formatHsl(h, s, Math.max(0, l - amount));
 }
 
-/** Desaturate an HSL string by a given amount (0-100). */
-function desaturate(hsl: string, amount: number): string {
-  const { h, s, l } = parseHsl(hsl);
-  return formatHsl(h, Math.max(0, s - amount), l);
-}
-
 /** Get a contrast foreground (white or dark) for a given background. */
 function contrastForeground(bgHsl: string): string {
   const dark = isDarkTheme(bgHsl);
