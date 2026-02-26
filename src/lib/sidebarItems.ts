@@ -21,8 +21,8 @@ export function itemPath(id: string, profilePath?: string): string {
 export function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
   if (id === 'feed') return pathname === '/';
   if (id === 'notifications') return pathname === '/notifications';
-  if (id === 'search') return pathname === '/search' && !search.includes('tab=trends');
-  if (id === 'trends') return pathname === '/search' && search.includes('tab=trends');
+  if (id === 'search') return pathname === '/search';
+  if (id === 'trends') return pathname === '/trends';
   if (id === 'bookmarks') return pathname === '/bookmarks';
   if (id === 'profile') return !!profilePath && pathname === profilePath;
   if (id === 'theme') return pathname === '/settings/theme';

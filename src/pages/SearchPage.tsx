@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
-import { ChevronUp, ChevronDown, Search as SearchIcon, Flame, TrendingUp, Swords, Image, Video, Film, Languages, UserRoundCheck, Loader2 } from 'lucide-react';
+import { ChevronUp, ChevronDown, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { useInView } from 'react-intersection-observer';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -15,9 +14,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { useSearchProfiles } from '@/hooks/useSearchProfiles';
 import { useStreamPosts } from '@/hooks/useStreamPosts';
-import { useTrendingTags, useInfiniteSortedPosts, type SortMode } from '@/hooks/useTrending';
-import { useMuteList } from '@/hooks/useMuteList';
-import { isEventMuted } from '@/lib/muteHelpers';
+import { useFollowList } from '@/hooks/useFollowActions';
+import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
@@ -25,9 +23,9 @@ import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import { nip19 } from 'nostr-tools';
 
 
-type TabType = 'posts' | 'trends' | 'accounts';
+type TabType = 'posts' | 'accounts';
 
-const VALID_TABS: TabType[] = ['posts', 'trends', 'accounts'];
+const VALID_TABS: TabType[] = ['posts', 'accounts'];
 
 function parseTab(value: string | null): TabType {
   return VALID_TABS.includes(value as TabType) ? (value as TabType) : 'posts';
@@ -48,7 +46,6 @@ export function SearchPage() {
   // Local input state for the search field (avoids trimming while typing)
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') ?? '');
   const [filtersOpen, setFiltersOpen] = useState(true);
-  const [trendSort, setTrendSort] = useState<SortMode>('hot');
 
   // Update tab in URL without a feedback loop
   const setActiveTab = useCallback((tab: TabType) => {
@@ -106,40 +103,6 @@ export function SearchPage() {
   // Hooks
   const { posts: allPosts, isLoading: postsLoading } = useStreamPosts(searchQuery, { includeReplies, mediaType, language });
   const { data: profiles, isLoading: profilesLoading, followedPubkeys } = useSearchProfiles(activeTab === 'accounts' ? searchQuery : '');
-  const isTrendsTab = activeTab === 'trends';
-  const { data: trends, isLoading: trendsLoading } = useTrendingTags(isTrendsTab);
-  const {
-    data: sortedData,
-    isPending: sortedPending,
-    isLoading: sortedLoading,
-    fetchNextPage: fetchNextSorted,
-    hasNextPage: hasNextSorted,
-    isFetchingNextPage: isFetchingNextSorted,
-  } = useInfiniteSortedPosts(trendSort, isTrendsTab);
-  const { muteItems } = useMuteList();
-
-  // Flatten, deduplicate, and filter muted posts from paginated sorted results
-  const sortedPosts = useMemo(() => {
-    const seen = new Set<string>();
-    return sortedData?.pages.flat().filter((event) => {
-      if (seen.has(event.id)) return false;
-      seen.add(event.id);
-      if (muteItems.length > 0 && isEventMuted(event, muteItems)) return false;
-      return true;
-    }) ?? [];
-  }, [sortedData?.pages, muteItems]);
-
-  // Intersection observer for infinite scroll on sorted posts
-  const { ref: sortedScrollRef, inView: sortedInView } = useInView({
-    threshold: 0,
-    rootMargin: '400px',
-  });
-
-  useEffect(() => {
-    if (sortedInView && hasNextSorted && !isFetchingNextSorted) {
-      fetchNextSorted();
-    }
-  }, [sortedInView, hasNextSorted, isFetchingNextSorted, fetchNextSorted]);
 
   // Filter by platform (Nostr/Mastodon) client-side
   const posts = useMemo(() => {
@@ -164,7 +127,6 @@ export function SearchPage() {
         <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
           <div className="flex">
             <TabButton label="Posts" active={activeTab === 'posts'} onClick={() => setActiveTab('posts')} />
-            <TabButton label="Trends" active={activeTab === 'trends'} onClick={() => setActiveTab('trends')} />
             <TabButton label="Accounts" active={activeTab === 'accounts'} onClick={() => setActiveTab('accounts')} />
           </div>
         </div>
@@ -310,64 +272,6 @@ export function SearchPage() {
           </>
         )}
 
-        {/* ─── Trends Tab ─── */}
-        {activeTab === 'trends' && (
-          <div>
-            {/* Trending Hashtags */}
-            <div className="px-4 pt-4 pb-2">
-              <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
-            </div>
-            {trendsLoading ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <TrendSkeleton key={i} />
-                ))}
-              </div>
-            ) : trends && trends.tags.length > 0 ? (
-              <div className="flex flex-wrap gap-2 px-4 pb-4">
-                {trends.tags.slice(0, 5).map((trend, index) => (
-                  <TrendItem key={index} trend={{ tag: trend.tag, count: trend.uses }} />
-                ))}
-              </div>
-            ) : (
-              <EmptyState message="No trending hashtags right now." />
-            )}
-
-            {/* Sort sub-tabs */}
-            <div className="flex border-b border-border">
-              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} activeColor="text-foreground" underlineColor="bg-primary" />
-              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-foreground" underlineColor="bg-primary" />
-              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} activeColor="text-foreground" underlineColor="bg-primary" />
-            </div>
-
-            {/* Sorted posts — infinite scroll */}
-            {(sortedPending || sortedLoading) && sortedPosts.length === 0 ? (
-              <div className="divide-y divide-border">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <PostSkeleton key={i} />
-                ))}
-              </div>
-            ) : sortedPosts.length > 0 ? (
-              <div>
-                {sortedPosts.map((event) => (
-                  <NoteCard key={event.id} event={event} />
-                ))}
-                {hasNextSorted && (
-                  <div ref={sortedScrollRef} className="py-4">
-                    {isFetchingNextSorted && (
-                      <div className="flex justify-center">
-                        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EmptyState message={`No ${trendSort} posts right now.`} />
-            )}
-          </div>
-        )}
-
         {/* ─── Accounts Tab ─── */}
         {activeTab === 'accounts' && (
           <>
@@ -403,7 +307,7 @@ export function SearchPage() {
                   <EmptyState message="No accounts found matching your search." />
                 )
               ) : (
-                <EmptyState message="Search for people by name or NIP-05 address." />
+                <FollowsList />
               )}
             </div>
           </>
@@ -413,31 +317,6 @@ export function SearchPage() {
 }
 
 /* ── Shared sub-components ── */
-
-function SortTabButton({ icon, label, active, onClick, activeColor = 'text-foreground', underlineColor = 'bg-primary' }: {
-  icon: React.ReactNode;
-  label: string;
-  active: boolean;
-  onClick: () => void;
-  activeColor?: string;
-  underlineColor?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={cn(
-        'flex-1 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? activeColor : 'text-muted-foreground',
-      )}
-    >
-      {icon}
-      {label}
-      {active && (
-        <div className={cn('absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full', underlineColor)} />
-      )}
-    </button>
-  );
-}
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -453,20 +332,6 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-16 h-1 bg-primary rounded-full" />
       )}
     </button>
-  );
-}
-
-function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
-  return (
-    <Link
-      to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
-    >
-      #{trend.tag}
-      {trend.count > 0 && (
-        <span className="text-xs text-muted-foreground font-normal">{trend.count}</span>
-      )}
-    </Link>
   );
 }
 
@@ -517,6 +382,73 @@ function AccountItem({ profile, isFollowed }: { profile: { pubkey: string; metad
   );
 }
 
+function FollowsList() {
+  const { data: followData } = useFollowList();
+  const pubkeys = followData?.pubkeys ?? [];
+
+  if (pubkeys.length === 0) {
+    return <EmptyState message="Search for people by name or NIP-05 address." />;
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {pubkeys.map((pubkey) => (
+        <FollowItem key={pubkey} pubkey={pubkey} />
+      ))}
+    </div>
+  );
+}
+
+function FollowItem({ pubkey }: { pubkey: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const npub = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+  const displayName = metadata?.name || genUserName(pubkey);
+  const tags = author.data?.event?.tags ?? [];
+
+  if (author.isLoading) {
+    return <AccountSkeleton />;
+  }
+
+  return (
+    <Link
+      to={`/${npub}`}
+      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/30 transition-colors"
+    >
+      <div className="relative shrink-0">
+        <Avatar className="size-11">
+          <AvatarImage src={metadata?.picture} alt={displayName} />
+          <AvatarFallback className="bg-primary/20 text-primary text-sm">
+            {displayName[0]?.toUpperCase() || '?'}
+          </AvatarFallback>
+        </Avatar>
+        <span
+          className="absolute -bottom-0.5 -right-0.5 size-[18px] rounded-full bg-primary flex items-center justify-center ring-2 ring-background"
+          title="Following"
+        >
+          <UserRoundCheck className="size-2.5 text-primary-foreground" strokeWidth={3} />
+        </span>
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="font-bold text-[15px] truncate">
+            <EmojifiedText tags={tags}>{displayName}</EmojifiedText>
+          </p>
+          {metadata?.bot && <span className="text-xs" title="Bot account">🤖</span>}
+        </div>
+        {metadata?.nip05 && (
+          <VerifiedNip05Text nip05={metadata.nip05} pubkey={pubkey} className="text-sm text-muted-foreground truncate block" />
+        )}
+        {metadata?.about && (
+          <p className="text-sm text-muted-foreground mt-0.5 line-clamp-2">
+            <EmojifiedText tags={tags}>{metadata.about}</EmojifiedText>
+          </p>
+        )}
+      </div>
+    </Link>
+  );
+}
+
 function EmptyState({ message }: { message: string }) {
   return (
     <div className="py-16 px-8 text-center">
@@ -547,16 +479,6 @@ function PostSkeleton() {
         <Skeleton className="h-4 w-8" />
         <Skeleton className="h-4 w-8" />
       </div>
-    </div>
-  );
-}
-
-function TrendSkeleton() {
-  return (
-    <div className="px-4 py-3.5">
-      <Skeleton className="h-3 w-14 mb-1.5" />
-      <Skeleton className="h-5 w-28 mb-1" />
-      <Skeleton className="h-3 w-16" />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import NotFound from "./pages/NotFound";
 import { NIP19Page } from "./pages/NIP19Page";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
+import { TrendsPage } from "./pages/TrendsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
 import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
@@ -43,6 +44,7 @@ export function AppRouter() {
           <Route path="/" element={<Index />} />
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/trends" element={<TrendsPage />} />
           <Route path="/profile" element={<ProfileRedirect />} />
           <Route path="/t/:tag" element={<HashtagPage />} />
           <Route path="/timeline/:domain" element={<DomainFeedPage />} />
