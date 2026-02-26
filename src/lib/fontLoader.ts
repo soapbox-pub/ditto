@@ -5,10 +5,10 @@
  * 1. Bundled fontsource packages (via dynamic import)
  * 2. Remote URLs (via @font-face injection)
  *
- * Also manages the CSS overrides that apply title/body fonts to the document.
+ * Also manages the CSS override that applies a custom font to the document.
  */
 
-import type { ThemeFonts } from '@/themes';
+import type { ThemeFont } from '@/themes';
 import { findBundledFont, loadBundledFont } from '@/lib/fonts';
 
 // ─── @font-face injection for remote fonts ────────────────────────────
@@ -53,17 +53,16 @@ const FONT_OVERRIDE_STYLE_ID = 'theme-font-overrides';
 const DEFAULT_FONT_STACK = '"Inter Variable", Inter, system-ui, sans-serif';
 
 /**
- * Apply font-family overrides to the document.
- * - Title font applies to headings (h1–h6) and elements with data-font="title".
- * - Body font applies to the html element (cascades to everything else).
+ * Apply a font-family override to the document.
+ * The font applies globally to the html element (cascades to everything).
  *
- * Pass undefined to clear all overrides.
+ * Pass undefined to clear the override.
  */
-export function applyFontOverrides(fonts: ThemeFonts | undefined): void {
+export function applyFontOverride(font: ThemeFont | undefined): void {
   let style = document.getElementById(FONT_OVERRIDE_STYLE_ID) as HTMLStyleElement | null;
 
-  if (!fonts || (!fonts.title && !fonts.body)) {
-    // No custom fonts — remove overrides
+  if (!font) {
+    // No custom font — remove override
     style?.remove();
     return;
   }
@@ -74,24 +73,7 @@ export function applyFontOverrides(fonts: ThemeFonts | undefined): void {
     document.head.appendChild(style);
   }
 
-  let css = '';
-
-  if (fonts.body) {
-    css += `html { font-family: "${fonts.body.family}", ${DEFAULT_FONT_STACK} !important; }\n`;
-  }
-
-  if (fonts.title) {
-    css += `h1, h2, h3, h4, h5, h6, [data-font="title"] { font-family: "${fonts.title.family}", ${DEFAULT_FONT_STACK} !important; }\n`;
-  }
-
-  style.textContent = css;
-}
-
-/**
- * Remove all font overrides and injected @font-face rules.
- */
-export function clearFontOverrides(): void {
-  document.getElementById(FONT_OVERRIDE_STYLE_ID)?.remove();
+  style.textContent = `html { font-family: "${font.family}", ${DEFAULT_FONT_STACK} !important; }\n`;
 }
 
 // ─── High-level font loading ──────────────────────────────────────────
@@ -112,28 +94,17 @@ export async function loadFont(family: string, url?: string): Promise<void> {
 }
 
 /**
- * Load all fonts specified in a ThemeFonts config and apply CSS overrides.
- * This is the main entry point for applying theme fonts.
+ * Load a theme font and apply the CSS override.
+ * This is the main entry point for applying a theme font.
  */
-export async function loadAndApplyFonts(fonts: ThemeFonts | undefined): Promise<void> {
-  if (!fonts) {
-    applyFontOverrides(undefined);
+export async function loadAndApplyFont(font: ThemeFont | undefined): Promise<void> {
+  if (!font) {
+    applyFontOverride(undefined);
     return;
   }
 
-  // Load fonts in parallel
-  const loads: Promise<void>[] = [];
-  if (fonts.title) {
-    loads.push(loadFont(fonts.title.family, fonts.title.url));
-  }
-  if (fonts.body) {
-    loads.push(loadFont(fonts.body.family, fonts.body.url));
-  }
-
-  await Promise.allSettled(loads);
-
-  // Apply CSS overrides after fonts are loaded
-  applyFontOverrides(fonts);
+  await loadFont(font.family, font.url);
+  applyFontOverride(font);
 }
 
 /**

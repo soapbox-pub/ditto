@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import type { ThemeConfig, ThemeFonts } from '@/themes';
+import type { ThemeConfig } from '@/themes';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import {
@@ -15,35 +15,19 @@ import {
 import { resolveFontUrl } from '@/lib/fontLoader';
 
 /**
- * Hook to publish theme-related Nostr events.
- *
- * - `publishTheme`: Publish a kind 33891 theme definition (create or update)
- * - `setActiveTheme`: Publish a kind 11667 active profile theme
- * - `deleteTheme`: Publish a kind 5 deletion for a theme definition
- * - `clearActiveTheme`: Publish a kind 5 deletion for the active profile theme
- */
-/**
  * Resolve font URLs for Nostr publishing.
  * Bundled fonts get CDN URLs, others keep their existing URL.
  */
 function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
-  if (!config.fonts) return config;
+  if (!config.font) return config;
 
-  const resolved: ThemeFonts = {};
-  if (config.fonts.title) {
-    resolved.title = {
-      family: config.fonts.title.family,
-      url: resolveFontUrl(config.fonts.title.family, config.fonts.title.url),
-    };
-  }
-  if (config.fonts.body) {
-    resolved.body = {
-      family: config.fonts.body.family,
-      url: resolveFontUrl(config.fonts.body.family, config.fonts.body.url),
-    };
-  }
-
-  return { ...config, fonts: resolved };
+  return {
+    ...config,
+    font: {
+      family: config.font.family,
+      url: resolveFontUrl(config.font.family, config.font.url),
+    },
+  };
 }
 
 export function usePublishTheme() {

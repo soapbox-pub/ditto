@@ -24,14 +24,6 @@ export interface ThemeFont {
   url?: string;
 }
 
-/** Font selections for title and body roles. */
-export interface ThemeFonts {
-  /** Font for headings and display text */
-  title?: ThemeFont;
-  /** Font for body/paragraph text */
-  body?: ThemeFont;
-}
-
 // ─── Background Types ─────────────────────────────────────────────────
 
 /** Background image/video configuration. */
@@ -60,8 +52,8 @@ export interface ThemeConfig {
   title?: string;
   /** The 3 core colors */
   colors: CoreThemeColors;
-  /** Optional font selections */
-  fonts?: ThemeFonts;
+  /** Optional custom font (applies globally to all text) */
+  font?: ThemeFont;
   /** Optional background media */
   background?: ThemeBackground;
 }
@@ -120,8 +112,8 @@ export interface ThemePreset {
   featured?: boolean;
   /** The 3 core colors. */
   colors: CoreThemeColors;
-  /** Optional font selections for this preset. */
-  fonts?: ThemeFonts;
+  /** Optional custom font for this preset. */
+  font?: ThemeFont;
   /** Optional background for this preset. */
   background?: ThemeBackground;
 }

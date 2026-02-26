@@ -4,7 +4,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
 import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type ThemeConfig } from '@/themes';
 import { ThemeSchemaCompat, ThemeConfigCompatSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
-import { loadAndApplyFonts } from '@/lib/fontLoader';
+import { loadAndApplyFont } from '@/lib/fontLoader';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -171,11 +171,11 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
 function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined) {
   useEffect(() => {
     const resolved = resolveTheme(theme);
-    if (resolved === 'custom' && customTheme?.fonts) {
-      loadAndApplyFonts(customTheme.fonts);
+    if (resolved === 'custom' && customTheme?.font) {
+      loadAndApplyFont(customTheme.font);
     } else {
       // Clear any custom font overrides when switching to a builtin theme
-      loadAndApplyFonts(undefined);
+      loadAndApplyFont(undefined);
     }
-  }, [theme, customTheme?.fonts]);
+  }, [theme, customTheme?.font]);
 }
