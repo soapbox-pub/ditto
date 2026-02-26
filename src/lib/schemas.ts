@@ -15,12 +15,11 @@ export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'b
 /** HSL value string like "258 70% 55%" */
 const HslValue = z.string().regex(/^\d/);
 
-/** Zod schema for CoreThemeColors (the 4 core colors) */
+/** Zod schema for CoreThemeColors (the 3 core colors) */
 export const CoreThemeColorsSchema = z.object({
   background: HslValue,
   text: HslValue,
   primary: HslValue,
-  secondary: HslValue,
 }) satisfies z.ZodType<CoreThemeColors>;
 
 /**
@@ -32,20 +31,34 @@ export const LegacyThemeTokensSchema = z.object({
   background: HslValue,
   foreground: HslValue,
   primary: HslValue,
-  accent: HslValue,
 }).passthrough();
 
 /**
- * Schema that accepts either CoreThemeColors or legacy ThemeTokens,
+ * Legacy schema that accepts the old 4-color format (with secondary).
+ * Strips the secondary field and normalizes to CoreThemeColors.
+ */
+export const LegacyFourColorSchema = z.object({
+  background: HslValue,
+  text: HslValue,
+  primary: HslValue,
+  secondary: HslValue,
+}).transform(({ background, text, primary }): CoreThemeColors => ({
+  background,
+  text,
+  primary,
+}));
+
+/**
+ * Schema that accepts CoreThemeColors, legacy 4-color, or legacy ThemeTokens,
  * always normalizing to CoreThemeColors.
  */
 export const ThemeColorsCompatSchema = z.union([
   CoreThemeColorsSchema,
+  LegacyFourColorSchema,
   LegacyThemeTokensSchema.transform((legacy): CoreThemeColors => ({
     background: legacy.background,
     text: legacy.foreground,
     primary: legacy.primary,
-    secondary: legacy.accent,
   })),
 ]);
 

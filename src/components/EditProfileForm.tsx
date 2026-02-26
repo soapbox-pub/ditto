@@ -514,7 +514,7 @@ function ShareThemeSection() {
 
   // Color swatches for preview
   const swatchColors = customTheme
-    ? [customTheme.background, customTheme.text, customTheme.primary, customTheme.secondary].map((hsl) => `hsl(${hsl})`)
+    ? [customTheme.primary, customTheme.text, customTheme.background].map((hsl) => `hsl(${hsl})`)
     : [];
 
   return (

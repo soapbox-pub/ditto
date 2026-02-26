@@ -27,15 +27,14 @@ import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 type PresetName = 'dark' | 'light' | 'black' | 'pink';
 
-/** Core color keys exposed in the editor */
-const CORE_KEYS: (keyof CoreThemeColors)[] = ['background', 'text', 'primary', 'secondary'];
+/** Core color keys exposed in the editor, in display order */
+const CORE_KEYS: (keyof CoreThemeColors)[] = ['primary', 'text', 'background'];
 
 /** Human-readable labels for core color keys */
 const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
-  background: 'Background',
-  text: 'Text',
   primary: 'Primary',
-  secondary: 'Secondary',
+  text: 'Text',
+  background: 'Background',
 };
 
 /** Resolve a preset name to its CoreThemeColors */
@@ -313,18 +312,13 @@ export function ThemeBuilderPage() {
     reader.onload = () => {
       try {
         const imported = JSON.parse(reader.result as string);
-        // Accept both new CoreThemeColors and legacy ThemeTokens format
-        if (imported.background && imported.text && imported.primary && imported.secondary) {
-          setColors(imported as CoreThemeColors);
+        // Accept current 3-color, old 4-color, and legacy 19-token formats
+        if (imported.background && imported.text && imported.primary) {
+          setColors({ background: imported.background, text: imported.text, primary: imported.primary });
           toast({ title: 'Theme imported', description: 'JSON theme loaded successfully.' });
-        } else if (imported.background && imported.foreground && imported.primary && imported.accent) {
-          // Legacy format
-          setColors({
-            background: imported.background,
-            text: imported.foreground,
-            primary: imported.primary,
-            secondary: imported.accent,
-          });
+        } else if (imported.background && imported.foreground && imported.primary) {
+          // Legacy 19-token format
+          setColors({ background: imported.background, text: imported.foreground, primary: imported.primary });
           toast({ title: 'Theme imported', description: 'Legacy theme format converted successfully.' });
         } else {
           toast({ title: 'Invalid theme', description: 'The file does not contain valid theme colors.', variant: 'destructive' });
@@ -447,7 +441,7 @@ export function ThemeBuilderPage() {
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
-            All surface, border, and UI colors are automatically derived from these 4 core colors.
+            All surface, border, and UI colors are automatically derived from these 3 core colors.
           </p>
         </section>
 

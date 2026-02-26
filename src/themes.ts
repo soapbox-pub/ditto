@@ -2,7 +2,7 @@ import type { Theme } from '@/contexts/AppContext';
 import { deriveTokensFromCore } from '@/lib/colorUtils';
 
 /**
- * The 4 core colors that define a theme.
+ * The 3 core colors that define a theme.
  * All other Tailwind tokens are derived automatically from these.
  * This is the format stored in config, Nostr events, and encrypted settings.
  */
@@ -13,8 +13,6 @@ export interface CoreThemeColors {
   text: string;
   /** Primary accent color (buttons, links, focus rings) */
   primary: string;
-  /** Secondary accent color (complementary highlights) */
-  secondary: string;
 }
 
 /**
@@ -52,14 +50,12 @@ export const builtinThemes: Record<'light' | 'dark', CoreThemeColors> = {
     background: '0 0% 100%',
     text: '222.2 84% 4.9%',
     primary: '258 70% 55%',
-    secondary: '47 80% 50%',
   },
 
   dark: {
     background: '228 20% 10%',
     text: '210 40% 98%',
     primary: '258 70% 60%',
-    secondary: '47 80% 55%',
   },
 };
 
@@ -71,7 +67,7 @@ export interface ThemePreset {
   emoji: string;
   /** Whether to show in compact pickers (sidebar dropdown, mobile drawer). All presets appear in settings. */
   featured?: boolean;
-  /** The 4 core colors. */
+  /** The 3 core colors. */
   colors: CoreThemeColors;
 }
 
@@ -88,7 +84,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '0 0% 0%',
       text: '0 0% 95%',
       primary: '258 70% 60%',
-      secondary: '225 65% 55%',
     },
   },
 
@@ -100,7 +95,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '330 100% 96%',
       text: '330 30% 10%',
       primary: '330 90% 60%',
-      secondary: '300 70% 55%',
     },
   },
 
@@ -111,7 +105,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '230 35% 7%',
       text: '210 40% 92%',
       primary: '210 100% 55%',
-      secondary: '240 70% 60%',
     },
   },
 
@@ -122,7 +115,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '130 30% 7%',
       text: '120 40% 92%',
       primary: '128 70% 42%',
-      secondary: '160 60% 40%',
     },
   },
 
@@ -133,7 +125,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '270 50% 97%',
       text: '270 25% 12%',
       primary: '270 65% 55%',
-      secondary: '240 55% 55%',
     },
   },
 
@@ -144,7 +135,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '200 30% 8%',
       text: '195 20% 90%',
       primary: '190 80% 45%',
-      secondary: '220 70% 50%',
     },
   },
 
@@ -155,7 +145,6 @@ export const themePresets: Record<string, ThemePreset> = {
       background: '20 40% 96%',
       text: '15 30% 12%',
       primary: '15 85% 55%',
-      secondary: '35 80% 50%',
     },
   },
 };
@@ -175,7 +164,7 @@ export function buildThemeCss(tokens: ThemeTokens): string {
 
 /** Derive full ThemeTokens from CoreThemeColors */
 export function coreToTokens(colors: CoreThemeColors): ThemeTokens {
-  return deriveTokensFromCore(colors.background, colors.text, colors.primary, colors.secondary);
+  return deriveTokensFromCore(colors.background, colors.text, colors.primary);
 }
 
 /** Build CSS from CoreThemeColors (convenience) */

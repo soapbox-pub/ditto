@@ -137,18 +137,17 @@ function contrastForeground(bgHsl: string): string {
 // ─── Auto-Derive Full Token Set from Core Colors ──────────────────────
 
 /**
- * Derive all Tailwind theme tokens from 4 core colors.
+ * Derive all Tailwind theme tokens from 3 core colors.
+ * The Tailwind "accent" token mirrors "primary".
  *
  * @param background - Background HSL string
  * @param text       - Text/foreground HSL string
- * @param primary    - Primary accent HSL string
- * @param secondary  - Secondary accent HSL string (used as Tailwind "accent")
+ * @param primary    - Primary accent HSL string (also used as Tailwind accent)
  */
 export function deriveTokensFromCore(
   background: string,
   text: string,
   primary: string,
-  secondary: string,
 ): ThemeTokens {
   const dark = isDarkTheme(background);
 
@@ -173,7 +172,6 @@ export function deriveTokensFromCore(
 
   // Primary/accent foregrounds: auto-contrast
   const primaryFg = contrastForeground(primary);
-  const accentFg = contrastForeground(secondary);
 
   // Destructive: standard red
   const destructive = dark ? '0 72% 51%' : '0 84.2% 60.2%';
@@ -192,8 +190,8 @@ export function deriveTokensFromCore(
     secondaryForeground: secondarySurfaceFg,
     muted,
     mutedForeground: mutedFg,
-    accent: secondary,
-    accentForeground: accentFg,
+    accent: primary,
+    accentForeground: primaryFg,
     destructive,
     destructiveForeground: destructiveFg,
     border,
@@ -212,6 +210,5 @@ export function tokensToCoreColors(tokens: ThemeTokens): CoreThemeColors {
     background: tokens.background,
     text: tokens.foreground,
     primary: tokens.primary,
-    secondary: tokens.accent,
   };
 }
