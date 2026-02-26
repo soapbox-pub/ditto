@@ -199,12 +199,9 @@ interface SectionHeaderProps {
   onToggleEdit?: () => void;
 }
 
-function SectionHeader({ label, editing, onToggleEdit }: SectionHeaderProps) {
+function SectionHeader({ label: _label, editing, onToggleEdit }: SectionHeaderProps) {
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-      <span className="text-xs font-semibold uppercase tracking-wider text-accent/70">
-        {label}
-      </span>
       <div className="flex-1 h-px bg-border/50" />
       {onToggleEdit && (
         <button
