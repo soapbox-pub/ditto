@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -988,6 +989,31 @@ export function ProfilePage() {
               />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
+            )}
+
+            {/* Custom theme indicator */}
+            {profileThemeTokens && !isOwnProfile && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="absolute top-3 right-3 z-10 size-9 rounded-full bg-background/60 backdrop-blur-sm border border-border/50 flex items-center justify-center transition-colors hover:bg-background/80 group"
+                    onClick={async () => {
+                      updateFeedSettings({ showCustomProfileThemes: false });
+                      if (user) {
+                        const updated = { ...feedSettings, showCustomProfileThemes: false };
+                        await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
+                      }
+                    }}
+                  >
+                    {/* Pulsing ring */}
+                    <span className="absolute inset-0 rounded-full bg-accent/20 animate-ping" />
+                    <Palette className="size-4 text-accent relative" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Viewing custom theme — click to disable
+                </TooltipContent>
+              </Tooltip>
             )}
           </div>
 
