@@ -315,7 +315,7 @@ export function SearchPage() {
           <div>
             {/* Trending Hashtags */}
             <div className="px-4 pt-4 pb-2">
-              <h3 className="text-lg font-bold text-accent">Trending Hashtags</h3>
+              <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
             </div>
             {trendsLoading ? (
               <div className="divide-y divide-border">
@@ -336,7 +336,7 @@ export function SearchPage() {
             {/* Sort sub-tabs */}
             <div className="flex border-b border-border">
               <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} activeColor="text-primary" underlineColor="bg-primary" />
-              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-accent" underlineColor="bg-accent" />
+              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-primary" underlineColor="bg-primary" />
               <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} activeColor="text-destructive" underlineColor="bg-destructive" />
             </div>
 

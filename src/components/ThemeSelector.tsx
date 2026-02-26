@@ -108,7 +108,7 @@ export function ThemeSelector() {
       {/* ── My Themes section ── */}
       {user && (
         <div className="space-y-2">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-accent/70">My Themes</h3>
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">My Themes</h3>
           <div className="grid grid-cols-3 gap-3">
             {/* Create new custom theme */}
             <Link

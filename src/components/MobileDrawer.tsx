@@ -146,7 +146,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
             <nav className="flex-1 overflow-y-auto px-3 py-2">
               {/* Settings section */}
               <div className="flex items-center gap-2 px-2 pt-3 pb-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-accent/70">
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                   Settings
                 </span>
                 <div className="flex-1 h-px bg-border/50" />
