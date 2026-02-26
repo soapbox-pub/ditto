@@ -378,17 +378,7 @@ export function LeftSidebar() {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-[240px] p-1">
-              {/* Edit sidebar */}
-              <button
-                onClick={() => { setEditing(true); setMoreMenuOpen(false); }}
-                className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
-              >
-                <Pencil className="size-5" />
-                <span>Edit sidebar</span>
-              </button>
-
               {/* Hidden items */}
-              <div className="h-px bg-border my-1" />
               {visibleHiddenItems.map((item) => (
                 <div key={item.id} className="flex items-center">
                   <Link
@@ -414,6 +404,16 @@ export function LeftSidebar() {
                   </button>
                 </div>
               ))}
+
+              {/* Edit sidebar */}
+              <div className="h-px bg-border my-1" />
+              <button
+                onClick={() => { setEditing(true); setMoreMenuOpen(false); }}
+                className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
+              >
+                <Pencil className="size-5" />
+                <span>Edit sidebar</span>
+              </button>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
