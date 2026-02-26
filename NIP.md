@@ -28,6 +28,7 @@ Theme colors are stored in `c` tags using hex color codes with a required marker
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
+    ["u", "https://example.com/bg.jpg", "background"],
     ["title", "MK Dark Theme"],
     ["alt", "Custom theme: MK Dark Theme"]
   ]
@@ -44,6 +45,7 @@ The `content` field is unused and MUST be an empty string (`""`).
 |---------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `d`           | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"`                                                                                                                                                                                |
 | `c`           | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
+| `u`           | No       | Background image URL. Format: `["u", "<url>", "background"]`. Index 1 is the image URL. Index 2 MUST be `"background"`. At most one `u` tag is allowed.                                                                                        |
 | `title`       | Yes      | Human-readable theme name                                                                                                                                                                                                                       |
 | `alt`         | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
 
@@ -71,6 +73,7 @@ Theme colors are stored in `c` tags using hex color codes with a required marker
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
+    ["u", "https://example.com/bg.jpg", "background"],
     ["title", "MK Dark Theme"],
     ["alt", "Active profile theme"]
   ]
@@ -86,6 +89,7 @@ The `content` field is unused and MUST be an empty string (`""`).
 | Tag     | Required | Description                                                                                                                                                                                                                                     |
 |---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `c`     | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
+| `u`     | No       | Background image URL. Format: `["u", "<url>", "background"]`. Index 1 is the image URL. Index 2 MUST be `"background"`. At most one `u` tag is allowed.                                                                                        |
 | `title` | No       | Human-readable name for the theme                                                                                                                                                                                                               |
 | `alt`   | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
 
