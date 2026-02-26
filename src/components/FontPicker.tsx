@@ -1,156 +1,88 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Check, ChevronsUpDown, RotateCcw, Type } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
-import { useGoogleFont } from '@/hooks/useGoogleFont';
+import { useTheme } from '@/hooks/useTheme';
 import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { bundledFonts, loadBundledFont, type FontCategory } from '@/lib/fonts';
+import type { ThemeFont, ThemeFonts } from '@/themes';
 
-/**
- * A curated list of popular Google Fonts, spanning a variety of styles.
- * Users can also type any Google Font name manually.
- */
-const POPULAR_FONTS = [
-  // Sans-serif
-  'Inter',
-  'Roboto',
-  'Open Sans',
-  'Lato',
-  'Montserrat',
-  'Poppins',
-  'Nunito',
-  'Raleway',
-  'Outfit',
-  'Manrope',
-  'Work Sans',
-  'DM Sans',
-  'Source Sans 3',
-  'Noto Sans',
-  'Figtree',
-  'Plus Jakarta Sans',
-  'Geist',
-  'Lexend',
-  'Onest',
-  'Sora',
-  // Serif
-  'Merriweather',
-  'Playfair Display',
-  'Lora',
-  'PT Serif',
-  'Noto Serif',
-  'Source Serif 4',
-  'Crimson Text',
-  'Libre Baskerville',
-  'EB Garamond',
-  'Cormorant Garamond',
-  // Monospace
-  'JetBrains Mono',
-  'Fira Code',
-  'Source Code Pro',
-  'IBM Plex Mono',
-  'Space Mono',
-  // Display / Fun
-  'Pacifico',
-  'Caveat',
-  'Comfortaa',
-  'Fredoka',
-  'Quicksand',
-  'Righteous',
-  'Archivo Black',
-  'Bebas Neue',
-  'Concert One',
-  'Titan One',
-] as const;
+type FontRole = 'title' | 'body';
 
-/** Load a font into the browser for preview purposes (does not apply it site-wide). */
-function preloadFont(family: string): void {
-  const id = `font-preview-${family.replace(/\s/g, '-').toLowerCase()}`;
-  if (document.getElementById(id)) return;
+/** Category labels for UI display */
+const CATEGORY_LABELS: Record<FontCategory, string> = {
+  sans: 'Sans Serif',
+  serif: 'Serif',
+  mono: 'Monospace',
+  display: 'Display',
+  handwriting: 'Handwriting',
+};
 
-  const link = document.createElement('link');
-  link.id = id;
-  link.rel = 'stylesheet';
-  link.href = `https://fonts.googleapis.com/css2?family=${family.replace(/ /g, '+')}:wght@400;700&display=swap`;
-  document.head.appendChild(link);
-}
+/** Category display order */
+const CATEGORY_ORDER: FontCategory[] = ['sans', 'serif', 'mono', 'display', 'handwriting'];
 
-export function FontPicker() {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const { fontFamily, setFont } = useGoogleFont();
-  const preloadedRef = useRef(new Set<string>());
+/** Fonts grouped by category for the picker. */
+const fontsByCategory = CATEGORY_ORDER
+  .map((cat) => ({
+    category: cat,
+    label: CATEGORY_LABELS[cat],
+    fonts: bundledFonts.filter((f) => f.category === cat),
+  }))
+  .filter((g) => g.fonts.length > 0);
 
-  // Preload visible fonts for preview when the popover opens
+/** Preload all bundled fonts so they display in their own face in the picker. */
+function usePreloadFonts(open: boolean) {
   useEffect(() => {
     if (!open) return;
-
-    // Preload the first batch immediately
-    for (const font of POPULAR_FONTS.slice(0, 10)) {
-      if (!preloadedRef.current.has(font)) {
-        preloadFont(font);
-        preloadedRef.current.add(font);
-      }
-    }
-
-    // Preload the rest after a short delay
+    // Stagger loading to avoid a burst
     const timer = setTimeout(() => {
-      for (const font of POPULAR_FONTS) {
-        if (!preloadedRef.current.has(font)) {
-          preloadFont(font);
-          preloadedRef.current.add(font);
-        }
+      for (const font of bundledFonts) {
+        loadBundledFont(font.family);
       }
-    }, 300);
-
+    }, 100);
     return () => clearTimeout(timer);
   }, [open]);
+}
 
-  // Also preload any custom search term for preview
-  useEffect(() => {
-    if (search.length >= 3 && !POPULAR_FONTS.some((f) => f.toLowerCase() === search.toLowerCase())) {
-      const timer = setTimeout(() => {
-        preloadFont(search);
-        preloadedRef.current.add(search);
-      }, 500);
-      return () => clearTimeout(timer);
-    }
-  }, [search]);
+/** Single-role font picker (title or body). */
+function RolePicker({ label, value, onChange }: {
+  label: string;
+  value: ThemeFont | undefined;
+  onChange: (font: ThemeFont | undefined) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
 
-  const handleSelect = (value: string) => {
-    // If already selected, deselect
-    if (value.toLowerCase() === fontFamily?.toLowerCase()) {
-      setFont(null);
+  usePreloadFonts(open);
+
+  const handleSelect = (family: string) => {
+    if (value?.family === family) {
+      onChange(undefined);
     } else {
-      setFont(value);
+      onChange({ family });
     }
     setOpen(false);
     setSearch('');
   };
 
   const handleReset = () => {
-    setFont(null);
+    onChange(undefined);
   };
 
-  // Check if the search term could be a custom font not in the list
-  const trimmedSearch = search.trim();
-  const isCustomSearch =
-    trimmedSearch.length >= 2 &&
-    !POPULAR_FONTS.some((f) => f.toLowerCase() === trimmedSearch.toLowerCase());
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Type className="size-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Custom Font</span>
-        </div>
-        {fontFamily && (
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+          {label}
+        </span>
+        {value && (
           <Button
             variant="ghost"
             size="sm"
             onClick={handleReset}
-            className="h-7 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="h-6 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
           >
             <RotateCcw className="size-3" />
             Reset
@@ -164,10 +96,10 @@ export function FontPicker() {
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-full justify-between font-normal"
-            style={fontFamily ? { fontFamily: `"${fontFamily}", sans-serif` } : undefined}
+            className="w-full justify-between font-normal h-9 text-sm"
+            style={value ? { fontFamily: `"${value.family}", sans-serif` } : undefined}
           >
-            {fontFamily ?? 'Default (Inter)'}
+            {value?.family ?? 'Default (Inter)'}
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -180,63 +112,120 @@ export function FontPicker() {
             />
             <CommandList>
               <CommandEmpty>
-                {trimmedSearch.length >= 2 ? (
-                  <span className="text-muted-foreground">No matches in the list.</span>
-                ) : (
-                  <span className="text-muted-foreground">Type to search...</span>
-                )}
+                <span className="text-muted-foreground">No matching fonts</span>
               </CommandEmpty>
 
-              {/* Custom font entry from search */}
-              {isCustomSearch && (
-                <CommandGroup heading="Use custom font">
-                  <CommandItem
-                    value={trimmedSearch}
-                    onSelect={handleSelect}
-                    style={{ fontFamily: `"${trimmedSearch}", sans-serif` }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 size-4',
-                        fontFamily?.toLowerCase() === trimmedSearch.toLowerCase() ? 'opacity-100' : 'opacity-0',
-                      )}
-                    />
-                    {trimmedSearch}
-                  </CommandItem>
+              {fontsByCategory.map((group) => (
+                <CommandGroup key={group.category} heading={group.label}>
+                  {group.fonts.map((font) => (
+                    <CommandItem
+                      key={font.family}
+                      value={font.family}
+                      onSelect={() => handleSelect(font.family)}
+                      style={{ fontFamily: `"${font.family}", sans-serif` }}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 size-4',
+                          value?.family === font.family ? 'opacity-100' : 'opacity-0',
+                        )}
+                      />
+                      {font.family}
+                    </CommandItem>
+                  ))}
                 </CommandGroup>
-              )}
-
-              <CommandGroup heading="Popular fonts">
-                {POPULAR_FONTS.map((font) => (
-                  <CommandItem
-                    key={font}
-                    value={font}
-                    onSelect={handleSelect}
-                    style={{ fontFamily: `"${font}", sans-serif` }}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 size-4',
-                        fontFamily?.toLowerCase() === font.toLowerCase() ? 'opacity-100' : 'opacity-0',
-                      )}
-                    />
-                    {font}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
+              ))}
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
 
-      {fontFamily && (
+      {value && (
         <p
           className="text-sm text-muted-foreground"
-          style={{ fontFamily: `"${fontFamily}", sans-serif` }}
+          style={{ fontFamily: `"${value.family}", sans-serif` }}
         >
           The quick brown fox jumps over the lazy dog.
         </p>
       )}
+    </div>
+  );
+}
+
+/**
+ * Font picker component with separate title/body selections.
+ * Integrates with the theme system via useTheme().applyCustomTheme().
+ */
+export function FontPicker() {
+  const { customTheme, applyCustomTheme } = useTheme();
+
+  /** Current fonts from the custom theme, if any. */
+  const currentFonts: ThemeFonts | undefined = customTheme?.fonts;
+
+  const handleFontChange = (role: FontRole, font: ThemeFont | undefined) => {
+    const currentColors = customTheme?.colors ?? {
+      background: '228 20% 10%',
+      text: '210 40% 98%',
+      primary: '258 70% 60%',
+    };
+
+    const newFonts: ThemeFonts = {
+      ...currentFonts,
+      [role]: font,
+    };
+
+    // Clean up: if both roles are undefined, don't store empty fonts object
+    const hasFonts = newFonts.title || newFonts.body;
+
+    applyCustomTheme({
+      ...customTheme,
+      colors: currentColors,
+      fonts: hasFonts ? newFonts : undefined,
+    });
+  };
+
+  const hasAnyFont = currentFonts?.title || currentFonts?.body;
+
+  const handleResetAll = () => {
+    if (!customTheme) return;
+    applyCustomTheme({
+      ...customTheme,
+      fonts: undefined,
+    });
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-2">
+          <Type className="size-3.5" />
+          Fonts
+        </h3>
+        {hasAnyFont && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleResetAll}
+            className="h-6 gap-1 text-xs text-muted-foreground hover:text-foreground px-2"
+          >
+            <RotateCcw className="size-3" />
+            Reset all
+          </Button>
+        )}
+      </div>
+
+      <div className="space-y-4">
+        <RolePicker
+          label="Heading Font"
+          value={currentFonts?.title}
+          onChange={(font) => handleFontChange('title', font)}
+        />
+        <RolePicker
+          label="Body Font"
+          value={currentFonts?.body}
+          onChange={(font) => handleFontChange('body', font)}
+        />
+      </div>
     </div>
   );
 }

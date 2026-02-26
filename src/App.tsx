@@ -8,7 +8,7 @@ import { useEffect } from 'react';
 import NostrProvider from '@/components/NostrProvider';
 import { NostrSync } from '@/components/NostrSync';
 import { NativeNotifications } from '@/components/NativeNotifications';
-import { GoogleFontLoader } from '@/components/GoogleFontLoader';
+
 import { InitialSyncGate } from '@/components/InitialSyncGate';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -95,7 +95,6 @@ export function App() {
   return (
     <UnheadProvider head={head}>
       <AppProvider storageKey="nostr:app-config" defaultConfig={defaultConfig}>
-        <GoogleFontLoader />
         <QueryClientProvider client={queryClient}>
           <NostrLoginProvider storageKey='nostr:login'>
             <NostrProvider>

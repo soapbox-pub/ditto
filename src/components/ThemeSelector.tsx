@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
-import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreThemeColors, type ThemeTokens } from '@/themes';
+import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreThemeColors, type ThemeTokens, type ThemeConfig } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { Switch } from '@/components/ui/switch';
@@ -29,10 +29,10 @@ const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
 };
 
 /** Get the effective CoreThemeColors for the current theme */
-function getEffectiveColors(theme: Theme, customTheme?: CoreThemeColors): CoreThemeColors {
-  if (theme === 'custom' && customTheme) return customTheme;
+function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig): CoreThemeColors {
+  if (theme === 'custom' && customTheme) return customTheme.colors;
   const resolved = resolveTheme(theme);
-  if (resolved === 'custom' && customTheme) return customTheme;
+  if (resolved === 'custom' && customTheme) return customTheme.colors;
   return builtinThemes[resolved as 'light' | 'dark'] ?? builtinThemes.dark;
 }
 
@@ -118,7 +118,7 @@ export function ThemeSelector() {
     try {
       if (checked) {
         const colors = getEffectiveColors(theme, customTheme);
-        await setActiveTheme({ colors });
+        await setActiveTheme({ themeConfig: { colors } });
         toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
       } else {
         await clearActiveTheme();
@@ -146,7 +146,7 @@ export function ThemeSelector() {
   /** Check if a preset matches the current custom theme colors */
   const isPresetActive = (presetColors: CoreThemeColors): boolean => {
     if (theme !== 'custom' || !customTheme) return false;
-    return JSON.stringify(customTheme) === JSON.stringify(presetColors);
+    return JSON.stringify(customTheme.colors) === JSON.stringify(presetColors);
   };
 
   /** The effective colors for the current theme (used in the color editor) */

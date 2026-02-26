@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import type { CoreThemeColors } from '@/themes';
+import type { ThemeConfig, ThemeFonts } from '@/themes';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import {
@@ -12,6 +12,7 @@ import {
   titleToSlug,
   type ThemeDefinition,
 } from '@/lib/themeEvent';
+import { resolveFontUrl } from '@/lib/fontLoader';
 
 /**
  * Hook to publish theme-related Nostr events.
@@ -21,6 +22,30 @@ import {
  * - `deleteTheme`: Publish a kind 5 deletion for a theme definition
  * - `clearActiveTheme`: Publish a kind 5 deletion for the active profile theme
  */
+/**
+ * Resolve font URLs for Nostr publishing.
+ * Bundled fonts get CDN URLs, others keep their existing URL.
+ */
+function resolveThemeForPublishing(config: ThemeConfig): ThemeConfig {
+  if (!config.fonts) return config;
+
+  const resolved: ThemeFonts = {};
+  if (config.fonts.title) {
+    resolved.title = {
+      family: config.fonts.title.family,
+      url: resolveFontUrl(config.fonts.title.family, config.fonts.title.url),
+    };
+  }
+  if (config.fonts.body) {
+    resolved.body = {
+      family: config.fonts.body.family,
+      url: resolveFontUrl(config.fonts.body.family, config.fonts.body.url),
+    };
+  }
+
+  return { ...config, fonts: resolved };
+}
+
 export function usePublishTheme() {
   const { user } = useCurrentUser();
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
@@ -28,7 +53,7 @@ export function usePublishTheme() {
 
   /** Publish or update a kind 33891 theme definition. */
   const publishTheme = useCallback(async (opts: {
-    colors: CoreThemeColors;
+    themeConfig: ThemeConfig;
     title: string;
     description?: string;
     /** Existing identifier to update; if omitted, generates from title */
@@ -37,11 +62,12 @@ export function usePublishTheme() {
     if (!user) throw new Error('Must be logged in');
 
     const identifier = opts.identifier || titleToSlug(opts.title);
-    const tags = buildThemeDefinitionTags(identifier, opts.title, opts.description);
+    const resolved = resolveThemeForPublishing(opts.themeConfig);
+    const tags = buildThemeDefinitionTags(identifier, opts.title, resolved, opts.description);
 
     await publishEvent({
       kind: THEME_DEFINITION_KIND,
-      content: JSON.stringify(opts.colors),
+      content: '',
       tags,
     });
 
@@ -53,7 +79,7 @@ export function usePublishTheme() {
 
   /** Set a theme as the active profile theme (kind 11667). */
   const setActiveTheme = useCallback(async (opts: {
-    colors: CoreThemeColors;
+    themeConfig: ThemeConfig;
     /** Author of the source theme definition */
     sourceAuthor?: string;
     /** d-tag of the source theme definition */
@@ -61,11 +87,12 @@ export function usePublishTheme() {
   }) => {
     if (!user) throw new Error('Must be logged in');
 
-    const tags = buildActiveThemeTags(opts.sourceAuthor, opts.sourceIdentifier);
+    const resolved = resolveThemeForPublishing(opts.themeConfig);
+    const tags = buildActiveThemeTags(resolved, opts.sourceAuthor, opts.sourceIdentifier);
 
     await publishEvent({
       kind: ACTIVE_THEME_KIND,
-      content: JSON.stringify(opts.colors),
+      content: '',
       tags,
     });
 

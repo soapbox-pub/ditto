@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Theme, type ContentWarningPolicy } from '@/contexts/AppContext';
-import { themePresets, type CoreThemeColors } from '@/themes';
+import { themePresets, type ThemeConfig } from '@/themes';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -289,7 +289,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
   const [step, setStep] = useState<Step>(steps[0]);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dark');
-  const [selectedCustomTheme, setSelectedCustomTheme] = useState<CoreThemeColors | undefined>(undefined);
+  const [selectedCustomTheme, setSelectedCustomTheme] = useState<ThemeConfig | undefined>(undefined);
   /** Tracks which option the user tapped in the ThemeStep (could be a preset id or builtin id) */
   const [selectedThemeId, setSelectedThemeId] = useState('dark');
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
@@ -490,10 +490,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
               onSelect={(option) => {
                 setSelectedThemeId(option.id);
                 if (option.presetId) {
-                  const colors = themePresets[option.presetId].colors;
+                  const themeConfig: ThemeConfig = { colors: themePresets[option.presetId].colors };
                   setSelectedTheme('custom');
-                  setSelectedCustomTheme(colors);
-                  updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: colors }));
+                  setSelectedCustomTheme(themeConfig);
+                  updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: themeConfig }));
                 } else {
                   const t = option.builtinTheme!;
                   setSelectedTheme(t);

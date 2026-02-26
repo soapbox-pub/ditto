@@ -5,7 +5,7 @@ import type { NostrFilter } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppContext';
-import type { CoreThemeColors } from '@/themes';
+import type { ThemeConfig } from '@/themes';
 import type { ContentFilter } from './useContentFilters';
 import { EncryptedSettingsSchema } from '@/lib/schemas';
 
@@ -24,8 +24,8 @@ let lastWriteTs = 0;
 export interface EncryptedSettings {
   /** App theme preference */
   theme?: Theme;
-  /** Core colors for the custom theme slot */
-  customTheme?: CoreThemeColors;
+  /** Custom theme config (colors, fonts, background) */
+  customTheme?: ThemeConfig;
   /** Whether to use app default relays in addition to user relays */
   useAppRelays?: boolean;
   /** Feed and sidebar content settings */

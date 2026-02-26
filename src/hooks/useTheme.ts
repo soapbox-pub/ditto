@@ -1,5 +1,5 @@
 import { type Theme } from "@/contexts/AppContext";
-import { type CoreThemeColors } from "@/themes";
+import { type CoreThemeColors, type ThemeConfig } from "@/themes";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
@@ -10,8 +10,9 @@ import { builtinThemes, buildThemeCssFromCore, resolveTheme } from "@/themes";
  * Hook to get and set the active theme.
  *
  * - `setTheme(theme)` switches between "light", "dark", "system", and "custom".
- * - `applyCustomTheme(colors)` sets theme to "custom" and applies the given core colors.
+ * - `applyCustomTheme(config)` sets theme to "custom" and applies the given ThemeConfig.
  *    Use this for presets and externally-sourced themes.
+ *    Also accepts bare CoreThemeColors for backward compatibility.
  */
 export function useTheme() {
   const { config, updateConfig } = useAppContext();
@@ -19,7 +20,7 @@ export function useTheme() {
   const { user } = useCurrentUser();
   const debounceTimer = useRef<NodeJS.Timeout>();
 
-  const syncToEncrypted = useCallback((patch: { theme?: Theme; customTheme?: CoreThemeColors }) => {
+  const syncToEncrypted = useCallback((patch: { theme?: Theme; customTheme?: ThemeConfig }) => {
     if (!user) return;
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -62,14 +63,20 @@ export function useTheme() {
     syncToEncrypted({ theme });
   }, [updateConfig, syncToEncrypted]);
 
-  /** Set theme to "custom" and apply the given core colors. */
-  const applyCustomTheme = useCallback((colors: CoreThemeColors) => {
+  /**
+   * Set theme to "custom" and apply the given theme config.
+   * Accepts either ThemeConfig or bare CoreThemeColors (for backward compat).
+   */
+  const applyCustomTheme = useCallback((input: ThemeConfig | CoreThemeColors) => {
+    // Normalize: if it looks like bare CoreThemeColors (has 'background' but no 'colors'), wrap it
+    const themeConfig: ThemeConfig = 'colors' in input ? input : { colors: input };
+
     updateConfig((currentConfig) => ({
       ...currentConfig,
       theme: 'custom' as Theme,
-      customTheme: colors,
+      customTheme: themeConfig,
     }));
-    syncToEncrypted({ theme: 'custom', customTheme: colors });
+    syncToEncrypted({ theme: 'custom', customTheme: themeConfig });
   }, [updateConfig, syncToEncrypted]);
 
   return {

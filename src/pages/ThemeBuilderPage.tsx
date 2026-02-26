@@ -70,11 +70,11 @@ export function ThemeBuilderPage() {
     description: 'Create and customize your profile theme',
   });
 
-  // Working state: the 4 core colors being edited
+  // Working state: the 3 core colors being edited
   const [colors, setColors] = useState<CoreThemeColors>(() => {
     // ?new param: always start fresh
     if (isNew) return builtinThemes.dark;
-    if (savedCustomTheme) return savedCustomTheme;
+    if (savedCustomTheme) return savedCustomTheme.colors;
     if (currentTheme === 'light' || currentTheme === 'dark') {
       return builtinThemes[currentTheme];
     }
@@ -219,15 +219,16 @@ export function ThemeBuilderPage() {
 
     if (user && activeEditingTheme) {
       try {
+        const themeConfig = { colors };
         await publishTheme({
-          colors,
+          themeConfig,
           title: activeEditingTheme.title,
           description: activeEditingTheme.description,
           identifier: activeEditingTheme.identifier,
         });
         if (ownActiveTheme.data?.sourceRef?.endsWith(`:${activeEditingTheme.identifier}`)) {
           await setActiveTheme({
-            colors,
+            themeConfig,
             sourceAuthor: user.pubkey,
             sourceIdentifier: activeEditingTheme.identifier,
           });
@@ -255,8 +256,9 @@ export function ThemeBuilderPage() {
     }
     try {
       const isUpdate = !!editingTheme;
+      const themeConfig = { colors };
       const identifier = await publishTheme({
-        colors,
+        themeConfig,
         title: publishTitle.trim(),
         description: publishDescription.trim() || undefined,
         identifier: editingTheme?.identifier,
@@ -273,7 +275,7 @@ export function ThemeBuilderPage() {
 
       if (!isUpdate) {
         await setActiveTheme({
-          colors,
+          themeConfig,
           sourceAuthor: user?.pubkey,
           sourceIdentifier: identifier,
         });
@@ -368,7 +370,7 @@ export function ThemeBuilderPage() {
             )}
           </div>
           {activeEditingTheme && (
-            currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(colors) ? (
+            currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme.colors) === JSON.stringify(colors) ? (
               <Badge variant="outline" className="text-primary border-primary/30 gap-1 shrink-0">
                 <Check className="size-3" />
                 Active
