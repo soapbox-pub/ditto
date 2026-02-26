@@ -154,6 +154,7 @@ export const themePresets: Record<string, ThemePreset> = {
       text: '330 30% 10%',
       primary: '330 90% 60%',
     },
+    font: { family: 'Comfortaa' },
   },
 
   midnight: {
@@ -174,6 +175,7 @@ export const themePresets: Record<string, ThemePreset> = {
       text: '120 40% 92%',
       primary: '128 70% 42%',
     },
+    font: { family: 'JetBrains Mono' },
   },
 
 
@@ -195,6 +197,7 @@ export const themePresets: Record<string, ThemePreset> = {
       text: '15 30% 12%',
       primary: '15 85% 55%',
     },
+    font: { family: 'Lora' },
   },
 };
 
