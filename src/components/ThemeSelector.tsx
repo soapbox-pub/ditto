@@ -8,6 +8,7 @@ import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreThemeColors, type ThemeTokens, type ThemeConfig } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
+import { FontPicker } from '@/components/FontPicker';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/useToast';
@@ -177,6 +178,9 @@ export function ThemeSelector() {
           ))}
         </div>
       </div>
+
+      {/* ── Font picker ── */}
+      <FontPicker />
 
       {/* ── Share toggle ── */}
       {user && (
