@@ -182,7 +182,7 @@ function ProfileMoreMenu({ pubkey, displayName, open, onOpenChange, isOwnProfile
                 label="Edit theme"
                 onClick={() => {
                   close();
-                  navigate('/settings/appearance');
+                  navigate('/settings/theme');
                 }}
               />
             </div>

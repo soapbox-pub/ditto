@@ -603,7 +603,7 @@ export function LeftSidebar() {
                       <DropdownMenuItem
                         onClick={() => {
                           setAccountPopoverOpen(false);
-                          navigate('/settings/theme');
+                          navigate('/settings/theme/edit');
                         }}
                         className="flex items-center justify-between cursor-pointer"
                       >
@@ -620,7 +620,7 @@ export function LeftSidebar() {
                     <DropdownMenuItem
                       onClick={() => {
                         setAccountPopoverOpen(false);
-                        navigate('/settings/appearance');
+                        navigate('/settings/theme');
                       }}
                       className="cursor-pointer text-muted-foreground"
                     >
