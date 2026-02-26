@@ -21,6 +21,7 @@ import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
 import type { ThemeDefinition } from '@/lib/themeEvent';
+import { FontPicker } from '@/components/FontPicker';
 import { builtinThemes, themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
 import { hslStringToHex, hexToHslString, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -446,6 +447,9 @@ export function ThemeBuilderPage() {
             All surface, border, and UI colors are automatically derived from these 3 core colors.
           </p>
         </section>
+
+        {/* Font */}
+        <FontPicker />
 
         <Separator />
 
