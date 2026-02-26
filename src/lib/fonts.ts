@@ -89,14 +89,14 @@ export const bundledFonts: BundledFont[] = [
     cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/comfortaa:vf@latest/latin-wght-normal.woff2',
   },
   {
-    family: 'Comic Neue',
+    family: 'Comic Relief',
     category: 'handwriting',
     variable: false,
     load: async () => {
-      await import('@fontsource/comic-neue/400.css');
-      await import('@fontsource/comic-neue/700.css');
+      await import('@fontsource/comic-relief/400.css');
+      await import('@fontsource/comic-relief/700.css');
     },
-    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/comic-neue@latest/latin-400-normal.woff2',
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/comic-relief@latest/latin-400-normal.woff2',
   },
 ];
 
