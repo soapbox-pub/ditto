@@ -349,60 +349,61 @@ export function LeftSidebar() {
           </SortableContext>
         </DndContext>
 
-        {/* "More..." menu — edit sidebar + add hidden items */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
-            >
-              <Plus className="size-4" />
-              <span>More...</span>
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-[220px]">
-            {/* Edit sidebar toggle */}
-            <DropdownMenuItem
-              onClick={() => setEditing(!editing)}
-              className="flex items-center gap-3 cursor-pointer"
-            >
-              {editing ? (
+        {/* "More..." menu / "Done editing" button */}
+        {editing ? (
+          <button
+            onClick={() => setEditing(false)}
+            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10"
+          >
+            <Check className="size-4" />
+            <span>Done editing</span>
+          </button>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
+              >
+                <Plus className="size-4" />
+                <span>More...</span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-[220px]">
+              {/* Edit sidebar */}
+              <DropdownMenuItem
+                onClick={() => setEditing(true)}
+                className="flex items-center gap-3 cursor-pointer"
+              >
+                <Pencil className="size-5 text-muted-foreground" />
+                <span className="text-sm">Edit sidebar</span>
+              </DropdownMenuItem>
+
+              {/* Hidden items to add */}
+              {visibleHiddenItems.length > 0 && (
                 <>
-                  <Check className="size-5 text-primary" />
-                  <span className="text-sm text-primary font-medium">Done editing</span>
-                </>
-              ) : (
-                <>
-                  <Pencil className="size-5 text-muted-foreground" />
-                  <span className="text-sm">Edit sidebar</span>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
+                  {visibleHiddenItems.map((item) => (
+                    <DropdownMenuItem
+                      key={item.id}
+                      onClick={() => addToSidebar(item.id)}
+                      className="flex items-center gap-3 cursor-pointer"
+                    >
+                      {ITEM_ICONS[item.id] ? (
+                        <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                          {ITEM_ICONS[item.id]}
+                        </span>
+                      ) : (
+                        <Plus className="size-5 text-muted-foreground" />
+                      )}
+                      <span className="text-sm">{item.label}</span>
+                    </DropdownMenuItem>
+                  ))}
                 </>
               )}
-            </DropdownMenuItem>
-
-            {/* Hidden items to add */}
-            {visibleHiddenItems.length > 0 && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
-                {visibleHiddenItems.map((item) => (
-                  <DropdownMenuItem
-                    key={item.id}
-                    onClick={() => addToSidebar(item.id)}
-                    className="flex items-center gap-3 cursor-pointer"
-                  >
-                    {ITEM_ICONS[item.id] ? (
-                      <span className="size-5 flex items-center justify-center [&>svg]:size-5">
-                        {ITEM_ICONS[item.id]}
-                      </span>
-                    ) : (
-                      <Plus className="size-5 text-muted-foreground" />
-                    )}
-                    <span className="text-sm">{item.label}</span>
-                  </DropdownMenuItem>
-                ))}
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
 
 
       </nav>
