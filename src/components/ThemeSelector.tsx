@@ -121,7 +121,7 @@ export function ThemeSelector() {
         await setActiveTheme({ colors });
         toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
       } else {
-        await clearActiveTheme();
+        await clearActiveTheme(activeProfileTheme.data?.event.id);
         toast({ title: 'Theme hidden', description: 'Your theme is no longer visible on your profile.' });
       }
     } catch {
