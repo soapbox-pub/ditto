@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell, Home, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
   User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
-  ChevronDown, Plus, Pencil, X, GripVertical, MoreHorizontal,
+  ChevronDown, Plus, Pencil, X, GripVertical,
 } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -389,7 +389,7 @@ export function LeftSidebar() {
             <button
               className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
             >
-              <MoreHorizontal className="size-4" />
+              <Plus className="size-4" />
               <span>More...</span>
             </button>
           </DropdownMenuTrigger>
