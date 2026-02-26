@@ -116,7 +116,12 @@ function MainLayoutInner() {
 function ScopedThemeColumns({ tokens, children }: { tokens?: import('@/themes').ThemeTokens; children: React.ReactNode }) {
   if (!tokens) return <>{children}</>;
   return (
-    <ScopedTheme tokens={tokens} className="contents bg-background">
+    <ScopedTheme tokens={tokens} className="contents">
+      {/* Full-width background layer that extends beyond the columns */}
+      <div
+        className="fixed inset-0 sidebar:left-[280px] -z-10 bg-background pointer-events-none"
+        aria-hidden
+      />
       {children}
     </ScopedTheme>
   );
