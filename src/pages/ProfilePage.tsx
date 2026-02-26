@@ -721,13 +721,14 @@ export function ProfilePage() {
   const isOwnProfile = user?.pubkey === pubkey;
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
 
-  // Profile theme: query the visited user's active profile theme (kind 11667)
+  // Profile theme: always query (so we can show the indicator), but only apply when enabled
   const { feedSettings } = useFeedSettings();
   const showCustomProfileThemes = feedSettings.showCustomProfileThemes !== false;
   const profileThemeQuery = useActiveProfileTheme(
-    !isOwnProfile && showCustomProfileThemes ? pubkey : undefined,
+    !isOwnProfile ? pubkey : undefined,
   );
-  const profileThemeTokens = profileThemeQuery.data?.tokens;
+  const profileHasTheme = !!profileThemeQuery.data?.tokens;
+  const profileThemeTokens = showCustomProfileThemes ? profileThemeQuery.data?.tokens : undefined;
 
   // First-time custom theme info modal
   const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
@@ -991,27 +992,41 @@ export function ProfilePage() {
               <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
             )}
 
-            {/* Custom theme indicator */}
-            {profileThemeTokens && !isOwnProfile && (
+            {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
+            {profileHasTheme && !isOwnProfile && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
-                    className="absolute top-3 right-3 z-10 size-9 rounded-full bg-background/60 backdrop-blur-sm border border-border/50 flex items-center justify-center transition-colors hover:bg-background/80 group"
+                    className={cn(
+                      'absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors',
+                      showCustomProfileThemes
+                        ? 'bg-background/60 border-border/50 hover:bg-background/80'
+                        : 'bg-background/40 border-border/30 hover:bg-background/60',
+                    )}
                     onClick={async () => {
-                      updateFeedSettings({ showCustomProfileThemes: false });
+                      const newVal = !showCustomProfileThemes;
+                      updateFeedSettings({ showCustomProfileThemes: newVal });
                       if (user) {
-                        const updated = { ...feedSettings, showCustomProfileThemes: false };
+                        const updated = { ...feedSettings, showCustomProfileThemes: newVal };
                         await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
                       }
                     }}
                   >
                     {/* Pulsing ring */}
-                    <span className="absolute inset-0 rounded-full bg-accent/20 animate-ping" />
-                    <Palette className="size-4 text-accent relative" />
+                    <span className={cn(
+                      'absolute inset-0 rounded-full animate-ping',
+                      showCustomProfileThemes ? 'bg-accent/20' : 'bg-primary/20',
+                    )} />
+                    <Palette className={cn(
+                      'size-4 relative',
+                      showCustomProfileThemes ? 'text-accent' : 'text-muted-foreground',
+                    )} />
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  Viewing custom theme — click to disable
+                  {showCustomProfileThemes
+                    ? 'Viewing custom theme — click to disable'
+                    : 'Custom theme available — click to enable'}
                 </TooltipContent>
               </Tooltip>
             )}
