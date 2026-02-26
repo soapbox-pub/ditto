@@ -49,13 +49,13 @@ function usePreloadFonts(open: boolean) {
  * Integrates with the theme system via useTheme().applyCustomTheme().
  */
 export function FontPicker() {
-  const { customTheme, applyCustomTheme } = useTheme();
+  const { theme, customTheme, applyCustomTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
 
   usePreloadFonts(open);
 
-  const currentFont: ThemeFont | undefined = customTheme?.font;
+  const currentFont: ThemeFont | undefined = theme === 'custom' ? customTheme?.font : undefined;
 
   const handleSelect = (family: string) => {
     if (currentFont?.family === family) {

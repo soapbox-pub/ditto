@@ -13,12 +13,12 @@ import type { ThemeBackground } from '@/themes';
  * Uploads via Blossom and stores the URL in ThemeConfig.background.
  */
 export function BackgroundPicker() {
-  const { customTheme, applyCustomTheme } = useTheme();
+  const { theme, customTheme, applyCustomTheme } = useTheme();
   const { mutateAsync: uploadFile, isPending: isUploading } = useUploadFile();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const currentBg: ThemeBackground | undefined = customTheme?.background;
+  const currentBg: ThemeBackground | undefined = theme === 'custom' ? customTheme?.background : undefined;
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
