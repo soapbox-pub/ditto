@@ -20,10 +20,10 @@ export function MobileTopBar({ onMenuClick }: MobileTopBarProps) {
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top">
       <div className="relative flex items-center justify-center px-3 h-12">
-        {/* Left: hamburger menu */}
+        {/* Right: hamburger menu */}
         <button
           onClick={onMenuClick}
-          className="absolute left-3 shrink-0 rounded-lg p-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background transition-colors hover:bg-secondary/60"
+          className="absolute right-3 shrink-0 rounded-lg p-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background transition-colors hover:bg-secondary/60"
           aria-label="Open menu"
         >
           <Menu className="size-6" />
