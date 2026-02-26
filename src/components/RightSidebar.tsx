@@ -114,7 +114,7 @@ export function RightSidebar() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold text-foreground">Trends</h2>
-          <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">View all</Link>
+          <Link to="/trends" className="text-sm text-primary hover:underline">View all</Link>
         </div>
 
         {tagsLoading ? (
@@ -164,7 +164,7 @@ export function RightSidebar() {
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold text-foreground">Hot Posts</h2>
-          <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
+          <Link to="/trends" className="text-sm text-primary hover:underline">More</Link>
         </div>
 
         {hotLoading ? (

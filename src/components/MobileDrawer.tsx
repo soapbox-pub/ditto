@@ -40,15 +40,20 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
   const { startSignup } = useOnboarding();
 
+  /** Items already covered by the mobile bottom nav — hide from the drawer. */
+  const BOTTOM_NAV_ITEMS = new Set(['feed', 'notifications', 'search']);
+
   const visibleItems = useMemo(() => {
-    if (user) return orderedItems;
-    return orderedItems.filter((id) => !getBuiltinItem(id)?.requiresAuth);
-  }, [orderedItems, user]);
+    const items = orderedItems.filter((id) => !BOTTOM_NAV_ITEMS.has(id));
+    if (user) return items;
+    return items.filter((id) => !getBuiltinItem(id)?.requiresAuth);
+  }, [orderedItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visibleHiddenItems = useMemo(() => {
-    if (user) return hiddenItems;
-    return hiddenItems.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
-  }, [hiddenItems, user]);
+    const items = hiddenItems.filter((item) => !BOTTOM_NAV_ITEMS.has(item.id));
+    if (user) return items;
+    return items.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
+  }, [hiddenItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleClose = () => onOpenChange(false);
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
