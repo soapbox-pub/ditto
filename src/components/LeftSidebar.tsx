@@ -48,8 +48,11 @@ import { themePresets } from '@/themes';
 const ITEM_ICONS: Record<string, React.ReactElement> = {
   // Built-ins
   __feed: <Home className="size-6" />,
+  __notifications: <Bell className="size-6" />,
   __trends: <TrendingUp className="size-6" />,
   __bookmarks: <Bookmark className="size-6" />,
+  __profile: <User className="size-6" />,
+  __settings: <Settings className="size-6" />,
   // Extra-kind routes
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
@@ -68,51 +71,23 @@ function itemLabel(id: string): string {
   return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
 }
 
-/** Lookup navigation path for an item ID. */
-function itemPath(id: string): string {
+/** Lookup navigation path for an item ID. profilePath overrides __profile's static path. */
+function itemPath(id: string, profilePath?: string): string {
+  if (id === '__profile' && profilePath) return profilePath;
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.path;
   return `/${id}`;
 }
 
-/** Check if a location pathname matches an item. */
-function isItemActive(id: string, pathname: string, search: string): boolean {
+/** Check if a location pathname matches an item. profilePath is the dynamic user profile URL. */
+function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
   if (id === '__feed') return pathname === '/';
+  if (id === '__notifications') return pathname === '/notifications';
   if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
   if (id === '__bookmarks') return pathname === '/bookmarks';
+  if (id === '__profile') return !!profilePath && pathname === profilePath;
+  if (id === '__settings') return pathname.startsWith('/settings');
   return pathname === `/${id}`;
-}
-
-// ── Nav item components ───────────────────────────────────────────────────────
-
-interface NavItemProps {
-  to: string;
-  icon: React.ReactNode;
-  label: string;
-  active?: boolean;
-  showIndicator?: boolean;
-  onClick?: (e: React.MouseEvent) => void;
-}
-
-function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemProps) {
-  return (
-    <Link
-      to={to}
-      onClick={onClick}
-      className={cn(
-        'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
-        active ? 'font-bold text-foreground' : 'font-normal text-muted-foreground',
-      )}
-    >
-      <span className="relative">
-        {icon}
-        {showIndicator && (
-          <span className="absolute top-0 right-0 size-2.5 bg-primary rounded-full" />
-        )}
-      </span>
-      <span>{label}</span>
-    </Link>
-  );
 }
 
 // ── Sortable explore item ─────────────────────────────────────────────────────
@@ -123,9 +98,13 @@ interface ExploreItemProps {
   editing: boolean;
   onRemove: (id: string) => void;
   onClick?: (e: React.MouseEvent) => void;
+  /** Dynamic profile URL for __profile items. */
+  profilePath?: string;
+  /** Whether to show the unread indicator (for __notifications). */
+  showIndicator?: boolean;
 }
 
-function SortableExploreItem({ id, active, editing, onRemove, onClick }: ExploreItemProps) {
+function SortableExploreItem({ id, active, editing, onRemove, onClick, profilePath, showIndicator }: ExploreItemProps) {
   const {
     attributes,
     listeners,
@@ -142,7 +121,7 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
 
   const icon = ITEM_ICONS[id] ?? <Palette className="size-6" />;
   const label = itemLabel(id);
-  const path = itemPath(id);
+  const path = itemPath(id, profilePath);
 
   return (
     <div
@@ -173,7 +152,12 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
           active ? 'font-bold text-foreground' : 'font-normal text-muted-foreground',
         )}
       >
-        <span className="shrink-0">{icon}</span>
+        <span className="shrink-0 relative">
+          {icon}
+          {showIndicator && (
+            <span className="absolute top-0 right-0 size-2.5 bg-primary rounded-full" />
+          )}
+        </span>
         <span className="truncate">{label}</span>
       </Link>
 
@@ -319,26 +303,11 @@ export function LeftSidebar() {
 
   return (
     <aside className="flex flex-col h-screen sticky top-0 py-3 px-4 w-[300px] shrink-0">
-      {/* Logo row — logo left, notifications bell right */}
-      <div className="flex items-center justify-between px-3 mb-1">
+      {/* Logo row */}
+      <div className="flex items-center px-3 mb-1">
         <Link to="/" onClick={scrollToTopIfCurrent('/')}>
           <DittoLogo size={48} />
         </Link>
-
-        {user && (
-          <Link
-            to="/notifications"
-            className={cn(
-              'relative p-2 rounded-full transition-colors hover:bg-secondary/60',
-              location.pathname === '/notifications' ? 'text-foreground' : 'text-muted-foreground',
-            )}
-          >
-            <Bell className="size-6" />
-            {hasUnread && (
-              <span className="absolute top-1.5 right-1.5 size-2.5 bg-primary rounded-full" />
-            )}
-          </Link>
-        )}
       </div>
 
       {/* Search bar — hidden at xl when it appears in the right sidebar instead */}
@@ -365,10 +334,12 @@ export function LeftSidebar() {
               <SortableExploreItem
                 key={id}
                 id={id}
-                active={isItemActive(id, location.pathname, location.search)}
+                active={isItemActive(id, location.pathname, location.search, userProfileUrl)}
                 editing={editing}
                 onRemove={removeFromSidebar}
                 onClick={id === '__feed' ? scrollToTopIfCurrent('/') : undefined}
+                profilePath={id === '__profile' ? userProfileUrl : undefined}
+                showIndicator={id === '__notifications' ? hasUnread : undefined}
               />
             ))}
           </SortableContext>
@@ -429,34 +400,7 @@ export function LeftSidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* ── You section ── (logged-in only) */}
-        {user ? (
-          <>
-            <NavItem
-              to={userProfileUrl}
-              icon={<User className="size-6" />}
-              label="Profile"
-              active={location.pathname === userProfileUrl}
-            />
-            <NavItem
-              to="/settings"
-              icon={<Settings className="size-6" />}
-              label="Settings"
-              active={location.pathname.startsWith('/settings')}
-            />
-          </>
-        ) : (
-          /* Logged out: Settings standalone at the bottom */
-          <div className="mt-auto pt-2">
-            <div className="h-px bg-border/50 mx-4 mb-1" />
-            <NavItem
-              to="/settings"
-              icon={<Settings className="size-6" />}
-              label="Settings"
-              active={location.pathname.startsWith('/settings')}
-            />
-          </div>
-        )}
+
       </nav>
 
       {/* User profile at bottom — only when logged in */}

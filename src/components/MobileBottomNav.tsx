@@ -1,8 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Bell, User, Search, Bookmark, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
-import LoginDialog from '@/components/auth/LoginDialog';
-import { useOnboarding } from '@/components/InitialSyncGate';
+import { Home, Compass, Bell, User, Search, Settings, Bookmark, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
+
 import { DndContext, closestCenter, TouchSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -10,7 +9,7 @@ import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { cn } from '@/lib/utils';
-import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
+
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
@@ -20,8 +19,11 @@ import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 const ITEM_ICONS: Record<string, React.ReactElement> = {
   __feed: <Home className="size-5" />,
+  __notifications: <Bell className="size-5" />,
   __trends: <TrendingUp className="size-5" />,
   __bookmarks: <Bookmark className="size-5" />,
+  __profile: <User className="size-5" />,
+  __settings: <Settings className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -38,16 +40,20 @@ function itemLabel(id: string): string {
   return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
 }
 
-function itemPath(id: string): string {
+function itemPath(id: string, profilePath?: string): string {
+  if (id === '__profile' && profilePath) return profilePath;
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.path;
   return `/${id}`;
 }
 
-function isItemActive(id: string, pathname: string, search: string): boolean {
+function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
   if (id === '__feed') return pathname === '/';
+  if (id === '__notifications') return pathname === '/notifications';
   if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
   if (id === '__bookmarks') return pathname === '/bookmarks';
+  if (id === '__profile') return !!profilePath && pathname === profilePath;
+  if (id === '__settings') return pathname.startsWith('/settings');
   return pathname === `/${id}`;
 }
 
@@ -157,15 +163,12 @@ function SortableExploreSheetItem({ id, onRemove }: SortableExploreSheetItemProp
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
-  const hasUnread = useHasUnreadNotifications();
   const {
     orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
   } = useFeedSettings();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
-  const { startSignup } = useOnboarding();
   const [exploreOpen, setExploreOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
   // DnD sensors — touch sensor with delay to distinguish scroll from drag
   const sensors = useSensors(
@@ -191,13 +194,13 @@ export function MobileBottomNav() {
       id,
       icon: ITEM_ICONS[id] ?? <Palette className="size-5" />,
       label: itemLabel(id),
-      path: itemPath(id),
+      path: itemPath(id, userProfileUrl),
     }));
-  }, [orderedItems]);
+  }, [orderedItems, userProfileUrl]);
 
   // Check if current path matches any explore route
   const isExploreActive = orderedItems.some((id) =>
-    isItemActive(id, location.pathname, location.search),
+    isItemActive(id, location.pathname, location.search, userProfileUrl),
   );
 
   const handleDrawerClose = (open: boolean) => {
@@ -208,30 +211,6 @@ export function MobileBottomNav() {
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
-        {user ? (
-          <NavTab
-            to={userProfileUrl}
-            icon={<User className="size-5" />}
-            label="You"
-            active={location.pathname === userProfileUrl}
-          />
-        ) : (
-          <NavTab
-            icon={<User className="size-5" />}
-            label="You"
-            active={false}
-            onClick={() => setLoginDialogOpen(true)}
-          />
-        )}
-        {user && (
-          <NavTab
-            to="/notifications"
-            icon={<Bell className="size-5" />}
-            label="Notifications"
-            active={location.pathname === '/notifications'}
-            showIndicator={hasUnread}
-          />
-        )}
         <NavTab
           icon={<Compass className="size-5" />}
           label="Explore"
@@ -324,7 +303,7 @@ export function MobileBottomNav() {
                       onClick={() => setExploreOpen(false)}
                       className={cn(
                         'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
-                        isItemActive(item.id, location.pathname, location.search)
+                        isItemActive(item.id, location.pathname, location.search, userProfileUrl)
                           ? 'text-foreground font-semibold'
                           : 'text-foreground hover:bg-secondary/60',
                       )}
@@ -344,13 +323,7 @@ export function MobileBottomNav() {
         </DrawerContent>
       </Drawer>
 
-      {/* Login dialog for logged-out "You" tab */}
-      <LoginDialog
-        isOpen={loginDialogOpen}
-        onClose={() => setLoginDialogOpen(false)}
-        onLogin={() => setLoginDialogOpen(false)}
-        onSignupClick={startSignup}
-      />
+
     </>
   );
 }
