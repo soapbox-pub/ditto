@@ -38,7 +38,9 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -723,6 +725,38 @@ export function ProfilePage() {
   );
   const profileThemeTokens = profileThemeQuery.data?.tokens;
 
+  // Temporarily apply the visited user's theme globally while on their profile
+  const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
+  useEffect(() => {
+    if (!profileThemeTokens) return;
+
+    // Inject the profile theme's CSS vars onto :root
+    const css = buildThemeCss(profileThemeTokens);
+    let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'theme-vars';
+      document.head.appendChild(el);
+    }
+    const previousCss = el.textContent;
+    el.textContent = css;
+
+    // Restore the user's own theme on cleanup
+    return () => {
+      const styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
+      if (styleEl) {
+        if (previousCss) {
+          styleEl.textContent = previousCss;
+        } else {
+          // Fallback: rebuild from current theme setting
+          const resolved = resolveTheme(ownTheme);
+          const tokens = ownCustomTheme ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+          styleEl.textContent = buildThemeCss(tokens);
+        }
+      }
+    };
+  }, [profileThemeTokens]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
   const { data: pinnedEvents = [], isLoading: pinnedEventsLoading } = useQuery({
@@ -883,7 +917,6 @@ export function ProfilePage() {
   useLayoutOptions(pubkey ? {
     rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
     showFAB: true,
-    scopedThemeTokens: profileThemeTokens,
   } : {});
 
   if (!pubkey) {
