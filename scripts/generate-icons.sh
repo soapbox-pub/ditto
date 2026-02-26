@@ -62,13 +62,13 @@ fi
 # ── Adaptive icon foreground PNGs (transparent bg, white logo, safe-zone padding) ──
 # Launcher PNGs (ic_launcher, ic_launcher_round) are committed directly to the repo.
 # Only the adaptive foreground PNGs need to be generated here.
-# Safe zone = 66% of canvas. Content centered on transparent background.
+# Content at 40% of canvas to match the 0.6 scale in the vector foreground XML.
 
 echo "Generating adaptive foreground PNGs..."
 
 make_foreground() {
     local size=$1
-    local content_size=$(echo "$size * 66 / 100" | bc)
+    local content_size=$(echo "$size * 47 / 100" | bc)
     local dest=$2
     $MAGICK -size "${size}x${size}" "xc:none" \
         \( "$LOGO_WHITE" -resize "${content_size}x${content_size}" \) \
