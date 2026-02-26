@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
-import type { CoreThemeColors, ThemeConfig } from '@/themes';
+import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
@@ -88,6 +88,12 @@ export const ThemeConfigSchema = z.object({
   font: ThemeFontSchema.optional(),
   background: ThemeBackgroundSchema.optional(),
 });
+
+/** Zod schema for ThemesConfig (light + dark theme configs) */
+export const ThemesConfigSchema = z.object({
+  light: z.lazy(() => ThemeConfigSchema),
+  dark: z.lazy(() => ThemeConfigSchema),
+}) satisfies z.ZodType<ThemesConfig>;
 
 /**
  * Compat schema that accepts either the new ThemeConfig format or the old

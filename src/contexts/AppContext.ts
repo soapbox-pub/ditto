@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { ThemeConfig } from "@/themes";
+import type { ThemeConfig, ThemesConfig } from "@/themes";
 
 /**
  * A builtin theme whose colors are defined at build time.
@@ -83,6 +83,8 @@ export interface AppConfig {
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */
   customTheme?: ThemeConfig;
+  /** Configured light and dark themes. Overrides the builtin themes when set. */
+  themes?: ThemesConfig;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
   /** Whether to use app default relays in addition to user relays */
