@@ -1,5 +1,5 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { ThemeTokens } from '@/themes';
+import type { CoreThemeColors } from '@/themes';
 
 // ─── Kind Constants ───────────────────────────────────────────────────
 
@@ -18,8 +18,8 @@ export interface ThemeDefinition {
   title: string;
   /** Optional description */
   description?: string;
-  /** The full theme token set */
-  tokens: ThemeTokens;
+  /** The 4 core theme colors */
+  colors: CoreThemeColors;
   /** The original Nostr event */
   event: NostrEvent;
 }
@@ -38,14 +38,13 @@ export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null 
   const description = event.tags.find(([n]) => n === 'description')?.[1];
 
   try {
-    const tokens = JSON.parse(event.content) as ThemeTokens;
+    const parsed = JSON.parse(event.content);
 
-    // Validate that at least the 4 core colors exist
-    if (!tokens.background || !tokens.foreground || !tokens.primary || !tokens.accent) {
-      return null;
-    }
+    // Accept both new CoreThemeColors format and legacy ThemeTokens format
+    const colors = normalizeToCoreColors(parsed);
+    if (!colors) return null;
 
-    return { identifier, title, description, tokens, event };
+    return { identifier, title, description, colors, event };
   } catch {
     return null;
   }
@@ -83,8 +82,8 @@ export function titleToSlug(title: string): string {
 // ─── Active Profile Theme (Kind 11667) ────────────────────────────────
 
 export interface ActiveProfileTheme {
-  /** The full theme token set */
-  tokens: ThemeTokens;
+  /** The 4 core theme colors */
+  colors: CoreThemeColors;
   /** naddr-style reference to the source theme definition, if any */
   sourceRef?: string;
   /** The original Nostr event */
@@ -96,16 +95,15 @@ export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme |
   if (event.kind !== ACTIVE_THEME_KIND) return null;
 
   try {
-    const tokens = JSON.parse(event.content) as ThemeTokens;
+    const parsed = JSON.parse(event.content);
 
-    // Validate core colors exist
-    if (!tokens.background || !tokens.foreground || !tokens.primary || !tokens.accent) {
-      return null;
-    }
+    // Accept both new CoreThemeColors format and legacy ThemeTokens format
+    const colors = normalizeToCoreColors(parsed);
+    if (!colors) return null;
 
     const sourceRef = event.tags.find(([n]) => n === 'a')?.[1];
 
-    return { tokens, sourceRef, event };
+    return { colors, sourceRef, event };
   } catch {
     return null;
   }
@@ -123,4 +121,35 @@ export function buildActiveThemeTags(
     tags.push(['a', `${THEME_DEFINITION_KIND}:${sourceAuthor}:${sourceIdentifier}`]);
   }
   return tags;
+}
+
+// ─── Backward Compatibility ───────────────────────────────────────────
+
+/**
+ * Normalize a parsed JSON object to CoreThemeColors.
+ * Handles both the new format (background, text, primary, secondary)
+ * and the legacy format (background, foreground, primary, accent).
+ */
+function normalizeToCoreColors(parsed: Record<string, unknown>): CoreThemeColors | null {
+  // New format: CoreThemeColors
+  if (parsed.background && parsed.text && parsed.primary && parsed.secondary) {
+    return {
+      background: String(parsed.background),
+      text: String(parsed.text),
+      primary: String(parsed.primary),
+      secondary: String(parsed.secondary),
+    };
+  }
+
+  // Legacy format: ThemeTokens (background, foreground, primary, accent)
+  if (parsed.background && parsed.foreground && parsed.primary && parsed.accent) {
+    return {
+      background: String(parsed.background),
+      text: String(parsed.foreground),
+      primary: String(parsed.primary),
+      secondary: String(parsed.accent),
+    };
+  }
+
+  return null;
 }

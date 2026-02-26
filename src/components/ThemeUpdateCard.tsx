@@ -36,15 +36,14 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
 
   if (!theme) return null;
 
-  const { tokens, title, description } = theme;
+  const { colors, title, description } = theme;
 
   // Convert core colors to hex for inline styles
   const hexColors = {
-    background: safeHex(tokens.background),
-    foreground: safeHex(tokens.foreground),
-    primary: safeHex(tokens.primary),
-    accent: safeHex(tokens.accent),
-    muted: safeHex(tokens.muted || tokens.secondary || tokens.background),
+    background: safeHex(colors.background),
+    foreground: safeHex(colors.text),
+    primary: safeHex(colors.primary),
+    accent: safeHex(colors.secondary),
   };
 
   const swatchColors = [

@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { ThemeTokens } from "@/themes";
+import type { CoreThemeColors } from "@/themes";
 
 /**
  * A builtin theme whose colors are defined at build time.
@@ -81,8 +81,8 @@ export interface FeedSettings {
 export interface AppConfig {
   /** Current theme */
   theme: Theme;
-  /** Token values for the custom theme slot. Only used when theme === "custom". */
-  customTheme?: ThemeTokens;
+  /** Core colors for the custom theme slot. Only used when theme === "custom". */
+  customTheme?: CoreThemeColors;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
   /** Whether to use app default relays in addition to user relays */

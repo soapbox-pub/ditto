@@ -13,7 +13,7 @@ import { LoginArea } from '@/components/auth/LoginArea';
 import { genUserName } from '@/lib/genUserName';
 import { useMemo, useState } from 'react';
 import type { Theme } from '@/contexts/AppContext';
-import { themePresets, type ThemeTokens } from '@/themes';
+import { themePresets, type CoreThemeColors } from '@/themes';
 import { settingsSections, type SettingsSection } from '@/pages/SettingsPage';
 
 // ── Mobile drawer ────────────────────────────────────────────────────────────
@@ -57,18 +57,18 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     id: `user:${t.identifier}`,
     label: t.title,
     icon: <Palette className="size-5" />,
-    tokens: t.tokens,
+    colors: t.colors,
   }));
 
   // Include "Custom" in the cycle if user has a non-preset, non-published custom theme
   const isCustomNonPreset = theme === 'custom' && customTheme &&
-    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme)) &&
-    !(drawerUserThemes.data ?? []).some(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme));
+    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme)) &&
+    !(drawerUserThemes.data ?? []).some(t => JSON.stringify(t.colors) === JSON.stringify(customTheme));
   const customCycleEntry = customTheme && isCustomNonPreset
-    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" />, tokens: undefined as ThemeTokens | undefined }]
+    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" />, colors: undefined as CoreThemeColors | undefined }]
     : [];
 
-  const allThemeCycle = [...builtinCycle.map(b => ({ ...b, tokens: undefined as ThemeTokens | undefined })), ...presetCycle.map(p => ({ ...p, tokens: undefined as ThemeTokens | undefined })), ...userThemeCycle, ...customCycleEntry];
+  const allThemeCycle = [...builtinCycle.map(b => ({ ...b, colors: undefined as CoreThemeColors | undefined })), ...presetCycle.map(p => ({ ...p, colors: undefined as CoreThemeColors | undefined })), ...userThemeCycle, ...customCycleEntry];
 
   const currentThemeInfo = (() => {
     if (theme !== 'custom') {
@@ -76,7 +76,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     }
     if (customTheme) {
       // Check presets
-      const presetMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme));
+      const presetMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme));
       if (presetMatch) {
         const [id, preset] = presetMatch;
         const cycleEntry = presetCycle.find(p => p.id === id);
@@ -84,7 +84,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
         return { id, label: preset.label, icon: <span className="text-base leading-none">{preset.emoji}</span> };
       }
       // Check user's published themes
-      const userMatch = userThemeCycle.find(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme));
+      const userMatch = userThemeCycle.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme));
       if (userMatch) return userMatch;
     }
     return { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
@@ -105,15 +105,15 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
 
     if (next.id === 'custom' && customTheme) {
       applyCustomTheme(customTheme);
-    } else if (next.tokens) {
+    } else if (next.colors) {
       // User-published theme
-      applyCustomTheme(next.tokens);
+      applyCustomTheme(next.colors);
     } else {
       const builtin = builtinCycle.find(b => b.id === next.id);
       if (builtin) {
         setTheme(builtin.id);
       } else if (themePresets[next.id]) {
-        applyCustomTheme(themePresets[next.id].tokens);
+        applyCustomTheme(themePresets[next.id].colors);
       }
     }
   };

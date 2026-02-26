@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
-import type { ThemeTokens } from '@/themes';
+import type { CoreThemeColors } from '@/themes';
 
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
@@ -15,28 +15,39 @@ export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'b
 /** HSL value string like "258 70% 55%" */
 const HslValue = z.string().regex(/^\d/);
 
-/** Zod schema for ThemeTokens (custom theme colors) */
-export const ThemeTokensSchema = z.object({
+/** Zod schema for CoreThemeColors (the 4 core colors) */
+export const CoreThemeColorsSchema = z.object({
+  background: HslValue,
+  text: HslValue,
+  primary: HslValue,
+  secondary: HslValue,
+}) satisfies z.ZodType<CoreThemeColors>;
+
+/**
+ * Legacy schema that accepts the old 19-token ThemeTokens format.
+ * Used for backward compatibility when reading old configs/events.
+ * Extracts core colors from legacy format.
+ */
+export const LegacyThemeTokensSchema = z.object({
   background: HslValue,
   foreground: HslValue,
-  card: HslValue,
-  cardForeground: HslValue,
-  popover: HslValue,
-  popoverForeground: HslValue,
   primary: HslValue,
-  primaryForeground: HslValue,
-  secondary: HslValue,
-  secondaryForeground: HslValue,
-  muted: HslValue,
-  mutedForeground: HslValue,
   accent: HslValue,
-  accentForeground: HslValue,
-  destructive: HslValue,
-  destructiveForeground: HslValue,
-  border: HslValue,
-  input: HslValue,
-  ring: HslValue,
-}) satisfies z.ZodType<ThemeTokens>;
+}).passthrough();
+
+/**
+ * Schema that accepts either CoreThemeColors or legacy ThemeTokens,
+ * always normalizing to CoreThemeColors.
+ */
+export const ThemeColorsCompatSchema = z.union([
+  CoreThemeColorsSchema,
+  LegacyThemeTokensSchema.transform((legacy): CoreThemeColors => ({
+    background: legacy.background,
+    text: legacy.foreground,
+    primary: legacy.primary,
+    secondary: legacy.accent,
+  })),
+]);
 
 /** Zod schema for ContentWarningPolicy validation */
 export const ContentWarningPolicySchema = z.enum(['blur', 'hide', 'show']) satisfies z.ZodType<ContentWarningPolicy>;
@@ -101,7 +112,7 @@ export const ContentFilterSchema = z.object({
  */
 export const EncryptedSettingsSchema = z.looseObject({
   theme: ThemeSchemaCompat.optional(),
-  customTheme: ThemeTokensSchema.optional(),
+  customTheme: ThemeColorsCompatSchema.optional(),
   useAppRelays: z.boolean().optional(),
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),

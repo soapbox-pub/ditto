@@ -1,12 +1,12 @@
 import { useMemo, type ReactNode } from 'react';
 
-import type { ThemeTokens } from '@/themes';
-import { toThemeVar } from '@/themes';
+import type { CoreThemeColors } from '@/themes';
+import { coreToTokens, toThemeVar } from '@/themes';
 import { isDarkTheme } from '@/lib/colorUtils';
 
 interface ScopedThemeProps {
-  /** The custom theme tokens to apply within this scope */
-  tokens: ThemeTokens;
+  /** The core theme colors to apply within this scope */
+  colors: CoreThemeColors;
   /** Content to render within the themed scope */
   children: ReactNode;
   /** Additional className for the wrapper div */
@@ -20,16 +20,17 @@ interface ScopedThemeProps {
  *
  * Also sets a `data-theme-mode` attribute for CSS targeting.
  */
-export function ScopedTheme({ tokens, children, className }: ScopedThemeProps) {
+export function ScopedTheme({ colors, children, className }: ScopedThemeProps) {
   const style = useMemo(() => {
+    const tokens = coreToTokens(colors);
     const vars: Record<string, string> = {};
     for (const [key, val] of Object.entries(tokens) as [string, string][]) {
       vars[toThemeVar(key)] = val;
     }
     return vars;
-  }, [tokens]);
+  }, [colors]);
 
-  const mode = isDarkTheme(tokens.background) ? 'dark' : 'light';
+  const mode = isDarkTheme(colors.background) ? 'dark' : 'light';
 
   return (
     <div style={style} data-theme-mode={mode} className={className}>

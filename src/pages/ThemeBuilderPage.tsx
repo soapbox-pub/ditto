@@ -1,13 +1,11 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, RotateCcw, Wand2, Download, Upload, Save, Eye, ChevronDown, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Download, Upload, Save, Eye, AlertTriangle, Check, Heart, MessageCircle, Repeat2, Zap, Globe, Users, Flame, MoreHorizontal, Pencil, Trash2, Palette } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
 import { Separator } from '@/components/ui/separator';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -23,62 +21,29 @@ import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
 import type { ThemeDefinition } from '@/lib/themeEvent';
-import { builtinThemes, themePresets, type ThemeTokens } from '@/themes';
-import { hslStringToHex, hexToHslString, deriveTokensFromCore, getContrastRatioHsl } from '@/lib/colorUtils';
+import { builtinThemes, themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
+import { hslStringToHex, hexToHslString, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
 type PresetName = 'dark' | 'light' | 'black' | 'pink';
 
-/** Core color keys exposed in the simple editor */
-const CORE_KEYS = ['background', 'foreground', 'primary', 'accent'] as const;
+/** Core color keys exposed in the editor */
+const CORE_KEYS: (keyof CoreThemeColors)[] = ['background', 'text', 'primary', 'secondary'];
 
-/** Surface color keys in the advanced section */
-const SURFACE_KEYS = [
-  'card', 'cardForeground', 'popover', 'popoverForeground',
-  'muted', 'mutedForeground', 'secondary', 'secondaryForeground',
-] as const;
-
-/** UI color keys */
-const UI_KEYS = ['border', 'input', 'ring', 'destructive', 'destructiveForeground'] as const;
-
-/** Sidebar keys */
-/** Human-readable labels for token keys */
-const TOKEN_LABELS: Record<string, string> = {
+/** Human-readable labels for core color keys */
+const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
   background: 'Background',
-  foreground: 'Text',
+  text: 'Text',
   primary: 'Primary',
-  accent: 'Accent',
-  card: 'Card',
-  cardForeground: 'Card Text',
-  popover: 'Popover',
-  popoverForeground: 'Popover Text',
-  muted: 'Muted',
-  mutedForeground: 'Muted Text',
   secondary: 'Secondary',
-  secondaryForeground: 'Secondary Text',
-  border: 'Border',
-  input: 'Input Border',
-  ring: 'Focus Ring',
-  destructive: 'Destructive',
-  destructiveForeground: 'Destructive Text',
 };
 
-/** Pairs to check contrast on */
-const CONTRAST_PAIRS: [keyof ThemeTokens, keyof ThemeTokens, string][] = [
-  ['foreground', 'background', 'Text on Background'],
-  ['primaryForeground', 'primary', 'Text on Primary'],
-  ['cardForeground', 'card', 'Text on Card'],
-  ['mutedForeground', 'muted', 'Muted Text on Muted'],
-  ['accentForeground', 'accent', 'Text on Accent'],
-  ['destructiveForeground', 'destructive', 'Text on Destructive'],
-];
-
-/** Resolve a preset name to its ThemeTokens */
-function getPresetTokens(preset: PresetName): ThemeTokens {
+/** Resolve a preset name to its CoreThemeColors */
+function getPresetColors(preset: PresetName): CoreThemeColors {
   if (preset === 'light' || preset === 'dark') {
     return builtinThemes[preset];
   }
-  return themePresets[preset]?.tokens ?? builtinThemes.dark;
+  return themePresets[preset]?.colors ?? builtinThemes.dark;
 }
 
 export function ThemeBuilderPage() {
@@ -106,8 +71,8 @@ export function ThemeBuilderPage() {
     description: 'Create and customize your profile theme',
   });
 
-  // Working state: the tokens being edited
-  const [tokens, setTokens] = useState<ThemeTokens>(() => {
+  // Working state: the 4 core colors being edited
+  const [colors, setColors] = useState<CoreThemeColors>(() => {
     // ?new param: always start fresh
     if (isNew) return builtinThemes.dark;
     if (savedCustomTheme) return savedCustomTheme;
@@ -116,20 +81,20 @@ export function ThemeBuilderPage() {
     }
     return builtinThemes.dark;
   });
-  const [autoDerive, setAutoDerive] = useState(true);
   const [previewing, setPreviewing] = useState(false);
+
+  // Derive full tokens for preview rendering
+  const tokens = useMemo(() => coreToTokens(colors), [colors]);
 
   // Tracks which published theme is currently being edited (null = creating new)
   const [activeEditingTheme, setActiveEditingTheme] = useState<ThemeDefinition | null>(() => {
-    // On mount, try to match current tokens to a published theme
     return null; // will be set by effects or user actions
   });
 
-  // When user themes load, check if current tokens match a published theme
-  // Skip if ?new or ?edit is in the URL (those have explicit intent)
+  // When user themes load, check if current colors match a published theme
   useEffect(() => {
     if (!_userThemes.data || activeEditingTheme || isNew || editIdentifier) return;
-    const match = _userThemes.data.find(t => JSON.stringify(t.tokens) === JSON.stringify(tokens));
+    const match = _userThemes.data.find(t => JSON.stringify(t.colors) === JSON.stringify(colors));
     if (match) setActiveEditingTheme(match);
   }, [_userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -138,8 +103,7 @@ export function ThemeBuilderPage() {
     if (!editIdentifier || !_userThemes.data) return;
     const target = _userThemes.data.find(t => t.identifier === editIdentifier);
     if (target && activeEditingTheme?.identifier !== editIdentifier) {
-      setTokens(target.tokens);
-      setAutoDerive(false);
+      setColors(target.colors);
       setActiveEditingTheme(target);
     }
   }, [editIdentifier, _userThemes.data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -147,9 +111,7 @@ export function ThemeBuilderPage() {
   // Clear editing context when starting fresh
   const handleNewTheme = useCallback(() => {
     setActiveEditingTheme(null);
-    setTokens(builtinThemes.dark);
-    setAutoDerive(true);
-    // Clear URL params to avoid stale ?edit= or ?new
+    setColors(builtinThemes.dark);
     window.history.replaceState({}, '', '/settings/theme?new');
     toast({ title: 'Starting fresh', description: 'Create a new theme from scratch.' });
   }, [toast]);
@@ -163,22 +125,33 @@ export function ThemeBuilderPage() {
     if (importThemeId && importThemesQuery.data) {
       const target = importThemesQuery.data.find(t => t.identifier === importThemeId);
       if (target) {
-        setTokens(target.tokens);
-        setAutoDerive(false);
-        setActiveEditingTheme(null); // importing = creating a new fork
+        setColors(target.colors);
+        setActiveEditingTheme(null);
         toast({ title: 'Theme imported', description: `Imported "${target.title}". Customize it and save!` });
       }
     }
     // Import from active profile theme
-    else if (importActiveQuery.data?.tokens) {
-      setTokens(importActiveQuery.data.tokens);
-      setAutoDerive(false);
+    else if (importActiveQuery.data?.colors) {
+      setColors(importActiveQuery.data.colors);
       setActiveEditingTheme(null);
       toast({ title: 'Theme imported', description: 'Imported theme from profile. Customize it and save!' });
     }
   }, [importActiveQuery.data, importThemesQuery.data, importThemeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Hex representations of current tokens for color pickers
+  // Hex representations of current colors for color pickers
+  const hexColors = useMemo(() => {
+    const result: Record<string, string> = {};
+    for (const [key, hsl] of Object.entries(colors)) {
+      try {
+        result[key] = hslStringToHex(hsl);
+      } catch {
+        result[key] = '#000000';
+      }
+    }
+    return result;
+  }, [colors]);
+
+  // Hex representations of derived tokens for preview
   const hexTokens = useMemo(() => {
     const result: Record<string, string> = {};
     for (const [key, hsl] of Object.entries(tokens)) {
@@ -191,55 +164,48 @@ export function ThemeBuilderPage() {
     return result;
   }, [tokens]);
 
-  // Update a single token
-  const updateToken = useCallback((key: keyof ThemeTokens, hex: string) => {
+  // Update a single core color
+  const updateColor = useCallback((key: keyof CoreThemeColors, hex: string) => {
     const hsl = hexToHslString(hex);
-
-    if (autoDerive && CORE_KEYS.includes(key as (typeof CORE_KEYS)[number])) {
-      // Re-derive all tokens from the 4 core colors
-      const newCore = { ...tokens, [key]: hsl };
-      const derived = deriveTokensFromCore(
-        newCore.background,
-        newCore.foreground,
-        newCore.primary,
-        newCore.accent,
-      );
-      setTokens(derived);
-    } else {
-      setTokens((prev) => ({ ...prev, [key]: hsl }));
-    }
-  }, [autoDerive, tokens]);
+    setColors((prev) => ({ ...prev, [key]: hsl }));
+  }, []);
 
   // Apply preset
   const applyPreset = useCallback((preset: PresetName) => {
-    setTokens(getPresetTokens(preset));
-    setAutoDerive(true);
-    setActiveEditingTheme(null); // starting from a preset = new theme
+    setColors(getPresetColors(preset));
+    setActiveEditingTheme(null);
   }, []);
 
-  // Contrast warnings
+  // Contrast warnings (derived from tokens)
   const contrastWarnings = useMemo(() => {
-    return CONTRAST_PAIRS.map(([fg, bg, label]) => {
-      const ratio = getContrastRatioHsl(tokens[fg], tokens[bg]);
+    const pairs: [string, string, string][] = [
+      [tokens.foreground, tokens.background, 'Text on Background'],
+      [tokens.primaryForeground, tokens.primary, 'Text on Primary'],
+      [tokens.cardForeground, tokens.card, 'Text on Card'],
+      [tokens.mutedForeground, tokens.muted, 'Muted Text on Muted'],
+      [tokens.accentForeground, tokens.accent, 'Text on Accent'],
+      [tokens.destructiveForeground, tokens.destructive, 'Text on Destructive'],
+    ];
+    return pairs.map(([fg, bg, label]) => {
+      const ratio = getContrastRatioHsl(fg, bg);
       return { label, ratio, passes: ratio >= 4.5 };
     });
   }, [tokens]);
 
   const failingContrasts = contrastWarnings.filter((w) => !w.passes);
 
-  // Preview: temporarily apply tokens to the document
+  // Preview: temporarily apply colors to the document
   const togglePreview = useCallback(() => {
     if (previewing) {
-      // Revert: re-apply the saved theme
       setPreviewing(false);
       if (currentTheme === 'custom' && savedCustomTheme) {
         applyCustomTheme(savedCustomTheme);
       }
     } else {
       setPreviewing(true);
-      applyCustomTheme(tokens);
+      applyCustomTheme(colors);
     }
-  }, [previewing, currentTheme, savedCustomTheme, tokens, applyCustomTheme]);
+  }, [previewing, currentTheme, savedCustomTheme, colors, applyCustomTheme]);
 
   // Publish dialog state
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
@@ -249,22 +215,20 @@ export function ThemeBuilderPage() {
 
   // Save: apply locally + update/publish depending on context
   const handleSave = useCallback(async () => {
-    applyCustomTheme(tokens);
+    applyCustomTheme(colors);
     setPreviewing(false);
 
     if (user && activeEditingTheme) {
-      // Editing an existing published theme — re-publish it with updated tokens
       try {
         await publishTheme({
-          tokens,
+          colors,
           title: activeEditingTheme.title,
           description: activeEditingTheme.description,
           identifier: activeEditingTheme.identifier,
         });
-        // Also update active profile theme if this is the active one
         if (ownActiveTheme.data?.sourceRef?.endsWith(`:${activeEditingTheme.identifier}`)) {
           await setActiveTheme({
-            tokens,
+            colors,
             sourceAuthor: user.pubkey,
             sourceIdentifier: activeEditingTheme.identifier,
           });
@@ -275,7 +239,6 @@ export function ThemeBuilderPage() {
         toast({ title: 'Theme saved locally', description: 'Saved but failed to update on Nostr.', variant: 'destructive' });
       }
     } else if (user) {
-      // New theme: ask if they want to publish
       setPublishTitle('');
       setPublishDescription('');
       setEditingTheme(null);
@@ -283,7 +246,7 @@ export function ThemeBuilderPage() {
     } else {
       toast({ title: 'Theme saved', description: 'Your custom theme is now active.' });
     }
-  }, [tokens, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
+  }, [colors, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
 
   // Publish theme as kind 33891
   const handlePublish = useCallback(async () => {
@@ -294,26 +257,24 @@ export function ThemeBuilderPage() {
     try {
       const isUpdate = !!editingTheme;
       const identifier = await publishTheme({
-        tokens,
+        colors,
         title: publishTitle.trim(),
         description: publishDescription.trim() || undefined,
         identifier: editingTheme?.identifier,
       });
       setPublishDialogOpen(false);
 
-      // Track that we're now editing this published theme
       setActiveEditingTheme({
         identifier,
         title: publishTitle.trim(),
         description: publishDescription.trim() || undefined,
-        tokens,
-        event: {} as ThemeDefinition['event'], // placeholder, will be refreshed on next query
+        colors,
+        event: {} as ThemeDefinition['event'],
       });
 
       if (!isUpdate) {
-        // New theme: also set as active profile theme
         await setActiveTheme({
-          tokens,
+          colors,
           sourceAuthor: user?.pubkey,
           sourceIdentifier: identifier,
         });
@@ -325,7 +286,7 @@ export function ThemeBuilderPage() {
       console.error('Failed to publish theme:', error);
       toast({ title: 'Publish failed', description: 'Could not publish your theme.', variant: 'destructive' });
     }
-  }, [publishTitle, publishDescription, tokens, editingTheme, user, publishTheme, setActiveTheme, toast]);
+  }, [publishTitle, publishDescription, colors, editingTheme, user, publishTheme, setActiveTheme, toast]);
 
   // Skip publish — just save locally
   const handleSkipPublish = useCallback(() => {
@@ -335,7 +296,7 @@ export function ThemeBuilderPage() {
 
   // Export/import JSON
   const handleExport = useCallback(() => {
-    const json = JSON.stringify(tokens, null, 2);
+    const json = JSON.stringify(colors, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -343,7 +304,7 @@ export function ThemeBuilderPage() {
     a.download = 'ditto-theme.json';
     a.click();
     URL.revokeObjectURL(url);
-  }, [tokens]);
+  }, [colors]);
 
   const handleImportFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -351,13 +312,22 @@ export function ThemeBuilderPage() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const imported = JSON.parse(reader.result as string) as ThemeTokens;
-        if (imported.background && imported.foreground && imported.primary) {
-          setTokens(imported);
-          setAutoDerive(false);
+        const imported = JSON.parse(reader.result as string);
+        // Accept both new CoreThemeColors and legacy ThemeTokens format
+        if (imported.background && imported.text && imported.primary && imported.secondary) {
+          setColors(imported as CoreThemeColors);
           toast({ title: 'Theme imported', description: 'JSON theme loaded successfully.' });
+        } else if (imported.background && imported.foreground && imported.primary && imported.accent) {
+          // Legacy format
+          setColors({
+            background: imported.background,
+            text: imported.foreground,
+            primary: imported.primary,
+            secondary: imported.accent,
+          });
+          toast({ title: 'Theme imported', description: 'Legacy theme format converted successfully.' });
         } else {
-          toast({ title: 'Invalid theme', description: 'The file does not contain valid theme tokens.', variant: 'destructive' });
+          toast({ title: 'Invalid theme', description: 'The file does not contain valid theme colors.', variant: 'destructive' });
         }
       } catch {
         toast({ title: 'Import failed', description: 'Could not parse the JSON file.', variant: 'destructive' });
@@ -404,13 +374,13 @@ export function ThemeBuilderPage() {
             )}
           </div>
           {activeEditingTheme && (
-            currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(tokens) ? (
+            currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(colors) ? (
               <Badge variant="outline" className="text-primary border-primary/30 gap-1 shrink-0">
                 <Check className="size-3" />
                 Active
               </Badge>
             ) : (
-              <Button variant="outline" size="sm" onClick={() => { applyCustomTheme(tokens); toast({ title: 'Theme applied' }); }}>
+              <Button variant="outline" size="sm" onClick={() => { applyCustomTheme(colors); toast({ title: 'Theme applied' }); }}>
                 <Palette className="size-4 mr-1.5" />
                 Use
               </Button>
@@ -443,7 +413,7 @@ export function ThemeBuilderPage() {
           <div
             key={key}
             className="flex-1 transition-colors duration-300"
-            style={{ backgroundColor: hexTokens[key] || '#888' }}
+            style={{ backgroundColor: hexColors[key] || '#888' }}
           />
         ))}
       </div>
@@ -454,9 +424,8 @@ export function ThemeBuilderPage() {
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Start from existing theme</h2>
           <StartFromThemeDropdown
             userThemes={_userThemes.data ?? []}
-            onSelect={(selectedTokens) => {
-              setTokens(selectedTokens);
-              setAutoDerive(true);
+            onSelect={(selectedColors) => {
+              setColors(selectedColors);
               setActiveEditingTheme(null);
             }}
           />
@@ -466,84 +435,28 @@ export function ThemeBuilderPage() {
 
         {/* Core colors */}
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Core Colors</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Colors</h2>
           <div className="grid grid-cols-2 gap-3">
             {CORE_KEYS.map((key) => (
               <ColorPicker
                 key={key}
-                label={TOKEN_LABELS[key]}
-                value={hexTokens[key] || '#000000'}
-                onChange={(hex) => updateToken(key, hex)}
+                label={COLOR_LABELS[key]}
+                value={hexColors[key] || '#000000'}
+                onChange={(hex) => updateColor(key, hex)}
               />
             ))}
           </div>
-
-          {/* Auto-derive toggle — below core colors */}
-          <div className="flex items-center justify-between pt-1">
-            <div className="space-y-0.5">
-              <Label className="text-sm font-medium flex items-center gap-2">
-                <Wand2 className="size-4 text-primary" />
-                Auto-derive colors
-              </Label>
-              <p className="text-xs text-muted-foreground">Generate surface and UI colors from the 4 core colors above</p>
-            </div>
-            <Switch checked={autoDerive} onCheckedChange={setAutoDerive} />
-          </div>
+          <p className="text-xs text-muted-foreground">
+            All surface, border, and UI colors are automatically derived from these 4 core colors.
+          </p>
         </section>
-
-        {/* Surface colors (collapsible) */}
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider group">
-            <span>Surface Colors</span>
-            <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3">
-            <div className="grid grid-cols-2 gap-3">
-              {SURFACE_KEYS.map((key) => (
-                <ColorPicker
-                  key={key}
-                  label={TOKEN_LABELS[key]}
-                  value={hexTokens[key] || '#000000'}
-                  onChange={(hex) => updateToken(key, hex)}
-                  disabled={autoDerive}
-                />
-              ))}
-            </div>
-            {autoDerive && (
-              <p className="text-xs text-muted-foreground mt-2 italic">
-                These colors are auto-derived. Turn off auto-derive to edit them individually.
-              </p>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
-
-        {/* UI colors (collapsible) */}
-        <Collapsible>
-          <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider group">
-            <span>UI Colors</span>
-            <ChevronDown className="size-4 transition-transform group-data-[state=open]:rotate-180" />
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3">
-            <div className="grid grid-cols-2 gap-3">
-              {UI_KEYS.map((key) => (
-                <ColorPicker
-                  key={key}
-                  label={TOKEN_LABELS[key]}
-                  value={hexTokens[key] || '#000000'}
-                  onChange={(hex) => updateToken(key, hex)}
-                  disabled={autoDerive}
-                />
-              ))}
-            </div>
-          </CollapsibleContent>
-        </Collapsible>
 
         <Separator />
 
         {/* Live preview */}
         <section className="space-y-3">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Preview</h2>
-          <ThemePreview tokens={tokens} hexTokens={hexTokens} />
+          <ThemePreview hexTokens={hexTokens} />
         </section>
 
         <Separator />
@@ -687,11 +600,11 @@ export function ThemeBuilderPage() {
           <div className="space-y-4 py-2">
             {/* Color swatch preview */}
             <div className="flex rounded-lg overflow-hidden h-8">
-              {(['background', 'foreground', 'primary', 'accent'] as const).map((key) => (
+              {CORE_KEYS.map((key) => (
                 <div
                   key={key}
                   className="flex-1"
-                  style={{ backgroundColor: hexTokens[key] }}
+                  style={{ backgroundColor: hexColors[key] }}
                 />
               ))}
             </div>
@@ -738,7 +651,7 @@ export function ThemeBuilderPage() {
 
 function StartFromThemeDropdown({ userThemes, onSelect }: {
   userThemes: ThemeDefinition[];
-  onSelect: (tokens: ThemeTokens) => void;
+  onSelect: (colors: CoreThemeColors) => void;
 }) {
   const allOptions = [
     // User's published themes
@@ -746,17 +659,17 @@ function StartFromThemeDropdown({ userThemes, onSelect }: {
       group: 'my' as const,
       id: `user:${t.identifier}`,
       label: t.title,
-      tokens: t.tokens,
+      colors: t.colors,
     })),
     // Builtin themes
-    { group: 'builtin' as const, id: 'builtin:light', label: 'Light', tokens: builtinThemes.light },
-    { group: 'builtin' as const, id: 'builtin:dark', label: 'Dark', tokens: builtinThemes.dark },
+    { group: 'builtin' as const, id: 'builtin:light', label: 'Light', colors: builtinThemes.light },
+    { group: 'builtin' as const, id: 'builtin:dark', label: 'Dark', colors: builtinThemes.dark },
     // Presets
     ...Object.entries(themePresets).map(([id, preset]) => ({
       group: 'preset' as const,
       id: `preset:${id}`,
       label: preset.label,
-      tokens: preset.tokens,
+      colors: preset.colors,
     })),
   ];
 
@@ -765,7 +678,7 @@ function StartFromThemeDropdown({ userThemes, onSelect }: {
   return (
     <Select onValueChange={(val) => {
       const option = allOptions.find(o => o.id === val);
-      if (option) onSelect(option.tokens);
+      if (option) onSelect(option.colors);
     }}>
       <SelectTrigger className="w-full">
         <SelectValue placeholder="Choose a theme to start from..." />
@@ -807,13 +720,11 @@ function ImportFromProfile() {
     if (!importInput.trim()) return;
     try {
       let pubkey = importInput.trim();
-      // Try to decode NIP-19
       if (pubkey.startsWith('npub1') || pubkey.startsWith('nprofile1')) {
         const decoded = nip19.decode(pubkey);
         pubkey = decoded.type === 'npub' ? decoded.data : decoded.type === 'nprofile' ? decoded.data.pubkey : pubkey;
       }
       if (/^[0-9a-f]{64}$/i.test(pubkey)) {
-        // Navigate with import param (page will reload with the query)
         window.location.href = `/settings/theme?import=${pubkey}`;
       } else {
         toast({ title: 'Invalid identifier', description: 'Enter an npub or hex pubkey.', variant: 'destructive' });
@@ -841,12 +752,11 @@ function ImportFromProfile() {
 
 // ─── Live Preview Component ───────────────────────────────────────────
 
-function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<string, string> }) {
+function ThemePreview({ hexTokens }: { hexTokens: Record<string, string> }) {
   const { user } = useCurrentUser();
   const author = useAuthor(user?.pubkey);
   const metadata = author.data?.metadata;
 
-  // Real user data with fallbacks
   const displayName = metadata?.name || metadata?.display_name || 'Alice';
   const handle = metadata?.nip05?.split('@')[0] || metadata?.name?.toLowerCase() || 'alice';
   const bio = metadata?.about || 'Nostr enthusiast. Building cool things on the decentralized web.';
@@ -858,8 +768,6 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
     <div className="rounded-xl border overflow-hidden" style={{ borderColor: hexTokens.border, backgroundColor: hexTokens.background }}>
 
       {/* ── Profile Header ── */}
-
-      {/* Banner */}
       <div className="h-32 relative" style={{ backgroundColor: hexTokens.secondary }}>
         {banner ? (
           <img src={banner} alt="" className="w-full h-full object-cover" />
@@ -873,9 +781,7 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
 
       {/* Profile info */}
       <div className="px-4 pb-3 relative z-10" style={{ backgroundColor: hexTokens.background }}>
-        {/* Avatar + action buttons row */}
         <div className="flex justify-between items-start -mt-10 mb-2">
-          {/* Avatar */}
           {avatar ? (
             <img
               src={avatar}
@@ -895,7 +801,6 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
               {initial}
             </div>
           )}
-          {/* Action buttons */}
           <div className="flex items-center gap-2 mt-12">
             <div
               className="size-9 rounded-full flex items-center justify-center"
@@ -912,11 +817,9 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
           </div>
         </div>
 
-        {/* Name & handle */}
         <p className="text-lg font-bold truncate" style={{ color: hexTokens.foreground }}>{displayName}</p>
         <p className="text-xs" style={{ color: hexTokens.mutedForeground }}>@{handle}</p>
 
-        {/* Stats row */}
         <div className="flex items-center gap-4 mt-1.5">
           <span className="flex items-center gap-1">
             <Users className="size-3.5" style={{ color: hexTokens.primary }} />
@@ -929,7 +832,6 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
           </span>
         </div>
 
-        {/* Bio */}
         <p className="mt-2 text-sm line-clamp-3" style={{ color: hexTokens.foreground }}>
           {bio}
         </p>
@@ -954,19 +856,14 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
         ))}
       </div>
 
-      {/* ── Note Card (as if posted by this user) ── */}
+      {/* ── Note Card ── */}
       <div
         className="px-4 py-3"
         style={{ borderBottom: `1px solid ${hexTokens.border}`, backgroundColor: hexTokens.background }}
       >
-        {/* Author row */}
         <div className="flex items-center gap-2.5">
           {avatar ? (
-            <img
-              src={avatar}
-              alt={displayName}
-              className="size-10 rounded-full object-cover shrink-0"
-            />
+            <img src={avatar} alt={displayName} className="size-10 rounded-full object-cover shrink-0" />
           ) : (
             <div
               className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
@@ -987,12 +884,10 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
           </div>
         </div>
 
-        {/* Note content */}
         <p className="mt-2 text-sm leading-relaxed" style={{ color: hexTokens.foreground }}>
-          Just updated my custom theme! Love how you can personalize everything on Nostr. 🎨
+          Just updated my custom theme! Love how you can personalize everything on Nostr.
         </p>
 
-        {/* Action buttons */}
         <div className="flex items-center gap-5 mt-2.5 -ml-2">
           <span className="flex items-center gap-1.5 p-1.5 rounded-full" style={{ color: hexTokens.mutedForeground }}>
             <MessageCircle className="size-4" /> <span className="text-xs">3</span>
@@ -1009,11 +904,8 @@ function ThemePreview({ hexTokens }: { tokens: ThemeTokens; hexTokens: Record<st
         </div>
       </div>
 
-      {/* ── Second Note (partial, to show feed continuity) ── */}
-      <div
-        className="px-4 py-3"
-        style={{ backgroundColor: hexTokens.background }}
-      >
+      {/* ── Second Note ── */}
+      <div className="px-4 py-3" style={{ backgroundColor: hexTokens.background }}>
         <div className="flex items-center gap-2.5">
           <div
             className="size-10 rounded-full flex items-center justify-center text-sm font-bold shrink-0"

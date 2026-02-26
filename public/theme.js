@@ -26,11 +26,17 @@
     theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     colors = builtins[theme];
   } else if (theme === 'custom') {
-    // Read background and primary from stored customTheme tokens
+    // Read background and primary from stored customTheme
     try {
       var ct = cfg.customTheme;
-      if (ct && ct.background && ct.primary) {
-        colors = { bg: 'hsl(' + ct.background + ')', primary: 'hsl(' + ct.primary + ')' };
+      if (ct) {
+        // New format: { background, text, primary, secondary }
+        // Legacy format: { background, foreground, primary, accent, ... }
+        var bg = ct.background;
+        var pr = ct.primary;
+        if (bg && pr) {
+          colors = { bg: 'hsl(' + bg + ')', primary: 'hsl(' + pr + ')' };
+        }
       }
     } catch (e) {}
   } else if (legacyPresets[theme]) {

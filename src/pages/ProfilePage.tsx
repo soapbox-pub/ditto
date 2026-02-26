@@ -44,7 +44,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -727,8 +727,8 @@ export function ProfilePage() {
   const profileThemeQuery = useActiveProfileTheme(
     !isOwnProfile ? pubkey : undefined,
   );
-  const profileHasTheme = !!profileThemeQuery.data?.tokens;
-  const profileThemeTokens = showCustomProfileThemes ? profileThemeQuery.data?.tokens : undefined;
+  const profileHasTheme = !!profileThemeQuery.data?.colors;
+  const profileThemeColors = showCustomProfileThemes ? profileThemeQuery.data?.colors : undefined;
 
   // First-time custom theme info modal
   const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
@@ -739,10 +739,10 @@ export function ProfilePage() {
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
   useEffect(() => {
-    if (!profileThemeTokens) return;
+    if (!profileThemeColors) return;
 
     // Inject the profile theme's CSS vars onto :root
-    const css = buildThemeCss(profileThemeTokens);
+    const css = buildThemeCssFromCore(profileThemeColors);
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
@@ -761,12 +761,12 @@ export function ProfilePage() {
         } else {
           // Fallback: rebuild from current theme setting
           const resolved = resolveTheme(ownTheme);
-          const tokens = ownCustomTheme ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
-          styleEl.textContent = buildThemeCss(tokens);
+          const colors = ownCustomTheme ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+          styleEl.textContent = buildThemeCss(coreToTokens(colors));
         }
       }
     };
-  }, [profileThemeTokens]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileThemeColors]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
@@ -1158,7 +1158,7 @@ export function ProfilePage() {
               )}
 
               {/* Profile theme indicator + copy button */}
-              {profileThemeTokens && !isOwnProfile && (
+              {profileThemeColors && !isOwnProfile && (
                 <div className="mt-3 flex items-center gap-2">
                   <Link
                     to={`/settings/theme?import=${pubkey}`}

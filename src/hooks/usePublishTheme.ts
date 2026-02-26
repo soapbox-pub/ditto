@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 
-import type { ThemeTokens } from '@/themes';
+import type { CoreThemeColors } from '@/themes';
 import { useCurrentUser } from './useCurrentUser';
 import { useNostrPublish } from './useNostrPublish';
 import {
@@ -28,7 +28,7 @@ export function usePublishTheme() {
 
   /** Publish or update a kind 33891 theme definition. */
   const publishTheme = useCallback(async (opts: {
-    tokens: ThemeTokens;
+    colors: CoreThemeColors;
     title: string;
     description?: string;
     /** Existing identifier to update; if omitted, generates from title */
@@ -41,7 +41,7 @@ export function usePublishTheme() {
 
     await publishEvent({
       kind: THEME_DEFINITION_KIND,
-      content: JSON.stringify(opts.tokens),
+      content: JSON.stringify(opts.colors),
       tags,
     });
 
@@ -53,7 +53,7 @@ export function usePublishTheme() {
 
   /** Set a theme as the active profile theme (kind 11667). */
   const setActiveTheme = useCallback(async (opts: {
-    tokens: ThemeTokens;
+    colors: CoreThemeColors;
     /** Author of the source theme definition */
     sourceAuthor?: string;
     /** d-tag of the source theme definition */
@@ -65,7 +65,7 @@ export function usePublishTheme() {
 
     await publishEvent({
       kind: ACTIVE_THEME_KIND,
-      content: JSON.stringify(opts.tokens),
+      content: JSON.stringify(opts.colors),
       tags,
     });
 
