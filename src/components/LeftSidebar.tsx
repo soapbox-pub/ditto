@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell, Home, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
   User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
-  ChevronDown, Plus, Pencil, X, GripVertical,
+  ChevronDown, Plus, Pencil, X, GripVertical, MoreHorizontal,
 } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -193,33 +193,10 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
 
 // ── Section header ────────────────────────────────────────────────────────────
 
-interface SectionHeaderProps {
-  label: string;
-  editing?: boolean;
-  onToggleEdit?: () => void;
-}
-
-function SectionHeader({ label: _label, editing, onToggleEdit }: SectionHeaderProps) {
+function SectionHeader() {
   return (
     <div className="flex items-center gap-2 px-4 pt-4 pb-1">
       <div className="flex-1 h-px bg-border/50" />
-      {onToggleEdit && (
-        <button
-          onClick={onToggleEdit}
-          className={cn(
-            'text-xs font-medium transition-colors px-2 py-0.5 rounded-full',
-            editing
-              ? 'text-primary hover:bg-primary/10'
-              : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-secondary/60',
-          )}
-        >
-          {editing ? (
-            'Done'
-          ) : (
-            <Pencil className="size-3.5" />
-          )}
-        </button>
-      )}
     </div>
   );
 }
@@ -382,11 +359,7 @@ export function LeftSidebar() {
       {/* Navigation */}
       <nav className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
         {/* ── Explore section ── */}
-        <SectionHeader
-          label="Explore"
-          editing={editing}
-          onToggleEdit={() => setEditing(!editing)}
-        />
+        <SectionHeader />
 
         <DndContext
           sensors={sensors}
@@ -410,44 +383,65 @@ export function LeftSidebar() {
           </SortableContext>
         </DndContext>
 
-        {/* "More..." add trigger — subtle inline link */}
-        {visibleHiddenItems.length > 0 && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
-              >
-                <Plus className="size-4" />
-                <span>More...</span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[220px]">
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {visibleHiddenItems.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  onClick={() => addToSidebar(item.id)}
-                  className="flex items-center gap-3 cursor-pointer"
-                >
-                  {ITEM_ICONS[item.id] ? (
-                    <span className="size-5 flex items-center justify-center [&>svg]:size-5">
-                      {ITEM_ICONS[item.id]}
-                    </span>
-                  ) : (
-                    <Plus className="size-5 text-muted-foreground" />
-                  )}
-                  <span className="text-sm">{item.label}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
+        {/* "More..." menu — edit sidebar + add hidden items */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
+            >
+              <MoreHorizontal className="size-4" />
+              <span>More...</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-[220px]">
+            {/* Edit sidebar toggle */}
+            <DropdownMenuItem
+              onClick={() => setEditing(!editing)}
+              className="flex items-center gap-3 cursor-pointer"
+            >
+              {editing ? (
+                <>
+                  <Check className="size-5 text-primary" />
+                  <span className="text-sm text-primary font-medium">Done editing</span>
+                </>
+              ) : (
+                <>
+                  <Pencil className="size-5 text-muted-foreground" />
+                  <span className="text-sm">Edit sidebar</span>
+                </>
+              )}
+            </DropdownMenuItem>
+
+            {/* Hidden items to add */}
+            {visibleHiddenItems.length > 0 && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
+                {visibleHiddenItems.map((item) => (
+                  <DropdownMenuItem
+                    key={item.id}
+                    onClick={() => addToSidebar(item.id)}
+                    className="flex items-center gap-3 cursor-pointer"
+                  >
+                    {ITEM_ICONS[item.id] ? (
+                      <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                        {ITEM_ICONS[item.id]}
+                      </span>
+                    ) : (
+                      <Plus className="size-5 text-muted-foreground" />
+                    )}
+                    <span className="text-sm">{item.label}</span>
+                  </DropdownMenuItem>
+                ))}
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* ── You section ── (logged-in only) */}
         {user ? (
           <>
-            <SectionHeader label="You" />
+            <SectionHeader />
 
             <NavItem
               to={userProfileUrl}
