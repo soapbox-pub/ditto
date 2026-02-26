@@ -3,30 +3,7 @@ import { z } from 'zod';
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 
-// Re-export canonical schemas from the shared config module so existing
-// consumers (`AppProvider`, `useEncryptedSettings`, etc.) keep working
-// without changing their import paths.
-export {
-  CoreThemeColorsSchema,
-  ThemeFontSchema,
-  ThemeBackgroundSchema,
-  ThemeConfigSchema,
-  ThemesConfigSchema,
-  ContentWarningPolicySchema,
-  RelayMetadataSchema,
-  FeedSettingsSchema,
-} from '../../config/schema';
-
-import {
-  CoreThemeColorsSchema,
-  ThemeConfigSchema,
-  ThemesConfigSchema,
-  ContentWarningPolicySchema,
-  RelayMetadataSchema,
-  FeedSettingsSchema,
-} from '../../config/schema';
-
-// ─── Type-constrained re-exports ─────────────────────────────────────
+// ─── Theme Schemas ───────────────────────────────────────────────────
 
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
@@ -37,7 +14,15 @@ export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfi
  */
 export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'black', 'pink']);
 
-// ─── Legacy / Compat Schemas ─────────────────────────────────────────
+/** HSL value string like "258 70% 55%" */
+const HslValue = z.string().regex(/^\d/);
+
+/** Zod schema for CoreThemeColors (the 3 core colors) */
+export const CoreThemeColorsSchema = z.object({
+  background: HslValue,
+  text: HslValue,
+  primary: HslValue,
+}) satisfies z.ZodType<CoreThemeColors>;
 
 /**
  * Legacy schema that accepts the old 19-token ThemeTokens format.
@@ -45,9 +30,9 @@ export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'b
  * Extracts core colors from legacy format.
  */
 export const LegacyThemeTokensSchema = z.object({
-  background: z.string().regex(/^\d/),
-  foreground: z.string().regex(/^\d/),
-  primary: z.string().regex(/^\d/),
+  background: HslValue,
+  foreground: HslValue,
+  primary: HslValue,
 }).passthrough();
 
 /**
@@ -55,10 +40,10 @@ export const LegacyThemeTokensSchema = z.object({
  * Strips the secondary field and normalizes to CoreThemeColors.
  */
 export const LegacyFourColorSchema = z.object({
-  background: z.string().regex(/^\d/),
-  text: z.string().regex(/^\d/),
-  primary: z.string().regex(/^\d/),
-  secondary: z.string().regex(/^\d/),
+  background: HslValue,
+  text: HslValue,
+  primary: HslValue,
+  secondary: HslValue,
 }).transform(({ background, text, primary }): CoreThemeColors => ({
   background,
   text,
@@ -79,6 +64,37 @@ export const ThemeColorsCompatSchema = z.union([
   })),
 ]);
 
+// ─── ThemeConfig Schemas ──────────────────────────────────────────────
+
+/** Zod schema for ThemeFont */
+export const ThemeFontSchema = z.object({
+  family: z.string(),
+  url: z.string().optional(),
+});
+
+/** Zod schema for ThemeBackground */
+export const ThemeBackgroundSchema = z.object({
+  url: z.string(),
+  mode: z.enum(['cover', 'tile']).optional(),
+  dimensions: z.string().optional(),
+  mimeType: z.string().optional(),
+  blurhash: z.string().optional(),
+});
+
+/** Zod schema for the full ThemeConfig */
+export const ThemeConfigSchema = z.object({
+  title: z.string().optional(),
+  colors: CoreThemeColorsSchema,
+  font: ThemeFontSchema.optional(),
+  background: ThemeBackgroundSchema.optional(),
+});
+
+/** Zod schema for ThemesConfig (light + dark theme configs) */
+export const ThemesConfigSchema = z.object({
+  light: z.lazy(() => ThemeConfigSchema),
+  dark: z.lazy(() => ThemeConfigSchema),
+}) satisfies z.ZodType<ThemesConfig>;
+
 /**
  * Compat schema that accepts either the new ThemeConfig format or the old
  * bare CoreThemeColors format (and all legacy color variants), normalizing
@@ -89,6 +105,54 @@ export const ThemeConfigCompatSchema = z.union([
   // Bare CoreThemeColors (old format) → wrap in ThemeConfig
   ThemeColorsCompatSchema.transform((colors): ThemeConfig => ({ colors })),
 ]);
+
+/** Zod schema for ContentWarningPolicy validation */
+export const ContentWarningPolicySchema = z.enum(['blur', 'hide', 'show']) satisfies z.ZodType<ContentWarningPolicy>;
+
+// ─── Feed & Relay Schemas ────────────────────────────────────────────
+
+export const RelayMetadataSchema = z.object({
+  relays: z.array(z.object({
+    url: z.string().url(),
+    read: z.boolean(),
+    write: z.boolean(),
+  })),
+  updatedAt: z.number(),
+});
+
+/**
+ * Zod schema for FeedSettings validation.
+ * All fields use .optional() so data with missing keys
+ * (from older encrypted settings) doesn't reject the whole object.
+ * Uses looseObject to preserve extra keys from newer encrypted settings.
+ * Missing fields get filled in by the defaultConfig merge downstream.
+ */
+export const FeedSettingsSchema = z.looseObject({
+  feedIncludePosts: z.boolean().optional(),
+  feedIncludeReposts: z.boolean().optional(),
+  feedIncludeArticles: z.boolean().optional(),
+  showArticles: z.boolean().optional(),
+  showVines: z.boolean().optional(),
+  showPolls: z.boolean().optional(),
+  showTreasures: z.boolean().optional(),
+  showTreasureGeocaches: z.boolean().optional(),
+  showTreasureFoundLogs: z.boolean().optional(),
+  showColors: z.boolean().optional(),
+  showPacks: z.boolean().optional(),
+  showStreams: z.boolean().optional(),
+  feedIncludeVines: z.boolean().optional(),
+  feedIncludePolls: z.boolean().optional(),
+  feedIncludeTreasureGeocaches: z.boolean().optional(),
+  feedIncludeTreasureFoundLogs: z.boolean().optional(),
+  feedIncludeColors: z.boolean().optional(),
+  feedIncludePacks: z.boolean().optional(),
+  feedIncludeStreams: z.boolean().optional(),
+  showDecks: z.boolean().optional(),
+  feedIncludeDecks: z.boolean().optional(),
+  showProfileThemes: z.boolean().optional(),
+  feedIncludeProfileThemes: z.boolean().optional(),
+  showCustomProfileThemes: z.boolean().optional(),
+});
 
 // ─── AppConfigSchema ─────────────────────────────────────────────────
 
@@ -119,6 +183,20 @@ export const AppConfigSchema = z.object({
   corsProxy: z.string(),
   contentWarningPolicy: ContentWarningPolicySchema,
 });
+
+// ─── DittoConfigSchema (build-time ditto.json) ───────────────────────
+
+/**
+ * Schema for the build-time `ditto.json` configuration file.
+ * Derived from AppConfigSchema with all fields made optional and strict
+ * mode enabled so unknown keys are rejected.
+ */
+export const DittoConfigSchema = AppConfigSchema
+  .partial()
+  .strict();
+
+/** Inferred type for the build-time configuration. */
+export type DittoConfig = z.infer<typeof DittoConfigSchema>;
 
 // ─── Content Filter Schemas ──────────────────────────────────────────
 

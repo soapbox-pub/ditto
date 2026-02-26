@@ -4,7 +4,7 @@ import path from "node:path";
 import react from "@vitejs/plugin-react-swc";
 import { defineConfig } from "vitest/config";
 
-import { DittoConfigSchema } from "./config/schema";
+import { DittoConfigSchema } from "./src/lib/schemas";
 
 /**
  * Load and validate the build-time ditto.json configuration file.
