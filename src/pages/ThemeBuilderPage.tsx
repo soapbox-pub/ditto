@@ -249,7 +249,7 @@ export function ThemeBuilderPage() {
     }
   }, [colors, user, activeEditingTheme, ownActiveTheme.data, applyCustomTheme, publishTheme, setActiveTheme, toast]);
 
-  // Publish theme as kind 33891
+  // Publish theme as kind 36767
   const handlePublish = useCallback(async () => {
     if (!publishTitle.trim()) {
       toast({ title: 'Title required', description: 'Give your theme a name.', variant: 'destructive' });

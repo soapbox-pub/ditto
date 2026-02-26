@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ACTIVE_THEME_KIND, parseActiveProfileTheme, type ActiveProfileTheme } from '@/lib/themeEvent';
 
 /**
- * Query a user's active profile theme (kind 11667).
+ * Query a user's active profile theme (kind 16767).
  * This is a replaceable event — only one per user.
  * Returns the parsed theme tokens + source reference if available.
  */

@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { THEME_DEFINITION_KIND, parseThemeDefinition, type ThemeDefinition } from '@/lib/themeEvent';
 
 /**
- * Query all kind 33891 theme definitions published by a given user.
+ * Query all kind 36767 theme definitions published by a given user.
  * Returns an array of parsed ThemeDefinition objects, sorted newest first.
  */
 export function useUserThemes(pubkey: string | undefined) {

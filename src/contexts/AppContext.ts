@@ -70,7 +70,7 @@ export interface FeedSettings {
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
   feedIncludeDecks: boolean;
-  /** Show Custom Themes (kind 33891) link in sidebar (not used — feed-only) */
+  /** Show Custom Themes (kind 36767) link in sidebar (not used — feed-only) */
   showProfileThemes: boolean;
   /** Include Profile Theme updates in the follows/global feed */
   feedIncludeProfileThemes: boolean;
