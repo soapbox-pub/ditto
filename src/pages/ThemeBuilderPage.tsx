@@ -404,11 +404,6 @@ export function ThemeBuilderPage() {
         </div>
         <div className="flex items-center gap-2">
           {activeEditingTheme && (
-            <Button variant="ghost" size="sm" onClick={handleNewTheme} title="Start a new theme">
-              <Plus className="size-4" />
-            </Button>
-          )}
-          {activeEditingTheme && (
             currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(tokens) ? (
               <Button variant="outline" size="sm" disabled className="text-primary border-primary/30">
                 <Check className="size-4 mr-1.5" />
