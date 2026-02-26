@@ -100,7 +100,7 @@ function parseBackgroundTag(tags: string[][]): ThemeBackground | undefined {
 
   const bg: ThemeBackground = { url };
   const mode = kv.get('mode');
-  if (mode === 'cover' || mode === 'tile' || mode === 'contain') bg.mode = mode;
+  if (mode === 'cover' || mode === 'tile') bg.mode = mode;
   bg.mimeType = kv.get('m');
   bg.dimensions = kv.get('dim');
   bg.blurhash = kv.get('blurhash');

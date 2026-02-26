@@ -31,7 +31,7 @@ export interface ThemeBackground {
   /** URL to an image or video file */
   url: string;
   /** Display mode */
-  mode?: 'cover' | 'tile' | 'contain';
+  mode?: 'cover' | 'tile';
   /** Dimensions as "widthxheight", e.g. "1920x1080" */
   dimensions?: string;
   /** MIME type, e.g. "image/jpeg" */

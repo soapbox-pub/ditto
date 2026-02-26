@@ -146,7 +146,7 @@ Format: `["bg", "url <url>", "mode <mode>", "m <mime-type>", ...]`
 | Key         | Required | Description                                                                              |
 |-------------|----------|------------------------------------------------------------------------------------------|
 | `url`       | Yes      | URL to an image or video file                                                            |
-| `mode`      | Yes      | Display mode: `"cover"`, `"tile"`, or `"contain"`                                        |
+| `mode`      | Yes      | Display mode: `"cover"` or `"tile"`                                                      |
 | `m`         | Yes      | MIME type (e.g. `"image/jpeg"`, `"image/png"`, `"video/mp4"`)                            |
 | `dim`       | No       | Dimensions in pixels: `"<width>x<height>"` (e.g. `"1920x1080"`)                          |
 | `blurhash`  | No       | Blurhash placeholder string for progressive loading                                      |
