@@ -8,7 +8,6 @@ import { useSearchProfiles, type SearchProfile } from '@/hooks/useSearchProfiles
 import { genUserName } from '@/lib/genUserName';
 import { useNip05Verify } from '@/hooks/useNip05Verify';
 import { getNostrIdentifierPath } from '@/lib/nostrIdentifier';
-import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getProfileUrl } from '@/lib/profileUrl';
 import { useQueryClient } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -188,8 +187,6 @@ function SearchProfileItem({
   const displayName = metadata.display_name || metadata.name || genUserName(pubkey);
   const nip05 = metadata.nip05;
   const { data: nip05Verified } = useNip05Verify(nip05, pubkey);
-  const profileUrl = useProfileUrl(pubkey, metadata);
-
   const nip05Display = nip05Verified && nip05 ? (nip05.startsWith('_@') ? nip05.slice(2) : nip05) : undefined;
   const identifier = nip05Display || nip19.npubEncode(pubkey);
 
