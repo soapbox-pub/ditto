@@ -408,6 +408,19 @@ export function ThemeBuilderPage() {
               <Plus className="size-4" />
             </Button>
           )}
+          {activeEditingTheme && (
+            currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(tokens) ? (
+              <Button variant="outline" size="sm" disabled className="text-primary border-primary/30">
+                <Check className="size-4 mr-1.5" />
+                Active
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => { applyCustomTheme(tokens); toast({ title: 'Theme applied' }); }}>
+                <Palette className="size-4 mr-1.5" />
+                Use
+              </Button>
+            )
+          )}
           <Button variant="outline" size="sm" onClick={togglePreview}>
             <Eye className="size-4 mr-1.5" />
             {previewing ? 'Revert' : 'Preview'}
