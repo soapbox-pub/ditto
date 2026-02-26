@@ -12,18 +12,18 @@ import { cn } from '@/lib/utils';
 
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { getExtraKindDef } from '@/lib/extraKinds';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 
 // ── Icon map for explore items ────────────────────────────────────────────────
 
 const ITEM_ICONS: Record<string, React.ReactElement> = {
-  __feed: <Home className="size-5" />,
-  __notifications: <Bell className="size-5" />,
-  __trends: <TrendingUp className="size-5" />,
-  __bookmarks: <Bookmark className="size-5" />,
-  __profile: <User className="size-5" />,
-  __settings: <Settings className="size-5" />,
+  feed: <Home className="size-5" />,
+  notifications: <Bell className="size-5" />,
+  trends: <TrendingUp className="size-5" />,
+  bookmarks: <Bookmark className="size-5" />,
+  profile: <User className="size-5" />,
+  settings: <Settings className="size-5" />,
   vines: <Clapperboard className="size-5" />,
   polls: <BarChart3 className="size-5" />,
   treasures: <ChestIcon className="size-5" />,
@@ -37,24 +37,26 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
 function itemLabel(id: string): string {
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.label;
-  return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
+  return getExtraKindDef(id)?.label ?? id;
 }
 
 function itemPath(id: string, profilePath?: string): string {
-  if (id === '__profile' && profilePath) return profilePath;
+  if (id === 'profile' && profilePath) return profilePath;
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.path;
-  return `/${id}`;
+  const def = getExtraKindDef(id);
+  return def?.route ? `/${def.route}` : `/${id}`;
 }
 
 function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
-  if (id === '__feed') return pathname === '/';
-  if (id === '__notifications') return pathname === '/notifications';
-  if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
-  if (id === '__bookmarks') return pathname === '/bookmarks';
-  if (id === '__profile') return !!profilePath && pathname === profilePath;
-  if (id === '__settings') return pathname.startsWith('/settings');
-  return pathname === `/${id}`;
+  if (id === 'feed') return pathname === '/';
+  if (id === 'notifications') return pathname === '/notifications';
+  if (id === 'trends') return pathname === '/search' && search.includes('tab=trends');
+  if (id === 'bookmarks') return pathname === '/bookmarks';
+  if (id === 'profile') return !!profilePath && pathname === profilePath;
+  if (id === 'settings') return pathname.startsWith('/settings');
+  const def = getExtraKindDef(id);
+  return def?.route ? pathname === `/${def.route}` : pathname === `/${id}`;
 }
 
 // ── Tab component ─────────────────────────────────────────────────────────────

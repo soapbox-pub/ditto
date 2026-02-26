@@ -1,16 +1,13 @@
 import { type FeedSettings } from "@/contexts/AppContext";
 import { useAppContext } from "@/hooks/useAppContext";
-import { EXTRA_KINDS } from "@/lib/extraKinds";
+import { EXTRA_KINDS, getExtraKindDef } from "@/lib/extraKinds";
 import { useCallback, useMemo } from "react";
 
 // ── Built-in sidebar items ────────────────────────────────────────────────────
 
-/** Identifier prefix for built-in sidebar items (not backed by EXTRA_KINDS). */
-const BUILTIN_PREFIX = '__';
-
-/** Definition for a built-in sidebar item. */
+/** Definition for a built-in sidebar item (not backed by EXTRA_KINDS). */
 export interface BuiltinSidebarItem {
-  /** Identifier stored in sidebarOrder (e.g. "__feed"). */
+  /** Unique identifier stored in sidebarOrder. */
   id: string;
   /** Display label. */
   label: string;
@@ -22,12 +19,12 @@ export interface BuiltinSidebarItem {
 
 /** All available built-in sidebar items, in default display order. */
 export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
-  { id: '__feed', label: 'Feed', path: '/' },
-  { id: '__notifications', label: 'Notifications', path: '/notifications', requiresAuth: true },
-  { id: '__trends', label: 'Trends', path: '/search?tab=trends' },
-  { id: '__bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
-  { id: '__profile', label: 'Profile', path: '/profile', requiresAuth: true },
-  { id: '__settings', label: 'Settings', path: '/settings' },
+  { id: 'feed', label: 'Feed', path: '/' },
+  { id: 'notifications', label: 'Notifications', path: '/notifications', requiresAuth: true },
+  { id: 'trends', label: 'Trends', path: '/search?tab=trends' },
+  { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
+  { id: 'profile', label: 'Profile', path: '/profile', requiresAuth: true },
+  { id: 'settings', label: 'Settings', path: '/settings' },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
@@ -35,7 +32,7 @@ const BUILTIN_IDS = new Set(BUILTIN_SIDEBAR_ITEMS.map((b) => b.id));
 
 /** Check if a sidebar order entry is a built-in item. */
 export function isBuiltinItem(id: string): boolean {
-  return id.startsWith(BUILTIN_PREFIX) && BUILTIN_IDS.has(id);
+  return BUILTIN_IDS.has(id);
 }
 
 /** Get the built-in definition for an ID, or undefined. */
@@ -49,23 +46,23 @@ export function getBuiltinItem(id: string): BuiltinSidebarItem | undefined {
  * Compute the ordered list of visible sidebar items.
  *
  * Each entry is either:
- * - A built-in ID like `"__feed"` or `"__trends"`
- * - A route string from EXTRA_KINDS like `"vines"` or `"streams"`
+ * - A built-in ID like `"feed"` or `"trends"`
+ * - An extra-kind ID like `"vines"` or `"streams"`
  *
  * Uses the persisted `sidebarOrder` for items that are still enabled,
  * then appends any newly-enabled items not yet in the order array.
  * When sidebarOrder is empty (fresh install), produces a default order
- * starting with built-ins, then enabled EXTRA_KINDS routes.
+ * starting with built-ins, then enabled EXTRA_KINDS.
  */
 function computeOrderedItems(
   feedSettings: FeedSettings,
   sidebarOrder: string[],
 ): string[] {
-  // All currently enabled extra-kind routes
-  const enabledRoutes = new Set(
+  // All currently enabled extra-kind IDs (only those with a sidebar page)
+  const enabledExtraIds = new Set(
     EXTRA_KINDS
       .filter((def) => def.showKey && def.route && feedSettings[def.showKey])
-      .map((def) => def.route!),
+      .map((def) => def.id),
   );
 
   // All built-in IDs (always "available" — visible when present in order)
@@ -78,10 +75,10 @@ function computeOrderedItems(
     for (const b of BUILTIN_SIDEBAR_ITEMS) {
       result.push(b.id);
     }
-    // Then enabled extra-kind routes in EXTRA_KINDS definition order
+    // Then enabled extra-kinds in definition order
     for (const def of EXTRA_KINDS) {
-      if (def.route && enabledRoutes.has(def.route)) {
-        result.push(def.route);
+      if (def.route && enabledExtraIds.has(def.id)) {
+        result.push(def.id);
       }
     }
     return result;
@@ -99,18 +96,18 @@ function computeOrderedItems(
       // Built-in: always valid if in order
       ordered.push(item);
       builtinIds.delete(item);
-    } else if (enabledRoutes.has(item)) {
+    } else if (enabledExtraIds.has(item)) {
       // Extra-kind: valid if still enabled
       ordered.push(item);
-      enabledRoutes.delete(item);
+      enabledExtraIds.delete(item);
     }
     // else: stale entry (kind was disabled or unknown) — skip
   }
 
   // Append any newly-enabled extra-kind items not in persisted order
   for (const def of EXTRA_KINDS) {
-    if (def.route && enabledRoutes.has(def.route)) {
-      ordered.push(def.route);
+    if (def.route && enabledExtraIds.has(def.id)) {
+      ordered.push(def.id);
     }
   }
 
@@ -136,7 +133,7 @@ export interface HiddenSidebarItem {
 
 function computeHiddenItems(
   feedSettings: FeedSettings,
-  sidebarOrder: string[],
+  _sidebarOrder: string[],
   orderedItems: string[],
 ): HiddenSidebarItem[] {
   const visibleSet = new Set(orderedItems);
@@ -152,7 +149,7 @@ function computeHiddenItems(
   // Hidden extra-kinds (disabled via feedSettings)
   for (const def of EXTRA_KINDS) {
     if (def.showKey && def.route && !feedSettings[def.showKey]) {
-      hidden.push({ id: def.route, label: def.label, builtin: false });
+      hidden.push({ id: def.id, label: def.label, builtin: false });
     }
   }
 
@@ -217,7 +214,7 @@ export function useFeedSettings() {
         });
       } else {
         // Extra-kind: enable via feedSettings + add to order
-        const def = EXTRA_KINDS.find((d) => d.route === id);
+        const def = getExtraKindDef(id);
         if (!def?.showKey) return;
 
         updateConfig((currentConfig) => {
@@ -253,7 +250,7 @@ export function useFeedSettings() {
         });
       } else {
         // Extra-kind: disable via feedSettings + remove from order
-        const def = EXTRA_KINDS.find((d) => d.route === id);
+        const def = getExtraKindDef(id);
         if (!def?.showKey) return;
 
         updateConfig((currentConfig) => {
@@ -276,11 +273,11 @@ export function useFeedSettings() {
   return {
     feedSettings: config.feedSettings,
     updateFeedSettings,
-    /** Ordered list of visible sidebar item IDs (built-in IDs + extra-kind routes). */
+    /** Ordered list of visible sidebar item IDs (built-in + extra-kind). */
     orderedItems,
     /** Items available to add to the sidebar (hidden built-ins + disabled extra-kinds). */
     hiddenItems,
-    /** Persist a new order for the sidebar Explore section. */
+    /** Persist a new order for the sidebar. */
     updateSidebarOrder,
     /** Add an item to sidebar (enable + append to order). */
     addToSidebar,
