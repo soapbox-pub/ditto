@@ -60,7 +60,7 @@ export function MobileBottomNav() {
             <span className="relative">
               <Bell className="size-5" />
               {hasUnread && (
-                <span className="absolute top-0 right-0 size-2 bg-primary rounded-full" />
+                <span className="absolute -top-1 right-0 size-2 bg-primary rounded-full" />
               )}
             </span>
             <span className="text-[10px] font-medium">Notifications</span>
