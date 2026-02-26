@@ -245,6 +245,15 @@ export function LeftSidebar() {
       return !builtin?.requiresAuth;
     });
   }, [orderedItems, user]);
+
+  // Also filter hidden items for auth
+  const visibleHiddenItems = useMemo(() => {
+    if (user) return hiddenItems;
+    return hiddenItems.filter((item) => {
+      const builtin = getBuiltinItem(item.id);
+      return !builtin?.requiresAuth;
+    });
+  }, [hiddenItems, user]);
   const hasUnread = useHasUnreadNotifications();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const [loginDialogOpen, setLoginDialogOpen] = useState(false);
@@ -402,7 +411,7 @@ export function LeftSidebar() {
         </DndContext>
 
         {/* "More..." add trigger — subtle inline link */}
-        {hiddenItems.length > 0 && (
+        {visibleHiddenItems.length > 0 && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -415,7 +424,7 @@ export function LeftSidebar() {
             <DropdownMenuContent align="start" className="w-[220px]">
               <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
               <DropdownMenuSeparator />
-              {hiddenItems.map((item) => (
+              {visibleHiddenItems.map((item) => (
                 <DropdownMenuItem
                   key={item.id}
                   onClick={() => addToSidebar(item.id)}
