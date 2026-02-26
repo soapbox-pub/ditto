@@ -193,13 +193,7 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
 
 // ── Section header ────────────────────────────────────────────────────────────
 
-function SectionHeader() {
-  return (
-    <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-      <div className="flex-1 h-px bg-border/50" />
-    </div>
-  );
-}
+
 
 // ── Main sidebar ──────────────────────────────────────────────────────────────
 
@@ -358,9 +352,6 @@ export function LeftSidebar() {
 
       {/* Navigation */}
       <nav className="flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
-        {/* ── Explore section ── */}
-        <SectionHeader />
-
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -441,8 +432,6 @@ export function LeftSidebar() {
         {/* ── You section ── (logged-in only) */}
         {user ? (
           <>
-            <SectionHeader />
-
             <NavItem
               to={userProfileUrl}
               icon={<User className="size-6" />}
