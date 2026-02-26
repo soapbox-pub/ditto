@@ -181,19 +181,19 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
           type="button"
           className={cn(
             'group transition-colors',
-            'flex flex-col items-center gap-1.5 w-full',
-            'sidebar:flex-row sidebar:items-center sidebar:gap-2.5 sidebar:w-auto',
+            'flex flex-col items-center gap-1.5',
+            'sidebar:flex-row sidebar:items-center sidebar:gap-2.5',
             disabled && 'opacity-50 cursor-not-allowed',
             className,
           )}
         >
-          {/* Mobile: full-width bar. Desktop: square swatch */}
+          {/* Color circle swatch */}
           <div
-            className="w-full h-8 rounded-lg border border-border shadow-sm transition-transform group-hover:scale-105 sidebar:size-8 sidebar:w-8 sidebar:shrink-0"
+            className="size-10 rounded-full border-2 border-border shadow-sm transition-all group-hover:scale-110 group-hover:shadow-md shrink-0"
             style={{ backgroundColor: value }}
           />
           {label && (
-            <div className="flex flex-col items-center gap-0.5 sidebar:items-start">
+            <div className="flex flex-col items-center gap-0.5">
               <span className="text-xs font-medium text-foreground">{label}</span>
               <span className="text-[10px] text-muted-foreground font-mono uppercase">{value}</span>
             </div>
