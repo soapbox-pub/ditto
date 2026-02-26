@@ -200,13 +200,26 @@ export function useFeedSettings() {
     [updateConfig],
   );
 
+  /**
+   * Get the effective sidebar order, using the computed default when the
+   * persisted order is empty (fresh install).
+   */
+  /**
+   * Get the effective sidebar order, using the computed default when the
+   * persisted order is empty or undefined (fresh install).
+   */
+  const getEffectiveOrder = useCallback(
+    (persisted: string[] | undefined) => persisted?.length ? persisted : orderedItems,
+    [orderedItems],
+  );
+
   /** Add an item to the sidebar (handles both built-ins and extra-kinds). */
   const addToSidebar = useCallback(
     (id: string) => {
       if (isBuiltinItem(id)) {
         // Built-in: just add to order (no feedSettings toggle)
         updateConfig((currentConfig) => {
-          const currentOrder = currentConfig.sidebarOrder ?? config.sidebarOrder;
+          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
           if (currentOrder.includes(id)) return currentConfig;
           return {
             ...currentConfig,
@@ -219,7 +232,7 @@ export function useFeedSettings() {
         if (!def?.showKey) return;
 
         updateConfig((currentConfig) => {
-          const currentOrder = currentConfig.sidebarOrder ?? config.sidebarOrder;
+          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
           return {
             ...currentConfig,
             feedSettings: {
@@ -234,7 +247,7 @@ export function useFeedSettings() {
         });
       }
     },
-    [config.feedSettings, config.sidebarOrder, updateConfig],
+    [config.feedSettings, getEffectiveOrder, updateConfig],
   );
 
   /** Remove an item from the sidebar (handles both built-ins and extra-kinds). */
@@ -243,7 +256,7 @@ export function useFeedSettings() {
       if (isBuiltinItem(id)) {
         // Built-in: just remove from order
         updateConfig((currentConfig) => {
-          const currentOrder = currentConfig.sidebarOrder ?? config.sidebarOrder;
+          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
           return {
             ...currentConfig,
             sidebarOrder: currentOrder.filter((r) => r !== id),
@@ -255,7 +268,7 @@ export function useFeedSettings() {
         if (!def?.showKey) return;
 
         updateConfig((currentConfig) => {
-          const currentOrder = currentConfig.sidebarOrder ?? config.sidebarOrder;
+          const currentOrder = getEffectiveOrder(currentConfig.sidebarOrder);
           return {
             ...currentConfig,
             feedSettings: {
@@ -268,7 +281,7 @@ export function useFeedSettings() {
         });
       }
     },
-    [config.feedSettings, config.sidebarOrder, updateConfig],
+    [config.feedSettings, getEffectiveOrder, updateConfig],
   );
 
   return {
