@@ -1,9 +1,8 @@
 import { ReactNode, useLayoutEffect, useEffect } from 'react';
-import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
-import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
+import { AppContext, type AppConfig, type AppContextType, type Theme } from '@/contexts/AppContext';
 import { builtinThemes, themePresets, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
-import { ThemeSchemaCompat, ThemeConfigCompatSchema, ThemesConfigSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { AppConfigSchema } from '@/lib/schemas';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 
 interface AppProviderProps {
@@ -13,46 +12,6 @@ interface AppProviderProps {
   /** Default app configuration */
   defaultConfig: AppConfig;
 }
-
-// Zod schema for RelayMetadata validation
-const RelayMetadataSchema = z.object({
-  relays: z.array(z.object({
-    url: z.url(),
-    read: z.boolean(),
-    write: z.boolean(),
-  })),
-  updatedAt: z.number(),
-}) satisfies z.ZodType<RelayMetadata>;
-
-/**
- * Schema for customTheme in AppConfig localStorage.
- * Accepts ThemeConfig, bare CoreThemeColors, and legacy ThemeTokens format,
- * normalizing to ThemeConfig.
- */
-const CustomThemeStorageSchema = ThemeConfigCompatSchema;
-
-// Zod schema for AppConfig validation.
-// Uses ThemeSchemaCompat so legacy "black"/"pink" values parse successfully.
-// Migration to "custom" happens in the deserializer below.
-const AppConfigSchema = z.object({
-  theme: ThemeSchemaCompat,
-  customTheme: CustomThemeStorageSchema.optional(),
-  themes: ThemesConfigSchema.optional(),
-  relayMetadata: RelayMetadataSchema,
-  useAppRelays: z.boolean(),
-  feedSettings: FeedSettingsSchema,
-  sidebarOrder: z.array(z.string()),
-  nip85StatsPubkey: z.string().refine(
-    (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
-    { message: 'Must be empty or a valid 64-character hex pubkey' }
-  ),
-  blossomServers: z.array(z.url()),
-  defaultZapComment: z.string(),
-  faviconUrl: z.string(),
-  linkPreviewUrl: z.string(),
-  corsProxy: z.string(),
-  contentWarningPolicy: ContentWarningPolicySchema,
-});
 
 export function AppProvider(props: AppProviderProps) {
   const {
