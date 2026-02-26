@@ -8,12 +8,13 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import {
   Clapperboard,
   Palette,
-
   PartyPopper,
   BarChart3,
   Radio,
   FileText,
   X,
+  Compass,
+  UserPlus,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -23,6 +24,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PollContent } from '@/components/PollContent';
+import { ColorMomentContent } from '@/components/ColorMomentContent';
+import { ArticleContent } from '@/components/ArticleContent';
+import { GeocacheContent } from '@/components/GeocacheContent';
+import { FollowPackContent } from '@/components/FollowPackContent';
+import { MagicDeckContent } from '@/components/MagicDeckContent';
+import { NoteContent } from '@/components/NoteContent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
@@ -164,15 +172,49 @@ export function PlanetPage() {
   );
 
   return (
-    <div className="relative flex h-dvh flex-col items-center overflow-hidden bg-background">
-      {/* Hero text */}
-      <div className="relative z-20 mt-16 text-center sm:mt-20">
-        <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl">
-          Ditto
-        </h1>
-        <p className="mx-auto mt-3 max-w-xs text-sm text-muted-foreground sm:max-w-sm sm:text-base">
-          More than notes. A universe of things to do.
-        </p>
+    <div className="relative flex h-dvh flex-col overflow-hidden bg-background">
+
+      {/* ── Aurora borealis ───────────────────────────────────────────── */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[80%] overflow-hidden" aria-hidden>
+        {/* base dark wash */}
+        <div className="absolute inset-0 bg-gradient-to-b from-[#0a0014] via-[#0d0020] to-transparent" />
+        {/* aurora band 1 — teal/green */}
+        <div className="aurora-band absolute -top-20 left-[-10%] h-[500px] w-[80%] rotate-[-8deg] rounded-full bg-[#00ffc8] opacity-[0.07] blur-[110px]" style={{ animation: 'aurora1 14s ease-in-out infinite alternate' }} />
+        {/* aurora band 2 — purple */}
+        <div className="aurora-band absolute top-0 left-[20%] h-[460px] w-[75%] rotate-[4deg] rounded-full bg-[#a855f7] opacity-[0.10] blur-[100px]" style={{ animation: 'aurora2 18s ease-in-out infinite alternate' }} />
+        {/* aurora band 3 — pink */}
+        <div className="aurora-band absolute top-10 left-[35%] h-[420px] w-[65%] rotate-[-3deg] rounded-full bg-[#ec4899] opacity-[0.07] blur-[120px]" style={{ animation: 'aurora3 22s ease-in-out infinite alternate' }} />
+        {/* aurora band 4 — indigo */}
+        <div className="aurora-band absolute -top-10 left-[50%] h-[480px] w-[60%] rotate-[10deg] rounded-full bg-[#6366f1] opacity-[0.09] blur-[90px]" style={{ animation: 'aurora4 16s ease-in-out infinite alternate' }} />
+        {/* aurora band 5 — lime — extra whimsy low band */}
+        <div className="aurora-band absolute top-[40%] left-[-5%] h-[300px] w-[55%] rotate-[-5deg] rounded-full bg-[#84cc16] opacity-[0.05] blur-[130px]" style={{ animation: 'aurora1 26s ease-in-out infinite alternate-reverse' }} />
+        {/* star-speckle layer */}
+        <div className="absolute inset-0 bg-[radial-gradient(1px_1px_at_20%_10%,rgba(255,255,255,0.5)_0%,transparent_100%),radial-gradient(1px_1px_at_60%_6%,rgba(255,255,255,0.4)_0%,transparent_100%),radial-gradient(1px_1px_at_80%_18%,rgba(255,255,255,0.45)_0%,transparent_100%),radial-gradient(1px_1px_at_35%_28%,rgba(255,255,255,0.3)_0%,transparent_100%),radial-gradient(1px_1px_at_10%_40%,rgba(255,255,255,0.25)_0%,transparent_100%),radial-gradient(1px_1px_at_72%_45%,rgba(255,255,255,0.2)_0%,transparent_100%),radial-gradient(1px_1px_at_48%_55%,rgba(255,255,255,0.15)_0%,transparent_100%)]" />
+        {/* long fade to background */}
+        <div className="absolute bottom-0 left-0 right-0 h-48 bg-gradient-to-b from-transparent to-background" />
+      </div>
+
+      {/* ── Hero — left text + right CTA ─────────────────────────────── */}
+      <div className="relative z-20 mx-auto flex w-full max-w-3xl flex-col gap-4 px-8 pt-24 sm:flex-row sm:items-start sm:justify-between sm:gap-8 sm:pt-36">
+        {/* Left: title + description */}
+        <div>
+          <h1 className="text-5xl font-bold tracking-tight text-white sm:text-7xl md:text-8xl lg:text-9xl">
+            Ditto
+          </h1>
+          <p className="mt-3 max-w-xs text-sm text-white/60 sm:mt-4 sm:max-w-sm sm:text-lg">
+            More than notes. A whole universe of things to discover, share, and do.
+          </p>
+        </div>
+
+        {/* Right: CTA */}
+        <div className="flex shrink-0 flex-col gap-3 sm:items-end sm:pt-4">
+          <Button asChild size="lg" className="rounded-full px-8 shadow-lg shadow-primary/20">
+            <Link to="/signup"><UserPlus className="mr-2 h-5 w-5" />Join Ditto</Link>
+          </Button>
+          <Button asChild variant="outline" size="lg" className="rounded-full border-white/20 bg-white/5 px-8 text-white backdrop-blur-sm hover:bg-white/10">
+            <Link to="/"><Compass className="mr-2 h-5 w-5" />Explore the Feed</Link>
+          </Button>
+        </div>
       </div>
 
       {/* Logo + orbit — single wrapper anchored to bottom, upper half peeks out */}
@@ -182,6 +224,31 @@ export function PlanetPage() {
       >
         {/* The Ditto logo SVG with orbit ring baked in */}
         <DittoLogoSVG />
+
+        {/* Event card rendered inside the planet sphere.
+            The occluder is at SVG (45,40) r=33.
+            In %-of-container: cx=(45+5)/100=50%, cy=(40+10)/100=50%
+            diameter = 33*2/100 = 66% of container. */}
+        {selectedItem && (
+          <>
+            {/* Circle card */}
+            <div
+              className="absolute z-20 overflow-hidden"
+              style={{
+                width: '62%',
+                height: '62%',
+                left: '50%',
+                top: '50%',
+                transform: 'translate(-50%, -50%)',
+                borderRadius: '50%',
+              }}
+            >
+              <PlanetEventCard item={selectedItem} onClose={() => setSelectedIdx(null)} />
+            </div>
+
+
+          </>
+        )}
 
         {/* Orbiting icons — positioned as % of this container using SVG coords.
             SVG viewBox is "-5 -10 100 100" → to convert SVG(x,y) to %:
@@ -220,30 +287,53 @@ export function PlanetPage() {
         })}
       </div>
 
-      {/* Event card */}
-      <div className="absolute top-1/2 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4 sm:top-[40%]">
-        {selectedItem && (
-          <EventCard item={selectedItem} onClose={() => setSelectedIdx(null)} />
-        )}
-      </div>
+
 
       <style>{`
         @keyframes icon-pulse {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.12); }
         }
+        @keyframes aurora1 {
+          0%   { transform: translateX(0%)   rotate(-8deg)  scaleY(1); }
+          100% { transform: translateX(12%)  rotate(-4deg)  scaleY(1.15); }
+        }
+        @keyframes aurora2 {
+          0%   { transform: translateX(0%)   rotate(4deg)   scaleY(1); }
+          100% { transform: translateX(-8%)  rotate(8deg)   scaleY(0.9); }
+        }
+        @keyframes aurora3 {
+          0%   { transform: translateX(0%)   rotate(-3deg)  scaleY(1); }
+          100% { transform: translateX(6%)   rotate(-6deg)  scaleY(1.2); }
+        }
+        @keyframes aurora4 {
+          0%   { transform: translateX(0%)   rotate(10deg)  scaleY(1); }
+          100% { transform: translateX(-10%) rotate(6deg)   scaleY(0.85); }
+        }
       `}</style>
 
-      {/* CTA */}
-      <div className="relative z-20 mt-auto pb-8 pt-2 flex gap-3">
-        <Button asChild size="lg" className="rounded-full px-8">
-          <Link to="/">Explore the Feed</Link>
-        </Button>
-        <Button asChild variant="outline" size="lg" className="rounded-full px-8">
-          <Link to="/search">Search</Link>
-        </Button>
-      </div>
-
+      {/* Fade + pill button anchored to viewport bottom — must be outside
+          the transformed logo wrapper to avoid stacking context issues */}
+      {selectedItem && (
+        <>
+          <div
+            className="absolute bottom-0 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
+            style={{
+              width: 'min(50vw, 600px)',
+              height: '140px',
+              background: 'linear-gradient(to top, hsl(var(--background)) 50%, transparent)',
+            }}
+          />
+          <div className="absolute bottom-8 left-0 right-0 z-50 flex justify-center">
+            <Link
+              to={selectedItem.route}
+              className="inline-flex items-center rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground shadow-lg transition-opacity hover:opacity-90"
+            >
+              View {selectedItem.label} →
+            </Link>
+          </div>
+        </>
+      )}
 
     </div>
   );
@@ -280,10 +370,11 @@ function DittoLogoSVG() {
 }
 
 // ---------------------------------------------------------------------------
-// Event card
+// PlanetEventCard — renders inside the planet sphere, uses kind-specific
+// content components matching the feed's NoteCard rendering rules.
 // ---------------------------------------------------------------------------
 
-function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) {
+function PlanetEventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) {
   const { nostr } = useNostr();
 
   const { data: event, isLoading } = useQuery({
@@ -296,115 +387,119 @@ function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) 
   });
 
   return (
-    <Card className="animate-in fade-in-0 zoom-in-95 relative overflow-hidden border-primary/10 bg-card/90 backdrop-blur-md duration-200">
-      <CardContent className="p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <item.icon className="h-4 w-4" strokeWidth={1.5} style={{ color: item.color }} />
-            <span className="text-sm font-medium text-foreground">{item.label}</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-full p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Close"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
+    <div className="relative h-full w-full">
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute right-5 top-3 z-30 rounded-full p-1 text-muted-foreground/40 transition-colors hover:text-foreground"
+        aria-label="Close"
+      >
+        <X className="h-3 w-3" />
+      </button>
 
+      {/* Scrollable content */}
+      <div className="animate-in fade-in-0 h-full w-full overflow-y-auto overscroll-contain bg-background/95 px-28 pb-48 pt-12 sm:pt-28 backdrop-blur-md duration-200" style={{ height: '55vh' }}>
         {isLoading ? (
-          <EventCardSkeleton />
+          <PlanetCardSkeleton />
         ) : event ? (
-          <EventCardBody event={event} item={item} />
+          <PlanetCardBody event={event} item={item} />
         ) : (
-          <p className="py-4 text-center text-sm text-muted-foreground">No events found</p>
+          <div className="flex h-full items-center justify-center">
+            <p className="text-xs text-muted-foreground">No events found</p>
+          </div>
         )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function EventCardSkeleton() {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <Skeleton className="h-8 w-8 rounded-full" />
-        <div className="space-y-1">
-          <Skeleton className="h-3 w-24" />
-          <Skeleton className="h-2.5 w-16" />
-        </div>
       </div>
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
     </div>
   );
 }
 
-function EventCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) {
+function PlanetCardSkeleton() {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-7 w-7 rounded-full" />
+        <div className="space-y-1">
+          <Skeleton className="h-3 w-20" />
+          <Skeleton className="h-2 w-14" />
+        </div>
+      </div>
+      <Skeleton className="h-3 w-full" />
+      <Skeleton className="h-3 w-4/5" />
+      <Skeleton className="h-3 w-2/3" />
+    </div>
+  );
+}
+
+function PlanetCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) {
   const author = useAuthor(event.pubkey);
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(event.pubkey);
 
-  const preview = useMemo(() => {
-    if (event.content) {
-      return event.content.slice(0, 140) + (event.content.length > 140 ? '...' : '');
-    }
-    const titleTag = event.tags.find(([n]) => n === 'title')?.[1];
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
-    if (titleTag) return titleTag;
-    if (dTag) return dTag;
-    return `Kind ${event.kind} event`;
-  }, [event]);
+  const timeAgo = useMemo(() => {
+    const s = Math.floor(Date.now() / 1000) - event.created_at;
+    if (s < 60) return 'just now';
+    if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+    if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+    return `${Math.floor(s / 86400)}d ago`;
+  }, [event.created_at]);
 
   const eventLink = useMemo(() => {
     try {
       if (event.kind >= 30000 && event.kind < 40000) {
-        const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
-        return `/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag })}`;
+        const d = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
+        return `/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: d })}`;
       }
       return `/${nip19.neventEncode({ id: event.id })}`;
-    } catch {
-      return null;
+    } catch { return null; }
+  }, [event]);
+
+  // Kind-specific content
+  const content = useMemo(() => {
+    switch (event.kind) {
+      case 1068: return <PollContent event={event} />;
+      case 3367: return <ColorMomentContent event={event} />;
+      case 30023: return <ArticleContent event={event} preview className="mt-1" />;
+      case 37516: return <GeocacheContent event={event} />;
+      case 39089:
+      case 30000: return <FollowPackContent event={event} />;
+      case 37381: return <MagicDeckContent event={event} />;
+      default:
+        // Vines (34236), Streams (30311), and text notes
+        if (event.content) {
+          return <NoteContent event={event} className="text-xs leading-relaxed text-foreground/80" />;
+        }
+        return null;
     }
   }, [event]);
 
-  const timeAgo = useMemo(() => {
-    const seconds = Math.floor(Date.now() / 1000) - event.created_at;
-    if (seconds < 60) return 'just now';
-    if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
-    return `${Math.floor(seconds / 86400)}d ago`;
-  }, [event.created_at]);
-
   return (
     <div className="space-y-3">
+      {/* Author row */}
       <div className="flex items-center gap-2">
-        <Avatar className="h-8 w-8">
+        <Avatar className="h-7 w-7">
           <AvatarImage src={metadata?.picture} />
-          <AvatarFallback className="bg-muted text-xs font-medium">
+          <AvatarFallback className="bg-muted text-[10px] font-medium">
             {displayName.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium leading-tight">{displayName}</p>
-          <p className="text-xs text-muted-foreground">
-            {item.verb} {timeAgo}
-          </p>
+          <p className="truncate text-xs font-semibold leading-tight">{displayName}</p>
+          <p className="text-[10px] text-muted-foreground">{item.verb} · {timeAgo}</p>
         </div>
       </div>
 
-      <p className="line-clamp-3 text-sm leading-relaxed text-foreground/80">{preview}</p>
+      {/* Kind-specific content */}
+      <div className="text-xs">{content}</div>
 
-      <div className="flex gap-2">
-        {eventLink && (
-          <Button asChild variant="ghost" size="sm" className="flex-1 justify-center text-primary/80 hover:text-primary">
-            <Link to={eventLink}>View event &rarr;</Link>
-          </Button>
-        )}
-        <Button asChild variant="ghost" size="sm" className="flex-1 justify-center text-primary/80 hover:text-primary">
-          <Link to={item.route}>All {item.label.toLowerCase()} &rarr;</Link>
-        </Button>
-      </div>
+      {/* Visit link */}
+      {eventLink && (
+        <Link
+          to={eventLink}
+          className="block text-center text-[10px] font-medium text-primary/70 hover:text-primary"
+        >
+          View full {item.label.toLowerCase()} →
+        </Link>
+      )}
     </div>
   );
 }
