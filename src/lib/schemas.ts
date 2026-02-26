@@ -130,6 +130,7 @@ export const EncryptedSettingsSchema = z.looseObject({
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),
   contentWarningPolicy: ContentWarningPolicySchema.optional(),
+  notificationsEnabled: z.boolean().optional(),
   notificationsCursor: z.number().optional(),
   lastSync: z.number().optional(),
 });
