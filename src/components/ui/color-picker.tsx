@@ -193,9 +193,9 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
             className="relative size-12 rounded-full border-2 border-border shadow-sm cursor-pointer transition-all group-hover:scale-105 group-hover:shadow-md group-hover:border-foreground/20 shrink-0"
             style={{ backgroundColor: value }}
           >
-            {/* Edit overlay on hover */}
-            <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors">
-              <Pencil className="size-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-sm" />
+            {/* Edit overlay */}
+            <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+              <Pencil className="size-3.5 text-white drop-shadow-sm" />
             </div>
           </div>
           {label && (
