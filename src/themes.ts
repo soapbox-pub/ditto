@@ -52,14 +52,14 @@ export const builtinThemes: Record<'light' | 'dark', CoreThemeColors> = {
     background: '0 0% 100%',
     text: '222.2 84% 4.9%',
     primary: '258 70% 55%',
-    secondary: '225 65% 50%',
+    secondary: '47 80% 50%',
   },
 
   dark: {
     background: '228 20% 10%',
     text: '210 40% 98%',
     primary: '258 70% 60%',
-    secondary: '225 65% 55%',
+    secondary: '47 80% 55%',
   },
 };
 
