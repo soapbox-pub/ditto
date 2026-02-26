@@ -9,7 +9,8 @@ import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag,
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -39,7 +40,9 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { useTheme } from '@/hooks/useTheme';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -725,6 +728,20 @@ export function ProfilePage() {
   );
   const profileThemeTokens = profileThemeQuery.data?.tokens;
 
+  // First-time custom theme info modal
+  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
+  const [themeInfoOpen, setThemeInfoOpen] = useState(false);
+  const { updateFeedSettings } = useFeedSettings();
+  const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
+
+  // Show info modal on first encounter with a profile theme
+  useEffect(() => {
+    if (profileThemeTokens && !hasSeenThemeInfo && !isOwnProfile) {
+      setThemeInfoOpen(true);
+      setHasSeenThemeInfo(true);
+    }
+  }, [profileThemeTokens, hasSeenThemeInfo, isOwnProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
   useEffect(() => {
@@ -1227,6 +1244,42 @@ export function ProfilePage() {
             onClose={() => setLightboxImage(null)}
           />
         )}
+
+        {/* First-time custom theme info modal */}
+        <Dialog open={themeInfoOpen} onOpenChange={setThemeInfoOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Custom Profile Theme</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                You're viewing <span className="font-semibold text-foreground">{displayName}</span>'s profile with their own custom theme applied. The colors you see are part of their personal style.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 flex-1">
+                  <span className="text-sm font-medium">Show custom profile themes</span>
+                  <p className="text-xs text-muted-foreground">See other users' themes when visiting their profiles</p>
+                </div>
+                <Switch
+                  checked={showCustomProfileThemes}
+                  onCheckedChange={async (val) => {
+                    updateFeedSettings({ showCustomProfileThemes: val });
+                    if (user) {
+                      const updatedFeedSettings = { ...feedSettings, showCustomProfileThemes: val };
+                      await encryptedUpdateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+                    }
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                You can change this anytime in{' '}
+                <Link to="/settings/content" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
+                  Content Settings
+                </Link>.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </PullToRefresh>
       </main>
   );
