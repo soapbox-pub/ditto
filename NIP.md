@@ -4,12 +4,12 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
-| 33891 | Theme Definition     | Shareable, named custom UI theme                      |
-| 11667 | Active Profile Theme | The user's currently active theme (one per user)      |
+| 36767 | Theme Definition     | Shareable, named custom UI theme                      |
+| 16767 | Active Profile Theme | The user's currently active theme (one per user)      |
 
 ---
 
-## Kind 33891: Theme Definition
+## Kind 36767: Theme Definition
 
 ### Summary
 
@@ -21,7 +21,7 @@ A theme consists of colors, optional fonts, and an optional background. Colors a
 
 ```json
 {
-  "kind": 33891,
+  "kind": 36767,
   "content": "",
   "tags": [
     ["d", "mk-dark-theme"],
@@ -53,11 +53,11 @@ The `content` field is unused and MUST be an empty string (`""`).
 
 ### Multiple Themes Per User
 
-Since kind 33891 is addressable, a user can publish multiple themes by using different `d` tag values. Publishing a new event with the same `d` tag replaces the previous version (this is how editing works).
+Since kind 36767 is addressable, a user can publish multiple themes by using different `d` tag values. Publishing a new event with the same `d` tag replaces the previous version (this is how editing works).
 
 ---
 
-## Kind 11667: Active Profile Theme
+## Kind 16767: Active Profile Theme
 
 ### Summary
 
@@ -67,7 +67,7 @@ Replaceable event that represents the user's currently active profile theme. Onl
 
 ```json
 {
-  "kind": 11667,
+  "kind": 16767,
   "content": "",
   "tags": [
     ["c", "#1a1a2e", "background"],
@@ -97,16 +97,16 @@ The `content` field is unused and MUST be an empty string (`""`).
 
 ### Client Behavior
 
-- When visiting a profile, clients query `{ kinds: [11667], authors: [pubkey], limit: 1 }` to get the active theme.
+- When visiting a profile, clients query `{ kinds: [16767], authors: [pubkey], limit: 1 }` to get the active theme.
 - Clients read the `c` tags to extract colors, `f` tags for fonts, and `bg` tag for the background.
-- Setting a new active theme publishes a new kind 11667 event (replacing the old one).
-- To remove the active theme, publish a kind 5 deletion event targeting kind 11667.
+- Setting a new active theme publishes a new kind 16767 event (replacing the old one).
+- To remove the active theme, publish a kind 5 deletion event targeting kind 16767.
 
 ---
 
 ## Shared Tag Definitions
 
-The following tag definitions apply to both kind 33891 and kind 11667.
+The following tag definitions apply to both kind 36767 and kind 16767.
 
 ### Color Tags
 
