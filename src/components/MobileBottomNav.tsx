@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Bell, Search } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
+import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { cn } from '@/lib/utils';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -44,8 +45,8 @@ export function MobileBottomNav() {
             location.pathname === '/' ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          <Home className="size-5" />
-          <span className="text-[10px] font-medium">Home</span>
+          <PlanetIcon className="size-5" />
+          <span className="text-[10px] font-medium">Feed</span>
         </Link>
 
         {user && (

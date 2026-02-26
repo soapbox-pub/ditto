@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import {
-  Home, Bell, Search, TrendingUp, User, Bookmark, Settings,
+  Bell, Search, TrendingUp, User, Bookmark, Settings,
   Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
   GripVertical, X,
 } from 'lucide-react';
@@ -13,6 +13,7 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { ChestIcon } from '@/components/icons/ChestIcon';
+import { PlanetIcon } from '@/components/icons/PlanetIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
 import { itemLabel, itemPath } from '@/lib/sidebarItems';
 import { cn } from '@/lib/utils';
@@ -21,7 +22,7 @@ import { useCallback } from 'react';
 // ── Icon map ──────────────────────────────────────────────────────────────────
 
 export const SIDEBAR_ITEM_ICONS: Record<string, React.ReactElement> = {
-  feed: <Home className="size-6" />,
+  feed: <PlanetIcon className="size-6" />,
   notifications: <Bell className="size-6" />,
   search: <Search className="size-6" />,
   trends: <TrendingUp className="size-6" />,
