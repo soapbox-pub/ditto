@@ -23,8 +23,11 @@ export interface BuiltinSidebarItem {
 /** All available built-in sidebar items, in default display order. */
 export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: '__feed', label: 'Feed', path: '/' },
+  { id: '__notifications', label: 'Notifications', path: '/notifications', requiresAuth: true },
   { id: '__trends', label: 'Trends', path: '/search?tab=trends' },
   { id: '__bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
+  { id: '__profile', label: 'Profile', path: '/profile', requiresAuth: true },
+  { id: '__settings', label: 'Settings', path: '/settings' },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
