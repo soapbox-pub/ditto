@@ -14,7 +14,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { ImageGallery } from '@/components/ImageGallery';
 import { NoteCard } from '@/components/NoteCard';
 import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
@@ -73,12 +72,6 @@ function formatSats(sats: number): string {
   if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   return sats.toString();
-}
-
-/** Extracts image URLs from note content. */
-function extractImages(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 /** Extracts video URLs from note content. */
@@ -576,7 +569,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isMagicDeck = event.kind === 37381;
     const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck;
 
-  const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
 
@@ -757,7 +749,6 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
               {videos.map((url, i) => (
                 <VideoPlayer key={`v-${i}`} src={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
               ))}
-              <ImageGallery images={images} maxGridHeight="500px" imetaMap={imetaMap} />
               {webxdcApps.map((app) => (
                 <WebxdcEmbed key={app.url} url={app.url} uuid={app.webxdc} name={app.summary} icon={app.thumbnail} />
               ))}

@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteContent } from '@/components/NoteContent';
 import { VideoPlayer } from '@/components/VideoPlayer';
-import { ImageGallery } from '@/components/ImageGallery';
 import { ReactionButton } from '@/components/ReactionButton';
 import { RepostMenu } from '@/components/RepostMenu';
 import { PollContent } from '@/components/PollContent';
@@ -63,12 +62,6 @@ function formatSats(sats: number): string {
   if (sats >= 1_000_000) return `${(sats / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
   if (sats >= 1_000) return `${(sats / 1_000).toFixed(1).replace(/\.0$/, '')}K`;
   return sats.toString();
-}
-
-/** Extracts image URLs from note content. */
-function extractImages(content: string): string[] {
-  const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-  return content.match(urlRegex) || [];
 }
 
 /** Extracts video URLs from note content. */
@@ -218,8 +211,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const isStream = event.kind === 30311;
   const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream;
 
-  // Kind 1 specific
-  const images = useMemo(() => isTextNote ? extractImages(event.content) : [], [event.content, isTextNote]);
+  // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
 
@@ -310,7 +302,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         ) : isStream ? (
           <StreamContent event={event} />
         ) : (
-          <TruncatedNoteContent event={event} images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
+          <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
       </ContentWarningGuard>
     </>
@@ -496,9 +488,8 @@ const MAX_HEIGHT = 400; // px — posts taller than this get truncated
 
 /** Truncates long text note content with a "Read more" fade + button.
  *  Media attachments are also hidden behind the truncation and revealed on expand. */
-function TruncatedNoteContent({ event, images, videos, imetaMap, webxdcApps = [] }: {
+function TruncatedNoteContent({ event, videos, imetaMap, webxdcApps = [] }: {
   event: NostrEvent;
-  images: string[];
   videos: string[];
   imetaMap: Map<string, ImetaEntry>;
   webxdcApps?: ImetaEntry[];
@@ -541,15 +532,15 @@ function TruncatedNoteContent({ event, images, videos, imetaMap, webxdcApps = []
         </button>
       )}
       {showMedia && (
-        <NoteMedia images={images} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
+        <NoteMedia videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
       )}
     </div>
   );
 }
 
-/** Media content for kind 1 text notes — renders images, videos, and webxdc apps. */
-function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: string[]; videos: string[]; imetaMap: Map<string, ImetaEntry>; webxdcApps?: ImetaEntry[] }) {
-  if (images.length === 0 && videos.length === 0 && webxdcApps.length === 0) return null;
+/** Media content for kind 1 text notes — renders videos and webxdc apps (images render inline in NoteContent). */
+function NoteMedia({ videos, imetaMap, webxdcApps = [] }: { videos: string[]; imetaMap: Map<string, ImetaEntry>; webxdcApps?: ImetaEntry[] }) {
+  if (videos.length === 0 && webxdcApps.length === 0) return null;
 
   return (
     <>
@@ -557,9 +548,6 @@ function NoteMedia({ images, videos, imetaMap, webxdcApps = [] }: { images: stri
       {videos.map((url, i) => (
         <NoteVideoPlayer key={`v-${i}`} url={url} poster={imetaMap.get(url)?.thumbnail} dim={imetaMap.get(url)?.dim} blurhash={imetaMap.get(url)?.blurhash} />
       ))}
-
-      {/* Images */}
-      <ImageGallery images={images} maxGridHeight="400px" imetaMap={imetaMap} />
 
       {/* Webxdc apps */}
       {webxdcApps.map((app) => (
