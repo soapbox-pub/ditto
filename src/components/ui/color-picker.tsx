@@ -194,7 +194,7 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
             style={{ backgroundColor: value }}
           >
             {/* Edit overlay */}
-            <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/20 group-hover:bg-black/30 transition-colors">
+            <div className="absolute inset-0 rounded-full flex items-center justify-center transition-colors">
               <Pencil className="size-3.5 text-white drop-shadow-sm" />
             </div>
           </div>
