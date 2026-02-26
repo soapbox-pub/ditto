@@ -417,7 +417,7 @@ export function ThemeBuilderPage() {
             )
           )}
         </div>
-        <div className="flex items-center gap-2 px-4 pb-2.5">
+        <div className="flex items-center justify-end gap-2 px-4 pb-2.5">
           <button
             onClick={togglePreview}
             className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
