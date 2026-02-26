@@ -23,7 +23,7 @@ export function MobileTopBar({ onMenuClick }: MobileTopBarProps) {
         {/* Right: hamburger menu */}
         <button
           onClick={onMenuClick}
-          className="absolute right-3 shrink-0 rounded-lg p-0.5 text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background transition-colors hover:bg-secondary/60"
+          className="absolute right-3 shrink-0 rounded-lg p-0.5 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background transition-colors hover:bg-secondary/60"
           aria-label="Open menu"
         >
           <Menu className="size-6" />
