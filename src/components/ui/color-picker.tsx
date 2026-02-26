@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { Pencil } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -189,9 +190,14 @@ export function ColorPicker({ value, onChange, label, className, disabled }: Col
         >
           {/* Color circle swatch */}
           <div
-            className="size-10 rounded-full border-2 border-border shadow-sm transition-all group-hover:scale-110 group-hover:shadow-md shrink-0"
+            className="relative size-12 rounded-full border-2 border-border shadow-sm cursor-pointer transition-all group-hover:scale-105 group-hover:shadow-md group-hover:border-foreground/20 shrink-0"
             style={{ backgroundColor: value }}
-          />
+          >
+            {/* Edit overlay on hover */}
+            <div className="absolute inset-0 rounded-full flex items-center justify-center bg-black/0 group-hover:bg-black/25 transition-colors">
+              <Pencil className="size-3.5 text-white opacity-0 group-hover:opacity-100 transition-opacity drop-shadow-sm" />
+            </div>
+          </div>
           {label && (
             <div className="flex flex-col items-center gap-0.5">
               <span className="text-xs font-medium text-foreground">{label}</span>
