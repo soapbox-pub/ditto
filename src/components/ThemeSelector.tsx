@@ -163,46 +163,49 @@ export function ThemeSelector() {
 
    return (
     <div className="space-y-5">
-      {/* ── Color editor (always visible) ── */}
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Colors
-        </h3>
-        <div className="flex items-start justify-center gap-6 sidebar:justify-start sidebar:gap-8">
-          {CORE_KEYS.map((key) => (
-            <ColorPicker
-              key={key}
-              label={COLOR_LABELS[key]}
-              value={hslStringToHex(effectiveColors[key])}
-              onChange={(hex) => handleColorChange(key, hex)}
-            />
-          ))}
+      {/* ── Customize card: colors, font, share toggle ── */}
+      <div className="space-y-4 rounded-xl border border-border bg-card p-4">
+        {/* Colors */}
+        <div className="space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Colors
+          </h3>
+          <div className="flex items-start justify-center gap-6 sidebar:justify-start sidebar:gap-8">
+            {CORE_KEYS.map((key) => (
+              <ColorPicker
+                key={key}
+                label={COLOR_LABELS[key]}
+                value={hslStringToHex(effectiveColors[key])}
+                onChange={(hex) => handleColorChange(key, hex)}
+              />
+            ))}
+          </div>
         </div>
+
+        {/* Font */}
+        <FontPicker />
+
+        {/* Share toggle */}
+        {user && (
+          <div className="flex items-center justify-between pt-1">
+            <Label htmlFor="share-theme" className="flex flex-col gap-1 cursor-pointer">
+              <span className="text-sm font-medium">Display my theme to others</span>
+              <span className="text-xs text-muted-foreground font-normal">
+                Share your current theme on your profile
+              </span>
+            </Label>
+            {isSharing ? (
+              <Loader2 className="size-4 animate-spin text-muted-foreground" />
+            ) : (
+              <Switch
+                id="share-theme"
+                checked={isShared}
+                onCheckedChange={handleShareToggle}
+              />
+            )}
+          </div>
+        )}
       </div>
-
-      {/* ── Font picker ── */}
-      <FontPicker />
-
-      {/* ── Share toggle ── */}
-      {user && (
-        <div className="flex items-center justify-between rounded-xl border border-border bg-card p-4">
-          <Label htmlFor="share-theme" className="flex flex-col gap-1 cursor-pointer">
-            <span className="text-sm font-medium">Display my theme to others</span>
-            <span className="text-xs text-muted-foreground font-normal">
-              Share your current theme on your profile
-            </span>
-          </Label>
-          {isSharing ? (
-            <Loader2 className="size-4 animate-spin text-muted-foreground" />
-          ) : (
-            <Switch
-              id="share-theme"
-              checked={isShared}
-              onCheckedChange={handleShareToggle}
-            />
-          )}
-        </div>
-      )}
 
       {/* ── Themes grid ── */}
       <div className="space-y-2">
