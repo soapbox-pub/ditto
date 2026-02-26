@@ -3,6 +3,31 @@ import { z } from 'zod';
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { CoreThemeColors, ThemeConfig, ThemesConfig } from '@/themes';
 
+// Re-export canonical schemas from the shared config module so existing
+// consumers (`AppProvider`, `useEncryptedSettings`, etc.) keep working
+// without changing their import paths.
+export {
+  CoreThemeColorsSchema,
+  ThemeFontSchema,
+  ThemeBackgroundSchema,
+  ThemeConfigSchema,
+  ThemesConfigSchema,
+  ContentWarningPolicySchema,
+  RelayMetadataSchema,
+  FeedSettingsSchema,
+} from '../../config/schema';
+
+import {
+  CoreThemeColorsSchema,
+  ThemeConfigSchema,
+  ThemesConfigSchema,
+  ContentWarningPolicySchema,
+  RelayMetadataSchema,
+  FeedSettingsSchema,
+} from '../../config/schema';
+
+// ─── Type-constrained re-exports ─────────────────────────────────────
+
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
 
@@ -12,15 +37,7 @@ export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfi
  */
 export const ThemeSchemaCompat = z.enum(['dark', 'light', 'system', 'custom', 'black', 'pink']);
 
-/** HSL value string like "258 70% 55%" */
-const HslValue = z.string().regex(/^\d/);
-
-/** Zod schema for CoreThemeColors (the 3 core colors) */
-export const CoreThemeColorsSchema = z.object({
-  background: HslValue,
-  text: HslValue,
-  primary: HslValue,
-}) satisfies z.ZodType<CoreThemeColors>;
+// ─── Legacy / Compat Schemas ─────────────────────────────────────────
 
 /**
  * Legacy schema that accepts the old 19-token ThemeTokens format.
@@ -28,9 +45,9 @@ export const CoreThemeColorsSchema = z.object({
  * Extracts core colors from legacy format.
  */
 export const LegacyThemeTokensSchema = z.object({
-  background: HslValue,
-  foreground: HslValue,
-  primary: HslValue,
+  background: z.string().regex(/^\d/),
+  foreground: z.string().regex(/^\d/),
+  primary: z.string().regex(/^\d/),
 }).passthrough();
 
 /**
@@ -38,10 +55,10 @@ export const LegacyThemeTokensSchema = z.object({
  * Strips the secondary field and normalizes to CoreThemeColors.
  */
 export const LegacyFourColorSchema = z.object({
-  background: HslValue,
-  text: HslValue,
-  primary: HslValue,
-  secondary: HslValue,
+  background: z.string().regex(/^\d/),
+  text: z.string().regex(/^\d/),
+  primary: z.string().regex(/^\d/),
+  secondary: z.string().regex(/^\d/),
 }).transform(({ background, text, primary }): CoreThemeColors => ({
   background,
   text,
@@ -62,39 +79,6 @@ export const ThemeColorsCompatSchema = z.union([
   })),
 ]);
 
-// ─── ThemeConfig Schemas ──────────────────────────────────────────────
-
-/** Zod schema for ThemeFont */
-export const ThemeFontSchema = z.object({
-  family: z.string(),
-  url: z.string().optional(),
-});
-
-
-
-/** Zod schema for ThemeBackground */
-export const ThemeBackgroundSchema = z.object({
-  url: z.string(),
-  mode: z.enum(['cover', 'tile']).optional(),
-  dimensions: z.string().optional(),
-  mimeType: z.string().optional(),
-  blurhash: z.string().optional(),
-});
-
-/** Zod schema for the full ThemeConfig */
-export const ThemeConfigSchema = z.object({
-  title: z.string().optional(),
-  colors: CoreThemeColorsSchema,
-  font: ThemeFontSchema.optional(),
-  background: ThemeBackgroundSchema.optional(),
-});
-
-/** Zod schema for ThemesConfig (light + dark theme configs) */
-export const ThemesConfigSchema = z.object({
-  light: z.lazy(() => ThemeConfigSchema),
-  dark: z.lazy(() => ThemeConfigSchema),
-}) satisfies z.ZodType<ThemesConfig>;
-
 /**
  * Compat schema that accepts either the new ThemeConfig format or the old
  * bare CoreThemeColors format (and all legacy color variants), normalizing
@@ -106,42 +90,37 @@ export const ThemeConfigCompatSchema = z.union([
   ThemeColorsCompatSchema.transform((colors): ThemeConfig => ({ colors })),
 ]);
 
-/** Zod schema for ContentWarningPolicy validation */
-export const ContentWarningPolicySchema = z.enum(['blur', 'hide', 'show']) satisfies z.ZodType<ContentWarningPolicy>;
+// ─── AppConfigSchema ─────────────────────────────────────────────────
 
 /**
- * Zod schema for FeedSettings validation.
- * All fields use .optional() so data with missing keys
- * (from older encrypted settings) doesn't reject the whole object.
- * Uses looseObject to preserve extra keys from newer encrypted settings.
- * Missing fields get filled in by the defaultConfig merge downstream.
+ * Zod schema for the full AppConfig stored in localStorage.
+ *
+ * Uses compat sub-schemas (ThemeSchemaCompat, ThemeConfigCompatSchema) so
+ * legacy values parse successfully. Migration from legacy theme values
+ * ("black", "pink") to "custom" + customTheme is handled downstream by
+ * the AppProvider deserializer.
  */
-export const FeedSettingsSchema = z.looseObject({
-  feedIncludePosts: z.boolean().optional(),
-  feedIncludeReposts: z.boolean().optional(),
-  feedIncludeArticles: z.boolean().optional(),
-  showArticles: z.boolean().optional(),
-  showVines: z.boolean().optional(),
-  showPolls: z.boolean().optional(),
-  showTreasures: z.boolean().optional(),
-  showTreasureGeocaches: z.boolean().optional(),
-  showTreasureFoundLogs: z.boolean().optional(),
-  showColors: z.boolean().optional(),
-  showPacks: z.boolean().optional(),
-  showStreams: z.boolean().optional(),
-  feedIncludeVines: z.boolean().optional(),
-  feedIncludePolls: z.boolean().optional(),
-  feedIncludeTreasureGeocaches: z.boolean().optional(),
-  feedIncludeTreasureFoundLogs: z.boolean().optional(),
-  feedIncludeColors: z.boolean().optional(),
-  feedIncludePacks: z.boolean().optional(),
-  feedIncludeStreams: z.boolean().optional(),
-  showDecks: z.boolean().optional(),
-  feedIncludeDecks: z.boolean().optional(),
-  showProfileThemes: z.boolean().optional(),
-  feedIncludeProfileThemes: z.boolean().optional(),
-  showCustomProfileThemes: z.boolean().optional(),
+export const AppConfigSchema = z.object({
+  theme: ThemeSchemaCompat,
+  customTheme: ThemeConfigCompatSchema.optional(),
+  themes: ThemesConfigSchema.optional(),
+  relayMetadata: RelayMetadataSchema,
+  useAppRelays: z.boolean(),
+  feedSettings: FeedSettingsSchema,
+  sidebarOrder: z.array(z.string()),
+  nip85StatsPubkey: z.string().refine(
+    (val) => val.length === 0 || (val.length === 64 && /^[0-9a-f]{64}$/i.test(val)),
+    { message: 'Must be empty or a valid 64-character hex pubkey' }
+  ),
+  blossomServers: z.array(z.string().url()),
+  defaultZapComment: z.string(),
+  faviconUrl: z.string(),
+  linkPreviewUrl: z.string(),
+  corsProxy: z.string(),
+  contentWarningPolicy: ContentWarningPolicySchema,
 });
+
+// ─── Content Filter Schemas ──────────────────────────────────────────
 
 /** Zod schema for FilterRule validation */
 export const FilterRuleSchema = z.object({
@@ -161,6 +140,8 @@ export const ContentFilterSchema = z.object({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
+
+// ─── EncryptedSettings Schema ────────────────────────────────────────
 
 /**
  * Zod schema for EncryptedSettings validation.

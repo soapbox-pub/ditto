@@ -36,7 +36,8 @@ const queryClient = new QueryClient({
   },
 });
 
-const defaultConfig: AppConfig = {
+/** Hardcoded fallback values. Always provides every required field. */
+const hardcodedConfig: AppConfig = {
   theme: "system",
   useAppRelays: true,
   relayMetadata: {
@@ -77,6 +78,15 @@ const defaultConfig: AppConfig = {
   linkPreviewUrl: 'https://fetch.ditto.pub/link/{url}',
   corsProxy: 'https://proxy.shakespeare.diy/?url={href}',
   contentWarningPolicy: 'blur',
+};
+
+/**
+ * Merge hardcoded defaults with build-time ditto.json overrides.
+ * Precedence (handled by AppProvider): user localStorage > build-time > hardcoded.
+ */
+const defaultConfig: AppConfig = {
+  ...hardcodedConfig,
+  ...(__DITTO_CONFIG__ ?? {}),
 };
 
 export function App() {
