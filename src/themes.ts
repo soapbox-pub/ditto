@@ -123,28 +123,6 @@ export interface ThemePreset {
  * and applies the preset's core color values to customTheme.
  */
 export const themePresets: Record<string, ThemePreset> = {
-  white: {
-    label: 'White',
-    emoji: '🤍',
-    featured: false,
-    colors: {
-      background: '0 0% 100%',
-      text: '222.2 84% 4.9%',
-      primary: '258 70% 55%',
-    },
-  },
-
-  black: {
-    label: 'Black',
-    emoji: '⚫',
-    featured: true,
-    colors: {
-      background: '0 0% 0%',
-      text: '0 0% 95%',
-      primary: '258 70% 60%',
-    },
-  },
-
   pink: {
     label: 'Pink',
     emoji: '🌸',
@@ -162,16 +140,6 @@ export const themePresets: Record<string, ThemePreset> = {
     },
   },
 
-  midnight: {
-    label: 'Midnight',
-    emoji: '🌙',
-    colors: {
-      background: '230 35% 7%',
-      text: '210 40% 92%',
-      primary: '210 100% 55%',
-    },
-  },
-
   toxic: {
     label: 'Toxic',
     emoji: '☢️',
@@ -183,16 +151,6 @@ export const themePresets: Record<string, ThemePreset> = {
     font: { family: 'JetBrains Mono' },
   },
 
-
-  ocean: {
-    label: 'Ocean',
-    emoji: '🌊',
-    colors: {
-      background: '200 30% 8%',
-      text: '195 20% 90%',
-      primary: '190 80% 45%',
-    },
-  },
 
   sunset: {
     label: 'Sunset',
