@@ -14,10 +14,10 @@ import {
   Radio,
   Image,
   BarChart3,
+  X,
   type LucideIcon,
 } from 'lucide-react';
 
-import { DittoLogo } from '@/components/DittoLogo';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -26,29 +26,39 @@ import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
 import { cn } from '@/lib/utils';
 
-/** An orbiting feature with its associated Nostr kind. */
+// ---------------------------------------------------------------------------
+// Data
+// ---------------------------------------------------------------------------
+
 interface OrbitItem {
   kind: number;
   label: string;
   icon: LucideIcon;
-  color: string;
-  /** Descriptive verb for the event card. */
   verb: string;
 }
 
 const ORBIT_ITEMS: OrbitItem[] = [
-  { kind: 1, label: 'Notes', icon: MessageCircle, color: 'from-violet-500 to-purple-600', verb: 'posted' },
-  { kind: 30023, label: 'Articles', icon: FileText, color: 'from-blue-500 to-cyan-500', verb: 'published' },
-  { kind: 7, label: 'Reactions', icon: Heart, color: 'from-pink-500 to-rose-500', verb: 'reacted' },
-  { kind: 9735, label: 'Zaps', icon: Zap, color: 'from-amber-400 to-yellow-500', verb: 'zapped' },
-  { kind: 3, label: 'Follows', icon: Users, color: 'from-emerald-500 to-green-500', verb: 'followed' },
-  { kind: 30311, label: 'Streams', icon: Radio, color: 'from-red-500 to-orange-500', verb: 'streamed' },
-  { kind: 1063, label: 'Media', icon: Image, color: 'from-indigo-500 to-violet-500', verb: 'shared' },
-  { kind: 1068, label: 'Polls', icon: BarChart3, color: 'from-teal-500 to-cyan-500', verb: 'polled' },
+  { kind: 1, label: 'Notes', icon: MessageCircle, verb: 'posted' },
+  { kind: 30023, label: 'Articles', icon: FileText, verb: 'published' },
+  { kind: 7, label: 'Reactions', icon: Heart, verb: 'reacted' },
+  { kind: 9735, label: 'Zaps', icon: Zap, verb: 'zapped' },
+  { kind: 3, label: 'Follows', icon: Users, verb: 'followed' },
+  { kind: 30311, label: 'Streams', icon: Radio, verb: 'streamed' },
+  { kind: 1063, label: 'Media', icon: Image, verb: 'shared' },
+  { kind: 1068, label: 'Polls', icon: BarChart3, verb: 'polled' },
 ];
 
-/** Number of items determines angular spacing. */
 const ITEM_COUNT = ORBIT_ITEMS.length;
+
+/** Orbit ellipse parameters. */
+const RX = 260;
+const RY = 80;
+const TILT_DEG = -15;
+const ORBIT_DURATION = 60; // seconds per full revolution
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 
 export function PlanetPage() {
   useSeoMeta({
@@ -60,120 +70,137 @@ export function PlanetPage() {
   const selectedItem = selectedIdx !== null ? ORBIT_ITEMS[selectedIdx] : null;
 
   return (
-    <div className="relative flex min-h-[calc(100dvh-4rem)] flex-col items-center justify-center overflow-hidden px-4 py-12">
-      {/* Background ambient glow */}
-      <div className="pointer-events-none absolute inset-0 isolate overflow-hidden">
-        <div className="absolute left-1/2 top-1/2 -z-10 h-[600px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/[0.06] blur-[120px]" />
-        <div className="absolute left-1/2 top-1/2 -z-10 h-[300px] w-[300px] -translate-x-1/2 -translate-y-[60%] rounded-full bg-primary/[0.12] blur-[80px]" />
-      </div>
+    <div className="relative flex h-dvh flex-col items-center justify-start overflow-hidden bg-background">
+      {/* ---- Massive Ditto logo peeking from the bottom ---- */}
+      <div
+        className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[45%] opacity-[0.07]"
+        role="img"
+        aria-hidden="true"
+        style={{
+          width: 'min(130vw, 1100px)',
+          height: 'min(130vw, 1100px)',
+          backgroundColor: 'hsl(var(--foreground))',
+          maskImage: 'url(/logo.svg)',
+          maskSize: 'contain',
+          maskRepeat: 'no-repeat',
+          maskPosition: 'center',
+          WebkitMaskImage: 'url(/logo.svg)',
+          WebkitMaskSize: 'contain',
+          WebkitMaskRepeat: 'no-repeat',
+          WebkitMaskPosition: 'center',
+        }}
+      />
 
-      {/* Hero text */}
-      <div className="relative z-10 mb-8 text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-          Planet{' '}
-          <span className="bg-gradient-to-r from-primary via-purple-400 to-primary bg-clip-text text-transparent">
-            Ditto
-          </span>
+      {/* ---- Hero text ---- */}
+      <div className="relative z-10 mt-16 text-center sm:mt-24">
+        <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl">
+          Ditto
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground sm:text-base">
-          A living universe of social events, orbiting in real time.
+        <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground sm:text-base">
+          A social universe, orbiting in real time.
         </p>
       </div>
 
-      {/* Orrery container */}
-      <div className="relative flex items-center justify-center" style={{ width: 420, height: 420 }}>
-        {/* Orbit ellipse — sits behind the planet via z-index layering */}
+      {/* ---- Orbit system ---- */}
+      <div
+        className="relative z-10 mt-12 sm:mt-16"
+        style={{ width: RX * 2 + 60, height: RY * 2 + 60 }}
+      >
+        {/* Orbit track (SVG ellipse) */}
         <OrbitRing />
 
-        {/* Planet (Ditto logo) — the front half occludes the ring */}
-        <div className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2">
-          <div className="group relative flex items-center justify-center">
-            {/* Glow behind planet */}
-            <div className="absolute h-32 w-32 rounded-full bg-primary/20 blur-xl transition-all duration-700 group-hover:bg-primary/30 group-hover:blur-2xl" />
-            <DittoLogo size={96} className="relative drop-shadow-lg transition-transform duration-500 group-hover:scale-105" />
-          </div>
+        {/* Rotating icon container — one CSS animation drives all icons */}
+        <div
+          className="absolute inset-0"
+          style={{
+            animation: `planet-orbit ${ORBIT_DURATION}s linear infinite`,
+            transformOrigin: 'center center',
+          }}
+        >
+          {ORBIT_ITEMS.map((item, i) => (
+            <OrbitIcon
+              key={item.kind}
+              item={item}
+              index={i}
+              total={ITEM_COUNT}
+              isSelected={selectedIdx === i}
+              onSelect={() => setSelectedIdx(selectedIdx === i ? null : i)}
+            />
+          ))}
         </div>
-
-        {/* Orbiting icons */}
-        {ORBIT_ITEMS.map((item, i) => (
-          <OrbitIcon
-            key={item.kind}
-            item={item}
-            index={i}
-            total={ITEM_COUNT}
-            isSelected={selectedIdx === i}
-            onSelect={() => setSelectedIdx(selectedIdx === i ? null : i)}
-          />
-        ))}
       </div>
 
-      {/* Subtitle beneath the orrery */}
-      <p className="relative z-10 mt-6 text-center text-xs text-muted-foreground/70">
-        Click an icon to see the latest event
+      {/* ---- Hint text ---- */}
+      <p className="relative z-10 mt-5 text-center text-xs text-muted-foreground/50">
+        Click an icon to peek at the latest event
       </p>
 
-      {/* Event preview card */}
-      <div className="relative z-30 mt-6 w-full max-w-sm" style={{ minHeight: 160 }}>
+      {/* ---- Event preview card ---- */}
+      <div className="relative z-30 mt-4 w-full max-w-sm px-4">
         {selectedItem ? (
           <EventCard item={selectedItem} onClose={() => setSelectedIdx(null)} />
-        ) : (
-          <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-border/50 bg-card/30 backdrop-blur-sm">
-            <p className="text-sm text-muted-foreground/60">Select an orbiting icon above</p>
-          </div>
-        )}
+        ) : null}
       </div>
 
-      {/* CTA */}
-      <div className="relative z-10 mt-8 flex gap-3">
-        <Button asChild size="lg" className="rounded-full px-8 shadow-lg shadow-primary/20">
+      {/* ---- CTA ---- */}
+      <div className="relative z-10 mt-auto pb-10 flex gap-3">
+        <Button asChild size="lg" className="rounded-full px-8">
           <Link to="/">Explore the Feed</Link>
         </Button>
         <Button asChild variant="outline" size="lg" className="rounded-full px-8">
           <Link to="/search">Search</Link>
         </Button>
       </div>
+
+      {/* Inline keyframes for the orbit rotation */}
+      <style>{`
+        @keyframes planet-orbit {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes planet-counter-rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(-360deg); }
+        }
+      `}</style>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Orbit ring: an SVG ellipse that visually passes behind the planet
+// Orbit ring
 // ---------------------------------------------------------------------------
 
 function OrbitRing() {
+  const cx = RX + 30;
+  const cy = RY + 30;
+  const w = RX * 2 + 60;
+  const h = RY * 2 + 60;
+
   return (
     <svg
-      className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2"
-      width="420"
-      height="420"
-      viewBox="0 0 420 420"
+      className="pointer-events-none absolute inset-0"
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
       fill="none"
     >
-      <defs>
-        <linearGradient id="orbit-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
-          <stop offset="50%" stopColor="hsl(var(--primary))" stopOpacity="0.08" />
-          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0.25" />
-        </linearGradient>
-      </defs>
-      {/* Back arc — behind the planet (lower z) */}
       <ellipse
-        cx="210"
-        cy="210"
-        rx="190"
-        ry="90"
-        stroke="url(#orbit-grad)"
-        strokeWidth="1.5"
-        strokeDasharray="4 6"
-        className="opacity-60"
-        style={{ transform: 'rotate(-12deg)', transformOrigin: '210px 210px' }}
+        cx={cx}
+        cy={cy}
+        rx={RX}
+        ry={RY}
+        stroke="hsl(var(--foreground))"
+        strokeWidth="1"
+        strokeOpacity="0.1"
+        style={{ transform: `rotate(${TILT_DEG}deg)`, transformOrigin: `${cx}px ${cy}px` }}
       />
     </svg>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Individual orbiting icon
+// Orbiting icon
 // ---------------------------------------------------------------------------
 
 interface OrbitIconProps {
@@ -184,58 +211,46 @@ interface OrbitIconProps {
   onSelect: () => void;
 }
 
-/**
- * Each icon sits at a fixed angle on the tilted ellipse.
- * Icons on the "back" portion (top half of the visual ellipse) get z-10 so
- * they pass behind the planet (z-20). Icons on the "front" portion (bottom
- * half) get z-30 so they pass in front.
- */
 function OrbitIcon({ item, index, total, isSelected, onSelect }: OrbitIconProps) {
   const Icon = item.icon;
 
-  // Angle in radians, distributed evenly
+  // Place each icon at its starting angle on the tilted ellipse.
   const angle = (2 * Math.PI * index) / total;
+  const tiltRad = (TILT_DEG * Math.PI) / 180;
 
-  // Tilted ellipse: rx=190, ry=90, rotated -12deg
-  const rx = 190;
-  const ry = 90;
-  const tiltDeg = -12;
-  const tiltRad = (tiltDeg * Math.PI) / 180;
+  const ex = RX * Math.cos(angle);
+  const ey = RY * Math.sin(angle);
 
-  // Position on untilted ellipse
-  const ex = rx * Math.cos(angle);
-  const ey = ry * Math.sin(angle);
-
-  // Apply rotation
   const x = ex * Math.cos(tiltRad) - ey * Math.sin(tiltRad);
   const y = ex * Math.sin(tiltRad) + ey * Math.cos(tiltRad);
 
-  // Determine if the icon is in the "back" arc (behind the planet)
-  // The back arc is roughly where the y-translated position is above center
-  // after tilt. We use the raw `ey` (untilted) to decide: negative ey = top arc = behind.
-  const isBehind = ey < 0;
+  // Center of the orbit container
+  const cx = RX + 30;
+  const cy = RY + 30;
 
   return (
     <button
       onClick={onSelect}
       className={cn(
-        'absolute left-1/2 top-1/2 flex items-center justify-center rounded-full',
-        'border border-border/60 bg-card shadow-md backdrop-blur-sm',
-        'transition-all duration-300 hover:scale-110 hover:shadow-lg',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-        isSelected && 'scale-110 ring-2 ring-primary shadow-lg shadow-primary/20',
-        isBehind ? 'z-10' : 'z-30',
+        'absolute flex items-center justify-center rounded-full',
+        'transition-all duration-200',
+        'hover:text-foreground hover:scale-125',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        isSelected
+          ? 'text-foreground scale-125'
+          : 'text-muted-foreground/60',
       )}
       style={{
-        width: 44,
-        height: 44,
-        transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`,
+        width: 36,
+        height: 36,
+        left: cx + x - 18,
+        top: cy + y - 18,
+        // Counter-rotate so icons stay upright while the parent spins
+        animation: `planet-counter-rotate ${ORBIT_DURATION}s linear infinite`,
       }}
       aria-label={`View latest ${item.label.toLowerCase()} event`}
     >
-      <div className={cn('rounded-full bg-gradient-to-br p-1.5', item.color)}>
-        <Icon className="h-4 w-4 text-white" strokeWidth={2.5} />
-      </div>
+      <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
     </button>
   );
 }
@@ -257,29 +272,23 @@ function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) 
   });
 
   return (
-    <Card className="animate-in fade-in-0 zoom-in-95 relative overflow-hidden border-border/60 bg-card/80 shadow-xl backdrop-blur-md duration-300">
-      {/* Gradient accent top bar */}
-      <div className={cn('h-1 w-full bg-gradient-to-r', item.color)} />
-
+    <Card className="animate-in fade-in-0 zoom-in-95 relative overflow-hidden border-border/50 bg-card/90 backdrop-blur-sm duration-200">
       <CardContent className="p-4">
         {/* Header */}
         <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className={cn('rounded-full bg-gradient-to-br p-1.5', item.color)}>
-              <item.icon className="h-3.5 w-3.5 text-white" strokeWidth={2.5} />
-            </div>
-            <span className="text-sm font-semibold">{item.label}</span>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <item.icon className="h-4 w-4" strokeWidth={1.5} />
+            <span className="text-sm font-medium text-foreground">{item.label}</span>
           </div>
           <button
             onClick={onClose}
             className="rounded-full p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3.5 3.5l7 7M10.5 3.5l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" /></svg>
+            <X className="h-3.5 w-3.5" />
           </button>
         </div>
 
-        {/* Body */}
         {isLoading ? (
           <EventCardSkeleton />
         ) : event ? (
@@ -313,28 +322,23 @@ function EventCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) 
   const metadata = author.data?.metadata;
   const displayName = metadata?.name ?? genUserName(event.pubkey);
 
-  // Build a content preview
   const preview = useMemo(() => {
     if (event.content) {
       return event.content.slice(0, 140) + (event.content.length > 140 ? '...' : '');
     }
-    // For kinds without meaningful content, show tag-based info
-    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
     const titleTag = event.tags.find(([n]) => n === 'title')?.[1];
+    const dTag = event.tags.find(([n]) => n === 'd')?.[1];
     if (titleTag) return titleTag;
     if (dTag) return dTag;
     return `Kind ${event.kind} event`;
   }, [event]);
 
-  // Compute the link to the event
   const eventLink = useMemo(() => {
     try {
-      // Addressable events → naddr
       if (event.kind >= 30000 && event.kind < 40000) {
         const dTag = event.tags.find(([n]) => n === 'd')?.[1] ?? '';
         return `/${nip19.naddrEncode({ kind: event.kind, pubkey: event.pubkey, identifier: dTag })}`;
       }
-      // Regular events → nevent
       return `/${nip19.neventEncode({ id: event.id })}`;
     } catch {
       return null;
@@ -351,7 +355,6 @@ function EventCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) 
 
   return (
     <div className="space-y-3">
-      {/* Author row */}
       <div className="flex items-center gap-2">
         <Avatar className="h-8 w-8">
           <AvatarImage src={metadata?.picture} />
@@ -367,10 +370,8 @@ function EventCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) 
         </div>
       </div>
 
-      {/* Content preview */}
       <p className="line-clamp-3 text-sm leading-relaxed text-foreground/80">{preview}</p>
 
-      {/* Visit link */}
       {eventLink && (
         <Button asChild variant="ghost" size="sm" className="w-full justify-center text-primary">
           <Link to={eventLink}>View event &rarr;</Link>

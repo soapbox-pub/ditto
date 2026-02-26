@@ -37,7 +37,10 @@ export function AppRouter() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
-        {/* All routes share the persistent MainLayout (sidebar + nav) */}
+        {/* Standalone fullscreen pages (no sidebar/nav) */}
+        <Route path="/planet" element={<PlanetPage />} />
+
+        {/* All other routes share the persistent MainLayout (sidebar + nav) */}
         <Route element={<MainLayout />}>
           <Route path="/" element={<Index />} />
           <Route path="/notifications" element={<NotificationsPage />} />
@@ -61,7 +64,6 @@ export function AppRouter() {
           <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
           <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
-          <Route path="/planet" element={<PlanetPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
           <Route path="/:nip19" element={<NIP19Page />} />
