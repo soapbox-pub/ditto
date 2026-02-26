@@ -42,10 +42,12 @@ function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig): CoreThemeC
 function ThemePreviewCard({
   colors,
   isActive,
+  backgroundUrl,
   children,
 }: {
   colors: CoreThemeColors;
   isActive: boolean;
+  backgroundUrl?: string;
   children?: React.ReactNode;
 }) {
   const tokens = useMemo(() => coreToTokens(colors), [colors]);
@@ -57,13 +59,21 @@ function ThemePreviewCard({
         className="aspect-[4/3] rounded-lg overflow-hidden relative"
         style={{ backgroundColor: hsl(tokens.background) }}
       >
+        {/* Background image layer */}
+        {backgroundUrl && (
+          <img
+            src={backgroundUrl}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover opacity-40"
+          />
+        )}
         {/* Simulated header bar */}
         <div
-          className="h-2.5 w-full"
+          className="h-2.5 w-full relative"
           style={{ backgroundColor: hsl(tokens.card) }}
         />
         {/* Content preview area */}
-        <div className="p-1.5 space-y-1">
+        <div className="p-1.5 space-y-1 relative">
           {/* Simulated text lines */}
           <div
             className="h-1 w-3/4 rounded-full"
@@ -304,7 +314,7 @@ export function ThemeSelector() {
                 )}
                 onClick={() => applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background })}
               >
-                <ThemePreviewCard colors={preset.colors} isActive={isActive} />
+                <ThemePreviewCard colors={preset.colors} isActive={isActive} backgroundUrl={preset.background?.url} />
                 <p className={cn(
                   'mt-1.5 text-xs font-medium text-center transition-colors',
                   isActive ? 'text-foreground' : 'text-muted-foreground',
