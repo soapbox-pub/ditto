@@ -83,7 +83,7 @@ function MainLayoutInner() {
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
           {/* Wrap the center column in a relative container for the FAB */}
-          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border bg-background/80", showFAB && "pb-24")}>
+          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l border-r border-border bg-background/80", showFAB && "pb-24")}>
             <Outlet />
             {showFAB && (
               <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
