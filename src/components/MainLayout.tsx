@@ -85,7 +85,7 @@ function MainLayoutInner() {
         <Suspense fallback={<PageSkeleton />}>
           <ScopedThemeColumns tokens={scopedThemeTokens}>
             {/* Wrap the center column in a relative container for the FAB */}
-            <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border", showFAB && "pb-24", scopedThemeTokens && "bg-background")}>
+            <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border", showFAB && "pb-24")}>
               <Outlet />
               {showFAB && (
                 <div className="sticky bottom-20 sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
@@ -116,12 +116,7 @@ function MainLayoutInner() {
 function ScopedThemeColumns({ tokens, children }: { tokens?: import('@/themes').ThemeTokens; children: React.ReactNode }) {
   if (!tokens) return <>{children}</>;
   return (
-    <ScopedTheme tokens={tokens} className="contents">
-      {/* Full-width background layer that extends beyond the columns */}
-      <div
-        className="fixed inset-0 sidebar:left-[280px] -z-10 bg-background pointer-events-none"
-        aria-hidden
-      />
+    <ScopedTheme tokens={tokens} className="flex flex-1 min-w-0 bg-background text-foreground">
       {children}
     </ScopedTheme>
   );
