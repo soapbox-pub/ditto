@@ -101,7 +101,7 @@ function NavItem({ to, icon, label, active, showIndicator, onClick }: NavItemPro
       onClick={onClick}
       className={cn(
         'flex items-center gap-4 px-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 relative',
-        active ? 'font-bold text-accent' : 'font-normal text-muted-foreground',
+        active ? 'font-bold text-foreground' : 'font-normal text-muted-foreground',
       )}
     >
       <span className="relative">
@@ -170,7 +170,7 @@ function SortableExploreItem({ id, active, editing, onRemove, onClick }: Explore
         className={cn(
           'flex items-center gap-4 py-3 rounded-full transition-colors text-lg hover:bg-secondary/60 flex-1 min-w-0',
           editing ? 'px-2' : 'px-4',
-          active ? 'font-bold text-accent' : 'font-normal text-muted-foreground',
+          active ? 'font-bold text-foreground' : 'font-normal text-muted-foreground',
         )}
       >
         <span className="shrink-0">{icon}</span>
@@ -626,7 +626,7 @@ export function LeftSidebar() {
                     {sidebarUserThemes.data && sidebarUserThemes.data.length > 0 && (
                       <>
                         <DropdownMenuSeparator />
-                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-accent/70">My Themes</DropdownMenuLabel>
+                        <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">My Themes</DropdownMenuLabel>
                         {sidebarUserThemes.data.map((ut) => {
                           const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(ut.colors);
                           return (
@@ -636,7 +636,7 @@ export function LeftSidebar() {
                               className="flex items-center justify-between cursor-pointer"
                             >
                               <div className="flex items-center gap-2 min-w-0">
-                                <Palette className="size-3.5 text-accent shrink-0" />
+                                <Palette className="size-3.5 text-primary shrink-0" />
                                 <span className="truncate">{ut.title}</span>
                               </div>
                               {isActive && (

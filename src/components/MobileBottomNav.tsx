@@ -77,7 +77,7 @@ function NavTab({ icon, label, active, showIndicator, onClick, to }: NavTabProps
 
   const className = cn(
     'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-    active ? 'text-accent' : 'text-muted-foreground',
+    active ? 'text-foreground' : 'text-muted-foreground',
   );
 
   if (to) {
@@ -253,7 +253,7 @@ export function MobileBottomNav() {
           <div className="px-4 pt-2 pb-6">
             {/* Section header with edit toggle */}
             <div className="flex items-center gap-2 px-2 mb-3">
-              <span className="text-sm font-semibold uppercase tracking-wider text-accent/70">
+              <span className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
                 Explore
               </span>
               <div className="flex-1 h-px bg-border/50" />
@@ -325,7 +325,7 @@ export function MobileBottomNav() {
                       className={cn(
                         'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
                         isItemActive(item.id, location.pathname, location.search)
-                          ? 'text-accent font-semibold'
+                          ? 'text-foreground font-semibold'
                           : 'text-foreground hover:bg-secondary/60',
                       )}
                     >
