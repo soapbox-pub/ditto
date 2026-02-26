@@ -219,6 +219,7 @@ export function LeftSidebar() {
   const { startSignup } = useOnboarding();
   const [accountPopoverOpen, setAccountPopoverOpen] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   // DnD sensors
   const sensors = useSensors(
@@ -367,7 +368,7 @@ export function LeftSidebar() {
             <span>Edit sidebar</span>
           </button>
         ) : (
-          <DropdownMenu>
+          <DropdownMenu open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
             <DropdownMenuTrigger asChild>
               <button
                 className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
@@ -389,29 +390,29 @@ export function LeftSidebar() {
               {/* Hidden items */}
               <DropdownMenuSeparator />
               {visibleHiddenItems.map((item) => (
-                <DropdownMenuItem
-                  key={item.id}
-                  asChild
-                  className="flex items-center gap-3 py-2.5 cursor-pointer"
-                >
-                  <Link to={itemPath(item.id)}>
+                <div key={item.id} className="flex items-center px-2 py-0.5">
+                  <Link
+                    to={itemPath(item.id)}
+                    onClick={() => setMoreMenuOpen(false)}
+                    className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
                     {ITEM_ICONS[item.id] ? (
-                      <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                      <span className="size-5 flex items-center justify-center [&>svg]:size-5 shrink-0">
                         {ITEM_ICONS[item.id]}
                       </span>
                     ) : (
-                      <Palette className="size-5" />
+                      <Palette className="size-5 shrink-0" />
                     )}
-                    <span className="text-sm flex-1">{item.label}</span>
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToSidebar(item.id); }}
-                      className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                      title={`Add ${item.label} to sidebar`}
-                    >
-                      <Plus className="size-4" />
-                    </button>
+                    <span className="truncate">{item.label}</span>
                   </Link>
-                </DropdownMenuItem>
+                  <button
+                    onClick={() => { addToSidebar(item.id); setMoreMenuOpen(false); }}
+                    className="size-8 flex items-center justify-center shrink-0 rounded-sm text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    title={`Add ${item.label} to sidebar`}
+                  >
+                    <Plus className="size-4" />
+                  </button>
+                </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
