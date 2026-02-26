@@ -2,7 +2,7 @@ import { ReactNode, useLayoutEffect, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type ThemeConfig, type ThemesConfig } from '@/themes';
+import { builtinThemes, themePresets, buildThemeCssFromCore, resolveTheme, resolveThemeConfig, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { ThemeSchemaCompat, ThemeConfigCompatSchema, ThemesConfigSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 
@@ -140,10 +140,7 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, theme
         const colors = customTheme?.colors ?? builtinThemes.dark;
         css = buildThemeCssFromCore(colors);
       } else {
-        // Use configured theme if available, otherwise fall back to builtin
-        const configuredTheme = themes?.[resolved];
-        const colors = configuredTheme?.colors ?? builtinThemes[resolved];
-        css = buildThemeCssFromCore(colors);
+        css = buildThemeCssFromCore(resolveThemeConfig(resolved, themes).colors);
       }
 
       let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
@@ -176,9 +173,9 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, theme
  */
 function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined, themes: ThemesConfig | undefined) {
   const resolved = resolveTheme(theme);
-  const configuredTheme = resolved !== 'custom' ? themes?.[resolved] : undefined;
-  const fontFamily = resolved === 'custom' ? customTheme?.font?.family : configuredTheme?.font?.family;
-  const fontUrl = resolved === 'custom' ? customTheme?.font?.url : configuredTheme?.font?.url;
+  const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+  const fontFamily = activeConfig?.font?.family;
+  const fontUrl = activeConfig?.font?.url;
 
   useEffect(() => {
     if (fontFamily) {
@@ -199,10 +196,9 @@ const BG_STYLE_ID = 'theme-background';
  */
 function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined, themes: ThemesConfig | undefined) {
   const resolved = resolveTheme(theme);
-  const configuredTheme = resolved !== 'custom' ? themes?.[resolved] : undefined;
-  const activeBackground = resolved === 'custom' ? customTheme?.background : configuredTheme?.background;
-  const bgUrl = activeBackground?.url;
-  const bgMode = activeBackground?.mode ?? 'cover';
+  const activeConfig = resolved === 'custom' ? customTheme : resolveThemeConfig(resolved, themes);
+  const bgUrl = activeConfig?.background?.url;
+  const bgMode = activeConfig?.background?.mode ?? 'cover';
 
   useEffect(() => {
     let style = document.getElementById(BG_STYLE_ID) as HTMLStyleElement | null;

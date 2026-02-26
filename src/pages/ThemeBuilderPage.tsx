@@ -22,7 +22,7 @@ import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useUserThemes } from '@/hooks/useUserThemes';
 import type { ThemeDefinition } from '@/lib/themeEvent';
 import { FontPicker } from '@/components/FontPicker';
-import { builtinThemes, themePresets, coreToTokens, type CoreThemeColors } from '@/themes';
+import { themePresets, coreToTokens, resolveThemeConfig, type CoreThemeColors } from '@/themes';
 import { hslStringToHex, hexToHslString, getContrastRatioHsl } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 
@@ -38,18 +38,10 @@ const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
   background: 'Background',
 };
 
-/** Resolve a preset name to its CoreThemeColors */
-function getPresetColors(preset: PresetName): CoreThemeColors {
-  if (preset === 'light' || preset === 'dark') {
-    return builtinThemes[preset];
-  }
-  return themePresets[preset]?.colors ?? builtinThemes.dark;
-}
-
 export function ThemeBuilderPage() {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { theme: currentTheme, customTheme: savedCustomTheme, applyCustomTheme } = useTheme();
+  const { theme: currentTheme, customTheme: savedCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
   const { publishTheme, setActiveTheme, deleteTheme, isPending: isPublishing } = usePublishTheme();
 
@@ -74,12 +66,12 @@ export function ThemeBuilderPage() {
   // Working state: the 3 core colors being edited
   const [colors, setColors] = useState<CoreThemeColors>(() => {
     // ?new param: always start fresh
-    if (isNew) return builtinThemes.dark;
+    if (isNew) return resolveThemeConfig('dark', configuredThemes).colors;
     if (savedCustomTheme) return savedCustomTheme.colors;
     if (currentTheme === 'light' || currentTheme === 'dark') {
-      return builtinThemes[currentTheme];
+      return resolveThemeConfig(currentTheme, configuredThemes).colors;
     }
-    return builtinThemes.dark;
+    return resolveThemeConfig('dark', configuredThemes).colors;
   });
   const [previewing, setPreviewing] = useState(false);
 
@@ -111,10 +103,10 @@ export function ThemeBuilderPage() {
   // Clear editing context when starting fresh
   const handleNewTheme = useCallback(() => {
     setActiveEditingTheme(null);
-    setColors(builtinThemes.dark);
+    setColors(resolveThemeConfig('dark', configuredThemes).colors);
     window.history.replaceState({}, '', '/settings/theme/edit?new');
     toast({ title: 'Starting fresh', description: 'Create a new theme from scratch.' });
-  }, [toast]);
+  }, [configuredThemes, toast]);
 
   // Import from another user's active profile theme or a specific theme definition
   const importActiveQuery = useActiveProfileTheme(importPubkey && !importThemeId ? importPubkey : undefined);
@@ -172,9 +164,13 @@ export function ThemeBuilderPage() {
 
   // Apply preset
   const applyPreset = useCallback((preset: PresetName) => {
-    setColors(getPresetColors(preset));
+    if (preset === 'light' || preset === 'dark') {
+      setColors(resolveThemeConfig(preset, configuredThemes).colors);
+    } else {
+      setColors(themePresets[preset]?.colors ?? resolveThemeConfig('dark', configuredThemes).colors);
+    }
     setActiveEditingTheme(null);
-  }, []);
+  }, [configuredThemes]);
 
   // Contrast warnings (derived from tokens)
   const contrastWarnings = useMemo(() => {
@@ -653,6 +649,7 @@ function StartFromThemeDropdown({ userThemes, onSelect }: {
   userThemes: ThemeDefinition[];
   onSelect: (colors: CoreThemeColors) => void;
 }) {
+  const { themes: configuredThemes } = useTheme();
   const allOptions = [
     // User's published themes
     ...userThemes.map(t => ({
@@ -662,8 +659,8 @@ function StartFromThemeDropdown({ userThemes, onSelect }: {
       colors: t.colors,
     })),
     // Builtin themes
-    { group: 'builtin' as const, id: 'builtin:light', label: 'Light', colors: builtinThemes.light },
-    { group: 'builtin' as const, id: 'builtin:dark', label: 'Dark', colors: builtinThemes.dark },
+    { group: 'builtin' as const, id: 'builtin:light', label: 'Light', colors: resolveThemeConfig('light', configuredThemes).colors },
+    { group: 'builtin' as const, id: 'builtin:dark', label: 'Dark', colors: resolveThemeConfig('dark', configuredThemes).colors },
     // Presets
     ...Object.entries(themePresets).map(([id, preset]) => ({
       group: 'preset' as const,
