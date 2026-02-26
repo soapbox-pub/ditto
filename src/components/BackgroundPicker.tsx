@@ -5,6 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useUploadFile } from '@/hooks/useUploadFile';
 import { useToast } from '@/hooks/useToast';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import type { ThemeBackground } from '@/themes';
 
 /**
@@ -68,6 +69,14 @@ export function BackgroundPicker() {
     });
   };
 
+  const handleModeChange = (mode: 'cover' | 'tile') => {
+    if (!customTheme?.background) return;
+    applyCustomTheme({
+      ...customTheme,
+      background: { ...customTheme.background, mode },
+    });
+  };
+
   return (
     <div className="space-y-2">
       <span className="text-xs font-medium text-muted-foreground">
@@ -75,20 +84,40 @@ export function BackgroundPicker() {
       </span>
 
       {currentBg ? (
-        <div className="relative rounded-lg overflow-hidden border border-border">
-          <img
-            src={currentBg.url}
-            alt="Theme background"
-            className="w-full h-24 object-cover"
-          />
-          <Button
-            variant="secondary"
-            size="icon"
-            className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
-            onClick={handleRemove}
-          >
-            <X className="size-3.5" />
-          </Button>
+        <div className="space-y-2">
+          <div className="relative rounded-lg overflow-hidden border border-border">
+            <img
+              src={currentBg.url}
+              alt="Theme background"
+              className="w-full h-24 object-cover"
+            />
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute top-1.5 right-1.5 size-6 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+              onClick={handleRemove}
+            >
+              <X className="size-3.5" />
+            </Button>
+          </div>
+
+          {/* Mode toggle */}
+          <div className="flex gap-1 rounded-lg border border-border p-0.5 w-fit">
+            {(['cover', 'tile'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => handleModeChange(mode)}
+                className={cn(
+                  'px-3 py-1 rounded-md text-xs font-medium transition-colors',
+                  (currentBg.mode ?? 'cover') === mode
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground',
+                )}
+              >
+                {mode === 'cover' ? 'Cover' : 'Tile'}
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <button

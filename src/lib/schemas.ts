@@ -75,7 +75,7 @@ export const ThemeFontSchema = z.object({
 /** Zod schema for ThemeBackground */
 export const ThemeBackgroundSchema = z.object({
   url: z.string(),
-  mode: z.enum(['cover', 'tile', 'contain']).optional(),
+  mode: z.enum(['cover', 'tile']).optional(),
   dimensions: z.string().optional(),
   mimeType: z.string().optional(),
   blurhash: z.string().optional(),

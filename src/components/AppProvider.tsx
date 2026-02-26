@@ -211,8 +211,7 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) 
     if (mode === 'tile') {
       css = `body { background-image: url("${bg.url}"); background-repeat: repeat; background-size: auto; }`;
     } else {
-      // 'cover' or 'contain'
-      css = `body { background-image: url("${bg.url}"); background-size: ${mode}; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+      css = `body { background-image: url("${bg.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
     }
 
     style.textContent = css;
