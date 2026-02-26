@@ -125,8 +125,25 @@ export function ThemeSelector() {
     applyCustomTheme(newColors);
   }, [effectiveColors, applyCustomTheme]);
 
-  return (
+   return (
     <div className="space-y-5">
+      {/* ── Color editor (always visible) ── */}
+      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Colors
+        </h3>
+        <div className="flex items-center gap-4">
+          {CORE_KEYS.map((key) => (
+            <ColorPicker
+              key={key}
+              label={COLOR_LABELS[key]}
+              value={hslStringToHex(effectiveColors[key])}
+              onChange={(hex) => handleColorChange(key, hex)}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* ── Themes grid ── */}
       <div className="space-y-2">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
@@ -229,23 +246,6 @@ export function ThemeSelector() {
               </button>
             );
           })}
-        </div>
-      </div>
-
-      {/* ── Color editor (always visible) ── */}
-      <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-          Colors
-        </h3>
-        <div className="space-y-2">
-          {CORE_KEYS.map((key) => (
-            <ColorPicker
-              key={key}
-              label={COLOR_LABELS[key]}
-              value={hslStringToHex(effectiveColors[key])}
-              onChange={(hex) => handleColorChange(key, hex)}
-            />
-          ))}
         </div>
       </div>
     </div>
