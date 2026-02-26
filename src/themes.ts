@@ -155,6 +155,11 @@ export const themePresets: Record<string, ThemePreset> = {
       primary: '330 90% 60%',
     },
     font: { family: 'Comfortaa' },
+    background: {
+      url: 'https://blossom.ditto.pub/2c9d4fe206f39b81655eab559998a89e1dca12f4db81c10fd8f472c69fe9c68a.jpeg',
+      mode: 'cover',
+      mimeType: 'image/jpeg',
+    },
   },
 
   midnight: {
