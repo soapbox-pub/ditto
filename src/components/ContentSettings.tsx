@@ -232,9 +232,8 @@ const ICONS: Record<string, React.ReactNode> = {
   streams: <Radio className="size-5" />,
   articles: <FileText className="size-5" />,
   decks: <CardsIcon className="size-5" />,
-  // Feed-only items (keyed by kind number)
-  '1': <MessageSquare className="size-5" />,
-  '6': <Repeat2 className="size-5" />,
+  posts: <MessageSquare className="size-5" />,
+  reposts: <Repeat2 className="size-5" />,
 };
 
 function KindBadge({ kind }: { kind: number }) {
@@ -292,7 +291,7 @@ function ContentTypeRow({ def }: { def: ExtraKindDef }) {
   const { feedSettings, updateFeedSettings } = useFeedSettings();
   const { updateSettings } = useEncryptedSettings();
   const { user } = useCurrentUser();
-  const icon = ICONS[def.route ?? String(def.kind)] ?? <Palette className="size-5" />;
+  const icon = ICONS[def.id] ?? <Palette className="size-5" />;
   const hasSubKinds = !!def.subKinds;
   const isFeedOnly = !!def.feedOnly;
 

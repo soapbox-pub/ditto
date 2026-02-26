@@ -89,7 +89,7 @@ export interface AppConfig {
   useAppRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
-  /** Ordered list of content-type route names for the sidebar Explore section. */
+  /** Ordered list of sidebar item IDs (built-in + extra-kind). */
   sidebarOrder: string[];
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;

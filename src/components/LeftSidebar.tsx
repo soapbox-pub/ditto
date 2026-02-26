@@ -34,7 +34,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
 import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
 import { useUserThemes } from '@/hooks/useUserThemes';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { getExtraKindDef } from '@/lib/extraKinds';
 import { genUserName } from '@/lib/genUserName';
 import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
@@ -44,16 +44,16 @@ import { themePresets } from '@/themes';
 
 // ── Icon map ──────────────────────────────────────────────────────────────────
 
-/** Map item ID to lucide icon (size-6 for sidebar). Covers both built-ins and extra-kind routes. */
+/** Map item ID to lucide icon (size-6 for sidebar). Covers both built-ins and extra-kinds. */
 const ITEM_ICONS: Record<string, React.ReactElement> = {
   // Built-ins
-  __feed: <Home className="size-6" />,
-  __notifications: <Bell className="size-6" />,
-  __trends: <TrendingUp className="size-6" />,
-  __bookmarks: <Bookmark className="size-6" />,
-  __profile: <User className="size-6" />,
-  __settings: <Settings className="size-6" />,
-  // Extra-kind routes
+  feed: <Home className="size-6" />,
+  notifications: <Bell className="size-6" />,
+  trends: <TrendingUp className="size-6" />,
+  bookmarks: <Bookmark className="size-6" />,
+  profile: <User className="size-6" />,
+  settings: <Settings className="size-6" />,
+  // Extra-kinds
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
   treasures: <ChestIcon className="size-6" />,
@@ -64,30 +64,32 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
   decks: <CardsIcon className="size-6" />,
 };
 
-/** Lookup label for an item ID (built-in or extra-kind route). */
+/** Lookup label for an item ID (built-in or extra-kind). */
 function itemLabel(id: string): string {
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.label;
-  return EXTRA_KINDS.find((d) => d.route === id)?.label ?? id;
+  return getExtraKindDef(id)?.label ?? id;
 }
 
-/** Lookup navigation path for an item ID. profilePath overrides __profile's static path. */
+/** Lookup navigation path for an item ID. profilePath overrides the profile item's static path. */
 function itemPath(id: string, profilePath?: string): string {
-  if (id === '__profile' && profilePath) return profilePath;
+  if (id === 'profile' && profilePath) return profilePath;
   const builtin = getBuiltinItem(id);
   if (builtin) return builtin.path;
-  return `/${id}`;
+  const def = getExtraKindDef(id);
+  return def?.route ? `/${def.route}` : `/${id}`;
 }
 
 /** Check if a location pathname matches an item. profilePath is the dynamic user profile URL. */
 function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
-  if (id === '__feed') return pathname === '/';
-  if (id === '__notifications') return pathname === '/notifications';
-  if (id === '__trends') return pathname === '/search' && search.includes('tab=trends');
-  if (id === '__bookmarks') return pathname === '/bookmarks';
-  if (id === '__profile') return !!profilePath && pathname === profilePath;
-  if (id === '__settings') return pathname.startsWith('/settings');
-  return pathname === `/${id}`;
+  if (id === 'feed') return pathname === '/';
+  if (id === 'notifications') return pathname === '/notifications';
+  if (id === 'trends') return pathname === '/search' && search.includes('tab=trends');
+  if (id === 'bookmarks') return pathname === '/bookmarks';
+  if (id === 'profile') return !!profilePath && pathname === profilePath;
+  if (id === 'settings') return pathname.startsWith('/settings');
+  const def = getExtraKindDef(id);
+  return def?.route ? pathname === `/${def.route}` : pathname === `/${id}`;
 }
 
 // ── Sortable explore item ─────────────────────────────────────────────────────
@@ -98,9 +100,9 @@ interface ExploreItemProps {
   editing: boolean;
   onRemove: (id: string) => void;
   onClick?: (e: React.MouseEvent) => void;
-  /** Dynamic profile URL for __profile items. */
+  /** Dynamic profile URL for profile items. */
   profilePath?: string;
-  /** Whether to show the unread indicator (for __notifications). */
+  /** Whether to show the unread indicator (for notifications). */
   showIndicator?: boolean;
 }
 
@@ -337,9 +339,9 @@ export function LeftSidebar() {
                 active={isItemActive(id, location.pathname, location.search, userProfileUrl)}
                 editing={editing}
                 onRemove={removeFromSidebar}
-                onClick={id === '__feed' ? scrollToTopIfCurrent('/') : undefined}
-                profilePath={id === '__profile' ? userProfileUrl : undefined}
-                showIndicator={id === '__notifications' ? hasUnread : undefined}
+                onClick={id === 'feed' ? scrollToTopIfCurrent('/') : undefined}
+                profilePath={id === 'profile' ? userProfileUrl : undefined}
+                showIndicator={id === 'notifications' ? hasUnread : undefined}
               />
             ))}
           </SortableContext>

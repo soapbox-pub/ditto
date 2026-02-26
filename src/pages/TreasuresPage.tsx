@@ -1,10 +1,10 @@
 import { useFeedSettings } from '@/hooks/useFeedSettings';
-import { EXTRA_KINDS, getPageKinds } from '@/lib/extraKinds';
+import { getExtraKindDef, getPageKinds } from '@/lib/extraKinds';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { KindFeedPage } from './KindFeedPage';
 
 /** Find the Treasures definition from EXTRA_KINDS. */
-const treasuresDef = EXTRA_KINDS.find((def) => def.route === 'treasures')!;
+const treasuresDef = getExtraKindDef('treasures')!;
 
 export function TreasuresPage() {
   const { feedSettings } = useFeedSettings();

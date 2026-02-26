@@ -40,6 +40,8 @@ export const SECTION_ORDER: ExtraKindSection[] = ['media', 'social', 'whimsy'];
 /** Metadata for an extra (non-kind-1) content type. */
 export interface ExtraKindDef {
   kind: number;
+  /** Unique identifier for this content type. Used in sidebar ordering and icon maps. */
+  id: string;
   /** Key in FeedSettings that controls sidebar visibility (omit for feed-only items). */
   showKey?: keyof FeedSettings;
   /** Key in FeedSettings that controls inclusion in mixed feeds (only for entries without subKinds). */
@@ -69,6 +71,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   // Feed (core content types — feed toggle only, no sidebar page)
   {
     kind: 1,
+    id: 'posts',
     feedKey: 'feedIncludePosts',
     label: 'Posts',
     description: 'Short text notes',
@@ -78,6 +81,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 6,
+    id: 'reposts',
     feedKey: 'feedIncludeReposts',
     label: 'Reposts',
     description: 'Shared posts from others',
@@ -87,6 +91,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 16,
+    id: 'generic-reposts',
     feedKey: 'feedIncludeReposts',
     label: 'Generic Reposts',
     description: 'Shared non-text-note posts from others',
@@ -96,6 +101,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 30023,
+    id: 'articles',
     showKey: 'showArticles',
     feedKey: 'feedIncludeArticles',
     label: 'Articles',
@@ -109,6 +115,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   // Media
   {
     kind: 34236,
+    id: 'vines',
     showKey: 'showVines',
     feedKey: 'feedIncludeVines',
     label: 'Vines',
@@ -121,6 +128,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 30311,
+    id: 'streams',
     showKey: 'showStreams',
     feedKey: 'feedIncludeStreams',
     label: 'Streams',
@@ -134,6 +142,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   // Social
   {
     kind: 33891,
+    id: 'themes',
     showKey: 'showProfileThemes',
     feedKey: 'feedIncludeProfileThemes',
     label: 'Custom Themes',
@@ -144,6 +153,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 1068,
+    id: 'polls',
     showKey: 'showPolls',
     feedKey: 'feedIncludePolls',
     label: 'Polls',
@@ -156,6 +166,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 39089,
+    id: 'packs',
     showKey: 'showPacks',
     feedKey: 'feedIncludePacks',
     label: 'Follow Packs',
@@ -169,6 +180,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   // Whimsy
   {
     kind: 3367,
+    id: 'colors',
     showKey: 'showColors',
     feedKey: 'feedIncludeColors',
     label: 'Colors',
@@ -181,6 +193,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 37381,
+    id: 'decks',
     showKey: 'showDecks',
     feedKey: 'feedIncludeDecks',
     label: 'Magic Decks',
@@ -193,6 +206,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 37516,
+    id: 'treasures',
     showKey: 'showTreasures',
     label: 'Treasures',
     description: 'Geocaches & found logs',
@@ -221,6 +235,11 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
     ],
   },
 ];
+
+/** Lookup an ExtraKindDef by its `id` field. */
+export function getExtraKindDef(id: string): ExtraKindDef | undefined {
+  return EXTRA_KINDS.find((d) => d.id === id);
+}
 
 /** Entries rendered in the "Notes" section (Posts, Reposts, Articles). */
 export const FEED_KINDS: ExtraKindDef[] = EXTRA_KINDS.filter((def) => def.section === 'feed');
