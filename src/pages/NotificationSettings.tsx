@@ -7,10 +7,11 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 
 export function NotificationSettings() {
   const { user } = useCurrentUser();
-  const [pushEnabled, setPushEnabled] = useState(false);
+  const { settings, updateSettings } = useEncryptedSettings();
   const [permission, setPermission] = useState<NotificationPermission>('default');
 
   useSeoMeta({
@@ -18,26 +19,30 @@ export function NotificationSettings() {
     description: 'Configure your notification preferences',
   });
 
-  // Check current permission state on mount
+  // Check current browser permission state on mount
   useEffect(() => {
     if ('Notification' in window) {
       setPermission(Notification.permission);
-      setPushEnabled(Notification.permission === 'granted');
     }
   }, []);
 
-  const handleTogglePush = async (enabled: boolean) => {
-    if (!('Notification' in window)) return;
+  // Persisted preference from encrypted settings
+  const pushEnabled = settings?.notificationsEnabled ?? false;
 
+  const handleTogglePush = async (enabled: boolean) => {
     if (enabled) {
+      if (!('Notification' in window)) return;
+
+      // Request browser permission first (no-op if already granted/denied)
       const result = await Notification.requestPermission();
       setPermission(result);
-      setPushEnabled(result === 'granted');
-    } else {
-      // Browser doesn't allow revoking permissions programmatically,
-      // but we can track the user's preference
-      setPushEnabled(false);
+
+      // Don't save enabled=true if the browser blocked permission
+      if (result !== 'granted') return;
     }
+
+    // Persist the user's preference to encrypted settings (synced across devices)
+    await updateSettings.mutateAsync({ notificationsEnabled: enabled });
   };
 
   if (!user) {
@@ -90,7 +95,7 @@ export function NotificationSettings() {
                 id="push-notifications"
                 checked={pushEnabled}
                 onCheckedChange={handleTogglePush}
-                disabled={!isSupported || isDenied}
+                disabled={!isSupported || isDenied || updateSettings.isPending}
               />
             </div>
 
