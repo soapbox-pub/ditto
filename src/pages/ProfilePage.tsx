@@ -741,6 +741,7 @@ export function ProfilePage() {
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
   const profileThemeFont = showCustomProfileThemes ? profileTheme?.font : undefined;
+  const profileThemeBackground = showCustomProfileThemes ? profileTheme?.background : undefined;
 
   useEffect(() => {
     if (!profileThemeColors) return;
@@ -759,6 +760,29 @@ export function ProfilePage() {
     // Apply profile font (if any)
     loadAndApplyFont(profileThemeFont);
 
+    // Apply profile background image (if any)
+    const bgStyleId = 'theme-background';
+    const previousBgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
+    const previousBgCss = previousBgEl?.textContent ?? null;
+
+    if (profileThemeBackground?.url) {
+      let bgEl = previousBgEl;
+      if (!bgEl) {
+        bgEl = document.createElement('style');
+        bgEl.id = bgStyleId;
+        document.head.appendChild(bgEl);
+      }
+      const bgMode = profileThemeBackground.mode ?? 'cover';
+      if (bgMode === 'tile') {
+        bgEl.textContent = `body { background-image: url("${profileThemeBackground.url}"); background-repeat: repeat; background-size: auto; }`;
+      } else {
+        bgEl.textContent = `body { background-image: url("${profileThemeBackground.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+      }
+    } else {
+      // No profile background — remove any existing background style
+      previousBgEl?.remove();
+    }
+
     // Restore the user's own theme on cleanup
     return () => {
       const styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
@@ -774,8 +798,33 @@ export function ProfilePage() {
       }
       // Restore own font or clear override
       loadAndApplyFont(ownCustomTheme?.font);
+
+      // Restore own background or remove override
+      const bgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
+      const ownBgUrl = ownCustomTheme?.background?.url;
+      const ownIsCustom = resolveTheme(ownTheme) === 'custom';
+
+      if (ownIsCustom && ownBgUrl) {
+        // Restore own background
+        if (!bgEl) {
+          const newBgEl = document.createElement('style');
+          newBgEl.id = bgStyleId;
+          document.head.appendChild(newBgEl);
+          const ownBgMode = ownCustomTheme?.background?.mode ?? 'cover';
+          if (ownBgMode === 'tile') {
+            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
+          } else {
+            newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+          }
+        } else if (previousBgCss) {
+          bgEl.textContent = previousBgCss;
+        }
+      } else {
+        // Own theme has no background — remove the style element
+        bgEl?.remove();
+      }
     };
-  }, [profileThemeColors, profileThemeFont]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileThemeColors, profileThemeFont, profileThemeBackground]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
