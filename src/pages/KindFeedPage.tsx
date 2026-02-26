@@ -14,9 +14,15 @@ interface KindFeedPageProps {
   emptyMessage?: string;
   /** Override the auto-detected ExtraKindDef (useful for pages with sub-kinds like Treasures). */
   kindDef?: ExtraKindDef;
+  /** Override the back button destination (defaults to "/"). */
+  backTo?: string;
+  /** Always show the back button, even on desktop (default: only mobile). */
+  alwaysShowBack?: boolean;
+  /** If set, the FAB navigates to this URL instead of opening a compose dialog. */
+  fabHref?: string;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -29,7 +35,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef }: KindF
     description: `${title} on Nostr`,
   });
 
-  useLayoutOptions({ showFAB: true, fabKind: primaryKind });
+  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
@@ -40,7 +46,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef }: KindF
       emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
       header={
         <div className="flex items-center gap-4 px-4 mt-4 mb-5">
-          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+          <Link to={backTo} className={`p-2 -ml-2 rounded-full hover:bg-secondary transition-colors ${alwaysShowBack ? '' : 'sidebar:hidden'}`}>
             <ArrowLeft className="size-5" />
           </Link>
           <div className="flex items-center gap-2 flex-1 min-w-0">

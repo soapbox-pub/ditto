@@ -16,11 +16,11 @@ import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useOpenPost } from '@/hooks/useOpenPost';
-import { EXTRA_KINDS } from '@/lib/extraKinds';
+import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
 import { cn } from '@/lib/utils';
 
-const streamsDef = EXTRA_KINDS.find((def) => def.route === 'streams')!;
+const streamsDef = getExtraKindDef('streams')!;
 
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {

@@ -43,6 +43,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
+import { ThemeUpdateCard } from '@/components/ThemeUpdateCard';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId } from '@/lib/nostrEvents';
 
@@ -259,6 +260,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
 
+  // Theme definition events get a specialized card
+  if (event.kind === 33891) {
+    return <ThemeUpdateCard event={event} />;
+  }
+
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
     return null;
@@ -441,7 +447,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
             <RepostMenu event={event}>
               {(isReposted: boolean) => (
                 <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-green-500 hover:text-green-600 hover:bg-green-500/10' : 'text-muted-foreground hover:text-green-500 hover:bg-green-500/10'}`}
+                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
                   title={isReposted ? 'Undo repost' : 'Repost'}
                 >
                   <RepostIcon className="size-5" />
@@ -780,7 +786,7 @@ function RepostHeader({ pubkey }: { pubkey: string }) {
   return (
     <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
       <div className="w-11 shrink-0 flex justify-end">
-        <RepostIcon className="size-4 text-green-500 translate-y-px" />
+        <RepostIcon className="size-4 text-accent translate-y-px" />
       </div>
       <div className="flex items-center min-w-0">
         {author.isLoading ? (

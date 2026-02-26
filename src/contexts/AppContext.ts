@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { ThemeTokens } from "@/themes";
+import type { CoreThemeColors } from "@/themes";
 
 /**
  * A builtin theme whose colors are defined at build time.
@@ -70,19 +70,27 @@ export interface FeedSettings {
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
   feedIncludeDecks: boolean;
+  /** Show Custom Themes (kind 33891) link in sidebar (not used — feed-only) */
+  showProfileThemes: boolean;
+  /** Include Profile Theme updates in the follows/global feed */
+  feedIncludeProfileThemes: boolean;
+  /** Show custom profile themes when visiting other users' profiles */
+  showCustomProfileThemes: boolean;
 }
 
 export interface AppConfig {
   /** Current theme */
   theme: Theme;
-  /** Token values for the custom theme slot. Only used when theme === "custom". */
-  customTheme?: ThemeTokens;
+  /** Core colors for the custom theme slot. Only used when theme === "custom". */
+  customTheme?: CoreThemeColors;
   /** NIP-65 relay list metadata */
   relayMetadata: RelayMetadata;
   /** Whether to use app default relays in addition to user relays */
   useAppRelays: boolean;
   /** Feed and sidebar content settings */
   feedSettings: FeedSettings;
+  /** Ordered list of sidebar item IDs (built-in + extra-kind). */
+  sidebarOrder: string[];
   /** NIP-85 stats pubkey source (hex format) */
   nip85StatsPubkey: string;
   /** Blossom file upload server URLs */

@@ -143,7 +143,7 @@ export function RepostMenu({ event, children }: RepostMenuProps) {
             e.stopPropagation();
             handleUnrepost();
           }}
-          className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-green-500 hover:bg-secondary/60 transition-colors"
+          className="flex items-center gap-3 w-full px-4 py-3 text-[15px] text-accent hover:bg-secondary/60 transition-colors"
         >
           <Undo2 className="size-5" />
           <span>Undo repost</span>

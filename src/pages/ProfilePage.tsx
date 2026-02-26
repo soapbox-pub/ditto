@@ -9,7 +9,9 @@ import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag,
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
@@ -36,6 +38,13 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
+
+import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { useTheme } from '@/hooks/useTheme';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import { useFeedSettings } from '@/hooks/useFeedSettings';
+import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -711,6 +720,54 @@ export function ProfilePage() {
 
   const isOwnProfile = user?.pubkey === pubkey;
   const { togglePin } = usePinnedNotes(isOwnProfile ? pubkey : undefined);
+
+  // Profile theme: always query (so we can show the indicator), but only apply when enabled
+  const { feedSettings } = useFeedSettings();
+  const showCustomProfileThemes = feedSettings.showCustomProfileThemes !== false;
+  const profileThemeQuery = useActiveProfileTheme(
+    !isOwnProfile ? pubkey : undefined,
+  );
+  const profileHasTheme = !!profileThemeQuery.data?.colors;
+  const profileThemeColors = showCustomProfileThemes ? profileThemeQuery.data?.colors : undefined;
+
+  // First-time custom theme info modal
+  const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
+  const [themeInfoOpen, setThemeInfoOpen] = useState(false);
+  const { updateFeedSettings } = useFeedSettings();
+  const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
+
+  // Temporarily apply the visited user's theme globally while on their profile
+  const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
+  useEffect(() => {
+    if (!profileThemeColors) return;
+
+    // Inject the profile theme's CSS vars onto :root
+    const css = buildThemeCssFromCore(profileThemeColors);
+    let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
+    if (!el) {
+      el = document.createElement('style');
+      el.id = 'theme-vars';
+      document.head.appendChild(el);
+    }
+    const previousCss = el.textContent;
+    el.textContent = css;
+
+    // Restore the user's own theme on cleanup
+    return () => {
+      const styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
+      if (styleEl) {
+        if (previousCss) {
+          styleEl.textContent = previousCss;
+        } else {
+          // Fallback: rebuild from current theme setting
+          const resolved = resolveTheme(ownTheme);
+          const colors = ownCustomTheme ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+          styleEl.textContent = buildThemeCss(coreToTokens(colors));
+        }
+      }
+    };
+  }, [profileThemeColors]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
   const { data: pinnedEvents = [], isLoading: pinnedEventsLoading } = useQuery({
@@ -868,7 +925,10 @@ export function ProfilePage() {
     });
   }, [queryClient, pubkey]);
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />, showFAB: true } : {});
+  useLayoutOptions(pubkey ? {
+    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
+    showFAB: true,
+  } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
@@ -907,24 +967,76 @@ export function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-background">
       <PullToRefresh onRefresh={handleRefresh}>
         {/* Banner */}
-        <div className="h-36 md:h-48 bg-secondary relative">
-          {author.isLoading ? (
-            <Skeleton className="w-full h-full rounded-none" />
-          ) : metadata?.banner ? (
-            <img
-              src={metadata.banner}
-              alt=""
-              className="w-full h-full object-cover cursor-pointer"
-              onClick={() => setLightboxImage(metadata.banner!)}
-            />
-          ) : null}
-        </div>
+          <div className="h-36 md:h-48 bg-secondary relative">
+            {author.isLoading ? (
+              <Skeleton className="w-full h-full rounded-none" />
+            ) : metadata?.banner ? (
+              <img
+                src={metadata.banner}
+                alt=""
+                className="w-full h-full object-cover cursor-pointer"
+                onClick={() => setLightboxImage(metadata.banner!)}
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-transparent to-primary/5" />
+            )}
 
-        {/* Profile info */}
-        <div className="px-4 pb-4">
+            {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
+            {profileHasTheme && !isOwnProfile && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={cn(
+                      'absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors',
+                      showCustomProfileThemes
+                        ? 'bg-background/60 border-border/50 hover:bg-background/80'
+                        : 'bg-background/40 border-border/30 hover:bg-background/60',
+                    )}
+                    onClick={async () => {
+                      if (!hasSeenThemeInfo) {
+                        // First time: show info modal, mark as seen
+                        setThemeInfoOpen(true);
+                        setHasSeenThemeInfo(true);
+                      } else {
+                        // Subsequent: just toggle
+                        const newVal = !showCustomProfileThemes;
+                        updateFeedSettings({ showCustomProfileThemes: newVal });
+                        if (user) {
+                          const updated = { ...feedSettings, showCustomProfileThemes: newVal };
+                          await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
+                        }
+                      }
+                    }}
+                  >
+                    {/* 3-burst pulse ring */}
+                    <span className={cn(
+                      'absolute inset-0 rounded-full animate-ping-3',
+                      showCustomProfileThemes ? 'bg-accent/30' : 'bg-primary/30',
+                    )} />
+                    <Palette className={cn(
+                      'size-4 relative',
+                      showCustomProfileThemes ? 'text-accent' : 'text-muted-foreground',
+                    )} />
+                    {/* Red notification dot — first time only */}
+                    {!hasSeenThemeInfo && (
+                      <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-red-500 border-2 border-background" />
+                    )}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  {showCustomProfileThemes
+                    ? 'Viewing custom theme — click to disable'
+                    : 'Custom theme available — click to enable'}
+                </TooltipContent>
+              </Tooltip>
+            )}
+          </div>
+
+          {/* Profile info */}
+          <div className="px-4 pb-4">
           {author.isLoading ? (
             <>
               <div className="flex justify-between items-start -mt-12 md:-mt-16 mb-3">
@@ -1017,10 +1129,10 @@ export function ProfilePage() {
                 )}
                 {streak > 1 && (
                   <div
-                    className="flex items-center gap-1 text-primary"
+                    className="flex items-center gap-1 text-accent"
                     title={`${streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak} posts within ${STREAK_WINDOW_HOURS}h windows`}
                   >
-                    <Flame className="size-4 fill-primary" />
+                    <Flame className="size-4 fill-accent" />
                     <span className="text-sm font-bold tabular-nums">
                       {streak > STREAK_DISPLAY_LIMIT ? `${STREAK_DISPLAY_LIMIT}+` : streak}
                     </span>
@@ -1042,6 +1154,19 @@ export function ProfilePage() {
                   {fields.map((field, i) => (
                     <ProfileFieldInline key={i} field={field} />
                   ))}
+                </div>
+              )}
+
+              {/* Profile theme indicator + copy button */}
+              {profileThemeColors && !isOwnProfile && (
+                <div className="mt-3 flex items-center gap-2">
+                  <Link
+                    to={`/settings/theme?import=${pubkey}`}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                  >
+                    <Palette className="size-3.5" />
+                    Copy Theme
+                  </Link>
                 </div>
               )}
             </>
@@ -1163,7 +1288,45 @@ export function ProfilePage() {
             onClose={() => setLightboxImage(null)}
           />
         )}
+
+        {/* First-time custom theme info modal */}
+        <Dialog open={themeInfoOpen} onOpenChange={setThemeInfoOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Custom Profile Theme</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                You're viewing <span className="font-semibold text-foreground">{displayName}</span>'s profile with their own custom theme applied. The colors you see are part of their personal style.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5 flex-1">
+                  <span className="text-sm font-medium">Show custom profile themes</span>
+                  <p className="text-xs text-muted-foreground">See other users' themes when visiting their profiles</p>
+                </div>
+                <Switch
+                  checked={showCustomProfileThemes}
+                  onCheckedChange={async (val) => {
+                    updateFeedSettings({ showCustomProfileThemes: val });
+                    if (user) {
+                      const updatedFeedSettings = { ...feedSettings, showCustomProfileThemes: val };
+                      await encryptedUpdateSettings.mutateAsync({ feedSettings: updatedFeedSettings });
+                    }
+                  }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                You can change this anytime in{' '}
+                <Link to="/settings/content" className="text-primary hover:underline" onClick={() => setThemeInfoOpen(false)}>
+                  Content Settings
+                </Link>.
+              </p>
+            </div>
+          </DialogContent>
+        </Dialog>
       </PullToRefresh>
       </main>
   );
 }
+
+
