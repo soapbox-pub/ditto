@@ -52,3 +52,20 @@
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
+/* 3-burst ping: pulses 3 times then stops */
+@keyframes ping-3 {
+  0%  { transform: scale(1); opacity: 0.6; }
+  11% { transform: scale(2); opacity: 0; }
+  22% { transform: scale(1); opacity: 0; }
+  33% { transform: scale(1); opacity: 0.6; }
+  44% { transform: scale(2); opacity: 0; }
+  55% { transform: scale(1); opacity: 0; }
+  66% { transform: scale(1); opacity: 0.6; }
+  77% { transform: scale(2); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.animate-ping-3 {
+  animation: ping-3 4s ease-out forwards;
+}

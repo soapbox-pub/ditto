@@ -736,14 +736,6 @@ export function ProfilePage() {
   const { updateFeedSettings } = useFeedSettings();
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
 
-  // Show info modal on first encounter with a profile theme
-  useEffect(() => {
-    if (profileThemeTokens && !hasSeenThemeInfo && !isOwnProfile) {
-      setThemeInfoOpen(true);
-      setHasSeenThemeInfo(true);
-    }
-  }, [profileThemeTokens, hasSeenThemeInfo, isOwnProfile]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
   useEffect(() => {
@@ -1004,23 +996,34 @@ export function ProfilePage() {
                         : 'bg-background/40 border-border/30 hover:bg-background/60',
                     )}
                     onClick={async () => {
-                      const newVal = !showCustomProfileThemes;
-                      updateFeedSettings({ showCustomProfileThemes: newVal });
-                      if (user) {
-                        const updated = { ...feedSettings, showCustomProfileThemes: newVal };
-                        await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
+                      if (!hasSeenThemeInfo) {
+                        // First time: show info modal, mark as seen
+                        setThemeInfoOpen(true);
+                        setHasSeenThemeInfo(true);
+                      } else {
+                        // Subsequent: just toggle
+                        const newVal = !showCustomProfileThemes;
+                        updateFeedSettings({ showCustomProfileThemes: newVal });
+                        if (user) {
+                          const updated = { ...feedSettings, showCustomProfileThemes: newVal };
+                          await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
+                        }
                       }
                     }}
                   >
-                    {/* Pulsing ring */}
+                    {/* 3-burst pulse ring */}
                     <span className={cn(
-                      'absolute inset-0 rounded-full animate-ping',
-                      showCustomProfileThemes ? 'bg-accent/20' : 'bg-primary/20',
+                      'absolute inset-0 rounded-full animate-ping-3',
+                      showCustomProfileThemes ? 'bg-accent/30' : 'bg-primary/30',
                     )} />
                     <Palette className={cn(
                       'size-4 relative',
                       showCustomProfileThemes ? 'text-accent' : 'text-muted-foreground',
                     )} />
+                    {/* Red notification dot — first time only */}
+                    {!hasSeenThemeInfo && (
+                      <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-red-500 border-2 border-background" />
+                    )}
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
