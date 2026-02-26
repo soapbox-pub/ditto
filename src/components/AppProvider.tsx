@@ -170,15 +170,18 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
  * Only applies fonts when theme is "custom" and fonts are specified.
  */
 function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined) {
+  const fontFamily = customTheme?.font?.family;
+  const fontUrl = customTheme?.font?.url;
+
   useEffect(() => {
     const resolved = resolveTheme(theme);
-    if (resolved === 'custom' && customTheme?.font) {
-      loadAndApplyFont(customTheme.font);
+    if (resolved === 'custom' && fontFamily) {
+      loadAndApplyFont({ family: fontFamily, url: fontUrl });
     } else {
       // Clear any custom font overrides when switching to a builtin theme
       loadAndApplyFont(undefined);
     }
-  }, [theme, customTheme?.font]);
+  }, [theme, fontFamily, fontUrl]);
 }
 
 /** Style element ID for background image CSS. */
