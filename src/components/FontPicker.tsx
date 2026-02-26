@@ -86,12 +86,12 @@ export function FontPicker() {
   };
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70 flex items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
           <Type className="size-3.5" />
           Font
-        </h3>
+        </span>
         {currentFont && (
           <Button
             variant="ghost"
