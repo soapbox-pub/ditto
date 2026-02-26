@@ -112,7 +112,7 @@ export function ThemeSelector() {
           <div className="grid grid-cols-3 gap-3">
             {/* Create new custom theme */}
             <Link
-              to="/settings/theme?new"
+              to="/settings/theme/edit?new"
               className="relative group rounded-xl border-2 border-dashed p-1 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring border-border hover:border-accent/40"
             >
               <div className="aspect-[4/3] rounded-lg overflow-hidden relative flex flex-col items-center justify-center gap-1.5 bg-muted/30">
@@ -149,7 +149,7 @@ export function ThemeSelector() {
                   </button>
                   {/* Edit button overlay */}
                   <Link
-                    to={`/settings/theme?edit=${userTheme.identifier}`}
+                    to={`/settings/theme/edit?edit=${userTheme.identifier}`}
                     className="absolute top-2.5 right-2.5 size-6 rounded-full bg-background/80 backdrop-blur-sm border border-border flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-secondary"
                     title="Edit theme"
                   >

@@ -542,7 +542,7 @@ function ShareThemeSection() {
           )}
           {!hasCustomTheme && (
             <Link
-              to="/settings/theme"
+              to="/settings/theme/edit"
               className="text-xs text-primary hover:underline mt-1 inline-block"
             >
               Create a custom theme first

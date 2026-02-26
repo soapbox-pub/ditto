@@ -94,7 +94,7 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     // If already on Custom, navigate to theme builder instead of cycling
     if (currentThemeInfo.id === 'custom') {
       onOpenChange(false);
-      navigate('/settings/theme');
+      navigate('/settings/theme/edit');
       return;
     }
 
