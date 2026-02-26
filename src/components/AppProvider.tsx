@@ -1,9 +1,10 @@
-import { ReactNode, useLayoutEffect } from 'react';
+import { ReactNode, useLayoutEffect, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type CoreThemeColors } from '@/themes';
-import { ThemeSchemaCompat, ThemeColorsCompatSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type ThemeConfig } from '@/themes';
+import { ThemeSchemaCompat, ThemeConfigCompatSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { loadAndApplyFonts } from '@/lib/fontLoader';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -25,10 +26,10 @@ const RelayMetadataSchema = z.object({
 
 /**
  * Schema for customTheme in AppConfig localStorage.
- * Accepts both CoreThemeColors and legacy ThemeTokens format,
- * normalizing to CoreThemeColors.
+ * Accepts ThemeConfig, bare CoreThemeColors, and legacy ThemeTokens format,
+ * normalizing to ThemeConfig.
  */
-const CustomThemeStorageSchema = ThemeColorsCompatSchema;
+const CustomThemeStorageSchema = ThemeConfigCompatSchema;
 
 // Zod schema for AppConfig validation.
 // Uses ThemeSchemaCompat so legacy "black"/"pink" values parse successfully.
@@ -88,7 +89,7 @@ export function AppProvider(props: AppProviderProps) {
         const legacyTheme = result.theme as string | undefined;
         if (legacyTheme && legacyTheme in themePresets) {
           result.theme = 'custom';
-          result.customTheme = themePresets[legacyTheme].colors;
+          result.customTheme = { colors: themePresets[legacyTheme].colors };
         }
 
         return result;
@@ -110,6 +111,7 @@ export function AppProvider(props: AppProviderProps) {
 
   // Apply theme effects to document
   useApplyTheme(config.theme, config.customTheme);
+  useApplyFonts(config.theme, config.customTheme);
 
   return (
     <AppContext.Provider value={appContextValue}>
@@ -124,7 +126,7 @@ export function AppProvider(props: AppProviderProps) {
  * and listens for changes to prefers-color-scheme.
  * When theme is "custom", uses the provided customTheme colors (derived to full tokens).
  */
-function useApplyTheme(theme: Theme, customTheme: CoreThemeColors | undefined) {
+function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
   useLayoutEffect(() => {
     function apply() {
       const resolved = resolveTheme(theme);
@@ -132,7 +134,7 @@ function useApplyTheme(theme: Theme, customTheme: CoreThemeColors | undefined) {
 
       if (resolved === 'custom') {
         // Use custom theme colors, falling back to dark if not yet set
-        const colors = customTheme ?? builtinThemes.dark;
+        const colors = customTheme?.colors ?? builtinThemes.dark;
         css = buildThemeCssFromCore(colors);
       } else {
         css = buildThemeCss(coreToTokens(builtinThemes[resolved]));
@@ -160,4 +162,20 @@ function useApplyTheme(theme: Theme, customTheme: CoreThemeColors | undefined) {
       return () => mq.removeEventListener('change', apply);
     }
   }, [theme, customTheme]);
+}
+
+/**
+ * Hook to load and apply custom fonts when the theme config changes.
+ * Only applies fonts when theme is "custom" and fonts are specified.
+ */
+function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined) {
+  useEffect(() => {
+    const resolved = resolveTheme(theme);
+    if (resolved === 'custom' && customTheme?.fonts) {
+      loadAndApplyFonts(customTheme.fonts);
+    } else {
+      // Clear any custom font overrides when switching to a builtin theme
+      loadAndApplyFonts(undefined);
+    }
+  }, [theme, customTheme?.fonts]);
 }

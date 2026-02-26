@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import type { Theme, ContentWarningPolicy } from '@/contexts/AppContext';
-import type { CoreThemeColors } from '@/themes';
+import type { CoreThemeColors, ThemeConfig } from '@/themes';
 
 /** Zod schema for Theme validation */
 export const ThemeSchema = z.enum(['dark', 'light', 'system', 'custom']) satisfies z.ZodType<Theme>;
@@ -60,6 +60,48 @@ export const ThemeColorsCompatSchema = z.union([
     text: legacy.foreground,
     primary: legacy.primary,
   })),
+]);
+
+// ─── ThemeConfig Schemas ──────────────────────────────────────────────
+
+/** Zod schema for ThemeFont */
+export const ThemeFontSchema = z.object({
+  family: z.string(),
+  url: z.string().optional(),
+});
+
+/** Zod schema for ThemeFonts */
+export const ThemeFontsSchema = z.object({
+  title: ThemeFontSchema.optional(),
+  body: ThemeFontSchema.optional(),
+});
+
+/** Zod schema for ThemeBackground */
+export const ThemeBackgroundSchema = z.object({
+  url: z.string(),
+  mode: z.enum(['cover', 'tile', 'contain']).optional(),
+  dimensions: z.string().optional(),
+  mimeType: z.string().optional(),
+  blurhash: z.string().optional(),
+});
+
+/** Zod schema for the full ThemeConfig */
+export const ThemeConfigSchema = z.object({
+  title: z.string().optional(),
+  colors: CoreThemeColorsSchema,
+  fonts: ThemeFontsSchema.optional(),
+  background: ThemeBackgroundSchema.optional(),
+});
+
+/**
+ * Compat schema that accepts either the new ThemeConfig format or the old
+ * bare CoreThemeColors format (and all legacy color variants), normalizing
+ * to ThemeConfig.
+ */
+export const ThemeConfigCompatSchema = z.union([
+  ThemeConfigSchema,
+  // Bare CoreThemeColors (old format) → wrap in ThemeConfig
+  ThemeColorsCompatSchema.transform((colors): ThemeConfig => ({ colors })),
 ]);
 
 /** Zod schema for ContentWarningPolicy validation */
@@ -125,7 +167,7 @@ export const ContentFilterSchema = z.object({
  */
 export const EncryptedSettingsSchema = z.looseObject({
   theme: ThemeSchemaCompat.optional(),
-  customTheme: ThemeColorsCompatSchema.optional(),
+  customTheme: ThemeConfigCompatSchema.optional(),
   useAppRelays: z.boolean().optional(),
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),

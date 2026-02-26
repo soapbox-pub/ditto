@@ -45,6 +45,7 @@ import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { buildThemeCssFromCore, coreToTokens, buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
+import { loadAndApplyFonts } from '@/lib/fontLoader';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -727,8 +728,9 @@ export function ProfilePage() {
   const profileThemeQuery = useActiveProfileTheme(
     !isOwnProfile ? pubkey : undefined,
   );
-  const profileHasTheme = !!profileThemeQuery.data?.colors;
-  const profileThemeColors = showCustomProfileThemes ? profileThemeQuery.data?.colors : undefined;
+  const profileTheme = profileThemeQuery.data;
+  const profileHasTheme = !!profileTheme?.colors;
+  const profileThemeColors = showCustomProfileThemes ? profileTheme?.colors : undefined;
 
   // First-time custom theme info modal
   const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
@@ -738,6 +740,8 @@ export function ProfilePage() {
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
+  const profileThemeFonts = showCustomProfileThemes ? profileTheme?.fonts : undefined;
+
   useEffect(() => {
     if (!profileThemeColors) return;
 
@@ -752,6 +756,9 @@ export function ProfilePage() {
     const previousCss = el.textContent;
     el.textContent = css;
 
+    // Apply profile fonts (if any)
+    loadAndApplyFonts(profileThemeFonts);
+
     // Restore the user's own theme on cleanup
     return () => {
       const styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
@@ -761,12 +768,14 @@ export function ProfilePage() {
         } else {
           // Fallback: rebuild from current theme setting
           const resolved = resolveTheme(ownTheme);
-          const colors = ownCustomTheme ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+          const colors = ownCustomTheme?.colors ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
           styleEl.textContent = buildThemeCss(coreToTokens(colors));
         }
       }
+      // Restore own fonts or clear overrides
+      loadAndApplyFonts(ownCustomTheme?.fonts);
     };
-  }, [profileThemeColors]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [profileThemeColors, profileThemeFonts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 

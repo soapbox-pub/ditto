@@ -1,5 +1,6 @@
 import type { NostrEvent } from '@nostrify/nostrify';
-import type { CoreThemeColors } from '@/themes';
+import type { CoreThemeColors, ThemeConfig, ThemeFont, ThemeFonts, ThemeBackground } from '@/themes';
+import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 
 // ─── Kind Constants ───────────────────────────────────────────────────
 
@@ -8,6 +9,120 @@ export const THEME_DEFINITION_KIND = 33891;
 
 /** Replaceable event: the user's currently active profile theme. One per user. */
 export const ACTIVE_THEME_KIND = 11667;
+
+// ─── Color Tag Helpers ────────────────────────────────────────────────
+
+/** Color role markers used in `c` tags. */
+type ColorRole = 'primary' | 'text' | 'background';
+
+/** Build `c` tags from CoreThemeColors (HSL → hex conversion). */
+function buildColorTags(colors: CoreThemeColors): string[][] {
+  const roles: ColorRole[] = ['background', 'text', 'primary'];
+  return roles.map((role) => ['c', hslStringToHex(colors[role]), role]);
+}
+
+/**
+ * Parse `c` tags into CoreThemeColors.
+ * Returns null if any of the 3 required roles are missing.
+ */
+function parseColorTags(tags: string[][]): CoreThemeColors | null {
+  const colorMap = new Map<string, string>();
+  for (const tag of tags) {
+    if (tag[0] === 'c' && tag[1] && tag[2]) {
+      colorMap.set(tag[2], tag[1]);
+    }
+  }
+
+  const bgHex = colorMap.get('background');
+  const textHex = colorMap.get('text');
+  const primaryHex = colorMap.get('primary');
+
+  if (!bgHex || !textHex || !primaryHex) return null;
+
+  return {
+    background: hexToHslString(bgHex),
+    text: hexToHslString(textHex),
+    primary: hexToHslString(primaryHex),
+  };
+}
+
+// ─── Font Tag Helpers ─────────────────────────────────────────────────
+
+/** Build `f` tags from ThemeFonts. */
+function buildFontTags(fonts: ThemeFonts | undefined): string[][] {
+  if (!fonts) return [];
+  const tags: string[][] = [];
+  if (fonts.title?.family) {
+    const tag = ['f', fonts.title.family, 'title'];
+    if (fonts.title.url) tag.push(fonts.title.url);
+    tags.push(tag);
+  }
+  if (fonts.body?.family) {
+    const tag = ['f', fonts.body.family, 'body'];
+    if (fonts.body.url) tag.push(fonts.body.url);
+    tags.push(tag);
+  }
+  return tags;
+}
+
+/** Parse `f` tags into ThemeFonts. Returns undefined if no font tags. */
+function parseFontTags(tags: string[][]): ThemeFonts | undefined {
+  let title: ThemeFont | undefined;
+  let body: ThemeFont | undefined;
+
+  for (const tag of tags) {
+    if (tag[0] !== 'f' || !tag[1] || !tag[2]) continue;
+    const font: ThemeFont = { family: tag[1] };
+    if (tag[3]) font.url = tag[3];
+
+    if (tag[2] === 'title' && !title) title = font;
+    if (tag[2] === 'body' && !body) body = font;
+  }
+
+  if (!title && !body) return undefined;
+  return { title, body };
+}
+
+// ─── Background Tag Helpers ───────────────────────────────────────────
+
+/** Build a `bg` tag from ThemeBackground (imeta-style variadic). */
+function buildBackgroundTag(bg: ThemeBackground | undefined): string[][] {
+  if (!bg?.url) return [];
+
+  const entries: string[] = ['bg', `url ${bg.url}`];
+  if (bg.mode) entries.push(`mode ${bg.mode}`);
+  if (bg.mimeType) entries.push(`m ${bg.mimeType}`);
+  if (bg.dimensions) entries.push(`dim ${bg.dimensions}`);
+  if (bg.blurhash) entries.push(`blurhash ${bg.blurhash}`);
+
+  return [entries];
+}
+
+/** Parse a `bg` tag into ThemeBackground. Returns undefined if no bg tag. */
+function parseBackgroundTag(tags: string[][]): ThemeBackground | undefined {
+  const bgTag = tags.find(([n]) => n === 'bg');
+  if (!bgTag) return undefined;
+
+  const kv = new Map<string, string>();
+  for (let i = 1; i < bgTag.length; i++) {
+    const entry = bgTag[i];
+    const spaceIdx = entry.indexOf(' ');
+    if (spaceIdx === -1) continue;
+    kv.set(entry.slice(0, spaceIdx), entry.slice(spaceIdx + 1));
+  }
+
+  const url = kv.get('url');
+  if (!url) return undefined;
+
+  const bg: ThemeBackground = { url };
+  const mode = kv.get('mode');
+  if (mode === 'cover' || mode === 'tile' || mode === 'contain') bg.mode = mode;
+  bg.mimeType = kv.get('m');
+  bg.dimensions = kv.get('dim');
+  bg.blurhash = kv.get('blurhash');
+
+  return bg;
+}
 
 // ─── Theme Definition (Kind 33891) ────────────────────────────────────
 
@@ -18,12 +133,15 @@ export interface ThemeDefinition {
   title: string;
   /** Optional description */
   description?: string;
-  /** The 4 core theme colors */
+  /** The 3 core theme colors */
   colors: CoreThemeColors;
+  /** Optional font selections */
+  fonts?: ThemeFonts;
+  /** Optional background */
+  background?: ThemeBackground;
   /** The original Nostr event */
   event: NostrEvent;
 }
-
 
 /** Parse and validate a kind 33891 theme definition event. Returns null if invalid. */
 export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null {
@@ -37,27 +155,39 @@ export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null 
 
   const description = event.tags.find(([n]) => n === 'description')?.[1];
 
-  try {
-    const parsed = JSON.parse(event.content);
+  // Try new format: colors in `c` tags, content is empty
+  let colors = parseColorTags(event.tags);
 
-    // Accept both new CoreThemeColors format and legacy ThemeTokens format
-    const colors = normalizeToCoreColors(parsed);
-    if (!colors) return null;
-
-    return { identifier, title, description, colors, event };
-  } catch {
-    return null;
+  // Fall back to legacy format: colors as JSON in content
+  if (!colors && event.content) {
+    try {
+      const parsed = JSON.parse(event.content);
+      colors = normalizeLegacyColors(parsed);
+    } catch {
+      // Invalid JSON
+    }
   }
+
+  if (!colors) return null;
+
+  const fonts = parseFontTags(event.tags);
+  const background = parseBackgroundTag(event.tags);
+
+  return { identifier, title, description, colors, fonts, background, event };
 }
 
 /** Create tags for a kind 33891 theme definition event. */
 export function buildThemeDefinitionTags(
   identifier: string,
   title: string,
+  themeConfig: ThemeConfig,
   description?: string,
 ): string[][] {
   const tags: string[][] = [
     ['d', identifier],
+    ...buildColorTags(themeConfig.colors),
+    ...buildFontTags(themeConfig.fonts),
+    ...buildBackgroundTag(themeConfig.background),
     ['title', title],
     ['alt', `Custom theme: ${title}`],
     ['t', 'theme'],
@@ -82,8 +212,12 @@ export function titleToSlug(title: string): string {
 // ─── Active Profile Theme (Kind 11667) ────────────────────────────────
 
 export interface ActiveProfileTheme {
-  /** The 4 core theme colors */
+  /** The 3 core theme colors */
   colors: CoreThemeColors;
+  /** Optional font selections */
+  fonts?: ThemeFonts;
+  /** Optional background */
+  background?: ThemeBackground;
   /** naddr-style reference to the source theme definition, if any */
   sourceRef?: string;
   /** The original Nostr event */
@@ -94,29 +228,43 @@ export interface ActiveProfileTheme {
 export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme | null {
   if (event.kind !== ACTIVE_THEME_KIND) return null;
 
-  try {
-    const parsed = JSON.parse(event.content);
+  // Try new format: colors in `c` tags
+  let colors = parseColorTags(event.tags);
 
-    // Accept both new CoreThemeColors format and legacy ThemeTokens format
-    const colors = normalizeToCoreColors(parsed);
-    if (!colors) return null;
-
-    const sourceRef = event.tags.find(([n]) => n === 'a')?.[1];
-
-    return { colors, sourceRef, event };
-  } catch {
-    return null;
+  // Fall back to legacy format: colors as JSON in content
+  if (!colors && event.content) {
+    try {
+      const parsed = JSON.parse(event.content);
+      colors = normalizeLegacyColors(parsed);
+    } catch {
+      // Invalid JSON
+    }
   }
+
+  if (!colors) return null;
+
+  const fonts = parseFontTags(event.tags);
+  const background = parseBackgroundTag(event.tags);
+  const sourceRef = event.tags.find(([n]) => n === 'a')?.[1];
+
+  return { colors, fonts, background, sourceRef, event };
 }
 
 /** Create tags for a kind 11667 active profile theme event. */
 export function buildActiveThemeTags(
+  themeConfig: ThemeConfig,
   sourceAuthor?: string,
   sourceIdentifier?: string,
 ): string[][] {
   const tags: string[][] = [
+    ...buildColorTags(themeConfig.colors),
+    ...buildFontTags(themeConfig.fonts),
+    ...buildBackgroundTag(themeConfig.background),
     ['alt', 'Active profile theme'],
   ];
+  if (themeConfig.title) {
+    tags.push(['title', themeConfig.title]);
+  }
   if (sourceAuthor && sourceIdentifier) {
     tags.push(['a', `${THEME_DEFINITION_KIND}:${sourceAuthor}:${sourceIdentifier}`]);
   }
@@ -126,13 +274,13 @@ export function buildActiveThemeTags(
 // ─── Backward Compatibility ───────────────────────────────────────────
 
 /**
- * Normalize a parsed JSON object to CoreThemeColors.
+ * Normalize a parsed JSON object to CoreThemeColors (legacy format).
  * Handles:
  *   - Current format: { background, text, primary }
  *   - Old 4-color format: { background, text, primary, secondary } (secondary dropped)
  *   - Legacy 19-token format: { background, foreground, primary, ... }
  */
-function normalizeToCoreColors(parsed: Record<string, unknown>): CoreThemeColors | null {
+function normalizeLegacyColors(parsed: Record<string, unknown>): CoreThemeColors | null {
   // Current or old 4-color format (both have background + text + primary)
   if (parsed.background && parsed.text && parsed.primary) {
     return {

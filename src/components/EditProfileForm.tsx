@@ -490,7 +490,7 @@ function ShareThemeSection() {
         return;
       }
       try {
-        await setActiveTheme({ colors: customTheme });
+        await setActiveTheme({ themeConfig: customTheme });
         activeThemeQuery.refetch();
         toast({ title: 'Theme published', description: 'Your custom theme is now visible on your profile.' });
       } catch (error) {
@@ -514,7 +514,7 @@ function ShareThemeSection() {
 
   // Color swatches for preview
   const swatchColors = customTheme
-    ? [customTheme.primary, customTheme.text, customTheme.background].map((hsl) => `hsl(${hsl})`)
+    ? [customTheme.colors.primary, customTheme.colors.text, customTheme.colors.background].map((hsl) => `hsl(${hsl})`)
     : [];
 
   return (

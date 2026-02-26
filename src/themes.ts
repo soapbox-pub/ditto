@@ -4,7 +4,6 @@ import { deriveTokensFromCore } from '@/lib/colorUtils';
 /**
  * The 3 core colors that define a theme.
  * All other Tailwind tokens are derived automatically from these.
- * This is the format stored in config, Nostr events, and encrypted settings.
  */
 export interface CoreThemeColors {
   /** Background color (HSL string, e.g. "228 20% 10%") */
@@ -13,6 +12,58 @@ export interface CoreThemeColors {
   text: string;
   /** Primary accent color (buttons, links, focus rings) */
   primary: string;
+}
+
+// ─── Font Types ───────────────────────────────────────────────────────
+
+/** A font reference: family name + optional URL (URL required on Nostr events, optional locally for bundled fonts). */
+export interface ThemeFont {
+  /** CSS font-family name, e.g. "Playfair Display" */
+  family: string;
+  /** Direct URL to a font file (.woff2, .ttf, .otf). Required on Nostr events, optional locally. */
+  url?: string;
+}
+
+/** Font selections for title and body roles. */
+export interface ThemeFonts {
+  /** Font for headings and display text */
+  title?: ThemeFont;
+  /** Font for body/paragraph text */
+  body?: ThemeFont;
+}
+
+// ─── Background Types ─────────────────────────────────────────────────
+
+/** Background image/video configuration. */
+export interface ThemeBackground {
+  /** URL to an image or video file */
+  url: string;
+  /** Display mode */
+  mode?: 'cover' | 'tile' | 'contain';
+  /** Dimensions as "widthxheight", e.g. "1920x1080" */
+  dimensions?: string;
+  /** MIME type, e.g. "image/jpeg" */
+  mimeType?: string;
+  /** Blurhash placeholder for progressive loading */
+  blurhash?: string;
+}
+
+// ─── ThemeConfig ──────────────────────────────────────────────────────
+
+/**
+ * Complete theme configuration. Wraps CoreThemeColors with optional
+ * font and background settings. This is the canonical type stored in
+ * AppConfig.customTheme, EncryptedSettings, and theme events.
+ */
+export interface ThemeConfig {
+  /** Theme name (stored locally AND on events) */
+  title?: string;
+  /** The 3 core colors */
+  colors: CoreThemeColors;
+  /** Optional font selections */
+  fonts?: ThemeFonts;
+  /** Optional background media */
+  background?: ThemeBackground;
 }
 
 /**
@@ -69,6 +120,10 @@ export interface ThemePreset {
   featured?: boolean;
   /** The 3 core colors. */
   colors: CoreThemeColors;
+  /** Optional font selections for this preset. */
+  fonts?: ThemeFonts;
+  /** Optional background for this preset. */
+  background?: ThemeBackground;
 }
 
 /**
