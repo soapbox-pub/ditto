@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeSelector } from '@/components/ThemeSelector';
 
 export function ThemeSettingsPage() {
@@ -28,19 +27,7 @@ export function ThemeSettingsPage() {
       </div>
 
       <div className="p-4">
-        <div className="space-y-6">
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Theme</CardTitle>
-              <p className="text-xs text-muted-foreground">
-                Choose a theme for the interface
-              </p>
-            </CardHeader>
-            <CardContent>
-              <ThemeSelector />
-            </CardContent>
-          </Card>
-        </div>
+        <ThemeSelector />
       </div>
     </main>
   );
