@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -36,8 +36,7 @@ import { genUserName } from '@/lib/genUserName';
 import { canZap } from '@/lib/canZap';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { ScopedTheme } from '@/components/ScopedTheme';
-import type { ThemeTokens } from '@/themes';
+
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -881,7 +880,11 @@ export function ProfilePage() {
     });
   }, [queryClient, pubkey]);
 
-  useLayoutOptions(pubkey ? { rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />, showFAB: true } : {});
+  useLayoutOptions(pubkey ? {
+    rightSidebar: <ProfileRightSidebar fields={fields} mediaEvents={mediaEvents} mediaLoading={mediaPending} />,
+    showFAB: true,
+    scopedThemeTokens: profileThemeTokens,
+  } : {});
 
   if (!pubkey) {
     // If we're resolving a NIP-05, show loading state
@@ -920,11 +923,9 @@ export function ProfilePage() {
   }
 
   return (
-    <main className="min-h-screen">
+    <main className="min-h-screen bg-background">
       <PullToRefresh onRefresh={handleRefresh}>
-        {/* Profile header area — scoped to visitor's custom theme if available */}
-        <ProfileThemeWrapper tokens={profileThemeTokens}>
-          {/* Banner */}
+        {/* Banner */}
           <div className="h-36 md:h-48 bg-secondary relative">
             {author.isLoading ? (
               <Skeleton className="w-full h-full rounded-none" />
@@ -1077,7 +1078,6 @@ export function ProfilePage() {
             </>
           )}
         </div>
-        </ProfileThemeWrapper>
 
         {/* Tabs */}
         <div className={cn(STICKY_HEADER_CLASS, 'flex border-b border-border bg-background/80 backdrop-blur-md z-10')}>
@@ -1199,11 +1199,4 @@ export function ProfilePage() {
   );
 }
 
-/**
- * Wraps children in a ScopedTheme when profile theme tokens are available.
- * Otherwise renders children directly with a plain fragment.
- */
-function ProfileThemeWrapper({ tokens, children }: { tokens?: ThemeTokens; children: ReactNode }) {
-  if (!tokens) return <>{children}</>;
-  return <ScopedTheme tokens={tokens}>{children}</ScopedTheme>;
-}
+
