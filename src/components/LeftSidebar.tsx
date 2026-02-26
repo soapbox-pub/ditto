@@ -394,7 +394,7 @@ export function LeftSidebar() {
                   <Link
                     to={itemPath(item.id)}
                     onClick={() => setMoreMenuOpen(false)}
-                    className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
+                    className="flex items-center gap-3 flex-1 min-w-0 px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors"
                   >
                     {ITEM_ICONS[item.id] ? (
                       <span className="size-5 flex items-center justify-center [&>svg]:size-5 shrink-0">
