@@ -61,16 +61,19 @@ Since kind 33891 is addressable, a user can publish multiple themes by using dif
 
 Replaceable event that represents the user's currently active profile theme. Only one per user. When other users visit a profile, they query this kind to determine what theme to display.
 
-The content is a **copy** of the theme tokens from whichever theme definition (the user's own or someone else's) they have set as active. An `a` tag references the source theme definition for attribution.
+Theme colors are stored in `c` tags using hex color codes with a required marker indicating the color's role.
 
 ### Event Structure
 
 ```json
 {
   "kind": 11667,
-  "content": "{\"background\":\"228 20% 10%\",\"foreground\":\"210 40% 98%\",...}",
+  "content": "",
   "tags": [
-    ["a", "33891:<source-author-pubkey>:<source-d-tag>"],
+    ["c", "#1a1a2e", "background"],
+    ["c", "#e0e0e0", "text"],
+    ["c", "#6c3ce0", "primary"],
+    ["title", "MK Dark Theme"],
     ["alt", "Active profile theme"]
   ]
 }
@@ -78,18 +81,19 @@ The content is a **copy** of the theme tokens from whichever theme definition (t
 
 ### Content
 
-Same JSON format as kind 33891 — a full set of HSL theme tokens.
+The `content` field is unused and MUST be an empty string (`""`).
 
 ### Tags
 
-| Tag   | Required | Description                                                     |
-|-------|----------|-----------------------------------------------------------------|
-| `a`   | No       | Reference to the source kind 33891 event (`kind:pubkey:d-tag`). Allows attribution ("Using X's theme"). |
-| `alt`  | Yes      | NIP-31 human-readable fallback                                  |
+| Tag     | Required | Description                                                                                                                                                                                                                                     |
+|---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `c`     | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
+| `title` | No       | Human-readable name for the theme                                                                                                                                                                                                               |
+| `alt`   | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
 
 ### Client Behavior
 
 - When visiting a profile, clients query `{ kinds: [11667], authors: [pubkey], limit: 1 }` to get the active theme.
-- The `a` tag lets clients display attribution: "Using MK Dark Theme by @mk" with a link to the source theme.
+- Clients read the three `c` tags to extract the background, text, and primary colors for the profile.
 - Setting a new active theme publishes a new kind 11667 event (replacing the old one).
 - To remove the active theme, publish a kind 5 deletion event targeting kind 11667.
