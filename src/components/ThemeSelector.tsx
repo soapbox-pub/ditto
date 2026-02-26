@@ -123,7 +123,7 @@ export function ThemeSelector() {
   /** Whether the user has an active profile theme published. */
   const isShared = !!activeProfileTheme.data;
 
-  /** Toggle sharing the theme to others via kind 11667. */
+  /** Toggle sharing the theme to others via kind 16767. */
   const handleShareToggle = useCallback(async (checked: boolean) => {
     if (!user) return;
     setIsSharing(true);

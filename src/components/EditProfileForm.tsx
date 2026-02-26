@@ -468,7 +468,7 @@ interface ImageUploadFieldProps {
 
 /**
  * Section in Edit Profile for sharing / un-sharing the user's active profile theme.
- * Queries the user's current kind 11667 to detect existing published theme.
+ * Queries the user's current kind 16767 to detect existing published theme.
  */
 function ShareThemeSection() {
   const { user } = useCurrentUser();

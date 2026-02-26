@@ -141,7 +141,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
-    kind: 33891,
+    kind: 36767,
     id: 'themes',
     showKey: 'showProfileThemes',
     feedKey: 'feedIncludeProfileThemes',

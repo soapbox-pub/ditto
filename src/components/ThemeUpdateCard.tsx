@@ -20,7 +20,7 @@ interface ThemeUpdateCardProps {
 }
 
 /**
- * Renders a kind 33891 (Theme Definition) event as a visually appealing
+ * Renders a kind 36767 (Theme Definition) event as a visually appealing
  * card in feeds, showing the theme's colors, title, and description.
  */
 export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {

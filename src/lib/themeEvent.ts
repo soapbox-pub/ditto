@@ -5,10 +5,10 @@ import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 // ─── Kind Constants ───────────────────────────────────────────────────
 
 /** Addressable event: a shareable, named theme definition. Multiple per user. */
-export const THEME_DEFINITION_KIND = 33891;
+export const THEME_DEFINITION_KIND = 36767;
 
 /** Replaceable event: the user's currently active profile theme. One per user. */
-export const ACTIVE_THEME_KIND = 11667;
+export const ACTIVE_THEME_KIND = 16767;
 
 // ─── Color Tag Helpers ────────────────────────────────────────────────
 
@@ -108,7 +108,7 @@ function parseBackgroundTag(tags: string[][]): ThemeBackground | undefined {
   return bg;
 }
 
-// ─── Theme Definition (Kind 33891) ────────────────────────────────────
+// ─── Theme Definition (Kind 36767) ────────────────────────────────────
 
 export interface ThemeDefinition {
   /** The d-tag identifier (slug) */
@@ -127,7 +127,7 @@ export interface ThemeDefinition {
   event: NostrEvent;
 }
 
-/** Parse and validate a kind 33891 theme definition event. Returns null if invalid. */
+/** Parse and validate a kind 36767 theme definition event. Returns null if invalid. */
 export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null {
   if (event.kind !== THEME_DEFINITION_KIND) return null;
 
@@ -160,7 +160,7 @@ export function parseThemeDefinition(event: NostrEvent): ThemeDefinition | null 
   return { identifier, title, description, colors, font, background, event };
 }
 
-/** Create tags for a kind 33891 theme definition event. */
+/** Create tags for a kind 36767 theme definition event. */
 export function buildThemeDefinitionTags(
   identifier: string,
   title: string,
@@ -193,7 +193,7 @@ export function titleToSlug(title: string): string {
     .slice(0, 64);
 }
 
-// ─── Active Profile Theme (Kind 11667) ────────────────────────────────
+// ─── Active Profile Theme (Kind 16767) ────────────────────────────────
 
 export interface ActiveProfileTheme {
   /** The 3 core theme colors */
@@ -208,7 +208,7 @@ export interface ActiveProfileTheme {
   event: NostrEvent;
 }
 
-/** Parse and validate a kind 11667 active profile theme event. Returns null if invalid. */
+/** Parse and validate a kind 16767 active profile theme event. Returns null if invalid. */
 export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme | null {
   if (event.kind !== ACTIVE_THEME_KIND) return null;
 
@@ -234,7 +234,7 @@ export function parseActiveProfileTheme(event: NostrEvent): ActiveProfileTheme |
   return { colors, font, background, sourceRef, event };
 }
 
-/** Create tags for a kind 11667 active profile theme event. */
+/** Create tags for a kind 16767 active profile theme event. */
 export function buildActiveThemeTags(
   themeConfig: ThemeConfig,
   sourceAuthor?: string,

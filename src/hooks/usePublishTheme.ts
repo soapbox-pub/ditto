@@ -35,7 +35,7 @@ export function usePublishTheme() {
   const { mutateAsync: publishEvent, isPending } = useNostrPublish();
   const queryClient = useQueryClient();
 
-  /** Publish or update a kind 33891 theme definition. */
+  /** Publish or update a kind 36767 theme definition. */
   const publishTheme = useCallback(async (opts: {
     themeConfig: ThemeConfig;
     title: string;
@@ -61,7 +61,7 @@ export function usePublishTheme() {
     return identifier;
   }, [user, publishEvent, queryClient]);
 
-  /** Set a theme as the active profile theme (kind 11667). */
+  /** Set a theme as the active profile theme (kind 16767). */
   const setActiveTheme = useCallback(async (opts: {
     themeConfig: ThemeConfig;
     /** Author of the source theme definition */
@@ -83,7 +83,7 @@ export function usePublishTheme() {
     queryClient.invalidateQueries({ queryKey: ['activeProfileTheme', user.pubkey] });
   }, [user, publishEvent, queryClient]);
 
-  /** Delete a kind 33891 theme definition. */
+  /** Delete a kind 36767 theme definition. */
   const deleteTheme = useCallback(async (theme: ThemeDefinition) => {
     if (!user) throw new Error('Must be logged in');
 
@@ -108,7 +108,7 @@ export function usePublishTheme() {
     queryClient.invalidateQueries({ queryKey: ['streamKind'] });
   }, [user, publishEvent, queryClient]);
 
-  /** Clear the active profile theme by publishing an empty kind 11667 replacement. */
+  /** Clear the active profile theme by publishing an empty kind 16767 replacement. */
   const clearActiveTheme = useCallback(async () => {
     if (!user) throw new Error('Must be logged in');
 
