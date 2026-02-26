@@ -4,7 +4,7 @@ import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRef, useCallback } from "react";
-import { builtinThemes, buildThemeCssFromCore, resolveTheme } from "@/themes";
+import { builtinThemes, buildThemeCssFromCore, resolveTheme, resolveThemeConfig } from "@/themes";
 
 /**
  * Hook to get and set the active theme.
@@ -41,8 +41,9 @@ export function useTheme() {
 
     // Apply CSS vars synchronously before React re-renders to eliminate flicker
     const resolved = resolveTheme(theme);
-    const configuredTheme = resolved !== 'custom' ? config.themes?.[resolved] : undefined;
-    const colors = configuredTheme?.colors ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+    const colors = resolved === 'custom'
+      ? (config.customTheme?.colors ?? builtinThemes.dark)
+      : resolveThemeConfig(resolved, config.themes).colors;
     const css = buildThemeCssFromCore(colors);
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {

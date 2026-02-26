@@ -44,7 +44,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, builtinThemes, resolveTheme } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
@@ -739,7 +739,7 @@ export function ProfilePage() {
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
 
   // Temporarily apply the visited user's theme globally while on their profile
-  const { theme: ownTheme, customTheme: ownCustomTheme } = useTheme();
+  const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
   const profileThemeFont = showCustomProfileThemes ? profileTheme?.font : undefined;
   const profileThemeBackground = showCustomProfileThemes ? profileTheme?.background : undefined;
 
@@ -792,25 +792,32 @@ export function ProfilePage() {
         } else {
           // Fallback: rebuild from current theme setting
           const resolved = resolveTheme(ownTheme);
-          const colors = ownCustomTheme?.colors ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+          const colors = resolved === 'custom'
+            ? (ownCustomTheme?.colors ?? resolveThemeConfig('dark', configuredThemes).colors)
+            : resolveThemeConfig(resolved, configuredThemes).colors;
           styleEl.textContent = buildThemeCss(coreToTokens(colors));
         }
       }
+      // Resolve the user's own active ThemeConfig (custom or configured light/dark)
+      const ownResolved = resolveTheme(ownTheme);
+      const ownActiveConfig = ownResolved === 'custom'
+        ? ownCustomTheme
+        : resolveThemeConfig(ownResolved, configuredThemes);
+
       // Restore own font or clear override
-      loadAndApplyFont(ownCustomTheme?.font);
+      loadAndApplyFont(ownActiveConfig?.font);
 
       // Restore own background or remove override
       const bgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
-      const ownBgUrl = ownCustomTheme?.background?.url;
-      const ownIsCustom = resolveTheme(ownTheme) === 'custom';
+      const ownBgUrl = ownActiveConfig?.background?.url;
 
-      if (ownIsCustom && ownBgUrl) {
+      if (ownBgUrl) {
         // Restore own background
         if (!bgEl) {
           const newBgEl = document.createElement('style');
           newBgEl.id = bgStyleId;
           document.head.appendChild(newBgEl);
-          const ownBgMode = ownCustomTheme?.background?.mode ?? 'cover';
+          const ownBgMode = ownActiveConfig?.background?.mode ?? 'cover';
           if (ownBgMode === 'tile') {
             newBgEl.textContent = `body { background-image: url("${ownBgUrl}"); background-repeat: repeat; background-size: auto; }`;
           } else {

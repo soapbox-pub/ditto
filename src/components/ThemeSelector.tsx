@@ -5,7 +5,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
 import { usePublishTheme } from '@/hooks/usePublishTheme';
-import { builtinThemes, themePresets, coreToTokens, resolveTheme, type CoreThemeColors, type ThemeTokens, type ThemeConfig } from '@/themes';
+import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
@@ -31,11 +31,11 @@ const COLOR_LABELS: Record<keyof CoreThemeColors, string> = {
 };
 
 /** Get the effective CoreThemeColors for the current theme */
-function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig): CoreThemeColors {
+function getEffectiveColors(theme: Theme, customTheme?: ThemeConfig, themes?: ThemesConfig): CoreThemeColors {
   if (theme === 'custom' && customTheme) return customTheme.colors;
   const resolved = resolveTheme(theme);
-  if (resolved === 'custom' && customTheme) return customTheme.colors;
-  return builtinThemes[resolved as 'light' | 'dark'] ?? builtinThemes.dark;
+  if (resolved === 'custom') return customTheme?.colors ?? resolveThemeConfig('dark', themes).colors;
+  return resolveThemeConfig(resolved, themes).colors;
 }
 
 /** Mini preview card for a theme with known tokens */
@@ -113,7 +113,7 @@ function ThemePreviewCard({
 }
 
 export function ThemeSelector() {
-  const { theme, customTheme, setTheme, applyCustomTheme } = useTheme();
+  const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
   const { user } = useCurrentUser();
   const activeProfileTheme = useActiveProfileTheme(user?.pubkey);
   const { setActiveTheme, clearActiveTheme } = usePublishTheme();
@@ -129,7 +129,7 @@ export function ThemeSelector() {
     setIsSharing(true);
     try {
       if (checked) {
-        const colors = getEffectiveColors(theme, customTheme);
+        const colors = getEffectiveColors(theme, customTheme, themes);
         await setActiveTheme({ themeConfig: customTheme ?? { colors } });
         toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
       } else {
@@ -141,7 +141,7 @@ export function ThemeSelector() {
     } finally {
       setIsSharing(false);
     }
-  }, [user, theme, customTheme, setActiveTheme, clearActiveTheme, toast]);
+  }, [user, theme, customTheme, themes, setActiveTheme, clearActiveTheme, toast]);
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -164,7 +164,7 @@ export function ThemeSelector() {
   };
 
   /** The effective colors for the current theme (used in the color editor) */
-  const effectiveColors = getEffectiveColors(theme, customTheme);
+  const effectiveColors = getEffectiveColors(theme, customTheme, themes);
 
   /** Handle a color change from the inline editor */
   const handleColorChange = useCallback((key: keyof CoreThemeColors, hex: string) => {
@@ -231,8 +231,8 @@ export function ThemeSelector() {
           {builtinOptions.map((option) => {
             if (option.id === 'system') {
               const isActive = theme === 'system';
-              const lightTokens = coreToTokens(builtinThemes.light);
-              const darkTokens = coreToTokens(builtinThemes.dark);
+              const lightTokens = coreToTokens(resolveThemeConfig('light', themes).colors);
+              const darkTokens = coreToTokens(resolveThemeConfig('dark', themes).colors);
 
               return (
                 <button
@@ -274,7 +274,7 @@ export function ThemeSelector() {
             }
 
             // Light / Dark builtin
-            const colors = builtinThemes[option.id as 'light' | 'dark'];
+            const colors = resolveThemeConfig(option.id as 'light' | 'dark', themes).colors;
             const isActive = theme === option.id;
 
             return (

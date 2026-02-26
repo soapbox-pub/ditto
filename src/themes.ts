@@ -210,3 +210,12 @@ export function resolveTheme(theme: Theme): 'light' | 'dark' | 'custom' {
   }
   return theme;
 }
+
+/**
+ * Resolves the effective ThemeConfig for a "light" or "dark" mode.
+ * Uses configured themes from AppConfig if available, otherwise falls back
+ * to the builtin themes (colors only, no font/background).
+ */
+export function resolveThemeConfig(mode: 'light' | 'dark', themes?: ThemesConfig): ThemeConfig {
+  return themes?.[mode] ?? { colors: builtinThemes[mode] };
+}
