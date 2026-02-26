@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo, type SVGProps, type ForwardRefExoticComponent, type RefAttributes } from 'react';
 import { useSeoMeta } from '@unhead/react';
 import { useNostr } from '@nostrify/react';
 import { useQuery } from '@tanstack/react-query';
@@ -6,18 +6,18 @@ import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
 import {
-  MessageCircle,
-  FileText,
-  Heart,
-  Zap,
-  Users,
-  Radio,
-  Image,
+  Clapperboard,
+  Palette,
+  MapPin,
+  PartyPopper,
   BarChart3,
+  Radio,
+  FileText,
   X,
   type LucideIcon,
 } from 'lucide-react';
 
+import { CardsIcon } from '@/components/icons/CardsIcon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -30,31 +30,91 @@ import { cn } from '@/lib/utils';
 // Data
 // ---------------------------------------------------------------------------
 
+type IconComponent = LucideIcon | ForwardRefExoticComponent<SVGProps<SVGSVGElement> & RefAttributes<SVGSVGElement>>;
+
 interface OrbitItem {
   kind: number;
   label: string;
-  icon: LucideIcon;
+  icon: IconComponent;
   verb: string;
+  route: string;
 }
 
 const ORBIT_ITEMS: OrbitItem[] = [
-  { kind: 1, label: 'Notes', icon: MessageCircle, verb: 'posted' },
-  { kind: 30023, label: 'Articles', icon: FileText, verb: 'published' },
-  { kind: 7, label: 'Reactions', icon: Heart, verb: 'reacted' },
-  { kind: 9735, label: 'Zaps', icon: Zap, verb: 'zapped' },
-  { kind: 3, label: 'Follows', icon: Users, verb: 'followed' },
-  { kind: 30311, label: 'Streams', icon: Radio, verb: 'streamed' },
-  { kind: 1063, label: 'Media', icon: Image, verb: 'shared' },
-  { kind: 1068, label: 'Polls', icon: BarChart3, verb: 'polled' },
+  { kind: 34236, label: 'Vines', icon: Clapperboard, verb: 'shared', route: '/vines' },
+  { kind: 3367, label: 'Colors', icon: Palette, verb: 'painted', route: '/colors' },
+  { kind: 37381, label: 'Decks', icon: CardsIcon, verb: 'built', route: '/decks' },
+  { kind: 37516, label: 'Treasures', icon: MapPin, verb: 'hidden', route: '/treasures' },
+  { kind: 39089, label: 'Packs', icon: PartyPopper, verb: 'curated', route: '/packs' },
+  { kind: 1068, label: 'Polls', icon: BarChart3, verb: 'asked', route: '/polls' },
+  { kind: 30311, label: 'Streams', icon: Radio, verb: 'went live', route: '/streams' },
+  { kind: 30023, label: 'Articles', icon: FileText, verb: 'published', route: '/articles' },
 ];
 
-const ITEM_COUNT = ORBIT_ITEMS.length;
+const COUNT = ORBIT_ITEMS.length;
 
-/** Orbit ellipse parameters. */
-const RX = 260;
-const RY = 80;
-const TILT_DEG = -15;
-const ORBIT_DURATION = 60; // seconds per full revolution
+// ---------------------------------------------------------------------------
+// Orbit geometry (pixels, in a 600x600 container)
+//
+// The Ditto logo SVG viewBox is "-5 -10 100 100" → maps 1:1 onto 600x600.
+// Logo visual centre ≈ SVG (45,40) → pixel (300,300). The logo's built-in
+// ring sweeps at roughly -25 deg. We use the same tilt for the orbit.
+// ---------------------------------------------------------------------------
+
+const W = 600;
+const CX = W / 2;
+const CY = W / 2;
+const RX = 270;
+const RY = 78;
+const TILT_DEG = -25;
+const TILT_RAD = (TILT_DEG * Math.PI) / 180;
+const COS_T = Math.cos(TILT_RAD);
+const SIN_T = Math.sin(TILT_RAD);
+const PERIOD = 55; // seconds per full orbit
+
+/** Compute the pixel position of an icon at angle `theta` on the tilted ellipse. */
+function orbitPos(theta: number): { x: number; y: number } {
+  const ex = RX * Math.cos(theta);
+  const ey = RY * Math.sin(theta);
+  return {
+    x: CX + ex * COS_T - ey * SIN_T,
+    y: CY + ex * SIN_T + ey * COS_T,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Hook: drives every icon along the ellipse using rAF
+// ---------------------------------------------------------------------------
+
+function useOrbitPositions() {
+  const [positions, setPositions] = useState<Array<{ x: number; y: number }>>(() =>
+    ORBIT_ITEMS.map((_, i) => orbitPos((2 * Math.PI * i) / COUNT)),
+  );
+  const startRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let raf: number;
+
+    function tick(now: number) {
+      if (startRef.current === null) startRef.current = now;
+      const elapsed = (now - startRef.current) / 1000; // seconds
+      const baseAngle = (elapsed / PERIOD) * 2 * Math.PI;
+
+      const next = ORBIT_ITEMS.map((_, i) => {
+        const theta = baseAngle + (2 * Math.PI * i) / COUNT;
+        return orbitPos(theta);
+      });
+
+      setPositions(next);
+      raf = requestAnimationFrame(tick);
+    }
+
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return positions;
+}
 
 // ---------------------------------------------------------------------------
 // Page
@@ -68,82 +128,98 @@ export function PlanetPage() {
 
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
   const selectedItem = selectedIdx !== null ? ORBIT_ITEMS[selectedIdx] : null;
+  const positions = useOrbitPositions();
+
+  const handleSelect = useCallback(
+    (i: number) => setSelectedIdx((prev) => (prev === i ? null : i)),
+    [],
+  );
 
   return (
-    <div className="relative flex h-dvh flex-col items-center justify-start overflow-hidden bg-background">
-      {/* ---- Massive Ditto logo peeking from the bottom ---- */}
-      <div
-        className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[45%] opacity-[0.07]"
-        role="img"
-        aria-hidden="true"
-        style={{
-          width: 'min(130vw, 1100px)',
-          height: 'min(130vw, 1100px)',
-          backgroundColor: 'hsl(var(--foreground))',
-          maskImage: 'url(/logo.svg)',
-          maskSize: 'contain',
-          maskRepeat: 'no-repeat',
-          maskPosition: 'center',
-          WebkitMaskImage: 'url(/logo.svg)',
-          WebkitMaskSize: 'contain',
-          WebkitMaskRepeat: 'no-repeat',
-          WebkitMaskPosition: 'center',
-        }}
-      />
-
-      {/* ---- Hero text ---- */}
-      <div className="relative z-10 mt-16 text-center sm:mt-24">
-        <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl">
+    <div className="relative flex h-dvh flex-col items-center overflow-hidden bg-background">
+      {/* Hero text */}
+      <div className="relative z-20 mt-16 text-center sm:mt-20">
+        <h1 className="text-5xl font-bold tracking-tight text-foreground sm:text-6xl md:text-7xl">
           Ditto
         </h1>
-        <p className="mx-auto mt-3 max-w-sm text-sm text-muted-foreground sm:text-base">
-          A social universe, orbiting in real time.
+        <p className="mx-auto mt-3 max-w-xs text-sm text-muted-foreground sm:max-w-sm sm:text-base">
+          More than notes. A universe of things to do.
         </p>
       </div>
 
-      {/* ---- Orbit system ---- */}
-      <div
-        className="relative z-10 mt-12 sm:mt-16"
-        style={{ width: RX * 2 + 60, height: RY * 2 + 60 }}
-      >
-        {/* Orbit track (SVG ellipse) */}
-        <OrbitRing />
-
-        {/* Rotating icon container — one CSS animation drives all icons */}
+      {/* Orbit system */}
+      <div className="relative z-10 mt-4 flex flex-1 min-h-0 items-start justify-center w-full sm:mt-8">
         <div
-          className="absolute inset-0"
+          className="relative origin-top"
           style={{
-            animation: `planet-orbit ${ORBIT_DURATION}s linear infinite`,
-            transformOrigin: 'center center',
+            width: W,
+            height: W,
+            transform: 'scale(var(--orbit-scale, 1))',
           }}
         >
-          {ORBIT_ITEMS.map((item, i) => (
-            <OrbitIcon
-              key={item.kind}
-              item={item}
-              index={i}
-              total={ITEM_COUNT}
-              isSelected={selectedIdx === i}
-              onSelect={() => setSelectedIdx(selectedIdx === i ? null : i)}
+          {/* Ditto logo — inlined SVG paths, low-opacity purple */}
+          <DittoLogoSVG />
+
+          {/* Orbit ring */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            width={W}
+            height={W}
+            viewBox={`0 0 ${W} ${W}`}
+          >
+            <ellipse
+              cx={CX}
+              cy={CY}
+              rx={RX}
+              ry={RY}
+              fill="none"
+              stroke="hsl(var(--primary))"
+              strokeWidth="1"
+              strokeOpacity="0.18"
+              strokeDasharray="4 6"
+              transform={`rotate(${TILT_DEG} ${CX} ${CY})`}
             />
-          ))}
+          </svg>
+
+          {/* Orbiting icons */}
+          {ORBIT_ITEMS.map((item, i) => {
+            const pos = positions[i];
+            return (
+              <button
+                key={item.kind}
+                onClick={() => handleSelect(i)}
+                className={cn(
+                  'absolute flex items-center justify-center rounded-full',
+                  'transition-colors duration-200',
+                  'hover:text-primary',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  selectedIdx === i ? 'text-primary' : 'text-primary/40',
+                )}
+                style={{
+                  width: 36,
+                  height: 36,
+                  // Use transform instead of left/top so the browser composites on GPU
+                  transform: `translate(${pos.x - 18}px, ${pos.y - 18}px)`,
+                  willChange: 'transform',
+                }}
+                aria-label={`View latest ${item.label.toLowerCase()}`}
+              >
+                <item.icon className="h-4 w-4" strokeWidth={1.5} />
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ---- Hint text ---- */}
-      <p className="relative z-10 mt-5 text-center text-xs text-muted-foreground/50">
-        Click an icon to peek at the latest event
-      </p>
-
-      {/* ---- Event preview card ---- */}
-      <div className="relative z-30 mt-4 w-full max-w-sm px-4">
-        {selectedItem ? (
+      {/* Event card */}
+      <div className="absolute bottom-24 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 px-4">
+        {selectedItem && (
           <EventCard item={selectedItem} onClose={() => setSelectedIdx(null)} />
-        ) : null}
+        )}
       </div>
 
-      {/* ---- CTA ---- */}
-      <div className="relative z-10 mt-auto pb-10 flex gap-3">
+      {/* CTA */}
+      <div className="relative z-20 pb-8 pt-2 flex gap-3">
         <Button asChild size="lg" className="rounded-full px-8">
           <Link to="/">Explore the Feed</Link>
         </Button>
@@ -152,111 +228,39 @@ export function PlanetPage() {
         </Button>
       </div>
 
-      {/* Inline keyframes for the orbit rotation */}
+      {/* Responsive scaling */}
       <style>{`
-        @keyframes planet-orbit {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        @keyframes planet-counter-rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(-360deg); }
-        }
+        :root { --orbit-scale: 1; }
+        @media (max-width: 640px)  { :root { --orbit-scale: 0.55; } }
+        @media (min-width: 641px) and (max-width: 800px) { :root { --orbit-scale: 0.75; } }
       `}</style>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Orbit ring
+// Ditto logo SVG (inlined paths, low-opacity primary fill)
 // ---------------------------------------------------------------------------
 
-function OrbitRing() {
-  const cx = RX + 30;
-  const cy = RY + 30;
-  const w = RX * 2 + 60;
-  const h = RY * 2 + 60;
-
+function DittoLogoSVG() {
   return (
     <svg
-      className="pointer-events-none absolute inset-0"
-      width={w}
-      height={h}
-      viewBox={`0 0 ${w} ${h}`}
-      fill="none"
+      viewBox="-5 -10 100 100"
+      className="absolute inset-0 h-full w-full pointer-events-none"
     >
-      <ellipse
-        cx={cx}
-        cy={cy}
-        rx={RX}
-        ry={RY}
-        stroke="hsl(var(--foreground))"
-        strokeWidth="1"
-        strokeOpacity="0.1"
-        style={{ transform: `rotate(${TILT_DEG}deg)`, transformOrigin: `${cx}px ${cy}px` }}
-      />
+      <g style={{ fill: 'hsl(var(--primary))', opacity: 0.08 }}>
+        <path d="m 71.719615,49.36907 -0.62891,0.37109 c -0.12891,0.07031 -0.26172,0.14844 -0.39062,0.21875 -3.9883,10.309 -14.008,17.617 -25.699,17.617 -4.1211,0 -8.0312,-0.89844 -11.539,-2.5391 -0.12891,0.03906 -0.26172,0.07031 -0.39063,0.10156 l -0.35156,0.08984 h -0.02734 l -0.25,0.05859 -0.07813,0.01953 -0.10938,0.03125 c -0.55859,0.12891 -1.1289,0.26172 -1.6992,0.39062 -0.10156,0.03125 -0.19922,0.05078 -0.30078,0.07031 l -0.30078,0.10156 -0.18359,0.0078 c -0.26953,0.05859 -1.3086,0.26953 -1.3086,0.26953 -0.28906,0.05859 -0.55859,0.10937 -0.82813,0.17187 4.9805,3.3086 10.961,5.2305 17.371,5.2305 15.059,0 27.699,-10.602 30.828,-24.738 -0.75,0.48828 -1.5195,0.96875 -2.2891,1.4414 -0.59375,0.36328 -1.2031,0.72656 -1.8242,1.0859 z" />
+        <path d="m 30.926615,29.47807 c 0.36328,-0.48828 0.75,-0.95312 1.1523,-1.3828 0.75781,-0.80469 0.71484,-2.0703 -0.08984,-2.8281 -0.80469,-0.75781 -2.0703,-0.71484 -2.8281,0.08984 -0.50781,0.53906 -0.99219,1.125 -1.4492,1.7383 -0.65625,0.88672 -0.47266,2.1406 0.41406,2.7969 0.35938,0.26562 0.77344,0.39453 1.1875,0.39453 0.61719,0 1.2227,-0.27734 1.6133,-0.80859 z" />
+        <path d="m 26.742615,32.67807 c -1.0586,-0.3125 -2.1719,0.29687 -2.4805,1.3594 -0.55859,1.9062 -0.83984,3.9141 -0.83984,5.9609 0,2.3789 0.39062,4.7227 1.1602,6.9609 0.28516,0.82812 1.0625,1.3516 1.8906,1.3516 0.21484,0 0.43359,-0.03516 0.64844,-0.10938 1.043,-0.35938 1.6016,-1.4961 1.2422,-2.543 -0.625,-1.8203 -0.94141,-3.7227 -0.94141,-5.6602 0,-1.668 0.22656,-3.2969 0.67969,-4.8398 0.30859,-1.0586 -0.30078,-2.168 -1.3594,-2.4805 z" />
+        <path d="m 14.691615,48.83807 c 0.10156,0.33984 0.19922,0.67969 0.32812,1.0195 0.42969,1.3516 0.94922,2.6484 1.5781,3.9102 0.10156,-0.01172 0.21094,-0.01172 0.32031,-0.01953 l 0.16016,-0.01172 0.80078,-0.07031 c 0.37109,-0.03906 0.67188,-0.07031 0.98047,-0.10156 0.51172,-0.05859 1.0195,-0.12109 1.5586,-0.19922 l 0.21875,-0.03125 c 0.07031,-0.01172 0.14062,-0.01953 0.21094,-0.03125 -1.2188,-2.2109 -2.1484,-4.6016 -2.7305,-7.1211 -0.16016,-0.71094 -0.30078,-1.4297 -0.39844,-2.1602 -0.19922,-1.3086 -0.30078,-2.6602 -0.30078,-4.0312 0,-0.89844 0.03906,-1.7812 0.12891,-2.6484 0.07031,-0.71094 0.16016,-1.4102 0.28906,-2.1016 2.25,-12.949 13.57,-22.828 27.16,-22.828 6.0508,0 11.648,1.9609 16.211,5.3008 0.57031,0.41016 1.1289,0.85938 1.6719,1.3203 1.6914,1.4219 3.2109,3.0703 4.5,4.8789 0.42969,0.60156 0.83984,1.2109 1.2188,1.8398 1.3203,2.1602 2.3398,4.5117 3.0195,7 0.23828,-0.17188 0.42969,-0.30859 0.62891,-0.46875 0.64844,-0.48047 1.2109,-0.92188 1.7383,-1.3398 0.28125,-0.23047 0.5,-0.41016 0.71094,-0.57812 0.10156,-0.07813 0.19141,-0.16016 0.28125,-0.23828 -0.42969,-1.3516 -0.96094,-2.6484 -1.5898,-3.8984 -0.14062,-0.32812 -0.30859,-0.64844 -0.48047,-0.96875 -0.32812,-0.64844 -0.69922,-1.2891 -1.0898,-1.9102 -1.6797,-2.7109 -3.7695,-5.1406 -6.1719,-7.2188 -0.57031,-0.48828 -1.1484,-0.96875 -1.7617,-1.4102 -0.55859,-0.42188 -1.1406,-0.82812 -1.7305,-1.2109 -4.9414,-3.2188 -10.852,-5.0898 -17.16,-5.0898 -14.961,0 -27.531,10.469 -30.75,24.469 -0.17188,0.67969 -0.30859,1.3711 -0.42188,2.0703 -0.12891,0.73828 -0.21875,1.5 -0.28906,2.2617 -0.07813,0.91016 -0.12109,1.8398 -0.12109,2.7812 0,2.3008 0.25,4.5508 0.71875,6.7109 0.17188,0.71484 0.35156,1.4258 0.5625,2.125 z" />
+        <path d="m 90.441615,21.60007 c -2.1797,-5.3398 -9.4102,-7.3984 -21,-6.0391 1.8906,1.8906 3.5391,3.9688 4.9297,6.2109 0.28906,0.46094 0.55859,0.92187 0.80859,1.3789 5.5391,-0.12109 7.6094,1.0391 7.8398,1.4492 0.12891,0.46875 -0.55078,2.7305 -4.5898,6.4805 -0.01953,0.01953 -0.03125,0.03125 -0.03906,0.03906 -0.26172,0.23828 -0.51953,0.48047 -0.80078,0.71875 -0.19922,0.17969 -0.41016,0.35938 -0.62891,0.53906 -0.10938,0.10156 -0.21875,0.19141 -0.33984,0.28906 -0.23828,0.19922 -0.5,0.41016 -0.76172,0.62109 -0.12891,0.10156 -0.26172,0.21094 -0.39844,0.32031 -0.42969,0.33984 -0.89063,0.69141 -1.3711,1.0508 -0.26953,0.21094 -0.53906,0.41016 -0.82812,0.60938 -0.32031,0.23047 -0.64062,0.46875 -0.98047,0.69922 0,0.01172 -0.01172,0.01172 -0.01172,0.01172 -0.26953,0.19141 -0.55078,0.37891 -0.82812,0.57031 -0.28125,0.19141 -0.55859,0.37109 -0.85156,0.55859 -0.25,0.16016 -0.5,0.32812 -0.76172,0.48828 -6,3.8984 -13.48,7.7188 -21.379,10.922 -8.0117,3.2383 -15.871,5.6602 -22.93,7.0391 -0.30078,0.05859 -0.60156,0.12109 -0.89062,0.17188 -0.60938,0.12109 -1.2188,0.21875 -1.8203,0.32031 -0.07031,0.01172 -0.12891,0.01953 -0.19922,0.03125 h -0.01953 c -0.28906,0.05078 -0.57031,0.08984 -0.83984,0.12891 -0.30859,0.05078 -0.60938,0.08984 -0.91016,0.12891 -0.57031,0.07813 -1.1094,0.14844 -1.6406,0.21094 -0.35156,0.03906 -0.69141,0.07031 -1.0195,0.10156 -0.30078,0.03125 -0.58984,0.05078 -0.87891,0.07813 -0.48047,0.03125 -0.92969,0.05859 -1.3711,0.07813 -0.39844,0.01953 -0.78125,0.03125 -1.1484,0.03906 -5.5116996,0.10938 -7.5702996,-1.0391 -7.8007996,-1.4492 -0.12891,-0.48047 0.55078,-2.7383 4.6093996,-6.5 -0.12891,-0.48828 -0.26172,-1 -0.37891,-1.5391 -0.51953,-2.4219 -0.78906,-4.8906 -0.78906,-7.3594 0,-0.17969 0,-0.37109 0.01172,-0.55078 -9.2733996,7.082 -13.0229996,13.59 -10.8749996,18.949 1.7383,4.2695 6.7188,6.4492 14.5899996,6.4492 2.8594,0 6.1016,-0.28906 9.7109,-0.87109 0.17188,-0.03125 0.33984,-0.05859 0.51953,-0.08984 0.17188,-0.03125 0.35156,-0.05859 0.51953,-0.08984 l 1.2188,-0.21875 c 0.57031,-0.10156 1.1484,-0.21875 1.7305,-0.33984 0.53125,-0.10938 1.0508,-0.21094 1.5781,-0.32812 0.01172,0 0.03125,-0.01172 0.03906,-0.01172 0.05078,-0.01172 0.08984,-0.01953 0.14062,-0.03125 0.07031,-0.01172 0.12891,-0.03125 0.19922,-0.05078 0.57812,-0.12891 1.1602,-0.26172 1.7383,-0.39844 0.05078,-0.01172 0.10156,-0.03125 0.14844,-0.03906 0.21094,-0.05078 0.42188,-0.10156 0.64062,-0.14844 h 0.01172 c 6.0898,-1.5117 12.559,-3.6406 19.102,-6.2891 6.5508,-2.6602 12.68,-5.6289 18.109,-8.7812 0.21875,-0.12891 0.44141,-0.26172 0.66016,-0.39062 0.58984,-0.33984 1.1797,-0.69141 1.7617,-1.0508 1.5703,-0.96094 3.0586,-1.9297 4.4805,-2.9102 0.12891,-0.08984 0.26172,-0.17969 0.39062,-0.26953 11.242,-7.8477 15.941,-15.09 13.594,-20.938 z" />
+      </g>
     </svg>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Orbiting icon
-// ---------------------------------------------------------------------------
-
-interface OrbitIconProps {
-  item: OrbitItem;
-  index: number;
-  total: number;
-  isSelected: boolean;
-  onSelect: () => void;
-}
-
-function OrbitIcon({ item, index, total, isSelected, onSelect }: OrbitIconProps) {
-  const Icon = item.icon;
-
-  // Place each icon at its starting angle on the tilted ellipse.
-  const angle = (2 * Math.PI * index) / total;
-  const tiltRad = (TILT_DEG * Math.PI) / 180;
-
-  const ex = RX * Math.cos(angle);
-  const ey = RY * Math.sin(angle);
-
-  const x = ex * Math.cos(tiltRad) - ey * Math.sin(tiltRad);
-  const y = ex * Math.sin(tiltRad) + ey * Math.cos(tiltRad);
-
-  // Center of the orbit container
-  const cx = RX + 30;
-  const cy = RY + 30;
-
-  return (
-    <button
-      onClick={onSelect}
-      className={cn(
-        'absolute flex items-center justify-center rounded-full',
-        'transition-all duration-200',
-        'hover:text-foreground hover:scale-125',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-        isSelected
-          ? 'text-foreground scale-125'
-          : 'text-muted-foreground/60',
-      )}
-      style={{
-        width: 36,
-        height: 36,
-        left: cx + x - 18,
-        top: cy + y - 18,
-        // Counter-rotate so icons stay upright while the parent spins
-        animation: `planet-counter-rotate ${ORBIT_DURATION}s linear infinite`,
-      }}
-      aria-label={`View latest ${item.label.toLowerCase()} event`}
-    >
-      <Icon className="h-[18px] w-[18px]" strokeWidth={1.5} />
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Event preview card
+// Event card
 // ---------------------------------------------------------------------------
 
 function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) {
@@ -272,17 +276,16 @@ function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) 
   });
 
   return (
-    <Card className="animate-in fade-in-0 zoom-in-95 relative overflow-hidden border-border/50 bg-card/90 backdrop-blur-sm duration-200">
+    <Card className="animate-in fade-in-0 zoom-in-95 relative overflow-hidden border-primary/10 bg-card/90 backdrop-blur-md duration-200">
       <CardContent className="p-4">
-        {/* Header */}
         <div className="mb-3 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-muted-foreground">
-            <item.icon className="h-4 w-4" strokeWidth={1.5} />
+          <div className="flex items-center gap-2">
+            <item.icon className="h-4 w-4 text-primary/70" strokeWidth={1.5} />
             <span className="text-sm font-medium text-foreground">{item.label}</span>
           </div>
           <button
             onClick={onClose}
-            className="rounded-full p-1 text-muted-foreground/50 transition-colors hover:bg-muted hover:text-foreground"
+            className="rounded-full p-1 text-muted-foreground/40 transition-colors hover:bg-muted hover:text-foreground"
             aria-label="Close"
           >
             <X className="h-3.5 w-3.5" />
@@ -372,11 +375,16 @@ function EventCardBody({ event, item }: { event: NostrEvent; item: OrbitItem }) 
 
       <p className="line-clamp-3 text-sm leading-relaxed text-foreground/80">{preview}</p>
 
-      {eventLink && (
-        <Button asChild variant="ghost" size="sm" className="w-full justify-center text-primary">
-          <Link to={eventLink}>View event &rarr;</Link>
+      <div className="flex gap-2">
+        {eventLink && (
+          <Button asChild variant="ghost" size="sm" className="flex-1 justify-center text-primary/80 hover:text-primary">
+            <Link to={eventLink}>View event &rarr;</Link>
+          </Button>
+        )}
+        <Button asChild variant="ghost" size="sm" className="flex-1 justify-center text-primary/80 hover:text-primary">
+          <Link to={item.route}>All {item.label.toLowerCase()} &rarr;</Link>
         </Button>
-      )}
+      </div>
     </div>
   );
 }
