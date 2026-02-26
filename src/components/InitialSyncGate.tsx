@@ -227,8 +227,14 @@ const THEMES: ThemeOption[] = [
   { id: 'system', label: 'System', description: 'Matches your device', preview: '', splitPreview: true, builtinTheme: 'system' },
   { id: 'dark', label: 'Dark', description: 'Deep purple dark theme', preview: 'bg-[hsl(228,20%,10%)]', builtinTheme: 'dark' },
   { id: 'light', label: 'Light', description: 'Clean and bright', preview: 'bg-white border border-border', builtinTheme: 'light' },
-  { id: 'black', label: 'Black', description: 'True OLED black', preview: 'bg-black', presetId: 'black' },
-  { id: 'pink', label: 'Pink', description: 'Warm and playful', preview: 'bg-[hsl(330,100%,96%)]', presetId: 'pink' },
+  // Generate entries from all theme presets
+  ...Object.entries(themePresets).map(([id, preset]) => ({
+    id,
+    label: preset.label,
+    description: `${preset.emoji} ${preset.label} theme`,
+    preview: `bg-[hsl(${preset.tokens.background})]`,
+    presetId: id,
+  })),
 ];
 
 interface ContentKind {

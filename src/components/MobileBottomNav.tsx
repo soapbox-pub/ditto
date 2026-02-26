@@ -1,6 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Compass, Bell, User, Search, TrendingUp, Bookmark, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText } from 'lucide-react';
+import { Home, Compass, Bell, User, Search, Bookmark, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, Pencil, GripVertical, X, Plus } from 'lucide-react';
+import LoginDialog from '@/components/auth/LoginDialog';
+import { useOnboarding } from '@/components/InitialSyncGate';
+import { DndContext, closestCenter, TouchSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -90,21 +95,95 @@ function NavTab({ icon, label, active, showIndicator, onClick, to }: NavTabProps
   );
 }
 
+// ── Sortable explore item (edit mode) ─────────────────────────────────────────
+
+interface SortableExploreSheetItemProps {
+  id: string;
+  onRemove: (id: string) => void;
+}
+
+function SortableExploreSheetItem({ id, onRemove }: SortableExploreSheetItemProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const icon = ITEM_ICONS[id] ?? <Palette className="size-5" />;
+  const label = itemLabel(id);
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'flex items-center rounded-lg transition-colors',
+        isDragging && 'z-10 opacity-80 shadow-lg bg-background',
+      )}
+    >
+      <button
+        className="flex items-center justify-center w-8 shrink-0 py-3 cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors touch-none"
+        {...attributes}
+        {...listeners}
+      >
+        <GripVertical className="size-4" />
+      </button>
+
+      <div className="flex items-center gap-3 py-3 flex-1 min-w-0 text-[15px]">
+        <span className="text-muted-foreground shrink-0">{icon}</span>
+        <span className="font-medium truncate">{label}</span>
+      </div>
+
+      <button
+        onClick={() => onRemove(id)}
+        className="flex items-center justify-center size-8 shrink-0 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+      >
+        <X className="size-4" />
+      </button>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function MobileBottomNav() {
   const location = useLocation();
   const { user, metadata } = useCurrentUser();
   const hasUnread = useHasUnreadNotifications();
-  const { orderedItems } = useFeedSettings();
+  const {
+    orderedItems, hiddenItems, updateSidebarOrder, addToSidebar, removeFromSidebar,
+  } = useFeedSettings();
   const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
+  const { startSignup } = useOnboarding();
   const [exploreOpen, setExploreOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
 
-  const handleHomeClick = useCallback(() => {
-    if (location.pathname === '/') {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, [location.pathname]);
+  // DnD sensors — touch sensor with delay to distinguish scroll from drag
+  const sensors = useSensors(
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = orderedItems.indexOf(active.id as string);
+    const newIndex = orderedItems.indexOf(over.id as string);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const newOrder = arrayMove(orderedItems, oldIndex, newIndex);
+    updateSidebarOrder(newOrder);
+  }, [orderedItems, updateSidebarOrder]);
 
   // Build explore items from ordered items (includes built-ins)
   const exploreItems = useMemo(() => {
@@ -116,88 +195,162 @@ export function MobileBottomNav() {
     }));
   }, [orderedItems]);
 
-  // Check if current path matches any explore route (excluding __feed which is the Home tab)
+  // Check if current path matches any explore route
   const isExploreActive = orderedItems.some((id) =>
-    id !== '__feed' && isItemActive(id, location.pathname, location.search),
+    isItemActive(id, location.pathname, location.search),
   );
+
+  const handleDrawerClose = (open: boolean) => {
+    if (!open) setEditing(false);
+    setExploreOpen(open);
+  };
 
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 z-20 flex items-center bg-background/80 backdrop-blur-md border-t border-border sidebar:hidden safe-area-bottom">
-        <NavTab
-          to="/"
-          icon={<Home className="size-5" />}
-          label="Home"
-          active={location.pathname === '/'}
-          onClick={handleHomeClick}
-        />
+        {user ? (
+          <NavTab
+            to={userProfileUrl}
+            icon={<User className="size-5" />}
+            label="You"
+            active={location.pathname === userProfileUrl}
+          />
+        ) : (
+          <NavTab
+            icon={<User className="size-5" />}
+            label="You"
+            active={false}
+            onClick={() => setLoginDialogOpen(true)}
+          />
+        )}
+        {user && (
+          <NavTab
+            to="/notifications"
+            icon={<Bell className="size-5" />}
+            label="Notifications"
+            active={location.pathname === '/notifications'}
+            showIndicator={hasUnread}
+          />
+        )}
         <NavTab
           icon={<Compass className="size-5" />}
           label="Explore"
           active={isExploreActive}
           onClick={() => setExploreOpen(true)}
         />
-        {user ? (
-          <>
-            <NavTab
-              to="/notifications"
-              icon={<Bell className="size-5" />}
-              label="Notifications"
-              active={location.pathname === '/notifications'}
-              showIndicator={hasUnread}
-            />
-            <NavTab
-              to={userProfileUrl}
-              icon={<User className="size-5" />}
-              label="You"
-              active={location.pathname === userProfileUrl}
-            />
-          </>
-        ) : (
-          <NavTab
-            to="/search"
-            icon={<Search className="size-5" />}
-            label="Search"
-            active={location.pathname === '/search'}
-          />
-        )}
+        <NavTab
+          to="/search"
+          icon={<Search className="size-5" />}
+          label="Search"
+          active={location.pathname === '/search'}
+        />
       </nav>
 
       {/* Explore bottom sheet */}
-      <Drawer open={exploreOpen} onOpenChange={setExploreOpen} dismissible>
+      <Drawer open={exploreOpen} onOpenChange={handleDrawerClose} dismissible>
         <DrawerContent className="max-h-[60vh]">
           <DrawerTitle className="sr-only">Explore</DrawerTitle>
           <div className="px-4 pt-2 pb-6">
-            <h3 className="text-sm font-semibold uppercase tracking-wider text-accent/70 mb-3 px-2">
-              Explore
-            </h3>
-            {exploreItems.length > 0 ? (
-              <div className="grid grid-cols-2 gap-1">
-                {exploreItems.map((item) => (
-                  <Link
-                    key={item.id}
-                    to={item.path}
-                    onClick={() => setExploreOpen(false)}
-                    className={cn(
-                      'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
-                      isItemActive(item.id, location.pathname, location.search)
-                        ? 'text-accent font-semibold'
-                        : 'text-foreground hover:bg-secondary/60',
-                    )}
+            {/* Section header with edit toggle */}
+            <div className="flex items-center gap-2 px-2 mb-3">
+              <span className="text-sm font-semibold uppercase tracking-wider text-accent/70">
+                Explore
+              </span>
+              <div className="flex-1 h-px bg-border/50" />
+              <button
+                onClick={() => setEditing(!editing)}
+                className={cn(
+                  'text-xs font-medium transition-colors px-2 py-0.5 rounded-full',
+                  editing
+                    ? 'text-primary hover:bg-primary/10'
+                    : 'text-muted-foreground/70 hover:text-muted-foreground hover:bg-secondary/60',
+                )}
+              >
+                {editing ? 'Done' : <Pencil className="size-3.5" />}
+              </button>
+            </div>
+
+            {editing ? (
+              /* ── Edit mode: single-column sortable list ── */
+              <>
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={handleDragEnd}
+                >
+                  <SortableContext
+                    items={orderedItems}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <span className="shrink-0 text-muted-foreground">{item.icon}</span>
-                    <span className="text-[15px] truncate">{item.label}</span>
-                  </Link>
-                ))}
-              </div>
+                    {orderedItems.map((id) => (
+                      <SortableExploreSheetItem
+                        key={id}
+                        id={id}
+                        onRemove={removeFromSidebar}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
+                {/* Add hidden items back */}
+                {hiddenItems.length > 0 && (
+                  <div className="mt-2 space-y-0.5">
+                    {hiddenItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => addToSidebar(item.id)}
+                        className="flex items-center gap-3 w-full py-3 px-2 rounded-lg text-[15px] text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 transition-colors"
+                      >
+                        <Plus className="size-4 ml-2" />
+                        <span className="flex items-center gap-3">
+                          {ITEM_ICONS[item.id] && (
+                            <span className="[&>svg]:size-4">{ITEM_ICONS[item.id]}</span>
+                          )}
+                          <span>{item.label}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
             ) : (
-              <p className="text-sm text-muted-foreground text-center py-6">
-                No content sections enabled. Go to Settings to add some.
-              </p>
+              /* ── Normal mode: 2-column grid of links ── */
+              exploreItems.length > 0 ? (
+                <div className="grid grid-cols-2 gap-1">
+                  {exploreItems.map((item) => (
+                    <Link
+                      key={item.id}
+                      to={item.path}
+                      onClick={() => setExploreOpen(false)}
+                      className={cn(
+                        'flex items-center gap-3 px-4 py-3.5 rounded-xl transition-colors',
+                        isItemActive(item.id, location.pathname, location.search)
+                          ? 'text-accent font-semibold'
+                          : 'text-foreground hover:bg-secondary/60',
+                      )}
+                    >
+                      <span className="shrink-0 text-muted-foreground">{item.icon}</span>
+                      <span className="text-[15px] truncate">{item.label}</span>
+                    </Link>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No content sections enabled. Tap the pencil to add some.
+                </p>
+              )
             )}
           </div>
         </DrawerContent>
       </Drawer>
+
+      {/* Login dialog for logged-out "You" tab */}
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+        onSignupClick={startSignup}
+      />
     </>
   );
 }
