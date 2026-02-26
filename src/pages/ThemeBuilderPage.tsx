@@ -637,7 +637,7 @@ export function ThemeBuilderPage() {
                 onClick={async () => {
                   if (!activeEditingTheme) return;
                   try {
-                    await deleteTheme(activeEditingTheme.identifier);
+                    await deleteTheme(activeEditingTheme);
                     toast({ title: 'Theme deleted', description: `"${activeEditingTheme.title}" has been removed.` });
                     handleNewTheme();
                   } catch {
