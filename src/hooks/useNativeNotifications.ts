@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { useNostr } from '@nostrify/react';
-import type { NostrEvent } from '@nostrify/nostrify';
+import type { NostrEvent, NPool } from '@nostrify/nostrify';
 
 import { useCurrentUser } from './useCurrentUser';
 import { useAppContext } from './useAppContext';
@@ -48,6 +48,13 @@ export function useNativeNotifications(): void {
   // Track the subscription start time so we only surface events that arrive
   // after the subscription is opened (avoids replaying historical events).
   const subStartRef = useRef<number>(Math.floor(Date.now() / 1000));
+
+  // Keep a stable ref to the nostr object to avoid re-subscribing on every render.
+  const nostrRef = useRef<NPool>(nostr);
+  useEffect(() => { nostrRef.current = nostr; }, [nostr]);
+
+  // Deduplicate: track event IDs that have already triggered a notification.
+  const seenIdsRef = useRef<Set<string>>(new Set());
 
   // ── Capacitor path ────────────────────────────────────────────────────────
 
@@ -106,7 +113,7 @@ export function useNativeNotifications(): void {
 
     (async () => {
       try {
-        const stream = nostr.req(
+        const stream = nostrRef.current.req(
           [{
             kinds: [1, 6, 7, 16, 9735],
             '#p': [user.pubkey],
@@ -123,6 +130,9 @@ export function useNativeNotifications(): void {
           if (event.pubkey === user.pubkey) continue;
           // Skip events older than when the sub opened (relay may send a burst)
           if (event.created_at < subStartRef.current) continue;
+          // Deduplicate: skip if we've already shown a notification for this event
+          if (seenIdsRef.current.has(event.id)) continue;
+          seenIdsRef.current.add(event.id);
 
           new Notification(notificationTitle(event), {
             body: event.content.slice(0, 120) || undefined,
@@ -138,5 +148,5 @@ export function useNativeNotifications(): void {
     return () => {
       controller.abort();
     };
-  }, [user, notificationsEnabled, nostr]);
+  }, [user, notificationsEnabled]);
 }
