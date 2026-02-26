@@ -13,16 +13,21 @@
 
 ### Summary
 
-Addressable event kind for publishing shareable custom UI themes. A single user may publish multiple themes, each identified by a unique `d` tag. Themes include a title, optional description, and a full set of HSL color tokens.
+Addressable event kind for publishing shareable custom UI themes. A single user may publish multiple themes, each identified by a unique `d` tag.
+
+Theme colors are stored in `c` tags using hex color codes with a required marker indicating the color's role.
 
 ### Event Structure
 
 ```json
 {
   "kind": 33891,
-  "content": "{\"background\":\"228 20% 10%\",\"foreground\":\"210 40% 98%\",\"card\":\"228 20% 12%\",\"cardForeground\":\"210 40% 98%\",\"popover\":\"228 20% 12%\",\"popoverForeground\":\"210 40% 98%\",\"primary\":\"258 70% 60%\",\"primaryForeground\":\"0 0% 100%\",\"secondary\":\"228 16% 18%\",\"secondaryForeground\":\"210 40% 98%\",\"muted\":\"228 16% 18%\",\"mutedForeground\":\"215 20.2% 65.1%\",\"accent\":\"225 65% 55%\",\"accentForeground\":\"0 0% 100%\",\"destructive\":\"0 72% 51%\",\"destructiveForeground\":\"210 40% 98%\",\"border\":\"228 14% 20%\",\"input\":\"228 14% 20%\",\"ring\":\"258 70% 60%\"}",
+  "content": "",
   "tags": [
     ["d", "mk-dark-theme"],
+    ["c", "#1a1a2e", "background"],
+    ["c", "#e0e0e0", "text"],
+    ["c", "#6c3ce0", "primary"],
     ["title", "MK Dark Theme"],
     ["description", "A sleek dark theme with purple and blue accents"],
     ["alt", "Custom theme: MK Dark Theme"],
@@ -33,21 +38,18 @@ Addressable event kind for publishing shareable custom UI themes. A single user 
 
 ### Content
 
-JSON object containing the full theme token set. Each value is an HSL color string in the format `"H S% L%"` (e.g. `"258 70% 60%"`).
-
-**Required fields:** `background`, `foreground`, `primary`, `accent`
-
-**Optional fields** (clients should derive these if missing): `card`, `cardForeground`, `popover`, `popoverForeground`, `primaryForeground`, `secondary`, `secondaryForeground`, `muted`, `mutedForeground`, `accentForeground`, `destructive`, `destructiveForeground`, `border`, `input`, `ring`
+The `content` field is unused and MUST be an empty string (`""`).
 
 ### Tags
 
-| Tag           | Required | Description                                              |
-|---------------|----------|----------------------------------------------------------|
-| `d`           | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"` |
-| `title`       | Yes      | Human-readable theme name                                |
-| `description` | No       | Brief description of the theme                           |
-| `alt`         | Yes      | NIP-31 human-readable fallback                           |
-| `t`           | Yes      | Set to `"theme"` for discoverability                     |
+| Tag           | Required | Description                                                                                                                                                                                                                                     |
+|---------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `d`           | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"`                                                                                                                                                                                |
+| `c`           | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
+| `title`       | Yes      | Human-readable theme name                                                                                                                                                                                                                       |
+| `description` | No       | Brief description of the theme                                                                                                                                                                                                                  |
+| `alt`         | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
+| `t`           | Yes      | Set to `"theme"` for discoverability                                                                                                                                                                                                            |
 
 ### Multiple Themes Per User
 
