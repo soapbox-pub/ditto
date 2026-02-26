@@ -111,12 +111,9 @@ function computeOrderedItems(
     }
   }
 
-  // Append any new built-ins not in persisted order (e.g. __trends added later)
-  for (const b of BUILTIN_SIDEBAR_ITEMS) {
-    if (builtinIds.has(b.id)) {
-      ordered.push(b.id);
-    }
-  }
+  // Do NOT auto-append missing built-ins when a persisted order exists.
+  // If a built-in is missing from sidebarOrder, the user removed it.
+  // New built-ins will appear in the "add" menu instead of being forced into the sidebar.
 
   return ordered;
 }
