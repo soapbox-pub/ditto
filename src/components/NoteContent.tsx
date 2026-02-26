@@ -326,9 +326,9 @@ export function NoteContent({
             return <span key={i}>{emojify(token.value, emojiMap)}</span>;
           case 'image-embed': {
             if (disableEmbeds) {
-              // In preview contexts (e.g. triple-dot menu), suppress image URLs
-              // entirely rather than showing the raw URL string.
-              return null;
+              // In preview contexts (e.g. triple-dot menu), replace image URLs
+              // with a newline so text flow is preserved without showing raw URLs.
+              return <span key={i}>{'\n'}</span>;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
