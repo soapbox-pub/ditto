@@ -376,33 +376,41 @@ export function LeftSidebar() {
                 <span>More...</span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[220px]">
+            <DropdownMenuContent align="start" className="w-[240px]">
               {/* Edit sidebar */}
               <DropdownMenuItem
                 onClick={() => setEditing(true)}
-                className="flex items-center gap-3 cursor-pointer"
+                className="flex items-center gap-3 py-2.5 cursor-pointer"
               >
                 <Pencil className="size-5" />
                 <span className="text-sm">Edit sidebar</span>
               </DropdownMenuItem>
 
-              {/* Hidden items to add */}
+              {/* Hidden items */}
               <DropdownMenuSeparator />
-              <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
               {visibleHiddenItems.map((item) => (
                 <DropdownMenuItem
                   key={item.id}
-                  onClick={() => addToSidebar(item.id)}
-                  className="flex items-center gap-3 cursor-pointer"
+                  asChild
+                  className="flex items-center gap-3 py-2.5 cursor-pointer"
                 >
-                  {ITEM_ICONS[item.id] ? (
-                    <span className="size-5 flex items-center justify-center [&>svg]:size-5">
-                      {ITEM_ICONS[item.id]}
-                    </span>
-                  ) : (
-                    <Plus className="size-5 text-muted-foreground" />
-                  )}
-                  <span className="text-sm">{item.label}</span>
+                  <Link to={itemPath(item.id)}>
+                    {ITEM_ICONS[item.id] ? (
+                      <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                        {ITEM_ICONS[item.id]}
+                      </span>
+                    ) : (
+                      <Palette className="size-5" />
+                    )}
+                    <span className="text-sm flex-1">{item.label}</span>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); addToSidebar(item.id); }}
+                      className="size-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      title={`Add ${item.label} to sidebar`}
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                  </Link>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
