@@ -188,13 +188,16 @@ const BG_STYLE_ID = 'theme-background';
  * Hook to apply or remove a background image when the theme config changes.
  */
 function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) {
+  const bgUrl = customTheme?.background?.url;
+  const bgMode = customTheme?.background?.mode ?? 'cover';
+
   useEffect(() => {
     const resolved = resolveTheme(theme);
-    const bg = resolved === 'custom' ? customTheme?.background : undefined;
+    const isCustom = resolved === 'custom';
 
     let style = document.getElementById(BG_STYLE_ID) as HTMLStyleElement | null;
 
-    if (!bg?.url) {
+    if (!isCustom || !bgUrl) {
       style?.remove();
       return;
     }
@@ -205,13 +208,11 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) 
       document.head.appendChild(style);
     }
 
-    const mode = bg.mode ?? 'cover';
     let css: string;
-
-    if (mode === 'tile') {
-      css = `body { background-image: url("${bg.url}"); background-repeat: repeat; background-size: auto; }`;
+    if (bgMode === 'tile') {
+      css = `body { background-image: url("${bgUrl}"); background-repeat: repeat; background-size: auto; }`;
     } else {
-      css = `body { background-image: url("${bg.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+      css = `body { background-image: url("${bgUrl}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
     }
 
     style.textContent = css;
@@ -219,5 +220,5 @@ function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) 
     return () => {
       document.getElementById(BG_STYLE_ID)?.remove();
     };
-  }, [theme, customTheme?.background]);
+  }, [theme, bgUrl, bgMode]);
 }
