@@ -221,7 +221,7 @@ function NoteMoreMenuContent({ event, open, onOpenChange }: NoteMoreMenuProps) {
                 <span className="text-muted-foreground shrink-0 text-xs">{timeAgo(event.created_at)}</span>
               </div>
               <div className="mt-0.5 text-sm text-muted-foreground line-clamp-3">
-                <NoteContent event={event} className="text-sm leading-relaxed" />
+                <NoteContent event={event} className="text-sm leading-relaxed" disableEmbeds />
               </div>
             </div>
           </div>

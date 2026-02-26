@@ -277,17 +277,17 @@ export function ComposeBox({
     [detectedEmbeds, removedEmbeds]
   );
 
-  // Extract images and videos for preview mode
-  const previewImages = useMemo(() => {
-    if (!content) return [];
-    const urlRegex = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg)(\?[^\s]*)?/gi;
-    return content.match(urlRegex) || [];
-  }, [content]);
-
+  // Extract videos for preview mode
   const previewVideos = useMemo(() => {
     if (!content) return [];
     const urlRegex = /https?:\/\/[^\s]+\.(mp4|webm|mov)(\?[^\s]*)?/gi;
     return content.match(urlRegex) || [];
+  }, [content]);
+
+  // Detect inline images for preview mode
+  const hasPreviewImages = useMemo(() => {
+    if (!content) return false;
+    return /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|avif)(\?[^\s]*)?/i.test(content);
   }, [content]);
 
   // Detect nostr:npub/nprofile mentions in content
@@ -297,8 +297,8 @@ export function ComposeBox({
 
   // Check if content has any previewable content (link previews, images, videos, or mentions)
   const hasPreviewableContent = useMemo(() => {
-    return visibleEmbeds.length > 0 || previewImages.length > 0 || previewVideos.length > 0 || hasMentions;
-  }, [visibleEmbeds, previewImages, previewVideos, hasMentions]);
+    return visibleEmbeds.length > 0 || hasPreviewImages || previewVideos.length > 0 || hasMentions;
+  }, [visibleEmbeds, hasPreviewImages, previewVideos, hasMentions]);
 
   // Notify parent of previewable content changes
   useEffect(() => {
@@ -721,17 +721,6 @@ export function ComposeBox({
               <div className="text-lg opacity-85">
                 <NoteContent event={mockEvent} className="text-foreground" />
               </div>
-              {/* Render images */}
-              {previewImages.map((url, i) => (
-                <div key={i} className="mt-3 rounded-2xl overflow-hidden border border-border">
-                  <img
-                    src={url}
-                    alt=""
-                    className="w-full h-auto max-h-[500px] object-contain bg-muted"
-                    loading="lazy"
-                  />
-                </div>
-              ))}
               {/* Render videos */}
               {previewVideos.map((url, i) => (
                 <div key={i} className="mt-3 rounded-2xl overflow-hidden border border-border">

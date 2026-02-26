@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { type NostrEvent } from '@nostrify/nostrify';
 import { Link } from 'react-router-dom';
 import { nip19 } from 'nostr-tools';
@@ -9,8 +9,10 @@ import { LinkPreview } from '@/components/LinkPreview';
 import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { EmbeddedNaddr } from '@/components/EmbeddedNaddr';
 import { YouTubeEmbed } from '@/components/YouTubeEmbed';
+import { Lightbox } from '@/components/ImageGallery';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { buildEmojiMap, emojify, EmojifiedText } from '@/components/CustomEmoji';
+import { useBlossomFallback } from '@/hooks/useBlossomFallback';
 import { cn } from '@/lib/utils';
 import type { AddrCoords } from '@/hooks/useEvent';
 
@@ -21,8 +23,11 @@ interface NoteContentProps {
   disableEmbeds?: boolean;
 }
 
-/** Regex to detect media file URLs (images, video, audio, webxdc, etc.) that are rendered as embeds. */
-const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|mp4|webm|mov|mp3|ogg|wav|pdf|xdc)(\?[^\s]*)?/i;
+/** Regex to detect image URLs that should be rendered inline. */
+const IMAGE_URL_REGEX = /https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp|svg|avif)(\?[^\s]*)?/i;
+
+/** Regex to detect video/webxdc URLs rendered as embeds by the parent component. */
+const MEDIA_URL_REGEX = /https?:\/\/[^\s]+\.(mp4|webm|mov|xdc)(\?[^\s]*)?/i;
 
 /** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
 function extractYouTubeId(url: string): string | null {
@@ -74,6 +79,7 @@ function extractNaddrFromUrl(url: string): AddrCoords | null {
 /** A parsed token from note content. */
 type ContentToken =
   | { type: 'text'; value: string }
+  | { type: 'image-embed'; url: string }
   | { type: 'link-preview'; url: string }
   | { type: 'inline-link'; url: string }
   | { type: 'youtube-embed'; videoId: string }
@@ -138,9 +144,26 @@ export function NoteContent({
             // The punctuation will be part of the next text token
           }
         }
-        // Skip media URLs — rendered as embedded media by the parent.
-        // Trim trailing whitespace from the preceding text token so that
-        // the removed URL doesn't leave blank lines under pre-wrap.
+        // Image URLs → render inline at their position in the text
+        if (IMAGE_URL_REGEX.test(url)) {
+          if (result.length > 0) {
+            const prev = result[result.length - 1];
+            if (prev.type === 'text') {
+              prev.value = prev.value.replace(/\s+$/, '');
+            }
+          }
+          result.push({ type: 'image-embed', url });
+          lastIndex = index + fullMatch.length;
+          // Strip leading whitespace that follows the image URL
+          const remaining = text.substring(lastIndex);
+          const leadingWs = remaining.match(/^\s+/);
+          if (leadingWs) {
+            lastIndex += leadingWs[0].length;
+          }
+          continue;
+        }
+
+        // Skip non-image media URLs — rendered as embedded media by the parent.
         if (MEDIA_URL_REGEX.test(url)) {
           if (result.length > 0) {
             const prev = result[result.length - 1];
@@ -228,7 +251,7 @@ export function NoteContent({
     // Preserve formatting but prevent too much stacking with the card's own spacing.
     for (let i = 0; i < result.length; i++) {
       const token = result[i];
-      const isBlock = token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
+      const isBlock = token.type === 'image-embed' || token.type === 'link-preview' || token.type === 'youtube-embed' || token.type === 'nevent-embed'
         || (token.type === 'naddr-embed' && !token.url);
 
       if (isBlock) {
@@ -270,8 +293,30 @@ export function NoteContent({
   // Build emoji map for NIP-30 custom emoji rendering
   const emojiMap = useMemo(() => buildEmojiMap(event.tags), [event.tags]);
 
+  // Collect all inline image URLs (in order) for the shared lightbox
+  const allImages = useMemo(
+    () => tokens.filter((t): t is { type: 'image-embed'; url: string } => t.type === 'image-embed').map((t) => t.url),
+    [tokens],
+  );
+
+  // Shared lightbox state for inline images
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const closeLightbox = useCallback(() => setLightboxIndex(null), []);
+  const goNext = useCallback(() => setLightboxIndex((p) => (p !== null ? (p + 1) % allImages.length : null)), [allImages.length]);
+  const goPrev = useCallback(() => setLightboxIndex((p) => (p !== null ? (p - 1 + allImages.length) % allImages.length : null)), [allImages.length]);
+
   // Check if content is only emojis (single text token with only emojis)
   const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojis(tokens[0].value);
+
+  // Build a map from token index → image list index so duplicate URLs get correct positions
+  const tokenImageIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    let imgCount = 0;
+    tokens.forEach((t, i) => {
+      if (t.type === 'image-embed') map.set(i, imgCount++);
+    });
+    return map;
+  }, [tokens]);
 
   return (
     <div className={cn('whitespace-pre-wrap break-words overflow-hidden', isEmojiOnly && 'text-5xl leading-tight', className)}>
@@ -279,6 +324,30 @@ export function NoteContent({
         switch (token.type) {
           case 'text':
             return <span key={i}>{emojify(token.value, emojiMap)}</span>;
+          case 'image-embed': {
+            if (disableEmbeds) {
+              return (
+                <a
+                  key={i}
+                  href={token.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline break-all"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {token.url}
+                </a>
+              );
+            }
+            const imgIndex = tokenImageIndex.get(i) ?? 0;
+            return (
+              <InlineImage
+                key={i}
+                url={token.url}
+                onClick={(e) => { e.stopPropagation(); setLightboxIndex(imgIndex); }}
+              />
+            );
+          }
           case 'link-preview':
             if (disableEmbeds) {
               return (
@@ -355,7 +424,39 @@ export function NoteContent({
             );
         }
       })}
+
+      {/* Shared lightbox for all inline images in this post */}
+      {lightboxIndex !== null && (
+        <Lightbox
+          images={allImages}
+          currentIndex={lightboxIndex}
+          onClose={closeLightbox}
+          onNext={goNext}
+          onPrev={goPrev}
+        />
+      )}
     </div>
+  );
+}
+
+/** Inline image thumbnail that opens the shared lightbox on click. */
+function InlineImage({ url, onClick }: { url: string; onClick: (e: React.MouseEvent) => void }) {
+  const { src, onError } = useBlossomFallback(url);
+
+  return (
+    <button
+      type="button"
+      className="block my-2 rounded-lg overflow-hidden max-w-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      onClick={onClick}
+    >
+      <img
+        src={src}
+        alt=""
+        className="block max-w-full max-h-[512px] object-contain rounded-lg hover:opacity-90 transition-opacity"
+        loading="lazy"
+        onError={onError}
+      />
+    </button>
   );
 }
 
