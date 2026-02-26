@@ -21,6 +21,7 @@ export interface BuiltinSidebarItem {
 export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: 'feed', label: 'Feed', path: '/' },
   { id: 'notifications', label: 'Notifications', path: '/notifications', requiresAuth: true },
+  { id: 'search', label: 'Search', path: '/search' },
   { id: 'trends', label: 'Trends', path: '/search?tab=trends' },
   { id: 'bookmarks', label: 'Bookmarks', path: '/bookmarks', requiresAuth: true },
   { id: 'profile', label: 'Profile', path: '/profile', requiresAuth: true },

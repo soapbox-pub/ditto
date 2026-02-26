@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, Home, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
+  Bell, Home, Search, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
   User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
   ChevronDown, Plus, Pencil, X, GripVertical,
 } from 'lucide-react';
@@ -49,6 +49,7 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
   // Built-ins
   feed: <Home className="size-6" />,
   notifications: <Bell className="size-6" />,
+  search: <Search className="size-6" />,
   trends: <TrendingUp className="size-6" />,
   bookmarks: <Bookmark className="size-6" />,
   profile: <User className="size-6" />,
@@ -84,6 +85,7 @@ function itemPath(id: string, profilePath?: string): string {
 function isItemActive(id: string, pathname: string, search: string, profilePath?: string): boolean {
   if (id === 'feed') return pathname === '/';
   if (id === 'notifications') return pathname === '/notifications';
+  if (id === 'search') return pathname === '/search' && !search.includes('tab=trends');
   if (id === 'trends') return pathname === '/search' && search.includes('tab=trends');
   if (id === 'bookmarks') return pathname === '/bookmarks';
   if (id === 'profile') return !!profilePath && pathname === profilePath;
