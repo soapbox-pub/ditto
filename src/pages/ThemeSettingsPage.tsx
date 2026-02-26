@@ -2,6 +2,8 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { FontPicker } from '@/components/FontPicker';
+import { Separator } from '@/components/ui/separator';
 
 export function ThemeSettingsPage() {
   useSeoMeta({
@@ -26,8 +28,10 @@ export function ThemeSettingsPage() {
         </div>
       </div>
 
-      <div className="p-4">
+      <div className="p-4 space-y-6">
         <ThemeSelector />
+        <Separator />
+        <FontPicker />
       </div>
     </main>
   );
