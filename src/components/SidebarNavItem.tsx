@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings,
-  Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
+  Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, SwatchBook,
   GripVertical, X,
 } from 'lucide-react';
 import {
@@ -32,6 +32,7 @@ export const SIDEBAR_ITEM_ICONS: Record<string, React.ReactElement> = {
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
   treasures: <ChestIcon className="size-6" />,
+  theme: <SwatchBook className="size-6" />,
   colors: <Palette className="size-6" />,
   packs: <PartyPopper className="size-6" />,
   streams: <Radio className="size-6" />,
