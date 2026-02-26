@@ -491,7 +491,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
                 setSelectedThemeId(option.id);
                 if (option.presetId) {
                   const preset = themePresets[option.presetId];
-                  const themeConfig: ThemeConfig = { colors: preset.colors, font: preset.font };
+                  const themeConfig: ThemeConfig = { colors: preset.colors, font: preset.font, background: preset.background };
                   setSelectedTheme('custom');
                   setSelectedCustomTheme(themeConfig);
                   updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: themeConfig }));

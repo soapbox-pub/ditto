@@ -230,7 +230,7 @@ export function LeftSidebar() {
                       const p = themePresets[preset.id];
                       const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme.colors) === JSON.stringify(p.colors);
                       return (
-                        <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme({ colors: p.colors, font: p.font })} className="flex items-center justify-between cursor-pointer">
+                        <DropdownMenuItem key={preset.id} onClick={() => applyCustomTheme({ colors: p.colors, font: p.font, background: p.background })} className="flex items-center justify-between cursor-pointer">
                           <div className="flex items-center gap-2"><span className="text-sm leading-none">{preset.emoji}</span><span>{preset.label}</span></div>
                           {isActive && <Check className="size-4 text-primary" />}
                         </DropdownMenuItem>

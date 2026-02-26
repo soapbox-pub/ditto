@@ -144,6 +144,7 @@ export function ThemeSelector() {
     label: preset.label,
     colors: preset.colors,
     font: preset.font,
+    background: preset.background,
   }));
 
   /** Check if a preset matches the current custom theme colors */
@@ -301,7 +302,7 @@ export function ThemeSelector() {
                     ? 'border-primary shadow-sm'
                     : 'border-border hover:border-primary/40',
                 )}
-                onClick={() => applyCustomTheme({ colors: preset.colors, font: preset.font })}
+                onClick={() => applyCustomTheme({ colors: preset.colors, font: preset.font, background: preset.background })}
               >
                 <ThemePreviewCard colors={preset.colors} isActive={isActive} />
                 <p className={cn(
