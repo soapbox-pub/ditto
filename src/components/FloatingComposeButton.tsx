@@ -41,7 +41,7 @@ export function FloatingComposeButton({ kind = 1, href }: FloatingComposeButtonP
     <>
       <Button
         onClick={handleClick}
-        className="size-14 rounded-full shadow-lg bg-primary hover:bg-primary/90 text-primary-foreground transition-transform hover:scale-105 active:scale-95"
+        className="size-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105 active:scale-95"
       >
         <Plus strokeWidth={4} />
       </Button>
