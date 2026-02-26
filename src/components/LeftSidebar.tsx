@@ -349,7 +349,7 @@ export function LeftSidebar() {
           </SortableContext>
         </DndContext>
 
-        {/* "More..." menu / "Done editing" button */}
+        {/* Sidebar actions: Done editing / Edit sidebar / More... dropdown */}
         {editing ? (
           <button
             onClick={() => setEditing(false)}
@@ -357,6 +357,14 @@ export function LeftSidebar() {
           >
             <Check className="size-4" />
             <span>Done editing</span>
+          </button>
+        ) : visibleHiddenItems.length === 0 ? (
+          <button
+            onClick={() => setEditing(true)}
+            className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
+          >
+            <Pencil className="size-4" />
+            <span>Edit sidebar</span>
           </button>
         ) : (
           <DropdownMenu>
@@ -379,28 +387,24 @@ export function LeftSidebar() {
               </DropdownMenuItem>
 
               {/* Hidden items to add */}
-              {visibleHiddenItems.length > 0 && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
-                  {visibleHiddenItems.map((item) => (
-                    <DropdownMenuItem
-                      key={item.id}
-                      onClick={() => addToSidebar(item.id)}
-                      className="flex items-center gap-3 cursor-pointer"
-                    >
-                      {ITEM_ICONS[item.id] ? (
-                        <span className="size-5 flex items-center justify-center [&>svg]:size-5">
-                          {ITEM_ICONS[item.id]}
-                        </span>
-                      ) : (
-                        <Plus className="size-5 text-muted-foreground" />
-                      )}
-                      <span className="text-sm">{item.label}</span>
-                    </DropdownMenuItem>
-                  ))}
-                </>
-              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="text-xs text-muted-foreground">Add to sidebar</DropdownMenuLabel>
+              {visibleHiddenItems.map((item) => (
+                <DropdownMenuItem
+                  key={item.id}
+                  onClick={() => addToSidebar(item.id)}
+                  className="flex items-center gap-3 cursor-pointer"
+                >
+                  {ITEM_ICONS[item.id] ? (
+                    <span className="size-5 flex items-center justify-center [&>svg]:size-5">
+                      {ITEM_ICONS[item.id]}
+                    </span>
+                  ) : (
+                    <Plus className="size-5 text-muted-foreground" />
+                  )}
+                  <span className="text-sm">{item.label}</span>
+                </DropdownMenuItem>
+              ))}
             </DropdownMenuContent>
           </DropdownMenu>
         )}
