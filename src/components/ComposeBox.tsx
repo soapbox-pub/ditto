@@ -25,6 +25,7 @@ import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 import { extractWebxdcMeta } from '@/lib/webxdcMeta';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { DITTO_RELAY } from '@/lib/appRelays';
 
 const MAX_CHARS = 5000;
 
@@ -492,11 +493,11 @@ export function ComposeBox({
         const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
         if (rootTag) {
           // replyTo is itself a reply – preserve the root and mark replyTo as reply
-          tags.push(['e', rootTag[1], rootTag[2] || '', 'root', rootTag[4] || '']);
-          tags.push(['e', replyTo.id, '', 'reply', replyTo.pubkey]);
+          tags.push(['e', rootTag[1], rootTag[2] || DITTO_RELAY, 'root', ...(rootTag[4] ? [rootTag[4]] : [])]);
+          tags.push(['e', replyTo.id, DITTO_RELAY, 'reply', replyTo.pubkey]);
         } else {
           // replyTo is a top-level note – it becomes the root
-          tags.push(['e', replyTo.id, '', 'root', replyTo.pubkey]);
+          tags.push(['e', replyTo.id, DITTO_RELAY, 'root', replyTo.pubkey]);
         }
 
         // Add p tags: original author + all existing p tags from the parent
@@ -518,7 +519,7 @@ export function ComposeBox({
       // Per NIP-18, quotes should use the q tag and include the nostr: URI in content
       let finalContent = content.trim();
       if (showQuotedEvent && quotedEvent) {
-        tags.push(['q', quotedEvent.id]);
+        tags.push(['q', quotedEvent.id, DITTO_RELAY, quotedEvent.pubkey]);
         // Add the nostr: URI to the content if not already present
         const neventUri = `nostr:${nip19.neventEncode({ id: quotedEvent.id, author: quotedEvent.pubkey })}`;
         if (!finalContent.includes(neventUri)) {
