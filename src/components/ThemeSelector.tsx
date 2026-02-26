@@ -166,7 +166,7 @@ export function ThemeSelector() {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Colors
         </h3>
-        <div className="flex items-center gap-4">
+        <div className="grid grid-cols-3 gap-2 sidebar:flex sidebar:items-center sidebar:gap-4">
           {CORE_KEYS.map((key) => (
             <ColorPicker
               key={key}
@@ -204,7 +204,7 @@ export function ThemeSelector() {
         <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Themes
         </h3>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 sidebar:grid-cols-3 gap-3">
           {builtinOptions.map((option) => {
             if (option.id === 'system') {
               const isActive = theme === 'system';
