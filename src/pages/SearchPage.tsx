@@ -335,9 +335,9 @@ export function SearchPage() {
 
             {/* Sort sub-tabs */}
             <div className="flex border-b border-border">
-              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} activeColor="text-primary" underlineColor="bg-primary" />
-              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-primary" underlineColor="bg-primary" />
-              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} activeColor="text-destructive" underlineColor="bg-destructive" />
+              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} activeColor="text-foreground" underlineColor="bg-primary" />
+              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-foreground" underlineColor="bg-primary" />
+              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} activeColor="text-foreground" underlineColor="bg-primary" />
             </div>
 
             {/* Sorted posts — infinite scroll */}
@@ -414,7 +414,7 @@ export function SearchPage() {
 
 /* ── Shared sub-components ── */
 
-function SortTabButton({ icon, label, active, onClick, activeColor = 'text-primary', underlineColor = 'bg-primary' }: {
+function SortTabButton({ icon, label, active, onClick, activeColor = 'text-foreground', underlineColor = 'bg-primary' }: {
   icon: React.ReactNode;
   label: string;
   active: boolean;
@@ -460,7 +460,7 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold text-primary"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
     >
       #{trend.tag}
       {trend.count > 0 && (
