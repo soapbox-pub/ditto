@@ -232,7 +232,7 @@ function RepostNotification({ item, isNew }: { item: NotificationItem; isNew: bo
       <div className="px-4 pt-3">
         <NotificationHeader
           actorPubkey={item.event.pubkey}
-          icon={<RepostIcon className="size-4 text-green-500" />}
+          icon={<RepostIcon className="size-4 text-accent" />}
           action="reposted your note"
         />
       </div>

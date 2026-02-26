@@ -119,9 +119,9 @@ export function NostrSync() {
         // Migrate legacy theme values ("black", "pink") from older encrypted settings
         const remoteTheme = encryptedSettings.theme as string;
         if (remoteTheme in themePresets) {
-          if (current.theme !== 'custom' || JSON.stringify(current.customTheme) !== JSON.stringify(themePresets[remoteTheme].tokens)) {
+          if (current.theme !== 'custom' || JSON.stringify(current.customTheme) !== JSON.stringify(themePresets[remoteTheme].colors)) {
             updates.theme = 'custom';
-            updates.customTheme = themePresets[remoteTheme].tokens;
+            updates.customTheme = themePresets[remoteTheme].colors;
             changed = true;
           }
         } else if (encryptedSettings.theme !== current.theme) {

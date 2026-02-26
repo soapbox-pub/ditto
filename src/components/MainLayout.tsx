@@ -62,13 +62,13 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
     <>
       {/* Mobile top bar - only on small screens */}
-      <MobileTopBar onAvatarClick={() => setDrawerOpen(true)} />
+      <MobileTopBar onMenuClick={() => setDrawerOpen(true)} />
 
       {/* Mobile drawer */}
       <MobileDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
@@ -88,7 +88,7 @@ function MainLayoutInner() {
             {showFAB && (
               <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
                 <div className="pointer-events-auto">
-                  <FloatingComposeButton kind={fabKind} />
+                  <FloatingComposeButton kind={fabKind} href={fabHref} />
                 </div>
               </div>
             )}

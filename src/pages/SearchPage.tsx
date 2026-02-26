@@ -315,7 +315,7 @@ export function SearchPage() {
           <div>
             {/* Trending Hashtags */}
             <div className="px-4 pt-4 pb-2">
-              <h3 className="text-lg font-bold">Trending Hashtags</h3>
+              <h3 className="text-lg font-bold text-foreground">Trending Hashtags</h3>
             </div>
             {trendsLoading ? (
               <div className="divide-y divide-border">
@@ -335,9 +335,9 @@ export function SearchPage() {
 
             {/* Sort sub-tabs */}
             <div className="flex border-b border-border">
-              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} />
-              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} />
-              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} />
+              <SortTabButton icon={<Flame className="size-4" />} label="Hot" active={trendSort === 'hot'} onClick={() => setTrendSort('hot')} activeColor="text-foreground" underlineColor="bg-primary" />
+              <SortTabButton icon={<TrendingUp className="size-4" />} label="Rising" active={trendSort === 'rising'} onClick={() => setTrendSort('rising')} activeColor="text-foreground" underlineColor="bg-primary" />
+              <SortTabButton icon={<Swords className="size-4" />} label="Controversial" active={trendSort === 'controversial'} onClick={() => setTrendSort('controversial')} activeColor="text-foreground" underlineColor="bg-primary" />
             </div>
 
             {/* Sorted posts — infinite scroll */}
@@ -414,19 +414,26 @@ export function SearchPage() {
 
 /* ── Shared sub-components ── */
 
-function SortTabButton({ icon, label, active, onClick }: { icon: React.ReactNode; label: string; active: boolean; onClick: () => void }) {
+function SortTabButton({ icon, label, active, onClick, activeColor = 'text-foreground', underlineColor = 'bg-primary' }: {
+  icon: React.ReactNode;
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  activeColor?: string;
+  underlineColor?: string;
+}) {
   return (
     <button
       onClick={onClick}
       className={cn(
         'flex-1 py-2.5 flex items-center justify-center gap-1.5 text-sm font-medium transition-colors relative hover:bg-secondary/40',
-        active ? 'text-foreground' : 'text-muted-foreground',
+        active ? activeColor : 'text-muted-foreground',
       )}
     >
       {icon}
       {label}
       {active && (
-        <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 bg-primary rounded-full" />
+        <div className={cn('absolute bottom-0 left-1/2 -translate-x-1/2 w-12 h-0.5 rounded-full', underlineColor)} />
       )}
     </button>
   );
@@ -453,7 +460,7 @@ function TrendItem({ trend }: { trend: { tag: string; count: number } }) {
   return (
     <Link
       to={`/t/${encodeURIComponent(trend.tag)}`}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary/50 hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
     >
       #{trend.tag}
       {trend.count > 0 && (

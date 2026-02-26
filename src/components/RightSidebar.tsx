@@ -113,7 +113,7 @@ export function RightSidebar() {
       {/* Trending Tags */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold">Trends</h2>
+          <h2 className="text-xl font-bold text-foreground">Trends</h2>
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">View all</Link>
         </div>
 
@@ -158,10 +158,12 @@ export function RightSidebar() {
         )}
       </section>
 
+      <div className="h-px bg-border mb-6" />
+
       {/* Hot Posts */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold">Hot Posts</h2>
+          <h2 className="text-xl font-bold text-foreground">Hot Posts</h2>
           <Link to="/search?tab=trends" className="text-sm text-primary hover:underline">More</Link>
         </div>
 
@@ -189,10 +191,12 @@ export function RightSidebar() {
         )}
       </section>
 
+      <div className="h-px bg-border mb-6" />
+
       {/* Latest Accounts */}
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold">New Accounts</h2>
+          <h2 className="text-xl font-bold text-foreground">New Accounts</h2>
         </div>
 
         {accountsLoading ? (
