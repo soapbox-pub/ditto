@@ -34,6 +34,8 @@ export interface EncryptedSettings {
   contentFilters?: ContentFilter[];
   /** How to handle NIP-36 content-warning events */
   contentWarningPolicy?: ContentWarningPolicy;
+  /** Whether the user has enabled push notifications */
+  notificationsEnabled?: boolean;
   /** Timestamp of last viewed notification (Unix timestamp in seconds) */
   notificationsCursor?: number;
   /** Last sync timestamp */
