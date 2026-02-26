@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, ChevronRight, LayoutList, Palette, Server, Settings as SettingsIcon, User, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Palette, Server, Settings as SettingsIcon, User, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -23,18 +23,11 @@ export const settingsSections: SettingsSection[] = [
     requiresAuth: true,
   },
   {
-    id: 'theme',
-    label: 'Theme',
-    description: 'Choose a theme for the interface',
+    id: 'appearance',
+    label: 'Appearance',
+    description: 'Theme, display preferences, and content settings',
     icon: Palette,
-    path: '/settings/theme',
-  },
-  {
-    id: 'content',
-    label: 'Content',
-    description: 'Manage your feed and content preferences',
-    icon: LayoutList,
-    path: '/settings/content',
+    path: '/settings/appearance',
   },
   {
     id: 'wallet',

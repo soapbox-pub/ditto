@@ -1,22 +1,24 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { LogOut, ChevronDown, ChevronUp, Sun, Moon, Monitor, Palette } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { ChevronDown, ChevronUp, LogOut, UserPlus } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
-import { Separator } from '@/components/ui/separator';
-import { DittoLogo } from '@/components/DittoLogo';
+import { SidebarNavList } from '@/components/SidebarNavItem';
+import { SidebarMoreMenu } from '@/components/SidebarMoreMenu';
+import { SidebarThemeDropdown } from '@/components/SidebarThemeDropdown';
+import { LoginArea } from '@/components/auth/LoginArea';
+import { EmojifiedText } from '@/components/CustomEmoji';
+import LoginDialog from '@/components/auth/LoginDialog';
+import { useOnboarding } from '@/components/InitialSyncGate';
+import { genUserName } from '@/lib/genUserName';
+import { VerifiedNip05Text } from '@/components/Nip05Badge';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLoginActions } from '@/hooks/useLoginActions';
-import { useLoggedInAccounts } from '@/hooks/useLoggedInAccounts';
-import { useTheme } from '@/hooks/useTheme';
-import { useUserThemes } from '@/hooks/useUserThemes';
-import { LoginArea } from '@/components/auth/LoginArea';
-import { genUserName } from '@/lib/genUserName';
-import { useMemo, useState } from 'react';
-import type { Theme } from '@/contexts/AppContext';
-import { themePresets, type CoreThemeColors } from '@/themes';
-import { settingsSections, type SettingsSection } from '@/pages/SettingsPage';
-
-// ── Mobile drawer ────────────────────────────────────────────────────────────
+import { useLoggedInAccounts, type Account } from '@/hooks/useLoggedInAccounts';
+import { useFeedSettings, getBuiltinItem } from '@/hooks/useFeedSettings';
+import { useHasUnreadNotifications } from '@/hooks/useHasUnreadNotifications';
+import { useProfileUrl } from '@/hooks/useProfileUrl';
+import { isItemActive } from '@/lib/sidebarItems';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -24,233 +26,165 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
-  const { user } = useCurrentUser();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, metadata, event: currentUserEvent } = useCurrentUser();
+  const userProfileUrl = useProfileUrl(user?.pubkey ?? '', metadata);
   const { logout } = useLoginActions();
   const { otherUsers, setLogin } = useLoggedInAccounts();
-  const { theme, setTheme, applyCustomTheme, customTheme } = useTheme();
-  const navigate = useNavigate();
-  const [showAccountSwitcher, setShowAccountSwitcher] = useState(false);
+  const { orderedItems, hiddenItems, addToSidebar, removeFromSidebar, updateSidebarOrder } = useFeedSettings();
+  const hasUnread = useHasUnreadNotifications();
+  const [editing, setEditing] = useState(false);
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const [accountExpanded, setAccountExpanded] = useState(false);
+  const [loginDialogOpen, setLoginDialogOpen] = useState(false);
+  const { startSignup } = useOnboarding();
 
-  /** Settings sections filtered by auth state. */
-  const visibleSettings = useMemo<SettingsSection[]>(() => {
-    return settingsSections.filter((s) => !s.requiresAuth || user);
-  }, [user]);
+  const visibleItems = useMemo(() => {
+    if (user) return orderedItems;
+    return orderedItems.filter((id) => !getBuiltinItem(id)?.requiresAuth);
+  }, [orderedItems, user]);
 
-  // Theme cycling logic
-  const builtinCycle: { id: Theme; label: string; icon: React.ReactNode }[] = [
-    { id: 'system', label: 'System', icon: <Monitor className="size-5" /> },
-    { id: 'light', label: 'Light', icon: <Sun className="size-5" /> },
-    { id: 'dark', label: 'Dark', icon: <Moon className="size-5" /> },
-  ];
-
-  const presetCycle = Object.entries(themePresets)
-    .filter(([, preset]) => preset.featured)
-    .map(([id, preset]) => ({
-      id,
-      label: preset.label,
-      icon: <span className="text-base leading-none">{preset.emoji}</span>,
-    }));
-
-  // User's published themes for cycling
-  const drawerUserThemes = useUserThemes(user?.pubkey);
-  const userThemeCycle = (drawerUserThemes.data ?? []).map((t) => ({
-    id: `user:${t.identifier}`,
-    label: t.title,
-    icon: <Palette className="size-5" />,
-    colors: t.colors,
-  }));
-
-  // Include "Custom" in the cycle if user has a non-preset, non-published custom theme
-  const isCustomNonPreset = theme === 'custom' && customTheme &&
-    !Object.entries(themePresets).some(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme)) &&
-    !(drawerUserThemes.data ?? []).some(t => JSON.stringify(t.colors) === JSON.stringify(customTheme));
-  const customCycleEntry = customTheme && isCustomNonPreset
-    ? [{ id: 'custom', label: 'Custom', icon: <Palette className="size-5" />, colors: undefined as CoreThemeColors | undefined }]
-    : [];
-
-  const allThemeCycle = [...builtinCycle.map(b => ({ ...b, colors: undefined as CoreThemeColors | undefined })), ...presetCycle.map(p => ({ ...p, colors: undefined as CoreThemeColors | undefined })), ...userThemeCycle, ...customCycleEntry];
-
-  const currentThemeInfo = (() => {
-    if (theme !== 'custom') {
-      return builtinCycle.find(t => t.id === theme) ?? builtinCycle[0];
-    }
-    if (customTheme) {
-      // Check presets
-      const presetMatch = Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme));
-      if (presetMatch) {
-        const [id, preset] = presetMatch;
-        const cycleEntry = presetCycle.find(p => p.id === id);
-        if (cycleEntry) return cycleEntry;
-        return { id, label: preset.label, icon: <span className="text-base leading-none">{preset.emoji}</span> };
-      }
-      // Check user's published themes
-      const userMatch = userThemeCycle.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme));
-      if (userMatch) return userMatch;
-    }
-    return { id: 'custom', label: 'Custom', icon: <Palette className="size-5" /> };
-  })();
-
-  const cycleTheme = () => {
-    // If already on Custom, navigate to theme builder instead of cycling
-    if (currentThemeInfo.id === 'custom') {
-      onOpenChange(false);
-      navigate('/settings/theme/edit');
-      return;
-    }
-
-    const currentId = currentThemeInfo.id;
-    const idx = allThemeCycle.findIndex(t => t.id === currentId);
-    const nextIdx = (idx + 1) % allThemeCycle.length;
-    const next = allThemeCycle[nextIdx];
-
-    if (next.id === 'custom' && customTheme) {
-      applyCustomTheme(customTheme);
-    } else if (next.colors) {
-      // User-published theme
-      applyCustomTheme(next.colors);
-    } else {
-      const builtin = builtinCycle.find(b => b.id === next.id);
-      if (builtin) {
-        setTheme(builtin.id);
-      } else if (themePresets[next.id]) {
-        applyCustomTheme(themePresets[next.id].colors);
-      }
-    }
-  };
+  const visibleHiddenItems = useMemo(() => {
+    if (user) return hiddenItems;
+    return hiddenItems.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
+  }, [hiddenItems, user]);
 
   const handleClose = () => onOpenChange(false);
-
-  const handleLogout = async () => {
-    await logout();
-    handleClose();
-    navigate('/');
-  };
+  const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
+  const getDisplayName = (account: Account) => account.metadata.name ?? genUserName(account.pubkey);
+  const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-[300px] p-0 border-l-border">
-        <SheetTitle className="sr-only">Navigation menu</SheetTitle>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col">
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
-        {user ? (
-          <div className="flex flex-col h-full">
-            {/* Logo header */}
-            <div className="px-5 flex items-center" style={{ paddingTop: `calc(1.25rem + env(safe-area-inset-top, 0px))`, paddingBottom: '1rem' }}>
-              <Link to="/" onClick={handleClose}>
-                <DittoLogo size={36} />
-              </Link>
-            </div>
-
-            <Separator />
-
-            {/* Menu items */}
-            <nav className="flex-1 overflow-y-auto px-3 py-2">
-              {/* Settings section */}
-              <div className="flex items-center gap-2 px-2 pt-3 pb-1">
-                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Settings
-                </span>
-                <div className="flex-1 h-px bg-border/50" />
-              </div>
-
-              {visibleSettings.map((section) => {
-                const Icon = section.icon;
-                return (
-                  <Link
-                    key={section.id}
-                    to={section.path}
-                    onClick={handleClose}
-                    className="flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
-                  >
-                    <span className="text-muted-foreground"><Icon className="size-5" /></span>
-                    <span className="font-medium">{section.label}</span>
-                  </Link>
-                );
-              })}
-
-              <div className="my-2 mx-2">
-                <Separator />
-              </div>
-
+          {user ? (
+            <>
+              {/* User row with caret */}
               <button
-                onClick={handleLogout}
-                className="flex items-center gap-4 py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px] w-full text-left"
+                onClick={() => setAccountExpanded((v) => !v)}
+                className="flex items-center gap-3 px-3 hover:bg-secondary/60 transition-colors w-full text-left"
+                style={{ height: `calc(3rem + env(safe-area-inset-top, 0px))`, paddingTop: `env(safe-area-inset-top, 0px)` }}
               >
-                <span className="text-muted-foreground">
-                  <LogOut className="size-5" />
-                </span>
-                <span className="font-medium">Logout</span>
-              </button>
-            </nav>
-
-            <Separator />
-
-            {/* Theme toggle */}
-            <div className="px-3 pt-2" style={{ paddingBottom: otherUsers.length > 0 ? '0.25rem' : `calc(0.5rem + env(safe-area-inset-bottom, 0px))` }}>
-              <button
-                onClick={cycleTheme}
-                className="flex items-center justify-between w-full py-3.5 px-2 rounded-lg hover:bg-secondary/60 transition-colors text-[15px]"
-              >
-                <div className="flex items-center gap-4">
-                  <span className="text-muted-foreground">{currentThemeInfo.icon}</span>
-                  <span className="font-medium">Theme</span>
-                </div>
-                <span className="text-sm text-muted-foreground">{currentThemeInfo.label}</span>
-              </button>
-            </div>
-
-            {otherUsers.length > 0 && (
-              <>
-                <Separator />
-
-                {/* Switch accounts section */}
-                <div className="px-3 py-2" style={{ paddingBottom: `calc(0.5rem + env(safe-area-inset-bottom, 0px))` }}>
-                  <button
-                    onClick={() => setShowAccountSwitcher(!showAccountSwitcher)}
-                    className="flex items-center justify-between w-full py-3 px-2 text-[15px] font-medium"
-                  >
-                    <span>Switch accounts</span>
-                    {showAccountSwitcher
-                      ? <ChevronUp className="size-4 text-muted-foreground" />
-                      : <ChevronDown className="size-4 text-muted-foreground" />
-                    }
-                  </button>
-
-                  {showAccountSwitcher && (
-                    <div className="space-y-1 pb-2">
-                      {otherUsers.map((account) => (
-                        <button
-                          key={account.id}
-                          onClick={() => {
-                            setLogin(account.id);
-                            handleClose();
-                          }}
-                          className="flex items-center gap-3 w-full py-2 px-2 rounded-lg hover:bg-secondary/60 transition-colors"
-                        >
-                          <Avatar className="size-8">
-                            <AvatarImage src={account.metadata.picture} alt={account.metadata.name} />
-                            <AvatarFallback className="bg-primary/20 text-primary text-xs">
-                              {(account.metadata.name?.[0] || genUserName(account.pubkey)[0]).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-sm truncate">
-                            {account.metadata.name || genUserName(account.pubkey)}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                <Avatar className="size-7 shrink-0">
+                  <AvatarImage src={metadata?.picture} alt={displayName} />
+                  <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                    {displayName[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className="font-semibold text-sm truncate">
+                    {currentUserEvent && metadata?.name
+                      ? <EmojifiedText tags={currentUserEvent.tags}>{metadata.name}</EmojifiedText>
+                      : displayName}
+                  </span>
+                  {metadata?.nip05 && (
+                    <VerifiedNip05Text nip05={metadata.nip05} pubkey={user.pubkey} className="text-xs text-muted-foreground truncate" />
                   )}
                 </div>
-              </>
-            )}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
-            <DittoLogo size={48} />
-            <p className="text-muted-foreground text-center text-sm">Log in to access all features</p>
-            <LoginArea className="w-full flex flex-col" />
-          </div>
-        )}
-      </SheetContent>
-    </Sheet>
+                {accountExpanded
+                  ? <ChevronUp className="size-4 text-muted-foreground shrink-0 mr-1" />
+                  : <ChevronDown className="size-4 text-muted-foreground shrink-0 mr-1" />
+                }
+              </button>
+
+              {/* Expanded account actions */}
+              {accountExpanded && (
+                <div>
+                  {otherUsers.map((account) => (
+                    <button
+                      key={account.id}
+                      onClick={() => { setLogin(account.id); handleClose(); }}
+                      className="flex items-center gap-3 w-full px-3 py-2 hover:bg-secondary/60 transition-colors"
+                    >
+                      <Avatar className="size-7 shrink-0">
+                        <AvatarImage src={account.metadata.picture} alt={getDisplayName(account)} />
+                        <AvatarFallback className="bg-primary/20 text-primary text-xs">
+                          {getDisplayName(account).charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-sm font-medium truncate">
+                          {account.event
+                            ? <EmojifiedText tags={account.event.tags}>{getDisplayName(account)}</EmojifiedText>
+                            : getDisplayName(account)}
+                        </span>
+                        {account.metadata.nip05 && (
+                          <VerifiedNip05Text nip05={account.metadata.nip05} pubkey={account.pubkey} className="text-xs text-muted-foreground truncate" />
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                  <button
+                    onClick={() => { handleClose(); setLoginDialogOpen(true); }}
+                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-muted-foreground hover:bg-secondary/60 transition-colors rounded-full"
+                  >
+                    <UserPlus className="size-5 shrink-0" />
+                    <span>Add another account</span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-4 w-full px-4 py-2.5 text-sm font-normal text-destructive hover:bg-destructive/10 transition-colors rounded-full"
+                  >
+                    <LogOut className="size-5 shrink-0" />
+                    <span>Log out @{metadata?.name || genUserName(user.pubkey)}</span>
+                  </button>
+                </div>
+              )}
+
+              {/* Nav items — scrollable */}
+              <nav
+                className="flex flex-col gap-0.5 flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-1"
+              >
+                <SidebarNavList
+                  items={visibleItems}
+                  editing={editing}
+                  onRemove={removeFromSidebar}
+                  onReorder={updateSidebarOrder}
+                  isActive={(id) => isItemActive(id, location.pathname, location.search, userProfileUrl)}
+                  getOnClick={() => handleClose}
+                  getProfilePath={(id) => id === 'profile' ? userProfileUrl : undefined}
+                  getShowIndicator={(id) => id === 'notifications' ? hasUnread : undefined}
+                  linkClassName="text-base"
+                />
+                <SidebarMoreMenu
+                  editing={editing}
+                  hiddenItems={visibleHiddenItems}
+                  onDoneEditing={() => setEditing(false)}
+                  onStartEditing={() => setEditing(true)}
+                  onAdd={addToSidebar}
+                  onNavigate={handleClose}
+                  open={moreMenuOpen}
+                  onOpenChange={setMoreMenuOpen}
+                />
+              </nav>
+
+              {/* Theme */}
+              <div
+                className="border-t border-border flex items-center"
+                style={{ minHeight: '3.5rem', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+              >
+                <SidebarThemeDropdown userPubkey={user.pubkey} onNavigate={handleClose} className="flex items-center justify-between w-full px-4 py-2.5 text-sm font-medium hover:bg-secondary/60 rounded-full transition-colors" />
+              </div>
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center h-full gap-4 px-6">
+              <p className="text-muted-foreground text-center text-sm">Log in to access all features</p>
+              <LoginArea className="w-full flex flex-col" />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <LoginDialog
+        isOpen={loginDialogOpen}
+        onClose={() => setLoginDialogOpen(false)}
+        onLogin={() => setLoginDialogOpen(false)}
+        onSignupClick={startSignup}
+      />
+    </>
   );
 }
