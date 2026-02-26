@@ -1,13 +1,15 @@
 import { useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Menu } from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { DittoLogo } from '@/components/DittoLogo';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 interface MobileTopBarProps {
-  onMenuClick: () => void;
+  onAvatarClick: () => void;
 }
 
-export function MobileTopBar({ onMenuClick }: MobileTopBarProps) {
+export function MobileTopBar({ onAvatarClick }: MobileTopBarProps) {
+  const { user, metadata } = useCurrentUser();
   const location = useLocation();
 
   const handleLogoClick = useCallback((e: React.MouseEvent) => {
@@ -19,20 +21,30 @@ export function MobileTopBar({ onMenuClick }: MobileTopBarProps) {
 
   return (
     <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-md border-b border-border sidebar:hidden safe-area-top">
-      <div className="relative flex items-center justify-center px-3 h-12">
-        {/* Right: hamburger menu */}
-        <button
-          onClick={onMenuClick}
-          className="absolute right-3 shrink-0 rounded-lg p-0.5 text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background transition-colors hover:bg-secondary/60"
-          aria-label="Open menu"
-        >
-          <Menu className="size-6" />
-        </button>
+      <div className="flex items-center px-3 h-12">
+        {/* Left: user avatar (empty when signed out) */}
+        <div className="flex items-center justify-center w-7 shrink-0">
+        {user && (
+          <button onClick={onAvatarClick} className="rounded-full focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 focus:ring-offset-background">
+            <Avatar className="size-7">
+              <AvatarImage src={metadata?.picture} alt={metadata?.name} />
+              <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
+                {(metadata?.name?.[0] || '?').toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+          </button>
+        )}
+      </div>
 
-        {/* Center: Logo / Home */}
-        <Link to="/" onClick={handleLogoClick} className="shrink-0">
+      {/* Center: Ditto logo */}
+      <div className="flex-1 flex items-center justify-center">
+        <Link to="/" onClick={handleLogoClick}>
           <DittoLogo size={28} />
         </Link>
+      </div>
+
+        {/* Right: spacer for symmetry */}
+        <div className="w-7 shrink-0" />
       </div>
     </header>
   );

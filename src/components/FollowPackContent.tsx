@@ -67,7 +67,7 @@ export function FollowPackContent({ event }: { event: NostrEvent }) {
               const member = membersMap?.get(pk);
               const name = member?.metadata?.name || genUserName(pk);
               return (
-                <Avatar key={pk} className="size-7 ring-2 ring-background">
+                <Avatar key={pk} className="size-7">
                   <AvatarImage src={member?.metadata?.picture} alt={name} />
                   <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                     {name[0]?.toUpperCase()}
