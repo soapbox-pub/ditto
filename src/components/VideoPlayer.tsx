@@ -32,6 +32,64 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/**
+ * Extracts a thumbnail frame from a video URL by loading it off-screen,
+ * drawing the first frame to a canvas, and returning a data URL.
+ * Works reliably on Android WebView where preload="metadata" doesn't render a visible frame.
+ */
+function useVideoThumbnail(src: string, poster: string | undefined): string | undefined {
+  const [thumbnail, setThumbnail] = useState<string | undefined>(poster);
+
+  useEffect(() => {
+    // Skip if we already have a poster image
+    if (poster) return;
+
+    const video = document.createElement('video');
+    video.crossOrigin = 'anonymous';
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = 'auto';
+    // Seek slightly past 0 to avoid blank first frames in some codecs
+    video.currentTime = 0.1;
+    video.src = src;
+
+    let cancelled = false;
+
+    const handleSeeked = () => {
+      if (cancelled) return;
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 320;
+        canvas.height = video.videoHeight || 180;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+          // Only use thumbnail if it's not a blank/tiny frame
+          if (dataUrl.length > 1000) {
+            setThumbnail(dataUrl);
+          }
+        }
+      } catch {
+        // CORS or tainted canvas — ignore silently
+      }
+      video.src = '';
+      video.load();
+    };
+
+    video.addEventListener('seeked', handleSeeked, { once: true });
+
+    return () => {
+      cancelled = true;
+      video.removeEventListener('seeked', handleSeeked);
+      video.src = '';
+      video.load();
+    };
+  }, [src, poster]);
+
+  return thumbnail;
+}
+
 export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
@@ -39,13 +97,15 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
   const hideTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
   const { src, onError: onBlossomError } = useBlossomFallback(originalSrc);
 
+  const generatedPoster = useVideoThumbnail(src, poster);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
   const [hasStarted, setHasStarted] = useState(false);
-  // True once the video has enough data to display a frame (or has a poster)
+  // True once the video has enough data to display a frame (or has a poster/generated thumbnail)
   const [videoReady, setVideoReady] = useState(!!poster);
 
   const dimensions = parseDim(dim);
@@ -158,7 +218,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
       onClick={(e) => e.stopPropagation()}
     >
       {/* Blurhash placeholder — shown until the video has a displayable frame */}
-      {blurhash && !videoReady && (
+      {blurhash && !videoReady && !generatedPoster && (
         <Blurhash
           hash={blurhash}
           width="100%"
@@ -173,7 +233,7 @@ export function VideoPlayer({ src: originalSrc, poster, className, dim, blurhash
       <video
         ref={videoRef}
         src={src}
-        poster={poster}
+        poster={generatedPoster}
         className={cn(
           'w-full cursor-pointer',
           // When dim is known the container already has the correct aspect ratio,
