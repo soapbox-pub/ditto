@@ -403,14 +403,12 @@ export function ThemeBuilderPage() {
               </div>
             )}
           </div>
-        </div>
-        <div className="flex items-center gap-2 px-4 pb-3">
           {activeEditingTheme && (
             currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(tokens) ? (
-              <Button variant="outline" size="sm" disabled className="text-primary border-primary/30">
-                <Check className="size-4 mr-1.5" />
+              <Badge variant="outline" className="text-primary border-primary/30 gap-1 shrink-0">
+                <Check className="size-3" />
                 Active
-              </Button>
+              </Badge>
             ) : (
               <Button variant="outline" size="sm" onClick={() => { applyCustomTheme(tokens); toast({ title: 'Theme applied' }); }}>
                 <Palette className="size-4 mr-1.5" />
@@ -418,14 +416,24 @@ export function ThemeBuilderPage() {
               </Button>
             )
           )}
-          <Button variant="outline" size="sm" onClick={togglePreview}>
-            <Eye className="size-4 mr-1.5" />
+        </div>
+        <div className="flex items-center gap-2 px-4 pb-2.5">
+          <button
+            onClick={togglePreview}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+          >
+            <Eye className="size-3.5" />
             {previewing ? 'Revert' : 'Preview'}
-          </Button>
-          <Button size="sm" onClick={handleSave} disabled={isPublishing}>
-            <Save className="size-4 mr-1.5" />
+          </button>
+          <span className="text-border">|</span>
+          <button
+            onClick={handleSave}
+            disabled={isPublishing}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 disabled:opacity-50"
+          >
+            <Save className="size-3.5" />
             {isPublishing ? 'Saving...' : activeEditingTheme ? 'Update' : 'Save'}
-          </Button>
+          </button>
         </div>
       </div>
 
