@@ -7,7 +7,6 @@ import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { MobileDrawer } from '@/components/MobileDrawer';
 import { FloatingComposeButton } from '@/components/FloatingComposeButton';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScopedTheme } from '@/components/ScopedTheme';
 import { LayoutStore, LayoutStoreContext, useLayoutSnapshot } from '@/contexts/LayoutContext';
 import { cn } from '@/lib/utils';
 
@@ -63,7 +62,7 @@ function PageSkeleton() {
 
 /** Inner component that reads layout options from the context store. */
 function MainLayoutInner() {
-  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, scopedThemeTokens, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
+  const { rightSidebar, showFAB = false, fabKind = 1, fabHref, noBottomSpacer = false, wrapperClassName } = useLayoutSnapshot();
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   return (
@@ -83,20 +82,18 @@ function MainLayoutInner() {
 
         {/* Main content + right sidebar: inside Suspense so the left sidebar persists while lazy pages load */}
         <Suspense fallback={<PageSkeleton />}>
-          <ScopedThemeColumns tokens={scopedThemeTokens}>
-            {/* Wrap the center column in a relative container for the FAB */}
-            <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border", showFAB && "pb-24")}>
-              <Outlet />
-              {showFAB && (
-                <div className="sticky bottom-20 sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
-                  <div className="pointer-events-auto">
-                    <FloatingComposeButton kind={fabKind} href={fabHref} />
-                  </div>
+          {/* Wrap the center column in a relative container for the FAB */}
+          <div className={cn("relative flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border", showFAB && "pb-24")}>
+            <Outlet />
+            {showFAB && (
+              <div className="sticky bottom-20 sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+                <div className="pointer-events-auto">
+                  <FloatingComposeButton kind={fabKind} href={fabHref} />
                 </div>
-              )}
-            </div>
-            {rightSidebar ?? <RightSidebar />}
-          </ScopedThemeColumns>
+              </div>
+            )}
+          </div>
+          {rightSidebar ?? <RightSidebar />}
         </Suspense>
       </div>
 
@@ -106,21 +103,6 @@ function MainLayoutInner() {
       {/* Bottom padding spacer for mobile bottom nav */}
       {!noBottomSpacer && <div className="h-16 sidebar:hidden" />}
     </>
-  );
-}
-
-/**
- * Wraps center + right columns in a ScopedTheme when profile theme tokens are provided.
- * Uses `display: contents` so the wrapper doesn't affect the flex layout.
- */
-function ScopedThemeColumns({ tokens, children }: { tokens?: import('@/themes').ThemeTokens; children: React.ReactNode }) {
-  if (!tokens) return <>{children}</>;
-  return (
-    <ScopedTheme tokens={tokens} className="relative flex flex-1 min-w-0 bg-background text-foreground">
-      {/* Extend background to the right edge of the viewport */}
-      <div className="absolute top-0 bottom-0 left-0 bg-background pointer-events-none" style={{ right: 'calc(-50vw + 50%)' }} aria-hidden />
-      {children}
-    </ScopedTheme>
   );
 }
 
