@@ -43,14 +43,12 @@ export function ThemeUpdateCard({ event }: ThemeUpdateCardProps) {
     background: safeHex(colors.background),
     foreground: safeHex(colors.text),
     primary: safeHex(colors.primary),
-    accent: safeHex(colors.secondary),
   };
 
   const swatchColors = [
-    { label: 'Background', hex: hexColors.background },
-    { label: 'Text', hex: hexColors.foreground },
     { label: 'Primary', hex: hexColors.primary },
-    { label: 'Accent', hex: hexColors.accent },
+    { label: 'Text', hex: hexColors.foreground },
+    { label: 'Background', hex: hexColors.background },
   ];
 
   const relativeTime = timeAgo(event.created_at);

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
 import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type CoreThemeColors } from '@/themes';
-import { ThemeSchemaCompat, CoreThemeColorsSchema, LegacyThemeTokensSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { ThemeSchemaCompat, ThemeColorsCompatSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -28,15 +28,7 @@ const RelayMetadataSchema = z.object({
  * Accepts both CoreThemeColors and legacy ThemeTokens format,
  * normalizing to CoreThemeColors.
  */
-const CustomThemeStorageSchema = z.union([
-  CoreThemeColorsSchema,
-  LegacyThemeTokensSchema.transform((legacy): CoreThemeColors => ({
-    background: legacy.background,
-    text: legacy.foreground,
-    primary: legacy.primary,
-    secondary: legacy.accent,
-  })),
-]);
+const CustomThemeStorageSchema = ThemeColorsCompatSchema;
 
 // Zod schema for AppConfig validation.
 // Uses ThemeSchemaCompat so legacy "black"/"pink" values parse successfully.

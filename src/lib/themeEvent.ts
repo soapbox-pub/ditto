@@ -127,27 +127,27 @@ export function buildActiveThemeTags(
 
 /**
  * Normalize a parsed JSON object to CoreThemeColors.
- * Handles both the new format (background, text, primary, secondary)
- * and the legacy format (background, foreground, primary, accent).
+ * Handles:
+ *   - Current format: { background, text, primary }
+ *   - Old 4-color format: { background, text, primary, secondary } (secondary dropped)
+ *   - Legacy 19-token format: { background, foreground, primary, ... }
  */
 function normalizeToCoreColors(parsed: Record<string, unknown>): CoreThemeColors | null {
-  // New format: CoreThemeColors
-  if (parsed.background && parsed.text && parsed.primary && parsed.secondary) {
+  // Current or old 4-color format (both have background + text + primary)
+  if (parsed.background && parsed.text && parsed.primary) {
     return {
       background: String(parsed.background),
       text: String(parsed.text),
       primary: String(parsed.primary),
-      secondary: String(parsed.secondary),
     };
   }
 
-  // Legacy format: ThemeTokens (background, foreground, primary, accent)
-  if (parsed.background && parsed.foreground && parsed.primary && parsed.accent) {
+  // Legacy 19-token format (background, foreground, primary, ...)
+  if (parsed.background && parsed.foreground && parsed.primary) {
     return {
       background: String(parsed.background),
       text: String(parsed.foreground),
       primary: String(parsed.primary),
-      secondary: String(parsed.accent),
     };
   }
 
