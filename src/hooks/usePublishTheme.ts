@@ -104,6 +104,7 @@ export function usePublishTheme() {
       kind: 5,
       content: '',
       tags: [
+        ['a', `${ACTIVE_THEME_KIND}:${user.pubkey}:`],
         ['k', String(ACTIVE_THEME_KIND)],
       ],
     });
