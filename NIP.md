@@ -4,7 +4,7 @@
 
 | Kind  | Name                 | Description                                           |
 |-------|----------------------|-------------------------------------------------------|
-| 33891 | Theme Definition     | Shareable, named custom UI theme with colors          |
+| 33891 | Theme Definition     | Shareable, named custom UI theme                      |
 | 11667 | Active Profile Theme | The user's currently active theme (one per user)      |
 
 ---
@@ -15,7 +15,7 @@
 
 Addressable event kind for publishing shareable custom UI themes. A single user may publish multiple themes, each identified by a unique `d` tag.
 
-Theme colors are stored in `c` tags using hex color codes with a required marker indicating the color's role.
+A theme consists of colors, optional fonts, and an optional background. Colors are stored in `c` tags, fonts in `f` tags, and background in a `bg` tag.
 
 ### Event Structure
 
@@ -28,7 +28,9 @@ Theme colors are stored in `c` tags using hex color codes with a required marker
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["u", "https://example.com/bg.jpg", "background"],
+    ["f", "Playfair Display", "title", "https://example.com/playfair.woff2"],
+    ["f", "Inter", "body", "https://example.com/inter.woff2"],
+    ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg", "dim 1920x1080"],
     ["title", "MK Dark Theme"],
     ["alt", "Custom theme: MK Dark Theme"]
   ]
@@ -41,13 +43,14 @@ The `content` field is unused and MUST be an empty string (`""`).
 
 ### Tags
 
-| Tag           | Required | Description                                                                                                                                                                                                                                     |
-|---------------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `d`           | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"`                                                                                                                                                                                |
-| `c`           | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
-| `u`           | No       | Background image URL. Format: `["u", "<url>", "background"]`. Index 1 is the image URL. Index 2 MUST be `"background"`. At most one `u` tag is allowed.                                                                                        |
-| `title`       | Yes      | Human-readable theme name                                                                                                                                                                                                                       |
-| `alt`         | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
+| Tag     | Required | Description                                                                           |
+|---------|----------|---------------------------------------------------------------------------------------|
+| `d`     | Yes      | Unique identifier (slug) for this theme, e.g. `"mk-dark-theme"`                      |
+| `c`     | Yes (×3) | Hex color with marker. See [Color Tags](#color-tags).                                 |
+| `f`     | No       | Font declaration. See [Font Tags](#font-tags).                                        |
+| `bg`    | No       | Background media. See [Background Tag](#background-tag).                              |
+| `title` | Yes      | Human-readable theme name                                                             |
+| `alt`   | Yes      | NIP-31 human-readable fallback                                                        |
 
 ### Multiple Themes Per User
 
@@ -61,8 +64,6 @@ Since kind 33891 is addressable, a user can publish multiple themes by using dif
 
 Replaceable event that represents the user's currently active profile theme. Only one per user. When other users visit a profile, they query this kind to determine what theme to display.
 
-Theme colors are stored in `c` tags using hex color codes with a required marker indicating the color's role.
-
 ### Event Structure
 
 ```json
@@ -73,7 +74,9 @@ Theme colors are stored in `c` tags using hex color codes with a required marker
     ["c", "#1a1a2e", "background"],
     ["c", "#e0e0e0", "text"],
     ["c", "#6c3ce0", "primary"],
-    ["u", "https://example.com/bg.jpg", "background"],
+    ["f", "Playfair Display", "title", "https://example.com/playfair.woff2"],
+    ["f", "Inter", "body", "https://example.com/inter.woff2"],
+    ["bg", "url https://example.com/bg.jpg", "mode cover", "m image/jpeg"],
     ["title", "MK Dark Theme"],
     ["alt", "Active profile theme"]
   ]
@@ -86,16 +89,71 @@ The `content` field is unused and MUST be an empty string (`""`).
 
 ### Tags
 
-| Tag     | Required | Description                                                                                                                                                                                                                                     |
-|---------|----------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `c`     | Yes (×3) | Hex color with marker. Format: `["c", "#rrggbb", "<marker>"]`. Index 1 is a lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`). Index 2 is a required marker: one of `"primary"`, `"text"`, or `"background"`. All three markers MUST be present, and only one `c` tag per marker is allowed. |
-| `u`     | No       | Background image URL. Format: `["u", "<url>", "background"]`. Index 1 is the image URL. Index 2 MUST be `"background"`. At most one `u` tag is allowed.                                                                                        |
-| `title` | No       | Human-readable name for the theme                                                                                                                                                                                                               |
-| `alt`   | Yes      | NIP-31 human-readable fallback                                                                                                                                                                                                                  |
+| Tag     | Required | Description                                                                           |
+|---------|----------|---------------------------------------------------------------------------------------|
+| `c`     | Yes (×3) | Hex color with marker. See [Color Tags](#color-tags).                                 |
+| `f`     | No       | Font declaration. See [Font Tags](#font-tags).                                        |
+| `bg`    | No       | Background media. See [Background Tag](#background-tag).                              |
+| `title` | No       | Human-readable name for the theme                                                     |
+| `alt`   | Yes      | NIP-31 human-readable fallback                                                        |
 
 ### Client Behavior
 
 - When visiting a profile, clients query `{ kinds: [11667], authors: [pubkey], limit: 1 }` to get the active theme.
-- Clients read the three `c` tags to extract the background, text, and primary colors for the profile.
+- Clients read the `c` tags to extract colors, `f` tags for fonts, and `bg` tag for the background.
 - Setting a new active theme publishes a new kind 11667 event (replacing the old one).
 - To remove the active theme, publish a kind 5 deletion event targeting kind 11667.
+
+---
+
+## Shared Tag Definitions
+
+The following tag definitions apply to both kind 33891 and kind 11667.
+
+### Color Tags
+
+Format: `["c", "#rrggbb", "<marker>"]`
+
+| Index | Required | Description                                                                                   |
+|-------|----------|-----------------------------------------------------------------------------------------------|
+| 0     | Yes      | Tag name: `"c"`                                                                               |
+| 1     | Yes      | Lowercase 6-digit hex color code including the `#` sign (e.g. `"#ff0000"`)                    |
+| 2     | Yes      | Color role marker: one of `"primary"`, `"text"`, or `"background"`                            |
+
+- All three markers (`"primary"`, `"text"`, `"background"`) MUST be present.
+- Only one `c` tag per marker is allowed.
+
+### Font Tags
+
+Format: `["f", "<family>", "<role>", "<url>"]`
+
+| Index | Required | Description                                                                                   |
+|-------|----------|-----------------------------------------------------------------------------------------------|
+| 0     | Yes      | Tag name: `"f"`                                                                               |
+| 1     | Yes      | CSS `font-family` name (e.g. `"Playfair Display"`)                                            |
+| 2     | Yes      | Role marker: `"title"` or `"body"`                                                            |
+| 3     | Yes      | Direct URL to a font file (`.woff2`, `.ttf`, `.otf`)                                          |
+
+- Both `f` tags are optional on the event.
+- At most one `f` tag per role is allowed.
+- `"title"` fonts apply to headings and display text. `"body"` fonts apply to body/paragraph text.
+- If the URL fails to load, the client SHOULD fall back to a default font gracefully.
+- Variable font files (covering multiple weights in a single file) are preferred.
+
+### Background Tag
+
+The `bg` tag uses an `imeta`-style variadic format where each entry (after the tag name) is a space-delimited key/value pair.
+
+Format: `["bg", "url <url>", "mode <mode>", "m <mime-type>", ...]`
+
+| Key         | Required | Description                                                                              |
+|-------------|----------|------------------------------------------------------------------------------------------|
+| `url`       | Yes      | URL to an image or video file                                                            |
+| `mode`      | Yes      | Display mode: `"cover"`, `"tile"`, or `"contain"`                                        |
+| `m`         | Yes      | MIME type (e.g. `"image/jpeg"`, `"image/png"`, `"video/mp4"`)                            |
+| `dim`       | No       | Dimensions in pixels: `"<width>x<height>"` (e.g. `"1920x1080"`)                          |
+| `blurhash`  | No       | Blurhash placeholder string for progressive loading                                      |
+
+- At most one `bg` tag is allowed per event.
+- Clients MAY choose not to render video backgrounds for performance or bandwidth reasons.
+- Unknown keys SHOULD be ignored for forward compatibility.
