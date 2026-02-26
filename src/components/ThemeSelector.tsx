@@ -163,14 +163,9 @@ export function ThemeSelector() {
     <div className="space-y-5">
       {/* ── Color editor (always visible) ── */}
       <div className="space-y-3 rounded-xl border border-border bg-card p-4">
-        <div className="flex items-baseline justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
-            Colors
-          </h3>
-          <span className="text-[11px] text-muted-foreground/60">
-            Tap a color to edit
-          </span>
-        </div>
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+          Colors
+        </h3>
         <div className="flex items-start justify-center gap-6 sidebar:justify-start sidebar:gap-8">
           {CORE_KEYS.map((key) => (
             <ColorPicker
