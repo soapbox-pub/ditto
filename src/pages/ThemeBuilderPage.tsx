@@ -370,39 +370,41 @@ export function ThemeBuilderPage() {
   return (
     <main className="flex-1 min-w-0 sidebar:max-w-[600px] sidebar:border-l xl:border-r border-border min-h-screen">
       {/* Header */}
-      <div className={cn(STICKY_HEADER_CLASS, 'flex items-center gap-4 px-4 py-3 bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
-        <Link to="/settings/appearance" className="p-2 rounded-full hover:bg-secondary transition-colors">
-          <ArrowLeft className="size-5" />
-        </Link>
-        <div className="flex-1 min-w-0">
-          {activeEditingTheme ? (
-            <button
-              onClick={() => {
-                setEditingTheme(activeEditingTheme);
-                setPublishTitle(activeEditingTheme.title);
-                setPublishDescription(activeEditingTheme.description || '');
-                setPublishDialogOpen(true);
-              }}
-              className="text-left group"
-            >
-              <h1 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
-                {activeEditingTheme.title}
-                <Pencil className="size-3 text-muted-foreground group-hover:text-primary shrink-0" />
-              </h1>
-              {activeEditingTheme.description ? (
-                <p className="text-xs text-muted-foreground truncate">{activeEditingTheme.description}</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">Tap to edit title & description</p>
-              )}
-            </button>
-          ) : (
-            <div>
-              <h1 className="text-lg font-bold truncate">New Theme</h1>
-              <p className="text-xs text-muted-foreground">Create a new custom theme</p>
-            </div>
-          )}
+      <div className={cn(STICKY_HEADER_CLASS, 'bg-background/80 backdrop-blur-md z-10 border-b border-border')}>
+        <div className="flex items-center gap-4 px-4 pt-3 pb-2">
+          <Link to="/settings/appearance" className="p-2 rounded-full hover:bg-secondary transition-colors">
+            <ArrowLeft className="size-5" />
+          </Link>
+          <div className="flex-1 min-w-0">
+            {activeEditingTheme ? (
+              <button
+                onClick={() => {
+                  setEditingTheme(activeEditingTheme);
+                  setPublishTitle(activeEditingTheme.title);
+                  setPublishDescription(activeEditingTheme.description || '');
+                  setPublishDialogOpen(true);
+                }}
+                className="text-left group"
+              >
+                <h1 className="text-lg font-bold truncate group-hover:text-primary transition-colors flex items-center gap-1.5">
+                  {activeEditingTheme.title}
+                  <Pencil className="size-3 text-muted-foreground group-hover:text-primary shrink-0" />
+                </h1>
+                {activeEditingTheme.description ? (
+                  <p className="text-xs text-muted-foreground truncate">{activeEditingTheme.description}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Tap to edit title & description</p>
+                )}
+              </button>
+            ) : (
+              <div>
+                <h1 className="text-lg font-bold truncate">New Theme</h1>
+                <p className="text-xs text-muted-foreground">Create a new custom theme</p>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 px-4 pb-3">
           {activeEditingTheme && (
             currentTheme === 'custom' && savedCustomTheme && JSON.stringify(savedCustomTheme) === JSON.stringify(tokens) ? (
               <Button variant="outline" size="sm" disabled className="text-primary border-primary/30">
