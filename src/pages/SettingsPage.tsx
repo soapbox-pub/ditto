@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
-interface SettingsSection {
+export interface SettingsSection {
   id: string;
   label: string;
   description: string;
@@ -13,7 +13,7 @@ interface SettingsSection {
   requiresAuth?: boolean;
 }
 
-const sections: SettingsSection[] = [
+export const settingsSections: SettingsSection[] = [
   {
     id: 'profile',
     label: 'Profile',
@@ -63,7 +63,7 @@ export function SettingsPage() {
     description: 'Manage your Ditto settings',
   });
 
-  const visibleSections = sections.filter(
+  const visibleSections = settingsSections.filter(
     (section) => !section.requiresAuth || user,
   );
 
