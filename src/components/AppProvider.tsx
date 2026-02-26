@@ -2,8 +2,8 @@ import { ReactNode, useLayoutEffect, useEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type ThemeConfig } from '@/themes';
-import { ThemeSchemaCompat, ThemeConfigCompatSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type ThemeConfig, type ThemesConfig } from '@/themes';
+import { ThemeSchemaCompat, ThemeConfigCompatSchema, ThemesConfigSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 
 interface AppProviderProps {
@@ -37,6 +37,7 @@ const CustomThemeStorageSchema = ThemeConfigCompatSchema;
 const AppConfigSchema = z.object({
   theme: ThemeSchemaCompat,
   customTheme: CustomThemeStorageSchema.optional(),
+  themes: ThemesConfigSchema.optional(),
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
@@ -110,9 +111,9 @@ export function AppProvider(props: AppProviderProps) {
   };
 
   // Apply theme effects to document
-  useApplyTheme(config.theme, config.customTheme);
-  useApplyFonts(config.theme, config.customTheme);
-  useApplyBackground(config.theme, config.customTheme);
+  useApplyTheme(config.theme, config.customTheme, config.themes);
+  useApplyFonts(config.theme, config.customTheme, config.themes);
+  useApplyBackground(config.theme, config.customTheme, config.themes);
 
   return (
     <AppContext.Provider value={appContextValue}>
@@ -126,8 +127,9 @@ export function AppProvider(props: AppProviderProps) {
  * When theme is "system", resolves to "light" or "dark" based on OS preference
  * and listens for changes to prefers-color-scheme.
  * When theme is "custom", uses the provided customTheme colors (derived to full tokens).
+ * When theme is "light" or "dark", uses configured themes if available, otherwise builtin themes.
  */
-function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
+function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined, themes: ThemesConfig | undefined) {
   useLayoutEffect(() => {
     function apply() {
       const resolved = resolveTheme(theme);
@@ -138,7 +140,10 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
         const colors = customTheme?.colors ?? builtinThemes.dark;
         css = buildThemeCssFromCore(colors);
       } else {
-        css = buildThemeCss(coreToTokens(builtinThemes[resolved]));
+        // Use configured theme if available, otherwise fall back to builtin
+        const configuredTheme = themes?.[resolved];
+        const colors = configuredTheme?.colors ?? builtinThemes[resolved];
+        css = buildThemeCssFromCore(colors);
       }
 
       let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
@@ -162,23 +167,24 @@ function useApplyTheme(theme: Theme, customTheme: ThemeConfig | undefined) {
       mq.addEventListener('change', apply);
       return () => mq.removeEventListener('change', apply);
     }
-  }, [theme, customTheme]);
+  }, [theme, customTheme, themes]);
 }
 
 /**
  * Hook to load and apply custom fonts when the theme config changes.
- * Only applies fonts when theme is "custom" and fonts are specified.
+ * Applies fonts from custom themes, or from configured light/dark themes if available.
  */
-function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined) {
-  const fontFamily = customTheme?.font?.family;
-  const fontUrl = customTheme?.font?.url;
+function useApplyFonts(theme: Theme, customTheme: ThemeConfig | undefined, themes: ThemesConfig | undefined) {
+  const resolved = resolveTheme(theme);
+  const configuredTheme = resolved !== 'custom' ? themes?.[resolved] : undefined;
+  const fontFamily = resolved === 'custom' ? customTheme?.font?.family : configuredTheme?.font?.family;
+  const fontUrl = resolved === 'custom' ? customTheme?.font?.url : configuredTheme?.font?.url;
 
   useEffect(() => {
-    const resolved = resolveTheme(theme);
-    if (resolved === 'custom' && fontFamily) {
+    if (fontFamily) {
       loadAndApplyFont({ family: fontFamily, url: fontUrl });
     } else {
-      // Clear any custom font overrides when switching to a builtin theme
+      // Clear any custom font overrides when no font is configured
       loadAndApplyFont(undefined);
     }
   }, [theme, fontFamily, fontUrl]);
@@ -189,18 +195,19 @@ const BG_STYLE_ID = 'theme-background';
 
 /**
  * Hook to apply or remove a background image when the theme config changes.
+ * Supports backgrounds from custom themes and configured light/dark themes.
  */
-function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined) {
-  const bgUrl = customTheme?.background?.url;
-  const bgMode = customTheme?.background?.mode ?? 'cover';
+function useApplyBackground(theme: Theme, customTheme: ThemeConfig | undefined, themes: ThemesConfig | undefined) {
+  const resolved = resolveTheme(theme);
+  const configuredTheme = resolved !== 'custom' ? themes?.[resolved] : undefined;
+  const activeBackground = resolved === 'custom' ? customTheme?.background : configuredTheme?.background;
+  const bgUrl = activeBackground?.url;
+  const bgMode = activeBackground?.mode ?? 'cover';
 
   useEffect(() => {
-    const resolved = resolveTheme(theme);
-    const isCustom = resolved === 'custom';
-
     let style = document.getElementById(BG_STYLE_ID) as HTMLStyleElement | null;
 
-    if (!isCustom || !bgUrl) {
+    if (!bgUrl) {
       style?.remove();
       return;
     }

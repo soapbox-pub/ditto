@@ -41,7 +41,8 @@ export function useTheme() {
 
     // Apply CSS vars synchronously before React re-renders to eliminate flicker
     const resolved = resolveTheme(theme);
-    const colors = builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+    const configuredTheme = resolved !== 'custom' ? config.themes?.[resolved] : undefined;
+    const colors = configuredTheme?.colors ?? builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
     const css = buildThemeCssFromCore(colors);
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {
@@ -61,7 +62,7 @@ export function useTheme() {
       theme,
     }));
     syncToEncrypted({ theme });
-  }, [updateConfig, syncToEncrypted]);
+  }, [config.themes, updateConfig, syncToEncrypted]);
 
   /**
    * Set theme to "custom" and apply the given theme config.
@@ -82,6 +83,7 @@ export function useTheme() {
   return {
     theme: config.theme,
     customTheme: config.customTheme,
+    themes: config.themes,
     setTheme,
     applyCustomTheme,
   };

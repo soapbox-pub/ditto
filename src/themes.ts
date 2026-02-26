@@ -59,6 +59,17 @@ export interface ThemeConfig {
 }
 
 /**
+ * Configured light and dark themes. When set in AppConfig,
+ * these override the builtin themes for "light" and "dark" modes.
+ */
+export interface ThemesConfig {
+  /** Theme config applied when theme resolves to "light". */
+  light: ThemeConfig;
+  /** Theme config applied when theme resolves to "dark". */
+  dark: ThemeConfig;
+}
+
+/**
  * Full set of CSS token values used internally by Tailwind.
  * These are derived from CoreThemeColors via deriveTokensFromCore().
  */
