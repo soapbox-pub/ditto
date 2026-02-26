@@ -13,8 +13,8 @@ android {
         applicationId "pub.ditto.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 20260225
-        versionName "2026.02.25"
+        versionCode 20260226
+        versionName "2026.02.26"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
