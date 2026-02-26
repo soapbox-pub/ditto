@@ -326,18 +326,9 @@ export function NoteContent({
             return <span key={i}>{emojify(token.value, emojiMap)}</span>;
           case 'image-embed': {
             if (disableEmbeds) {
-              return (
-                <a
-                  key={i}
-                  href={token.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline break-all"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {token.url}
-                </a>
-              );
+              // In preview contexts (e.g. triple-dot menu), suppress image URLs
+              // entirely rather than showing the raw URL string.
+              return null;
             }
             const imgIndex = tokenImageIndex.get(i) ?? 0;
             return (
