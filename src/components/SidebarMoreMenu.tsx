@@ -33,18 +33,6 @@ export function SidebarMoreMenu({
     );
   }
 
-  if (hiddenItems.length === 0) {
-    return (
-      <button
-        onClick={onStartEditing}
-        className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40"
-      >
-        <Pencil className="size-4" />
-        <span>Edit sidebar</span>
-      </button>
-    );
-  }
-
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
@@ -76,7 +64,7 @@ export function SidebarMoreMenu({
             </button>
           </div>
         ))}
-        <div className="h-px bg-border my-1" />
+        {hiddenItems.length > 0 && <div className="h-px bg-border my-1" />}
         <button
           onClick={() => { onStartEditing(); onOpenChange(false); }}
           className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
