@@ -22,6 +22,7 @@ import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { StreamsFeedPage } from "./pages/StreamsFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
+import { PlanetPage } from "./pages/PlanetPage";
 
 /** Redirects /profile to the user's canonical profile URL (nip05 or npub). */
 function ProfileRedirect() {
@@ -60,6 +61,7 @@ export function AppRouter() {
           <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
           <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
+          <Route path="/planet" element={<PlanetPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
           <Route path="/:nip19" element={<NIP19Page />} />
