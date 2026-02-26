@@ -8,7 +8,7 @@ import type { NostrEvent } from '@nostrify/nostrify';
 import {
   Clapperboard,
   Palette,
-  MapPin,
+
   PartyPopper,
   BarChart3,
   Radio,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 
 import { CardsIcon } from '@/components/icons/CardsIcon';
+import { ChestIcon } from '@/components/icons/ChestIcon';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -38,17 +39,18 @@ interface OrbitItem {
   icon: IconComponent;
   verb: string;
   route: string;
+  color: string;
 }
 
 const ORBIT_ITEMS: OrbitItem[] = [
-  { kind: 34236, label: 'Vines', icon: Clapperboard, verb: 'shared', route: '/vines' },
-  { kind: 3367, label: 'Colors', icon: Palette, verb: 'painted', route: '/colors' },
-  { kind: 37381, label: 'Decks', icon: CardsIcon, verb: 'built', route: '/decks' },
-  { kind: 37516, label: 'Treasures', icon: MapPin, verb: 'hidden', route: '/treasures' },
-  { kind: 39089, label: 'Packs', icon: PartyPopper, verb: 'curated', route: '/packs' },
-  { kind: 1068, label: 'Polls', icon: BarChart3, verb: 'asked', route: '/polls' },
-  { kind: 30311, label: 'Streams', icon: Radio, verb: 'went live', route: '/streams' },
-  { kind: 30023, label: 'Articles', icon: FileText, verb: 'published', route: '/articles' },
+  { kind: 34236, label: 'Vines', icon: Clapperboard, verb: 'shared', route: '/vines', color: '#f472b6' },
+  { kind: 3367, label: 'Colors', icon: Palette, verb: 'painted', route: '/colors', color: '#facc15' },
+  { kind: 37381, label: 'Decks', icon: CardsIcon, verb: 'built', route: '/decks', color: '#7dd3fc' },
+  { kind: 37516, label: 'Treasures', icon: ChestIcon, verb: 'hidden', route: '/treasures', color: '#4ade80' },
+  { kind: 39089, label: 'Packs', icon: PartyPopper, verb: 'curated', route: '/packs', color: '#c084fc' },
+  { kind: 1068, label: 'Polls', icon: BarChart3, verb: 'asked', route: '/polls', color: '#fb923c' },
+  { kind: 30311, label: 'Streams', icon: Radio, verb: 'went live', route: '/streams', color: '#f87171' },
+  { kind: 30023, label: 'Articles', icon: FileText, verb: 'published', route: '/articles', color: '#60a5fa' },
 ];
 
 const COUNT = ORBIT_ITEMS.length;
@@ -61,25 +63,51 @@ const COUNT = ORBIT_ITEMS.length;
 // ring sweeps at roughly -25 deg. We use the same tilt for the orbit.
 // ---------------------------------------------------------------------------
 
-const W = 600;
-const CX = W / 2;
-const CY = W / 2;
-const RX = 270;
-const RY = 78;
-const TILT_DEG = -25;
+// ---------------------------------------------------------------------------
+// Orbit geometry — all in SVG viewBox units.
+// The logo viewBox is "-5 -10 100 100" (width 100, height 100).
+// The logo's visual centre is roughly at SVG (45, 40).
+// The orbit ellipse sits across that centre like Saturn's ring.
+// ---------------------------------------------------------------------------
+
+const SVG_CX = 45;
+const SVG_CY = 40;
+const SVG_RX = 50;
+const SVG_RY = 18;
+const TILT_DEG = -22;
 const TILT_RAD = (TILT_DEG * Math.PI) / 180;
 const COS_T = Math.cos(TILT_RAD);
 const SIN_T = Math.sin(TILT_RAD);
-const PERIOD = 55; // seconds per full orbit
+const PERIOD = 55;
 
-/** Compute the pixel position of an icon at angle `theta` on the tilted ellipse. */
-function orbitPos(theta: number): { x: number; y: number } {
-  const ex = RX * Math.cos(theta);
-  const ey = RY * Math.sin(theta);
-  return {
-    x: CX + ex * COS_T - ey * SIN_T,
-    y: CY + ex * SIN_T + ey * COS_T,
-  };
+/** Radius of the occluder circle (must match the <circle r={…}> in the SVG). */
+const OCCLUDER_R = 33;
+
+interface OrbitPoint {
+  x: number;
+  y: number;
+  /** True when the icon is behind the planet (should be hidden). */
+  behind: boolean;
+}
+
+/**
+ * Compute an icon's position in SVG viewBox coordinates at angle `theta`.
+ * Also determines if the icon is behind the planet body.
+ */
+function orbitPos(theta: number): OrbitPoint {
+  const ex = SVG_RX * Math.cos(theta);
+  const ey = SVG_RY * Math.sin(theta);
+  const x = SVG_CX + ex * COS_T - ey * SIN_T;
+  const y = SVG_CY + ex * SIN_T + ey * COS_T;
+
+  // "Behind" = in the back arc (ey < 0, i.e. top half before tilt)
+  // AND within the occluder disc.
+  const dx = x - SVG_CX;
+  const dy = y - SVG_CY;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+  const behind = ey < 0 && dist < OCCLUDER_R;
+
+  return { x, y, behind };
 }
 
 // ---------------------------------------------------------------------------
@@ -87,7 +115,7 @@ function orbitPos(theta: number): { x: number; y: number } {
 // ---------------------------------------------------------------------------
 
 function useOrbitPositions() {
-  const [positions, setPositions] = useState<Array<{ x: number; y: number }>>(() =>
+  const [positions, setPositions] = useState<OrbitPoint[]>(() =>
     ORBIT_ITEMS.map((_, i) => orbitPos((2 * Math.PI * i) / COUNT)),
   );
   const startRef = useRef<number | null>(null);
@@ -147,79 +175,67 @@ export function PlanetPage() {
         </p>
       </div>
 
-      {/* Orbit system */}
-      <div className="relative z-10 mt-4 flex flex-1 min-h-0 items-start justify-center w-full sm:mt-8">
-        <div
-          className="relative origin-top"
-          style={{
-            width: W,
-            height: W,
-            transform: 'scale(var(--orbit-scale, 1))',
-          }}
-        >
-          {/* Ditto logo — inlined SVG paths, low-opacity purple */}
-          <DittoLogoSVG />
+      {/* Logo + orbit — single wrapper anchored to bottom, upper half peeks out */}
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-[40%]"
+        style={{ width: 'min(100vw, 1200px)', height: 'min(100vw, 1200px)' }}
+      >
+        {/* The Ditto logo SVG with orbit ring baked in */}
+        <DittoLogoSVG />
 
-          {/* Orbit ring */}
-          <svg
-            className="absolute inset-0 pointer-events-none"
-            width={W}
-            height={W}
-            viewBox={`0 0 ${W} ${W}`}
-          >
-            <ellipse
-              cx={CX}
-              cy={CY}
-              rx={RX}
-              ry={RY}
-              fill="none"
-              stroke="hsl(var(--primary))"
-              strokeWidth="1"
-              strokeOpacity="0.18"
-              strokeDasharray="4 6"
-              transform={`rotate(${TILT_DEG} ${CX} ${CY})`}
-            />
-          </svg>
-
-          {/* Orbiting icons */}
-          {ORBIT_ITEMS.map((item, i) => {
-            const pos = positions[i];
-            return (
-              <button
-                key={item.kind}
-                onClick={() => handleSelect(i)}
-                className={cn(
-                  'absolute flex items-center justify-center rounded-full',
-                  'transition-colors duration-200',
-                  'hover:text-primary',
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  selectedIdx === i ? 'text-primary' : 'text-primary/40',
-                )}
-                style={{
-                  width: 36,
-                  height: 36,
-                  // Use transform instead of left/top so the browser composites on GPU
-                  transform: `translate(${pos.x - 18}px, ${pos.y - 18}px)`,
-                  willChange: 'transform',
-                }}
-                aria-label={`View latest ${item.label.toLowerCase()}`}
-              >
-                <item.icon className="h-4 w-4" strokeWidth={1.5} />
-              </button>
-            );
-          })}
-        </div>
+        {/* Orbiting icons — positioned as % of this container using SVG coords.
+            SVG viewBox is "-5 -10 100 100" → to convert SVG(x,y) to %:
+            left = (x - (-5)) / 100 * 100% = (x + 5)%
+            top  = (y - (-10)) / 100 * 100% = (y + 10)%  */}
+        {ORBIT_ITEMS.map((item, i) => {
+          const pos = positions[i];
+          const leftPct = ((pos.x + 5) / 100) * 100;
+          const topPct = ((pos.y + 10) / 100) * 100;
+          return (
+            <button
+              key={item.kind}
+              onClick={() => handleSelect(i)}
+              className={cn(
+                'absolute flex items-center justify-center rounded-full cursor-pointer',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                selectedIdx === i ? 'scale-110' : 'hover:scale-105',
+              )}
+              style={{
+                width: 96,
+                height: 96,
+                left: `calc(${leftPct}% - 48px)`,
+                top: `calc(${topPct}% - 48px)`,
+                opacity: pos.behind ? 0 : 1,
+                zIndex: pos.behind ? 0 : 10,
+                animation: pos.behind ? 'none' : `icon-pulse 3s ease-in-out infinite`,
+                animationDelay: `${(i / ORBIT_ITEMS.length) * 3}s`,
+                transition: 'opacity 0.3s',
+                willChange: 'left, top, opacity, transform',
+              }}
+              aria-label={`View latest ${item.label.toLowerCase()}`}
+            >
+              <item.icon className="h-16 w-16" strokeWidth={1.2} style={{ color: item.color }} />
+            </button>
+          );
+        })}
       </div>
 
       {/* Event card */}
-      <div className="absolute bottom-24 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 px-4">
+      <div className="absolute top-1/2 left-1/2 z-30 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 px-4 sm:top-[40%]">
         {selectedItem && (
           <EventCard item={selectedItem} onClose={() => setSelectedIdx(null)} />
         )}
       </div>
 
+      <style>{`
+        @keyframes icon-pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.12); }
+        }
+      `}</style>
+
       {/* CTA */}
-      <div className="relative z-20 pb-8 pt-2 flex gap-3">
+      <div className="relative z-20 mt-auto pb-8 pt-2 flex gap-3">
         <Button asChild size="lg" className="rounded-full px-8">
           <Link to="/">Explore the Feed</Link>
         </Button>
@@ -228,12 +244,7 @@ export function PlanetPage() {
         </Button>
       </div>
 
-      {/* Responsive scaling */}
-      <style>{`
-        :root { --orbit-scale: 1; }
-        @media (max-width: 640px)  { :root { --orbit-scale: 0.55; } }
-        @media (min-width: 641px) and (max-width: 800px) { :root { --orbit-scale: 0.75; } }
-      `}</style>
+
     </div>
   );
 }
@@ -246,9 +257,18 @@ function DittoLogoSVG() {
   return (
     <svg
       viewBox="-5 -10 100 100"
-      className="absolute inset-0 h-full w-full pointer-events-none"
+      className="absolute inset-0 w-full h-full pointer-events-none"
     >
-      <g style={{ fill: 'hsl(var(--primary))', opacity: 0.08 }}>
+      {/* Occluder circle — bg-colored disc that hides icons behind the planet */}
+      <circle
+        cx={SVG_CX}
+        cy={SVG_CY}
+        r={33}
+        fill="hsl(var(--background))"
+      />
+
+      {/* Logo paths */}
+      <g style={{ fill: '#a855f7', opacity: 0.10 }}>
         <path d="m 71.719615,49.36907 -0.62891,0.37109 c -0.12891,0.07031 -0.26172,0.14844 -0.39062,0.21875 -3.9883,10.309 -14.008,17.617 -25.699,17.617 -4.1211,0 -8.0312,-0.89844 -11.539,-2.5391 -0.12891,0.03906 -0.26172,0.07031 -0.39063,0.10156 l -0.35156,0.08984 h -0.02734 l -0.25,0.05859 -0.07813,0.01953 -0.10938,0.03125 c -0.55859,0.12891 -1.1289,0.26172 -1.6992,0.39062 -0.10156,0.03125 -0.19922,0.05078 -0.30078,0.07031 l -0.30078,0.10156 -0.18359,0.0078 c -0.26953,0.05859 -1.3086,0.26953 -1.3086,0.26953 -0.28906,0.05859 -0.55859,0.10937 -0.82813,0.17187 4.9805,3.3086 10.961,5.2305 17.371,5.2305 15.059,0 27.699,-10.602 30.828,-24.738 -0.75,0.48828 -1.5195,0.96875 -2.2891,1.4414 -0.59375,0.36328 -1.2031,0.72656 -1.8242,1.0859 z" />
         <path d="m 30.926615,29.47807 c 0.36328,-0.48828 0.75,-0.95312 1.1523,-1.3828 0.75781,-0.80469 0.71484,-2.0703 -0.08984,-2.8281 -0.80469,-0.75781 -2.0703,-0.71484 -2.8281,0.08984 -0.50781,0.53906 -0.99219,1.125 -1.4492,1.7383 -0.65625,0.88672 -0.47266,2.1406 0.41406,2.7969 0.35938,0.26562 0.77344,0.39453 1.1875,0.39453 0.61719,0 1.2227,-0.27734 1.6133,-0.80859 z" />
         <path d="m 26.742615,32.67807 c -1.0586,-0.3125 -2.1719,0.29687 -2.4805,1.3594 -0.55859,1.9062 -0.83984,3.9141 -0.83984,5.9609 0,2.3789 0.39062,4.7227 1.1602,6.9609 0.28516,0.82812 1.0625,1.3516 1.8906,1.3516 0.21484,0 0.43359,-0.03516 0.64844,-0.10938 1.043,-0.35938 1.6016,-1.4961 1.2422,-2.543 -0.625,-1.8203 -0.94141,-3.7227 -0.94141,-5.6602 0,-1.668 0.22656,-3.2969 0.67969,-4.8398 0.30859,-1.0586 -0.30078,-2.168 -1.3594,-2.4805 z" />
@@ -280,7 +300,7 @@ function EventCard({ item, onClose }: { item: OrbitItem; onClose: () => void }) 
       <CardContent className="p-4">
         <div className="mb-3 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <item.icon className="h-4 w-4 text-primary/70" strokeWidth={1.5} />
+            <item.icon className="h-4 w-4" strokeWidth={1.5} style={{ color: item.color }} />
             <span className="text-sm font-medium text-foreground">{item.label}</span>
           </div>
           <button
