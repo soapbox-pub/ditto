@@ -296,7 +296,7 @@ export function LeftSidebar() {
     }));
 
   const activePreset = theme === 'custom' && customTheme
-    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.tokens) === JSON.stringify(customTheme))
+    ? Object.entries(themePresets).find(([, p]) => JSON.stringify(p.colors) === JSON.stringify(customTheme))
     : undefined;
 
   // User's published themes for the dropdown
@@ -304,7 +304,7 @@ export function LeftSidebar() {
 
   // Check if current custom theme matches a user-published theme
   const activeUserTheme = theme === 'custom' && customTheme && !activePreset
-    ? sidebarUserThemes.data?.find(t => JSON.stringify(t.tokens) === JSON.stringify(customTheme))
+    ? sidebarUserThemes.data?.find(t => JSON.stringify(t.colors) === JSON.stringify(customTheme))
     : undefined;
 
   const currentThemeLabel = (() => {
@@ -605,11 +605,11 @@ export function LeftSidebar() {
                       </DropdownMenuItem>
                     ))}
                     {presetOptions.map((preset) => {
-                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id].tokens);
+                      const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(themePresets[preset.id].colors);
                       return (
                         <DropdownMenuItem
                           key={preset.id}
-                          onClick={() => applyCustomTheme(themePresets[preset.id].tokens)}
+                          onClick={() => applyCustomTheme(themePresets[preset.id].colors)}
                           className="flex items-center justify-between cursor-pointer"
                         >
                           <div className="flex items-center gap-2">
@@ -628,11 +628,11 @@ export function LeftSidebar() {
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-accent/70">My Themes</DropdownMenuLabel>
                         {sidebarUserThemes.data.map((ut) => {
-                          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(ut.tokens);
+                          const isActive = theme === 'custom' && customTheme && JSON.stringify(customTheme) === JSON.stringify(ut.colors);
                           return (
                             <DropdownMenuItem
                               key={ut.identifier}
-                              onClick={() => applyCustomTheme(ut.tokens)}
+                              onClick={() => applyCustomTheme(ut.colors)}
                               className="flex items-center justify-between cursor-pointer"
                             >
                               <div className="flex items-center gap-2 min-w-0">

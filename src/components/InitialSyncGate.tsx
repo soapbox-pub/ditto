@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type Theme, type ContentWarningPolicy } from '@/contexts/AppContext';
-import { themePresets, type ThemeTokens } from '@/themes';
+import { themePresets, type CoreThemeColors } from '@/themes';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useInitialSync, type SyncPhase } from '@/hooks/useInitialSync';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
@@ -232,7 +232,7 @@ const THEMES: ThemeOption[] = [
     id,
     label: preset.label,
     description: `${preset.emoji} ${preset.label} theme`,
-    preview: `bg-[hsl(${preset.tokens.background})]`,
+    preview: `bg-[hsl(${preset.colors.background})]`,
     presetId: id,
   })),
 ];
@@ -289,7 +289,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
   const [step, setStep] = useState<Step>(steps[0]);
   const [selectedTheme, setSelectedTheme] = useState<Theme>('dark');
-  const [selectedCustomTheme, setSelectedCustomTheme] = useState<ThemeTokens | undefined>(undefined);
+  const [selectedCustomTheme, setSelectedCustomTheme] = useState<CoreThemeColors | undefined>(undefined);
   /** Tracks which option the user tapped in the ThemeStep (could be a preset id or builtin id) */
   const [selectedThemeId, setSelectedThemeId] = useState('dark');
   const [selectedContent, setSelectedContent] = useState<Set<string>>(
@@ -490,10 +490,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
               onSelect={(option) => {
                 setSelectedThemeId(option.id);
                 if (option.presetId) {
-                  const tokens = themePresets[option.presetId].tokens;
+                  const colors = themePresets[option.presetId].colors;
                   setSelectedTheme('custom');
-                  setSelectedCustomTheme(tokens);
-                  updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: tokens }));
+                  setSelectedCustomTheme(colors);
+                  updateConfig((c) => ({ ...c, theme: 'custom' as Theme, customTheme: colors }));
                 } else {
                   const t = option.builtinTheme!;
                   setSelectedTheme(t);

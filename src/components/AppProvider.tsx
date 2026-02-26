@@ -2,8 +2,8 @@ import { ReactNode, useLayoutEffect } from 'react';
 import { z } from 'zod';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { AppContext, type AppConfig, type AppContextType, type Theme, type RelayMetadata } from '@/contexts/AppContext';
-import { builtinThemes, themePresets, buildThemeCss, resolveTheme, type ThemeTokens } from '@/themes';
-import { ThemeSchemaCompat, ThemeTokensSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
+import { builtinThemes, themePresets, buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, type CoreThemeColors } from '@/themes';
+import { ThemeSchemaCompat, CoreThemeColorsSchema, LegacyThemeTokensSchema, FeedSettingsSchema, ContentWarningPolicySchema } from '@/lib/schemas';
 
 interface AppProviderProps {
   children: ReactNode;
@@ -23,12 +23,27 @@ const RelayMetadataSchema = z.object({
   updatedAt: z.number(),
 }) satisfies z.ZodType<RelayMetadata>;
 
+/**
+ * Schema for customTheme in AppConfig localStorage.
+ * Accepts both CoreThemeColors and legacy ThemeTokens format,
+ * normalizing to CoreThemeColors.
+ */
+const CustomThemeStorageSchema = z.union([
+  CoreThemeColorsSchema,
+  LegacyThemeTokensSchema.transform((legacy): CoreThemeColors => ({
+    background: legacy.background,
+    text: legacy.foreground,
+    primary: legacy.primary,
+    secondary: legacy.accent,
+  })),
+]);
+
 // Zod schema for AppConfig validation.
 // Uses ThemeSchemaCompat so legacy "black"/"pink" values parse successfully.
 // Migration to "custom" happens in the deserializer below.
 const AppConfigSchema = z.object({
   theme: ThemeSchemaCompat,
-  customTheme: ThemeTokensSchema.optional(),
+  customTheme: CustomThemeStorageSchema.optional(),
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
   feedSettings: FeedSettingsSchema,
@@ -81,7 +96,7 @@ export function AppProvider(props: AppProviderProps) {
         const legacyTheme = result.theme as string | undefined;
         if (legacyTheme && legacyTheme in themePresets) {
           result.theme = 'custom';
-          result.customTheme = themePresets[legacyTheme].tokens;
+          result.customTheme = themePresets[legacyTheme].colors;
         }
 
         return result;
@@ -115,22 +130,21 @@ export function AppProvider(props: AppProviderProps) {
  * Hook to apply theme changes to the document root via an injected <style> tag.
  * When theme is "system", resolves to "light" or "dark" based on OS preference
  * and listens for changes to prefers-color-scheme.
- * When theme is "custom", uses the provided customTheme tokens.
+ * When theme is "custom", uses the provided customTheme colors (derived to full tokens).
  */
-function useApplyTheme(theme: Theme, customTheme: ThemeTokens | undefined) {
+function useApplyTheme(theme: Theme, customTheme: CoreThemeColors | undefined) {
   useLayoutEffect(() => {
     function apply() {
       const resolved = resolveTheme(theme);
-      let tokens: ThemeTokens;
+      let css: string;
 
       if (resolved === 'custom') {
-        // Use custom theme tokens, falling back to dark if not yet set
-        tokens = customTheme ?? builtinThemes.dark;
+        // Use custom theme colors, falling back to dark if not yet set
+        const colors = customTheme ?? builtinThemes.dark;
+        css = buildThemeCssFromCore(colors);
       } else {
-        tokens = builtinThemes[resolved];
+        css = buildThemeCss(coreToTokens(builtinThemes[resolved]));
       }
-
-      const css = buildThemeCss(tokens);
 
       let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
       if (!el) {

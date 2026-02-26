@@ -1,4 +1,5 @@
 import type { ThemeTokens } from '@/themes';
+import type { CoreThemeColors } from '@/themes';
 
 // ─── Conversion Utilities ────────────────────────────────────────────
 
@@ -136,39 +137,43 @@ function contrastForeground(bgHsl: string): string {
 // ─── Auto-Derive Full Token Set from Core Colors ──────────────────────
 
 /**
- * Derive all 28 theme tokens from 4 core colors.
- * Intelligently adjusts derived tokens based on whether the background is dark or light.
+ * Derive all Tailwind theme tokens from 4 core colors.
+ *
+ * @param background - Background HSL string
+ * @param text       - Text/foreground HSL string
+ * @param primary    - Primary accent HSL string
+ * @param secondary  - Secondary accent HSL string (used as Tailwind "accent")
  */
 export function deriveTokensFromCore(
   background: string,
-  foreground: string,
+  text: string,
   primary: string,
-  accent: string,
+  secondary: string,
 ): ThemeTokens {
   const dark = isDarkTheme(background);
 
   // Surface colors derived from background
   const card = dark ? lighten(background, 2) : background;
   const popover = dark ? lighten(background, 2) : background;
-  const secondary = dark ? lighten(background, 8) : darken(background, 4);
+  const secondarySurface = dark ? lighten(background, 8) : darken(background, 4);
   const muted = dark ? lighten(background, 8) : darken(background, 4);
   const border = dark ? lighten(background, 10) : darken(desaturate(background, 20), 9);
   const input = border;
 
-  // Muted foreground: a dimmer version of the main foreground
-  const fgParsed = parseHsl(foreground);
+  // Muted foreground: a dimmer version of the main text color
+  const fgParsed = parseHsl(text);
   const mutedFg = dark
     ? formatHsl(fgParsed.h, Math.max(fgParsed.s - 20, 0), Math.max(fgParsed.l - 30, 40))
     : formatHsl(fgParsed.h, Math.max(fgParsed.s - 30, 0), Math.min(fgParsed.l + 35, 55));
 
   // Foreground variants
-  const cardFg = foreground;
-  const popoverFg = foreground;
-  const secondaryFg = foreground;
+  const cardFg = text;
+  const popoverFg = text;
+  const secondarySurfaceFg = text;
 
   // Primary/accent foregrounds: auto-contrast
   const primaryFg = contrastForeground(primary);
-  const accentFg = contrastForeground(accent);
+  const accentFg = contrastForeground(secondary);
 
   // Destructive: standard red
   const destructive = dark ? '0 72% 51%' : '0 84.2% 60.2%';
@@ -176,23 +181,37 @@ export function deriveTokensFromCore(
 
   return {
     background,
-    foreground,
+    foreground: text,
     card,
     cardForeground: cardFg,
     popover,
     popoverForeground: popoverFg,
     primary,
     primaryForeground: primaryFg,
-    secondary,
-    secondaryForeground: secondaryFg,
+    secondary: secondarySurface,
+    secondaryForeground: secondarySurfaceFg,
     muted,
     mutedForeground: mutedFg,
-    accent,
+    accent: secondary,
     accentForeground: accentFg,
     destructive,
     destructiveForeground: destructiveFg,
     border,
     input,
     ring: primary,
+  };
+}
+
+/**
+ * Extract CoreThemeColors from a legacy ThemeTokens object.
+ * Used for backward compatibility when reading old configs/events
+ * that stored the full 19-token set.
+ */
+export function tokensToCoreColors(tokens: ThemeTokens): CoreThemeColors {
+  return {
+    background: tokens.background,
+    text: tokens.foreground,
+    primary: tokens.primary,
+    secondary: tokens.accent,
   };
 }

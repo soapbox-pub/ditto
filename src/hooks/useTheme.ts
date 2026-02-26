@@ -1,16 +1,16 @@
 import { type Theme } from "@/contexts/AppContext";
-import { type ThemeTokens } from "@/themes";
+import { type CoreThemeColors } from "@/themes";
 import { useAppContext } from "@/hooks/useAppContext";
 import { useEncryptedSettings } from "@/hooks/useEncryptedSettings";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { useRef, useCallback } from "react";
-import { builtinThemes, buildThemeCss, resolveTheme } from "@/themes";
+import { builtinThemes, buildThemeCssFromCore, resolveTheme } from "@/themes";
 
 /**
  * Hook to get and set the active theme.
  *
  * - `setTheme(theme)` switches between "light", "dark", "system", and "custom".
- * - `applyCustomTheme(tokens)` sets theme to "custom" and applies the given tokens.
+ * - `applyCustomTheme(colors)` sets theme to "custom" and applies the given core colors.
  *    Use this for presets and externally-sourced themes.
  */
 export function useTheme() {
@@ -19,7 +19,7 @@ export function useTheme() {
   const { user } = useCurrentUser();
   const debounceTimer = useRef<NodeJS.Timeout>();
 
-  const syncToEncrypted = useCallback((patch: { theme?: Theme; customTheme?: ThemeTokens }) => {
+  const syncToEncrypted = useCallback((patch: { theme?: Theme; customTheme?: CoreThemeColors }) => {
     if (!user) return;
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
@@ -40,7 +40,8 @@ export function useTheme() {
 
     // Apply CSS vars synchronously before React re-renders to eliminate flicker
     const resolved = resolveTheme(theme);
-    const css = buildThemeCss(builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark);
+    const colors = builtinThemes[resolved as keyof typeof builtinThemes] ?? builtinThemes.dark;
+    const css = buildThemeCssFromCore(colors);
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
@@ -61,14 +62,14 @@ export function useTheme() {
     syncToEncrypted({ theme });
   }, [updateConfig, syncToEncrypted]);
 
-  /** Set theme to "custom" and apply the given tokens. */
-  const applyCustomTheme = useCallback((tokens: ThemeTokens) => {
+  /** Set theme to "custom" and apply the given core colors. */
+  const applyCustomTheme = useCallback((colors: CoreThemeColors) => {
     updateConfig((currentConfig) => ({
       ...currentConfig,
       theme: 'custom' as Theme,
-      customTheme: tokens,
+      customTheme: colors,
     }));
-    syncToEncrypted({ theme: 'custom', customTheme: tokens });
+    syncToEncrypted({ theme: 'custom', customTheme: colors });
   }, [updateConfig, syncToEncrypted]);
 
   return {
