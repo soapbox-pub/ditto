@@ -156,7 +156,7 @@ export function deriveTokensFromCore(
   const popover = dark ? lighten(background, 2) : background;
   const secondarySurface = dark ? lighten(background, 8) : darken(background, 4);
   const muted = dark ? lighten(background, 8) : darken(background, 4);
-  const border = dark ? lighten(background, 10) : darken(desaturate(background, 20), 9);
+  const border = dark ? formatHsl(parseHsl(primary).h, parseHsl(primary).s * 0.4, 30) : formatHsl(parseHsl(primary).h, parseHsl(primary).s * 0.5, 82);
   const input = border;
 
   // Muted foreground: a dimmer version of the main text color

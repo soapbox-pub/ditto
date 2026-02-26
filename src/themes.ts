@@ -47,9 +47,9 @@ export interface ThemeTokens {
  */
 export const builtinThemes: Record<'light' | 'dark', CoreThemeColors> = {
   light: {
-    background: '0 0% 100%',
-    text: '222.2 84% 4.9%',
-    primary: '258 70% 55%',
+    background: '270 50% 97%',
+    text: '270 25% 12%',
+    primary: '270 65% 55%',
   },
 
   dark: {
@@ -122,9 +122,9 @@ export const themePresets: Record<string, ThemePreset> = {
     label: 'Lavender',
     emoji: '💜',
     colors: {
-      background: '270 50% 97%',
-      text: '270 25% 12%',
-      primary: '270 65% 55%',
+      background: '0 0% 100%',
+      text: '222.2 84% 4.9%',
+      primary: '258 70% 55%',
     },
   },
 

@@ -42,7 +42,7 @@ export function MobileBottomNav() {
           onClick={handleHomeClick}
           className={cn(
             'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-            location.pathname === '/' ? 'text-foreground' : 'text-muted-foreground',
+            location.pathname === '/' ? 'text-primary' : 'text-muted-foreground',
           )}
         >
           <PlanetIcon className="size-5" />
@@ -55,7 +55,7 @@ export function MobileBottomNav() {
             onClick={handleNotificationsClick}
             className={cn(
               'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-              location.pathname === '/notifications' ? 'text-foreground' : 'text-muted-foreground',
+              location.pathname === '/notifications' ? 'text-primary' : 'text-muted-foreground',
             )}
           >
             <span className="relative">
@@ -72,7 +72,7 @@ export function MobileBottomNav() {
           onClick={handleSearchClick}
           className={cn(
             'flex flex-col items-center justify-center gap-0.5 flex-1 py-2 transition-colors',
-            searchOpen ? 'text-foreground' : 'text-muted-foreground',
+            searchOpen ? 'text-primary' : 'text-muted-foreground',
           )}
         >
           <Search className="size-5" />
