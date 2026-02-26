@@ -37,7 +37,7 @@ const queryClient = new QueryClient({
 });
 
 const defaultConfig: AppConfig = {
-  theme: "dark",
+  theme: "system",
   useAppRelays: true,
   relayMetadata: {
     relays: [],
