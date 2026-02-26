@@ -118,7 +118,7 @@ export function ThemeSelector() {
     try {
       if (checked) {
         const colors = getEffectiveColors(theme, customTheme);
-        await setActiveTheme({ themeConfig: { colors } });
+        await setActiveTheme({ themeConfig: customTheme ?? { colors } });
         toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
       } else {
         await clearActiveTheme();
