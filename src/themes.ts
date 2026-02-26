@@ -76,6 +76,17 @@ export interface ThemePreset {
  * and applies the preset's core color values to customTheme.
  */
 export const themePresets: Record<string, ThemePreset> = {
+  white: {
+    label: 'White',
+    emoji: '🤍',
+    featured: true,
+    colors: {
+      background: '0 0% 100%',
+      text: '222.2 84% 4.9%',
+      primary: '258 70% 55%',
+    },
+  },
+
   black: {
     label: 'Black',
     emoji: '⚫',
@@ -118,15 +129,6 @@ export const themePresets: Record<string, ThemePreset> = {
     },
   },
 
-  lavender: {
-    label: 'Lavender',
-    emoji: '💜',
-    colors: {
-      background: '0 0% 100%',
-      text: '222.2 84% 4.9%',
-      primary: '258 70% 55%',
-    },
-  },
 
   ocean: {
     label: 'Ocean',
