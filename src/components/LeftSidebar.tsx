@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell, Home, Search, TrendingUp, Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText,
+  Bell, Home, Search, TrendingUp, Clapperboard, BarChart3, Palette, Paintbrush, PartyPopper, Radio, FileText,
   User, Settings, Bookmark, UserPlus, LogOut, Check, Moon, Sun, Monitor,
   ChevronDown, Plus, Pencil, X, GripVertical,
 } from 'lucide-react';
@@ -54,6 +54,7 @@ const ITEM_ICONS: Record<string, React.ReactElement> = {
   bookmarks: <Bookmark className="size-6" />,
   profile: <User className="size-6" />,
   settings: <Settings className="size-6" />,
+  theme: <Paintbrush className="size-6" />,
   // Extra-kinds
   vines: <Clapperboard className="size-6" />,
   polls: <BarChart3 className="size-6" />,
@@ -89,7 +90,8 @@ function isItemActive(id: string, pathname: string, search: string, profilePath?
   if (id === 'trends') return pathname === '/search' && search.includes('tab=trends');
   if (id === 'bookmarks') return pathname === '/bookmarks';
   if (id === 'profile') return !!profilePath && pathname === profilePath;
-  if (id === 'settings') return pathname.startsWith('/settings');
+  if (id === 'theme') return pathname === '/settings/theme';
+  if (id === 'settings') return pathname.startsWith('/settings') && pathname !== '/settings/theme';
   const def = getExtraKindDef(id);
   return def?.route ? pathname === `/${def.route}` : pathname === `/${id}`;
 }
