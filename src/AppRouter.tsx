@@ -12,8 +12,7 @@ import { NotificationsPage } from "./pages/NotificationsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ProfileSettings } from "./pages/ProfileSettings";
-import { ThemeSettingsPage } from "./pages/ThemeSettingsPage";
-import { ContentSettingsPage } from "./pages/ContentSettingsPage";
+import { AppearanceSettings } from "./pages/AppearanceSettings";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
@@ -48,9 +47,9 @@ export function AppRouter() {
           <Route path="/timeline/:domain" element={<DomainFeedPage />} />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="/settings/profile" element={<ProfileSettings />} />
-          <Route path="/settings/theme" element={<ThemeSettingsPage />} />
-          <Route path="/settings/content" element={<ContentSettingsPage />} />
-          <Route path="/settings/theme/edit" element={<ThemeBuilderPage />} />
+          <Route path="/settings/appearance" element={<AppearanceSettings />} />
+          <Route path="/settings/appearance/:tab" element={<AppearanceSettings />} />
+          <Route path="/settings/theme" element={<ThemeBuilderPage />} />
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
@@ -62,7 +61,7 @@ export function AppRouter() {
           <Route path="/streams" element={<StreamsFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
           <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
-          <Route path="/themes" element={<KindFeedPage kind={33891} title="Public Themes" icon={<Sparkles className="size-5" />} emptyMessage="No public themes yet. Be the first to share yours!" backTo="/settings/theme" alwaysShowBack fabHref="/settings/theme/edit?new" />} />
+          <Route path="/themes" element={<KindFeedPage kind={33891} title="Public Themes" icon={<Sparkles className="size-5" />} emptyMessage="No public themes yet. Be the first to share yours!" backTo="/settings/appearance" alwaysShowBack fabHref="/settings/theme?new" />} />
           <Route path="/bookmarks" element={<BookmarksPage />} />
 
           {/* NIP-19 route for npub1, note1, naddr1, nevent1, nprofile1 */}
