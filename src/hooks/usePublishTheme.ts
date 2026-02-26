@@ -73,14 +73,15 @@ export function usePublishTheme() {
   }, [user, publishEvent, queryClient]);
 
   /** Delete a kind 33891 theme definition. */
-  const deleteTheme = useCallback(async (identifier: string) => {
+  const deleteTheme = useCallback(async (theme: ThemeDefinition) => {
     if (!user) throw new Error('Must be logged in');
 
     await publishEvent({
       kind: 5,
       content: '',
       tags: [
-        ['a', `${THEME_DEFINITION_KIND}:${user.pubkey}:${identifier}`],
+        ['e', theme.event.id],
+        ['a', `${THEME_DEFINITION_KIND}:${user.pubkey}:${theme.identifier}`],
         ['k', String(THEME_DEFINITION_KIND)],
       ],
     });
@@ -89,7 +90,7 @@ export function usePublishTheme() {
     // (the pool's internal cache may still return the event on re-query)
     queryClient.setQueryData<ThemeDefinition[]>(
       ['userThemes', user.pubkey],
-      (old) => old?.filter((t) => t.identifier !== identifier) ?? [],
+      (old) => old?.filter((t) => t.identifier !== theme.identifier) ?? [],
     );
     // Also invalidate feed caches so the theme disappears from public feeds
     queryClient.invalidateQueries({ queryKey: ['feed'] });
