@@ -4,7 +4,6 @@ import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Feed } from '@/components/Feed';
 import { KindInfoButton } from '@/components/KindInfoButton';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { EXTRA_KINDS, type ExtraKindDef } from '@/lib/extraKinds';
 
 interface KindFeedPageProps {
@@ -18,11 +17,9 @@ interface KindFeedPageProps {
   backTo?: string;
   /** Always show the back button, even on desktop (default: only mobile). */
   alwaysShowBack?: boolean;
-  /** If set, the FAB navigates to this URL instead of opening a compose dialog. */
-  fabHref?: string;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -34,8 +31,6 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
     title: `${title} | Ditto`,
     description: `${title} on Nostr`,
   });
-
-  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 

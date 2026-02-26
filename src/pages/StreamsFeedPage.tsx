@@ -12,7 +12,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useStreamKind } from '@/hooks/useStreamKind';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { useOpenPost } from '@/hooks/useOpenPost';
@@ -46,8 +45,6 @@ export function StreamsFeedPage() {
     title: 'Streams | Ditto',
     description: 'Live streams on Nostr',
   });
-
-  useLayoutOptions({ showFAB: true, fabKind: 30311 });
 
   const { events, isLoading } = useStreamKind(30311);
 
