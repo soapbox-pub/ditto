@@ -90,7 +90,7 @@ export function SidebarNavItem({
         <span className="shrink-0 relative">
           {icon}
           {showIndicator && (
-            <span className="absolute top-0 right-0 size-2.5 bg-primary rounded-full" />
+            <span className="absolute -top-1 right-0 size-2.5 bg-primary rounded-full" />
           )}
         </span>
         <span className="truncate">{label}</span>
