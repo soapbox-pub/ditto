@@ -116,7 +116,9 @@ function MainLayoutInner() {
 function ScopedThemeColumns({ tokens, children }: { tokens?: import('@/themes').ThemeTokens; children: React.ReactNode }) {
   if (!tokens) return <>{children}</>;
   return (
-    <ScopedTheme tokens={tokens} className="flex flex-1 min-w-0 bg-background text-foreground">
+    <ScopedTheme tokens={tokens} className="relative flex flex-1 min-w-0 bg-background text-foreground">
+      {/* Extend background to the right edge of the viewport */}
+      <div className="absolute top-0 bottom-0 left-0 bg-background pointer-events-none" style={{ right: 'calc(-50vw + 50%)' }} aria-hidden />
       {children}
     </ScopedTheme>
   );
