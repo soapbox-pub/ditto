@@ -377,20 +377,20 @@ export function LeftSidebar() {
                 <span>More...</span>
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" className="w-[240px]">
+            <DropdownMenuContent align="start" className="w-[240px] p-1">
               {/* Edit sidebar */}
-              <DropdownMenuItem
-                onClick={() => setEditing(true)}
-                className="flex items-center gap-3 py-2.5 cursor-pointer"
+              <button
+                onClick={() => { setEditing(true); setMoreMenuOpen(false); }}
+                className="flex items-center gap-3 w-full px-2 py-2 rounded-sm text-sm hover:bg-secondary/60 transition-colors cursor-pointer"
               >
                 <Pencil className="size-5" />
-                <span className="text-sm">Edit sidebar</span>
-              </DropdownMenuItem>
+                <span>Edit sidebar</span>
+              </button>
 
               {/* Hidden items */}
-              <DropdownMenuSeparator />
+              <div className="h-px bg-border my-1" />
               {visibleHiddenItems.map((item) => (
-                <div key={item.id} className="flex items-center px-2 py-0.5">
+                <div key={item.id} className="flex items-center">
                   <Link
                     to={itemPath(item.id)}
                     onClick={() => setMoreMenuOpen(false)}
