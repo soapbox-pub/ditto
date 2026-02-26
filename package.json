@@ -33,7 +33,7 @@
     "@fontsource-variable/montserrat": "^5.2.8",
     "@fontsource-variable/outfit": "^5.2.8",
     "@fontsource-variable/playfair-display": "^5.2.8",
-    "@fontsource/comic-neue": "^5.2.7",
+    "@fontsource/comic-relief": "^5.2.2",
     "@getalby/sdk": "^5.1.1",
     "@hookform/resolvers": "^5.2.2",
     "@lucide/lab": "^0.1.2",
