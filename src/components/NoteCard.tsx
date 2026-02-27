@@ -55,6 +55,8 @@ interface NoteCardProps {
   compact?: boolean;
   /** If true, render in threaded ancestor style: connector line below avatar, no bottom border. */
   threaded?: boolean;
+  /** Like threaded but without the connector line — used for the last item in a thread (e.g. sub-reply hint). */
+  threadedLast?: boolean;
 }
 
 /** Formats a sats amount into a compact human-readable string. */
@@ -148,7 +150,7 @@ function encodeEventId(event: NostrEvent): string {
   return nip19.neventEncode({ id: event.id, author: event.pubkey });
 }
 
-export function NoteCard({ event, className, repostedBy, compact, threaded }: NoteCardProps) {
+export function NoteCard({ event, className, repostedBy, compact, threaded, threadedLast }: NoteCardProps) {
   const { config } = useAppContext();
   const { user } = useCurrentUser();
   const author = useAuthor(event.pubkey);
@@ -346,11 +348,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
 
   // Shared avatar element
   const avatarElement = author.isLoading ? (
-    <Skeleton className={cn(threaded ? 'size-10' : 'size-11', 'rounded-full shrink-0')} />
+    <Skeleton className={cn((threaded || threadedLast) ? 'size-10' : 'size-11', 'rounded-full shrink-0')} />
   ) : (
     <ProfileHoverCard pubkey={event.pubkey} asChild>
       <Link to={profileUrl} className="shrink-0" onClick={(e) => e.stopPropagation()}>
-        <Avatar className={threaded ? 'size-10' : 'size-11'}>
+        <Avatar className={(threaded || threadedLast) ? 'size-10' : 'size-11'}>
           <AvatarImage src={metadata?.picture} alt={displayName} />
           <AvatarFallback className="bg-primary/20 text-primary text-sm">
             {displayName[0]?.toUpperCase()}
@@ -377,6 +379,84 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
             <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
           </div>
           <div className="flex-1 min-w-0 pb-3">
+            {authorInfo}
+            {contentBlock}
+
+            {/* Action buttons */}
+            <div className="flex items-center gap-5 mt-3 -ml-2">
+              <button
+                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="Reply"
+                onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
+              >
+                <MessageCircle className="size-5" />
+                {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+              </button>
+
+              <RepostMenu event={event}>
+                {(isReposted: boolean) => (
+                  <button
+                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+                    title={isReposted ? 'Undo repost' : 'Repost'}
+                  >
+                    <RepostIcon className="size-5" />
+                    {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+                  </button>
+                )}
+              </RepostMenu>
+
+              <ReactionButton
+                eventId={event.id}
+                eventPubkey={event.pubkey}
+                eventKind={event.kind}
+                reactionCount={stats?.reactions}
+              />
+
+              {canZapAuthor && (
+                <ZapDialog target={event}>
+                  <button
+                    className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+                    title="Zap"
+                  >
+                    <Zap className="size-5" />
+                    {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+                  </button>
+                </ZapDialog>
+              )}
+
+              <button
+                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                title="More"
+                onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+              >
+                <MoreHorizontal className="size-5" />
+              </button>
+            </div>
+
+            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
+            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  // ── Threaded-last layout: same column layout as threaded, but no connector line ──
+  if (threadedLast) {
+    return (
+      <article
+        className={cn(
+          'px-4 pt-3 pb-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          className,
+        )}
+        onClick={handleCardClick}
+        onAuxClick={handleAuxClick}
+      >
+        <div className="flex gap-3">
+          <div className="flex flex-col items-center">
+            {avatarElement}
+          </div>
+          <div className="flex-1 min-w-0">
             {authorInfo}
             {contentBlock}
 

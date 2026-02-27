@@ -886,7 +886,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <div key={reply.id}>
               <NoteCard event={reply} threaded={!!firstSubReply} />
               {firstSubReply && (
-                <NoteCard event={firstSubReply} />
+                <NoteCard event={firstSubReply} threadedLast />
               )}
             </div>
           ))
