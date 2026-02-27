@@ -741,7 +741,7 @@ export function ProfilePage() {
   // Own-profile share theme prompt
   const { setActiveTheme, isPending: isPublishingTheme } = usePublishTheme();
   const [shareThemeOpen, setShareThemeOpen] = useState(false);
-  const [dismissedShareTheme, setDismissedShareTheme] = useLocalStorage('ditto:dismissed-share-theme-prompt', false);
+  const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
@@ -754,8 +754,20 @@ export function ProfilePage() {
   // so the profile doesn't appear with the user's custom colors.
   const needsSystemFallback = !profileThemeColors && ownTheme === 'custom';
 
-  // Show share-theme prompt on own profile when user has a custom theme but no published profile theme
-  const showShareThemePrompt = isOwnProfile && ownTheme === 'custom' && ownCustomTheme && !profileHasTheme && !dismissedShareTheme;
+  // Detect whether the app custom theme differs from the published profile theme
+  const ownCustomThemeSnapshot = ownCustomTheme ? JSON.stringify(ownCustomTheme.colors) + JSON.stringify(ownCustomTheme.font ?? '') + JSON.stringify(ownCustomTheme.background ?? '') : null;
+  const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme
+    ? (JSON.stringify(profileTheme.colors) !== JSON.stringify(ownCustomTheme?.colors)
+      || JSON.stringify(profileTheme.font ?? '') !== JSON.stringify(ownCustomTheme?.font ?? '')
+      || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme?.background ?? ''))
+    : false;
+
+  // Show share-theme prompt on own profile when:
+  // 1. User has a custom theme but no published profile theme, OR
+  // 2. User's custom theme differs from their published profile theme
+  // Suppressed if the user dismissed the prompt for this exact custom theme snapshot.
+  const isDismissed = dismissedThemeSnapshot !== null && dismissedThemeSnapshot === ownCustomThemeSnapshot;
+  const showShareThemePrompt = isOwnProfile && ownTheme === 'custom' && ownCustomTheme && (!profileHasTheme || profileThemeDiffers) && !isDismissed;
 
   // Determine the effective colors/font/background to apply on this profile:
   // - If the profile has a theme, use it.
@@ -1142,7 +1154,7 @@ export function ProfilePage() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  Apply your theme to your profile
+                  {profileThemeDiffers ? 'Update your profile theme' : 'Apply your theme to your profile'}
                 </TooltipContent>
               </Tooltip>
             )}
@@ -1447,9 +1459,11 @@ export function ProfilePage() {
             ) : undefined}
           >
             <DialogHeader>
-              <DialogTitle className="text-lg">Share Your Theme</DialogTitle>
+              <DialogTitle className="text-lg">{profileThemeDiffers ? 'Update Your Profile Theme' : 'Share Your Theme'}</DialogTitle>
               <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
-                You have a custom theme, but it's not visible on your profile yet. Would you like to apply it so others can see it when they visit?
+                {profileThemeDiffers
+                  ? 'Your app theme has changed since you last published it. Would you like to update your profile theme to match?'
+                  : 'You have a custom theme, but it\'s not visible on your profile yet. Would you like to apply it so others can see it when they visit?'}
               </DialogDescription>
             </DialogHeader>
 
@@ -1484,12 +1498,12 @@ export function ProfilePage() {
                 {isPublishingTheme ? (
                   <Loader2 className="size-4 animate-spin mr-2" />
                 ) : null}
-                Yes, apply my theme
+                {profileThemeDiffers ? 'Yes, update my theme' : 'Yes, apply my theme'}
               </Button>
               <Button
                 variant="ghost"
                 onClick={() => {
-                  setDismissedShareTheme(true);
+                  setDismissedThemeSnapshot(ownCustomThemeSnapshot);
                   setShareThemeOpen(false);
                 }}
               >
