@@ -141,6 +141,7 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   {
     kind: 30312,
+    id: 'nests',
     showKey: 'showNests',
     feedKey: 'feedIncludeNests',
     label: 'Nests',

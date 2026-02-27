@@ -809,7 +809,6 @@ export function ProfilePage() {
       el.id = 'theme-vars';
       document.head.appendChild(el);
     }
-    const previousCss = el.textContent;
     el.textContent = css;
 
     // Apply profile font (if any)
@@ -885,7 +884,7 @@ export function ProfilePage() {
         bgEl?.remove();
       }
     };
-  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]);
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
