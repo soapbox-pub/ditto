@@ -127,7 +127,7 @@ export function useSortedPosts(sort: SortMode, limit = 5, enabled = true) {
     queryFn: async ({ signal }) => {
       const ditto = nostr.relay(DITTO_RELAY);
       const events = await ditto.query(
-        [{ kinds: [1], search: `sort:${sort}`, limit }],
+        [{ kinds: [1], search: `sort:${sort} protocol:nostr`, limit }],
         { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) },
       );
       return events;
@@ -153,7 +153,7 @@ export function useInfiniteSortedPosts(sort: SortMode, enabled = true) {
       const ditto = nostr.relay(DITTO_RELAY);
       const filter: Record<string, unknown> = {
         kinds: [1],
-        search: `sort:${sort}`,
+        search: `sort:${sort} protocol:nostr`,
         limit: SORTED_PAGE_SIZE,
       };
       if (pageParam) {
