@@ -64,7 +64,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
         </div>
         {description && (
           <div className="px-4 py-3">
-            <p className="text-[15px] leading-relaxed">{description}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
           </div>
         )}
         {!description && <div className="h-3" />}
@@ -91,7 +91,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
       <div className="mt-3 rounded-2xl border border-border overflow-hidden">
         <ImageGallery images={[url]} imetaMap={imetaMap} />
         <div className="px-4 py-3">
-          <p className="text-[15px] leading-relaxed">{description}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
     );
@@ -111,7 +111,7 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
       <div className="mt-3 rounded-2xl border border-border overflow-hidden">
         <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} />
         <div className="px-4 py-3">
-          <p className="text-[15px] leading-relaxed">{description}</p>
+          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
         </div>
       </div>
     );
