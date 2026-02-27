@@ -297,7 +297,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Use hot sorting on the homepage Global tab for better content quality,
         // but not on kind-specific pages that pass custom kinds.
         if (tab === 'global' && !options?.kinds) {
-          filter.search = 'sort:hot';
+          filter.search = 'sort:hot protocol:nostr';
         }
         if (pageParam) {
           filter.until = pageParam;

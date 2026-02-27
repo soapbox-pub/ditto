@@ -587,8 +587,7 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     return rawReplies.filter((r) => !isEventMuted(r, muteItems));
   }, [rawReplies, muteItems]);
 
-  // Build a reply tree and flatten depth-first so sub-replies appear
-  // directly after their parent — natural conversation order.
+  // Build a reply tree: direct replies each paired with their first sub-reply.
   const orderedReplies = useMemo(() => {
     if (!replies || replies.length === 0) return [];
 
@@ -606,17 +605,10 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
       }
     }
 
-    // Depth-first walk
-    const result: NostrEvent[] = [];
-    function walk(events: NostrEvent[]) {
-      for (const ev of events) {
-        result.push(ev);
-        const children = childrenMap.get(ev.id);
-        if (children) walk(children);
-      }
-    }
-    walk(directReplies);
-    return result;
+    return directReplies.map((reply) => ({
+      reply,
+      firstSubReply: (childrenMap.get(reply.id) ?? [])[0] as NostrEvent | undefined,
+    }));
   }, [replies, event.id]);
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [replyOpen, setReplyOpen] = useState(false);
@@ -890,8 +882,13 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             ))}
           </div>
         ) : orderedReplies.length > 0 ? (
-          orderedReplies.map((reply) => (
-            <NoteCard key={reply.id} event={reply} />
+          orderedReplies.map(({ reply, firstSubReply }) => (
+            <div key={reply.id}>
+              <NoteCard event={reply} threaded={!!firstSubReply} />
+              {firstSubReply && (
+                <NoteCard event={firstSubReply} threadedLast />
+              )}
+            </div>
           ))
         ) : !parentEventId ? (
           <div className="py-12 text-center text-muted-foreground text-sm">
@@ -923,7 +920,7 @@ function AncestorThread({ eventId, depth = 0 }: { eventId: string; depth?: numbe
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
             <Skeleton className="size-10 rounded-full shrink-0" />
-            <div className="w-0.5 flex-1 mt-2 bg-border" />
+            <div className="w-0.5 flex-1 mt-2 bg-foreground/20" />
           </div>
           <div className="flex-1 min-w-0 pb-4 space-y-2">
             <div className="flex items-center gap-2">
