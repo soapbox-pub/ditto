@@ -155,8 +155,8 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeProfileThemes: z.boolean().optional(),
   showThemeDefinitions: z.boolean().optional(),
   feedIncludeThemeDefinitions: z.boolean().optional(),
-  showActiveThemes: z.boolean().optional(),
-  feedIncludeActiveThemes: z.boolean().optional(),
+  showProfileThemeUpdates: z.boolean().optional(),
+  feedIncludeProfileThemeUpdates: z.boolean().optional(),
   showCustomProfileThemes: z.boolean().optional(),
 });
 

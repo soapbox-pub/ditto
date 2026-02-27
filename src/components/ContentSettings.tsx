@@ -949,7 +949,7 @@ function ThemePreferencesSection() {
   const { user } = useCurrentUser();
 
   const showOnProfiles = feedSettings.showCustomProfileThemes !== false;
-  const showInFeed = feedSettings.feedIncludeThemeDefinitions !== false || feedSettings.feedIncludeActiveThemes !== false;
+  const showInFeed = feedSettings.feedIncludeThemeDefinitions !== false || feedSettings.feedIncludeProfileThemeUpdates !== false;
 
   const handleProfileThemeToggle = async (value: boolean) => {
     updateFeedSettings({ showCustomProfileThemes: value });
@@ -963,7 +963,7 @@ function ThemePreferencesSection() {
     const patch = {
       feedIncludeProfileThemes: value,
       feedIncludeThemeDefinitions: value,
-      feedIncludeActiveThemes: value,
+      feedIncludeProfileThemeUpdates: value,
     };
     updateFeedSettings(patch);
     if (user) {

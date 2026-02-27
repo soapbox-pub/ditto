@@ -76,16 +76,16 @@ export interface FeedSettings {
   feedIncludeWebxdc: boolean;
   /** Show Themes link in sidebar */
   showProfileThemes: boolean;
-  /** Include Profile Theme updates in the follows/global feed (legacy key, maps to feedIncludeThemeDefinitions + feedIncludeActiveThemes) */
+  /** Include Profile Theme updates in the follows/global feed (legacy key, maps to feedIncludeThemeDefinitions + feedIncludeProfileThemeUpdates) */
   feedIncludeProfileThemes: boolean;
   /** Show theme definitions (kind 36767) on Themes page */
   showThemeDefinitions: boolean;
   /** Include theme definitions in the follows/global feed */
   feedIncludeThemeDefinitions: boolean;
-  /** Show active theme updates (kind 16767) on Themes page */
-  showActiveThemes: boolean;
-  /** Include active theme updates in the follows/global feed */
-  feedIncludeActiveThemes: boolean;
+  /** Show profile theme updates (kind 16767) on Themes page */
+  showProfileThemeUpdates: boolean;
+  /** Include profile theme updates in the follows/global feed */
+  feedIncludeProfileThemeUpdates: boolean;
   /** Show custom profile themes when visiting other users' profiles */
   showCustomProfileThemes: boolean;
 }

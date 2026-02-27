@@ -409,8 +409,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeProfileThemes: true,
       showThemeDefinitions: true,
       feedIncludeThemeDefinitions: true,
-      showActiveThemes: true,
-      feedIncludeActiveThemes: true,
+      showProfileThemeUpdates: true,
+      feedIncludeProfileThemeUpdates: true,
       showCustomProfileThemes: true,
     };
 
