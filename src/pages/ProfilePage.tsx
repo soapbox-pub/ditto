@@ -757,14 +757,17 @@ export function ProfilePage() {
 
   // Detect whether the app custom theme differs from the published profile theme.
   // Colors are compared via hex to avoid HSL precision issues from the hex round-trip.
+  // Fonts are compared by family name only, since the URL is resolved to a CDN URL at
+  // publish time and won't match the local config which omits it for bundled fonts.
   const colorsToHex = (c: CoreThemeColors) =>
     `${hslStringToHex(c.primary)}${hslStringToHex(c.text)}${hslStringToHex(c.background)}`;
+  const fontFamily = (f?: { family: string }) => f?.family ?? '';
   const ownCustomThemeSnapshot = ownCustomTheme
-    ? colorsToHex(ownCustomTheme.colors) + JSON.stringify(ownCustomTheme.font ?? '') + JSON.stringify(ownCustomTheme.background ?? '')
+    ? colorsToHex(ownCustomTheme.colors) + fontFamily(ownCustomTheme.font) + JSON.stringify(ownCustomTheme.background ?? '')
     : null;
   const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme && ownCustomTheme
     ? (colorsToHex(profileTheme.colors) !== colorsToHex(ownCustomTheme.colors)
-      || JSON.stringify(profileTheme.font ?? '') !== JSON.stringify(ownCustomTheme.font ?? '')
+      || fontFamily(profileTheme.font) !== fontFamily(ownCustomTheme.font)
       || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme.background ?? ''))
     : false;
 
