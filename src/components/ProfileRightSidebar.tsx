@@ -317,7 +317,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
       {/* Media Section */}
-      <section className="mb-6">
+      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
         {mediaLoading ? (
           <div className="grid grid-cols-3 gap-0.5">
@@ -362,7 +362,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
 
       {/* Profile Fields Section */}
       {fields && fields.length > 0 && (
-        <section className="mb-6">
+        <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
           <h2 className="text-xl font-bold mb-3">Profile fields</h2>
           <div className="space-y-4">
             {fields.map((field, i) => (
@@ -373,7 +373,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
       )}
 
       {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-left">
+      <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
         <p className="text-xs text-muted-foreground">
           Vibed with{' '}
           <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">

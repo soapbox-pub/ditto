@@ -111,7 +111,7 @@ export function RightSidebar() {
   return (
     <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
       {/* Trending Tags */}
-      <section className="mb-6">
+      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold text-foreground">Trends</h2>
           <Link to="/trends" className="text-sm text-primary hover:underline">View all</Link>
@@ -158,10 +158,8 @@ export function RightSidebar() {
         )}
       </section>
 
-      <div className="h-px bg-border mb-6" />
-
       {/* Hot Posts */}
-      <section className="mb-6">
+      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold text-foreground">Hot Posts</h2>
           <Link to="/trends" className="text-sm text-primary hover:underline">More</Link>
@@ -191,10 +189,8 @@ export function RightSidebar() {
         )}
       </section>
 
-      <div className="h-px bg-border mb-6" />
-
       {/* Latest Accounts */}
-      <section className="mb-6">
+      <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-xl font-bold text-foreground">New Accounts</h2>
         </div>
@@ -221,7 +217,7 @@ export function RightSidebar() {
       </section>
 
       {/* Footer */}
-      <footer className="mt-auto pt-4 pb-4 text-left">
+      <footer className="mt-auto pt-4 pb-4 text-left bg-background/85 rounded-xl p-3 -mx-1">
         <p className="text-xs text-muted-foreground">
           Vibed with{' '}
           <a href="https://shakespeare.diy" className="text-primary hover:underline" target="_blank" rel="noopener noreferrer">
