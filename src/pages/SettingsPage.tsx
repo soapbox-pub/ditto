@@ -57,6 +57,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'advanced',
     label: 'Advanced',
     description: 'Wallet, system, and power user settings',
+    illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
 ];
