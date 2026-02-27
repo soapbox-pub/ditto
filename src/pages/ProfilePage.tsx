@@ -725,12 +725,10 @@ export function ProfilePage() {
   // Profile theme: always query (so we can show the indicator), but only apply when enabled
   const { feedSettings } = useFeedSettings();
   const showCustomProfileThemes = feedSettings.showCustomProfileThemes !== false;
-  const profileThemeQuery = useActiveProfileTheme(
-    !isOwnProfile ? pubkey : undefined,
-  );
+  const profileThemeQuery = useActiveProfileTheme(pubkey);
   const profileTheme = profileThemeQuery.data;
   const profileHasTheme = !!profileTheme?.colors;
-  const profileThemeColors = showCustomProfileThemes ? profileTheme?.colors : undefined;
+  const profileThemeColors = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.colors : undefined;
 
   // First-time custom theme info modal
   const [hasSeenThemeInfo, setHasSeenThemeInfo] = useLocalStorage('ditto:seen-profile-theme-info', false);
@@ -740,14 +738,14 @@ export function ProfilePage() {
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
-  const profileThemeFont = showCustomProfileThemes ? profileTheme?.font : undefined;
-  const profileThemeBackground = showCustomProfileThemes ? profileTheme?.background : undefined;
+  const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
+  const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
-  // Whether we need to override the visitor's custom theme on this profile.
-  // When the visited user has no profile theme and the visitor uses a custom theme,
+  // Whether we need to override the custom theme on this profile.
+  // When the profile has no published theme and the user has a custom app theme,
   // fall back to the system-resolved builtin theme (light/dark based on OS preference)
-  // so the profile doesn't appear with the visitor's custom colors.
-  const needsSystemFallback = !isOwnProfile && !profileThemeColors && ownTheme === 'custom';
+  // so the profile doesn't appear with the user's custom colors.
+  const needsSystemFallback = !profileThemeColors && ownTheme === 'custom';
 
   // Determine the effective colors/font/background to apply on this profile:
   // - If the profile has a theme, use it.
