@@ -173,6 +173,125 @@ export const themePresets: Record<string, ThemePreset> = {
     },
     font: { family: 'Lora' },
   },
+
+  skater: {
+    label: 'Skater',
+    emoji: '🛹',
+    featured: true,
+    colors: {
+      background: '0 0% 42%',
+      text: '0 0% 100%',
+      primary: '80 100% 50%',
+    },
+    font: { family: 'Permanent Marker' },
+    background: {
+      url: 'https://blossom.ditto.pub/43540c23a2a895162ee43fbf7299b209a3c13ca15e93540d80339750b18f91b8.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  kawaii: {
+    label: 'Kawaii',
+    emoji: '🌸',
+    featured: true,
+    colors: {
+      background: '351 100% 86%',
+      text: '270 30% 20%',
+      primary: '300 26% 71%',
+    },
+    font: { family: 'Cherry Bomb One' },
+    background: {
+      url: 'https://blossom.ditto.pub/71290063b6b9efeb3b8b1e433c6545636aa0219065d1485e122ffb8db9f9c95d.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  grunge: {
+    label: 'Grunge',
+    emoji: '🖤',
+    featured: true,
+    colors: {
+      background: '276 40% 8%',
+      text: '0 0% 75%',
+      primary: '328 100% 54%',
+    },
+    font: { family: 'Creepster' },
+    background: {
+      url: 'https://blossom.ditto.pub/d3700f9c689dd46f1a812ad895e8e032e74e690f01b3ea873948508846aa317a.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  mspaint: {
+    label: 'MS Paint',
+    emoji: '🖥️',
+    featured: true,
+    colors: {
+      background: '200 20% 95%',
+      text: '0 0% 10%',
+      primary: '240 100% 50%',
+    },
+    font: { family: 'Silkscreen' },
+    background: {
+      url: 'https://blossom.ditto.pub/fdab1aed559419daf3a2c446a0b26685b874bca92bc7d48ee50439e3444ce061.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  retropop: {
+    label: 'Retro Pop',
+    emoji: '💿',
+    featured: true,
+    colors: {
+      background: '260 50% 70%',
+      text: '40 30% 15%',
+      primary: '340 100% 76%',
+    },
+    font: { family: 'Bungee Shade' },
+    background: {
+      url: 'https://blossom.ditto.pub/9202b972513e7392a4afd320890bdc0d7ddee7407973915fd8bfae6864a13dbb.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  bubblegum: {
+    label: 'Bubblegum',
+    emoji: '🍬',
+    featured: true,
+    colors: {
+      background: '328 100% 54%',
+      text: '0 0% 100%',
+      primary: '282 37% 53%',
+    },
+    font: { family: 'Luckiest Guy' },
+    background: {
+      url: 'https://blossom.ditto.pub/13f321714e1cb622f2bbe8e543923f1739e7afe6d9a2378aff28ec51af73be09.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
+
+  gamer: {
+    label: 'Gamer',
+    emoji: '⚡',
+    featured: true,
+    colors: {
+      background: '140 60% 4%',
+      text: '120 100% 50%',
+      primary: '195 100% 50%',
+    },
+    font: { family: 'Press Start 2P' },
+    background: {
+      url: 'https://blossom.ditto.pub/33dbd024d777e36181cdd526c8fbbb6d22e08ced8ac6d1a4976e3c8c687a9f49.webp',
+      mode: 'cover',
+      mimeType: 'image/webp',
+    },
+  },
 };
 
 /** Converts a camelCase key to a CSS custom property name, e.g. primaryForeground → --primary-foreground */

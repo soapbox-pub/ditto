@@ -118,7 +118,6 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
               </a>
             </Button>
           </div>
-          {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
           <div className="px-4 pb-4">
             <audio controls preload="metadata" className="w-full">
               <source src={url} type={mime} />

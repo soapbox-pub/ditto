@@ -98,6 +98,55 @@ export const bundledFonts: BundledFont[] = [
     },
     cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/comic-relief@latest/latin-400-normal.woff2',
   },
+  {
+    family: 'Permanent Marker',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/permanent-marker/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/permanent-marker@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Cherry Bomb One',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/cherry-bomb-one/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/cherry-bomb-one@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Creepster',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/creepster/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/creepster@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Silkscreen',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/silkscreen/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/silkscreen@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Bungee Shade',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/bungee-shade/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/bungee-shade@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Luckiest Guy',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/luckiest-guy/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/luckiest-guy@latest/latin-400-normal.woff2',
+  },
+  {
+    family: 'Press Start 2P',
+    category: 'display',
+    variable: false,
+    load: () => import('@fontsource/press-start-2p/400.css').then(() => {}),
+    cdnUrl: 'https://cdn.jsdelivr.net/fontsource/fonts/press-start-2p@latest/latin-400-normal.woff2',
+  },
 ];
 
 /** Map from lowercase family name to BundledFont for quick lookup. */
