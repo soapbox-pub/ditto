@@ -40,12 +40,14 @@ import { EmojifiedText } from '@/components/CustomEmoji';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
+import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { useTheme } from '@/hooks/useTheme';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
+import { hslStringToHex } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
 import type { FeedItem } from '@/lib/feedUtils';
 import type { NostrEvent } from '@nostrify/nostrify';
@@ -736,6 +738,11 @@ export function ProfilePage() {
   const { updateFeedSettings } = useFeedSettings();
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
 
+  // Own-profile share theme prompt
+  const { setActiveTheme, isPending: isPublishingTheme } = usePublishTheme();
+  const [shareThemeOpen, setShareThemeOpen] = useState(false);
+  const [dismissedShareTheme, setDismissedShareTheme] = useLocalStorage('ditto:dismissed-share-theme-prompt', false);
+
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
@@ -746,6 +753,9 @@ export function ProfilePage() {
   // fall back to the system-resolved builtin theme (light/dark based on OS preference)
   // so the profile doesn't appear with the user's custom colors.
   const needsSystemFallback = !profileThemeColors && ownTheme === 'custom';
+
+  // Show share-theme prompt on own profile when user has a custom theme but no published profile theme
+  const showShareThemePrompt = isOwnProfile && ownTheme === 'custom' && ownCustomTheme && !profileHasTheme && !dismissedShareTheme;
 
   // Determine the effective colors/font/background to apply on this profile:
   // - If the profile has a theme, use it.
@@ -1110,6 +1120,32 @@ export function ProfilePage() {
                 </TooltipContent>
               </Tooltip>
             )}
+
+            {/* Share theme prompt — own profile, custom theme, no profile theme published */}
+            {showShareThemePrompt && ownCustomTheme && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="absolute top-3 right-3 z-10 size-9 rounded-full border flex items-center justify-center transition-all hover:scale-110"
+                    style={{
+                      backgroundColor: hslStringToHex(ownCustomTheme.colors.primary),
+                      borderColor: hslStringToHex(ownCustomTheme.colors.primary),
+                    }}
+                    onClick={() => setShareThemeOpen(true)}
+                  >
+                    {/* Continuous pulse ring themed to custom primary */}
+                    <span
+                      className="absolute inset-0 rounded-full animate-pulse-slow"
+                      style={{ backgroundColor: hslStringToHex(ownCustomTheme.colors.primary) }}
+                    />
+                    <Palette className="size-4 relative" style={{ color: hslStringToHex(ownCustomTheme.colors.background) }} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Apply your theme to your profile
+                </TooltipContent>
+              </Tooltip>
+            )}
           </div>
 
           {/* Profile info */}
@@ -1398,6 +1434,67 @@ export function ProfilePage() {
                   Content Settings
                 </Link>.
               </p>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Share theme to profile prompt — own profile, styled with the user's custom theme */}
+        <Dialog open={shareThemeOpen} onOpenChange={setShareThemeOpen}>
+          <DialogContent
+            className="sm:max-w-md rounded-2xl bg-background text-foreground border-border"
+            style={ownCustomTheme ? Object.fromEntries(
+              Object.entries(coreToTokens(ownCustomTheme.colors)).map(([k, v]) => [toThemeVar(k), v]),
+            ) : undefined}
+          >
+            <DialogHeader>
+              <DialogTitle className="text-lg">Share Your Theme</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                You have a custom theme, but it's not visible on your profile yet. Would you like to apply it so others can see it when they visit?
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Theme preview swatches */}
+            {ownCustomTheme && (
+              <div className="flex items-center justify-center gap-3 py-2">
+                {(['primary', 'text', 'background'] as const).map((key) => (
+                  <div key={key} className="flex flex-col items-center gap-1.5">
+                    <div
+                      className="size-10 rounded-full border border-border/50 shadow-sm"
+                      style={{ backgroundColor: `hsl(${ownCustomTheme.colors[key]})` }}
+                    />
+                    <span className="text-[10px] text-muted-foreground capitalize">{key}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                onClick={async () => {
+                  if (!ownCustomTheme) return;
+                  try {
+                    await setActiveTheme({ themeConfig: ownCustomTheme });
+                    setShareThemeOpen(false);
+                  } catch {
+                    // Error is handled by the publish hook
+                  }
+                }}
+                disabled={isPublishingTheme}
+              >
+                {isPublishingTheme ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : null}
+                Yes, apply my theme
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setDismissedShareTheme(true);
+                  setShareThemeOpen(false);
+                }}
+              >
+                No thanks
+              </Button>
             </div>
           </DialogContent>
         </Dialog>
