@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { IntroImage } from '@/components/IntroImage';
@@ -82,35 +82,60 @@ export function SettingsPage() {
           <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <SettingsIcon className="size-5" />
           <h1 className="font-bold text-xl">Settings</h1>
         </div>
       </div>
 
+      {/* Codex heading + exposition */}
+      <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
+        <p className="text-xs text-muted-foreground leading-relaxed select-none">
+          Shape your identity, tune your feed, and manage how you connect to the Nostr network. Everything you need to make this place feel like yours.
+        </p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/40 select-none pt-6">Codex of Configuration</p>
+      </div>
+
+      {/* Tome ornament */}
+      <div className="flex items-center gap-3 px-6 pb-5">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
+        <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
+      </div>
+
       {/* Settings menu */}
-      <div className="px-4 space-y-2">
-        {visibleSections.map((section) => {
+      <div className="px-4 space-y-1">
+        {visibleSections.map((section, i) => {
           return (
-            <div
-              key={section.id}
-              className="flex items-center gap-4 px-3 py-1 cursor-pointer rounded-xl bg-muted/40 transition-colors hover:bg-muted/60 active:bg-muted/80"
-              onClick={() => navigate(section.path)}
-            >
-              <div className="flex items-center justify-center size-20 shrink-0">
-                {section.illustration && (
-                  <IntroImage src={section.illustration} size="w-22" />
-                )}
+            <div key={section.id}>
+              <div
+                className="flex items-center gap-4 px-3 py-2 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
+                onClick={() => navigate(section.path)}
+              >
+                <div className="flex items-center justify-center size-20 shrink-0">
+                  {section.illustration && (
+                    <IntroImage src={section.illustration} size="w-22" />
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{section.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {section.description}
+                  </p>
+                </div>
+                <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold">{section.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {section.description}
-                </p>
-              </div>
-              <ChevronRight className="size-5 text-muted-foreground shrink-0" />
+              {i < visibleSections.length - 1 && (
+                <div className="mx-6 h-px bg-primary/10" />
+              )}
             </div>
           );
         })}
+      </div>
+
+      {/* Bottom ornament */}
+      <div className="flex items-center gap-3 px-6 pt-4 pb-6">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
+        <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
     </main>
   );
