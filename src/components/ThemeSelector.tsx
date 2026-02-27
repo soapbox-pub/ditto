@@ -275,9 +275,12 @@ export function ThemeSelector() {
         {/* Background */}
         <BackgroundPicker />
 
-        {/* Auto-share toggle */}
-        {user && (
-          <div className="flex items-center justify-between pt-1">
+      </div>
+
+      {/* ── Auto-share toggle ── */}
+      {user && (
+        <div className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
             <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
               <span className="text-sm font-medium">Share theme on your profile</span>
               <span className="text-xs text-muted-foreground font-normal">
@@ -290,8 +293,8 @@ export function ThemeSelector() {
               onCheckedChange={setAutoShareTheme}
             />
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }
