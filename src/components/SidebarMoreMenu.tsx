@@ -25,7 +25,7 @@ export function SidebarMoreMenu({
     return (
       <button
         onClick={onDoneEditing}
-        className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10"
+        className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-primary font-medium hover:bg-primary/10 bg-background/85"
       >
         <Check className="size-4" />
         <span>Done editing</span>
@@ -36,7 +36,7 @@ export function SidebarMoreMenu({
   return (
     <DropdownMenu open={open} onOpenChange={onOpenChange}>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40">
+        <button className="flex items-center gap-4 px-4 py-2.5 rounded-full transition-colors text-sm text-muted-foreground/60 hover:text-muted-foreground hover:bg-secondary/40 bg-background/85">
           <Plus className="size-4" />
           <span>More...</span>
         </button>
