@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
 import { Blocks } from 'lucide-react';
-import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { KindFeedPage } from '@/pages/KindFeedPage';
 import { WebxdcUploadDialog } from '@/components/WebxdcUploadDialog';
 
@@ -13,14 +12,13 @@ export function WebxdcFeedPage() {
     setUploadOpen(true);
   }, []);
 
-  useLayoutOptions({ showFAB: true, fabKind: 1063, onFabClick: handleFabClick });
-
   return (
     <KindFeedPage
       kind={1063}
       title="Webxdc"
       icon={<Blocks className="size-5" />}
       tagFilters={TAG_FILTERS}
+      onFabClick={handleFabClick}
       emptyMessage="No webxdc apps found yet. Check your relay connections or try again later."
       extra={<WebxdcUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />}
     />

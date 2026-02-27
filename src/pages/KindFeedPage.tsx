@@ -24,9 +24,11 @@ interface KindFeedPageProps {
   tagFilters?: Record<string, string[]>;
   /** Extra content rendered after the feed header (e.g. a custom compose dialog). */
   extra?: React.ReactNode;
+  /** If set, overrides the default FAB click behavior. */
+  onFabClick?: () => void;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra, onFabClick }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -39,7 +41,7 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
     description: `${title} on Nostr`,
   });
 
-  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref });
+  useLayoutOptions({ showFAB: true, fabKind: primaryKind, fabHref, onFabClick });
 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
