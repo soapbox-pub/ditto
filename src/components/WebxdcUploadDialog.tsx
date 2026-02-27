@@ -122,6 +122,9 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       const uuid = crypto.randomUUID();
       tags.push(['webxdc', uuid]);
 
+      // App icon thumbnail
+      if (iconUrl) tags.push(['image', iconUrl]);
+
       await createEvent({
         kind: 1063,
         content: description || (appName ? `${appName}` : ''),
