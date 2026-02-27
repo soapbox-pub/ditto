@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2 } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -46,7 +46,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors, type ThemeConfig } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -746,7 +746,7 @@ export function ProfilePage() {
   const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
 
   // Temporarily apply the visited user's theme globally while on their profile
-  const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes } = useTheme();
+  const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
   const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
@@ -1099,8 +1099,8 @@ export function ProfilePage() {
 
             {/* Custom theme indicator — shown when profile has a theme (active or disabled) */}
             {profileHasTheme && !isOwnProfile && (
-              <Tooltip>
-                <TooltipTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     className={cn(
                       'absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border flex items-center justify-center transition-colors',
@@ -1108,21 +1108,6 @@ export function ProfilePage() {
                         ? 'bg-background/60 border-border/50 hover:bg-background/80'
                         : 'bg-background/40 border-border/30 hover:bg-background/60',
                     )}
-                    onClick={async () => {
-                      if (!hasSeenThemeInfo) {
-                        // First time: show info modal, mark as seen
-                        setThemeInfoOpen(true);
-                        setHasSeenThemeInfo(true);
-                      } else {
-                        // Subsequent: just toggle
-                        const newVal = !showCustomProfileThemes;
-                        updateFeedSettings({ showCustomProfileThemes: newVal });
-                        if (user) {
-                          const updated = { ...feedSettings, showCustomProfileThemes: newVal };
-                          await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
-                        }
-                      }
-                    }}
                   >
                     {/* 3-burst pulse ring */}
                     <span className={cn(
@@ -1138,13 +1123,49 @@ export function ProfilePage() {
                       <span className="absolute -top-0.5 -right-0.5 size-3 rounded-full bg-red-500 border-2 border-background" />
                     )}
                   </button>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  {showCustomProfileThemes
-                    ? 'Viewing custom theme — click to disable'
-                    : 'Custom theme available — click to enable'}
-                </TooltipContent>
-              </Tooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="w-48">
+                  <DropdownMenuItem
+                    onClick={async () => {
+                      if (!hasSeenThemeInfo) {
+                        setThemeInfoOpen(true);
+                        setHasSeenThemeInfo(true);
+                      } else {
+                        const newVal = !showCustomProfileThemes;
+                        updateFeedSettings({ showCustomProfileThemes: newVal });
+                        if (user) {
+                          const updated = { ...feedSettings, showCustomProfileThemes: newVal };
+                          await encryptedUpdateSettings.mutateAsync({ feedSettings: updated });
+                        }
+                      }
+                    }}
+                    className="cursor-pointer"
+                  >
+                    {showCustomProfileThemes ? (
+                      <EyeOff className="size-4 mr-2" />
+                    ) : (
+                      <Eye className="size-4 mr-2" />
+                    )}
+                    {showCustomProfileThemes ? 'Hide Theme' : 'Show Theme'}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      if (!profileTheme) return;
+                      const themeConfig: ThemeConfig = {
+                        colors: profileTheme.colors,
+                        font: profileTheme.font,
+                        background: profileTheme.background,
+                      };
+                      applyCustomTheme(themeConfig);
+                      toast({ title: 'Theme applied', description: 'This profile\'s theme is now your app theme.' });
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <Copy className="size-4 mr-2" />
+                    Copy Theme
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Share theme prompt — own profile, custom theme, no profile theme published or differs */}
@@ -1318,18 +1339,7 @@ export function ProfilePage() {
                 </div>
               )}
 
-              {/* Profile theme indicator + copy button */}
-              {profileThemeColors && !isOwnProfile && (
-                <div className="mt-3 flex items-center gap-2">
-                  <Link
-                    to={`/settings/theme?import=${pubkey}`}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                  >
-                    <Palette className="size-3.5" />
-                    Copy Theme
-                  </Link>
-                </div>
-              )}
+
             </>
           )}
         </div>
