@@ -144,7 +144,7 @@ export function LeftSidebar() {
         <div className="pt-2">
           <Popover open={accountPopoverOpen} onOpenChange={setAccountPopoverOpen}>
             <PopoverTrigger asChild>
-              <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left">
+              <button className="flex items-center gap-3 p-3 rounded-full hover:bg-secondary/60 transition-colors cursor-pointer w-full text-left bg-background/85">
                 {isProfileLoading ? (
                   <Skeleton className="size-10 shrink-0 rounded-full" />
                 ) : (
