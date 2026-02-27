@@ -1,18 +1,12 @@
-import { useMemo, useCallback, useState } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { useMemo, useCallback } from 'react';
+import { Check } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
-import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { useActiveProfileTheme } from '@/hooks/useActiveProfileTheme';
-import { usePublishTheme } from '@/hooks/usePublishTheme';
 import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
-import { useToast } from '@/hooks/useToast';
 import { cn } from '@/lib/utils';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -114,34 +108,6 @@ function ThemePreviewCard({
 
 export function ThemeSelector() {
   const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
-  const { user } = useCurrentUser();
-  const activeProfileTheme = useActiveProfileTheme(user?.pubkey);
-  const { setActiveTheme, clearActiveTheme } = usePublishTheme();
-  const { toast } = useToast();
-  const [isSharing, setIsSharing] = useState(false);
-
-  /** Whether the user has an active profile theme published. */
-  const isShared = !!activeProfileTheme.data;
-
-  /** Toggle sharing the theme to others via kind 16767. */
-  const handleShareToggle = useCallback(async (checked: boolean) => {
-    if (!user) return;
-    setIsSharing(true);
-    try {
-      if (checked) {
-        const colors = getEffectiveColors(theme, customTheme, themes);
-        await setActiveTheme({ themeConfig: customTheme ?? { colors } });
-        toast({ title: 'Theme shared', description: 'Your theme is now visible on your profile.' });
-      } else {
-        await clearActiveTheme();
-        toast({ title: 'Theme hidden', description: 'Your theme is no longer visible on your profile.' });
-      }
-    } catch {
-      toast({ title: 'Failed to update', description: 'Could not update your theme visibility.', variant: 'destructive' });
-    } finally {
-      setIsSharing(false);
-    }
-  }, [user, theme, customTheme, themes, setActiveTheme, clearActiveTheme, toast]);
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -304,27 +270,6 @@ export function ThemeSelector() {
 
         {/* Background */}
         <BackgroundPicker />
-
-        {/* Share toggle */}
-        {user && (
-          <div className="flex items-center justify-between pt-1">
-            <Label htmlFor="share-theme" className="flex flex-col gap-1 cursor-pointer">
-              <span className="text-sm font-medium">Display my theme to others</span>
-              <span className="text-xs text-muted-foreground font-normal">
-                Share your current theme on your profile
-              </span>
-            </Label>
-            {isSharing ? (
-              <Loader2 className="size-4 animate-spin text-muted-foreground" />
-            ) : (
-              <Switch
-                id="share-theme"
-                checked={isShared}
-                onCheckedChange={handleShareToggle}
-              />
-            )}
-          </div>
-        )}
       </div>
     </div>
   );
