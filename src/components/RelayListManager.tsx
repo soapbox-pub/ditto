@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { IntroImage } from '@/components/IntroImage';
 import { Plus, X, Wifi, Settings, Server, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -217,11 +218,7 @@ export function RelayListManager() {
     <div>
       {/* Intro */}
       <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-        <img
-          src="/relay-intro.png"
-          alt=""
-          className="w-40 shrink-0 mix-blend-difference opacity-80"
-        />
+        <IntroImage src="/relay-intro.png" />
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">Network Connections</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
