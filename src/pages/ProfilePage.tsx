@@ -5,11 +5,12 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2 } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -1172,21 +1173,26 @@ export function ProfilePage() {
               </Tooltip>
             )}
 
-            {/* Remove theme button — own profile, profile theme is in sync or on non-custom theme */}
+            {/* Remove theme dropdown — own profile, profile theme is in sync or on non-custom theme */}
             {showRemoveThemeButton && (
-              <Tooltip>
-                <TooltipTrigger asChild>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <button
                     className="absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border bg-background/60 border-border/50 hover:bg-background/80 flex items-center justify-center transition-colors"
-                    onClick={() => setRemoveThemeOpen(true)}
                   >
                     <Palette className="size-4 text-accent" />
                   </button>
-                </TooltipTrigger>
-                <TooltipContent side="left">
-                  Remove your profile theme
-                </TooltipContent>
-              </Tooltip>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="w-44">
+                  <DropdownMenuItem
+                    onClick={() => setRemoveThemeOpen(true)}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Remove Theme
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
           </div>
 
