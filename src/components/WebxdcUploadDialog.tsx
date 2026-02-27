@@ -133,7 +133,7 @@ export function WebxdcUploadDialog({ open, onOpenChange }: WebxdcUploadDialogPro
       });
 
       toast({ title: 'Published', description: `${appName ?? 'Webxdc app'} shared successfully.` });
-      queryClient.invalidateQueries({ queryKey: ['webxdc-feed'] });
+      queryClient.invalidateQueries({ queryKey: ['feed'] });
       handleOpenChange(false);
     } catch {
       toast({ title: 'Publish failed', description: 'Could not publish the webxdc app.', variant: 'destructive' });
