@@ -1,7 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft, Bell, ChevronRight, Palette, Settings as SettingsIcon, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { IntroImage } from '@/components/IntroImage';
 
@@ -101,28 +100,26 @@ export function SettingsPage() {
         {visibleSections.map((section) => {
           const Icon = section.icon;
           return (
-            <Card
+            <div
               key={section.id}
-              className="cursor-pointer transition-colors hover:bg-muted/40 active:bg-muted/60"
+              className="flex items-center gap-4 px-2 py-3 cursor-pointer rounded-lg transition-colors hover:bg-muted/40 active:bg-muted/60"
               onClick={() => navigate(section.path)}
             >
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex items-center justify-center size-10 rounded-full bg-secondary shrink-0">
-                  {section.illustration ? (
-                    <IntroImage src={section.illustration} size="w-7" />
-                  ) : Icon ? (
-                    <Icon className="size-5 text-muted-foreground" />
-                  ) : null}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{section.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {section.description}
-                  </p>
-                </div>
-                <ChevronRight className="size-5 text-muted-foreground shrink-0" />
-              </CardContent>
-            </Card>
+              <div className="flex items-center justify-center size-12 shrink-0">
+                {section.illustration ? (
+                  <IntroImage src={section.illustration} size="w-12" />
+                ) : Icon ? (
+                  <Icon className="size-7 text-primary opacity-90" />
+                ) : null}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{section.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {section.description}
+                </p>
+              </div>
+              <ChevronRight className="size-5 text-muted-foreground shrink-0" />
+            </div>
           );
         })}
       </div>
