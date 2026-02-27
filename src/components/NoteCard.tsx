@@ -421,7 +421,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       <article
         className={cn(
           'px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
-          threaded ? 'pb-0' : 'pb-3',
+          threaded ? 'pb-0' : 'pb-3 border-b border-border',
           className,
         )}
         onClick={handleCardClick}
