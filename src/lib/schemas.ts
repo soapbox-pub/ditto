@@ -167,6 +167,7 @@ export const FeedSettingsSchema = z.looseObject({
 export const AppConfigSchema = z.object({
   theme: ThemeSchemaCompat,
   customTheme: ThemeConfigCompatSchema.optional(),
+  autoShareTheme: z.boolean(),
   themes: ThemesConfigSchema.optional(),
   relayMetadata: RelayMetadataSchema,
   useAppRelays: z.boolean(),
@@ -229,6 +230,7 @@ export const ContentFilterSchema = z.object({
 export const EncryptedSettingsSchema = z.looseObject({
   theme: ThemeSchemaCompat.optional(),
   customTheme: ThemeConfigCompatSchema.optional(),
+  autoShareTheme: z.boolean().optional(),
   useAppRelays: z.boolean().optional(),
   feedSettings: FeedSettingsSchema.optional(),
   contentFilters: z.array(ContentFilterSchema).optional(),
