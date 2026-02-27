@@ -104,7 +104,9 @@ export function LeftSidebar() {
       {/* Logo */}
       <div className="flex items-center px-3 mb-1">
         <Link to="/" onClick={scrollToTopIfCurrent('/')}>
-          <DittoLogo size={48} />
+          <div className="bg-background/85 rounded-full">
+            <DittoLogo size={48} />
+          </div>
         </Link>
       </div>
 

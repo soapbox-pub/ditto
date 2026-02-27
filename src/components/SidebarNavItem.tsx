@@ -69,7 +69,7 @@ export function SidebarNavItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn('flex items-center rounded-full transition-colors relative', isDragging && 'z-10 opacity-80 shadow-lg bg-background')}
+      className={cn('flex items-center rounded-full transition-colors relative bg-background/85', isDragging && 'z-10 opacity-80 shadow-lg')}
     >
       {editing && (
         <button
