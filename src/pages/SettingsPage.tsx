@@ -107,12 +107,12 @@ export function SettingsPage() {
       </div>
 
       {/* Settings menu */}
-      <div className="px-4 space-y-1">
+      <div className="px-4">
         {visibleSections.map((section, i) => {
           return (
             <div key={section.id}>
               <div
-                className="flex items-center gap-4 px-3 py-2 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
+                className="flex items-center gap-4 px-3 py-2 my-1 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
                 onClick={() => navigate(section.path)}
               >
                 <div className="flex items-center justify-center size-20 shrink-0">
