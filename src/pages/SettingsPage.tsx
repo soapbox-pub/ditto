@@ -1,14 +1,15 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, ChevronRight, LayoutList, Palette, Server, Settings as SettingsIcon, User, Wallet } from 'lucide-react';
+import { ArrowLeft, ChevronRight } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { IntroImage } from '@/components/IntroImage';
+import { useLayoutOptions } from '@/contexts/LayoutContext';
 
 export interface SettingsSection {
   id: string;
   label: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  illustration?: string;
   path: string;
   requiresAuth?: boolean;
 }
@@ -18,7 +19,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'profile',
     label: 'Profile',
     description: 'Edit your display name, bio, and avatar',
-    icon: User,
+    illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
@@ -26,37 +27,37 @@ export const settingsSections: SettingsSection[] = [
     id: 'theme',
     label: 'Theme',
     description: 'Choose a theme for the interface',
-    icon: Palette,
+    illustration: '/theme-intro.png',
     path: '/settings/theme',
   },
   {
     id: 'content',
     label: 'Content',
     description: 'Manage your feed and content preferences',
-    icon: LayoutList,
+    illustration: '/community-intro.png',
     path: '/settings/content',
   },
   {
-    id: 'wallet',
-    label: 'Wallet',
-    description: 'Manage wallet connections and payments',
-    icon: Wallet,
-    path: '/settings/wallet',
+    id: 'network',
+    label: 'Network',
+    description: 'Relays and file upload servers',
+    illustration: '/relay-intro.png',
+    path: '/settings/network',
     requiresAuth: true,
   },
   {
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
-    icon: Bell,
+    illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
   {
     id: 'advanced',
     label: 'Advanced',
-    description: 'Relays, upload servers, and system settings',
-    icon: Server,
+    description: 'Wallet, system, and power user settings',
+    illustration: '/advanced-intro.png',
     path: '/settings/advanced',
   },
 ];
@@ -64,6 +65,7 @@ export const settingsSections: SettingsSection[] = [
 export function SettingsPage() {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
+  useLayoutOptions({ noBottomSpacer: true });
 
   useSeoMeta({
     title: 'Settings | Ditto',
@@ -75,38 +77,48 @@ export function SettingsPage() {
   );
 
   return (
-    <main className="min-h-screen">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+    <main
+      className="relative min-h-screen isolate pb-16 sidebar:pb-0"
+      style={{ background: 'radial-gradient(ellipse 100% 300px at 50% 0%, hsl(var(--primary) / 0.06), transparent), radial-gradient(ellipse 100% 300px at 50% 100%, hsl(var(--primary) / 0.06), transparent)' }}
+    >
+      {/* Page header */}
+      <div className="px-4 py-3.5 sidebar:py-5">
+        <div className="flex items-center gap-2">
+          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <SettingsIcon className="size-5" />
-              <h1 className="text-xl font-bold">Settings</h1>
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Customize your experience
-            </p>
-          </div>
+          <h1 className="font-bold text-xl">Settings</h1>
         </div>
       </div>
 
+      {/* Codex heading + exposition */}
+      <div className="px-7 pb-4 pt-4 text-center space-y-2.5">
+        <p className="text-xs text-muted-foreground leading-relaxed select-none">
+          Shape your identity, tune your feed, and manage how you connect to the Nostr network.<br />Everything you need to make this place feel like yours.
+        </p>
+        <p className="text-[10px] tracking-[0.5em] uppercase text-primary/40 select-none pt-6">Codex of Configuration</p>
+      </div>
+
+      {/* Tome ornament */}
+      <div className="flex items-center gap-3 px-6 pb-5">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/40 to-primary/60" />
+        <span className="text-primary/50 text-xs tracking-[0.3em] select-none">✦</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/40 to-primary/60" />
+      </div>
+
       {/* Settings menu */}
-      <div className="p-4 space-y-2">
-        {visibleSections.map((section) => {
-          const Icon = section.icon;
+      <div className="px-4">
+        {visibleSections.map((section, i) => {
           return (
-            <Card
-              key={section.id}
-              className="cursor-pointer transition-colors hover:bg-muted/40 active:bg-muted/60"
-              onClick={() => navigate(section.path)}
-            >
-              <CardContent className="flex items-center gap-4 p-4">
-                <div className="flex items-center justify-center size-10 rounded-full bg-secondary shrink-0">
-                  <Icon className="size-5 text-muted-foreground" />
+            <div key={section.id}>
+              <div
+                className="flex items-center gap-4 px-3 py-2 my-1 cursor-pointer rounded-xl transition-colors hover:bg-muted/60 active:bg-muted/80 group"
+                onClick={() => navigate(section.path)}
+              >
+                <div className="flex items-center justify-center size-20 shrink-0">
+                  {section.illustration && (
+                    <IntroImage src={section.illustration} size="w-22" />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{section.label}</p>
@@ -114,11 +126,21 @@ export function SettingsPage() {
                     {section.description}
                   </p>
                 </div>
-                <ChevronRight className="size-5 text-muted-foreground shrink-0" />
-              </CardContent>
-            </Card>
+                <ChevronRight className="size-4 text-primary/40 shrink-0 group-hover:text-primary/70 transition-colors" />
+              </div>
+              {i < visibleSections.length - 1 && (
+                <div className="mx-6 h-px bg-primary/10" />
+              )}
+            </div>
           );
         })}
+      </div>
+
+      {/* Bottom ornament */}
+      <div className="flex items-center gap-3 px-6 pt-4 pb-6">
+        <div className="h-px flex-1 bg-gradient-to-r from-transparent via-primary/20 to-primary/30" />
+        <span className="text-primary/30 text-[10px] tracking-[0.4em] select-none">◆</span>
+        <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
     </main>
   );
