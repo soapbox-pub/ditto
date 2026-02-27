@@ -27,12 +27,8 @@ interface FileMetadataContentProps {
 /**
  * Renders the content of a NIP-94 (kind 1063) file metadata event.
  *
- * Dispatches based on the `m` (MIME type) tag:
- * - `application/x-webxdc` → WebxdcEmbed
- * - `image/*` → ImageGallery
- * - `video/*` → VideoPlayer
- * - `audio/*` → styled audio player
- * - fallback → download card
+ * Each MIME type is wrapped in a cohesive card with the media as the
+ * hero element and the description as a footer section below.
  */
 export function FileMetadataContent({ event, compact }: FileMetadataContentProps) {
   const url = getTag(event.tags, 'url');
@@ -56,16 +52,22 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   if (mime === 'application/x-webxdc') {
     const appName = altText?.replace(/^Webxdc app:\s*/i, '') ?? summary ?? fileName.replace('.xdc', '');
     return (
-      <div className="mt-3">
-        <WebxdcEmbed
-          url={url}
-          uuid={webxdcId}
-          name={appName}
-          icon={thumb}
-        />
+      <div className="mt-3 rounded-2xl border border-border overflow-hidden">
+        <div className="p-3 pb-0">
+          <WebxdcEmbed
+            url={url}
+            uuid={webxdcId}
+            name={appName}
+            icon={thumb}
+            className="!mt-0 !border-0 !rounded-xl"
+          />
+        </div>
         {description && (
-          <p className="text-[15px] leading-relaxed mt-2.5">{description}</p>
+          <div className="px-4 py-3">
+            <p className="text-[15px] leading-relaxed">{description}</p>
+          </div>
         )}
+        {!description && <div className="h-3" />}
       </div>
     );
   }
@@ -75,27 +77,42 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
     const imetaMap = (dim || blurhash)
       ? new Map([[url, { dim, blurhash }]])
       : undefined;
+
+    // No description → just render the image directly, no card wrapper
+    if (!description || compact) {
+      return (
+        <div className="mt-3">
+          <ImageGallery images={[url]} imetaMap={imetaMap} />
+        </div>
+      );
+    }
+
     return (
-      <div className="mt-3">
-        <ImageGallery
-          images={[url]}
-          imetaMap={imetaMap}
-        />
-        {description && !compact && (
-          <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
-        )}
+      <div className="mt-3 rounded-2xl border border-border overflow-hidden">
+        <ImageGallery images={[url]} imetaMap={imetaMap} />
+        <div className="px-4 py-3">
+          <p className="text-[15px] leading-relaxed">{description}</p>
+        </div>
       </div>
     );
   }
 
   // ── Video ───────────────────────────────────────────────────────────
   if (mime.startsWith('video/')) {
+    if (!description || compact) {
+      return (
+        <div className="mt-3">
+          <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} />
+        </div>
+      );
+    }
+
     return (
-      <div className="mt-3">
+      <div className="mt-3 rounded-2xl border border-border overflow-hidden">
         <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} />
-        {description && !compact && (
-          <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
-        )}
+        <div className="px-4 py-3">
+          <p className="text-[15px] leading-relaxed">{description}</p>
+        </div>
       </div>
     );
   }
@@ -104,8 +121,8 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   if (mime.startsWith('audio/')) {
     const trackName = altText ?? fileName;
     return (
-      <div className="mt-3 rounded-2xl border border-border bg-secondary/30 overflow-hidden">
-        <div className="flex items-center gap-3 p-4">
+      <div className="mt-3 rounded-2xl border border-border overflow-hidden">
+        <div className="flex items-center gap-3 p-4 pb-3">
           <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 shrink-0">
             <Music className="size-6 text-primary" />
           </div>
@@ -122,12 +139,14 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
           </Button>
         </div>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio controls preload="metadata" className="w-full px-4 pb-4">
-          <source src={url} type={mime} />
-        </audio>
+        <div className="px-4 pb-4">
+          <audio controls preload="metadata" className="w-full">
+            <source src={url} type={mime} />
+          </audio>
+        </div>
         {description && (
-          <div className="px-4 pb-4 -mt-1">
-            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+          <div className="px-4 pb-4 -mt-1 border-t border-border pt-3">
+            <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
           </div>
         )}
       </div>
@@ -139,28 +158,28 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   const mimeLabel = mime ? mime.split('/').pop()?.toUpperCase() : undefined;
 
   return (
-    <div className="mt-3">
-      <div className="rounded-2xl border border-border bg-secondary/30 overflow-hidden">
-        <div className="flex items-center gap-3.5 p-4">
-          <div className="flex items-center justify-center size-12 rounded-xl bg-muted shrink-0">
-            <FileIcon className="size-6 text-muted-foreground" />
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold truncate">{displayName}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {[mimeLabel, sizeStr].filter(Boolean).join(' · ') || 'File'}
-            </p>
-          </div>
-          <Button variant="outline" size="sm" className="shrink-0 rounded-full gap-1.5" asChild>
-            <a href={url} download>
-              <Download className="size-3.5" />
-              Download
-            </a>
-          </Button>
+    <div className="mt-3 rounded-2xl border border-border overflow-hidden">
+      <div className="flex items-center gap-3.5 p-4">
+        <div className="flex items-center justify-center size-12 rounded-xl bg-muted shrink-0">
+          <FileIcon className="size-6 text-muted-foreground" />
         </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{displayName}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {[mimeLabel, sizeStr].filter(Boolean).join(' · ') || 'File'}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" className="shrink-0 rounded-full gap-1.5" asChild>
+          <a href={url} download>
+            <Download className="size-3.5" />
+            Download
+          </a>
+        </Button>
       </div>
       {description && (
-        <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
+        <div className="px-4 pb-4 border-t border-border pt-3">
+          <p className="text-sm leading-relaxed text-muted-foreground">{description}</p>
+        </div>
       )}
     </div>
   );
