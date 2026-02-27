@@ -20,9 +20,13 @@ interface KindFeedPageProps {
   alwaysShowBack?: boolean;
   /** If set, the FAB navigates to this URL instead of opening a compose dialog. */
   fabHref?: string;
+  /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
+  tagFilters?: Record<string, string[]>;
+  /** Extra content rendered after the feed header (e.g. a custom compose dialog). */
+  extra?: React.ReactNode;
 }
 
-export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref }: KindFeedPageProps) {
+export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo = '/', alwaysShowBack, fabHref, tagFilters, extra }: KindFeedPageProps) {
   const primaryKind = Array.isArray(kind) ? kind[0] : kind;
 
   const resolvedDef = useMemo(
@@ -40,22 +44,26 @@ export function KindFeedPage({ kind, title, icon, emptyMessage, kindDef, backTo 
   const kinds = Array.isArray(kind) ? kind : [kind];
 
   return (
-    <Feed
-      kinds={kinds}
-      hideCompose
-      emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
-      header={
-        <div className="flex items-center gap-4 px-4 mt-4 mb-5">
-          <Link to={backTo} className={`p-2 -ml-2 rounded-full hover:bg-secondary transition-colors ${alwaysShowBack ? '' : 'sidebar:hidden'}`}>
-            <ArrowLeft className="size-5" />
-          </Link>
-          <div className="flex items-center gap-2 flex-1 min-w-0">
-            {icon}
-            <h1 className="text-xl font-bold">{title}</h1>
+    <>
+      <Feed
+        kinds={kinds}
+        tagFilters={tagFilters}
+        hideCompose
+        emptyMessage={emptyMessage ?? `No ${title.toLowerCase()} yet. Check back soon!`}
+        header={
+          <div className="flex items-center gap-4 px-4 mt-4 mb-5">
+            <Link to={backTo} className={`p-2 -ml-2 rounded-full hover:bg-secondary transition-colors ${alwaysShowBack ? '' : 'sidebar:hidden'}`}>
+              <ArrowLeft className="size-5" />
+            </Link>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {icon}
+              <h1 className="text-xl font-bold">{title}</h1>
+            </div>
+            {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} />}
           </div>
-          {resolvedDef && <KindInfoButton kindDef={resolvedDef} icon={icon} />}
-        </div>
-      }
-    />
+        }
+      />
+      {extra}
+    </>
   );
 }

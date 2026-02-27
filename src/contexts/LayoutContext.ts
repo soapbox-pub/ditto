@@ -10,6 +10,8 @@ export interface LayoutOptions {
   fabKind?: number;
   /** If set, the FAB navigates to this URL instead of opening a compose dialog. */
   fabHref?: string;
+  /** If set, overrides the default FAB click behavior. */
+  onFabClick?: () => void;
   /** Skip the bottom nav spacer (for pages that handle their own bottom padding) */
   noBottomSpacer?: boolean;
   /** Additional classes for the wrapper div */
@@ -74,6 +76,7 @@ export function useLayoutOptions(options: LayoutOptions): void {
     prev.current.showFAB !== options.showFAB ||
     prev.current.fabKind !== options.fabKind ||
     prev.current.fabHref !== options.fabHref ||
+    prev.current.onFabClick !== options.onFabClick ||
     prev.current.noBottomSpacer !== options.noBottomSpacer ||
     prev.current.wrapperClassName !== options.wrapperClassName ||
     prev.current.rightSidebar !== options.rightSidebar;

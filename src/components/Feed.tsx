@@ -22,6 +22,8 @@ type FeedTab = 'follows' | 'global' | 'communities';
 interface FeedProps {
   /** Override the kinds list instead of using feed settings. */
   kinds?: number[];
+  /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
+  tagFilters?: Record<string, string[]>;
   /** Header element rendered above the tabs (e.g. back-arrow + title). */
   header?: React.ReactNode;
   /** Hide the compose box (used on kind-specific pages). */
@@ -30,7 +32,7 @@ interface FeedProps {
   emptyMessage?: string;
 }
 
-export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {}) {
+export function Feed({ kinds, tagFilters, header, hideCompose, emptyMessage }: FeedProps = {}) {
   const { user } = useCurrentUser();
   const { muteItems } = useMuteList();
   const queryClient = useQueryClient();
@@ -75,7 +77,7 @@ export function Feed({ kinds, header, hideCompose, emptyMessage }: FeedProps = {
   const useTopFeedForLoggedOut = !user && !kinds;
 
   // Standard feed query (used when logged in, or on kind-specific pages)
-  const feedQuery = useFeed(activeTab, kinds ? { kinds } : undefined);
+  const feedQuery = useFeed(activeTab, (kinds || tagFilters) ? { kinds, tagFilters } : undefined);
 
   // "Hot" sorted feed query (used when logged out on the home page)
   const topQuery = useInfiniteSortedPosts('hot', useTopFeedForLoggedOut);
