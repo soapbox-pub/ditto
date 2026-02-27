@@ -4,6 +4,8 @@ import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useAppContext } from '@/hooks/useAppContext';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
 import { themePresets } from '@/themes';
+import { ACTIVE_THEME_KIND, parseActiveProfileTheme } from '@/lib/themeEvent';
+import type { ThemeConfig } from '@/themes';
 
 /**
  * NostrSync - Syncs user's Nostr data
@@ -12,6 +14,7 @@ import { themePresets } from '@/themes';
  * Currently syncs:
  * - NIP-65 relay list (kind 10002)
  * - Encrypted app settings (kind 30078) - theme, feed settings, relay toggle
+ * - Active profile theme (kind 16767) - when autoShareTheme is enabled
  */
 export function NostrSync() {
   const { nostr } = useNostr();
@@ -167,6 +170,56 @@ export function NostrSync() {
       return changed ? updates : current;
     });
   }, [user, encryptedSettings, settingsLoading, updateConfig, recentlyWritten, seededTimestamp]);
+
+  // Sync active profile theme (kind 16767) on pageload when autoShareTheme is enabled.
+  // This pulls in the user's published theme and applies it as the customTheme
+  // without changing the actual theme mode (light/dark/system/custom).
+  const profileThemeSynced = useRef(false);
+
+  useEffect(() => {
+    if (!user || !config.autoShareTheme) return;
+    if (profileThemeSynced.current) return;
+    profileThemeSynced.current = true;
+
+    const controller = new AbortController();
+
+    const syncProfileTheme = async () => {
+      try {
+        const events = await nostr.query(
+          [{ kinds: [ACTIVE_THEME_KIND], authors: [user.pubkey], limit: 1 }],
+          { signal: controller.signal },
+        );
+
+        if (events.length === 0) return;
+
+        const parsed = parseActiveProfileTheme(events[0]);
+        if (!parsed) return;
+
+        // Convert ActiveProfileTheme to ThemeConfig
+        const remoteTheme: ThemeConfig = {
+          colors: parsed.colors,
+          ...(parsed.font && { font: parsed.font }),
+          ...(parsed.background && { background: parsed.background }),
+        };
+
+        // Update customTheme if it differs from what we have locally.
+        // Do NOT change the `theme` value — leave it as light/dark/system/custom.
+        updateConfig((current) => {
+          if (JSON.stringify(current.customTheme) === JSON.stringify(remoteTheme)) {
+            return current;
+          }
+          return { ...current, customTheme: remoteTheme };
+        });
+      } catch (error) {
+        if (error instanceof Error && error.name === 'AbortError') return;
+        console.error('Failed to sync active profile theme:', error);
+      }
+    };
+
+    syncProfileTheme();
+
+    return () => controller.abort();
+  }, [user, config.autoShareTheme, nostr, updateConfig]);
 
   return null;
 }
