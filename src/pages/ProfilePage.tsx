@@ -739,8 +739,9 @@ export function ProfilePage() {
   const { updateSettings: encryptedUpdateSettings } = useEncryptedSettings();
 
   // Own-profile share theme prompt
-  const { setActiveTheme, isPending: isPublishingTheme } = usePublishTheme();
+  const { setActiveTheme, clearActiveTheme, isPending: isPublishingTheme } = usePublishTheme();
   const [shareThemeOpen, setShareThemeOpen] = useState(false);
+  const [removeThemeOpen, setRemoveThemeOpen] = useState(false);
   const [dismissedThemeSnapshot, setDismissedThemeSnapshot] = useLocalStorage<string | null>('ditto:dismissed-share-theme-snapshot', null);
 
   // Temporarily apply the visited user's theme globally while on their profile
@@ -768,6 +769,10 @@ export function ProfilePage() {
   // Suppressed if the user dismissed the prompt for this exact custom theme snapshot.
   const isDismissed = dismissedThemeSnapshot !== null && dismissedThemeSnapshot === ownCustomThemeSnapshot;
   const showShareThemePrompt = isOwnProfile && ownTheme === 'custom' && ownCustomTheme && (!profileHasTheme || profileThemeDiffers) && !isDismissed;
+
+  // Show remove-theme button on own profile when the profile theme is in sync
+  // (custom theme matches published theme, or user is on a non-custom theme with a published theme)
+  const showRemoveThemeButton = isOwnProfile && profileHasTheme && !showShareThemePrompt;
 
   // Determine the effective colors/font/background to apply on this profile:
   // - If the profile has a theme, use it.
@@ -1133,7 +1138,7 @@ export function ProfilePage() {
               </Tooltip>
             )}
 
-            {/* Share theme prompt — own profile, custom theme, no profile theme published */}
+            {/* Share theme prompt — own profile, custom theme, no profile theme published or differs */}
             {showShareThemePrompt && ownCustomTheme && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1155,6 +1160,23 @@ export function ProfilePage() {
                 </TooltipTrigger>
                 <TooltipContent side="left">
                   {profileThemeDiffers ? 'Update your profile theme' : 'Apply your theme to your profile'}
+                </TooltipContent>
+              </Tooltip>
+            )}
+
+            {/* Remove theme button — own profile, profile theme is in sync or on non-custom theme */}
+            {showRemoveThemeButton && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className="absolute top-3 right-3 z-10 size-9 rounded-full backdrop-blur-sm border bg-background/60 border-border/50 hover:bg-background/80 flex items-center justify-center transition-colors"
+                    onClick={() => setRemoveThemeOpen(true)}
+                  >
+                    <Palette className="size-4 text-accent" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="left">
+                  Remove your profile theme
                 </TooltipContent>
               </Tooltip>
             )}
@@ -1508,6 +1530,43 @@ export function ProfilePage() {
                 }}
               >
                 No thanks
+              </Button>
+            </div>
+           </DialogContent>
+        </Dialog>
+
+        {/* Remove profile theme confirmation dialog */}
+        <Dialog open={removeThemeOpen} onOpenChange={setRemoveThemeOpen}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle className="text-lg">Remove Profile Theme</DialogTitle>
+              <DialogDescription className="text-sm text-muted-foreground leading-relaxed">
+                This will remove your custom theme from your profile. Visitors will no longer see it when they visit.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col gap-2 pt-2">
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  try {
+                    await clearActiveTheme();
+                    setRemoveThemeOpen(false);
+                  } catch {
+                    // Error is handled by the publish hook
+                  }
+                }}
+                disabled={isPublishingTheme}
+              >
+                {isPublishingTheme ? (
+                  <Loader2 className="size-4 animate-spin mr-2" />
+                ) : null}
+                Yes, remove it
+              </Button>
+              <Button
+                variant="ghost"
+                onClick={() => setRemoveThemeOpen(false)}
+              >
+                Keep it
               </Button>
             </div>
           </DialogContent>
