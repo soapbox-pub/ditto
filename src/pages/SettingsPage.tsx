@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, ChevronRight, Palette, Settings as SettingsIcon } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { IntroImage } from '@/components/IntroImage';
@@ -27,7 +27,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'theme',
     label: 'Theme',
     description: 'Choose a theme for the interface',
-    icon: Palette,
+    illustration: '/theme-intro.png',
     path: '/settings/theme',
   },
   {
@@ -49,7 +49,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
-    icon: Bell,
+    illustration: '/notification-intro.png',
     path: '/settings/notifications',
     requiresAuth: true,
   },
