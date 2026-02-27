@@ -1,12 +1,14 @@
 interface IntroImageProps {
   src: string;
+  /** Tailwind size class, e.g. "w-40" (default) or "w-10" */
+  size?: string;
   className?: string;
 }
 
-export function IntroImage({ src, className }: IntroImageProps) {
+export function IntroImage({ src, size = 'w-40', className }: IntroImageProps) {
   return (
     <div
-      className={`w-40 shrink-0 bg-primary opacity-90 ${className ?? ''}`}
+      className={`${size} shrink-0 bg-primary opacity-90 ${className ?? ''}`}
       style={{
         maskImage: `url(${src})`,
         maskSize: 'contain',
