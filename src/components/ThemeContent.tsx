@@ -47,7 +47,7 @@ export function ThemeContent({ event }: ThemeContentProps) {
       const title = event.tags.find(([n]) => n === 'title')?.[1];
       return {
         colors: active.colors,
-        title: title ?? 'Active Theme',
+        title: title ?? 'Profile Theme',
         description: undefined as string | undefined,
         identifier: undefined as string | undefined,
         sourceRef: active.sourceRef,
