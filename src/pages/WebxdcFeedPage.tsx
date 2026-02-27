@@ -37,7 +37,7 @@ export function WebxdcFeedPage() {
     description: 'Webxdc apps on Nostr',
   });
 
-  useLayoutOptions({ showFAB: false });
+  useLayoutOptions({ showFAB: true, fabKind: 1 });
 
   const queryClient = useQueryClient();
   const {
