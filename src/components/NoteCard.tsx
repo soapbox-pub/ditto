@@ -362,12 +362,66 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
     </ProfileHoverCard>
   );
 
-  // ── Threaded ancestor layout: avatar-column with connector line + content ──
-  if (threaded) {
+  // ── Shared action buttons (used in all layouts) ──
+  const actionButtons = (
+    <div className="flex items-center gap-5 mt-3 -ml-2">
+      <button
+        className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        title="Reply"
+        onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
+      >
+        <MessageCircle className="size-5" />
+        {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
+      </button>
+
+      <RepostMenu event={event}>
+        {(isReposted: boolean) => (
+          <button
+            className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
+            title={isReposted ? 'Undo repost' : 'Repost'}
+          >
+            <RepostIcon className="size-5" />
+            {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
+          </button>
+        )}
+      </RepostMenu>
+
+      <ReactionButton
+        eventId={event.id}
+        eventPubkey={event.pubkey}
+        eventKind={event.kind}
+        reactionCount={stats?.reactions}
+      />
+
+      {canZapAuthor && (
+        <ZapDialog target={event}>
+          <button
+            className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
+            title="Zap"
+          >
+            <Zap className="size-5" />
+            {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
+          </button>
+        </ZapDialog>
+      )}
+
+      <button
+        className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+        title="More"
+        onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
+      >
+        <MoreHorizontal className="size-5" />
+      </button>
+    </div>
+  );
+
+  // ── Threaded layout (with or without connector line) ──
+  if (threaded || threadedLast) {
     return (
       <article
         className={cn(
-          'px-4 pt-3 pb-0 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          'px-4 pt-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
+          threaded ? 'pb-0' : 'pb-3',
           className,
         )}
         onClick={handleCardClick}
@@ -376,141 +430,12 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
             {avatarElement}
-            <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
+            {threaded && <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />}
           </div>
-          <div className="flex-1 min-w-0 pb-3">
+          <div className={cn('flex-1 min-w-0', threaded && 'pb-3')}>
             {authorInfo}
             {contentBlock}
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-5 mt-3 -ml-2">
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Reply"
-                onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
-              >
-                <MessageCircle className="size-5" />
-                {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
-              </button>
-
-              <RepostMenu event={event}>
-                {(isReposted: boolean) => (
-                  <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
-                    title={isReposted ? 'Undo repost' : 'Repost'}
-                  >
-                    <RepostIcon className="size-5" />
-                    {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-                  </button>
-                )}
-              </RepostMenu>
-
-              <ReactionButton
-                eventId={event.id}
-                eventPubkey={event.pubkey}
-                eventKind={event.kind}
-                reactionCount={stats?.reactions}
-              />
-
-              {canZapAuthor && (
-                <ZapDialog target={event}>
-                  <button
-                    className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                    title="Zap"
-                  >
-                    <Zap className="size-5" />
-                    {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-                  </button>
-                </ZapDialog>
-              )}
-
-              <button
-                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="More"
-                onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-              >
-                <MoreHorizontal className="size-5" />
-              </button>
-            </div>
-
-            <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
-            <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
-          </div>
-        </div>
-      </article>
-    );
-  }
-
-  // ── Threaded-last layout: same column layout as threaded, but no connector line ──
-  if (threadedLast) {
-    return (
-      <article
-        className={cn(
-          'px-4 pt-3 pb-3 hover:bg-secondary/30 transition-colors cursor-pointer overflow-hidden',
-          className,
-        )}
-        onClick={handleCardClick}
-        onAuxClick={handleAuxClick}
-      >
-        <div className="flex gap-3">
-          <div className="flex flex-col items-center">
-            {avatarElement}
-          </div>
-          <div className="flex-1 min-w-0">
-            {authorInfo}
-            {contentBlock}
-
-            {/* Action buttons */}
-            <div className="flex items-center gap-5 mt-3 -ml-2">
-              <button
-                className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="Reply"
-                onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
-              >
-                <MessageCircle className="size-5" />
-                {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
-              </button>
-
-              <RepostMenu event={event}>
-                {(isReposted: boolean) => (
-                  <button
-                    className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
-                    title={isReposted ? 'Undo repost' : 'Repost'}
-                  >
-                    <RepostIcon className="size-5" />
-                    {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-                  </button>
-                )}
-              </RepostMenu>
-
-              <ReactionButton
-                eventId={event.id}
-                eventPubkey={event.pubkey}
-                eventKind={event.kind}
-                reactionCount={stats?.reactions}
-              />
-
-              {canZapAuthor && (
-                <ZapDialog target={event}>
-                  <button
-                    className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                    title="Zap"
-                  >
-                    <Zap className="size-5" />
-                    {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-                  </button>
-                </ZapDialog>
-              )}
-
-              <button
-                className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                title="More"
-                onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-              >
-                <MoreHorizontal className="size-5" />
-              </button>
-            </div>
-
+            {actionButtons}
             <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
             <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
           </div>
@@ -560,56 +485,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       {/* Action buttons — hidden in compact/embed mode */}
       {!compact && (
         <>
-          <div className="flex items-center gap-5 mt-3 -ml-2">
-            <button
-              className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="Reply"
-              onClick={(e) => { e.stopPropagation(); setReplyOpen(true); }}
-            >
-              <MessageCircle className="size-5" />
-              {stats?.replies ? <span className="text-sm tabular-nums">{stats.replies}</span> : null}
-            </button>
-
-            <RepostMenu event={event}>
-              {(isReposted: boolean) => (
-                <button
-                  className={`flex items-center gap-1.5 p-2 rounded-full transition-colors ${isReposted ? 'text-accent hover:text-accent/80 hover:bg-accent/10' : 'text-muted-foreground hover:text-accent hover:bg-accent/10'}`}
-                  title={isReposted ? 'Undo repost' : 'Repost'}
-                >
-                  <RepostIcon className="size-5" />
-                  {(stats?.reposts || stats?.quotes) ? <span className="text-sm tabular-nums">{(stats?.reposts ?? 0) + (stats?.quotes ?? 0)}</span> : null}
-                </button>
-              )}
-            </RepostMenu>
-
-            <ReactionButton
-              eventId={event.id}
-              eventPubkey={event.pubkey}
-              eventKind={event.kind}
-              reactionCount={stats?.reactions}
-            />
-
-            {canZapAuthor && (
-              <ZapDialog target={event}>
-                <button
-                  className="flex items-center gap-1.5 p-2 rounded-full text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10 transition-colors"
-                  title="Zap"
-                >
-                  <Zap className="size-5" />
-                  {stats?.zapAmount ? <span className="text-sm tabular-nums">{formatSats(stats.zapAmount)}</span> : null}
-                </button>
-              </ZapDialog>
-            )}
-
-            <button
-              className="p-2 rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-              title="More"
-              onClick={(e) => { e.stopPropagation(); setMoreMenuOpen(true); }}
-            >
-              <MoreHorizontal className="size-5" />
-            </button>
-          </div>
-
+          {actionButtons}
           <NoteMoreMenu event={event} open={moreMenuOpen} onOpenChange={setMoreMenuOpen} />
           <ReplyComposeModal event={event} open={replyOpen} onOpenChange={setReplyOpen} />
         </>
