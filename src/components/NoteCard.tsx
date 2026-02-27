@@ -16,6 +16,7 @@ import { FollowPackContent } from '@/components/FollowPackContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
+import { FileMetadataContent } from '@/components/FileMetadataContent';
 import { LiveStreamPlayer } from '@/components/LiveStreamPlayer';
 import { ChestIcon } from '@/components/icons/ChestIcon';
 import { CardsIcon } from '@/components/icons/CardsIcon';
@@ -211,7 +212,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isArticle = event.kind === 30023;
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream;
+  const isFileMetadata = event.kind === 1063;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -303,6 +305,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <MagicDeckContent event={event} />
         ) : isStream ? (
           <StreamContent event={event} />
+        ) : isFileMetadata ? (
+          <FileMetadataContent event={event} compact />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
