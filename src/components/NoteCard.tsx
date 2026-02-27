@@ -374,7 +374,7 @@ export function NoteCard({ event, className, repostedBy, compact, threaded }: No
         <div className="flex gap-3">
           <div className="flex flex-col items-center">
             {avatarElement}
-            <div className="w-0.5 flex-1 mt-2 bg-border rounded-full" />
+            <div className="w-0.5 flex-1 mt-2 bg-foreground/20 rounded-full" />
           </div>
           <div className="flex-1 min-w-0 pb-3">
             {authorInfo}
