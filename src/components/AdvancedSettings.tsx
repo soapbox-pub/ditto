@@ -10,7 +10,7 @@ import { useToast } from '@/hooks/useToast';
 export function AdvancedSettings() {
   const { config, updateConfig } = useAppContext();
   const { toast } = useToast();
-  const [systemOpen, setSystemOpen] = useState(false);
+  const [systemOpen, setSystemOpen] = useState(true);
   const [statsPubkey, setStatsPubkey] = useState(config.nip85StatsPubkey);
   const [defaultZapComment, setDefaultZapComment] = useState(config.defaultZapComment);
   const [faviconUrl, setFaviconUrl] = useState(config.faviconUrl);
