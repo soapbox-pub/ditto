@@ -5,7 +5,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
-import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Zap, Flame, MoreHorizontal, ClipboardCopy, ExternalLink, VolumeX, Flag, Bitcoin, Users, Pin, X, QrCode, Check, Copy, Loader2, Download, Palette, Trash2, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -1172,8 +1172,8 @@ export function ProfilePage() {
               </DropdownMenu>
             )}
 
-            {/* Share theme prompt — own profile, custom theme, no profile theme published or differs */}
-            {showShareThemePrompt && ownCustomTheme && (
+            {/* Share theme prompt — own profile, custom theme not yet published */}
+            {showShareThemePrompt && ownCustomTheme && !profileThemeDiffers && (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <button
@@ -1193,9 +1193,47 @@ export function ProfilePage() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="left">
-                  {profileThemeDiffers ? 'Update your profile theme' : 'Apply your theme to your profile'}
+                  Apply your theme to your profile
                 </TooltipContent>
               </Tooltip>
+            )}
+
+            {/* Update theme dropdown — own profile, custom theme differs from published */}
+            {showShareThemePrompt && ownCustomTheme && profileThemeDiffers && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="absolute top-3 right-3 z-10 size-9 rounded-full border flex items-center justify-center transition-all hover:scale-110"
+                    style={{
+                      backgroundColor: hslStringToHex(ownCustomTheme.colors.primary),
+                      borderColor: hslStringToHex(ownCustomTheme.colors.primary),
+                    }}
+                  >
+                    {/* Continuous pulse ring themed to custom primary */}
+                    <span
+                      className="absolute inset-0 rounded-full animate-pulse-slow"
+                      style={{ backgroundColor: hslStringToHex(ownCustomTheme.colors.primary) }}
+                    />
+                    <Palette className="size-4 relative" style={{ color: hslStringToHex(ownCustomTheme.colors.background) }} />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" side="bottom" className="w-52">
+                  <DropdownMenuItem
+                    onClick={() => setShareThemeOpen(true)}
+                    className="cursor-pointer"
+                  >
+                    <RefreshCw className="size-4 mr-2" />
+                    Update Profile Theme
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setRemoveThemeOpen(true)}
+                    className="cursor-pointer text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="size-4 mr-2" />
+                    Delete Profile Theme
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
             {/* Remove theme dropdown — own profile, profile theme is in sync or on non-custom theme */}
@@ -1208,13 +1246,13 @@ export function ProfilePage() {
                     <Palette className="size-4 text-accent" />
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" side="bottom" className="w-44">
+                <DropdownMenuContent align="end" side="bottom" className="w-52">
                   <DropdownMenuItem
                     onClick={() => setRemoveThemeOpen(true)}
                     className="cursor-pointer text-destructive focus:text-destructive"
                   >
                     <Trash2 className="size-4 mr-2" />
-                    Remove Theme
+                    Delete Profile Theme
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
