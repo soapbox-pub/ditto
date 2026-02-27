@@ -52,7 +52,7 @@ build-apk:
   before_script:
     # Install system dependencies
     - apt-get update -qq
-    - apt-get install -y -qq curl unzip imagemagick inkscape > /dev/null
+    - apt-get install -y -qq curl unzip > /dev/null
 
     # Install Node.js 22
     - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
@@ -110,9 +110,6 @@ build-apk:
     - npm ci --silent
     - npx vite build -l error
     - cp dist/index.html dist/404.html
-
-    # Generate Android icons
-    - bash scripts/generate-icons.sh
 
     # Sync web assets to Capacitor Android project
     - npx cap sync android
