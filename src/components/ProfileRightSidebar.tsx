@@ -315,7 +315,7 @@ export function ProfileRightSidebar({ fields, mediaEvents, mediaLoading: mediaLo
   const mediaLoading = mediaLoadingProp ?? false;
 
   return (
-    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-5">
+    <aside className="w-[300px] shrink-0 hidden xl:flex flex-col sticky top-0 h-screen overflow-y-auto pt-5 pb-3 px-3">
       {/* Media Section */}
       <section className="mb-6 bg-background/85 rounded-xl p-3 -mx-1">
         <h2 className="text-xl font-bold mb-3">Media</h2>
