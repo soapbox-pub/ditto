@@ -149,6 +149,8 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeStreams: z.boolean().optional(),
   showDecks: z.boolean().optional(),
   feedIncludeDecks: z.boolean().optional(),
+  showWebxdc: z.boolean().optional(),
+  feedIncludeWebxdc: z.boolean().optional(),
   showProfileThemes: z.boolean().optional(),
   feedIncludeProfileThemes: z.boolean().optional(),
   showCustomProfileThemes: z.boolean().optional(),

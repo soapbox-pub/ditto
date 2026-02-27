@@ -70,6 +70,10 @@ export interface FeedSettings {
   showDecks: boolean;
   /** Include Magic Decks in the follows/global feed */
   feedIncludeDecks: boolean;
+  /** Show Webxdc apps (NIP-94 kind 1063 with m=application/x-webxdc) link in sidebar */
+  showWebxdc: boolean;
+  /** Include Webxdc apps in the follows/global feed */
+  feedIncludeWebxdc: boolean;
   /** Show Custom Themes (kind 36767) link in sidebar (not used — feed-only) */
   showProfileThemes: boolean;
   /** Include Profile Theme updates in the follows/global feed */

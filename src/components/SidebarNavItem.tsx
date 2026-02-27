@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import {
   Bell, Search, TrendingUp, User, Bookmark, Settings,
   Clapperboard, BarChart3, Palette, PartyPopper, Radio, FileText, SwatchBook,
-  GripVertical, X,
+  GripVertical, X, Blocks,
 } from 'lucide-react';
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -39,6 +39,7 @@ export const SIDEBAR_ITEM_ICONS: Record<string, React.ReactElement> = {
   streams: <Radio className="size-6" />,
   articles: <FileText className="size-6" />,
   decks: <CardsIcon className="size-6" />,
+  webxdc: <Blocks className="size-6" />,
 };
 
 // ── Sortable item ─────────────────────────────────────────────────────────────

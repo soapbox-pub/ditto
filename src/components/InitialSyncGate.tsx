@@ -42,6 +42,7 @@ import {
   ChevronUp,
   Plus,
   Trash2,
+  Blocks,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -253,6 +254,7 @@ const CONTENT_KINDS: ContentKind[] = [
   { key: 'packs', label: 'Follow Packs', description: 'Curated follow lists', icon: Users, sidebarKey: 'showPacks', feedKey: 'feedIncludePacks' },
   { key: 'colors', label: 'Colors', description: 'Color palette sharing', icon: Palette, sidebarKey: 'showColors', feedKey: 'feedIncludeColors' },
   { key: 'treasures', label: 'Treasures', description: 'Geocaching adventures', icon: ChestIcon, sidebarKey: 'showTreasures', feedKey: 'feedIncludeTreasureGeocaches' },
+  { key: 'webxdc', label: 'Webxdc', description: 'Sandboxed HTML5 mini-apps', icon: Blocks, sidebarKey: 'showWebxdc', feedKey: 'feedIncludeWebxdc' },
 ];
 
 const CW_OPTIONS: { value: ContentWarningPolicy; label: string; description: string; icon: typeof Eye }[] = [
@@ -400,6 +402,8 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeStreams: selectedContent.has('streams'),
       showDecks: selectedContent.has('decks'),
       feedIncludeDecks: selectedContent.has('decks'),
+      showWebxdc: selectedContent.has('webxdc'),
+      feedIncludeWebxdc: selectedContent.has('webxdc'),
       showProfileThemes: false,
       feedIncludeProfileThemes: true,
       showCustomProfileThemes: true,
