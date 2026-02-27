@@ -15,9 +15,11 @@ interface FloatingComposeButtonProps {
   kind?: number;
   /** If set, the FAB navigates to this URL instead of opening a dialog. */
   href?: string;
+  /** If set, overrides the default FAB click behavior. */
+  onFabClick?: () => void;
 }
 
-export function FloatingComposeButton({ kind = 1, href }: FloatingComposeButtonProps) {
+export function FloatingComposeButton({ kind = 1, href, onFabClick }: FloatingComposeButtonProps) {
   const { user } = useCurrentUser();
   const navigate = useNavigate();
   const [composeOpen, setComposeOpen] = useState(false);
@@ -28,7 +30,9 @@ export function FloatingComposeButton({ kind = 1, href }: FloatingComposeButtonP
   }
 
   const handleClick = () => {
-    if (href) {
+    if (onFabClick) {
+      onFabClick();
+    } else if (href) {
       navigate(href);
     } else if (kind === 1) {
       setComposeOpen(true);

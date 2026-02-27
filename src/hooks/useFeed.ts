@@ -23,6 +23,8 @@ interface FeedPage {
 interface UseFeedOptions {
   /** Override the kinds list instead of using feed settings. Used by kind-specific pages. */
   kinds?: number[];
+  /** Additional tag filters to apply (e.g. `{ '#m': ['application/x-webxdc'] }`). */
+  tagFilters?: Record<string, string[]>;
 }
 
 /** Hook to fetch the global, followed, or communities feed with infinite scroll pagination. */
@@ -37,8 +39,11 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
   // Build the full kinds list from user settings, or use the override.
   const allKinds = options?.kinds ?? getEnabledFeedKinds(feedSettings);
 
+  const tagFilters = options?.tagFilters;
+
   // Stable key so queries re-run when settings change.
   const kindsKey = [...allKinds].sort().join(',');
+  const tagFiltersKey = tagFilters ? JSON.stringify(tagFilters) : '';
 
   // For the follows tab, wait until the follow list is loaded before running any query.
   // Without this guard, the query falls through to the global branch while followList is still loading.
@@ -68,7 +73,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
     // on page load because feedSettings is read from localStorage
     // synchronously — the encrypted settings sync at ~5s only calls
     // updateConfig if values actually differ (NostrSync changed guard).
-    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, communityPubkeys.length],
+    queryKey: ['feed', tab, user?.pubkey ?? '', kindsKey, tagFiltersKey, communityPubkeys.length],
     queryFn: async ({ pageParam }) => {
       const signal = AbortSignal.timeout(8000);
       const now = Math.floor(Date.now() / 1000);
@@ -84,7 +89,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
 
       if (tab === 'communities' && communityPubkeys.length > 0) {
         // Communities feed — posts from community members with NIP-05 verification
-        const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE };
+        const filter: Record<string, unknown> = { kinds: allKinds, authors: communityPubkeys, limit: PAGE_SIZE, ...tagFilters };
         if (pageParam) {
           filter.until = pageParam;
         }
@@ -217,7 +222,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
         // Follows feed — posts, reposts, and extra kinds from people you follow
         // If followList is empty, just query own posts
         const authors = followList.length > 0 ? [...followList, user.pubkey] : [user.pubkey];
-        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE };
+        const filter: Record<string, unknown> = { kinds: allKinds, authors, limit: PAGE_SIZE, ...tagFilters };
         if (pageParam) {
           filter.until = pageParam;
         }
@@ -293,7 +298,7 @@ export function useFeed(tab: 'follows' | 'global' | 'communities', options?: Use
       } else {
         // Global feed — all enabled kinds except reposts (too noisy without author filter)
         const globalKinds = allKinds.filter((k) => !isRepostKind(k));
-        const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE };
+        const filter: Record<string, unknown> = { kinds: globalKinds, limit: PAGE_SIZE, ...tagFilters };
         // Use hot sorting on the homepage Global tab for better content quality,
         // but not on kind-specific pages that pass custom kinds.
         if (tab === 'global' && !options?.kinds) {
