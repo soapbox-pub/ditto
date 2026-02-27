@@ -153,6 +153,10 @@ export const FeedSettingsSchema = z.looseObject({
   feedIncludeWebxdc: z.boolean().optional(),
   showProfileThemes: z.boolean().optional(),
   feedIncludeProfileThemes: z.boolean().optional(),
+  showThemeDefinitions: z.boolean().optional(),
+  feedIncludeThemeDefinitions: z.boolean().optional(),
+  showActiveThemes: z.boolean().optional(),
+  feedIncludeActiveThemes: z.boolean().optional(),
   showCustomProfileThemes: z.boolean().optional(),
 });
 
