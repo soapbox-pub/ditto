@@ -134,7 +134,7 @@ export function useStreamPosts(query: string, options: StreamPostsOptions) {
     const streamFilter: NostrFilter = { kinds };
 
     // Search filter for initial query (includes NIP-50 extensions)
-    const searchParts: string[] = [];
+    const searchParts: string[] = ['protocol:nostr'];
     
     if (query.trim()) {
       searchParts.push(query.trim());
