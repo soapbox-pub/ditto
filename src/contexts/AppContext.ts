@@ -74,10 +74,18 @@ export interface FeedSettings {
   showWebxdc: boolean;
   /** Include Webxdc apps in the follows/global feed */
   feedIncludeWebxdc: boolean;
-  /** Show Custom Themes (kind 36767) link in sidebar (not used — feed-only) */
+  /** Show Themes link in sidebar */
   showProfileThemes: boolean;
-  /** Include Profile Theme updates in the follows/global feed */
+  /** Include Profile Theme updates in the follows/global feed (legacy key, maps to feedIncludeThemeDefinitions + feedIncludeActiveThemes) */
   feedIncludeProfileThemes: boolean;
+  /** Show theme definitions (kind 36767) on Themes page */
+  showThemeDefinitions: boolean;
+  /** Include theme definitions in the follows/global feed */
+  feedIncludeThemeDefinitions: boolean;
+  /** Show active theme updates (kind 16767) on Themes page */
+  showActiveThemes: boolean;
+  /** Include active theme updates in the follows/global feed */
+  feedIncludeActiveThemes: boolean;
   /** Show custom profile themes when visiting other users' profiles */
   showCustomProfileThemes: boolean;
 }

@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users } from 'lucide-react';
+import { MessageCircle, Zap, MoreHorizontal, Play, Radio, Users, Palette } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -43,7 +43,7 @@ import { NoteMoreMenu } from '@/components/NoteMoreMenu';
 import { ReplyComposeModal } from '@/components/ReplyComposeModal';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ContentWarningGuard, getContentWarning } from '@/components/ContentWarningGuard';
-import { ThemeUpdateCard } from '@/components/ThemeUpdateCard';
+import { ThemeContent } from '@/components/ThemeContent';
 import { useAppContext } from '@/hooks/useAppContext';
 import { getParentEventId } from '@/lib/nostrEvents';
 
@@ -213,7 +213,10 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const isMagicDeck = event.kind === 37381;
   const isStream = event.kind === 30311;
   const isFileMetadata = event.kind === 1063;
-  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata;
+  const isThemeDefinition = event.kind === 36767;
+  const isActiveTheme = event.kind === 16767;
+  const isTheme = isThemeDefinition || isActiveTheme;
+  const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isStream && !isFileMetadata && !isTheme;
 
   // Kind 1 specific — images now render inline in NoteContent, only videos go to NoteMedia
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
@@ -255,11 +258,6 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
   const imeta = useMemo(() => isVine ? parseImeta(event.tags) : undefined, [event.tags, isVine]);
   const vineTitle = isVine ? getTag(event.tags, 'title') : undefined;
   const hashtags = isVine ? event.tags.filter(([n]) => n === 't').map(([, v]) => v) : [];
-
-  // Theme definition events get a specialized card
-  if (event.kind === 36767) {
-    return <ThemeUpdateCard event={event} />;
-  }
 
   // NIP-36: If the event has a content-warning and the policy is "hide", skip rendering entirely
   if (getContentWarning(event) !== undefined && config.contentWarningPolicy === 'hide') {
@@ -307,6 +305,8 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
           <StreamContent event={event} />
         ) : isFileMetadata ? (
           <FileMetadataContent event={event} compact />
+        ) : isTheme ? (
+          <ThemeContent event={event} />
         ) : (
           <TruncatedNoteContent event={event} videos={videos} imetaMap={imetaMap} webxdcApps={webxdcApps} />
         )}
@@ -476,6 +476,11 @@ export function NoteCard({ event, className, repostedBy, compact, threaded, thre
       {/* Stream header — "<radio> <name> is streaming / streamed" */}
       {isStream && (
         <StreamHeader pubkey={event.pubkey} isLive={getTag(event.tags, 'status') === 'live'} />
+      )}
+
+      {/* Theme header — "<palette> <name> shared/updated a theme" */}
+      {isTheme && !repostedBy && (
+        <ThemeHeader pubkey={event.pubkey} variant={isThemeDefinition ? 'shared' : 'updated'} />
       )}
 
       {/* Header: avatar + name/handle stacked */}
@@ -890,6 +895,36 @@ function TreasureHeader({ pubkey, variant }: { pubkey: string; variant: 'hid' | 
         )}
         <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
           {variant === 'hid' ? 'hid a treasure' : 'found a treasure'}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ThemeHeader({ pubkey, variant }: { pubkey: string; variant: 'shared' | 'updated' }) {
+  const author = useAuthor(pubkey);
+  const name = author.data?.metadata?.name || genUserName(pubkey);
+  const url = useProfileUrl(pubkey, author.data?.metadata);
+
+  return (
+    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 min-w-0">
+      <div className="w-11 shrink-0 flex justify-end">
+        <Palette className="size-4 text-primary translate-y-px" />
+      </div>
+      <div className="flex items-center min-w-0">
+        {author.isLoading ? (
+          <Skeleton className="h-3 w-20 inline-block" />
+        ) : (
+          <Link
+            to={url}
+            className="font-medium hover:underline mr-1 truncate"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {author.data?.event ? <EmojifiedText tags={author.data.event.tags}>{name}</EmojifiedText> : name}
+          </Link>
+        )}
+        <span className={cn("shrink-0", author.isLoading && 'ml-1')}>
+          {variant === 'shared' ? 'shared a theme' : 'updated their theme'}
         </span>
       </div>
     </div>

@@ -407,6 +407,10 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
       feedIncludeWebxdc: selectedContent.has('webxdc'),
       showProfileThemes: false,
       feedIncludeProfileThemes: true,
+      showThemeDefinitions: true,
+      feedIncludeThemeDefinitions: true,
+      showActiveThemes: true,
+      feedIncludeActiveThemes: true,
       showCustomProfileThemes: true,
     };
 
