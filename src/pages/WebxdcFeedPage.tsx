@@ -1,8 +1,9 @@
-import { useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Blocks, Clock, Download } from 'lucide-react';
+import { ArrowLeft, Blocks, Clock, Download, Plus, Loader2 } from 'lucide-react';
 import { useSeoMeta } from '@unhead/react';
 import { useInView } from 'react-intersection-observer';
+import { useQueryClient } from '@tanstack/react-query';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -12,17 +13,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { KindInfoButton } from '@/components/KindInfoButton';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
+import { WebxdcUploadDialog } from '@/components/WebxdcUploadDialog';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useWebxdcFeed } from '@/hooks/useWebxdcFeed';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useLayoutOptions } from '@/contexts/LayoutContext';
 import { getDisplayName } from '@/lib/getDisplayName';
 import { useProfileUrl } from '@/hooks/useProfileUrl';
 import { getExtraKindDef } from '@/lib/extraKinds';
 import { timeAgo } from '@/lib/timeAgo';
-import { Loader2 } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
 
 const webxdcDef = getExtraKindDef('webxdc')!;
 
@@ -32,6 +32,9 @@ function getTag(tags: string[][], name: string): string | undefined {
 }
 
 export function WebxdcFeedPage() {
+  const { user } = useCurrentUser();
+  const [uploadOpen, setUploadOpen] = useState(false);
+
   useSeoMeta({
     title: 'Webxdc | Ditto',
     description: 'Webxdc apps on Nostr',
@@ -139,6 +142,22 @@ export function WebxdcFeedPage() {
           </div>
         )}
       </PullToRefresh>
+
+      {/* Upload FAB */}
+      {user && (
+        <div className="sticky bottom-fab sidebar:bottom-6 z-30 pointer-events-none flex justify-end pr-6">
+          <div className="pointer-events-auto">
+            <Button
+              onClick={() => setUploadOpen(true)}
+              className="size-14 rounded-full shadow-lg bg-accent hover:bg-accent/90 text-accent-foreground transition-transform hover:scale-105 active:scale-95"
+            >
+              <Plus strokeWidth={4} />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <WebxdcUploadDialog open={uploadOpen} onOpenChange={setUploadOpen} />
     </main>
   );
 }
