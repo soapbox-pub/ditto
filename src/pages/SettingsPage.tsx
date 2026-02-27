@@ -38,6 +38,14 @@ export const settingsSections: SettingsSection[] = [
     path: '/settings/content',
   },
   {
+    id: 'network',
+    label: 'Network',
+    description: 'Relays and file upload servers',
+    illustration: '/relay-intro.png',
+    path: '/settings/network',
+    requiresAuth: true,
+  },
+  {
     id: 'notifications',
     label: 'Notifications',
     description: 'Configure push notification preferences',
@@ -48,8 +56,7 @@ export const settingsSections: SettingsSection[] = [
   {
     id: 'advanced',
     label: 'Advanced',
-    description: 'Relays, upload servers, and system settings',
-    illustration: '/relay-intro.png',
+    description: 'Wallet, system, and power user settings',
     path: '/settings/advanced',
   },
 ];

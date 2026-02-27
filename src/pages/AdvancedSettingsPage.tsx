@@ -1,39 +1,22 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, ChevronRight, Server, Wallet } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { Link, Navigate } from 'react-router-dom';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
+import { WalletSettings } from '@/components/WalletSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { IntroImage } from '@/components/IntroImage';
-
-const subSections = [
-  {
-    id: 'network',
-    label: 'Network',
-    description: 'Relays and file upload servers',
-    illustration: '/relay-intro.png',
-    path: '/settings/network',
-    requiresAuth: true,
-  },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    description: 'Manage wallet connections and payments',
-    icon: Wallet,
-    path: '/settings/wallet',
-    requiresAuth: true,
-  },
-] as const;
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, ChevronUp } from 'lucide-react';
+import { useState } from 'react';
 
 export function AdvancedSettingsPage() {
   const { user } = useCurrentUser();
-  const navigate = useNavigate();
+  const [walletOpen, setWalletOpen] = useState(false);
 
   useSeoMeta({
     title: 'Advanced | Settings | Ditto',
-    description: 'Advanced settings for relays, upload servers, and system configuration',
+    description: 'Advanced settings for wallet, system, and power user configuration',
   });
-
-  const visibleSections = subSections.filter((s) => !s.requiresAuth || user);
 
   return (
     <main className="min-h-screen">
@@ -46,42 +29,38 @@ export function AdvancedSettingsPage() {
           <div>
             <h1 className="text-xl font-bold">Advanced</h1>
             <p className="text-sm text-muted-foreground mt-0.5">
-              Network, wallet, and system settings
+              Wallet, system, and power user settings
             </p>
           </div>
         </div>
       </div>
 
-      {/* Sub-section links */}
-      {visibleSections.length > 0 && (
-        <div className="px-4 pb-2 space-y-2">
-          {visibleSections.map((section) => {
-            const Icon = 'icon' in section ? section.icon : undefined;
-            return (
-              <div
-                key={section.id}
-                className="flex items-center gap-4 px-3 py-3 cursor-pointer rounded-xl bg-muted/40 transition-colors hover:bg-muted/60 active:bg-muted/80"
-                onClick={() => navigate(section.path)}
-              >
-                <div className="flex items-center justify-center size-16 shrink-0">
-                  {'illustration' in section ? (
-                    <IntroImage src={section.illustration} size="w-16" />
-                  ) : Icon ? (
-                    <Icon className="size-10 text-primary opacity-90" />
-                  ) : null}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold">{section.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{section.description}</p>
-                </div>
-                <ChevronRight className="size-5 text-muted-foreground shrink-0" />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       <div className="p-4">
+        {/* Wallet collapsible — only when logged in */}
+        {user && (
+          <Collapsible open={walletOpen} onOpenChange={setWalletOpen}>
+            <CollapsibleTrigger asChild>
+              <Button
+                variant="ghost"
+                className="relative w-full justify-between px-3 py-3.5 h-auto hover:bg-muted/20 hover:text-foreground rounded-none"
+              >
+                <span className="text-base font-semibold">Wallet</span>
+                {walletOpen ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-primary rounded-full" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pt-2 pb-4">
+                <WalletSettings />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
         <AdvancedSettings />
       </div>
     </main>
