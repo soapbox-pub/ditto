@@ -793,7 +793,9 @@ export function ProfilePage() {
   // - Otherwise, if the visitor has a custom theme, fall back to system builtin.
   const effectiveProfileColors = profileThemeColors
     ?? (needsSystemFallback ? resolveThemeConfig(resolveTheme('system') as 'light' | 'dark', configuredThemes).colors : undefined);
-  const effectiveProfileFont = profileThemeColors ? profileThemeFont : undefined;
+  // When a profile has theme colors but no `f` tag, explicitly default to Inter
+  // so the visitor's custom font doesn't leak through.
+  const effectiveProfileFont = profileThemeColors ? (profileThemeFont ?? { family: 'Inter' }) : undefined;
   const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
 
   useEffect(() => {
