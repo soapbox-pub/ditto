@@ -33,6 +33,7 @@ export const SIDEBAR_ITEM_ICONS: Record<string, React.ReactElement> = {
   polls: <BarChart3 className="size-6" />,
   treasures: <ChestIcon className="size-6" />,
   theme: <SwatchBook className="size-6" />,
+  themes: <Palette className="size-6" />,
   colors: <Palette className="size-6" />,
   packs: <PartyPopper className="size-6" />,
   streams: <Radio className="size-6" />,
