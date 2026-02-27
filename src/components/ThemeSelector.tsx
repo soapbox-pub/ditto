@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Check, Palette } from 'lucide-react';
+import { Check, Palette, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -470,6 +471,15 @@ export function ThemeSelector() {
           </div>
         </div>
       )}
+
+      {/* ── Browse themes link ── */}
+      <Link
+        to="/themes"
+        className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+      >
+        Browse themes
+        <ArrowRight className="size-3.5" />
+      </Link>
 
       {/* ── Publish Dialog ── */}
       <Dialog open={publishDialogOpen} onOpenChange={setPublishDialogOpen}>
