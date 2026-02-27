@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useInView } from 'react-intersection-observer';
 import { useNostr } from '@nostrify/react';
@@ -747,6 +747,11 @@ export function ProfilePage() {
 
   // Temporarily apply the visited user's theme globally while on their profile
   const { theme: ownTheme, customTheme: ownCustomTheme, themes: configuredThemes, applyCustomTheme } = useTheme();
+
+  // Keep a ref to the latest own theme values so the cleanup function reads
+  // the *current* values (e.g. after "Copy Theme" was used) instead of stale closure values.
+  const ownThemeRef = useRef({ ownTheme, ownCustomTheme, configuredThemes });
+  ownThemeRef.current = { ownTheme, ownCustomTheme, configuredThemes };
   const profileThemeFont = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.font : undefined;
   const profileThemeBackground = (showCustomProfileThemes || isOwnProfile) ? profileTheme?.background : undefined;
 
@@ -831,26 +836,25 @@ export function ProfilePage() {
       previousBgEl?.remove();
     }
 
-    // Restore the user's own theme on cleanup
+    // Restore the user's own theme on cleanup.
+    // Read from ownThemeRef so we get the *latest* values (e.g. after "Copy Theme").
     return () => {
+      const { ownTheme: curTheme, ownCustomTheme: curCustom, configuredThemes: curConfigured } = ownThemeRef.current;
+
       const styleEl = document.getElementById('theme-vars') as HTMLStyleElement | null;
       if (styleEl) {
-        if (previousCss) {
-          styleEl.textContent = previousCss;
-        } else {
-          // Fallback: rebuild from current theme setting
-          const resolved = resolveTheme(ownTheme);
-          const colors = resolved === 'custom'
-            ? (ownCustomTheme?.colors ?? resolveThemeConfig('dark', configuredThemes).colors)
-            : resolveThemeConfig(resolved, configuredThemes).colors;
-          styleEl.textContent = buildThemeCss(coreToTokens(colors));
-        }
+        // Always rebuild from the current theme setting so we never restore stale CSS
+        const resolved = resolveTheme(curTheme);
+        const colors = resolved === 'custom'
+          ? (curCustom?.colors ?? resolveThemeConfig('dark', curConfigured).colors)
+          : resolveThemeConfig(resolved, curConfigured).colors;
+        styleEl.textContent = buildThemeCss(coreToTokens(colors));
       }
       // Resolve the user's own active ThemeConfig (custom or configured light/dark)
-      const ownResolved = resolveTheme(ownTheme);
+      const ownResolved = resolveTheme(curTheme);
       const ownActiveConfig = ownResolved === 'custom'
-        ? ownCustomTheme
-        : resolveThemeConfig(ownResolved, configuredThemes);
+        ? curCustom
+        : resolveThemeConfig(ownResolved, curConfigured);
 
       // Restore own font or clear override
       loadAndApplyFont(ownActiveConfig?.font);
