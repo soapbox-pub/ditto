@@ -1,4 +1,4 @@
-import { Download, FileIcon } from 'lucide-react';
+import { Download, FileIcon, Music } from 'lucide-react';
 import type { NostrEvent } from '@nostrify/nostrify';
 
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,13 @@ import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 /** Extract the first value of a tag by name. */
 function getTag(tags: string[][], name: string): string | undefined {
   return tags.find(([n]) => n === name)?.[1];
+}
+
+/** Format bytes into a human-readable string. */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 interface FileMetadataContentProps {
@@ -24,8 +31,8 @@ interface FileMetadataContentProps {
  * - `application/x-webxdc` → WebxdcEmbed
  * - `image/*` → ImageGallery
  * - `video/*` → VideoPlayer
- * - `audio/*` → native <audio> player
- * - fallback → download link
+ * - `audio/*` → styled audio player
+ * - fallback → download card
  */
 export function FileMetadataContent({ event, compact }: FileMetadataContentProps) {
   const url = getTag(event.tags, 'url');
@@ -36,93 +43,125 @@ export function FileMetadataContent({ event, compact }: FileMetadataContentProps
   const blurhash = getTag(event.tags, 'blurhash');
   const thumb = getTag(event.tags, 'thumb') ?? getTag(event.tags, 'image');
   const summary = getTag(event.tags, 'summary');
+  const size = getTag(event.tags, 'size');
 
   if (!url) return null;
 
-  const description = event.content || alt;
+  const description = event.content || undefined;
+  const altText = alt ?? undefined;
   const fileName = url.split('/').pop() ?? 'file';
+  const sizeStr = size ? formatBytes(Number(size)) : undefined;
 
-  // Webxdc app
+  // ── Webxdc app ──────────────────────────────────────────────────────
   if (mime === 'application/x-webxdc') {
-    const appName = alt?.replace(/^Webxdc app:\s*/i, '') ?? summary ?? fileName.replace('.xdc', '');
+    const appName = altText?.replace(/^Webxdc app:\s*/i, '') ?? summary ?? fileName.replace('.xdc', '');
     return (
-      <div className="mt-2 space-y-2">
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+      <div className="mt-3">
         <WebxdcEmbed
           url={url}
           uuid={webxdcId}
           name={appName}
           icon={thumb}
         />
+        {description && (
+          <p className="text-[15px] leading-relaxed mt-2.5">{description}</p>
+        )}
       </div>
     );
   }
 
-  // Image
+  // ── Image ───────────────────────────────────────────────────────────
   if (mime.startsWith('image/')) {
     const imetaMap = (dim || blurhash)
       ? new Map([[url, { dim, blurhash }]])
       : undefined;
     return (
-      <div className="mt-2 space-y-2">
-        {description && !compact && (
-          <p className="text-sm">{description}</p>
-        )}
+      <div className="mt-3">
         <ImageGallery
           images={[url]}
           imetaMap={imetaMap}
         />
+        {description && !compact && (
+          <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
+        )}
       </div>
     );
   }
 
-  // Video
+  // ── Video ───────────────────────────────────────────────────────────
   if (mime.startsWith('video/')) {
     return (
-      <div className="mt-2 space-y-2">
-        {description && !compact && (
-          <p className="text-sm">{description}</p>
-        )}
+      <div className="mt-3">
         <VideoPlayer src={url} poster={thumb} dim={dim} blurhash={blurhash} />
+        {description && !compact && (
+          <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
+        )}
       </div>
     );
   }
 
-  // Audio
+  // ── Audio ───────────────────────────────────────────────────────────
   if (mime.startsWith('audio/')) {
+    const trackName = altText ?? fileName;
     return (
-      <div className="mt-2 space-y-2">
-        {description && (
-          <p className="text-sm">{description}</p>
-        )}
+      <div className="mt-3 rounded-2xl border border-border bg-secondary/30 overflow-hidden">
+        <div className="flex items-center gap-3 p-4">
+          <div className="flex items-center justify-center size-12 rounded-xl bg-primary/10 shrink-0">
+            <Music className="size-6 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{trackName}</p>
+            {sizeStr && (
+              <p className="text-xs text-muted-foreground mt-0.5">{sizeStr}</p>
+            )}
+          </div>
+          <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground hover:text-foreground" asChild>
+            <a href={url} download title="Download">
+              <Download className="size-4" />
+            </a>
+          </Button>
+        </div>
         {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
-        <audio controls preload="metadata" className="w-full rounded-xl">
+        <audio controls preload="metadata" className="w-full px-4 pb-4">
           <source src={url} type={mime} />
         </audio>
+        {description && (
+          <div className="px-4 pb-4 -mt-1">
+            <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+          </div>
+        )}
       </div>
     );
   }
 
-  // Fallback: generic file download
+  // ── Fallback: generic file ──────────────────────────────────────────
+  const displayName = altText ?? fileName;
+  const mimeLabel = mime ? mime.split('/').pop()?.toUpperCase() : undefined;
+
   return (
-    <div className="mt-2 space-y-2">
-      {description && (
-        <p className="text-sm">{description}</p>
-      )}
-      <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-muted/30">
-        <FileIcon className="size-8 text-muted-foreground shrink-0" />
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{alt ?? fileName}</p>
-          <p className="text-xs text-muted-foreground">{mime || 'Unknown type'}</p>
+    <div className="mt-3">
+      <div className="rounded-2xl border border-border bg-secondary/30 overflow-hidden">
+        <div className="flex items-center gap-3.5 p-4">
+          <div className="flex items-center justify-center size-12 rounded-xl bg-muted shrink-0">
+            <FileIcon className="size-6 text-muted-foreground" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold truncate">{displayName}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {[mimeLabel, sizeStr].filter(Boolean).join(' · ') || 'File'}
+            </p>
+          </div>
+          <Button variant="outline" size="sm" className="shrink-0 rounded-full gap-1.5" asChild>
+            <a href={url} download>
+              <Download className="size-3.5" />
+              Download
+            </a>
+          </Button>
         </div>
-        <Button variant="ghost" size="sm" className="shrink-0" asChild>
-          <a href={url} download>
-            <Download className="size-4" />
-          </a>
-        </Button>
       </div>
+      {description && (
+        <p className="text-[15px] leading-relaxed text-foreground/90 mt-2.5">{description}</p>
+      )}
     </div>
   );
 }
