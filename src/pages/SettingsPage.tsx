@@ -9,7 +9,6 @@ export interface SettingsSection {
   label: string;
   description: string;
   illustration?: string;
-  icon?: React.ComponentType<{ className?: string }>;
   path: string;
   requiresAuth?: boolean;
 }
@@ -77,28 +76,20 @@ export function SettingsPage() {
 
   return (
     <main className="min-h-screen">
-      {/* Header */}
-      <div className="px-4 pt-4 pb-3">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="p-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
+      {/* Page header */}
+      <div className="px-4 py-3.5 sidebar:py-5">
+        <div className="flex items-center gap-2">
+          <Link to="/" className="p-2 -ml-2 rounded-full hover:bg-secondary transition-colors sidebar:hidden">
             <ArrowLeft className="size-5" />
           </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <SettingsIcon className="size-5" />
-              <h1 className="text-xl font-bold">Settings</h1>
-            </div>
-            <p className="text-sm text-muted-foreground mt-0.5">
-              Customize your experience
-            </p>
-          </div>
+          <SettingsIcon className="size-5" />
+          <h1 className="font-bold text-xl">Settings</h1>
         </div>
       </div>
 
       {/* Settings menu */}
       <div className="px-4 space-y-2">
         {visibleSections.map((section) => {
-          const Icon = section.icon;
           return (
             <div
               key={section.id}
@@ -106,11 +97,9 @@ export function SettingsPage() {
               onClick={() => navigate(section.path)}
             >
               <div className="flex items-center justify-center size-20 shrink-0">
-                {section.illustration ? (
-                  <IntroImage src={section.illustration} size="w-20" />
-                ) : Icon ? (
-                  <Icon className="size-12 text-primary opacity-90" />
-                ) : null}
+                {section.illustration && (
+                  <IntroImage src={section.illustration} size="w-22" />
+                )}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold">{section.label}</p>
