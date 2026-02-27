@@ -53,6 +53,8 @@ export function TestApp({ children }: TestAppProps) {
       feedIncludeStreams: false,
       showDecks: false,
       feedIncludeDecks: false,
+      showWebxdc: false,
+      feedIncludeWebxdc: false,
       showProfileThemes: false,
       feedIncludeProfileThemes: true,
       showCustomProfileThemes: true,

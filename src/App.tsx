@@ -67,6 +67,8 @@ const hardcodedConfig: AppConfig = {
     feedIncludeStreams: false,
     showDecks: false,
     feedIncludeDecks: false,
+    showWebxdc: false,
+    feedIncludeWebxdc: false,
     showProfileThemes: false,
     feedIncludeProfileThemes: true,
     showCustomProfileThemes: true,

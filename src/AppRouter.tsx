@@ -23,6 +23,7 @@ import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
 import { KindFeedPage } from "./pages/KindFeedPage";
 import { StreamsFeedPage } from "./pages/StreamsFeedPage";
+import { WebxdcFeedPage } from "./pages/WebxdcFeedPage";
 import { TreasuresPage } from "./pages/TreasuresPage";
 import { ThemeBuilderPage } from "./pages/ThemeBuilderPage";
 
@@ -62,6 +63,7 @@ export function AppRouter() {
           <Route path="/colors" element={<KindFeedPage kind={3367} title="Colors" icon={<Palette className="size-5" />} />} />
           <Route path="/packs" element={<KindFeedPage kind={39089} title="Follow Packs" icon={<PartyPopper className="size-5" />} />} />
           <Route path="/streams" element={<StreamsFeedPage />} />
+          <Route path="/webxdc" element={<WebxdcFeedPage />} />
           <Route path="/articles" element={<KindFeedPage kind={30023} title="Articles" icon={<FileText className="size-5" />} />} />
           <Route path="/decks" element={<KindFeedPage kind={37381} title="Magic Decks" icon={<CardsIcon className="size-5" />} />} />
           <Route path="/themes" element={<KindFeedPage kind={36767} title="Public Themes" icon={<Sparkles className="size-5" />} emptyMessage="No public themes yet. Be the first to share yours!" backTo="/settings/theme" alwaysShowBack fabHref="/settings/theme/edit?new" />} />

@@ -141,6 +141,19 @@ export const EXTRA_KINDS: ExtraKindDef[] = [
   },
   // Social
   {
+    kind: 1063,
+    id: 'webxdc',
+    showKey: 'showWebxdc',
+    feedKey: 'feedIncludeWebxdc',
+    label: 'Webxdc',
+    description: 'Sandboxed HTML5 apps shared over Nostr',
+    route: 'webxdc',
+    addressable: false,
+    section: 'social',
+    blurb: 'Webxdc apps are sandboxed HTML5 mini-apps (.xdc files) shared over Nostr. Play games, run tools, and collaborate with others.',
+    sites: [{ url: 'https://webxdc.org', name: 'webxdc.org' }],
+  },
+  {
     kind: 36767,
     id: 'themes',
     showKey: 'showProfileThemes',
