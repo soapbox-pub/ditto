@@ -743,11 +743,25 @@ export function ProfilePage() {
   const profileThemeFont = showCustomProfileThemes ? profileTheme?.font : undefined;
   const profileThemeBackground = showCustomProfileThemes ? profileTheme?.background : undefined;
 
+  // Whether we need to override the visitor's custom theme on this profile.
+  // When the visited user has no profile theme and the visitor uses a custom theme,
+  // fall back to the system-resolved builtin theme (light/dark based on OS preference)
+  // so the profile doesn't appear with the visitor's custom colors.
+  const needsSystemFallback = !isOwnProfile && !profileThemeColors && ownTheme === 'custom';
+
+  // Determine the effective colors/font/background to apply on this profile:
+  // - If the profile has a theme, use it.
+  // - Otherwise, if the visitor has a custom theme, fall back to system builtin.
+  const effectiveProfileColors = profileThemeColors
+    ?? (needsSystemFallback ? resolveThemeConfig(resolveTheme('system') as 'light' | 'dark', configuredThemes).colors : undefined);
+  const effectiveProfileFont = profileThemeColors ? profileThemeFont : undefined;
+  const effectiveProfileBackground = profileThemeColors ? profileThemeBackground : undefined;
+
   useEffect(() => {
-    if (!profileThemeColors) return;
+    if (!effectiveProfileColors) return;
 
     // Inject the profile theme's CSS vars onto :root
-    const css = buildThemeCssFromCore(profileThemeColors);
+    const css = buildThemeCssFromCore(effectiveProfileColors);
     let el = document.getElementById('theme-vars') as HTMLStyleElement | null;
     if (!el) {
       el = document.createElement('style');
@@ -758,25 +772,25 @@ export function ProfilePage() {
     el.textContent = css;
 
     // Apply profile font (if any)
-    loadAndApplyFont(profileThemeFont);
+    loadAndApplyFont(effectiveProfileFont);
 
     // Apply profile background image (if any)
     const bgStyleId = 'theme-background';
     const previousBgEl = document.getElementById(bgStyleId) as HTMLStyleElement | null;
     const previousBgCss = previousBgEl?.textContent ?? null;
 
-    if (profileThemeBackground?.url) {
+    if (effectiveProfileBackground?.url) {
       let bgEl = previousBgEl;
       if (!bgEl) {
         bgEl = document.createElement('style');
         bgEl.id = bgStyleId;
         document.head.appendChild(bgEl);
       }
-      const bgMode = profileThemeBackground.mode ?? 'cover';
+      const bgMode = effectiveProfileBackground.mode ?? 'cover';
       if (bgMode === 'tile') {
-        bgEl.textContent = `body { background-image: url("${profileThemeBackground.url}"); background-repeat: repeat; background-size: auto; }`;
+        bgEl.textContent = `body { background-image: url("${effectiveProfileBackground.url}"); background-repeat: repeat; background-size: auto; }`;
       } else {
-        bgEl.textContent = `body { background-image: url("${profileThemeBackground.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
+        bgEl.textContent = `body { background-image: url("${effectiveProfileBackground.url}"); background-size: cover; background-repeat: no-repeat; background-position: center; background-attachment: fixed; }`;
       }
     } else {
       // No profile background — remove any existing background style
@@ -831,7 +845,7 @@ export function ProfilePage() {
         bgEl?.remove();
       }
     };
-  }, [profileThemeColors, profileThemeFont, profileThemeBackground]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [effectiveProfileColors, effectiveProfileFont, effectiveProfileBackground]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const pinnedIds = useMemo(() => supplementary?.pinnedIds ?? [], [supplementary?.pinnedIds]);
 
