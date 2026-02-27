@@ -1,4 +1,5 @@
 import { type ReactNode, useState, useCallback, useMemo, useEffect, useRef, createContext, useContext } from 'react';
+import { IntroImage } from '@/components/IntroImage';
 import { nip19, generateSecretKey, getPublicKey } from 'nostr-tools';
 import type { NostrEvent, NostrMetadata } from '@nostrify/nostrify';
 import { useNostr } from '@nostrify/react';
@@ -711,11 +712,7 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col gap-6 animate-in fade-in slide-in-from-right-4 duration-400">
       <div className="flex items-center gap-4">
-        <img
-          src="/profile-intro.png"
-          alt=""
-          className="w-40 shrink-0 mix-blend-difference opacity-80"
-        />
+        <IntroImage src="/profile-intro.png" />
         <div className="space-y-2">
           <h2 className="text-xl font-semibold tracking-tight">Set up your profile</h2>
           <p className="text-sm text-muted-foreground">

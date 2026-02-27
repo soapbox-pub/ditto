@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { IntroImage } from '@/components/IntroImage';
 import { ChevronDown, ChevronUp, Users, Download, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -107,11 +108,7 @@ export function ContentSettings() {
             <div className="pb-4">
               {/* Intro section for Other Stuff */}
               <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <img
-                  src="/feed-intro.png"
-                  alt=""
-                  className="w-40 shrink-0 mix-blend-difference opacity-80"
-                />
+                <IntroImage src="/feed-intro.png" />
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold">Other Stuff</h3>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -165,11 +162,7 @@ export function ContentSettings() {
             <div className="pb-4">
               {/* Intro section for Muted Content */}
               <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-                <img
-                  src="/mute-intro.png"
-                  alt=""
-                  className="w-40 shrink-0 mix-blend-difference opacity-80"
-                />
+                <IntroImage src="/mute-intro.png" />
                 <div className="min-w-0">
                   <h3 className="text-sm font-semibold">Content Control</h3>
                   <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
@@ -525,11 +518,7 @@ function FeedTabsSection() {
     <div>
       {/* Intro section for Feed Tabs */}
       <div className="flex items-center gap-4 px-3 pt-3 pb-4">
-        <img
-          src="/community-intro.png"
-          alt=""
-          className="w-40 shrink-0 mix-blend-difference opacity-80"
-        />
+        <IntroImage src="/community-intro.png" />
         <div className="min-w-0">
           <h3 className="text-sm font-semibold">Feed Navigation</h3>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
