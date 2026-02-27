@@ -1,9 +1,11 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useInView } from 'react-intersection-observer';
 import { useSeoMeta } from '@unhead/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Zap, AtSign, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
+import { PullToRefresh } from '@/components/PullToRefresh';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
@@ -29,6 +31,7 @@ export function NotificationsPage() {
 
   const [activeTab, setActiveTab] = useState<NotificationTab>('all');
   const { user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const {
     items,
     newNotificationIds,
@@ -40,6 +43,10 @@ export function NotificationsPage() {
     fetchNextPage,
   } = useNotifications();
   const { muteItems } = useMuteList();
+
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ['notifications', user?.pubkey ?? ''] });
+  }, [queryClient, user?.pubkey]);
 
   // Mark notifications as read when user visits the page
   useEffect(() => {
@@ -110,40 +117,42 @@ export function NotificationsPage() {
       </div>
 
       {/* Content */}
-      {!user ? (
-        <div className="py-16 text-center text-muted-foreground">
-          Log in to see your notifications.
-        </div>
-      ) : isLoading || !hasFetched ? (
-        <div className="divide-y divide-border">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <NotificationSkeleton key={i} />
-          ))}
-        </div>
-      ) : filteredItems.length > 0 ? (
-        <div>
-          {filteredItems.map((item) => (
-            <NotificationItemView
-              key={item.event.id}
-              item={item}
-              isNew={newNotificationIds.has(item.event.id)}
-            />
-          ))}
-          {hasNextPage && (
-            <div ref={scrollRef} className="py-4">
-              {isFetchingNextPage && (
-                <div className="flex justify-center">
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      ) : (
-        <div className="py-16 text-center text-muted-foreground">
-          No notifications yet.
-        </div>
-      )}
+      <PullToRefresh onRefresh={handleRefresh}>
+        {!user ? (
+          <div className="py-16 text-center text-muted-foreground">
+            Log in to see your notifications.
+          </div>
+        ) : isLoading || !hasFetched ? (
+          <div className="divide-y divide-border">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <NotificationSkeleton key={i} />
+            ))}
+          </div>
+        ) : filteredItems.length > 0 ? (
+          <div>
+            {filteredItems.map((item) => (
+              <NotificationItemView
+                key={item.event.id}
+                item={item}
+                isNew={newNotificationIds.has(item.event.id)}
+              />
+            ))}
+            {hasNextPage && (
+              <div ref={scrollRef} className="py-4">
+                {isFetchingNextPage && (
+                  <div className="flex justify-center">
+                    <Loader2 className="size-5 animate-spin text-muted-foreground" />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="py-16 text-center text-muted-foreground">
+            No notifications yet.
+          </div>
+        )}
+      </PullToRefresh>
     </main>
   );
 }
