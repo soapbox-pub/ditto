@@ -1,14 +1,16 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, ChevronRight, LayoutList, Palette, Server, Settings as SettingsIcon, User, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Palette, Settings as SettingsIcon, Wallet } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { IntroImage } from '@/components/IntroImage';
 
 export interface SettingsSection {
   id: string;
   label: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  illustration?: string;
+  icon?: React.ComponentType<{ className?: string }>;
   path: string;
   requiresAuth?: boolean;
 }
@@ -18,7 +20,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'profile',
     label: 'Profile',
     description: 'Edit your display name, bio, and avatar',
-    icon: User,
+    illustration: '/profile-intro.png',
     path: '/settings/profile',
     requiresAuth: true,
   },
@@ -33,7 +35,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'content',
     label: 'Content',
     description: 'Manage your feed and content preferences',
-    icon: LayoutList,
+    illustration: '/feed-intro.png',
     path: '/settings/content',
   },
   {
@@ -56,7 +58,7 @@ export const settingsSections: SettingsSection[] = [
     id: 'advanced',
     label: 'Advanced',
     description: 'Relays, upload servers, and system settings',
-    icon: Server,
+    illustration: '/relay-intro.png',
     path: '/settings/advanced',
   },
 ];
@@ -106,7 +108,11 @@ export function SettingsPage() {
             >
               <CardContent className="flex items-center gap-4 p-4">
                 <div className="flex items-center justify-center size-10 rounded-full bg-secondary shrink-0">
-                  <Icon className="size-5 text-muted-foreground" />
+                  {section.illustration ? (
+                    <IntroImage src={section.illustration} size="w-7" />
+                  ) : Icon ? (
+                    <Icon className="size-5 text-muted-foreground" />
+                  ) : null}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">{section.label}</p>
