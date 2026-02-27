@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef, forwardRef } from 'react';
-import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket } from 'lucide-react';
+import { Zap, Copy, Check, ExternalLink, Sparkle, Sparkles, Star, Rocket, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
@@ -350,21 +348,21 @@ export function ZapDialog({ target, children, className }: ZapDialogProps) {
           {children}
         </div>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] max-h-[95vh] overflow-hidden" data-testid="zap-modal">
-        <DialogHeader>
-          <DialogTitle className="text-lg break-words">
+      <DialogContent className="max-w-[425px] rounded-2xl p-0 gap-0 border-border overflow-hidden max-h-[95vh] [&>button]:hidden" data-testid="zap-modal">
+        <div className="flex items-center justify-between px-4 h-12">
+          <DialogTitle className="text-base font-semibold">
             {invoice ? 'Lightning Payment' : 'Send a Zap'}
           </DialogTitle>
-          <DialogDescription className="text-sm text-center break-words">
-            {invoice ? (
-              'Pay with Bitcoin Lightning Network'
-            ) : (
-              <>
-                Zaps are small Bitcoin payments that support the creator of this item. If you enjoyed this, consider sending a zap!
-              </>
-            )}
-          </DialogDescription>
-        </DialogHeader>
+          <button
+            onClick={() => setOpen(false)}
+            className="p-1.5 -mr-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+        <p className="px-4 -mt-1 mb-1 text-sm text-muted-foreground">
+          {invoice ? 'Pay with Bitcoin Lightning Network' : 'Send a small Bitcoin payment to support the creator.'}
+        </p>
         <div className="overflow-y-auto">
           <ZapContent {...contentProps} />
         </div>
