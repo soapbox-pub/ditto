@@ -18,6 +18,7 @@ import { ContentSettingsPage } from "./pages/ContentSettingsPage";
 import { WalletSettingsPage } from "./pages/WalletSettingsPage";
 import { NotificationSettings } from "./pages/NotificationSettings";
 import { AdvancedSettingsPage } from "./pages/AdvancedSettingsPage";
+import { NetworkSettingsPage } from "./pages/NetworkSettingsPage";
 import { HashtagPage } from "./pages/HashtagPage";
 import { DomainFeedPage } from "./pages/DomainFeedPage";
 import { BookmarksPage } from "./pages/BookmarksPage";
@@ -57,6 +58,7 @@ export function AppRouter() {
           <Route path="/settings/wallet" element={<WalletSettingsPage />} />
           <Route path="/settings/notifications" element={<NotificationSettings />} />
           <Route path="/settings/advanced" element={<AdvancedSettingsPage />} />
+          <Route path="/settings/network" element={<NetworkSettingsPage />} />
           <Route path="/vines" element={<KindFeedPage kind={34236} title="Vines" icon={<Clapperboard className="size-5" />} />} />
           <Route path="/polls" element={<KindFeedPage kind={1068} title="Polls" icon={<BarChart3 className="size-5" />} />} />
           <Route path="/treasures" element={<TreasuresPage />} />

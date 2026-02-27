@@ -28,6 +28,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { z } from 'zod';
+import { IntroImage } from '@/components/IntroImage';
 
 // Extended form schema that includes custom fields
 const formSchema = n.metadata().extend({
@@ -180,11 +181,7 @@ export const EditProfileForm: React.FC = () => {
     <div>
       {/* Intro */}
       <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-        <img
-          src="/profile-intro.png"
-          alt=""
-          className="w-40 shrink-0 mix-blend-difference opacity-80"
-        />
+        <IntroImage src="/profile-intro.png" />
         <div className="min-w-0">
           <h2 className="text-sm font-semibold">Your Identity</h2>
           <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
