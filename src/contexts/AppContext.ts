@@ -83,6 +83,8 @@ export interface AppConfig {
   theme: Theme;
   /** Custom theme config (colors, fonts, background). Only used when theme === "custom". */
   customTheme?: ThemeConfig;
+  /** Automatically publish custom theme changes to profile (kind 16767). Default: true. */
+  autoShareTheme: boolean;
   /** Configured light and dark themes. Overrides the builtin themes when set. */
   themes?: ThemesConfig;
   /** NIP-65 relay list metadata */

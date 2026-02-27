@@ -26,6 +26,8 @@ export interface EncryptedSettings {
   theme?: Theme;
   /** Custom theme config (colors, fonts, background) */
   customTheme?: ThemeConfig;
+  /** Automatically publish custom theme changes to profile */
+  autoShareTheme?: boolean;
   /** Whether to use app default relays in addition to user relays */
   useAppRelays?: boolean;
   /** Feed and sidebar content settings */

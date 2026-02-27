@@ -2,11 +2,14 @@ import { useMemo, useCallback } from 'react';
 import { Check } from 'lucide-react';
 import { type Theme } from '@/contexts/AppContext';
 import { useTheme } from '@/hooks/useTheme';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { themePresets, coreToTokens, resolveTheme, resolveThemeConfig, type CoreThemeColors, type ThemeTokens, type ThemeConfig, type ThemesConfig } from '@/themes';
 import { hslStringToHex, hexToHslString } from '@/lib/colorUtils';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { FontPicker } from '@/components/FontPicker';
 import { BackgroundPicker } from '@/components/BackgroundPicker';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 /** Extracts HSL color string from a theme token value like "258 70% 55%" */
@@ -107,7 +110,8 @@ function ThemePreviewCard({
 }
 
 export function ThemeSelector() {
-  const { theme, customTheme, themes, setTheme, applyCustomTheme } = useTheme();
+  const { theme, customTheme, themes, autoShareTheme, setTheme, applyCustomTheme, setAutoShareTheme } = useTheme();
+  const { user } = useCurrentUser();
 
   const builtinOptions: { id: Theme; label: string }[] = [
     { id: 'system', label: 'System' },
@@ -270,6 +274,23 @@ export function ThemeSelector() {
 
         {/* Background */}
         <BackgroundPicker />
+
+        {/* Auto-share toggle */}
+        {user && (
+          <div className="flex items-center justify-between pt-1">
+            <Label htmlFor="auto-share-theme" className="flex flex-col gap-1 cursor-pointer">
+              <span className="text-sm font-medium">Share theme on your profile</span>
+              <span className="text-xs text-muted-foreground font-normal">
+                Automatically publish theme changes to your profile
+              </span>
+            </Label>
+            <Switch
+              id="auto-share-theme"
+              checked={autoShareTheme}
+              onCheckedChange={setAutoShareTheme}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -23,6 +23,7 @@ export function TestApp({ children }: TestAppProps) {
 
   const defaultConfig: AppConfig = {
     theme: 'light',
+    autoShareTheme: true,
     useAppRelays: true,
     relayMetadata: {
       relays: [
