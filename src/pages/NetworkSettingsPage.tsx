@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RelayListManager } from '@/components/RelayListManager';
 import { BlossomSettings } from '@/components/BlossomSettings';
+import { IntroImage } from '@/components/IntroImage';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 export function NetworkSettingsPage() {
@@ -40,6 +41,17 @@ export function NetworkSettingsPage() {
       </div>
 
       <div className="p-4">
+        {/* Intro */}
+        <div className="flex items-center gap-4 px-3 pt-2 pb-4">
+          <IntroImage src="/relay-intro.png" />
+          <div className="min-w-0">
+            <h2 className="text-sm font-semibold">Network Connections</h2>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Manage your relay connections. Relays are servers that store and distribute Nostr events across the network.
+            </p>
+          </div>
+        </div>
+
         {/* Relays */}
         <Collapsible open={relaysOpen} onOpenChange={setRelaysOpen}>
           <CollapsibleTrigger asChild>

@@ -101,14 +101,14 @@ export function SettingsPage() {
           return (
             <div
               key={section.id}
-              className="flex items-center gap-4 px-3 py-3 cursor-pointer rounded-xl bg-muted/40 transition-colors hover:bg-muted/60 active:bg-muted/80"
+              className="flex items-center gap-4 px-3 py-1 cursor-pointer rounded-xl bg-muted/40 transition-colors hover:bg-muted/60 active:bg-muted/80"
               onClick={() => navigate(section.path)}
             >
-              <div className="flex items-center justify-center size-16 shrink-0">
+              <div className="flex items-center justify-center size-20 shrink-0">
                 {section.illustration ? (
-                  <IntroImage src={section.illustration} size="w-16" />
+                  <IntroImage src={section.illustration} size="w-20" />
                 ) : Icon ? (
-                  <Icon className="size-10 text-primary opacity-90" />
+                  <Icon className="size-12 text-primary opacity-90" />
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">

@@ -1,6 +1,6 @@
 import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
-import { Link, Navigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
 import { WalletSettings } from '@/components/WalletSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
