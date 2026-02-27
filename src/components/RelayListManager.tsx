@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { IntroImage } from '@/components/IntroImage';
 import { Plus, X, Wifi, Settings, Server, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -216,19 +215,8 @@ export function RelayListManager() {
 
   return (
     <div>
-      {/* Intro */}
-      <div className="flex items-center gap-4 px-3 pt-2 pb-4">
-        <IntroImage src="/relay-intro.png" />
-        <div className="min-w-0">
-          <h2 className="text-sm font-semibold">Network Connections</h2>
-          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-            Manage your relay connections. Relays are servers that store and distribute Nostr events across the network.
-          </p>
-        </div>
-      </div>
-
       {/* App Relays Section */}
-      <div className="border-b border-border pb-4">
+      <div className="pt-4 pb-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -279,7 +267,7 @@ export function RelayListManager() {
       </div>
 
       {/* User Relays Section */}
-      <div className="border-b border-border pb-4 pt-4">
+      <div className="pb-4 pt-4">
         <div className="px-3 space-y-3">
           <div className="flex items-center gap-2">
             <User className="h-5 w-5 text-muted-foreground" />
