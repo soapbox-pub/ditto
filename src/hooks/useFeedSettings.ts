@@ -27,6 +27,7 @@ export const BUILTIN_SIDEBAR_ITEMS: BuiltinSidebarItem[] = [
   { id: 'profile', label: 'Profile', path: '/profile', requiresAuth: true },
   { id: 'settings', label: 'Settings', path: '/settings' },
   { id: 'theme', label: 'Theme', path: '/settings/theme' },
+  { id: 'themes', label: 'Themes', path: '/themes' },
 ];
 
 /** Set of all built-in IDs for quick lookup. */
