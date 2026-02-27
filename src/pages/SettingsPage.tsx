@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { ArrowLeft, Bell, ChevronRight, Palette, Settings as SettingsIcon, Wallet } from 'lucide-react';
+import { ArrowLeft, Bell, ChevronRight, Palette, Settings as SettingsIcon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { IntroImage } from '@/components/IntroImage';
@@ -34,16 +34,8 @@ export const settingsSections: SettingsSection[] = [
     id: 'content',
     label: 'Content',
     description: 'Manage your feed and content preferences',
-    illustration: '/feed-intro.png',
+    illustration: '/community-intro.png',
     path: '/settings/content',
-  },
-  {
-    id: 'wallet',
-    label: 'Wallet',
-    description: 'Manage wallet connections and payments',
-    icon: Wallet,
-    path: '/settings/wallet',
-    requiresAuth: true,
   },
   {
     id: 'notifications',
@@ -96,20 +88,20 @@ export function SettingsPage() {
       </div>
 
       {/* Settings menu */}
-      <div className="px-4 divide-y divide-border">
+      <div className="px-4 space-y-2">
         {visibleSections.map((section) => {
           const Icon = section.icon;
           return (
             <div
               key={section.id}
-              className="flex items-center gap-4 px-2 py-3 cursor-pointer transition-colors hover:bg-muted/40 active:bg-muted/60"
+              className="flex items-center gap-4 px-3 py-3 cursor-pointer rounded-xl bg-muted/40 transition-colors hover:bg-muted/60 active:bg-muted/80"
               onClick={() => navigate(section.path)}
             >
-              <div className="flex items-center justify-center size-12 shrink-0">
+              <div className="flex items-center justify-center size-16 shrink-0">
                 {section.illustration ? (
-                  <IntroImage src={section.illustration} size="w-12" />
+                  <IntroImage src={section.illustration} size="w-16" />
                 ) : Icon ? (
-                  <Icon className="size-7 text-primary opacity-90" />
+                  <Icon className="size-10 text-primary opacity-90" />
                 ) : null}
               </div>
               <div className="flex-1 min-w-0">
