@@ -74,3 +74,13 @@
 .animate-ping-3 {
   animation: ping-3 4s ease-out forwards;
 }
+
+/* Slow continuous pulse for nagging buttons */
+@keyframes pulse-slow {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50% { transform: scale(1.8); opacity: 0; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2.5s ease-in-out infinite;
+}
