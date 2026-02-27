@@ -140,8 +140,8 @@ export function ThemeSelector() {
   const handleColorChange = useCallback((key: keyof CoreThemeColors, hex: string) => {
     const hslValue = hexToHslString(hex);
     const newColors = { ...effectiveColors, [key]: hslValue };
-    applyCustomTheme(newColors);
-  }, [effectiveColors, applyCustomTheme]);
+    applyCustomTheme({ ...customTheme, colors: newColors });
+  }, [effectiveColors, applyCustomTheme, customTheme]);
 
    return (
     <div className="space-y-5">
