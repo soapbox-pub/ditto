@@ -31,6 +31,7 @@ import { FollowPackDetailContent } from '@/components/FollowPackDetailContent';
 import { ArticleContent } from '@/components/ArticleContent';
 import { MagicDeckContent } from '@/components/MagicDeckContent';
 import { FileMetadataContent } from '@/components/FileMetadataContent';
+import { ThemeContent } from '@/components/ThemeContent';
 import { LiveStreamPage } from '@/components/LiveStreamPage';
 import { WebxdcEmbed } from '@/components/WebxdcEmbed';
 import { useEvent, useAddrEvent, type AddrCoords } from '@/hooks/useEvent';
@@ -569,7 +570,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
     const isArticle = event.kind === 30023;
     const isMagicDeck = event.kind === 37381;
     const isFileMetadata = event.kind === 1063;
-    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata;
+    const isTheme = event.kind === 36767 || event.kind === 16767;
+    const isTextNote = !isVine && !isPoll && !isGeocache && !isFoundLog && !isColor && !isFollowPack && !isArticle && !isMagicDeck && !isFileMetadata && !isTheme;
 
   const videos = useMemo(() => isTextNote ? extractVideos(event.content) : [], [event.content, isTextNote]);
   const imetaMap = useMemo(() => isTextNote ? parseImetaMap(event.tags) : new Map<string, ImetaEntry>(), [event.tags, isTextNote]);
@@ -728,6 +730,8 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             <MagicDeckContent event={event} />
           ) : isFileMetadata ? (
             <FileMetadataContent event={event} />
+          ) : isTheme ? (
+            <ThemeContent event={event} />
           ) : isVine || isPoll || isGeocache || isFoundLog || isColor || isFollowPack ? (
             <>
               {isVine && <VineDetailContent event={event} />}
