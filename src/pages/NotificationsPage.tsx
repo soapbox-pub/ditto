@@ -184,7 +184,7 @@ function formatSats(sats: number): string {
 /** Wrapper that adds the new-notification indicator. */
 function NotificationWrapper({ isNew, children }: { isNew: boolean; children: React.ReactNode }) {
   return (
-    <div className={cn('relative', isNew && 'bg-primary/5')}>
+    <div className={cn('relative border-b border-border', isNew && 'bg-primary/5')}>
       {isNew && (
         <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary z-10" />
       )}
