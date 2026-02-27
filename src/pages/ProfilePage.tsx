@@ -45,7 +45,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { useFeedSettings } from '@/hooks/useFeedSettings';
 import { useEncryptedSettings } from '@/hooks/useEncryptedSettings';
-import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar } from '@/themes';
+import { buildThemeCssFromCore, coreToTokens, buildThemeCss, resolveTheme, resolveThemeConfig, toThemeVar, type CoreThemeColors } from '@/themes';
 import { loadAndApplyFont } from '@/lib/fontLoader';
 import { hslStringToHex } from '@/lib/colorUtils';
 import { cn, STICKY_HEADER_CLASS } from '@/lib/utils';
@@ -755,12 +755,17 @@ export function ProfilePage() {
   // so the profile doesn't appear with the user's custom colors.
   const needsSystemFallback = !profileThemeColors && ownTheme === 'custom';
 
-  // Detect whether the app custom theme differs from the published profile theme
-  const ownCustomThemeSnapshot = ownCustomTheme ? JSON.stringify(ownCustomTheme.colors) + JSON.stringify(ownCustomTheme.font ?? '') + JSON.stringify(ownCustomTheme.background ?? '') : null;
-  const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme
-    ? (JSON.stringify(profileTheme.colors) !== JSON.stringify(ownCustomTheme?.colors)
-      || JSON.stringify(profileTheme.font ?? '') !== JSON.stringify(ownCustomTheme?.font ?? '')
-      || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme?.background ?? ''))
+  // Detect whether the app custom theme differs from the published profile theme.
+  // Colors are compared via hex to avoid HSL precision issues from the hex round-trip.
+  const colorsToHex = (c: CoreThemeColors) =>
+    `${hslStringToHex(c.primary)}${hslStringToHex(c.text)}${hslStringToHex(c.background)}`;
+  const ownCustomThemeSnapshot = ownCustomTheme
+    ? colorsToHex(ownCustomTheme.colors) + JSON.stringify(ownCustomTheme.font ?? '') + JSON.stringify(ownCustomTheme.background ?? '')
+    : null;
+  const profileThemeDiffers = profileHasTheme && ownCustomThemeSnapshot && profileTheme && ownCustomTheme
+    ? (colorsToHex(profileTheme.colors) !== colorsToHex(ownCustomTheme.colors)
+      || JSON.stringify(profileTheme.font ?? '') !== JSON.stringify(ownCustomTheme.font ?? '')
+      || JSON.stringify(profileTheme.background ?? '') !== JSON.stringify(ownCustomTheme.background ?? ''))
     : false;
 
   // Show share-theme prompt on own profile when:
