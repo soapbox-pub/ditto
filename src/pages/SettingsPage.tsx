@@ -1,5 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, ChevronRight, Scroll } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
@@ -77,6 +77,27 @@ export function SettingsPage() {
   const { config, updateConfig } = useAppContext();
   const navigate = useNavigate();
   const [sigilFlash, setSigilFlash] = useState(false);
+  const [sigilVisible, setSigilVisible] = useState(false);
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (config.magicMouse) return;
+
+    function resetTimer() {
+      setSigilVisible(false);
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+      inactivityTimer.current = setTimeout(() => setSigilVisible(true), 2 * 60 * 1000);
+    }
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
+    resetTimer();
+
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, resetTimer));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [config.magicMouse]);
   useLayoutOptions({ noBottomSpacer: true });
 
   useSeoMeta({
@@ -171,8 +192,8 @@ export function SettingsPage() {
         <div className="h-px flex-1 bg-gradient-to-l from-transparent via-primary/20 to-primary/30" />
       </div>
 
-      {/* Magic sigil — only shown when magic is locked */}
-      {!config.magicMouse && (<div className="flex justify-center pt-16 pb-12">
+      {/* Magic sigil — appears after 2 min inactivity, only when magic is locked */}
+      {!config.magicMouse && sigilVisible && (<div className="flex justify-center pt-16 pb-12">
         <button
           onClick={unlockMagic}
           className="relative group focus:outline-none"
