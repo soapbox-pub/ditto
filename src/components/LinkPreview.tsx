@@ -1,4 +1,5 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, MessageSquare } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
@@ -22,6 +23,7 @@ function displayDomain(url: string): string {
 /** Rich link preview card rendered from OEmbed data. */
 export function LinkPreview({ url, className }: LinkPreviewProps) {
   const { data, isLoading } = useLinkPreview(url);
+  const navigate = useNavigate();
 
   if (isLoading) {
     return <LinkPreviewSkeleton className={className} />;
@@ -65,6 +67,24 @@ export function LinkPreview({ url, className }: LinkPreviewProps) {
           <ExternalFavicon url={url} size={14} className="shrink-0" />
           <span className="truncate">{domain}</span>
           <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+
+          {/* Discuss button */}
+          <button
+            type="button"
+            className={cn(
+              'ml-auto flex items-center gap-1 px-2 py-0.5 rounded-full',
+              'text-xs text-muted-foreground',
+              'hover:bg-primary/10 hover:text-primary transition-colors',
+            )}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              navigate(`/i/${encodeURIComponent(url)}`);
+            }}
+          >
+            <MessageSquare className="size-3" />
+            <span>Discuss</span>
+          </button>
         </div>
 
         {/* Title */}
