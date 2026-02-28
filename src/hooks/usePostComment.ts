@@ -6,6 +6,7 @@ interface PostCommentParams {
   root: NostrEvent | URL; // The root event to comment on
   reply?: NostrEvent | URL; // Optional reply to another comment
   content: string;
+  tags?: string[][]; // Additional tags (hashtags, mentions, imeta, etc.)
 }
 
 /** Post a NIP-22 (kind 1111) comment on an event. */
@@ -14,7 +15,7 @@ export function usePostComment() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ root, reply, content }: PostCommentParams) => {
+    mutationFn: async ({ root, reply, content, tags: extraTags }: PostCommentParams) => {
       const tags: string[][] = [];
 
       // d-tag identifiers
@@ -72,6 +73,11 @@ export function usePostComment() {
           tags.push(['k', root.kind.toString()]);
           tags.push(['p', root.pubkey]);
         }
+      }
+
+      // Append any extra tags (hashtags, mentions, imeta, CW, etc.)
+      if (extraTags) {
+        tags.push(...extraTags);
       }
 
       const event = await publishEvent({
