@@ -43,6 +43,7 @@ const FOLLOW_PACK_KINDS = new Set([30000, 39089]);
 const LIVE_STREAM_KIND = 30311;
 import { useReplies } from '@/hooks/useReplies';
 import { useComments } from '@/hooks/useComments';
+import { CommentContext } from '@/components/CommentContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useMuteList } from '@/hooks/useMuteList';
@@ -777,6 +778,9 @@ function PostDetailContent({ event }: { event: NostrEvent }) {
             </>
           )}
         </div>
+
+        {/* Comment context for kind 1111 */}
+        {event.kind === 1111 && <CommentContext event={event} />}
 
         {/* Post content — kind-based dispatch, guarded by NIP-36 content-warning */}
         <ContentWarningGuard event={event}>
