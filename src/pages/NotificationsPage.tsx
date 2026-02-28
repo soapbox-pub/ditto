@@ -6,6 +6,7 @@ import { Zap, AtSign, Loader2 } from 'lucide-react';
 import { RepostIcon } from '@/components/icons/RepostIcon';
 import { Link } from 'react-router-dom';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { useAppContext } from '@/hooks/useAppContext';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { NoteCard } from '@/components/NoteCard';
@@ -24,8 +25,10 @@ import { ReactionEmoji, EmojifiedText } from '@/components/CustomEmoji';
 type NotificationTab = 'all' | 'mentions';
 
 export function NotificationsPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Notifications | Ditto',
+    title: `Notifications | ${config.appName}`,
     description: 'Your Nostr notifications',
   });
 

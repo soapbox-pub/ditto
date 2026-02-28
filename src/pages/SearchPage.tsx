@@ -1,4 +1,5 @@
 import { useSeoMeta } from '@unhead/react';
+import { useAppContext } from '@/hooks/useAppContext';
 import { ChevronUp, ChevronDown, Search as SearchIcon, Image, Video, Film, Languages, UserRoundCheck } from 'lucide-react';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -32,8 +33,10 @@ function parseTab(value: string | null): TabType {
 }
 
 export function SearchPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Search | Ditto',
+    title: `Search | ${config.appName}`,
     description: 'Search Nostr',
   });
 

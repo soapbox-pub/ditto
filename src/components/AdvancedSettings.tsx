@@ -99,12 +99,12 @@ export function AdvancedSettings() {
                       toast({ title: 'Default zap comment updated' });
                     }
                   }}
-                  placeholder="Zapped with Ditto!"
+                  placeholder={`Zapped with ${config.appName}!`}
                   className="text-sm"
                 />
                 <div className="text-xs text-muted-foreground mt-2">
                   <span className="font-medium">Default: </span>
-                  <span>Zapped with Ditto!</span>
+                  <span>Zapped with {config.appName}!</span>
                 </div>
               </div>
 

@@ -2,10 +2,13 @@ import { useSeoMeta } from '@unhead/react';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { ThemeSelector } from '@/components/ThemeSelector';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export function ThemeSettingsPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Vibe | Settings | Ditto',
+    title: `Vibe | Settings | ${config.appName}`,
     description: 'Choose a theme for the interface',
   });
 

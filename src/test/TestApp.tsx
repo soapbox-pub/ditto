@@ -22,6 +22,7 @@ export function TestApp({ children }: TestAppProps) {
   });
 
   const defaultConfig: AppConfig = {
+    appName: 'Ditto',
     theme: 'light',
     autoShareTheme: true,
     useAppRelays: true,

@@ -3,6 +3,7 @@ import { useNostr } from '@nostrify/react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { NostrFilter } from '@nostrify/nostrify';
 
+import { useAppContext } from '@/hooks/useAppContext';
 import { useCurrentUser } from './useCurrentUser';
 import type { Theme, FeedSettings, ContentWarningPolicy } from '@/contexts/AppContext';
 import type { ThemeConfig } from '@/themes';
@@ -68,6 +69,7 @@ export interface EncryptedSettings {
  * Syncs settings across devices while keeping them private
  */
 export function useEncryptedSettings() {
+  const { config } = useAppContext();
   const { nostr } = useNostr();
   const { user } = useCurrentUser();
   const queryClient = useQueryClient();
@@ -174,7 +176,7 @@ export function useEncryptedSettings() {
         content: encrypted,
         tags: [
           ['d', SETTINGS_D_TAG],
-          ['title', 'Ditto Metadata'],
+          ['title', `${config.appName} Metadata`],
           ['client', location.hostname],
         ],
         created_at: Math.floor(Date.now() / 1000),

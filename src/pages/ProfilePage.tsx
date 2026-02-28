@@ -21,6 +21,7 @@ import { NoteCard } from '@/components/NoteCard';
 import { ZapDialog } from '@/components/ZapDialog';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
 import { Nip05Badge, VerifiedNip05Text } from '@/components/Nip05Badge';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { useToast } from '@/hooks/useToast';
@@ -605,6 +606,7 @@ function ProfileImageLightbox({ imageUrl, onClose }: { imageUrl: string; onClose
 // ----- Main Component -----
 
 export function ProfilePage() {
+  const { config } = useAppContext();
   const params = useParams();
   const npub = params.npub ?? params.nip19;
   const { nostr } = useNostr();
@@ -688,7 +690,7 @@ export function ProfilePage() {
   }, [metadataEvent?.content, metadata?.website]);
 
   useSeoMeta({
-    title: `${displayName} | Ditto`,
+    title: `${displayName} | ${config.appName}`,
     description: metadata?.about || 'Nostr profile',
   });
 

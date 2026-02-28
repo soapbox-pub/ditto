@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { ProfileHoverCard } from '@/components/ProfileHoverCard';
 import { EmojifiedText } from '@/components/CustomEmoji';
 import { Nip05Badge } from '@/components/Nip05Badge';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useAuthor } from '@/hooks/useAuthor';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { getDisplayName } from '@/lib/getDisplayName';
@@ -72,6 +73,7 @@ interface LiveStreamPageProps {
 }
 
 export function LiveStreamPage({ event }: LiveStreamPageProps) {
+  const { config } = useAppContext();
   const navigate = useNavigate();
   const { user } = useCurrentUser();
   const [descExpanded, setDescExpanded] = useState(false);
@@ -97,7 +99,7 @@ export function LiveStreamPage({ event }: LiveStreamPageProps) {
   // The URL to play: prefer streaming for live, recording for ended
   const playUrl = status === 'ended' ? (recordingUrl || streamUrl) : streamUrl;
 
-  useSeoMeta({ title: `${title} - Ditto` });
+  useSeoMeta({ title: `${title} - ${config.appName}` });
 
   // Lock body scroll on mobile to prevent page scrolling past the viewport-locked layout
   useEffect(() => {

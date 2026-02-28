@@ -8,14 +8,16 @@ import { RelayListManager } from '@/components/RelayListManager';
 import { BlossomSettings } from '@/components/BlossomSettings';
 import { IntroImage } from '@/components/IntroImage';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
 
 export function NetworkSettingsPage() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const [relaysOpen, setRelaysOpen] = useState(true);
   const [blossomOpen, setBlossomOpen] = useState(false);
 
   useSeoMeta({
-    title: 'Network | Settings | Ditto',
+    title: `Network | Settings | ${config.appName}`,
     description: 'Manage relays and file upload servers',
   });
 

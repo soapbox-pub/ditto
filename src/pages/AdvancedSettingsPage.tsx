@@ -5,6 +5,7 @@ import { IntroImage } from '@/components/IntroImage';
 import { AdvancedSettings } from '@/components/AdvancedSettings';
 import { WalletSettings } from '@/components/WalletSettings';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
+import { useAppContext } from '@/hooks/useAppContext';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Button } from '@/components/ui/button';
 import { ChevronDown, ChevronUp } from 'lucide-react';
@@ -12,10 +13,11 @@ import { useState } from 'react';
 
 export function AdvancedSettingsPage() {
   const { user } = useCurrentUser();
+  const { config } = useAppContext();
   const [walletOpen, setWalletOpen] = useState(false);
 
   useSeoMeta({
-    title: 'Advanced | Settings | Ditto',
+    title: `Advanced | Settings | ${config.appName}`,
     description: 'Advanced settings for wallet, system, and power user configuration',
   });
 

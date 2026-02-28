@@ -3,14 +3,17 @@ import { ArrowLeft, Bookmark } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { NoteCard } from '@/components/NoteCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useBookmarks } from '@/hooks/useBookmarks';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { LoginArea } from '@/components/auth/LoginArea';
 import { cn } from '@/lib/utils';
 
 export function BookmarksPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Bookmarks | Ditto',
+    title: `Bookmarks | ${config.appName}`,
     description: 'Your saved bookmarks on Nostr.',
   });
 

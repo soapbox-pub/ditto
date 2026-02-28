@@ -5,6 +5,7 @@ import { sidebarItemIcon } from '@/components/SidebarNavItem';
 import { useSeoMeta } from '@unhead/react';
 import { nip19 } from 'nostr-tools';
 import type { NostrEvent } from '@nostrify/nostrify';
+import { useAppContext } from '@/hooks/useAppContext';
 
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -43,8 +44,10 @@ function getStatusConfig(status: string | undefined) {
 }
 
 export function StreamsFeedPage() {
+  const { config } = useAppContext();
+
   useSeoMeta({
-    title: 'Streams | Ditto',
+    title: `Streams | ${config.appName}`,
     description: 'Live streams on Nostr',
   });
 

@@ -91,6 +91,8 @@ export interface FeedSettings {
 }
 
 export interface AppConfig {
+  /** Application display name used in page titles, UI text, and branding. Default: "Ditto". */
+  appName: string;
   /** Enable Magic Mouse mode: cursor/finger emanates magical fire in the primary color */
   magicMouse: boolean;
   /** Current theme */

@@ -17,6 +17,7 @@ import {
   type NostrConnectParams,
 } from '@/hooks/useLoginActions';
 import { DialogTitle } from '@radix-ui/react-dialog';
+import { useAppContext } from '@/hooks/useAppContext';
 import { useIsMobile } from '@/hooks/useIsMobile';
 
 interface LoginDialogProps {
@@ -35,6 +36,7 @@ const validateBunkerUri = (uri: string) => {
 };
 
 const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onSignupClick }) => {
+  const { config } = useAppContext();
   const [isLoading, setIsLoading] = useState(false);
   const [isFileLoading, setIsFileLoading] = useState(false);
   const [nsec, setNsec] = useState('');
@@ -64,7 +66,7 @@ const LoginDialog: React.FC<LoginDialogProps> = ({ isOpen, onClose, onLogin, onS
   const generateConnectSession = useCallback(() => {
     const relayUrls = login.getRelayUrls();
     const params = generateNostrConnectParams(relayUrls);
-    const uri = generateNostrConnectURI(params, 'Ditto');
+    const uri = generateNostrConnectURI(params, config.appName);
     setNostrConnectParams(params);
     setNostrConnectUri(uri);
     setConnectError(null);

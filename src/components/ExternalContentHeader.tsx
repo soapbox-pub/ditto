@@ -89,24 +89,24 @@ export function headerLabel(content: ExternalContent): string {
 }
 
 /** Get a page title for SEO. */
-export function seoTitle(content: ExternalContent): string {
+export function seoTitle(content: ExternalContent, appName: string): string {
   switch (content.type) {
     case 'url':
       try {
-        return `${new URL(content.value).hostname.replace(/^www\./, '')} | Ditto`;
+        return `${new URL(content.value).hostname.replace(/^www\./, '')} | ${appName}`;
       } catch {
-        return 'Web Page | Ditto';
+        return `Web Page | ${appName}`;
       }
     case 'isbn': {
       const isbn = content.value.replace('isbn:', '');
-      return `Book (ISBN ${isbn}) | Ditto`;
+      return `Book (ISBN ${isbn}) | ${appName}`;
     }
     case 'iso3166': {
       const info = getCountryInfo(content.code);
-      return info ? `${info.name} | Ditto` : 'Country | Ditto';
+      return info ? `${info.name} | ${appName}` : `Country | ${appName}`;
     }
     default:
-      return 'External Content | Ditto';
+      return `External Content | ${appName}`;
   }
 }
 
