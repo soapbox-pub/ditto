@@ -464,7 +464,7 @@ function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
 
           {/* Settings steps */}
           {step === 'welcome' && (
-            <WelcomeStep onNext={next} isSignup={isSignup} />
+            <WelcomeStep onNext={next} />
           )}
 
           {step === 'theme' && (
@@ -907,19 +907,17 @@ function ProfileStep({ onNext }: { onNext: () => void }) {
 // Settings steps
 // ---------------------------------------------------------------------------
 
-function WelcomeStep({ onNext, isSignup = false }: { onNext: () => void; isSignup?: boolean }) {
+function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="flex flex-col items-center text-center gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <DittoLogo size={80} />
 
       <div className="space-y-3">
         <h1 className="text-2xl font-bold tracking-tight">
-          {isSignup ? 'Now, let\'s personalize' : 'Welcome to Ditto'}
+          Welcome to Ditto
         </h1>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs mx-auto">
-          {isSignup
-            ? 'A few quick preferences to make Ditto feel like yours. You can always change these later in Settings.'
-            : 'Let\'s personalize your experience. This only takes a moment and you can always change these later in Settings.'}
+          Let's get you set up. It only takes a moment, and you can change anything later in Settings.
         </p>
       </div>
 
@@ -928,7 +926,7 @@ function WelcomeStep({ onNext, isSignup = false }: { onNext: () => void; isSignu
         className="w-full max-w-xs gap-2 rounded-full h-12"
         onClick={onNext}
       >
-        {isSignup ? 'Continue' : 'Get started'}
+        Get started
         <ChevronRight className="w-4 h-4" />
       </Button>
     </div>
