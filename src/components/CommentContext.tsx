@@ -7,6 +7,8 @@ import { EmbeddedNote } from '@/components/EmbeddedNote';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
+import { useAuthor } from '@/hooks/useAuthor';
+import { genUserName } from '@/lib/genUserName';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 
 /** Parsed root reference from a kind 1111 comment's uppercase tags. */
@@ -131,6 +133,46 @@ export function CommentContext({ event, className }: CommentContextProps) {
 
 /** Comment context for addressable event roots (A tag). */
 function AddrCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
+  // Kind 0 (profile) roots get special treatment — show "@DisplayName" with a profile link
+  if (root.addr?.kind === 0) {
+    return <ProfileCommentContext pubkey={root.addr.pubkey} className={className} />;
+  }
+
+  return <GenericAddrCommentContext root={root} className={className} />;
+}
+
+/** Comment context for kind 0 (profile) roots — shows "Commenting on @Name". */
+function ProfileCommentContext({ pubkey, className }: { pubkey: string; className?: string }) {
+  const author = useAuthor(pubkey);
+  const metadata = author.data?.metadata;
+  const displayName = metadata?.name ?? genUserName(pubkey);
+  const npubEncoded = useMemo(() => nip19.npubEncode(pubkey), [pubkey]);
+
+  if (author.isLoading) {
+    return (
+      <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1'}>
+        <span className="shrink-0">Commenting on</span>
+        <Skeleton className="h-3.5 w-24 inline-block" />
+      </div>
+    );
+  }
+
+  return (
+    <div className={className || 'flex items-center gap-x-1 text-sm text-muted-foreground mt-2 mb-1 min-w-0 overflow-hidden'}>
+      <span className="shrink-0">Commenting on</span>
+      <Link
+        to={`/${npubEncoded}`}
+        className="text-primary hover:underline truncate"
+        onClick={(e) => e.stopPropagation()}
+      >
+        @{displayName}
+      </Link>
+    </div>
+  );
+}
+
+/** Comment context for non-profile addressable event roots (A tag). */
+function GenericAddrCommentContext({ root, className }: { root: CommentRoot; className?: string }) {
   const { data: event, isLoading } = useAddrEvent(root.addr);
 
   if (isLoading) {
