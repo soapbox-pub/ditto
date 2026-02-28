@@ -84,8 +84,8 @@ interface ComposeBoxProps {
   onSuccess?: () => void;
   placeholder?: string;
   compact?: boolean;
-  /** Event being replied to – adds NIP-10 reply tags when set. */
-  replyTo?: NostrEvent;
+  /** Event being replied to – adds NIP-10 reply tags when set. A URL triggers NIP-22 comment mode. */
+  replyTo?: NostrEvent | URL;
   /** Event being quoted – shows embedded preview and adds quote tags. */
   quotedEvent?: NostrEvent;
   /** If true, the compose area is always expanded (e.g. inside a modal). */
@@ -489,10 +489,10 @@ export function ComposeBox({
         tags.push(['p', pk]);
       }
 
-      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets
-      const isNip22Reply = replyTo && replyTo.kind !== 1;
+      // Reply tags: NIP-10 for kind 1 targets, NIP-22 for non-kind-1 targets and URLs
+      const isNip22Reply = replyTo && (replyTo instanceof URL || replyTo.kind !== 1);
 
-      if (replyTo && !isNip22Reply) {
+      if (replyTo && !isNip22Reply && !(replyTo instanceof URL)) {
         // NIP-10 reply tags (kind 1 targets only)
         const rootTag = replyTo.tags.find(([name, , , marker]) => name === 'e' && marker === 'root');
         if (rootTag) {
@@ -602,12 +602,15 @@ export function ComposeBox({
 
 
       if (isNip22Reply) {
-        // NIP-22: use usePostComment for non-kind-1 targets
+        // NIP-22: use usePostComment for non-kind-1 targets and URL roots
         // Determine root and reply params for the comment hook
         let root: NostrEvent | URL | `#${string}`;
         let reply: NostrEvent | undefined;
 
-        if (replyTo.kind === 1111) {
+        if (replyTo instanceof URL) {
+          // External content root — the URL is the root directly
+          root = replyTo;
+        } else if (replyTo.kind === 1111) {
           // Replying to a comment: replyTo is the parent, root is derived from its uppercase tags
           reply = replyTo;
 
@@ -684,10 +687,14 @@ export function ComposeBox({
       setWebxdcMetas(new Map());
       queryClient.invalidateQueries({ queryKey: ['feed'] });
       if (replyTo) {
-        queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
-        // Also invalidate NIP-22 comments cache for non-kind-1 events
-        if (replyTo.kind !== 1) {
+        if (replyTo instanceof URL) {
           queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+        } else {
+          queryClient.invalidateQueries({ queryKey: ['replies', replyTo.id] });
+          // Also invalidate NIP-22 comments cache for non-kind-1 events
+          if (replyTo.kind !== 1) {
+            queryClient.invalidateQueries({ queryKey: ['nostr', 'comments'] });
+          }
         }
       }
       if (quotedEvent) {
