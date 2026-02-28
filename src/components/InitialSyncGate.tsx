@@ -247,7 +247,7 @@ type SignupStep = 'keygen' | 'download' | 'profile';
 type SettingsStep = 'welcome' | 'theme' | 'content' | 'safety' | 'follows' | 'outro';
 type Step = SignupStep | SettingsStep;
 
-const SIGNUP_STEPS: Step[] = ['theme', 'keygen', 'download', 'profile', 'content', 'safety', 'follows', 'outro'];
+const SIGNUP_STEPS: Step[] = ['welcome', 'theme', 'keygen', 'download', 'profile', 'content', 'safety', 'follows', 'outro'];
 const SETTINGS_STEPS: Step[] = ['welcome', 'theme', 'content', 'safety', 'follows', 'outro'];
 
 function SetupQuestionnaire({ onComplete, onPreload, isSignup = false }: {
