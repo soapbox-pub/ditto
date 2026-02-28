@@ -55,14 +55,14 @@ export function MobileDrawer({ open, onOpenChange }: MobileDrawerProps) {
     return items.filter((item) => !getBuiltinItem(item.id)?.requiresAuth);
   }, [hiddenItems, user]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleClose = () => onOpenChange(false);
+  const handleClose = () => { onOpenChange(false); setMoreMenuOpen(false); };
   const handleLogout = async () => { await logout(); handleClose(); navigate('/'); };
   const getDisplayName = (account: Account) => account.metadata.name ?? genUserName(account.pubkey);
   const displayName = metadata?.name || (user ? genUserName(user.pubkey) : 'Anonymous');
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+        <Sheet open={open} onOpenChange={(v) => { if (!v) setMoreMenuOpen(false); onOpenChange(v); }}>
         <SheetContent side="left" className="w-[300px] p-0 gap-0 border-r-border flex flex-col">
           <SheetTitle className="sr-only">Navigation menu</SheetTitle>
 
