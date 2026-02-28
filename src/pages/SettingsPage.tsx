@@ -87,7 +87,7 @@ export function SettingsPage() {
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     };
   }, [config.magicMouse]);
-  useLayoutOptions({ noBottomSpacer: true });
+  useLayoutOptions({});
 
   useSeoMeta({
     title: 'Settings | Ditto',
@@ -115,7 +115,7 @@ export function SettingsPage() {
 
   return (
     <main
-      className="relative min-h-screen isolate pb-16 sidebar:pb-0"
+      className="relative min-h-screen isolate sidebar:pb-0"
       style={{ background: 'radial-gradient(ellipse 100% 300px at 50% 0%, hsl(var(--primary) / 0.06), transparent), radial-gradient(ellipse 100% 300px at 50% 100%, hsl(var(--primary) / 0.06), transparent)' }}
     >
       {/* Page header */}
