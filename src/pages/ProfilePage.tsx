@@ -495,12 +495,12 @@ function PinnedLabel({ isOwn, onUnpin }: { isOwn: boolean; onUnpin: () => void }
   if (isOwn) {
     return (
       <button
-        className="group flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0 hover:text-destructive transition-colors"
+        className="flex items-center gap-1.5 text-xs text-muted-foreground px-4 pt-3 pb-0 group-hover/pin:text-destructive transition-colors"
         onClick={(e) => { e.stopPropagation(); onUnpin(); }}
       >
         <Pin className="size-3 rotate-45" />
-        <span className="group-hover:hidden">Pinned</span>
-        <span className="hidden group-hover:inline">Unpin?</span>
+        <span className="group-hover/pin:hidden">Pinned</span>
+        <span className="hidden group-hover/pin:inline">Unpin?</span>
       </button>
     );
   }
@@ -1421,12 +1421,12 @@ export function ProfilePage() {
               ))
             ) : (
               pinnedEvents.map((event) => (
-                <div key={`pinned-${event.id}`} className="relative">
+                <div key={`pinned-${event.id}`} className="relative group/pin">
                   <PinnedLabel
                     isOwn={isOwnProfile}
                     onUnpin={() => togglePin.mutate(event.id)}
                   />
-                  <NoteCard event={event} />
+                  <NoteCard event={event} className="group-hover/pin:bg-secondary/30" />
                 </div>
               ))
             )}
