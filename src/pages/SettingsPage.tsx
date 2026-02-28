@@ -82,19 +82,8 @@ export function SettingsPage() {
 
   useEffect(() => {
     if (config.magicMouse) return;
-
-    function resetTimer() {
-      setSigilVisible(false);
-      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
-      inactivityTimer.current = setTimeout(() => setSigilVisible(true), 2 * 60 * 1000);
-    }
-
-    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
-    events.forEach((e) => window.addEventListener(e, resetTimer, { passive: true }));
-    resetTimer();
-
+    inactivityTimer.current = setTimeout(() => setSigilVisible(true), 2 * 60 * 1000);
     return () => {
-      events.forEach((e) => window.removeEventListener(e, resetTimer));
       if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
     };
   }, [config.magicMouse]);
