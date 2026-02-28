@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAddrEvent, useEvent } from '@/hooks/useEvent';
 import { useAuthor } from '@/hooks/useAuthor';
 import { genUserName } from '@/lib/genUserName';
+import { getCountryInfo } from '@/lib/countries';
 import { EXTRA_KINDS } from '@/lib/extraKinds';
 
 /** Parsed root reference from a kind 1111 comment's uppercase tags. */
@@ -273,11 +274,24 @@ function ExternalCommentContext({ root, className }: { root: CommentRoot; classN
     } catch {
       displayText = identifier;
     }
+  } else if (identifier.startsWith('iso3166:')) {
+    const code = identifier.slice('iso3166:'.length);
+    const info = getCountryInfo(code);
+    if (info) {
+      // For subdivisions (e.g. US-TX), show "🇺🇸 United States (TX)"
+      const subdivisionSuffix = info.subdivision
+        ? ` (${info.subdivision.split('-')[1] ?? info.subdivision})`
+        : '';
+      displayText = `${info.flag} ${info.name}${subdivisionSuffix}`;
+    } else {
+      displayText = identifier;
+    }
+    link = `/i/${encodeURIComponent(identifier)}`;
   } else if (identifier.startsWith('#')) {
     displayText = identifier;
     link = `/i/${encodeURIComponent(identifier)}`;
   } else {
-    // isbn:, iso3166:, podcast:guid:, etc.
+    // isbn:, podcast:guid:, etc.
     displayText = identifier;
     link = `/i/${encodeURIComponent(identifier)}`;
   }
