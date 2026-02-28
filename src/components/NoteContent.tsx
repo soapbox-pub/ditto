@@ -157,17 +157,50 @@ type ContentToken =
   | { type: 'nostr-link'; id: string; raw: string }
   | { type: 'hashtag'; tag: string; raw: string };
 
-/** Check if a string contains only emojis (and whitespace). */
-function isOnlyEmojis(text: string): boolean {
-  // Remove whitespace
-  const trimmed = text.replace(/\s/g, '');
-  if (trimmed.length === 0) return false;
-  
-  // Emoji regex - matches emoji characters including skin tone modifiers and ZWJ sequences
-  // This is a simplified version - for production you might want a more comprehensive regex
-  const emojiRegex = /^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F)+$/u;
-  
-  return emojiRegex.test(trimmed) && trimmed.length <= 12; // Max 12 emoji chars for enlarged display
+/**
+ * Regex segment matching a single visual emoji unit, including:
+ * - ZWJ sequences (e.g. 👨‍👩‍👧‍👦, 👩‍💻)
+ * - Skin tone / hair style modifiers (e.g. 👋🏽)
+ * - Flag sequences (Regional Indicator pairs, e.g. 🇺🇸)
+ * - Keycap sequences (e.g. 1️⃣)
+ * - Tag sequences (e.g. 🏴󠁧󠁢󠁷󠁬󠁳󠁿)
+ * - Basic presentation emojis (with or without VS16)
+ */
+const EMOJI_UNIT = [
+  // ZWJ sequences: emoji (+ optional modifier) joined by ZWJ, repeated
+  '(?:' +
+    '(?:\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)' +     // base emoji
+    '[\\u{1F3FB}-\\u{1F3FF}]?' +                           // optional skin tone
+    '(?:\\u200D(?:\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)[\\u{1F3FB}-\\u{1F3FF}]?)+' + // ZWJ + next
+  ')',
+  // Flag sequences (two Regional Indicator symbols)
+  '(?:[\\u{1F1E6}-\\u{1F1FF}]{2})',
+  // Keycap sequences: digit/# /* + VS16 + combining enclosing keycap
+  '(?:[0-9#*]\\uFE0F\\u20E3)',
+  // Tag sequences (subdivision flags): 🏴 + tag chars + cancel tag
+  '(?:\\u{1F3F4}[\\u{E0020}-\\u{E007E}]+\\u{E007F})',
+  // Single emoji with optional skin tone modifier
+  '(?:(?:\\p{Emoji_Presentation}|\\p{Emoji}\\uFE0F)[\\u{1F3FB}-\\u{1F3FF}]?)',
+].join('|');
+
+/** NIP-30 custom emoji shortcode pattern. */
+const CUSTOM_EMOJI_SHORTCODE = ':([a-zA-Z0-9_]+):';
+
+/** Regex matching a string of only NIP-30 custom emoji shortcodes and/or unicode emojis (with optional whitespace). Max 10 visual emojis. */
+const EMOJI_OR_CUSTOM_ONLY_REGEX = new RegExp(
+  `^\\s*(?:(?:${CUSTOM_EMOJI_SHORTCODE}|${EMOJI_UNIT})\\s*){1,10}$`,
+  'u',
+);
+
+/** Check if a string contains only unicode emojis and/or NIP-30 custom emoji shortcodes (and whitespace). */
+function isOnlyEmojisOrCustom(text: string, emojiMap: Map<string, string>): boolean {
+  if (!EMOJI_OR_CUSTOM_ONLY_REGEX.test(text)) return false;
+  // Verify all shortcodes in the text actually resolve to a custom emoji
+  const shortcodeMatches = text.matchAll(/:([a-zA-Z0-9_]+):/g);
+  for (const m of shortcodeMatches) {
+    if (!emojiMap.has(m[1])) return false;
+  }
+  return true;
 }
 
 /** Returns true if the event content consists of a single image embed and nothing else. */
@@ -385,8 +418,8 @@ export function NoteContent({
   const goNext = useCallback(() => setLightboxIndex((p) => (p !== null ? (p + 1) % allImages.length : null)), [allImages.length]);
   const goPrev = useCallback(() => setLightboxIndex((p) => (p !== null ? (p - 1 + allImages.length) % allImages.length : null)), [allImages.length]);
 
-  // Check if content is only emojis (single text token with only emojis)
-  const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojis(tokens[0].value);
+  // Check if content is only emojis — unicode and/or NIP-30 custom emojis (single text token)
+  const isEmojiOnly = tokens.length === 1 && tokens[0].type === 'text' && isOnlyEmojisOrCustom(tokens[0].value, emojiMap);
 
   // Build a map from token index → image list index so duplicate URLs get correct positions
   const tokenImageIndex = useMemo(() => {
@@ -399,11 +432,11 @@ export function NoteContent({
   }, [tokens]);
 
   return (
-    <div className={cn('whitespace-pre-wrap break-words overflow-hidden', isEmojiOnly && 'text-5xl leading-tight', className)}>
+    <div className={cn('whitespace-pre-wrap break-words overflow-hidden', className, isEmojiOnly && 'text-5xl leading-tight')}>
       {tokens.map((token, i) => {
         switch (token.type) {
           case 'text':
-            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap))}</span>;
+            return <span key={i}>{linkifyFlags(emojify(token.value, emojiMap, isEmojiOnly ? 'inline h-12 w-12 align-text-bottom' : undefined))}</span>;
           case 'image-embed': {
             if (disableEmbeds) {
               // In preview contexts (e.g. triple-dot menu), replace image URLs
