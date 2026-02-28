@@ -42,6 +42,25 @@ export interface EncryptedSettings {
   notificationsCursor?: number;
   /** Last sync timestamp */
   lastSync?: number;
+  /** Ordered list of sidebar item IDs (built-in + extra-kind) */
+  sidebarOrder?: string[];
+  /** Whether the Global feed tab is shown */
+  showGlobalFeed?: boolean;
+  /** Whether the Community feed tab is shown */
+  showCommunityFeed?: boolean;
+  /** Community data: domain, label, user count, and NIP-05 JSON */
+  communityData?: {
+    domain: string;
+    label: string;
+    userCount: number;
+    nip05: Record<string, unknown>;
+  };
+  /** Custom CORS proxy URI template (only synced when non-empty) */
+  corsProxy?: string;
+  /** Custom favicon URI template (only synced when non-empty) */
+  faviconUrl?: string;
+  /** Custom link preview URI template (only synced when non-empty) */
+  linkPreviewUrl?: string;
 }
 
 /**
