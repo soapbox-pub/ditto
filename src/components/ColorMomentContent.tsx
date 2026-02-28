@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { SwatchBook } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { EyeClosed } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import { hexToHslString, hexToRgb, rgbToHsl, hslToRgb, getLuminance, getContrastRatio, parseHsl, formatHsl } from '@/lib/colorUtils';
@@ -268,9 +268,18 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
   const name = getTag(event.tags, 'name');
   const emoji = event.content.trim() || undefined;
   const { applyCustomTheme } = useTheme();
+  const [isBlinking, setIsBlinking] = useState(false);
+
+  useEffect(() => {
+    if (isBlinking) {
+      const timer = setTimeout(() => setIsBlinking(false), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isBlinking]);
 
   const handleSetTheme = (e: React.MouseEvent) => {
     e.stopPropagation();
+    setIsBlinking(true);
     applyCustomTheme(paletteToTheme(colors));
   };
 
@@ -335,7 +344,31 @@ export function ColorMomentContent({ event }: { event: NostrEvent }) {
           className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/60 transition-colors ml-auto"
           title="Set as theme"
         >
-          <SwatchBook className="size-3" />
+          {/* Blinking eye icon */}
+          <div className="relative size-3.5 rounded-full overflow-hidden shrink-0">
+            {/* Eye SVG */}
+            <svg viewBox="0 0 100 100" className="w-full h-full">
+              <circle cx="50" cy="50" r="50" fill={colors[0] ?? 'hsl(var(--muted))'} />
+              <circle cx="50" cy="50" r="34" fill="white" opacity="0.9" />
+              <circle cx="50" cy="50" r="20" fill={colors[colors.length - 1] ?? 'hsl(var(--primary))'} />
+              <circle cx="50" cy="50" r="10" fill="#1c1917" />
+              <circle cx="43" cy="43" r="4" fill="white" opacity="0.8" />
+            </svg>
+            {/* Eyelid blink overlay */}
+            {isBlinking && (
+              <div className="absolute inset-0 animate-eyelid-blink">
+                <div
+                  className="absolute rounded-full w-full h-full bottom-0 left-0"
+                  style={{ backgroundColor: colors[Math.floor(colors.length / 2)] ?? 'hsl(var(--primary))' }}
+                />
+                <EyeClosed
+                  className="absolute w-full h-auto text-black/30"
+                  style={{ top: '100%', transform: 'translateY(-60%)' }}
+                  strokeWidth={1.5}
+                />
+              </div>
+            )}
+          </div>
           Set as theme
         </button>
       </div>
