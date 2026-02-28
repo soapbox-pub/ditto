@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CommentsSection } from '@/components/comments/CommentsSection';
 import { ExternalFavicon } from '@/components/ExternalFavicon';
+import { YouTubeEmbed } from '@/components/YouTubeEmbed';
 import { useLinkPreview } from '@/hooks/useLinkPreview';
 import { useBookInfo } from '@/hooks/useBookInfo';
 import { getCountryInfo } from '@/lib/countries';
@@ -39,6 +40,28 @@ function parseExternalUri(uri: string): ExternalContent {
   return { type: 'unknown', value: uri };
 }
 
+/** Extract a YouTube video ID from a URL, or null if not a YouTube link. */
+function extractYouTubeId(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com' || u.hostname === 'm.youtube.com') && u.pathname === '/watch') {
+      return u.searchParams.get('v');
+    }
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/embed/')) {
+      return u.pathname.split('/')[2] || null;
+    }
+    if ((u.hostname === 'www.youtube.com' || u.hostname === 'youtube.com') && u.pathname.startsWith('/shorts/')) {
+      return u.pathname.split('/')[2] || null;
+    }
+    if (u.hostname === 'youtu.be') {
+      return u.pathname.slice(1) || null;
+    }
+  } catch {
+    // not a valid URL
+  }
+  return null;
+}
+
 /** Format an ISBN with hyphens for display (simplified). */
 function formatIsbn(isbn: string): string {
   const digits = isbn.replace(/\D/g, '');
@@ -56,6 +79,7 @@ function formatIsbn(isbn: string): string {
 // ---------------------------------------------------------------------------
 
 function UrlContentHeader({ url }: { url: string }) {
+  const youtubeId = useMemo(() => extractYouTubeId(url), [url]);
   const { data, isLoading } = useLinkPreview(url);
 
   const domain = useMemo(() => {
@@ -66,7 +90,7 @@ function UrlContentHeader({ url }: { url: string }) {
     }
   }, [url]);
 
-  if (isLoading) {
+  if (isLoading && !youtubeId) {
     return (
       <div className="rounded-2xl border border-border overflow-hidden">
         <Skeleton className="w-full h-[220px] rounded-none" />
@@ -79,10 +103,46 @@ function UrlContentHeader({ url }: { url: string }) {
     );
   }
 
-  const image = data?.thumbnail_url;
   const title = data?.title;
   const author = data?.author_name;
   const providerName = data?.provider_name || domain;
+
+  // YouTube URLs get the interactive embed player
+  if (youtubeId) {
+    return (
+      <div className="space-y-0 rounded-2xl border border-border overflow-hidden">
+        <YouTubeEmbed videoId={youtubeId} className="border-0 rounded-none" />
+
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="group block p-5 space-y-2 hover:bg-secondary/40 transition-colors"
+        >
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <ExternalFavicon url={url} size={14} className="shrink-0" />
+            <span className="truncate">{providerName}</span>
+            <ExternalLink className="size-3 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+
+          {title && (
+            <h2 className="text-xl font-bold leading-snug line-clamp-3">
+              {title}
+            </h2>
+          )}
+
+          {author && (
+            <p className="text-sm text-muted-foreground">
+              by {author}
+            </p>
+          )}
+        </a>
+      </div>
+    );
+  }
+
+  // Generic URL link preview
+  const image = data?.thumbnail_url;
 
   return (
     <a
@@ -318,6 +378,7 @@ function CountryContentHeader({ code }: { code: string }) {
 function headerLabel(content: ExternalContent): string {
   switch (content.type) {
     case 'url':
+      if (extractYouTubeId(content.value)) return 'YouTube';
       try {
         return new URL(content.value).hostname.replace(/^www\./, '');
       } catch {
